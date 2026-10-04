@@ -98,8 +98,17 @@ def validate(path: Path) -> Optional[str]:
     return None
 
 
-def _encode(master: Path, width: int, suffix: str) -> Path:
-    out = master.with_name(f"{master.stem}-{width}.{suffix}")
+def _encode(
+    master: Path, width: int, suffix: str, out_dir: Optional[Path] = None
+) -> Path:
+    """Write one derivative beside the master, or into ``out_dir``.
+
+    ``out_dir`` lets a master that lives outside the repository (the catalog
+    photographs stay with their generation provenance) publish its variants
+    without copying a multi-megabyte PNG into ``public/products``.
+    """
+    target_dir = out_dir or master.parent
+    out = target_dir / f"{master.stem}-{width}.{suffix}"
     src_w, src_h = _dimensions(master)
     height = round(width * src_h / src_w)
     if suffix == "webp":
@@ -114,7 +123,7 @@ def _encode(master: Path, width: int, suffix: str) -> Path:
         # height with its own rounding, which produced 480x599 against cwebp's
         # 480x600 for the same master. Two formats in one srcset disagreeing by a
         # pixel is a layout shift waiting for whichever the browser picks.
-        scaled = master.with_name(f".{master.stem}-{width}-scaled.png")
+        scaled = target_dir / f".{master.stem}-{width}-scaled.png"
         shutil.copy2(master, scaled)
         subprocess.run(
             ["sips", "--resampleHeightWidth", str(height), str(width), str(scaled)],

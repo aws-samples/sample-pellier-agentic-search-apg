@@ -347,7 +347,7 @@ export default function ProductDetailPage() {
                 <ResponsiveImage
                   src={view.imageUrl}
                   alt={view.name}
-                  widths={[480, 960]}
+                  widths={[480, 960, 1122]}
                   sizes="(min-width: 1200px) 520px, (min-width: 1024px) 44vw, 100vw"
                   loading="eager"
                   decoding="async"

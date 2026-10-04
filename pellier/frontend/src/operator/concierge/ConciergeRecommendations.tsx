@@ -55,7 +55,7 @@ const Card: React.FC<{ item: ConciergeRecommendation }> = ({ item }) => {
             alt={item.name}
             loading="lazy"
             decoding="async"
-            /* The catalog ships 4:5 masters at 1122x1402 with 480/960 derivatives. */
+            /* Catalog photographs are 4:5 (1200x1500 or 1122x1402 masters). */
             width={104}
             height={130}
             sizes="104px"

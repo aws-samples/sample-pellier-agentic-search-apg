@@ -128,6 +128,19 @@ RENAMED = {
     52: ('Silk Slip Dress', 'Silk Slip Dress'),
     59: ('Wool Rug', 'Wool Rug'),
 }
+# Every photograph is `<moment>-<slug(name)>.png` except these six, whose masters were
+# named differently when generated. Kept beside the import script's own table on purpose.
+NAMED_MASTERS = {
+    4: 'fresh-santal-and-fig-candle',
+    22: 'anna-linen-napkins',
+    70: 'fresh-linen-apron',
+    82: 'house-linen-cushion-covers',
+    94: 'marco-packing-cubes',
+    97: 'marco-travel-bottles',
+}
+PRODUCTS_DIR = REPO / 'pellier' / 'frontend' / 'public' / 'products'
+# The widths catalog cards and the product page put in a srcset, in both formats.
+SERVED_WIDTHS = (480, 960, 1122)
 # id: every material the product contains, components and blends included. Exclusions
 # check this list, so it must be complete for the materials the store vocabulary knows.
 EXPECTED_MATERIALS = {
@@ -326,13 +339,24 @@ def test_copy_uses_the_store_voice():
         assert 12 <= len(p.description.split()) <= 45, p.productId
 
 
-def test_images_keep_their_filenames_or_use_the_placeholder():
+def test_every_image_is_the_product_photograph_named_by_the_rule():
     catalog = _catalog()
     for pid, p in catalog.items():
-        if pid <= 60:
-            assert p.imgPath != "placeholder-product.png", pid
-        else:
-            assert p.imgPath == "placeholder-product.png", pid
+        slug = re.sub(r"[^a-z0-9]+", "-", p.name.lower()).strip("-")
+        expected = NAMED_MASTERS.get(pid, f"{p.persona}-{slug}")
+        assert p.imgPath == f"{expected}.png", (pid, p.imgPath)
+
+
+def test_every_image_is_served_at_every_width_and_none_is_a_placeholder():
+    """A card asks for `-480`, `-960` and `-1122` in AVIF and WebP; each must exist."""
+    catalog = _catalog()
+    for pid, p in catalog.items():
+        assert "placeholder" not in p.imgPath, (pid, p.imgPath)
+        stem = p.imgPath.rsplit(".", 1)[0]
+        for width in SERVED_WIDTHS:
+            for fmt in ("avif", "webp"):
+                variant = PRODUCTS_DIR / f"{stem}-{width}.{fmt}"
+                assert variant.is_file(), (pid, variant.name)
 
 
 def test_renamed_products_list_matches_the_table():

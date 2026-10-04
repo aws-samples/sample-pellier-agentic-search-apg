@@ -61,7 +61,7 @@ export function imageSrc(src: string | undefined | null): string | undefined {
     // Some Aurora fields intentionally name a generated derivative (for
     // example, the compact persona portraits). They are already a concrete
     // asset, so adding a second width suffix would manufacture a 404.
-    if (/(?:-(?:160|480|960|1600))\.(?:avif|webp|png)$/i.test(src)) {
+    if (/(?:-(?:160|480|960|1122|1600))\.(?:avif|webp|png)$/i.test(src)) {
       return asset(src)
     }
     // Aurora rows created before migration 029 still carry the old PNG
@@ -86,7 +86,7 @@ export type ResponsiveImageFormat = 'avif' | 'webp'
  */
 function responsiveImageStem(src: string): string {
   const withoutConcreteDerivative = src.replace(
-    /-(?:160|480|960|1600)\.(?:avif|webp)$/i,
+    /-(?:160|480|960|1122|1600)\.(?:avif|webp)$/i,
     '',
   )
   return withoutConcreteDerivative.replace(/\.(?:png|jpe?g|webp|avif)$/i, '')

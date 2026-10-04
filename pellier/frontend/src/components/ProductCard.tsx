@@ -130,7 +130,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
         <ResponsiveImage
           src={product.imageUrl}
           alt={product.name}
-          widths={[480, 960]}
+          widths={[480, 960, 1122]}
           sizes="(min-width: 1180px) 33vw, (min-width: 700px) 50vw, 100vw"
           loading="lazy"
           decoding="async"

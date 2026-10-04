@@ -182,7 +182,7 @@ def client_portrait_names() -> List[str]:
 
 
 _CONCRETE_DERIVATIVE_RE = re.compile(
-    r"-(?:160|480|960|1600)\.(?:avif|webp)$", re.I
+    r"-(?:160|480|960|1122|1600)\.(?:avif|webp)$", re.I
 )
 
 

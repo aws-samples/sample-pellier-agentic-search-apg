@@ -154,7 +154,6 @@ def test_literal_source_masters_remain_required_with_their_derivatives(
         "hero-marco.png",
         "hero-anna.png",
         "hero-theo.png",
-        "fresh-nocturne-leather-weekender.png",
     ):
         assert audit_module.PRODUCTS_PREFIX + name in required
 

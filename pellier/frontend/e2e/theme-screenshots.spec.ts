@@ -29,10 +29,10 @@ const WAREHOUSES = [
 // The storefront's own product shape (`PellierProduct`), with the stock the
 // listing now carries: all in stock, Austin and Portland only, sold out.
 const PRODUCTS = [
-  { id: 31, name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, category: 'Kitchen and table', imageUrl: '/products/theo-stoneware-pour-over.webp', rating: 4.9, reviewCount: 134, tags: ['ceramic', 'slow', 'home'], quantity: 32, warehouses: WAREHOUSES },
+  { id: 31, name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, category: 'Kitchen and table', imageUrl: '/products/theo-stoneware-pour-over-set.webp', rating: 4.9, reviewCount: 134, tags: ['ceramic', 'slow', 'home'], quantity: 32, warehouses: WAREHOUSES },
   { id: 36, name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, category: 'Kitchen and table', imageUrl: '/products/theo-ceramic-tumblers.webp', rating: 4.7, reviewCount: 245, tags: ['ceramic', 'slow', 'home'], quantity: 20, warehouses: [{ ...WAREHOUSES[0], quantity: 0 }, WAREHOUSES[1], WAREHOUSES[2]] },
-  { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-monogrammed-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'], quantity: 24, warehouses: WAREHOUSES },
-  { id: 12, name: 'Hadley Linen Shirt', brand: 'Hadley', color: 'Natural', price: 78, category: 'Clothing', imageUrl: '/products/theo-stoneware-pour-over.webp', rating: 4.8, reviewCount: 91, tags: ['linen', 'travel'], quantity: 0, warehouses: WAREHOUSES.map((w) => ({ ...w, quantity: 0 })) },
+  { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-linen-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'], quantity: 24, warehouses: WAREHOUSES },
+  { id: 12, name: 'Hadley Linen Shirt', brand: 'Hadley', color: 'Natural', price: 78, category: 'Clothing', imageUrl: '/products/fresh-hadley-linen-shirt.webp', rating: 4.8, reviewCount: 91, tags: ['linen', 'travel'], quantity: 0, warehouses: WAREHOUSES.map((w) => ({ ...w, quantity: 0 })) },
 ]
 const DETAIL = {
   ...PRODUCTS[0],

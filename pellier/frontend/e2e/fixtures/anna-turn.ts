@@ -69,9 +69,9 @@ function availability(productId: string) {
 // The three cards the answer names, in the shape `chat.py` emits: catalog
 // fields from `_format_products`, availability from `_attach_inventory_evidence`.
 const PRODUCTS = [
-  { id: '31', name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, rating: 4.9, reviews: 134, category: 'Kitchen and table', image: '/products/theo-stoneware-pour-over.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('31') },
+  { id: '31', name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, rating: 4.9, reviews: 134, category: 'Kitchen and table', image: '/products/theo-stoneware-pour-over-set.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('31') },
   { id: '36', name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, rating: 4.7, reviews: 245, category: 'Kitchen and table', image: '/products/theo-ceramic-tumblers.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('36') },
-  { id: '22', name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, rating: 4.7, reviews: 178, category: 'Kitchen and table', image: '/products/anna-monogrammed-napkins.webp', badge: null, tags: ['linen', 'gift', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('22') },
+  { id: '22', name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, rating: 4.7, reviews: 178, category: 'Kitchen and table', image: '/products/anna-linen-napkins.webp', badge: null, tags: ['linen', 'gift', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('22') },
 ]
 
 const ANSWER =

@@ -5004,8 +5004,8 @@
 }
 
 .operator-concierge-product-figure {
-  /* 4:5, matching the catalog masters (1122x1402). Fixed so a slow image cannot
-     reflow the card once it lands. */
+  /* 4:5, matching the catalog masters (1200x1500 or 1122x1402). Fixed so a slow
+     image cannot reflow the card once it lands. */
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--pellier-image-radius-sm);

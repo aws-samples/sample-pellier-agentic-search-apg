@@ -23,9 +23,9 @@ const PNG_1x1 = Buffer.from(
 // The storefront's own product shape (`PellierProduct`), for the hero and
 // grid: the same three catalog rows the turn names, with their own photos.
 const PRODUCTS = [
-  { id: 31, name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, category: 'Kitchen and table', imageUrl: '/products/theo-stoneware-pour-over.webp', rating: 4.9, reviewCount: 134, tags: ['ceramic', 'slow', 'home'] },
+  { id: 31, name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, category: 'Kitchen and table', imageUrl: '/products/theo-stoneware-pour-over-set.webp', rating: 4.9, reviewCount: 134, tags: ['ceramic', 'slow', 'home'] },
   { id: 36, name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, category: 'Kitchen and table', imageUrl: '/products/theo-ceramic-tumblers.webp', rating: 4.7, reviewCount: 245, tags: ['ceramic', 'slow', 'home'] },
-  { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-monogrammed-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'] },
+  { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-linen-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'] },
 ]
 const CATALOG_STATS = {
   product_count: 100,

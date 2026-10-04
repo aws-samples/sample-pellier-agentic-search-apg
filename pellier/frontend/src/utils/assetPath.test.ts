@@ -87,12 +87,27 @@ describe('assetPath helpers', () => {
     const { responsiveImageSrcSet } = await import('./assetPath')
     expect(
       responsiveImageSrcSet(
-        '/products/marco-linen-camp-shirt-indigo.webp',
+        '/products/marco-italian-linen-camp-shirt.webp',
         [480, 960],
         'avif',
       ),
     ).toBe(
-      '/products/marco-linen-camp-shirt-indigo-480.avif 480w, /products/marco-linen-camp-shirt-indigo-960.avif 960w',
+      '/products/marco-italian-linen-camp-shirt-480.avif 480w, /products/marco-italian-linen-camp-shirt-960.avif 960w',
+    )
+  })
+
+  it('treats the 1122px catalog derivative as concrete, not as a stem', async () => {
+    vi.stubEnv('BASE_URL', '/')
+    const { imageSrc, responsiveImageSrcSet } = await import('./assetPath')
+    expect(imageSrc('/products/theo-glass-carafe-1122.webp')).toBe(
+      '/products/theo-glass-carafe-1122.webp',
+    )
+    expect(
+      responsiveImageSrcSet('/products/theo-glass-carafe-1122.webp', [480, 960, 1122], 'webp'),
+    ).toBe(
+      '/products/theo-glass-carafe-480.webp 480w, ' +
+        '/products/theo-glass-carafe-960.webp 960w, ' +
+        '/products/theo-glass-carafe-1122.webp 1122w',
     )
   })
 

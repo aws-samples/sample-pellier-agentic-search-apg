@@ -109,7 +109,7 @@ const SUBJECT = {
   rating: 4.8,
   reviewCount: 91,
   category: 'Clothing',
-  imageUrl: '/products/marco-linen-camp-shirt-indigo.webp',
+  imageUrl: '/products/marco-italian-linen-camp-shirt.webp',
   badge: 'EDITOR’S PICK',
   tags: ['linen', 'travel', 'summer'],
 }
@@ -499,7 +499,7 @@ describe('ProductDetailPage — arbitrary live catalog ids', () => {
         rating: 4.5,
         reviewCount: 12,
         category: 'Home',
-        imageUrl: '/products/fresh-olive-branch-vessel.png',
+        imageUrl: '/products/fresh-tall-stoneware-vase.png',
         badge: null,
         tags: ['ceramic', 'home'],
         description: 'Served entirely from the catalog row.',

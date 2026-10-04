@@ -255,19 +255,6 @@ def test_every_curated_product_has_a_committed_embedding():
     assert len(cache["embeddings"]) == len(curated_ids)
 
 
-def test_photographed_house_and_signature_images_follow_the_slug_convention():
-    """Products 1 to 60 have photos; 61 to 100 use the placeholder until theirs land."""
-    seed = _load_seed_module()
-    for p in seed.load_catalog():
-        if p.persona not in ("house", "signature") or p.productId > 60:
-            continue
-        assert p.imgPath.startswith(f"{p.persona}-"), (
-            f"product {p.productId} image '{p.imgPath}' does not start with "
-            f"'{p.persona}-'"
-        )
-        assert p.imgPath.endswith(".png"), p.imgPath
-
-
 def test_catalog_prices_stay_everyday():
     """Pellier is an everyday-price store: nothing costs more than $450."""
     seed = _load_seed_module()

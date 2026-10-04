@@ -863,7 +863,7 @@ describe('replacement recommendations', () => {
     expect(avif?.getAttribute('srcSet') ?? '').toContain('-480.avif')
     expect(avif?.getAttribute('srcSet') ?? '').toContain('-960.avif')
     const img = card.querySelector('img')
-    // 4:5, matching the catalog masters at 1122x1402.
+    // 4:5, matching the catalog masters (1200x1500 or 1122x1402).
     expect(Number(img?.getAttribute('width')) / Number(img?.getAttribute('height')))
       .toBeCloseTo(0.8, 3)
   })

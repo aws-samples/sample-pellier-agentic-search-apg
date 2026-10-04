@@ -262,7 +262,7 @@ export default function PellierPage() {
                     <ResponsiveImage
                       src={featuredProduct.imageUrl}
                       alt={featuredProduct.name}
-                      widths={[480, 960]}
+                      widths={[480, 960, 1122]}
                       sizes="(min-width: 1560px) 708px, (min-width: 1024px) 46vw, 100vw"
                       className="h-full w-full object-cover"
                       loading="lazy"
