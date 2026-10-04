@@ -128,9 +128,12 @@ test('choosing a shopper signs in, switching changes the principal, signing out 
   await expect(page.getByTestId('persona-pill')).toContainText('Anna')
   expect(await askAndReadPrincipal(page)).toBe('Workshop sign-in, CUST-ANNA')
 
-  // Signing out returns to the neutral store, with no principal.
+  // Signing out returns to the neutral store, with no principal. Sign-out
+  // reloads the page once the server cleared the session.
   await page.getByTestId('persona-pill').click()
+  const reloaded = page.waitForEvent('load')
   await page.getByTestId('persona-sign-out').click()
+  await reloaded
   await expect(page.getByTestId('persona-concierge')).toBeVisible()
   expect(await askAndReadPrincipal(page)).toBe('Not signed in')
 })
