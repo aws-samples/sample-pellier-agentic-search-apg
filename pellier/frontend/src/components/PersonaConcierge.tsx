@@ -2,7 +2,7 @@ import { apiFetch } from '../services/apiBase'
 /**
  * PersonaConcierge - the home page's shopper chooser.
  *
- * Shows the four customers: Marco, Anna, Theo and Jessica. Choosing one signs
+ * Shows the four customers in lab order: Anna, Marco, Theo and Jessica. Choosing one signs
  * in with that shopper's demo account and opens their edit
  * (`useShopperSignIn`). Browsing without choosing stays signed out, which is
  * the neutral new-visitor store. Staff never appear here: the list keeps only

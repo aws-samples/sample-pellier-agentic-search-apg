@@ -89,7 +89,7 @@ export const HERO_CONCIERGE = {
   EYEBROW: "Welcome to Pellier",
   TITLE: "Choose who enters Pellier.",
   HELPER:
-    "Choose Marco, Anna, Theo or Jessica to see their edit and ask Pellier as them.",
+    "Choose Anna, Marco, Theo or Jessica to see their edit and ask Pellier as them.",
   /**
    * Stated where the choice is made. The choice performs a real sign-in, and
    * every governed check reads the signed token it produced, never this click.

@@ -100,7 +100,7 @@ describe('choosing a shopper', () => {
 
   it('offers only the four shoppers, in chooser order', () => {
     const listed = ['fresh', 'nadia', 'jessica', 'theo', 'anna', 'marco'].map(id => ({ id }))
-    expect(chooserShoppers(listed).map(p => p.id)).toEqual(['marco', 'anna', 'theo', 'jessica'])
+    expect(chooserShoppers(listed).map(p => p.id)).toEqual(['anna', 'marco', 'theo', 'jessica'])
   })
 })
 

@@ -27,7 +27,7 @@ import {
 } from '../services/passwordAuth'
 
 /** The four customers, in the order the chooser shows them. */
-export const SHOPPER_ORDER: readonly WorkshopShopper[] = ['marco', 'anna', 'theo', 'jessica']
+export const SHOPPER_ORDER: readonly WorkshopShopper[] = ['anna', 'marco', 'theo', 'jessica']
 
 export function isWorkshopShopper(id: string): id is WorkshopShopper {
   return (WORKSHOP_SHOPPERS as readonly string[]).includes(id)

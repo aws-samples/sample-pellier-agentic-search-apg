@@ -153,7 +153,7 @@ describe('PellierHero', () => {
     expect(await screen.findByTestId('hero-profile-marco')).toBeInTheDocument()
     const choices = within(screen.getByTestId('persona-concierge')).getAllByRole('button')
     expect(choices.map((choice) => choice.dataset.testid)).toEqual([
-      'hero-profile-marco', 'hero-profile-anna', 'hero-profile-theo', 'hero-profile-jessica',
+      'hero-profile-anna', 'hero-profile-marco', 'hero-profile-theo', 'hero-profile-jessica',
     ])
     expect(screen.queryByTestId('hero-profile-nadia')).not.toBeInTheDocument()
     expect(screen.queryByTestId('hero-profile-fresh')).not.toBeInTheDocument()
@@ -198,7 +198,7 @@ describe('PellierHero', () => {
     expect(await screen.findByTestId('hero-profile-marco')).toBeEnabled()
     expect(screen.queryByText('Continue as guest')).not.toBeInTheDocument()
     expect(
-      screen.getByText('Choose Marco, Anna, Theo or Jessica to see their edit and ask Pellier as them.'),
+      screen.getByText('Choose Anna, Marco, Theo or Jessica to see their edit and ask Pellier as them.'),
     ).toBeInTheDocument()
     expect(screen.getByTestId('persona-identity-boundary')).toHaveTextContent(
       'Choosing a shopper signs you in with their demo account. Pellier trusts the signed token, not this choice.',

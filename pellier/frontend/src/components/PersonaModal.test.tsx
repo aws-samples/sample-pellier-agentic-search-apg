@@ -163,7 +163,7 @@ describe('PersonaModal', () => {
     expect(screen.getByRole('dialog')).toHaveAccessibleName('Choose a shopper')
     await screen.findByTestId('persona-card-marco')
     const cards = screen.getAllByRole('button').filter(b => b.dataset.persona)
-    expect(cards.map(card => card.dataset.persona)).toEqual(['marco', 'anna', 'theo', 'jessica'])
+    expect(cards.map(card => card.dataset.persona)).toEqual(['anna', 'marco', 'theo', 'jessica'])
     expect(screen.queryByTestId('persona-card-nadia')).not.toBeInTheDocument()
     expect(screen.queryByTestId('persona-card-fresh')).not.toBeInTheDocument()
     expect(screen.getByText(
