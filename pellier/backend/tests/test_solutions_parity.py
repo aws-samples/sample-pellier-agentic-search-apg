@@ -14,10 +14,11 @@ contract.
 Workshop solution contract
 --------------------------
 
-The governed workshop path has two starter-code gaps:
-the Stock agent definition in ``agents/stock_agent.py`` and
-``check_stock`` inside ``services/agent_tools.py``. The copy solutions
-are drop-ins that make each stage safe to recover during a live room.
+Lab 2 has two starters that run and fail visibly: the Stock agent
+definition in ``agents/stock_agent.py`` grants the catalog tools beside
+``check_stock``, and ``check_stock`` in ``services/agent_tools.py`` folds
+not_found into zero. The copy solutions are drop-ins that make each stage
+safe to recover during a live room.
 
 What this test enforces
 -----------------------
@@ -32,10 +33,9 @@ For every ``(live_path, solution_path)`` pair:
      signatures as the live module.
   5. The wired solution differs from live only inside the marked
      ``check_stock`` challenge block.
-  6. Live/builder-preapply ``check_stock`` keeps the starter stub.
-  7. The Stock agent definition solution flips its stub flag.
-  8. The wired solution keeps the ``product_query`` signature and calls
-     ``store_tools.check_stock(_run_sql, product_query=...)``.
+  6. The starter fragments are the shipped starters' regions.
+  7. The wired solution keeps the ``product_query`` signature and returns
+     ``store_tools.check_stock(_run_sql, product_query=...)`` unchanged.
 
 Scope table
 -----------
@@ -67,7 +67,7 @@ _SOLUTIONS = _REPO_ROOT / "solutions"
 
 
 # ---------------------------------------------------------------------------
-# (challenge_label, live_file, solution_file, stub_flag_name)
+# (challenge_label, live_file, solution_file)
 # ---------------------------------------------------------------------------
 
 _PAIRS = [
@@ -75,19 +75,16 @@ _PAIRS = [
         "stock-agent-definition",
         _BACKEND / "agents" / "stock_agent.py",
         _SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py",
-        "_STOCK_AGENT_STUBBED",
     ),
     (
         "stock-tool",
         _BACKEND / "services" / "agent_tools.py",
         _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_stock_solution.py",
-        None,
     ),
     (
         "stock-tool-builders-preapply",
         _BACKEND / "services" / "agent_tools.py",
         _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_builders_preapply.py",
-        None,
     ),
 ]
 
@@ -173,13 +170,11 @@ def test_auto_applied_solution_matches_backend(
 
 
 @pytest.mark.parametrize(
-    "label, live_path, solution_path, flag_name",
+    "label, live_path, solution_path",
     _PAIRS,
     ids=[p[0] for p in _PAIRS],
 )
-def test_both_files_exist(
-    label: str, live_path: Path, solution_path: Path, flag_name: str | None
-) -> None:
+def test_both_files_exist(label: str, live_path: Path, solution_path: Path) -> None:
     """Both the live challenge file and its solution file MUST exist."""
     assert live_path.exists(), (
         f"[{label}] Live challenge file missing: "
@@ -192,13 +187,11 @@ def test_both_files_exist(
 
 
 @pytest.mark.parametrize(
-    "label, live_path, solution_path, flag_name",
+    "label, live_path, solution_path",
     _PAIRS,
     ids=[p[0] for p in _PAIRS],
 )
-def test_both_files_parse_as_python(
-    label: str, live_path: Path, solution_path: Path, flag_name: str | None
-) -> None:
+def test_both_files_parse_as_python(label: str, live_path: Path, solution_path: Path) -> None:
     """Both files MUST parse as valid Python.
 
     Participants will run the live file through uvicorn's hot-reload;
@@ -213,105 +206,6 @@ def test_both_files_parse_as_python(
                 f"[{label}] Python syntax error in "
                 f"{path.relative_to(_REPO_ROOT)}: {exc}"
             )
-
-
-@pytest.mark.parametrize(
-    "label, live_path, solution_path, flag_name",
-    [p for p in _PAIRS if p[3] is not None],  # Only pairs that declare a flag.
-    ids=[p[0] for p in _PAIRS if p[3] is not None],
-)
-def test_stub_flag_states_match_workshop_contract(
-    label: str, live_path: Path, solution_path: Path, flag_name: str
-) -> None:
-    """Live file: flag = True (stubbed).
-    Solution file: flag = False (wired).
-
-    This is the contract that makes the cp command safe:
-    running ``cp solutions/... live/...`` must flip the stub
-    indicator so the Dispatcher fall-through stops intercepting
-    and real agent invocations proceed.
-
-    POLARITY NOTE: like ``test_check_stock_builder_contract``, the live-file
-    half is a guard on the *shipped* repo state, not a build check. Flipping
-    the flag is the exercise, so once a participant wires the definition this
-    skips rather than failing. The solution-side assertion is unconditional —
-    it protects the ``cp`` escape hatch and holds either way.
-    """
-    live_flag = _extract_flag(live_path, flag_name)
-    solution_flag = _extract_flag(solution_path, flag_name)
-
-    assert solution_flag is False, (
-        f"[{label}] Solution's {flag_name} should be False (wired state) "
-        f"but got {solution_flag}. The file: "
-        f"{solution_path.relative_to(_REPO_ROOT)}. "
-        f"If a participant cp's this in, the Dispatcher fall-through "
-        f"would still block the agent — defeating the purpose."
-    )
-
-    if live_flag is False:
-        pytest.skip(
-            f"[{label}] {flag_name} has been flipped in "
-            f"{live_path.relative_to(_REPO_ROOT)} — this is the expected end "
-            "state of the exercise, not a regression. Verify the wire via the "
-            "Observatory build-state badge and Marco's Brooklyn turn."
-        )
-
-    assert live_flag is True, (
-        f"[{label}] Live file's {flag_name} should be True (stubbed state) "
-        f"but got {live_flag}. The file: {live_path.relative_to(_REPO_ROOT)}"
-    )
-
-
-def _extract_flag(path: Path, flag_name: str) -> bool | None:
-    """Parse ``path`` and return the boolean value of the first top-level
-    assignment ``<flag_name> = <bool>``. Returns None if not found."""
-    tree = ast.parse(path.read_text())
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == flag_name:
-                    if isinstance(node.value, ast.Constant) and isinstance(
-                        node.value.value, bool
-                    ):
-                        return node.value.value
-    return None
-
-
-# ---------------------------------------------------------------------------
-# Self-verification of _extract_flag
-# ---------------------------------------------------------------------------
-
-
-def test_extract_flag_finds_true(tmp_path: Path) -> None:
-    src = tmp_path / "mod.py"
-    src.write_text("_MY_FLAG = True\n")
-    assert _extract_flag(src, "_MY_FLAG") is True
-
-
-def test_extract_flag_finds_false(tmp_path: Path) -> None:
-    src = tmp_path / "mod.py"
-    src.write_text("_MY_FLAG = False\n")
-    assert _extract_flag(src, "_MY_FLAG") is False
-
-
-def test_extract_flag_returns_none_when_missing(tmp_path: Path) -> None:
-    src = tmp_path / "mod.py"
-    src.write_text("_OTHER = True\n")
-    assert _extract_flag(src, "_MY_FLAG") is None
-
-
-def test_extract_flag_ignores_nested_assignments(tmp_path: Path) -> None:
-    src = tmp_path / "mod.py"
-    src.write_text(
-        "def fn():\n    _MY_FLAG = True  # function-scoped, not module-level\n"
-    )
-    # ast.walk would visit the function body — but only top-level
-    # assignments have `node.targets` directly inside `Module.body`.
-    # Our implementation uses ast.walk() for simplicity; nested assigns
-    # at the same name would also match. That's acceptable because the
-    # flag is conventionally module-level — and the stubs we ship do
-    # put it at module level.
-    assert _extract_flag(src, "_MY_FLAG") is True
 
 
 # ---------------------------------------------------------------------------
@@ -446,52 +340,31 @@ def test_check_stock_solution_diff_is_scoped_to_challenge_block() -> None:
     ), "The check_stock escape hatch differs outside its marked challenge block."
 
 
-def test_check_stock_builder_contract() -> None:
-    """Repo guard: the *shipped* starter file ships stubbed, and the copy
-    solution is fully wired.
+def test_check_stock_solution_passes_the_shared_answer_on_unchanged() -> None:
+    """The ``cp`` escape hatch: the solution returns store_tools' envelope as is.
 
-    POLARITY NOTE (read before debugging a red run): this is a guard on the
-    committed starter state, not a build check. It is expected to pass on a
-    clean checkout (check_stock still stubbed) and is **deliberately skipped**
-    once a participant wires check_stock — wiring it is the exercise, not a
-    regression. A participant who completes the exercise and runs the full
-    suite should therefore see this as ``SKIPPED``, never as a failure. The
-    real verification of a correct wire is the Observatory Tools strip showing
-    check_stock wired and Marco's Brooklyn turn returning a real quantity, both
-    in the lab guide. See CLAUDE.md ("How the participant verifies").
+    The starter's own failure (not_found folded into zero) and the solution's
+    fix are asserted on the real schema by ``tests/test_lab2_starter_failure.py``.
     """
-    live_src = _function_source(_BACKEND / "services" / "agent_tools.py", "check_stock")
-    preapply_src = _function_source(
-        _SOLUTIONS
-        / "closing-marcos-gap"
-        / "services"
-        / "agent_tools_builders_preapply.py",
-        "check_stock",
-    )
     solution_src = _function_source(
         _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_stock_solution.py",
         "check_stock",
     )
-
-    # The drop-in solution invariants always hold, regardless of whether the
-    # participant has wired the live file yet — these protect the `cp` path.
     assert "product_query: str" in solution_src
-    assert "check_stock is in stub state" not in solution_src
-    assert "store_tools.check_stock(_run_sql, product_query=product_query)" in solution_src
+    assert "return _reply(store_tools.check_stock(_run_sql, product_query=product_query))" in (
+        solution_src)
+    assert '.get("status")' not in solution_src, "the solution must not rewrite the status"
 
-    # If the participant has wired the live file (the exercise is done), the
-    # starter-stub assertions below would fail on something they were told to
-    # change. Skip with a clear reason instead of emitting a confusing red.
-    if "check_stock is in stub state" not in live_src:
-        pytest.skip(
-            "check_stock has been wired in services/agent_tools.py — this is "
-            "the expected end state of the exercise, not a regression. The "
-            "starter-stub guard only applies to the shipped repo. Verify your "
-            "wire via the Observatory Tools strip and Marco's Brooklyn turn."
-        )
 
-    # Shipped starter state: the live + preapply builder files carry the stub.
-    assert "product_query: str" in live_src
-    assert "check_stock is in stub state" in live_src
-    assert "product_query: str" in preapply_src
-    assert "check_stock is in stub state" in preapply_src
+def test_the_starter_fragments_are_the_shipped_starters() -> None:
+    """``reset_participant_exercises.py`` restores these; they must be what ships.
+
+    Compared with the builder pre-apply copy, which mirrors the shipped starter
+    whatever a participant has done to the live file.
+    """
+    starters = _REPO_ROOT / "workshop" / "starters" / "lab-2"
+    preapply = (_SOLUTIONS / "closing-marcos-gap" / "services"
+                / "agent_tools_builders_preapply.py").read_text()
+    fragment = (starters / "check-stock-tool.pyfrag").read_text()
+    assert fragment.strip() in preapply
+    assert 'if result.get("status") == "not_found":' in fragment

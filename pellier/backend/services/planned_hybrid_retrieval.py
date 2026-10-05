@@ -305,7 +305,6 @@ async def execute_search_plan(
     rerank: RerankFn,
     config: Dict[str, Any],
     relax: bool = True,
-    return_strict_on_unavailable: bool = False,
 ) -> SearchExecution:
     """Run a typed plan through the shared pipeline from async code.
 
@@ -324,8 +323,6 @@ async def execute_search_plan(
         config: Optional knobs: ``k_vector``, ``k_fts``, ``rrf_k``, ``top_n``
             and ``rerank_pool_k``. Missing knobs use the configured defaults.
         relax: Walk the plan's relaxation ladder when the strict pass is short.
-        return_strict_on_unavailable: Keep an honest first pass when the
-            starter has not implemented preference widening, and mark it.
 
     Returns:
         The :class:`~services.store_tools.SearchExecution` of the pass that
@@ -347,5 +344,4 @@ async def execute_search_plan(
         rerank=rerank,
         config=_executor_config(config),
         relax=relax,
-        return_strict_on_unavailable=return_strict_on_unavailable,
     )

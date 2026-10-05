@@ -298,29 +298,6 @@ def test_retrieval_receipts_are_append_only(fresh_db):
                                  "WHERE receipt_id = %s", (receipt,))
 
 
-def test_lab_one_rrf_sql_runs_against_retrieval_receipts(fresh_db):
-    """The participant's fusion expression, recomputed from a recorded receipt."""
-    with _connect(fresh_db) as conn:
-        conn.execute("""
-            INSERT INTO pellier.retrieval_receipts
-                (turn_id, query_hash, query_preview, search_plan, retrieval_config,
-                 vector_ranks, lexical_ranks, rrf_scores)
-            VALUES ('turn-lab1', 'h', 'housewarming gift', '{}', '{"source": "observatory-compare"}',
-                    '{"22": 1, "28": 2}', '{"28": 1, "26": 2}',
-                    jsonb_build_object('22', 1.0/61, '28', 1.0/62 + 1.0/61, '26', 1.0/62))""")
-    sql = (REPO / "workshop" / "lab-1-rrf.sql").read_text()
-    solved = sql.replace(
-        "       0::numeric AS recomputed_rrf,",
-        "       (coalesce(1.0 / (60 + (r.vector_ranks->>keys.product_id)::int), 0)\n"
-        "        + coalesce(1.0 / (60 + (r.lexical_ranks->>keys.product_id)::int), 0))"
-        "::numeric AS recomputed_rrf,", 1,
-    )
-    assert solved != sql
-    out = fresh_db.psql(f"\\set receipt_high_water 0\n\\set comparison_id turn-lab1\n{solved}")
-    assert "Lab 1 RRF build passed" in out, out
-    assert "housewarming gift" in out
-
-
 # ---------------------------------------------------------------------------
 # Reset is a rebuild
 # ---------------------------------------------------------------------------

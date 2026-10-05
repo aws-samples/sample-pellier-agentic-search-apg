@@ -1,18 +1,19 @@
-"""Planner-on starter regression; real plan and executor, stubbed external services.
+"""Planner-on search with the Task 1B starter; real plan and executor, stubbed external services.
 
-Starter regressions use the real unfinished Task 1B. Only the explicit
-after-completion test uses completed_search_plan.
+The starter's fallback is the one ``workshop/starters`` ships, whatever the live
+file holds. A full first search never reaches it. A sparse one does, and its
+retry drops the shopper's hard limits: that is the Lab 1 failure the guide's
+Spot step shows, and the solution's retry keeps them.
 """
-import asyncio
 import json
 from unittest.mock import MagicMock
 
 import pytest
 
 from services import agent_tools, embeddings, rerank, search_plan, structured_extract
-from services.planned_hybrid_retrieval import execute_search_plan
 from services.retrieval_receipt import INSERT_SQL as RECEIPT_INSERT_SQL
 from services.retrieval_receipt import _COLUMN_ORDER
+from tests import lab_variants
 
 QUERY = "A housewarming gift under $100, in stock, no candles or wool; prefer slow mornings."
 EXTRACTED = {
@@ -22,49 +23,49 @@ EXTRACTED = {
     "tags": ["gift", "slow", "home"],
     "soft_signal": "a housewarming gift for slow mornings",
 }
+HARD_PREDICATES = ("price <= %s", "quantity > 0", "NOT (tags ?| %s OR materials ?| %s)")
 
 
-def row(i):
+def row(i, **changes):
     return {
         "product_id": str(i), "name": f"Cotton gift {i}", "brand": "Pellier",
         "description": "A cotton gift", "price": 48, "quantity": 10,
         "category": "Home", "tags": ["gift", "slow", "home"],
         "materials": ["cotton"], "rating": 4.5, "reviews": "2",
-        "rrf_score": 0.1, "img_url": "", "color": "Ivory",
+        "rrf_score": 0.1, "img_url": "", "color": "Ivory", **changes,
     }
 
 
 class FakeDB:
-    """The pool behind ``agent_tools._run_sql``: branch rows out, statements recorded."""
+    """The pool behind ``agent_tools._run_sql``: branch rows out, statements recorded.
+
+    ``strict_rows`` answer a statement carrying the tag preference; ``wide_rows``
+    answer one without it, which is what a fallback attempt sends.
+    """
 
     def __init__(self):
-        self.rows = []
+        self.strict_rows = []
+        self.wide_rows = []
         self.vector_calls = []
-        self.fts_calls = []
         self.receipts = []
-        # The Builder view's filter counts: one aggregate after the search,
-        # never a second retrieval pass.
-        self.count_calls = []
 
     async def fetch_all(self, sql, *params):
         if sql == RECEIPT_INSERT_SQL:
             self.receipts.append(dict(zip(_COLUMN_ORDER, params)))
             return [{"receipt_id": 1}]
         if "to_tsquery" in sql:
-            self.fts_calls.append((sql, params))
             return []
         if sql.startswith("SELECT count(*)"):
-            self.count_calls.append((sql, params))
-            return [{"total": len(self.rows), "kept": len(self.rows)}]
+            return [{"total": 100, "kept": len(self.strict_rows)}]
         self.vector_calls.append((sql, params))
-        return list(self.rows)
+        return list(self.strict_rows if "tags ?& %s" in sql else self.wide_rows)
 
 
 @pytest.fixture
-def search_dependencies(monkeypatch):
+def search(monkeypatch):
     db = FakeDB()
     monkeypatch.setattr(agent_tools, "_db_service", db)
-    monkeypatch.setattr(agent_tools, "_run_async", asyncio.run)
+    monkeypatch.setattr(agent_tools, "_main_loop", None)
     extractor = MagicMock()
     extractor.extract.return_value = dict(EXTRACTED)
     monkeypatch.setattr(structured_extract, "get_structured_extractor", lambda: extractor)
@@ -77,7 +78,15 @@ def search_dependencies(monkeypatch):
         for i in range(len(kw["documents"]))
     ]
     monkeypatch.setattr(rerank, "get_rerank_service", lambda: ranker)
-    return db, extractor
+
+    def run(variant=lab_variants.STARTER):
+        monkeypatch.setattr(search_plan.SearchPlan, "_with_relaxations",
+                            lab_variants.plan_fallback(variant))
+        return json.loads(agent_tools.search_products(query=QUERY, limit=5))
+
+    run.db = db
+    run.extractor = extractor
+    return run
 
 
 def receipt_config(db):
@@ -85,80 +94,74 @@ def receipt_config(db):
     return json.loads(db.receipts[0]["retrieval_config"])
 
 
-def assert_hard_predicates_reach_sql(db):
-    """Every vector and full-text statement carries the shopper's hard requirements."""
-    assert db.vector_calls
-    for sql, params in db.vector_calls + db.fts_calls:
-        assert "price <= %s" in sql
-        assert "quantity > 0" in sql
-        assert "NOT (tags ?| %s OR materials ?| %s)" in sql
-        assert ["candle", "wool"] in params
-
-
-@pytest.mark.parametrize("count", [0, 1, 4, 5])
-def test_starter_keeps_first_search_with_planner_on(search_dependencies, count):
-    db, extractor = search_dependencies
-    db.rows.extend(row(i) for i in range(count))
-    result = json.loads(agent_tools.search_products(query=QUERY, limit=5))
+def test_a_full_first_search_never_reaches_the_fallback(search) -> None:
+    search.db.strict_rows.extend(row(i) for i in range(5))
+    result = search()
     assert "error" not in result, result
-    assert result["count"] == count
-    assert result.get("relaxation_unavailable", False) is (count < 5)
-    assert bool(result.get("search_notice")) is (count < 5)
+    assert result["count"] == 5
     assert result["search_plan"]["relaxations"] == []
-    assert len(db.vector_calls) == 1
-    assert_hard_predicates_reach_sql(db)
-    config = receipt_config(db)
-    assert config.get("relaxation_unavailable", False) is (count < 5)
-    assert config["relaxation_steps"] == []
-    assert len(config["attempts"]) == 1
-    extractor.extract.assert_called_once_with(QUERY)
+    assert len(search.db.vector_calls) == 1
+    for predicate in HARD_PREDICATES:
+        assert predicate in search.db.vector_calls[0][0]
+    assert len(receipt_config(search.db)["attempts"]) == 1
+    search.extractor.extract.assert_called_once_with(QUERY)
 
 
-def test_starter_still_refuses_the_participant_contract():
-    plan = search_plan.build_plan(QUERY, EXTRACTED)
-    with pytest.raises(ValueError, match="Complete Task 1B"):
-        plan.relaxation_ladder()
+def test_the_starter_retry_sends_a_search_without_the_shoppers_limits(search) -> None:
+    search.db.strict_rows.append(row(1))
+    search.db.wide_rows.extend([row(2, price=149), row(3, quantity=0), row(4, tags=["candle"]),
+                                row(5)])
+    result = search()
+    first, retry = search.db.vector_calls
+    for predicate in HARD_PREDICATES:
+        assert predicate in first[0]
+        assert predicate not in retry[0]
+    returned = {product["productId"] for product in result["products"]}
+    assert {"2", "3", "4"} <= returned, "the retry let a $149 piece, a sold-out and a candle in"
+    assert result["search_plan"]["relaxations"][0]["step"] == "drop_tags"
+    assert result["search_plan"]["hard_constraints"]["price_max_usd"] is None
+    assert receipt_config(search.db)["relaxation_steps"] == ["drop_tags"]
 
 
-def test_comparison_and_evaluation_still_require_the_exercise(search_dependencies):
-    plan = search_plan.build_plan(QUERY, EXTRACTED)
-    with pytest.raises(ValueError, match="Complete Task 1B"):
-        asyncio.run(execute_search_plan(
-            search_dependencies[0], plan=plan, query=QUERY, limit=5,
-            embed=lambda _: [0.01] * 1024, rerank=lambda **_: [], config={},
-        ))
+def test_the_solution_retry_keeps_the_shoppers_limits(search) -> None:
+    search.db.strict_rows.append(row(1))
+    search.db.wide_rows.extend([row(2, price=149), row(3, quantity=0), row(4, tags=["candle"]),
+                                row(5)])
+    result = search(lab_variants.SOLUTION)
+    for sql, _params in search.db.vector_calls:
+        for predicate in HARD_PREDICATES:
+            assert predicate in sql
+    assert {product["productId"] for product in result["products"]} == {"5"}
+    assert result["search_plan"]["hard_constraints"]["price_max_usd"] == 100
 
 
-def test_unexpected_plan_errors_are_not_hidden(search_dependencies, monkeypatch):
+def test_unexpected_plan_errors_are_not_hidden(search, monkeypatch) -> None:
     def broken(_self):
         raise ValueError("unexpected plan failure")
+
+    result = search()
+    assert "error" not in result
     monkeypatch.setattr(search_plan.SearchPlan, "relaxation_ladder", broken)
     result = json.loads(agent_tools.search_products(query=QUERY))
     assert result == {"error": "unexpected plan failure"}
 
 
-def test_ineligible_rows_stay_out(search_dependencies):
-    db, extractor = search_dependencies
-    db.rows.extend([
-        row(1), {**row(2), "price": 149}, {**row(3), "quantity": 0},
-        {**row(4), "tags": ["candle"]},
+def test_ineligible_rows_stay_out_of_the_first_search(search) -> None:
+    search.db.strict_rows.extend([
+        row(1), row(2, price=149), row(3, quantity=0), row(4, tags=["candle"]),
     ])
-    result = json.loads(agent_tools.search_products(query=QUERY))
-    assert "error" not in result, result
-    assert result["count"] == 1
-    assert str(result["products"][0]["productId"]) == "1"
-    assert result["relaxation_unavailable"] is True
-    assert len(db.vector_calls) == 1
-    assert_hard_predicates_reach_sql(db)
+    search.db.wide_rows.append(row(1))
+    result = search(lab_variants.SOLUTION)
+    assert [product["productId"] for product in result["products"]] == ["1"]
 
 
-def test_extraction_notice_is_retained_with_incomplete_relaxation(search_dependencies):
-    db, extractor = search_dependencies
-    extractor.extract.return_value = {**EXTRACTED, "exclusions": ["candle", "glitter"]}
-    result = json.loads(agent_tools.search_products(query=QUERY))
+def test_an_extraction_notice_survives_the_solution_retry(search) -> None:
+    search.extractor.extract.return_value = {**EXTRACTED, "exclusions": ["candle", "glitter"]}
+    search.db.wide_rows.append(row(1))
+    result = search(lab_variants.SOLUTION)
     assert "error" not in result, result
+    assert result["search_plan"]["relaxations"][0]["step"] == "drop_tags"
     assert "glitter" in result["constraint_notice"]
-    assert result["search_notice"]
 
 
 @pytest.mark.parametrize("query,envelope", [
@@ -173,44 +176,11 @@ def test_extraction_notice_is_retained_with_incomplete_relaxation(search_depende
          "exclusions": ["candle"]},
     ),
 ])
-def test_annas_opening_questions_do_not_error_before_task_1b(search_dependencies, query, envelope):
-    db, extractor = search_dependencies
-    extractor.extract.return_value = {**envelope, "soft_signal": query}
-    result = json.loads(agent_tools.search_products(query=query))
-    assert "error" not in result, result
-    assert result["count"] == 0
-    assert result["relaxation_unavailable"] is True
-    assert "have not been checked" in result["search_notice"]
-    assert len(db.vector_calls) == 1
-
-
-def test_completed_task_1b_runs_normally_in_storefront(
-    search_dependencies, completed_search_plan, monkeypatch
-):
-    # The fixture is used only for this after-completion test, never for the
-    # starter regressions above. It proves the wrapper does not bypass the lab.
-    db, extractor = search_dependencies
-
-    async def fetch_all(sql, *params):
-        if sql == RECEIPT_INSERT_SQL:
-            db.receipts.append(dict(zip(_COLUMN_ORDER, params)))
-            return [{"receipt_id": 1}]
-        if "to_tsquery" in sql:
-            return []
-        if sql.startswith("SELECT count(*)"):
-            db.count_calls.append((sql, params))
-            return [{"total": 100, "kept": 1}]
-        db.vector_calls.append((sql, params))
-        return [] if "tags ?& %s" in sql else [row(1)]
-
-    monkeypatch.setattr(db, "fetch_all", fetch_all)
-    result = json.loads(agent_tools.search_products(query=QUERY))
+def test_annas_opening_questions_answer_before_task_1b(search, query, envelope) -> None:
+    search.extractor.extract.return_value = {**envelope, "soft_signal": query}
+    search.db.wide_rows.append(row(1))
+    search.db.strict_rows.clear()
+    result = search()
     assert "error" not in result, result
     assert result["count"] == 1
-    assert result["relaxation_unavailable"] is False
-    assert "search_notice" not in result
-    config = receipt_config(db)
-    assert config["relaxation_steps"] == ["drop_tags"]
-    assert len(config["attempts"]) == 2
-    assert len(db.vector_calls) == 2
-    assert_hard_predicates_reach_sql(db)
+    assert len(search.db.vector_calls) == 2

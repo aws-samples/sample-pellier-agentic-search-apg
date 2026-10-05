@@ -31,6 +31,7 @@ from agents.stock_agent import build_stock_agent
 from agents.support_agent import build_support_agent
 from pellier_copy import SHOPPING_SYSTEM_PROMPT
 from services.persona_context import persona_preamble_var, set_persona_preamble
+from tests.lab_variants import SOLUTION, stock_grant
 
 
 # Exact tool names bound to each agent. If you rename a tool in
@@ -52,23 +53,19 @@ def _tool_names(agent: Agent) -> set[str]:
     return set(registry.keys()) if isinstance(registry, dict) else set()
 
 
-def _is_governed_stock_scaffold(name: str) -> bool:
-    """The governed workshop ships the Stock agent as a definition exercise."""
-    return name == "stock" and bool(getattr(stock_module, "_STOCK_AGENT_STUBBED", False))
-
-
 # ---------------------------------------------------------------------------
 # Factory contract
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("name,factory,expected_tools", AGENT_SPECS, ids=[s[0] for s in AGENT_SPECS])
-def test_factory_returns_real_agent(name: str, factory, expected_tools: set[str]) -> None:
-    if _is_governed_stock_scaffold(name):
-        with pytest.raises(RuntimeError, match="Stock agent definition"):
-            factory()
-        return
-
+def test_factory_returns_real_agent(
+    name: str, factory, expected_tools: set[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if name == "stock":
+        # The grant is the Lab 2B build; the factory is checked with the solution's.
+        # tests/test_lab2_starter_failure.py checks the starter's wider grant.
+        monkeypatch.setattr(stock_module, "_STOCK_TOOLS", stock_grant(SOLUTION))
     agent = factory()
     assert isinstance(agent, Agent), f"{name}: factory must return a Strands Agent"
     assert agent.name == name, (
@@ -87,7 +84,7 @@ def test_the_shopping_agent_drops_the_handoff_on_an_ordinary_catalog_turn() -> N
 def test_the_shopping_prompt_merges_the_search_and_personalization_rules() -> None:
     for required in (
         "search_products", "browse_department", "compare_products", "ask_a_person",
-        "constraint_notice", "search_notice", "PERSONA CONTEXT",
+        "constraint_notice", "PERSONA CONTEXT",
     ):
         assert required in SHOPPING_SYSTEM_PROMPT, required
     retired = ("boutique",) + tuple(
@@ -106,11 +103,6 @@ def test_factory_anonymous_has_no_persona_wrapper(name: str, factory, _tools: se
     assert persona_preamble_var.get() == "", (
         "persona ContextVar leaked into a later test; an earlier test forgot to reset"
     )
-    if _is_governed_stock_scaffold(name):
-        with pytest.raises(RuntimeError, match="Stock agent definition"):
-            factory()
-        return
-
     prompt = factory().system_prompt or ""
     assert PERSONA_WRAPPER not in prompt, (
         f"{name}: anonymous prompt unexpectedly contains the persona wrapper"
@@ -124,11 +116,6 @@ def test_factory_honors_persona_contextvar(name: str, factory, _tools: set[str])
         "PERSONA CONTEXT - TestShopper (CUST-TEST)\nKnown: likes linen\n---"
     )
     try:
-        if _is_governed_stock_scaffold(name):
-            with pytest.raises(RuntimeError, match="Stock agent definition"):
-                factory()
-            return
-
         prompt = factory().system_prompt or ""
         assert PERSONA_WRAPPER in prompt, (
             f"{name}: factory did not inject persona wrapper when ContextVar was set"
@@ -154,16 +141,6 @@ def test_no_agent_module_exports_a_tool_wrapper(module) -> None:
         )
     ]
     assert not wrappers, f"{module.__name__} exports agent-as-tool wrappers: {wrappers}"
-
-
-def test_the_stock_definition_is_the_only_scaffold() -> None:
-    """The Router reports the Stock agent as unbuilt while its definition is the lab."""
-    from services.chat import _unbuilt_dispatcher_specialist
-
-    assert _unbuilt_dispatcher_specialist("shopping") is None
-    assert _unbuilt_dispatcher_specialist("support") is None
-    expected = "stock" if getattr(stock_module, "_STOCK_AGENT_STUBBED", False) else None
-    assert _unbuilt_dispatcher_specialist("stock") == expected
 
 
 # ---------------------------------------------------------------------------

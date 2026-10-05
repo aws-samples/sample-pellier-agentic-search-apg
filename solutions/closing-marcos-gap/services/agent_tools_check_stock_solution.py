@@ -445,9 +445,7 @@ def search_products(
     """Find products: the shopper's requirements as SQL filters, then vector and full-text search, fused and reranked.
 
     If the result has constraint_notice, tell the shopper what it says and never
-    present the results as meeting a requirement it names. If search_notice is
-    present, explain that alternatives have not been checked. An empty result
-    then means this attempt found nothing, not that the store has no eligible items.
+    present the results as meeting a requirement it names.
 
     Args:
         query: Search words for what to find. The shopper's requirements (budget,
@@ -557,11 +555,8 @@ def check_stock(product_query: str) -> str:
         product_query: Product name, or part of it, to check stock for.
     """
     # === WORKSHOP - Stock agent - check_stock: START ===
-    # SOLUTION - the Stock agent's one read, wired to the shared implementation.
-    #
-    # store_tools.check_stock owns the SQL and the three-way contract
-    # (not_found, ambiguous, success with total_units); this body only binds
-    # it to the pool, exactly as the sibling tools above do.
+    # store_tools.check_stock owns the SQL and the three answers: not_found,
+    # ambiguous, and success with total_units. This body passes them on as is.
     if not _db_service:
         return _DB_NOT_READY
     try:

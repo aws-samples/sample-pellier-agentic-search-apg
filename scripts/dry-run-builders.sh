@@ -20,7 +20,7 @@
 # workshop environment, not a production database.
 #
 # Usage:
-#   scripts/dry-run-builders.sh            # apply solution, test, restore stub
+#   scripts/dry-run-builders.sh            # apply solution, test, restore the starter
 #   scripts/dry-run-builders.sh --keep     # leave the solution applied
 # =============================================================================
 set -uo pipefail
@@ -192,25 +192,20 @@ fi
 
 # --- 2. Apply the solutions (simulate both participant edits) ----------------
 echo "[2/6] Complete the Stock agent and wire check_stock"
-if grep -q '^_STOCK_AGENT_STUBBED = True$' "$AGENT"; then
-  patch_marker_block \
-    "$AGENT" "$AGENT_REFERENCE" \
-    "# === WORKSHOP - Stock agent - definition: START ===" \
-    "# === WORKSHOP - Stock agent - definition: END ===" \
-    "Stock agent definition" || exit 1
-else
-  info "Stock agent definition already complete — leaving stock_agent.py as-is"
-fi
+# The starters run, so there is no stub to detect: the reference regions are
+# applied either way, and patching a finished region with its answer changes
+# nothing.
+patch_marker_block \
+  "$AGENT" "$AGENT_REFERENCE" \
+  "# === WORKSHOP - Stock agent - definition: START ===" \
+  "# === WORKSHOP - Stock agent - definition: END ===" \
+  "Stock agent definition" || exit 1
 
-if grep -q "check_stock is in stub state" "$TOOLS"; then
-  patch_marker_block \
-    "$TOOLS" "$TOOLS_REFERENCE" \
-    "# === WORKSHOP - Stock agent - check_stock: START ===" \
-    "# === WORKSHOP - Stock agent - check_stock: END ===" \
-    "check_stock body" || exit 1
-else
-  info "check_stock already wired — leaving agent_tools.py as-is"
-fi
+patch_marker_block \
+  "$TOOLS" "$TOOLS_REFERENCE" \
+  "# === WORKSHOP - Stock agent - check_stock: START ===" \
+  "# === WORKSHOP - Stock agent - check_stock: END ===" \
+  "check_stock body" || exit 1
 info "Waiting 4s for uvicorn --reload to pick up the change…"
 sleep 4
 
@@ -227,9 +222,6 @@ if echo "$reply" | grep -qiE 'brooklyn|BK-01' \
 else
   fail "Reply did not prove Brooklyn + quantity + ship window"
   info "First 300 chars: ${reply:0:300}"
-fi
-if echo "$reply" | grep -qi 'check_stock is in stub state'; then
-  fail "Stub envelope still present — solution did not take effect"
 fi
 
 # --- 4a. Lab 1 retrieval comparison ----------------------------------------

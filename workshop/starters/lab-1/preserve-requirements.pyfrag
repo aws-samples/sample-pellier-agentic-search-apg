@@ -1,6 +1,11 @@
-        # WORKSHOP_EXERCISE_STUB
-        # Task 1B: construct the next attempt from this validated request.
-        # An unfinished fallback refuses to run; it must never broaden access.
-        if relaxations:
-            raise PreferenceRelaxationUnavailable("Complete Task 1B before relaxing a preference")
-        return replace(self, relaxations=[])
+        # Task 1B: build the next attempt from this validated request.
+        if not relaxations:
+            return replace(self, relaxations=[])
+        # A retry is a fresh, broader search built from the shopper's words.
+        return SearchPlan(
+            intent=self.intent,
+            soft=self.soft,
+            retrieval_strategy=self.retrieval_strategy,
+            top_k=self.top_k,
+            relaxations=list(relaxations),
+        )

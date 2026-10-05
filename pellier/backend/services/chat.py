@@ -155,61 +155,6 @@ _TRIAGE_REPLIES = {
 }
 
 
-def _unbuilt_dispatcher_specialist(intent: str) -> Optional[str]:
-    """Return the deliberately unbuilt agent's intent, without fabricating output.
-
-    Only the Stock agent ships unbuilt: its definition is the Lab 2B build.
-    """
-    if intent != "stock":
-        return None
-    from agents import stock_agent
-
-    return intent if getattr(stock_agent, "_STOCK_AGENT_STUBBED", False) else None
-
-
-def _dispatcher_build_required_events(
-    intent: str,
-    agent: str,
-) -> List[Dict[str, Any]]:
-    """Emit an honest workshop-build outcome, never a simulated shopper reply."""
-    message = (
-        f"{agent} is intentionally unbuilt in this workshop image. "
-        "Complete the corresponding lab build step, then rerun this request."
-    )
-    return [
-        {
-            "type": "agent_step",
-            "agent": agent,
-            "action": "Workshop build required",
-            "status": "blocked",
-            "source": "Pellier build state",
-        },
-        {
-            # This is an expected workshop state, not a failed request. Keeping it
-            # out of the error channel lets every SSE client consume the terminal
-            # explanation below instead of cancelling the stream mid-turn.
-            "type": "build_required",
-            "code": "workshop_build_required",
-            "message": message,
-        },
-        {
-            "type": "complete",
-            "response": {
-                "response": message,
-                "products": [],
-                "suggestions": [],
-                "agent_execution": {
-                    "agent": agent,
-                    "model": None,
-                    "intent": intent,
-                    "build_required": True,
-                },
-                "success": False,
-            },
-        },
-    ]
-
-
 async def _append_pellier_stm_turn(
     session_id: Optional[str],
     user_message: str,
@@ -1491,9 +1436,7 @@ class EnhancedChatService:
             }
             return
 
-        # Classify before constructing session state. An unbuilt dispatcher
-        # specialist needs one bounded Aurora profile receipt, but no Strands
-        # agent, skill router, or AgentCore Memory session.
+        # Classify before constructing session state.
         intent_t0 = time.perf_counter()
         with evidence_spans.routing_span(
             turn_id=turn_id,
@@ -1505,25 +1448,6 @@ class EnhancedChatService:
         timing["intent"] = (time.perf_counter() - intent_t0) * 1000
         specialist_name = agent_name(intent)
 
-        unbuilt_intent = _unbuilt_dispatcher_specialist(intent)
-        if unbuilt_intent is not None:
-            logger.info("🎯 Router | %s → %s", intent, specialist_name)
-            yield build_intent_signal(intent)
-            stub_name = specialist_name
-            logger.info(
-                "🎯 Router | %s (intent=%s) is STUBBED — "
-                "reporting an explicit workshop build requirement",
-                stub_name,
-                intent,
-            )
-            yield {"type": "start", "content": "Checking workshop build state..."}
-            for event in _dispatcher_build_required_events(
-                unbuilt_intent,
-                stub_name,
-            ):
-                yield event
-            return
-
         if not self.strands_available:
             yield classify_chat_error("Service unavailable: the Strands SDK is not installed")
             return
@@ -1532,10 +1456,6 @@ class EnhancedChatService:
         from services.context_manager import get_context_manager
         context_manager = get_context_manager()
         context_manager.add_message("user", message)
-
-        # Session setup can read or create remote AgentCore Memory records.
-        # Defer it until after deterministic exercise-state detection below:
-        # an unbuilt specialist has no agent turn whose context needs loading.
 
         # The specialist is built below, once persona and skill ContextVars are
         # live, so its factory picks them up. ``orchestrator`` names it for the

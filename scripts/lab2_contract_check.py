@@ -1,58 +1,71 @@
 #!/usr/bin/env python3
-"""Lab 2's contract check: the participant chooses the test inputs, the catalog judges them.
+"""Lab 2's checks: the Stock agent's numbers come from one SELECT on warehouse_inventory.
 
-Three kinds of answer must stay distinct, because the agent reports whatever the
-tool returns:
+Task 2A runs your ``check_stock`` body through the same ``@tool`` wrapper the
+Stock agent calls, once per case, and compares each answer with the catalog
+and the warehouse rows read directly:
 
-    a piece the catalog does not carry   -> status "not_found", no count
-    a query that matches several pieces  -> status "ambiguous", candidates, no count
-    a piece it carries with no units     -> status "success", total_units 0
+    not carried   a piece the catalog does not carry  -> not_found, no count
+    several       a query that names several pieces   -> ambiguous, no count
+    sold out      a carried piece with no units       -> success, total_units 0
+    in stock      the Hadley Linen Shirt              -> success, the warehouse rows
 
-The participant supplies one query for each case. Before the tool runs, this script
-classifies every query from its own catalog and warehouse read. A query that does not
-belong to the case it was offered for fails as a test input, so a weak test cannot
-pass. Then the participant's own ``check_stock`` body runs through the same
-``@tool`` wrapper the Stock agent calls, and its envelope is judged against that
-classification. A catalog read failure is UNCHECKED and fails the run; it is never
-read as "not found".
+You choose the first three queries; a query that is not what it claims to be
+fails as a test input, so a weak test cannot pass. A blank choice uses the
+default and the report says so.
 
-Omitted inputs fall back to recovery defaults, and the report records which cases
-used them.
+Task 2B reads Marco's latest turn from ``pellier.tool_audit`` (his session is
+the one choosing Marco on the home page starts, ``persona-marco-...``) and the
+Stock agent's grant from ``agents/stock_agent.py``. The agent may call only
+``check_stock``, and every count it was given must equal the warehouse rows.
 
-    python3 scripts/lab2_contract_check.py \
-      --unknown "..." --ambiguous "..." --sold-out "..." \
-      --json /tmp/pellier-evidence/lab-2-contract.json
+    python3 scripts/lab2_contract_check.py
+    python3 scripts/lab2_contract_check.py --unknown "..." --ambiguous "..." --sold-out "..."
+    python3 scripts/lab2_contract_check.py --task 2B
 """
+
 from __future__ import annotations
 
 import argparse
-import asyncio
+import ast
 import json
 import os
 import pathlib
 import sys
-from typing import Any, Dict, List, Optional
-from urllib.parse import quote_plus
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-REPO = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import workshop_check as check  # noqa: E402  (sibling module)
+
+REPO = check.REPO
 BACKEND = REPO / "pellier" / "backend"
+STOCK_AGENT = BACKEND / "agents" / "stock_agent.py"
+MARCO_SESSION_PREFIX = "persona-marco-"
 
-CASES = ("unknown", "ambiguous", "sold_out")
+CASES = ("unknown", "several", "sold_out", "in_stock")
+CHOSEN = ("unknown", "several", "sold_out")
 DEFAULT_INPUTS = {
-    "unknown": "Hadley cashmere scarf",
-    "ambiguous": "Linen shirt",
+    "unknown": "Velvet Opera Cape",
+    "several": "Linen shirt",
     "sold_out": "Quilted Silk Vest",
+    "in_stock": "Hadley Linen Shirt",
 }
-QUESTION = "What can the agent legitimately conclude in each case?"
+_CASE_LABEL = {"unknown": "not carried", "several": "several", "sold_out": "sold out",
+               "in_stock": "in stock"}
+EXPECTED_2A = ("not carried -> not_found with no count; several -> ambiguous with the "
+                "candidates; sold out -> success with 0 units; in stock -> success with "
+                "the warehouse rows")
+_NEXT_2A = ("open the Stock agent - check_stock block in pellier/backend/services/agent_tools.py: "
+            "it must return the shared implementation's answer unchanged, so not_found stays "
+            "not_found. Restart, then rerun this check.")
 
-# The catalog's own answer to "which pieces does this query name?", read without
-# the participant's tool. Every whitespace token must appear in the name, which is
-# the matching contract the business service documents.
+# The catalog's own answer to "which pieces does this query name?": every word
+# of the query in the name, the matching rule check_stock documents.
 _MATCH_SQL = """
     SELECT "productId" AS product_id, name
       FROM pellier.product_catalog
      WHERE {tokens}
-     ORDER BY "productId"
+     ORDER BY "productId"::int
 """
 _STOCK_SQL = """
     SELECT warehouse_code, quantity
@@ -60,182 +73,352 @@ _STOCK_SQL = """
      WHERE product_id = %s
      ORDER BY warehouse_code
 """
+_LATEST_TURN = """
+SELECT args->>'turn_id' AS turn_id
+  FROM pellier.tool_audit
+ WHERE session_id LIKE %s
+ ORDER BY audit_id DESC
+ LIMIT 1
+"""
+_TURN_ROWS = """
+SELECT audit_id, tool, args, result
+  FROM pellier.tool_audit
+ WHERE session_id LIKE %s AND args->>'turn_id' = %s
+ ORDER BY audit_id
+"""
 
 
-def classify(matches: List[Dict[str, Any]], stock: List[Dict[str, Any]]) -> str:
-    """Which case a query belongs to, from catalog rows alone."""
+# ---------------------------------------------------------------------------
+# Reading the catalog and the warehouse rows
+# ---------------------------------------------------------------------------
+
+
+def catalog_answer(conn: Any, query: str) -> Dict[str, Any]:
+    """The products ``query`` names and, for exactly one, its warehouse rows."""
+    tokens = [token.lower() for token in str(query or "").split() if token]
+    if not tokens:
+        return {"matches": [], "stock": []}
+    clause = " AND ".join(["strpos(lower(name), %s) > 0"] * len(tokens))
+    with conn.cursor() as cur:
+        cur.execute(_MATCH_SQL.format(tokens=clause), tokens)
+        matches = [dict(row) for row in cur.fetchall()]
+        stock: List[Dict[str, Any]] = []
+        if len(matches) == 1:
+            cur.execute(_STOCK_SQL, (str(matches[0]["product_id"]),))
+            stock = [dict(row) for row in cur.fetchall()]
+    return {"matches": matches, "stock": stock}
+
+
+def classify(catalog: Dict[str, Any]) -> str:
+    """Which case a query belongs to, from the catalog alone."""
+    matches, stock = catalog.get("matches") or [], catalog.get("stock") or []
     if not matches:
         return "unknown"
     if len(matches) > 1:
-        return "ambiguous"
+        return "several"
     if stock and all(int(row.get("quantity") or 0) == 0 for row in stock):
         return "sold_out"
     return "in_stock" if stock else "no_warehouse_rows"
 
 
-def _is_count(value: Any) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+def _counts(rows: Sequence[Dict[str, Any]]) -> Dict[str, int]:
+    return {str(row.get("warehouse_code")): int(row.get("quantity") or 0) for row in rows}
 
 
-def _tool_keeps_contract(case: str, envelope: Dict[str, Any], catalog: Dict[str, Any]) -> bool:
+def _counts_text(counts: Dict[str, int]) -> str:
+    return ", ".join(f"{code} {quantity}" for code, quantity in sorted(counts.items())) or "no rows"
+
+
+def describe_catalog(catalog: Dict[str, Any]) -> str:
+    matches = catalog.get("matches") or []
+    if not matches:
+        return "not_found: no product matches"
+    if len(matches) > 1:
+        return f"ambiguous: {len(matches)} products match"
+    counts = _counts(catalog.get("stock") or [])
+    return f"success, {sum(counts.values())} units ({_counts_text(counts)})"
+
+
+def describe_envelope(envelope: Dict[str, Any]) -> str:
+    status = envelope.get("status") or ("error" if envelope.get("error") else "no status")
+    if status == "ambiguous":
+        return f"ambiguous: {len(envelope.get('candidates') or [])} candidates"
+    if status == "success":
+        counts = _counts(envelope.get("warehouses") or [])
+        return f"success, {envelope.get('total_units')} units ({_counts_text(counts)})"
+    if status == "not_found":
+        return "not_found" + (", with a count" if "total_units" in envelope else "")
+    return str(envelope.get("error") or status)[:60]
+
+
+def keeps_contract(case: str, envelope: Dict[str, Any], catalog: Dict[str, Any]) -> bool:
+    """Whether the tool's answer is the catalog's answer for this case."""
     ids = {str(row["product_id"]) for row in catalog.get("matches") or []}
+    no_count = "total_units" not in envelope and "warehouses" not in envelope
     if case == "unknown":
-        return (envelope.get("status") == "not_found"
-                and "total_units" not in envelope and "warehouses" not in envelope)
-    if case == "ambiguous":
+        return envelope.get("status") == "not_found" and no_count
+    if case == "several":
         candidates = envelope.get("candidates")
-        return (envelope.get("status") == "ambiguous"
-                and "total_units" not in envelope and "warehouses" not in envelope
+        return (envelope.get("status") == "ambiguous" and no_count
                 and isinstance(candidates, list) and len(candidates) >= 2
                 and all(isinstance(c, dict) and str(c.get("productId")) in ids
                         for c in candidates))
-    warehouses = envelope.get("warehouses")
+    product = envelope.get("product") or {}
     return (envelope.get("status") == "success"
-            and str((envelope.get("product") or {}).get("productId")) in ids
-            and _is_count(envelope.get("total_units")) and envelope["total_units"] == 0
-            and isinstance(warehouses, list) and bool(warehouses)
-            and all(isinstance(row, dict) and _is_count(row.get("quantity"))
-                    and row["quantity"] == 0 for row in warehouses))
+            and str(product.get("productId")) in ids
+            and _counts(envelope.get("warehouses") or []) == _counts(catalog.get("stock") or [])
+            and envelope.get("total_units") == sum(_counts(catalog.get("stock") or []).values()))
 
 
-_CONCLUSIONS = {
-    "unknown": ("the catalog does not carry this piece; the agent may say so and "
-                "nothing about stock"),
-    "ambiguous": ("several pieces match; the agent must ask which one before "
-                  "reporting any stock"),
-    "sold_out": ("the catalog carries this piece and every warehouse holds zero; "
-                 "the agent may say it is sold out"),
-}
+# ---------------------------------------------------------------------------
+# Task 2A
+# ---------------------------------------------------------------------------
 
 
-def judge_case(case: str, query: str, chosen_by: str,
-               catalog: Dict[str, Any], envelope: Dict[str, Any]) -> Dict[str, Any]:
-    """Grade the test input against the catalog, then the tool against the input."""
-    if catalog.get("error"):
-        return {"case": case, "query": query, "chosenBy": chosen_by,
-                "catalogClass": "UNCHECKED", "status": envelope.get("status"),
-                "inputPassed": False, "toolPassed": False, "passed": False,
-                "conclusion": f"catalog read failed ({catalog['error']}); nothing was established"}
-    catalog_class = classify(catalog.get("matches") or [], catalog.get("stock") or [])
-    input_ok = catalog_class == case
-    tool_ok = input_ok and _tool_keeps_contract(case, envelope, catalog)
-    if not input_ok:
-        conclusion = (f"this query is {catalog_class.replace('_', ' ')} in the catalog, "
-                      f"so it cannot test the {case.replace('_', ' ')} case")
-    elif not tool_ok:
-        conclusion = "the tool changed the business answer for this case"
-    else:
-        conclusion = _CONCLUSIONS[case]
-    return {"case": case, "query": query, "chosenBy": chosen_by,
-            "catalogClass": catalog_class,
-            "catalogMatches": [row["name"] for row in catalog.get("matches") or []][:5],
-            "status": envelope.get("status"), "total_units": envelope.get("total_units"),
-            "inputPassed": input_ok, "toolPassed": tool_ok, "passed": input_ok and tool_ok,
-            "conclusion": conclusion}
+def judge_2a(
+    conn: Any, tool: Callable[..., str], inputs: Dict[str, Tuple[str, str]]
+) -> Tuple[check.Finding, List[Sequence[Any]]]:
+    """Run ``tool`` once per case and judge each answer against the catalog."""
+    rows: List[Sequence[Any]] = []
+    evidence: List[str] = []
+    bad_inputs: List[str] = []
+    differs: List[str] = []
+    for case in CASES:
+        query, chosen_by = inputs[case]
+        catalog = catalog_answer(conn, query)
+        actual_case = classify(catalog)
+        try:
+            envelope = json.loads(tool(product_query=query))
+        except (TypeError, ValueError):
+            envelope = {"error": "the tool did not return JSON"}
+        if not isinstance(envelope, dict):
+            envelope = {"error": "the tool did not return an object"}
+        if actual_case != case:
+            verdict = f"not a {_CASE_LABEL[case]} query (it is {actual_case.replace('_', ' ')})"
+            actual = actual_case.replace("_", " ")
+            bad_inputs.append(f"{_CASE_LABEL[case]}: \"{query}\" is {actual}")
+        elif keeps_contract(case, envelope, catalog):
+            verdict = "matches"
+        else:
+            verdict = "differs"
+            answer = describe_envelope(envelope)
+            differs.append(f"{_CASE_LABEL[case]}: \"{query}\" came back {answer}")
+        rows.append((_CASE_LABEL[case], query[:24], chosen_by, describe_catalog(catalog),
+                     describe_envelope(envelope), verdict))
+        evidence.append(_catalog_evidence(query, catalog))
+    title = "check_stock keeps not carried, several and sold out apart"
+    matched = sum(1 for row in rows if row[-1] == "matches")
+    observed = f"{matched} of {len(CASES)} cases match" + (
+        "; " + "; ".join(differs + bad_inputs) if differs or bad_inputs else "")
+    if bad_inputs:
+        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A, observed, evidence,
+                             "choose a query that is what its case says: run the check again "
+                             "with another --unknown, --ambiguous or --sold-out."), rows
+    if differs:
+        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A, observed,
+                             evidence, _NEXT_2A), rows
+    return check.Finding("2A", title, check.PROVED, EXPECTED_2A, observed, evidence), rows
 
 
-def judge(verdicts: List[Dict[str, Any]]) -> Dict[str, Any]:
-    return {"question": QUESTION, "cases": verdicts,
-            "passed": len(verdicts) == len(CASES) and all(v["passed"] for v in verdicts)}
+def _catalog_evidence(query: str, catalog: Dict[str, Any]) -> str:
+    matches = catalog.get("matches") or []
+    if len(matches) != 1:
+        names = ", ".join(f"{row['product_id']} {row['name']}" for row in matches[:4])
+        listed = f": {names}" if names else ""
+        return f"product_catalog: \"{query}\" matches {len(matches)}{listed}"
+    product = matches[0]
+    return (f"warehouse_inventory for {product['product_id']} {product['name']}: "
+            f"{_counts_text(_counts(catalog.get('stock') or []))}")
 
 
-def _load_env() -> Dict[str, str]:
-    values: Dict[str, str] = {}
-    for path in (REPO / ".env", BACKEND / ".env"):
-        if not path.is_file():
-            continue
-        for raw in path.read_text(encoding="utf-8").splitlines():
-            line = raw.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            values.setdefault(key.strip(), value.strip().strip("'\""))
-    return values
+# ---------------------------------------------------------------------------
+# Task 2B
+# ---------------------------------------------------------------------------
 
 
-async def _catalog(service: Any, query: str) -> Dict[str, Any]:
-    tokens = [token.lower() for token in query.split() if token]
-    if not tokens:
-        return {"matches": [], "stock": []}
+def granted_tools(path: Optional[pathlib.Path] = None) -> Optional[List[str]]:
+    """The tool names ``_STOCK_TOOLS`` grants, read from the source, or None."""
     try:
-        clause = " AND ".join(["strpos(lower(name), %s) > 0"] * len(tokens))
-        matches = await service.fetch_all(_MATCH_SQL.format(tokens=clause), *tokens)
-        stock = (await service.fetch_all(_STOCK_SQL, str(matches[0]["product_id"]))
-                 if len(matches) == 1 else [])
-    except Exception as exc:  # noqa: BLE001 - reported as UNCHECKED, never as absence
-        return {"error": f"{type(exc).__name__}: {exc}"[:200]}
-    return {"matches": [dict(row) for row in matches], "stock": [dict(row) for row in stock]}
+        tree = ast.parse((path or STOCK_AGENT).read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return None
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "_STOCK_TOOLS"
+                and isinstance(node.value, (ast.List, ast.Tuple))):
+            return [item.attr if isinstance(item, ast.Attribute) else getattr(item, "id", "?")
+                    for item in node.value.elts]
+    return None
 
 
-async def _run(inputs: Dict[str, tuple[str, str]]) -> List[Dict[str, Any]]:
-    sys.path.insert(0, str(BACKEND))
-    for key, value in _load_env().items():
+def _as_dict(value: Any) -> Dict[str, Any]:
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return {}
+    return value if isinstance(value, dict) else {}
+
+
+def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[bool, str]:
+    args, result = _as_dict(row.get("args")), _as_dict(row.get("result"))
+    query = str(args.get("product_query") or "")
+    catalog = catalog_answer(conn, query)
+    status = result.get("status")
+    if status == "not_found":
+        ok = not catalog["matches"]
+        return ok, (f"audit {row['audit_id']}: check_stock(\"{query}\") said not carried; "
+                    f"the catalog matches {len(catalog['matches'])}")
+    if status == "ambiguous":
+        return len(catalog["matches"]) > 1, (
+            f"audit {row['audit_id']}: check_stock(\"{query}\") asked which; "
+            f"the catalog matches {len(catalog['matches'])}")
+    product = result.get("product") or {}
+    product_id = str(product.get("productId") or "")
+    real: Dict[str, int] = {}
+    if product_id:
+        with conn.cursor() as cur:
+            cur.execute(_STOCK_SQL, (product_id,))
+            real = _counts([dict(r) for r in cur.fetchall()])
+    told = _counts(result.get("warehouses") or [])
+    ok = bool(product_id) and told == real
+    return ok, (f"audit {row['audit_id']}: check_stock(\"{query}\") gave "
+                f"{_counts_text(told) if told else str(result.get('total_units')) + ' units'}; "
+                + (f"warehouse_inventory for {product_id}: {_counts_text(real)}" if product_id
+                   else "no catalog product carries that name"))
+
+
+def judge_2b(conn: Any, grant: Optional[List[str]]) -> check.Finding:
+    """Marco's latest turn: only check_stock ran, and its counts equal the warehouse rows."""
+    title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
+    expected = ("the Stock agent is granted check_stock only; Marco's latest turn called "
+                "check_stock and nothing else; every count equals warehouse_inventory")
+    grant_text = ", ".join(grant) if grant is not None else "unreadable"
+    evidence = [f"agents/stock_agent.py grants: {grant_text}"]
+    pattern = MARCO_SESSION_PREFIX + "%"
+    with conn.cursor() as cur:
+        cur.execute(_LATEST_TURN, (pattern,))
+        latest = cur.fetchone()
+        rows = []
+        if latest and latest.get("turn_id"):
+            cur.execute(_TURN_ROWS, (pattern, latest["turn_id"]))
+            rows = [dict(row) for row in cur.fetchall()]
+    if not rows:
+        return check.Finding("2B", title, check.NOT_YET, expected,
+                             "no tool call in a session of Marco's yet", evidence,
+                             "choose Marco on the home page, ask his stock question, then "
+                             "rerun this check.")
+    evidence.append(f"pellier.tool_audit turn {check.short(latest['turn_id'], 20)}: "
+                    + ", ".join(f"{row['tool']} (audit {row['audit_id']})" for row in rows))
+    grant_problems: List[str] = []
+    if grant != ["check_stock"]:
+        grant_problems.append(f"the agent is granted {grant_text}")
+    others = sorted({row["tool"] for row in rows if row["tool"] != "check_stock"})
+    if others:
+        grant_problems.append("the turn called " + ", ".join(others)
+                              + ", which read the catalog, not warehouse_inventory")
+    stock_rows = [row for row in rows if row["tool"] == "check_stock"]
+    if not stock_rows:
+        grant_problems.append("the turn never called check_stock")
+    count_problems: List[str] = []
+    for row in stock_rows:
+        ok, line = _judge_stock_row(conn, row)
+        evidence.append(line)
+        if not ok:
+            count_problems.append(f"audit {row['audit_id']} does not match the catalog")
+    if grant_problems:
+        return check.Finding("2B", title, check.CONTRADICTED, expected,
+                             "; ".join(grant_problems + count_problems), evidence,
+                             "grant the Stock agent check_stock alone in the Stock agent - "
+                             "definition block of agents/stock_agent.py; restart, ask Marco's "
+                             "question again, then rerun this check.")
+    if count_problems:
+        return check.Finding("2B", title, check.CONTRADICTED, expected, "; ".join(count_problems),
+                             evidence, "check_stock reported something warehouse_inventory does "
+                             "not hold: finish Task 2A, restart, ask again, then rerun this check.")
+    return check.Finding("2B", title, check.PROVED, expected,
+                         f"{len(stock_rows)} check_stock call(s), every count matches", evidence)
+
+
+# ---------------------------------------------------------------------------
+# Running against the box's database
+# ---------------------------------------------------------------------------
+
+
+class _RowsOn:
+    """The pool interface ``agent_tools`` calls, answered on one psycopg connection."""
+
+    def __init__(self, conn: Any) -> None:
+        self._conn = conn
+
+    async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
+        with self._conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
+
+def participant_tool(conn: Any, cfg: Dict[str, str]) -> Callable[..., str]:
+    """Your check_stock, through its ``@tool`` wrapper, on this connection."""
+    for key, value in cfg.items():
         os.environ.setdefault(key, value)
-    from config import settings
+    sys.path.insert(0, str(BACKEND))
     from services import agent_tools
-    from services.database import DatabaseService
 
-    cfg = {**_load_env(), **{k: v for k, v in os.environ.items() if k.startswith("DB_")}}
-    missing = [k for k in ("DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD") if not cfg.get(k)]
-    if missing:
-        raise SystemExit(f"missing database settings: {', '.join(missing)}")
-    settings.DATABASE_URL = (
-        f"postgresql://{cfg['DB_USER']}:{quote_plus(cfg['DB_PASSWORD'])}"
-        f"@{cfg['DB_HOST']}:{cfg.get('DB_PORT', '5432')}/{cfg['DB_NAME']}"
-    )
-    service = DatabaseService()
-    await service.connect()
+    agent_tools.set_db_service(_RowsOn(conn))
+    return agent_tools.check_stock
+
+
+def _inputs(args: argparse.Namespace) -> Dict[str, Tuple[str, str]]:
+    chosen = {"unknown": args.unknown, "several": args.ambiguous, "sold_out": args.sold_out}
+    inputs = {case: ((value.strip(), "you") if value and value.strip()
+                     else (DEFAULT_INPUTS[case], "default"))
+              for case, value in chosen.items()}
+    inputs["in_stock"] = (DEFAULT_INPUTS["in_stock"], "fixed")
+    return inputs
+
+
+def run(task: str, inputs: Dict[str, Tuple[str, str]],
+        env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List[Sequence[Any]]]:
+    """Connect with the backend's settings and run one task's check; never raises."""
+    cfg = check.db_config(env_path)
+    title = f"Lab 2 Task {task}"
+    if cfg is None:
+        return check.Finding(task, title, check.UNCHECKED, "a reachable database",
+                             "the check could not look",
+                             [check.missing_settings_reason(env_path)]), []
     try:
-        # The tool body dispatches its coroutine onto the main loop from a worker
-        # thread, exactly as it does under the Strands agent.
-        agent_tools.set_db_service(service)
-        agent_tools.set_main_loop(asyncio.get_running_loop())
-        verdicts = []
-        for case in CASES:
-            query, chosen_by = inputs[case]
-            catalog = await _catalog(service, query)
-            raw = await asyncio.to_thread(agent_tools.check_stock, product_query=query)
-            try:
-                envelope = json.loads(raw)
-            except (TypeError, ValueError):
-                envelope = {"status": "unparseable", "raw": str(raw)[:200]}
-            verdict = judge_case(case, query, chosen_by, catalog, envelope)
-            verdict["envelope"] = envelope
-            verdicts.append(verdict)
-        return verdicts
-    finally:
-        await service.disconnect()
+        with check.connect(cfg) as conn:
+            conn.autocommit = True
+            if task == "2B":
+                return judge_2b(conn, granted_tools()), []
+            return judge_2a(conn, participant_tool(conn, cfg), inputs)
+    except Exception as exc:  # noqa: BLE001 - the reason is the finding
+        return check.Finding(task, title, check.UNCHECKED, "a reachable database",
+                             "the check could not look",
+                             [f"{type(exc).__name__}: {str(exc)[:160]}"],
+                             "check that the database in pellier/backend/.env is reachable."), []
 
 
-def _inputs(args: argparse.Namespace) -> Dict[str, tuple[str, str]]:
-    chosen = {"unknown": args.unknown, "ambiguous": args.ambiguous, "sold_out": args.sold_out}
-    return {case: ((value.strip(), "participant") if value and value.strip()
-                   else (DEFAULT_INPUTS[case], "recovery-default"))
-            for case, value in chosen.items()}
-
-
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--unknown", help="A piece the catalog does not carry")
+    parser.add_argument("--task", choices=("2A", "2B"), default="2A")
+    parser.add_argument("--unknown", help="A piece Pellier does not carry")
     parser.add_argument("--ambiguous", help="A query that names several pieces")
     parser.add_argument("--sold-out", dest="sold_out", help="A carried piece with no units")
-    parser.add_argument("--json", help="Also write the report to this path")
     args = parser.parse_args(argv)
-    report = judge(asyncio.run(_run(_inputs(args))))
-    print(f"{'case':<10} {'query':<24} {'chosen by':<17} {'catalog':<11} "
-          f"{'tool status':<12} verdict")
-    for row in report["cases"]:
-        print(f"{row['case']:<10} {row['query'][:24]:<24} {row['chosenBy']:<17} "
-              f"{row['catalogClass']:<11} {str(row['status']):<12} "
-              f"{'PASS' if row['passed'] else 'FAIL'}")
-        print(f"           {row['conclusion']}")
-    print()
-    print(QUESTION)
-    print("PASSED" if report["passed"] else "FAILED: a test input or the tool broke the contract")
-    if args.json:
-        pathlib.Path(args.json).write_text(json.dumps(report, indent=2, default=str))
-    return 0 if report["passed"] else 3
+    finding, rows = run(args.task, _inputs(args))
+    if args.task == "2A":
+        print("Lab 2A: check_stock answers from the catalog and warehouse_inventory")
+        if rows:
+            print(check.table(("case", "query", "chosen by", "expected (catalog)",
+                               "observed (your check_stock)", "verdict"), rows))
+    else:
+        print("Lab 2B: Marco's latest answer comes from warehouse_inventory alone")
+    print(check.render(finding))
+    passed = finding.state == check.PROVED
+    print(f"Lab {args.task} check {'passed' if passed else 'failed'}")
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    raise SystemExit(main())

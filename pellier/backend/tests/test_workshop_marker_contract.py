@@ -17,14 +17,17 @@ anchor means changing both repositories, which is the point.
 What each lab needs from the source tree
 ----------------------------------------
 
-**Lab 2 - Ground the Answer.** Two marker regions to fill and two fallback
-files to copy. A missing marker breaks the primary lane; a missing fallback breaks the
-recovery lane, which is worse, because it only fails for the participant who is already
-behind.
+**Lab 2 - Build a PostgreSQL-Grounded Agent.** Two marker regions to fix and two
+fallback files to copy. A missing marker breaks the primary lane; a missing fallback
+breaks the recovery lane, which is worse, because it only fails for the participant who
+is already behind.
 
 **Lab 1 - Build and Measure PostgreSQL Hybrid Retrieval.** A runnable psql
-worksheet whose RRF expression starts degraded, plus a bounded search-plan
-fallback that must preserve the original requirements.
+worksheet whose RRF expression starts plausible but wrong, plus a search-plan fallback
+that starts by dropping the shopper's limits.
+
+Each lab's starters fail the way its guide's Spot step shows, and its solutions do not:
+``tests/test_lab1_starter_failure.py`` and ``tests/test_lab2_starter_failure.py``.
 
 **Lab 3 - Deploy and Operate Agents with Amazon Bedrock AgentCore.** Two marker regions and two
 fallback files. 3A publishes ``get_tickets`` on the Gateway and reconciles the
@@ -307,17 +310,23 @@ def test_labs_2_and_3_have_matching_build_markers(
         assert text.count(f"{label}: END ===") == 1
 
 
-def test_lab1_starter_fails_until_rrf_is_authored() -> None:
+def test_lab1_worksheet_finds_annas_receipt_and_fails_until_the_expression_is_right() -> None:
     starter = _read(LAB1_STARTER)
     reference = _read(LAB1_REFERENCE)
-    assert "0::numeric AS recomputed_rrf" in starter
-    assert "0::numeric AS recomputed_rrf" not in reference
-    assert reference.count("1.0 / (60 +") == 2
-    assert "\\if :fusion_matches" in starter
-    # `\quit` takes no argument; a raised exception under ON_ERROR_STOP is what makes
-    # the worksheet exit non-zero, so a shell `&&` or `set -e` sees the failure.
-    assert "\\quit 1" not in starter
-    assert "RAISE EXCEPTION" in starter
+    # Plausible but wrong: a missing rank counted as rank zero.
+    assert "1.0 / (60 + coalesce(vector_rank, 0))" in starter
+    assert "coalesce(1.0 / (60 + vector_rank), 0)" in reference
+    for text in (starter, reference):
+        assert "session_id LIKE 'persona-anna-%'" in text
+        for retired in ("receipt_high_water", "comparison_id", "observatory-compare"):
+            assert retired not in text
+        assert "\\if :lab_1_passed" in text
+        # `\quit` takes no argument; a raised exception under ON_ERROR_STOP is what
+        # makes the worksheet exit non-zero, so a shell `&&` or `set -e` sees it.
+        assert "\\quit 1" not in text
+        assert "RAISE EXCEPTION" in text
+        for line in ("Expected  ", "Observed ", "Evidence  ", "Next      "):
+            assert line in text
 
 
 def test_lab4_starter_fails_until_the_absence_query_is_authored() -> None:
@@ -358,24 +367,6 @@ def test_lab1_golden_set_region_has_exactly_one_marker_pair() -> None:
     text = _read(rel)
     assert text.count(f"# === {label}: START ===") == 1
     assert text.count(f"# === {label}: END ===") == 1
-
-
-def test_lab1_starter_refuses_an_unfinished_fallback() -> None:
-    from services.search_plan import SearchPlan, SoftPreferences
-    plan = SearchPlan(intent="gift", soft=SoftPreferences(tags=("minimalist",)))
-    with pytest.raises(ValueError, match="Complete Task 1B"):
-        plan.relaxation_ladder()
-    assert plan.soft.tags == ("minimalist",)
-    assert plan.relaxations == []
-
-
-def test_lab1_reference_preserves_the_plan_contract() -> None:
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("lab1_plan_check", REPO / "scripts/lab1_plan_contract_check.py")
-    checker = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(checker)
-    reference = checker.load_plan_module(REPO / LAB1_PLAN_REFERENCE)
-    assert checker.check(reference)["passed"] is True
 
 
 def test_lab1_golden_set_is_stated_once() -> None:
@@ -663,13 +654,19 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     absence = _read(PARTICIPANT_STARTERS["lab-4-absence"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
 
-    assert "_STOCK_AGENT_STUBBED = True" in stock_agent
-    assert "_STOCK_TOOLS = []" in stock_agent
+    lab1_plan = _read(PARTICIPANT_STARTERS["lab-1-preserve-requirements"][0])
+
+    # Each starter runs and fails visibly; none is a stub.
+    assert "agent_tools.search_products," in stock_agent
+    assert "agent_tools.check_stock," in stock_agent
     assert "_STOCK_SYSTEM_PROMPT_FOR_AGENT = _STOCK_SYSTEM_PROMPT" in stock_agent
-    assert '"error": "check_stock is in stub state"' in stock_tool
-    assert "received_product_query" in stock_tool
-    assert "store_tools.check_stock(" not in stock_tool
-    assert "0::numeric AS recomputed_rrf" in lab1
+    assert 'if result.get("status") == "not_found":' in stock_tool
+    assert '"total_units": 0' in stock_tool
+    assert "return SearchPlan(" in lab1_plan and "hard=" not in lab1_plan
+    assert "1.0 / (60 + coalesce(vector_rank, 0))" in lab1
+    for starter in (stock_agent, stock_tool, lab1_plan):
+        assert "WORKSHOP_EXERCISE_STUB" not in starter
+        assert "raise" not in starter
     assert all(placeholder in absence for placeholder in LAB4_ABSENCE_PLACEHOLDERS)
     assert "FROM pellier.tool_audit" not in absence
     assert re.search(r"unless\s*\{\s*false\s*\}", lab4)
@@ -712,14 +709,15 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
         stock_destination = (
             repo / PARTICIPANT_STARTERS["lab-2-stock-agent"][1]
         )
+        starter_grant = "_STOCK_TOOLS = [\n    agent_tools.search_products,"
         stock_destination.write_text(
             stock_destination.read_text(encoding="utf-8").replace(
-                "_STOCK_AGENT_STUBBED = True",
-                "_STOCK_AGENT_STUBBED = False",
+                starter_grant, "_STOCK_TOOLS = [\n    # PARTICIPANT_EDIT",
             )
             + "\n# PARTICIPANT_UNRELATED_EDIT\n",
             encoding="utf-8",
         )
+        assert "# PARTICIPANT_EDIT" in stock_destination.read_text(encoding="utf-8")
 
         completed = subprocess.run(
             [sys.executable, str(reset_script), "--repo", str(repo)],
@@ -729,7 +727,7 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
         )
         assert completed.returncode == 0, completed.stderr
         restored = stock_destination.read_text(encoding="utf-8")
-        assert "_STOCK_AGENT_STUBBED = True" in restored
+        assert starter_grant in restored and "# PARTICIPANT_EDIT" not in restored
         assert "# PARTICIPANT_UNRELATED_EDIT" in restored
 
 
@@ -777,21 +775,6 @@ def test_the_retired_and_canonical_title_lists_do_not_overlap() -> None:
     title_parts = {part for title in CANONICAL_LAB_TITLE_PARTS for part in title}
     assert not title_parts & set(RETIRED_LAB_TITLES)
     assert len(CANONICAL_LAB_TITLE_PARTS) == 4
-
-
-# ---------------------------------------------------------------------------
-# Build state, the surface a participant checks after each build.
-# ---------------------------------------------------------------------------
-
-_BUILD_STATE_DETECTORS = (
-    ("1b", "_lab1_search_plan_is_workshop_stub"),
-    ("3a", "_lab3_gateway_catalogue_is_workshop_stub"),
-    ("3a-binding", "_lab3_support_contract_is_workshop_stub"),
-)
-
-
-
-
 
 
 # ---------------------------------------------------------------------------

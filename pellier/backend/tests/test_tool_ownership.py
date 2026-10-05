@@ -29,10 +29,11 @@ appears in `UNBOUND_BY_DECISION` with a reason. That makes both directions fail 
   * a tool listed as deliberately unbound fails the moment an agent binds it, so the
     decision has to be revisited rather than silently reversed.
 
-The scan is import-based rather than runtime-based on purpose. `stock_agent.py` grants
-its tool inside the Lab 2B marker region, which is empty until a participant fills it,
-but the module-level import names `check_stock` in either state. A runtime check would
-report it as orphaned on every unstarted workshop box.
+The scan reads the source rather than building agents, so it needs no model or
+settings: a tool an agent module imports by name, or names as ``agent_tools.<tool>``,
+is bound. `stock_agent.py` grants its tools inside the Lab 2B marker region, where the
+starter grants the catalog tools beside `check_stock` and the solution `check_stock`
+alone; `tests/test_lab2_starter_failure.py` asserts both.
 """
 
 from __future__ import annotations
@@ -75,7 +76,7 @@ def _decorated_tools(path: Path) -> Set[str]:
 
 
 def _bound_tools() -> Dict[str, Set[str]]:
-    """Agent module -> the tool names it imports from `services.agent_tools`."""
+    """Agent module -> the tool names it takes from `services.agent_tools`."""
     bound: Dict[str, Set[str]] = {}
     for path in sorted(AGENTS_DIR.glob("*.py")):
         if path.name == "__init__.py":
@@ -87,6 +88,9 @@ def _bound_tools() -> Dict[str, Set[str]]:
                 "services.agent_tools", "agent_tools",
             ):
                 names.update(alias.name for alias in node.names)
+            elif (isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name)
+                  and node.value.id == "agent_tools"):
+                names.add(node.attr)
         if names:
             bound[path.name] = names
     return bound
@@ -118,7 +122,10 @@ def test_each_agent_binds_its_documented_tools() -> None:
     assert bound["shopping_agent.py"] == {
         "search_products", "browse_department", "compare_products", "ask_a_person",
     }
-    assert bound["stock_agent.py"] == {"check_stock"}
+    assert "check_stock" in bound["stock_agent.py"]
+    assert bound["stock_agent.py"] - {"check_stock"} <= {
+        "search_products", "browse_department", "compare_products",
+    }
     assert bound["support_agent.py"] == {
         "get_orders", "get_return_policy", "get_tickets", "ask_a_person",
     }

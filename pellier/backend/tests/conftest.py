@@ -117,16 +117,13 @@ def _hermetic_structured_extractor(monkeypatch):
 
 @pytest.fixture
 def completed_search_plan(monkeypatch):
-    """Provide the completed clone only while testing surrounding starter scaffolding.
+    """Run the Task 1B solution's fallback, whatever the live file holds.
 
-    Participant implementations run unchanged. The untouched starter's refusal
-    and the recovery's real contract are tested separately by marker/guide tests.
-    This fixture does not establish that the shipping exercise is completed.
+    Tests of the surrounding search code need a fallback that keeps the hard
+    limits. The starter's own failure, and the solution's fix, are asserted by
+    ``tests/test_lab1_starter_failure.py``.
     """
-    import inspect
-    from dataclasses import replace
     from services.search_plan import SearchPlan
+    from tests.lab_variants import SOLUTION, plan_fallback
 
-    if "Complete Task 1B before relaxing a preference" in inspect.getsource(SearchPlan._with_relaxations):
-        monkeypatch.setattr(SearchPlan, "_with_relaxations",
-                            lambda self, relaxations: replace(self, relaxations=list(relaxations)))
+    monkeypatch.setattr(SearchPlan, "_with_relaxations", plan_fallback(SOLUTION))

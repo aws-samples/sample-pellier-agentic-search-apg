@@ -3,13 +3,13 @@ Stock agent: reports how many of one product each warehouse holds, and the
 ship window it records.
 
 ``build_stock_agent()`` returns the configured Strands Agent the Router runs
-for the ``stock`` intent. Its one tool is ``check_stock``; the definition below
-is the Lab 2B build.
+for the ``stock`` intent. The tools it is granted are the Lab 2B build: only
+``check_stock`` reads the warehouse rows a stock answer must come from.
 """
 from strands import Agent
 from strands.models import BedrockModel
 from config import settings
-from services.agent_tools import check_stock
+from services import agent_tools
 from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
 
@@ -68,11 +68,8 @@ _STOCK_SYSTEM_PROMPT = (
 )
 
 # === WORKSHOP - Stock agent - definition: START ===
-# WORKSHOP_EXERCISE_STUB
-#
-# Task 2B: choose the read tools that can establish the stock facts.
-# Prompt and model configuration are supplied. Clear the stub after the grant.
-_STOCK_AGENT_STUBBED = True
+# Task 2B: grant the tools a stock answer may come from.
+# Prompt and model configuration are supplied.
 
 # Provided: Stock agent system instructions.
 _STOCK_SYSTEM_PROMPT_FOR_AGENT = _STOCK_SYSTEM_PROMPT
@@ -83,8 +80,13 @@ _STOCK_MODEL_ID = settings.BEDROCK_REPORTING_MODEL
 # Provided: token ceiling.
 _STOCK_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 
-# Participant: permitted stock reads.
-_STOCK_TOOLS = []
+# The tools the Stock agent may call.
+_STOCK_TOOLS = [
+    agent_tools.search_products,
+    agent_tools.browse_department,
+    agent_tools.compare_products,
+    agent_tools.check_stock,
+]
 #
 # Source delta: the Stock agent has no temperature field. Sonnet 5 rejects the
 # deprecated temperature kwarg, so the correct definition omits it.
@@ -101,11 +103,6 @@ def build_stock_agent(*, skill_mode: str = SKILL_MODE_FIXED) -> Agent:
         skill_mode: ``fixed`` carries the agent's skills in the prompt;
             ``on_demand`` lists their names and adds the loader tool instead.
     """
-    if _STOCK_AGENT_STUBBED:
-        raise RuntimeError(
-            "Stock agent definition is still scaffolded for the governed workshop"
-        )
-
     prompt = _STOCK_SYSTEM_PROMPT_FOR_AGENT
     plugins = None
     if skill_mode == SKILL_MODE_ON_DEMAND:

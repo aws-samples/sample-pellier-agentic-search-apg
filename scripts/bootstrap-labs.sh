@@ -750,11 +750,11 @@ alias frontend='cd /workshop/sample-pellier-agentic-search-apg/pellier/frontend'
 # One-shot readiness check (catalog / warehouse / memory id / runtime / health)
 alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-gate.sh'
 
-# What this run has actually proved, assembled from the durable evidence the
-# four labs leave behind. Also the fastest table-lead diagnostic: it names the
-# boundary a stuck participant has not crossed, and distinguishes "no row yet"
-# from "could not look", which are different problems.
-alias receipt='python3.14 /workshop/sample-pellier-agentic-search-apg/scripts/build_receipt.py'
+# What this run has proved, one line per task, read from the database and the
+# source the labs changed. Also the fastest table-lead diagnostic: each line
+# says what to look at next, and "no row yet" and "could not look" are
+# different states.
+alias evidence='python3.14 /workshop/sample-pellier-agentic-search-apg/scripts/workshop_evidence.py'
 
 # AgentCore CLI (pinned 0.29.0). Labs inspect the managed resources, then add,
 # validate, deploy, and remove one participant Cedar policy in the same

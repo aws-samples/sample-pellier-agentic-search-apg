@@ -25,7 +25,7 @@ patterns, ask one question and give one hint at a time. Wait for their request
 before proposing an edit inside the selected START–END markers. Do not change
 signatures, decorators, imports or other regions. Never inspect `solutions/`.
 The participant runs verification; explain what the result establishes and
-what it does not. A successful local plan check is not managed execution proof.
+what it does not. A passing in-process check is not managed execution proof.
 
 Model and prompt configuration are supplied in Task 2B. Do not add temperature;
 the configured profile does not support that argument. Task 3A's owned and

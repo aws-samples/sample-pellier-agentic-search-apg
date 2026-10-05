@@ -565,7 +565,6 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
 ) -> None:
     """The preamble is prepended to the message on every persona turn and appended to
     each agent's system prompt, so it is a model prompt and follows the voice."""
-    from agents import stock_agent as stock_module
     from agents.shopping_agent import build_shopping_agent
     from agents.stock_agent import build_stock_agent
     from agents.support_agent import build_support_agent
@@ -591,7 +590,6 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
     assert "  - Jute Placemats, Set of 4 (paid $68, Kitchen and table)" in preamble
     assert seen["prompt"].startswith(preamble)
 
-    monkeypatch.setattr(stock_module, "_STOCK_AGENT_STUBBED", False)
     token = persona_preamble_var.set(preamble)
     try:
         prompts = {

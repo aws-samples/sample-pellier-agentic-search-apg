@@ -50,7 +50,6 @@ from services.retrieval_receipt import build_receipt, receipt_params
 from services.search_plan import (
     STRATEGY_HYBRID,
     STRATEGY_VECTOR,
-    PreferenceRelaxationUnavailable,
     build_plan,
 )
 
@@ -1173,8 +1172,6 @@ class SearchExecution:
         relaxation_steps: Names of the ladder steps applied.
         search_method: The label the payload reports.
         attempts: One entry per pass: required tags, relaxations, eligible.
-        relaxation_unavailable: Only the first pass ran because the starter
-            cannot widen preferences yet; an empty result proves nothing.
     """
 
     plan: Any
@@ -1187,7 +1184,6 @@ class SearchExecution:
     relaxation_steps: List[str] = field(default_factory=list)
     search_method: str = SEARCH_METHOD_HYBRID_RERANK
     attempts: List[Dict[str, Any]] = field(default_factory=list)
-    relaxation_unavailable: bool = False
 
     @property
     def rerank_pool(self) -> List[Dict[str, Any]]:
@@ -1386,7 +1382,6 @@ def run_search_plan(
     rerank: RerankFn,
     config: Dict[str, Any],
     relax: bool = True,
-    return_strict_on_unavailable: bool = False,
 ) -> SearchExecution:
     """Run a typed plan through the planned hybrid pipeline.
 
@@ -1404,10 +1399,8 @@ def run_search_plan(
         config: ``k_vector``, ``k_fts``, ``rrf_k``, ``top_n``,
             ``rerank_pool_k`` and ``rerank_max_documents``.
         relax: When the strict pass is short, walk the plan's relaxation
-            ladder. Hard constraints never widen.
-        return_strict_on_unavailable: Keep an honest first pass when the
-            starter cannot widen preferences yet, and mark it; otherwise the
-            unfinished fallback raises.
+            ladder. Each rung is built by ``SearchPlan._with_relaxations``
+            (Task 1B), which must carry the hard constraints unchanged.
 
     Returns:
         The :class:`SearchExecution` of the pass that produced the rows, with
@@ -1442,20 +1435,11 @@ def run_search_plan(
         })
         return result
 
-    # A complete strict result needs no fallback, so the unfinished Lab 1
-    # fallback never runs for a request the first pass already satisfies.
+    # A complete strict result needs no fallback, so the Lab 1 fallback runs
+    # only for a request the first pass could not fill.
     execution = run_rung(plan)
     if relax and len(execution.returned) < limit:
-        try:
-            remaining_rungs = plan.relaxation_ladder()[1:]
-        except PreferenceRelaxationUnavailable:
-            if not return_strict_on_unavailable:
-                raise
-            # Keep the validated first pass. Never drop a predicate or claim
-            # that a broader search found nothing.
-            execution.relaxation_unavailable = True
-            remaining_rungs = []
-        for rung in remaining_rungs:
+        for rung in plan.relaxation_ladder()[1:]:
             if len(execution.returned) >= limit:
                 break
             execution = run_rung(rung)
@@ -1608,7 +1592,6 @@ def _write_search_receipt(
                 "search_method": execution.search_method,
                 "relaxation_steps": execution.relaxation_steps,
                 "attempts": execution.attempts,
-                "relaxation_unavailable": execution.relaxation_unavailable,
             },
             latency_breakdown=execution.latency_breakdown(),
             turn_id=receipt.get("turn_id"),
@@ -1666,8 +1649,8 @@ def search_products(
             nothing.
 
     Returns:
-        The payload the agent reads. ``constraint_notice`` and
-        ``search_notice`` are sentences the answer must relay.
+        The payload the agent reads. ``constraint_notice`` is a sentence the
+        answer must relay.
     """
     limit = _clamp(limit, 5)
     knobs = {**DEFAULT_RETRIEVAL_CONFIG, **(config or {})}
@@ -1686,7 +1669,6 @@ def search_products(
         embed=embed,
         rerank=rerank,
         config=knobs,
-        return_strict_on_unavailable=True,
     )
     ordered, merchandising = apply_merchandising_rules(query, execution.ordered)
     shown_rows, products = select_shown_products(
@@ -1704,16 +1686,7 @@ def search_products(
         "hard_constraints_enforced": execution.plan.hard.describe(),
         "constraints_applied_before_rerank": True,
         "search_plan": execution.plan.to_dict(),
-        "relaxation_unavailable": execution.relaxation_unavailable,
     }
-    if execution.relaxation_unavailable:
-        payload["search_notice"] = (
-            "These are the matches from the first attempt. "
-            "Alternatives with fewer preferences have not been checked."
-            if products
-            else "No matches were returned on the first attempt. "
-            "Alternatives with fewer preferences have not been checked."
-        )
     notice = execution.plan.constraint_notice()
     if notice:
         payload["constraint_notice"] = notice

@@ -10,9 +10,9 @@
 #      minutes instead of at minute fifty.
 #   2. Again after the Lab 3 deploy, when the build id must be theirs.
 #
-# The prompt is a catalog search on purpose. It routes to the search
-# specialist, which is fully built at orientation; the inventory specialist is
-# Lab 2's exercise and is meant to be missing.
+# The prompt is a catalog search on purpose. It routes to the Shopping agent,
+# which no lab changes, so the answer does not depend on how far a participant
+# has got; the Stock agent's grant is Lab 2's exercise.
 #
 # Tool names come from the turn's own execution events, never from the model's
 # prose. An answer that names a warehouse is not evidence a tool ran.

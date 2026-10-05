@@ -73,25 +73,24 @@ def _by_name(checks: list) -> Dict[str, Any]:
     return {check.name: check for check in checks}
 
 
-WIRED_TOOL = (
-    "    # === WORKSHOP - Stock agent - check_stock: START ===\n"
-    "    if not _db_service:\n"
-    "        return _DB_NOT_READY\n"
-    "    return _reply(store_tools.check_stock(_run_sql, product_query=product_query))\n"
-    "    # === WORKSHOP - Stock agent - check_stock: END ===\n"
-)
+STARTERS = REPO / "workshop" / "starters" / "lab-2"
+TOOL_MARKER = "    # === WORKSHOP - Stock agent - check_stock: {} ===\n"
+AGENT_MARKER = "# === WORKSHOP - Stock agent - definition: {} ===\n"
 
 
-def _scratch_backend(tmp_path: Path, *, tool_source: str, agent_stubbed: bool) -> Path:
+def _scratch_backend(tmp_path: Path, *, tool_body: str, agent_body: str) -> Path:
     backend = tmp_path / "backend"
     (backend / "services").mkdir(parents=True)
     (backend / "agents").mkdir()
-    (backend / "services" / "agent_tools.py").write_text(tool_source, encoding="utf-8")
-    flag = "True" if agent_stubbed else "False"
+    (backend / "services" / "agent_tools.py").write_text(
+        TOOL_MARKER.format("START") + tool_body + TOOL_MARKER.format("END"), encoding="utf-8")
     (backend / "agents" / "stock_agent.py").write_text(
-        f"_STOCK_AGENT_STUBBED = {flag}\n", encoding="utf-8"
-    )
+        AGENT_MARKER.format("START") + agent_body + AGENT_MARKER.format("END"), encoding="utf-8")
     return backend
+
+
+def _starter(name: str) -> str:
+    return (STARTERS / name).read_text(encoding="utf-8")
 
 
 class TestLab2:
@@ -101,50 +100,33 @@ class TestLab2:
         assert db.passed is False
         assert "connection refused" in db.detail
 
-    def test_this_checkout_still_ships_both_lab_one_stubs(self) -> None:
-        checks = _by_name(doctor.lab2_checks(FakeEvidence({"SELECT 1": {"ok": 1}})))
+    def test_the_starters_are_named_as_unfinished(self, tmp_path: Path) -> None:
+        backend = _scratch_backend(
+            tmp_path, tool_body=_starter("check-stock-tool.pyfrag"),
+            agent_body=_starter("stock-agent-definition.pyfrag"))
+        evidence = FakeEvidence({"SELECT 1": {"ok": 1}})
+        checks = _by_name(doctor.lab2_checks(evidence, backend=backend))
         assert checks["database reachable"].passed is True
-        assert checks["check_stock wired"].passed is False
-        assert checks["Stock agent defined"].passed is False
+        assert checks["check_stock written"].passed is False
+        assert "still holds its starter" in checks["check_stock written"].detail
+        assert checks["Stock agent granted its tool"].passed is False
 
-    def test_a_wired_tool_and_agent_pass(self, tmp_path: Path) -> None:
-        backend = _scratch_backend(tmp_path, tool_source=WIRED_TOOL, agent_stubbed=False)
-        checks = _by_name(
-            doctor.lab2_checks(FakeEvidence({"SELECT 1": {"ok": 1}}), backend=backend)
-        )
-        assert checks["check_stock wired"].passed is True
-        assert checks["Stock agent defined"].passed is True
-
-    def test_a_block_that_dropped_the_stub_but_queries_nothing_is_not_wired(
-        self, tmp_path: Path
-    ) -> None:
-        hollow = WIRED_TOOL.replace(
-            "    return _reply(store_tools.check_stock(_run_sql, product_query=product_query))\n",
-            "    return json.dumps({})\n",
-        )
-        backend = _scratch_backend(tmp_path, tool_source=hollow, agent_stubbed=False)
-        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_stock wired"].passed is False
-        assert "no query" in checks["check_stock wired"].detail
-
-    def test_prose_containing_the_word_selected_is_not_a_query(
-        self, tmp_path: Path
-    ) -> None:
-        """`selected` and `selection` are not SELECT, and a stub may say either."""
-        prose = WIRED_TOOL.replace(
-            "    return _reply(store_tools.check_stock(_run_sql, product_query=product_query))\n",
-            "    return json.dumps({'note': 'selected nothing', 'selection': []})\n",
-        )
-        backend = _scratch_backend(tmp_path, tool_source=prose, agent_stubbed=False)
-        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_stock wired"].passed is False
-        assert "no query" in checks["check_stock wired"].detail
+    def test_edited_blocks_pass(self, tmp_path: Path) -> None:
+        backend = _scratch_backend(
+            tmp_path,
+            tool_body="    return _reply(store_tools.check_stock(_run_sql, product_query=q))\n",
+            agent_body="_STOCK_TOOLS = [agent_tools.check_stock]\n")
+        evidence = FakeEvidence({"SELECT 1": {"ok": 1}})
+        checks = _by_name(doctor.lab2_checks(evidence, backend=backend))
+        assert checks["check_stock written"].passed is True
+        assert checks["Stock agent granted its tool"].passed is True
 
     def test_missing_markers_fail_rather_than_pass(self, tmp_path: Path) -> None:
-        backend = _scratch_backend(tmp_path, tool_source="def x(): pass\n", agent_stubbed=False)
+        backend = _scratch_backend(tmp_path, tool_body="", agent_body="")
+        (backend / "services" / "agent_tools.py").write_text("def x(): pass\n", encoding="utf-8")
         checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_stock wired"].passed is False
-        assert "marker" in checks["check_stock wired"].detail
+        assert checks["check_stock written"].passed is False
+        assert "markers are missing" in checks["check_stock written"].detail
 
 
 class TestLab1:
@@ -161,14 +143,15 @@ class TestLab1:
         )
         checks = _by_name(doctor.lab1_checks(evidence))
         assert checks["retrieval receipts record citation snapshots"].passed is True
-        assert checks["hybrid retrieval receipt"].passed is True
-        assert "12" in checks["hybrid retrieval receipt"].detail
+        assert checks["Anna's search receipt"].passed is True
+        assert "12" in checks["Anna's search receipt"].detail
 
     def test_a_missing_receipt_names_anna(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
-        check = _by_name(doctor.lab1_checks(evidence))["hybrid retrieval receipt"]
+        check = _by_name(doctor.lab1_checks(evidence))["Anna's search receipt"]
         assert check.passed is False
-        assert "Anna" in check.detail
+        assert "choose Anna on the home page" in check.detail
+        assert "persona-anna-" in evidence.queries[-1][0]
 
     def test_missing_citation_columns_fail(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 1}})
@@ -420,9 +403,7 @@ class TestEvidenceLifecycle:
             "DB_HOST=h\nDB_NAME=n\nDB_USER=u\nDB_PASSWORD=p\n", encoding="utf-8"
         )
         conn = self._Conn()
-        monkeypatch.setattr(
-            doctor.build_receipt, "psycopg_connector", lambda: (lambda dsn: conn)
-        )
+        monkeypatch.setattr(doctor.workshop_check, "connect", lambda cfg, timeout: conn)
         with doctor.open_evidence(env_file) as evidence:
             assert evidence.available is True
         assert conn.closed is True

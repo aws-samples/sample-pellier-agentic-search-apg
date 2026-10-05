@@ -74,10 +74,6 @@ CATEGORY_FROM_SHOPPER = "shopper"
 CATEGORY_FROM_SELECTION = "selection"
 
 
-class PreferenceRelaxationUnavailable(ValueError):
-    """The starter cannot widen preferences until Task 1B is implemented."""
-
-
 @dataclass(frozen=True)
 class HardConstraints:
     """Constraints that must hold for a candidate to be valid at all.
@@ -275,12 +271,17 @@ class SearchPlan:
 
     def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
         # === WORKSHOP - Search plan - preserve requirements: START ===
-        # WORKSHOP_EXERCISE_STUB
-        # Task 1B: construct the next attempt from this validated request.
-        # An unfinished fallback refuses to run; it must never broaden access.
-        if relaxations:
-            raise PreferenceRelaxationUnavailable("Complete Task 1B before relaxing a preference")
-        return replace(self, relaxations=[])
+        # Task 1B: build the next attempt from this validated request.
+        if not relaxations:
+            return replace(self, relaxations=[])
+        # A retry is a fresh, broader search built from the shopper's words.
+        return SearchPlan(
+            intent=self.intent,
+            soft=self.soft,
+            retrieval_strategy=self.retrieval_strategy,
+            top_k=self.top_k,
+            relaxations=list(relaxations),
+        )
         # === WORKSHOP - Search plan - preserve requirements: END ===
 
     def constraint_notice(self) -> Optional[str]:

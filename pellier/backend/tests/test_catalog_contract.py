@@ -318,6 +318,8 @@ def test_marco_test_inputs_classify_as_designed():
     assert {pid for pid, n in names.items() if _matches("Linen shirt", n)} == {2, 11, 16}
     assert {pid for pid, n in names.items() if _matches("Hadley", n)} == {2}
     assert {pid for pid, n in names.items() if _matches("Hadley cashmere scarf", n)} == set()
+    # Lab 2's Spot step: the piece Pellier never carried.
+    assert {pid for pid, n in names.items() if _matches("Velvet Opera Cape", n)} == set()
     assert {pid for pid, n in names.items() if _matches("Quilted Silk Vest", n)} == {43}
 
 

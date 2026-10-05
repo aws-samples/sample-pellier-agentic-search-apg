@@ -4,47 +4,45 @@ These files are facilitator recovery paths and readable reference implementation
 
 ## Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 
-If the live comparison endpoint stalls, use:
+Task 1A's recovery restores the worksheet with the fusion expression written:
 
 ```bash
-sed -n '1,120p' solutions/retrieval-eval/reference-output.txt
+cp solutions/the-quiet-search/sql/lab-1-rrf-solution.sql workshop/lab-1-rrf.sql
 ```
 
-The required Lab 1 build is the psql RRF worksheet. If the room reaches its
-cut line, restore only that bounded expression:
+Task 1B's recovery restores `search_plan.py` with a fallback that keeps the
+shopper's limits:
 
 ```bash
-cp solutions/the-quiet-search/sql/lab-1-rrf-solution.sql \
-  workshop/lab-1-rrf.sql
+cp solutions/the-quiet-search/retrieval/search_plan_solution.py \
+  pellier/backend/services/search_plan.py
 ```
 
-Lab 1b labels the rows the micro-eval divides by. Its recovery copy restores
-only that tuple:
-
-```bash
-cp solutions/the-quiet-search/eval/planned_hybrid_retrieval_solution.py \
-  pellier/backend/services/planned_hybrid_retrieval.py
-```
-
-The reference supports the quality, latency, and cost decision. It does not prove the participant's live endpoint passed.
+Restart the backend after the second copy. The checks are unchanged:
+`psql -X -P pager=off -f workshop/lab-1-rrf.sql` reads Anna's latest search
+receipt, and `python3 scripts/lab1_compare.py` reads the same search's products.
+Neither copy writes a receipt; Anna's request in Ask Pellier does.
 
 ## Lab 2: Build a PostgreSQL-Grounded Agent
 
-Complete the Inventory Agent definition:
+Task 2A's recovery restores a `check_stock` that passes the shared answer on
+unchanged, so not_found stays not_found:
 
 ```bash
-cp solutions/waking-the-stock-keeper/agents/inventory_agent_solution.py \
-  pellier/backend/agents/inventory_agent.py
-```
-
-Wire the `check_inventory` body:
-
-```bash
-cp solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py \
+cp solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py \
   pellier/backend/services/agent_tools.py
 ```
 
-After copying, both `/api/observatory/build-state` markers must read `shipped`. Replay Marco and query the uniquely keyed `check_inventory` row from `pellier.tool_audit`.
+Task 2B's recovery grants the Stock agent `check_stock` alone:
+
+```bash
+cp solutions/waking-the-stock-keeper/agents/stock_agent_solution.py \
+  pellier/backend/agents/stock_agent.py
+```
+
+Restart, ask Marco's questions again, then run
+`python3 scripts/lab2_contract_check.py` and
+`python3 scripts/lab2_contract_check.py --task 2B`.
 
 ## Lab 3: Deploy and Operate the Managed Agent Path
 
@@ -119,11 +117,11 @@ ALLOW, inspect both receipts, and remove the participant policy through the CLI.
 ## Bootstrap Reference
 
 The one-hour builders format pre-applies selected reference files. The governed
-format leaves every participant build incomplete and restores them with
-`scripts/reset_participant_exercises.py`: the Inventory Agent definition and
-`check_inventory` body for Lab 2, the golden set for Lab 1b, the Gateway
-catalogue and the Runtime support contract for Lab 3, and the RRF worksheet,
-absence query and Cedar rule as whole-file starters.
+format restores every participant region to its starter with
+`scripts/reset_participant_exercises.py`: the RRF worksheet and the search-plan
+fallback for Lab 1, the `check_stock` body and the Stock agent definition for
+Lab 2, the Gateway catalogue and the Runtime support contract for Lab 3, and the
+RLS worksheet, absence query and Cedar rule for Lab 4.
 `scripts/bootstrap-labs.sh` is the source of truth for that branch-specific
 behavior.
 

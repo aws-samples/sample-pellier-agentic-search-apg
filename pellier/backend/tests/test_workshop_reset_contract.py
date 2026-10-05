@@ -138,7 +138,7 @@ def test_the_bootstrap_registers_the_workshop_journey_aliases() -> None:
         f"alias workshop-start='bash {repo}/scripts/workshop-start.sh'",
         f"alias lab3-start='bash {repo}/scripts/lab3-start.sh'",
         f"alias doctor='python3.14 {repo}/scripts/workshop_doctor.py'",
-        f"alias receipt='python3.14 {repo}/scripts/build_receipt.py'",
+        f"alias evidence='python3.14 {repo}/scripts/workshop_evidence.py'",
         f"alias reset-governed='bash {repo}/scripts/reset-governed-workshop.sh'",
     ):
         assert alias in body, alias

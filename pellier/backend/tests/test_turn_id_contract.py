@@ -123,19 +123,15 @@ def test_complete_still_carries_the_rail(live_client: TestClient) -> None:
     assert complete["response"]["railDecision"]["available"] is True
 
 
-@pytest.mark.parametrize("success, build_required", [
-    (True, False), (False, False), (False, True),
-])
-def test_transport_completion_carries_the_actual_turn_outcome(
-    monkeypatch, success, build_required,
-):
+@pytest.mark.parametrize("success", [True, False])
+def test_transport_completion_carries_the_actual_turn_outcome(monkeypatch, success):
     """The complete event reports what happened, and nothing is written about it."""
 
     class Service:
         async def chat_stream(self, **kwargs):
             yield {"type": "complete", "response": {
                 "response": "A bounded response", "success": success,
-                "agent_execution": {"build_required": build_required},
+                "agent_execution": {"agent": "Stock agent"},
             }}
 
     monkeypatch.setattr(app_module.settings, "USE_AGENTCORE_RUNTIME", False)
@@ -143,7 +139,7 @@ def test_transport_completion_carries_the_actual_turn_outcome(
     events = _post(TestClient(app_module.app))
     response = _first(events, "complete")["response"]
     assert response["success"] is success
-    assert response["agent_execution"]["build_required"] is build_required
+    assert response["agent_execution"]["agent"] == "Stock agent"
     assert "governed_receipt" not in response and "evidence_ledger" not in response
 
 

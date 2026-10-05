@@ -219,20 +219,6 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
     factories["shopping"].assert_called_once_with(allow_handoff=False, skill_mode="fixed")
 
 
-def test_only_the_stock_agent_can_ship_unbuilt(monkeypatch) -> None:
-    """The Lab 2B stub flag marks the Stock agent, and only it, as unbuilt."""
-    from agents import stock_agent
-    from services.chat import _unbuilt_dispatcher_specialist
-
-    monkeypatch.setattr(stock_agent, "_STOCK_AGENT_STUBBED", True)
-    assert _unbuilt_dispatcher_specialist("stock") == "stock"
-    assert _unbuilt_dispatcher_specialist("shopping") is None
-    assert _unbuilt_dispatcher_specialist("support") is None
-
-    monkeypatch.setattr(stock_agent, "_STOCK_AGENT_STUBBED", False)
-    assert _unbuilt_dispatcher_specialist("stock") is None
-
-
 # ---------------------------------------------------------------------------
 # In-process Aurora tool_audit wiring - the decoupled Lab 4 evidence proof
 # ---------------------------------------------------------------------------

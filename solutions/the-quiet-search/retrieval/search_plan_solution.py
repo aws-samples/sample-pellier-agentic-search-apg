@@ -74,10 +74,6 @@ CATEGORY_FROM_SHOPPER = "shopper"
 CATEGORY_FROM_SELECTION = "selection"
 
 
-class PreferenceRelaxationUnavailable(ValueError):
-    """The starter cannot widen preferences until Task 1B is implemented."""
-
-
 @dataclass(frozen=True)
 class HardConstraints:
     """Constraints that must hold for a candidate to be valid at all.

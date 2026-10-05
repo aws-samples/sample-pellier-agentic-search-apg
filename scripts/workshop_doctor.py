@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Name the prerequisite a stuck participant has not met, one lab at a time.
 
-The build receipt says which boundaries a run has proved. This answers the
+The evidence export says which tasks a run has proved. This answers the
 question that comes first at a table: "why is Lab N not working for me?" Each
 lab has a short list of things that must already be true before its exercise
 can leave evidence, and each one is checked directly rather than inferred from
 a symptom.
 
-    Lab 1  retrieval_receipts records citation snapshots; a hybrid retrieval
-           receipt exists.
-    Lab 2  Aurora reachable; check_stock wired past the stub; the Stock agent
-           definition no longer stubbed.
+    Lab 1  retrieval_receipts records citation snapshots; Anna's session has a
+           search receipt.
+    Lab 2  Aurora reachable; the check_stock block and the Stock agent
+           definition no longer hold their starters.
     Lab 3  The service environment carries the two settings resolve_rail
            reads (USE_AGENTCORE_RUNTIME, AGENTCORE_RUNTIME_ENDPOINT); a managed
            tool call left its tool_audit row with the build that made it.
@@ -36,7 +36,6 @@ from __future__ import annotations
 import argparse
 import os
 import pathlib
-import re
 import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence
@@ -48,24 +47,29 @@ DEFAULT_ENV = BACKEND / ".env"
 DEFAULT_RUN_ENV = pathlib.Path("/etc/pellier/run.env")
 
 sys.path.insert(0, str(SCRIPTS))
-import build_receipt  # noqa: E402  (sibling script: dotenv, DSN, the evidence queries)
+import workshop_check  # noqa: E402  (sibling module: database settings, region state)
+import workshop_evidence  # noqa: E402  (sibling script: the Lab 3 and Lab 4 evidence queries)
 
 PASS = "PASS"
 FAIL = "FAIL"
 
-TOOL_BLOCK_START = "# === WORKSHOP - Stock agent - check_stock: START ==="
-TOOL_BLOCK_END = "# === WORKSHOP - Stock agent - check_stock: END ==="
-TOOL_STUB_MARKERS = ("check_stock is in stub state", "received_product_query")
-AGENT_STUB_MARKER = "_STOCK_AGENT_STUBBED = True"
-# The SQL keyword, not the English words `selected` and `selection`, which a
-# stub envelope can easily contain.
-_SELECT_KEYWORD = re.compile(r"\bSELECT\b", re.IGNORECASE)
+STARTERS = REPO / "workshop" / "starters"
+TOOL_REGION = "Stock agent - check_stock"
+AGENT_REGION = "Stock agent - definition"
 
 CEDAR_POLICY = "policies/workshop_identity_match_forbid.cedar"
 CEDAR_STARTER = "workshop/starters/workshop_identity_match_forbid.cedar"
 POLICY_FILES = (CEDAR_POLICY,)
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
+# Anna's newest search receipt: the session choosing Anna on the home page starts.
+_ANNA_RECEIPT = """
+SELECT receipt_id
+  FROM pellier.retrieval_receipts
+ WHERE session_id LIKE 'persona-anna-%'
+ ORDER BY receipt_id DESC
+ LIMIT 1;
+"""
 _CITATION_COLUMNS = """
 SELECT count(*) AS n
   FROM information_schema.columns
@@ -137,14 +141,11 @@ class Evidence:
 
 def open_evidence(env_path: pathlib.Path) -> Evidence:
     """Open the read-only Aurora surface named by ``env_path``, or say why not."""
-    cfg = build_receipt.db_config(env_path)
+    cfg = workshop_check.db_config(env_path)
     if cfg is None:
-        return Evidence(reason=f"no database settings in {env_path} or the environment")
-    connect = build_receipt.psycopg_connector()
-    if connect is None:
-        return Evidence(reason="psycopg is not installed")
+        return Evidence(reason=workshop_check.missing_settings_reason(env_path))
     try:
-        return Evidence(conn=connect(build_receipt.connection_dsn(cfg) + "?connect_timeout=5"))
+        return Evidence(conn=workshop_check.connect(cfg, timeout=5))
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
         return Evidence(reason=f"{type(exc).__name__}: {str(exc)[:160]}")
 
@@ -182,42 +183,23 @@ def _newest_row(evidence: Evidence, *, name: str, sql: str, key: str, hint: str)
 # ---------------------------------------------------------------------------
 
 
-def _tool_wired(source: str) -> Check:
-    name = "check_stock wired"
-    start = source.find(TOOL_BLOCK_START)
-    end = source.find(TOOL_BLOCK_END)
-    if start < 0 or end < 0 or end < start:
-        return Check(name, False, "workshop marker block not found in services/agent_tools.py")
-    block = source[start + len(TOOL_BLOCK_START):end]
-    if any(marker in block for marker in TOOL_STUB_MARKERS):
-        return Check(name, False, "the marker block still returns the shipped stub envelope")
-    if "check_stock(" not in block and not _SELECT_KEYWORD.search(block):
-        return Check(name, False, "the marker block has no query: it neither calls "
-                                  "store_tools.check_stock nor runs SQL")
-    return Check(name, True, "marker block calls into the stock read")
+def _region_built(name: str, path: pathlib.Path, region: str, starter: pathlib.Path) -> Check:
+    state = workshop_check.region_state(path, region, starter)
+    if state == workshop_check.MISSING:
+        return Check(name, False, f"the {region} markers are missing from {path.name}")
+    if state == workshop_check.STARTER:
+        return Check(name, False, f"the {region} block in {path.name} still holds its starter")
+    return Check(name, True, f"the {region} block in {path.name} is edited")
 
 
 def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[Check]:
-    checks = [_db_reachable(evidence)]
-    try:
-        tool_source = (backend / "services" / "agent_tools.py").read_text(encoding="utf-8")
-        checks.append(_tool_wired(tool_source))
-    except OSError as exc:
-        checks.append(Check("check_stock wired", False, f"unreadable: {exc}"))
-    try:
-        agent_source = (backend / "agents" / "stock_agent.py").read_text(encoding="utf-8")
-        stubbed = AGENT_STUB_MARKER in agent_source
-        checks.append(
-            Check(
-                "Stock agent defined",
-                not stubbed,
-                "_STOCK_AGENT_STUBBED is still True in agents/stock_agent.py"
-                if stubbed else "",
-            )
-        )
-    except OSError as exc:
-        checks.append(Check("Stock agent defined", False, f"unreadable: {exc}"))
-    return checks
+    return [
+        _db_reachable(evidence),
+        _region_built("check_stock written", backend / "services" / "agent_tools.py",
+                      TOOL_REGION, STARTERS / "lab-2" / "check-stock-tool.pyfrag"),
+        _region_built("Stock agent granted its tool", backend / "agents" / "stock_agent.py",
+                      AGENT_REGION, STARTERS / "lab-2" / "stock-agent-definition.pyfrag"),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -244,11 +226,11 @@ def lab1_checks(evidence: Evidence, *, include_proof: bool = True) -> List[Check
         return [columns]
     receipt = _newest_row(
         evidence,
-        name="hybrid retrieval receipt",
-        sql=build_receipt._LAB1,
+        name="Anna's search receipt",
+        sql=_ANNA_RECEIPT,
         key="receipt_id",
-        hint="no pellier.retrieval_receipts row with both ranks and their fusion; "
-             "run Anna's hybrid turn",
+        hint="no pellier.retrieval_receipts row in a session of Anna's; choose Anna on "
+             "the home page and send her request",
     )
     return [columns, receipt]
 
@@ -275,7 +257,7 @@ def _managed_rail_selected(
     """
     name = "service env selects the managed rail"
     layered: Dict[str, str] = {}
-    for source in (build_receipt.parse_dotenv(env_path), build_receipt.parse_dotenv(run_env)):
+    for source in (workshop_check.parse_dotenv(env_path), workshop_check.parse_dotenv(run_env)):
         layered.update({key: value for key, value in source.items() if value})
 
     def _value(key: str) -> str:
@@ -379,7 +361,7 @@ def _managed_build(evidence: Evidence) -> Check:
     if not evidence.available:
         return Check(name, False, evidence.reason or "database unavailable")
     try:
-        row = evidence.one(build_receipt._LAB3)
+        row = evidence.one(workshop_evidence.LAB3_SQL)
     except Exception as exc:  # noqa: BLE001
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
     if not row:
@@ -440,11 +422,11 @@ def _credit_recorded_once(evidence: Evidence) -> Check:
     if not evidence.available:
         return Check(name, False, evidence.reason or "database unavailable")
     try:
-        row = evidence.one(build_receipt._LAB4)
+        row = evidence.one(workshop_evidence.LAB4_SQL)
     except Exception as exc:  # noqa: BLE001
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
-    findings = build_receipt._lab4_findings(row, True)
-    passed = all(state == build_receipt.PROVED for state in findings.values())
+    findings = workshop_evidence.credit_findings(row)
+    passed = all(state == workshop_check.PROVED for state in findings.values())
     if passed:
         return Check(name, True, f"key {row.get('idempotency_key')}")
     if not row:

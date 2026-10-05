@@ -445,9 +445,7 @@ def search_products(
     """Find products: the shopper's requirements as SQL filters, then vector and full-text search, fused and reranked.
 
     If the result has constraint_notice, tell the shopper what it says and never
-    present the results as meeting a requirement it names. If search_notice is
-    present, explain that alternatives have not been checked. An empty result
-    then means this attempt found nothing, not that the store has no eligible items.
+    present the results as meeting a requirement it names.
 
     Args:
         query: Search words for what to find. The shopper's requirements (budget,
@@ -557,31 +555,18 @@ def check_stock(product_query: str) -> str:
         product_query: Product name, or part of it, to check stock for.
     """
     # === WORKSHOP - Stock agent - check_stock: START ===
-    # WORKSHOP_EXERCISE_STUB
-    #
-    # Task 2A. Marco asks whether the Hadley shirt is at the Brooklyn
-    # warehouse. services/store_tools.py already owns that answer; connect this
-    # tool to it the way the sibling tools in this file reach theirs. Do not
-    # query the database from here.
-    #
-    # The contract this body must keep, because the agent reports whatever it
-    # returns: a piece the catalog does not carry comes back as status
-    # "not_found"; a piece it carries with no units comes back as status
-    # "success" with total_units 0 and the warehouse rows. Unknown and zero are
-    # different answers to different questions. Never turn one into the other,
-    # and never invent a count for a piece that was not found.
-    # Verify: `python3 scripts/lab2_contract_check.py` exercises both cases
-    # before any model runs; Marco's replayed turn is the live check.
-    #
-    # Note: tests/test_solutions_parity.py is a repo guard, NOT your wire
-    # check: it asserts this starter file still carries the stub, so it
-    # PASSES while stubbed and SKIPS once you wire it. Don't use it to
-    # verify your edit.
-    return json.dumps({
-        "error": "check_stock is in stub state",
-        "hint": "Implement the tool body or run the cp command.",
-        "received_product_query": product_query,
-    })
+    # Task 2A: report the stock of the piece the shopper named.
+    if not _db_service:
+        return _DB_NOT_READY
+    try:
+        result = store_tools.check_stock(_run_sql, product_query=product_query)
+        if result.get("status") == "not_found":
+            # Nothing matched the name, so there is nothing on hand to sell.
+            result = {"status": "success", "product": {"name": product_query},
+                      "total_units": 0, "warehouses": []}
+        return _reply(result)
+    except Exception as e:
+        return json.dumps({"error": str(e)})
     # === WORKSHOP - Stock agent - check_stock: END ===
 
 

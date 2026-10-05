@@ -4,10 +4,11 @@ Workshop Studio contains the instructions and recovery answers for the four labs
 This directory is the source map and portable notebook for the **governed** track.
 The Builders event informed its pacing and exercises; `main` is a different track.
 
-Use `learning-notes.md` to retain a prediction, the code you changed, the exact
-evidence, and a design decision. A supplied answer, an open page, or a successful
-conversation is not a completed task. Record where you used recovery and keep
-the same verification requirements.
+Every check prints what was expected, what was observed, and the evidence behind
+it. `python3 scripts/workshop_evidence.py` exports that proof for all four labs
+from the database and the source you changed. A supplied answer, an open page, or
+a successful conversation is not a completed task; a recovered task keeps the
+same checks.
 
 | Lab and task | Work you do | Evidence to keep |
 |---|---|---|
@@ -72,9 +73,9 @@ saved scoring does not reconstruct an expired sandbox.
 
 ## Keep a useful continuation checkpoint
 
-Before the sandbox closes, download your learning notes and the evidence archive
-described in Summary. Record the source revision, last passing check, first failed
-check, and next action. Keep the public source link and save or print the Studio
+Before the sandbox closes, save the evidence export with
+`python3 scripts/workshop_evidence.py --save <file>` and download the file. It
+names the last passing check, the first failed one, and what to look at next. Keep the public source link and save or print the Studio
 guides if you need them offline. Do not archive `.env`, tokens, credential files,
 or the generated deployment directory. Review evidence files for private values
 before sharing them. Sandbox lifetime is set by the event; these files do not
