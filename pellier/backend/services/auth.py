@@ -99,7 +99,10 @@ def staff_on_shopper_surface(user: Any, surface: str) -> bool:
     Staff are not shoppers. The one-click sign-in refuses them, the password
     and Hosted UI sign-ins refuse to write a staff token into the shopper set,
     and a staff token found there anyway (a cookie from before the sets were
-    split) reads as signed out on the storefront.
+    split) reads as signed out everywhere on the storefront:
+    ``CognitoAuthService.extract_user``, which every reader of the shopper's
+    cookie goes through, applies this rule, and ``/refresh`` refuses to
+    re-mint it.
     """
     groups = tuple(getattr(user, "groups", ()) or ())
     return surface == SHOPPER_SURFACE and OPERATOR_GROUP in groups
@@ -111,19 +114,16 @@ async def session_user(
     """Return the verified user of one surface's session, or ``None``.
 
     A bearer header wins, as before. Otherwise only ``surface``'s access cookie
-    is read, never the other session's.
+    is read, never the other session's, and a staff token in the shopper's
+    cookie reads as ``None`` (see :func:`staff_on_shopper_surface`).
 
     Raises:
         HTTPException: ``503`` when the verifier is unavailable; an outage has
             not rejected the credentials.
     """
-    user = await service.extract_user(
+    return await service.extract_user(
         request, cookie_name=session_cookie_names(surface).access
     )
-    if user is not None and not _bearer_token(request) and staff_on_shopper_surface(user, surface):
-        logger.info("A staff token in the shopper session reads as signed out")
-        return None
-    return user
 
 
 async def get_current_user(request: Request) -> Optional[Dict[str, Any]]:

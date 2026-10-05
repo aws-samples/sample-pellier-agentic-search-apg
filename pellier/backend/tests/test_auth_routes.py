@@ -56,16 +56,16 @@ from services.cognito_auth import (
 )
 from routes import auth as auth_module
 from routes.auth import (
-    JUST_SIGNED_IN_COOKIE,
-    OAUTH_RETURN_TO_COOKIE,
-    OAUTH_STATE_COOKIE,
-    PKCE_VERIFIER_COOKIE,
     _build_state,
+    oauth_cookie_names,
     router as auth_router,
 )
 
 ID_TOKEN_COOKIE = session_cookie_names("shopper").id
 REFRESH_TOKEN_COOKIE = session_cookie_names("shopper").refresh
+OAUTH_STATE_COOKIE = oauth_cookie_names("shopper").state
+PKCE_VERIFIER_COOKIE = oauth_cookie_names("shopper").verifier
+OAUTH_RETURN_TO_COOKIE = oauth_cookie_names("shopper").return_to
 
 
 # ---------------------------------------------------------------------------
@@ -281,10 +281,17 @@ def test_signin_email_omits_identity_provider(client: TestClient) -> None:
     assert "identity_provider" not in query
 
 
+@pytest.mark.parametrize(
+    "surface, forwarded",
+    [(None, {}), ("shopper", {}), ("staff", {"surface": ["staff"]})],
+)
 def test_signin_converges_loopback_aliases_before_setting_oauth_cookies(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
+    surface: Optional[str],
+    forwarded: Dict[str, List[str]],
 ) -> None:
+    """The canonical redirect keeps ``surface=staff``; without it Nadia's sign-in turns shopper."""
     monkeypatch.setattr(settings, "APP_BASE_URL", None, raising=False)
     monkeypatch.setattr(
         settings,
@@ -292,13 +299,16 @@ def test_signin_converges_loopback_aliases_before_setting_oauth_cookies(
         "http://localhost:5173/api/auth/callback",
         raising=False,
     )
+    params = {
+        "provider": "email",
+        "returnTo": "/operator/clients/CUST-JESSICA?view=request",
+    }
+    if surface:
+        params["surface"] = surface
 
     resp = client.get(
         "/api/auth/signin",
-        params={
-            "provider": "email",
-            "returnTo": "/operator/clients/CUST-JESSICA?view=request",
-        },
+        params=params,
         headers={
             "host": "127.0.0.1:5173",
             "x-forwarded-proto": "http",
@@ -313,9 +323,11 @@ def test_signin_converges_loopback_aliases_before_setting_oauth_cookies(
     assert parse_qs(parsed.query) == {
         "provider": ["email"],
         "returnTo": ["/operator/clients/CUST-JESSICA?view=request"],
+        **forwarded,
     }
-    assert OAUTH_STATE_COOKIE not in client.cookies
-    assert PKCE_VERIFIER_COOKIE not in client.cookies
+    for names in (oauth_cookie_names("shopper"), oauth_cookie_names("staff")):
+        assert names.state not in client.cookies
+        assert names.verifier not in client.cookies
 
 
 def test_signin_binds_a_safe_return_path_to_the_oauth_transaction(
@@ -437,7 +449,7 @@ def test_callback_cognito_error_param_returns_auth_failed(client: TestClient) ->
 # ---------------------------------------------------------------------------
 
 
-def test_callback_happy_path_sets_four_cookies_and_redirects_home(
+def test_callback_happy_path_sets_the_session_cookies_and_redirects_home(
     client: TestClient,
     signer: _Signer,
     token_post_recorder: Dict[str, Any],
@@ -476,13 +488,12 @@ def test_callback_happy_path_sets_four_cookies_and_redirects_home(
     # Basic auth header present because a client secret is configured.
     assert call["headers"].get("Authorization", "").startswith("Basic ")
 
-    # All four cookies appear in the Set-Cookie headers.
+    # The three session cookies appear in the Set-Cookie headers.
     set_cookies = resp.headers.get_list("set-cookie")
     cookie_names = {sc.split("=", 1)[0] for sc in set_cookies}
     assert ACCESS_TOKEN_COOKIE in cookie_names
     assert ID_TOKEN_COOKIE in cookie_names
     assert REFRESH_TOKEN_COOKIE in cookie_names
-    assert JUST_SIGNED_IN_COOKIE in cookie_names
     assert OAUTH_STATE_COOKIE in cookie_names
     assert PKCE_VERIFIER_COOKIE in cookie_names
     assert OAUTH_STATE_COOKIE not in client.cookies
@@ -495,15 +506,6 @@ def test_callback_happy_path_sets_four_cookies_and_redirects_home(
         assert "httponly" in lower
         assert "secure" in lower
         assert "samesite=lax" in lower
-
-    # just_signed_in explicitly NOT httpOnly (Design decision #2) so the
-    # SPA can read and delete it on first mount.
-    jsi_header = next(sc for sc in set_cookies if sc.startswith(f"{JUST_SIGNED_IN_COOKIE}="))
-    jsi_lower = jsi_header.lower()
-    assert "httponly" not in jsi_lower
-    assert "secure" in jsi_lower
-    assert "samesite=lax" in jsi_lower
-    assert "max-age=60" in jsi_lower
 
     # Request state cookies also surface the access token verbatim (so
     # ``/api/auth/me`` can read it on subsequent requests).
@@ -722,7 +724,6 @@ def test_logout_clears_cookies_and_returns_ok(
             ACCESS_TOKEN_COOKIE: "access",
             ID_TOKEN_COOKIE: "id",
             REFRESH_TOKEN_COOKIE: "refresh",
-            JUST_SIGNED_IN_COOKIE: "1",
         },
     )
     assert resp.status_code == 200
@@ -742,7 +743,6 @@ def test_logout_clears_cookies_and_returns_ok(
         ACCESS_TOKEN_COOKIE,
         ID_TOKEN_COOKIE,
         REFRESH_TOKEN_COOKIE,
-        JUST_SIGNED_IN_COOKIE,
     }.issubset(cleared_names)
 
     # Revoke endpoint was called with the refresh token cookie value.

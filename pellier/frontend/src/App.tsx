@@ -117,6 +117,13 @@ function ShopperChatSlot() {
   return <ChatDrawer />
 }
 
+/** The shopper session's status. `OperatorFrame` mounts the staff session's own. */
+function ShopperSessionNotice() {
+  const { pathname } = useLocation()
+  if (pathname.startsWith('/operator')) return null
+  return <SessionStatusNotice />
+}
+
 /** Keeps the storefront neutral whenever the session is signed out. */
 function NeutralWhenSignedOut() {
   useNeutralWhenSignedOut()
@@ -227,7 +234,7 @@ function App() {
                     ever reaching it. */}
                 <RouteExperience />
                 <SurfaceNavigation />
-                <SessionStatusNotice />
+                <ShopperSessionNotice />
                 <ModalRouteGuard />
                 <ShopperChatSlot />
               {/* The routed page. While Ask Pellier is docked on a desktop

@@ -24,13 +24,16 @@ type Mode = 'sign-in' | 'forgot' | 'reset'
 
 export default function SignInPage() {
   const params = new URLSearchParams(window.location.search)
-  const returnTo = safeSignInReturn(params.get('returnTo'), asset('/'))
+  const workspaceOperator = params.get('workspace') === 'operator'
+  const returnTo = safeSignInReturn(params.get('returnTo'), asset(workspaceOperator ? '/operator' : '/'))
   // The page writes the session of the surface it was opened from, so a staff
   // sign-in here never replaces the shopper signed in on the storefront. The
   // backend still verifies staff group membership before returning any
   // Operator or cross-principal data.
-  const operator = params.get('workspace') === 'operator' || /\/operator(?:\/|\?|$)/.test(returnTo)
+  const operator = workspaceOperator || /\/operator(?:\/|\?|$)/.test(returnTo)
   const surface = operator ? 'staff' : 'shopper'
+  // A Hosted UI staff sign-in refused on the storefront lands here with its reason.
+  const refused = params.get('error') === 'staff_use_operator' ? ERROR_COPY.staff_use_operator : null
   const [mode, setMode] = useState<Mode>('sign-in')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -38,7 +41,7 @@ export default function SignInPage() {
   const [code, setCode] = useState('')
   const [visible, setVisible] = useState(false)
   const [working, setWorking] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(refused)
   const [notice, setNotice] = useState<string | null>(null)
   const controller = useRef<AbortController | null>(null)
   const busy = useRef(false)

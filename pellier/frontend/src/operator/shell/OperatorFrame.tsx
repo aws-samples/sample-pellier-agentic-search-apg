@@ -21,6 +21,7 @@ import { AuthProvider, useAuth } from '../../contexts/AuthContext'
 import { ClientBookContext, useClientBookResource } from '../hooks/useClientBook'
 import { ReviewQueueContext, useQueueResource, useReviewQueue } from '../hooks/useReviewQueue'
 import { redirectToSignIn } from '../../utils/auth'
+import SessionStatusNotice from '../../shared/SessionStatusNotice'
 import ClientAvatar from '../components/ClientAvatar'
 import { presentIdentity } from '../components/ProposedCreditCard'
 import { ClientList } from '../surfaces/ClientBook'
@@ -121,9 +122,10 @@ const OperatorDesk: React.FC = () => {
   )
 }
 
-/** The desk, on the staff session. */
+/** The desk, on the staff session, with that session's own status strip. */
 const OperatorFrame: React.FC = () => (
   <AuthProvider surface="staff">
+    <SessionStatusNotice />
     <OperatorDesk />
   </AuthProvider>
 )

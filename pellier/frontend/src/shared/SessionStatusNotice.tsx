@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 
-/** A recoverable service failure must not look like a rejected sign-in. */
+/**
+ * A recoverable service failure must not look like a rejected sign-in.
+ *
+ * It reads the nearest `AuthProvider`, so each surface mounts its own: the
+ * storefront's shows the shopper session and the Operator's the staff session.
+ */
 export default function SessionStatusNotice() {
   const { authUnavailable, preferencesUnavailable, refresh } = useAuth()
   const [retrying, setRetrying] = useState(false)

@@ -263,7 +263,15 @@ class CognitoAuthService:
           1. ``Authorization: Bearer <token>`` header
           2. the ``cookie_name`` session cookie, the shopper's
              ``access_token`` by default. Only that one cookie is read.
+
+        Every reader of the shopper's cookie comes through here, so this is
+        where a staff token found in it reads as signed out
+        (``services.auth.staff_on_shopper_surface``). A bearer header is
+        never subject to that rule.
         """
+        # A local import: services.auth imports this module.
+        from services.auth import SHOPPER_SURFACE, staff_on_shopper_surface
+
         token: Optional[str] = None
 
         authorization = request.headers.get("Authorization") or request.headers.get(
@@ -272,15 +280,17 @@ class CognitoAuthService:
         if authorization and authorization.lower().startswith("bearer "):
             token = authorization.split(" ", 1)[1].strip()
 
+        shopper_cookie = False
         if not token:
             cookie_token = request.cookies.get(cookie_name)
             token = unquote(cookie_token) if cookie_token else None
+            shopper_cookie = cookie_name == ACCESS_TOKEN_COOKIE
 
         if not token:
             return None
 
         try:
-            return await self.validate_jwt(token)
+            user = await self.validate_jwt(token)
         except HTTPException as exc:
             if exc.status_code == 401:
                 return None
@@ -288,6 +298,10 @@ class CognitoAuthService:
             # that failure distinct so callers fail closed without signing
             # the person out or replacing their session with an anonymous one.
             raise
+        if shopper_cookie and staff_on_shopper_surface(user, SHOPPER_SURFACE):
+            logger.info("A staff token in the shopper session reads as signed out")
+            return None
+        return user
 
 
 # Process-wide service instance. Kept module-level so the JWKS cache is

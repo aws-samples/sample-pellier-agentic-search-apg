@@ -3,15 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AUTH_REQUEST_TIMEOUT_MS,
   AuthProvider,
+  RETIRED_AUTH_SESSION_MARKER_KEY,
   useAuth,
 } from './AuthContext'
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return <AuthProvider>{children}</AuthProvider>
-}
-
-function clearCookie(name: string) {
-  document.cookie = `${name}=; Max-Age=0; path=/`
 }
 
 function okJson(body: unknown) {
@@ -57,14 +54,12 @@ function installLocation(pathname: string, search = '') {
 describe('AuthContext hydration', () => {
   beforeEach(() => {
     localStorage.clear()
-    clearCookie('just_signed_in')
   })
 
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
     localStorage.clear()
-    clearCookie('just_signed_in')
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: originalLocation,
@@ -93,10 +88,9 @@ describe('AuthContext hydration', () => {
     )
   })
 
-  it('hydrates the code-flow callback path when just_signed_in is present', async () => {
+  it('hydrates right after a sign-in, before any marker exists', async () => {
     const fetchMock = mockAuthFetch()
     vi.stubGlobal('fetch', fetchMock)
-    document.cookie = 'just_signed_in=1; path=/'
 
     const { result } = renderHook(() => useAuth(), { wrapper })
 
@@ -107,6 +101,19 @@ describe('AuthContext hydration', () => {
       '/api/auth/me?surface=shopper',
       expect.objectContaining({ credentials: 'include' }),
     )
+    expect(localStorage.getItem('pellier-auth-session:shopper')).toBe('1')
+  })
+
+  it('retires the single-session marker on mount and keeps the per-surface one', async () => {
+    vi.stubGlobal('fetch', mockAuthFetch())
+    localStorage.setItem(RETIRED_AUTH_SESSION_MARKER_KEY, '1')
+
+    const { result } = renderHook(() => useAuth(), { wrapper })
+
+    await waitFor(() => {
+      expect(result.current.user?.email).toBe('avery@example.com')
+    })
+    expect(localStorage.getItem(RETIRED_AUTH_SESSION_MARKER_KEY)).toBeNull()
     expect(localStorage.getItem('pellier-auth-session:shopper')).toBe('1')
   })
 

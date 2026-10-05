@@ -31,6 +31,8 @@ from config import settings
 from routes import auth as auth_module
 from routes import operator as operator_module
 from routes import password_auth as password_module
+from routes.user import get_agentcore_memory
+from services.agentcore_identity import AgentCoreIdentityService, get_agentcore_identity_service
 from services.auth import OPERATOR_GROUP, session_cookie_names
 from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 from tests.test_operator_review import JESSICA_HASH, FakeReviewDb
@@ -156,14 +158,25 @@ def world(monkeypatch: pytest.MonkeyPatch) -> Iterator[SimpleNamespace]:
     monkeypatch.setattr(app_module, "chat_service", SimpleNamespace(chat_stream=_reply))
     db = FakeReviewDb()
     app = app_module.app
-    app.dependency_overrides[get_cognito_auth_service] = lambda: verifier
-    app.dependency_overrides[operator_module.get_db_service] = lambda: db
+    memory = SimpleNamespace(get_session_history=_nothing, get_user_preferences=_nothing)
+    overrides = {
+        get_cognito_auth_service: lambda: verifier,
+        get_agentcore_identity_service: lambda: AgentCoreIdentityService(verifier),
+        get_agentcore_memory: lambda: memory,
+        operator_module.get_db_service: lambda: db,
+    }
+    app.dependency_overrides.update(overrides)
     try:
         client = TestClient(app, base_url=f"https://{HOST}", follow_redirects=False)
         yield SimpleNamespace(client=client, signer=signer, endpoint=endpoint, db=db)
     finally:
-        app.dependency_overrides.pop(get_cognito_auth_service, None)
-        app.dependency_overrides.pop(operator_module.get_db_service, None)
+        for dependency in overrides:
+            app.dependency_overrides.pop(dependency, None)
+
+
+async def _nothing(_key: str) -> None:
+    """A stand-in memory read: no history and no saved preferences."""
+    return None
 
 
 def _csrf(client: TestClient) -> str:
@@ -298,6 +311,48 @@ def test_a_staff_token_in_the_shopper_set_reads_as_signed_out(world) -> None:
     assert me(client, "shopper").status_code == 401
     assert principal_of_a_turn(client)["authenticated"] is False
     assert client.get("/api/operator/reviews").status_code == 401
+
+
+def storefront_reads(client: TestClient) -> Dict[str, Any]:
+    """What each shopper-cookie reader makes of the session: ``require_user`` and Identity."""
+    return {
+        "preferences": client.get("/api/user/preferences").status_code,
+        "agent_session": client.get("/api/agent/session/sess-two").json()["authenticated"],
+    }
+
+
+def test_a_staff_token_in_the_shopper_set_is_signed_out_everywhere_on_the_storefront(
+    world,
+) -> None:
+    """Preferences, cart, products and agent chat read it like ``/me`` does: signed out."""
+    client = world.client
+    client.cookies.set(SHOPPER.access, quote(world.signer.token("nadia"), safe=""), domain=HOST)
+
+    assert storefront_reads(client) == {"preferences": 401, "agent_session": False}
+    assert client.post("/api/commerce/quotes", json={}).status_code == 401
+
+    client.cookies.set(SHOPPER.access, quote(world.signer.token("jessica"), safe=""), domain=HOST)
+    assert storefront_reads(client) == {"preferences": 200, "agent_session": True}
+
+
+def test_a_staff_refresh_token_in_the_shopper_set_is_cleared_not_re_minted(world) -> None:
+    """The pre-split cookies heal on the first storefront load; Nadia's own session stays."""
+    client = world.client
+    sign_in_staff(client)
+    client.cookies.set(SHOPPER.access, quote(world.signer.token("nadia"), safe=""), domain=HOST)
+    client.cookies.set(SHOPPER.refresh, "refresh-nadia", domain=HOST)
+
+    response = client.post("/api/auth/refresh", params={"surface": "shopper"})
+
+    assert response.status_code == 401
+    assert response.json() == {"error": "refresh_failed"}
+    assert set_cookie_names(response, cleared=True) == {
+        SHOPPER.access, SHOPPER.id, SHOPPER.refresh, SHOPPER.sign_in_method,
+    }
+    assert not set_cookie_names(response, cleared=False) & ALL_COOKIES
+    assert client.cookies.get(SHOPPER.refresh) is None
+    assert me(client, "shopper").status_code == 401
+    assert me(client, "staff").json()["username"] == "nadia"
 
 
 def test_a_bearer_header_works_exactly_as_before(world) -> None:
@@ -491,7 +546,8 @@ def test_a_tampered_surface_in_the_state_is_refused(world) -> None:
     nonce, expiry, surface, signature = state.split(".")
     assert surface == "shopper"
     forged = f"{nonce}.{expiry}.staff.{signature}"
-    client.cookies.set(auth_module.OAUTH_STATE_COOKIE, forged, domain=HOST, path="/api/auth")
+    staff_state = auth_module.oauth_cookie_names("staff").state
+    client.cookies.set(staff_state, forged, domain=HOST, path="/api/auth")
 
     response = client.get("/api/auth/callback", params={"code": "code", "state": forged})
 
@@ -500,13 +556,40 @@ def test_a_tampered_surface_in_the_state_is_refused(world) -> None:
     assert not set_cookie_names(response, cleared=False) & ALL_COOKIES
 
 
-def test_a_hosted_staff_sign_in_on_the_storefront_is_refused(world) -> None:
+def test_a_hosted_staff_sign_in_on_the_storefront_lands_on_the_operator_sign_in(world) -> None:
+    """Not a JSON page: the Operator's sign-in, which says why, and no session written."""
     client = world.client
+    choose_shopper(client, "jessica")
     state = _begin_hosted(client)
     world.endpoint.exchange_for = "nadia"
 
     response = client.get("/api/auth/callback", params={"code": "code", "state": state})
 
-    assert response.status_code == 403
-    assert response.json() == {"detail": "staff_use_operator"}
+    assert response.status_code == 302
+    assert response.headers["location"] == (
+        f"https://{HOST}/signin?error=staff_use_operator&workspace=operator"
+    )
     assert not set_cookie_names(response, cleared=False) & ALL_COOKIES
+    assert not set_cookie_names(response, cleared=True) & ALL_COOKIES
+    assert auth_module.oauth_cookie_names("shopper").state not in client.cookies
+    assert me(client, "shopper").json()["username"] == "jessica"
+    assert me(client, "staff").status_code == 401
+
+
+def test_two_hosted_sign_ins_in_two_tabs_both_complete(world) -> None:
+    """Each surface keeps its own state, PKCE and return-to cookies, so neither overwrites."""
+    client = world.client
+    shopper_state = _begin_hosted(client)
+    staff_state = _begin_hosted(client, "staff")
+    staff_cookies = auth_module.oauth_cookie_names("staff")
+
+    world.endpoint.exchange_for = "jessica"
+    shopper = client.get("/api/auth/callback", params={"code": "c1", "state": shopper_state})
+    assert shopper.status_code == 302, shopper.text
+    assert client.cookies.get(staff_cookies.state) == staff_state, "the staff tab is in flight"
+
+    world.endpoint.exchange_for = "nadia"
+    staff = client.get("/api/auth/callback", params={"code": "c2", "state": staff_state})
+    assert staff.status_code == 302, staff.text
+    assert me(client, "shopper").json()["username"] == "jessica"
+    assert me(client, "staff").json()["username"] == "nadia"

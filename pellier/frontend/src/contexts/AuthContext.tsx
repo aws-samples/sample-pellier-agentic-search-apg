@@ -117,6 +117,9 @@ export const AUTH_SESSION_MARKER_KEYS: Record<AuthSurface, string> = {
   staff: 'pellier-auth-session:staff',
 }
 
+/** The one marker from before the two sessions split, removed on mount. */
+export const RETIRED_AUTH_SESSION_MARKER_KEY = 'pellier-auth-session'
+
 /** The Operator owns its own page: the shopper session never redirects it. */
 function onOperatorPage(pathname: string): boolean {
   return /\/operator(?:\/|$)/.test(pathname)
@@ -313,6 +316,10 @@ export function AuthProvider({
     setPreferences(saved)
     setPrefsVersion(v => v + 1)
   }, [surface])
+
+  useEffect(() => {
+    localStorage.removeItem(RETIRED_AUTH_SESSION_MARKER_KEY)
+  }, [])
 
   // The session cookies are httpOnly by design, so JavaScript cannot reliably
   // predict whether they exist. Always ask the server once on mount. A clean

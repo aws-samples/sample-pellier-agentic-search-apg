@@ -54,8 +54,8 @@ from services.auth import (
 from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 from routes.auth import (
     SIGN_IN_METHOD_WORKSHOP, STAFF_USE_OPERATOR, _build_state, _clear_sign_in_method_cookie,
-    _client_id, _safe_return_to, _set_just_signed_in_cookie, _set_session_cookies,
-    _set_sign_in_method_cookie, _verify_state, revoke_refresh_token,
+    _client_id, _safe_return_to, _set_session_cookies, _set_sign_in_method_cookie,
+    _verify_state, revoke_refresh_token,
 )
 
 router = APIRouter(prefix="/api/auth/password", tags=["auth"])
@@ -248,7 +248,6 @@ async def sign_in(request: Request, service: CognitoAuthService = Depends(get_co
     response = _response({"status": "signed_in", "returnTo": return_to})
     _set_session_cookies(response, surface=surface, access_token=access_token,
                          id_token=tokens.get("IdToken"), refresh_token=tokens.get("RefreshToken"))
-    _set_just_signed_in_cookie(response)
     _clear_sign_in_method_cookie(response, surface)
     response.delete_cookie(CSRF_COOKIE, path="/api/auth/password", secure=True, httponly=True, samesite="strict")
     return response
@@ -310,7 +309,6 @@ async def workshop_sign_in(
     })
     _set_session_cookies(response, surface=SHOPPER_SURFACE, access_token=access_token,
                          id_token=tokens.get("IdToken"), refresh_token=tokens.get("RefreshToken"))
-    _set_just_signed_in_cookie(response)
     _set_sign_in_method_cookie(response, SHOPPER_SURFACE, SIGN_IN_METHOD_WORKSHOP)
     response.delete_cookie(CSRF_COOKIE, path="/api/auth/password", secure=True, httponly=True, samesite="strict")
     return response

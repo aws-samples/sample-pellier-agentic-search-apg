@@ -70,6 +70,19 @@ describe('dedicated Pellier sign-in', () => {
     )
     expect(assign).not.toHaveBeenCalled()
   })
+  it('says why a Hosted UI staff sign-in was refused, on the Operator sign-in', () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'http://localhost', search: '?error=staff_use_operator&workspace=operator', assign } })
+    render(<SignInPage />)
+    expect(screen.getByRole('alert')).toHaveTextContent('This is a staff account. Sign in from the Operator desk instead.')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Welcome to the desk.')
+    expect(screen.getByRole('link', { name: 'Use another sign-in method' }))
+      .toHaveAttribute('href', '/api/auth/signin?provider=email&returnTo=%2Foperator&surface=staff')
+  })
+  it('shows no reason the address names that it does not know', () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'http://localhost', search: '?error=constructor', assign } })
+    render(<SignInPage />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
   it('requires matching passwords before confirming a recovery code', async () => {
     calls.passwordAuth.mockResolvedValueOnce({ status: 'recovery_requested' })
     render(<SignInPage />)

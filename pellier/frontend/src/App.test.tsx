@@ -155,3 +155,45 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     ).toBeTruthy()
   })
 })
+
+describe('App - one session status strip per surface', () => {
+  const PREFERENCES_DOWN = 'Your saved preferences are temporarily unavailable.'
+  const SESSION_DOWN = 'We couldn’t check your session. Please try again in a moment.'
+
+  beforeEach(() => {
+    // Jessica's preferences are down on the storefront; the staff session's
+    // verifier is down on the Operator.
+    mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/auth/me?surface=shopper')) {
+        return new Response(JSON.stringify({ user_id: 'sub-jessica', email: '', username: 'jessica' }), {
+          status: 200, headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      if (url.includes('/api/user/preferences') || url.includes('/api/auth/me?surface=staff')) {
+        return new Response(null, { status: 503 })
+      }
+      return new Response(JSON.stringify({}), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    })
+  })
+
+  afterEach(() => {
+    window.history.pushState({}, '', '/')
+  })
+
+  it('shows the shopper session on the storefront', async () => {
+    render(<App />)
+    expect(await screen.findByText(PREFERENCES_DOWN)).toBeInTheDocument()
+    expect(screen.queryByText(SESSION_DOWN)).not.toBeInTheDocument()
+  })
+
+  it('shows only the staff session on the Operator, never the shopper one', async () => {
+    window.history.pushState({}, '', '/operator')
+    render(<App />)
+    expect(await screen.findByText(SESSION_DOWN)).toBeInTheDocument()
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining('/api/user/preferences'), expect.anything(),
+    ))
+    expect(screen.queryByText(PREFERENCES_DOWN)).not.toBeInTheDocument()
+  })
+})
