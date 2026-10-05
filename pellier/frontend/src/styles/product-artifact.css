@@ -14,11 +14,14 @@
 }
 
 /* Eyebrow */
+/* Two cards across a phone's panel leave about 150px: the match pill moves
+   under "Pulled for you" rather than breaking it over two lines. */
 .pa-eyebrow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
   padding: 8px 10px 0;
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
@@ -29,6 +32,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 .pa-eyebrow-dot {
   display: inline-block;

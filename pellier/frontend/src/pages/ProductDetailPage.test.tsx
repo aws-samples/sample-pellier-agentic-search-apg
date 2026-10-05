@@ -292,6 +292,20 @@ describe('ProductDetailPage — live catalog read', () => {
     }
   })
 
+  it('fills "More from the collection" with four pieces, never the one on the page', async () => {
+    const more = [15, 16, 17].map(id => ({ ...CATALOG[1], id, name: `Related piece ${id}` }))
+    stubFetch(() => jsonResponse(detailPayload()), [...CATALOG, ...more])
+
+    renderAt(`/product/${SUBJECT.id}`)
+
+    const siblings = await screen.findByTestId('product-detail-siblings')
+    const cards = siblings.querySelectorAll('article[data-testid^="product-card-"]')
+    expect(Array.from(cards, card => card.getAttribute('data-testid'))).toEqual(
+      ['product-card-12', 'product-card-13', 'product-card-14', 'product-card-15'],
+    )
+    expect(siblings).toHaveClass('pellier-related-grid')
+  })
+
   it('titles the tab with the loaded product, not the generic index.html default', async () => {
     document.title = 'Pellier | Your Personal Shopping Concierge'
     stubFetch(() => jsonResponse(detailPayload()))

@@ -203,7 +203,9 @@ describe('the results view', () => {
         idReads.push(ids)
         return respond(ids.split(',').filter(Boolean).map(id => CATALOG.get(Number(id))).filter(Boolean))
       }
-      if (url.pathname.endsWith('/api/products')) return respond(STORE_EDIT)
+      if (url.pathname.endsWith('/api/products') && url.searchParams.has('page')) {
+        return respond({ products: STORE_EDIT, page: 1, pageSize: 12, total: 100, pages: 9 })
+      }
       if (url.pathname.includes('/api/agent/session/')) return respond({ turns: [] })
       return respond({})
     }))
@@ -501,6 +503,31 @@ describe('the results view', () => {
     // One bounded read for exactly the grid's ids: never a search of its own.
     expect(idReads.at(-1)).toBe('14,97,96,95,12')
     // The page and the answer read as one: the dock's cards are the grid's first.
+    await waitFor(() => expect(dockCardNames()).toEqual(picks), { timeout: 4000 })
+  })
+
+  it('tags all four pieces an answer names, in its order, and the dock shows the same four', async () => {
+    CATALOG.set(96, card(96, 'Everyday Backpack'))
+    CATALOG.set(95, card(95, 'Canvas Crossbody Bag'))
+    CATALOG.set(97, card(97, 'Travel Bottles, Set of 4'))
+    CATALOG.set(14, card(14, 'Linen Drawstring Trousers'))
+    CATALOG.set(98, card(98, 'Leather Weekender'))
+    render(<Storefront />)
+    await askFromTheHomeBar('For the trip')
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['96', '95', '14', '12', '97', '98']))
+    const answer =
+      'Pack the Linen Drawstring Trousers for the heat, the Travel Bottles, Set of 4 for the bathroom bag, ' +
+      'the Leather Weekender to carry it, and the Canvas Crossbody Bag for the day. The Everyday Backpack also fits.'
+    await finish({
+      ...COMPLETE,
+      response: answer,
+      products: [96, 95, 14, 97, 98].map(id => ({ id, name: CATALOG.get(id)?.name, price: 40 })),
+    })
+    const picks = ['Linen Drawstring Trousers', 'Travel Bottles, Set of 4', 'Leather Weekender', 'Canvas Crossbody Bag']
+    // Four is the cap: the fifth piece named keeps its ranked place, untagged.
+    await waitFor(() => expect(pickNames()).toEqual(picks))
+    expect(gridNames()).toEqual([...picks, 'Everyday Backpack', 'Hadley Linen Shirt'])
+    expect(within(screen.getByTestId('results-grid')).getAllByText("Pellier's pick")).toHaveLength(4)
     await waitFor(() => expect(dockCardNames()).toEqual(picks), { timeout: 4000 })
   })
 

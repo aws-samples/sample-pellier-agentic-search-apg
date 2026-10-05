@@ -13,7 +13,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ANNA, ANNA_FINDING, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
-import { resultCards } from './fixtures/surfaces'
+import { catalogPage, resultCards } from './fixtures/surfaces'
 
 const SHOTS = process.env.ASK_PELLIER_SHOTS ?? 'test-results/ask-pellier'
 const PNG_1x1 = Buffer.from(
@@ -28,13 +28,6 @@ const PRODUCTS = [
   { id: 36, name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, category: 'Kitchen and table', imageUrl: '/products/theo-ceramic-tumblers.webp', rating: 4.7, reviewCount: 245, tags: ['ceramic', 'slow', 'home'] },
   { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-linen-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'] },
 ]
-const CATALOG_STATS = {
-  product_count: 100,
-  category_count: 7,
-  standout_name: 'Stoneware Pour-Over Set',
-  standout_category: 'Kitchen and table',
-  generated_at: '2026-10-04T00:00:00Z',
-}
 
 async function stubApi(page: Page) {
   const json = (body: unknown, status = 200) => ({
@@ -59,6 +52,10 @@ async function stubApi(page: Page) {
     if (path.endsWith('/api/products') && url.searchParams.has('ids')) {
       return route.fulfill(json(resultCards(url.searchParams.get('ids') ?? '')))
     }
+    if (path.endsWith('/api/products') && url.searchParams.has('page')) {
+      const { status, body } = catalogPage(Number(url.searchParams.get('page')), Number(url.searchParams.get('page_size') ?? 12))
+      return route.fulfill(json(body, status))
+    }
     if (path.endsWith('/api/products')) return route.fulfill(json(PRODUCTS))
     if (path.endsWith('/api/scenarios')) {
       return route.fulfill(json({
@@ -70,7 +67,6 @@ async function stubApi(page: Page) {
       }))
     }
     if (path.includes('/api/agent/session/')) return route.fulfill(json({ turns: [] }))
-    if (path.endsWith('/api/storefront/catalog-stats')) return route.fulfill(json(CATALOG_STATS))
     if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ preferences: null }))
     return route.fulfill(json({}))
   })

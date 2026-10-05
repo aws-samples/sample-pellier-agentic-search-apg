@@ -58,8 +58,11 @@ const BADGE_LABEL: Record<PellierBadge, string> = {
   JUST_IN: 'JUST IN',
 }
 
-/** Siblings shown under "More from this edit". */
-const SIBLING_COUNT = 3
+/**
+ * Pieces shown under "More from the collection": four fill a row at four
+ * across, or two rows at two (`.pellier-related-grid`).
+ */
+const SIBLING_COUNT = 4
 
 /**
  * What the page renders. Presentation fields only — `description` and
@@ -542,7 +545,7 @@ export default function ProductDetailPage() {
             aria-labelledby="product-more-heading"
             className="border-t border-line bg-page"
           >
-            <div className="mx-auto max-w-[1280px] px-container-x py-16">
+            <div className="pellier-related mx-auto max-w-[1280px] px-container-x py-16">
               <h2
                 id="product-more-heading"
                 className="pellier-statement"
@@ -552,7 +555,7 @@ export default function ProductDetailPage() {
               </h2>
               <div
                 data-testid="product-detail-siblings"
-                className="pellier-product-grid mt-8"
+                className="pellier-product-grid pellier-related-grid mt-8"
               >
                 {siblings.map((product, index) => (
                   <ProductCard key={product.id} product={product} index={index % 3} />

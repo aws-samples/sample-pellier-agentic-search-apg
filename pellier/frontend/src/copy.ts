@@ -145,10 +145,34 @@ export const ASK_BAR = {
   ],
 } as const;
 
-/** The home grid: the edit's pieces out of the whole catalog. */
+/**
+ * The home grid pages through the whole catalog, twelve pieces a page. Page 1
+ * is the edit: "This week at Pellier", or the signed-in shopper's edit
+ * (`SHOPPER.edit`); the later pages are the rest of the catalog.
+ */
 export const HOME_GRID = {
   TITLE: "This week at Pellier",
-  count: (shown: number, total: number): string => `${shown} of ${total}`,
+  MORE: "More from Pellier",
+  pieces: (total: number): string => `${total} ${total === 1 ? "piece" : "pieces"}`,
+  /** The pieces this page shows, as a range: "13–24 of 100". */
+  range: (first: number, last: number, total: number): string => `${first}–${last} of ${total}`,
+  UNAVAILABLE_EYEBROW: "Collection unavailable",
+  UNAVAILABLE_TITLE: "The collection is taking a moment.",
+  UNAVAILABLE_BODY: "We couldn’t load the latest pieces. Please try again in a moment.",
+  RELOAD: "Reload collection",
+  EMPTY_EYEBROW: "No pieces to show just now",
+  EMPTY_BODY: "The collection returned no pieces for this edit. Choose another shopper or check back shortly.",
+  LOADING: "Loading the collection",
+} as const;
+
+/** The control under the home grid that moves between its pages. */
+export const PAGER = {
+  LABEL: "Pages of the collection",
+  PREVIOUS: "Previous",
+  NEXT: "Next",
+  page: (n: number): string => `Page ${n}`,
+  /** On a phone the numbers give way to one line. */
+  status: (page: number, pages: number): string => `Page ${page} of ${pages}`,
 } as const;
 
 /**

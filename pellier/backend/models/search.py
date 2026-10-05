@@ -168,6 +168,12 @@ class HealthResponse(BaseModel):
     version: str
 
 
+# The most cards Ask Pellier shows under one answer: the pieces it names, in
+# order of first mention (`productsNamedInAnswer` in the storefront's
+# `utils/answerCards.ts`). The history the next turn sends carries those.
+ANSWER_CARDS_MAX = 4
+
+
 class ChatHistoryProduct(BaseModel):
     """A rendered product card retained as bounded chat context.
 
@@ -187,7 +193,7 @@ class ChatMessage(BaseModel):
     arbitrary role label that gets concatenated into the LLM prompt."""
     role: Literal["user", "assistant"]
     content: str
-    products: List[ChatHistoryProduct] = Field(default_factory=list, max_length=3)
+    products: List[ChatHistoryProduct] = Field(default_factory=list, max_length=ANSWER_CARDS_MAX)
 
 
 class ChatRequest(BaseModel):

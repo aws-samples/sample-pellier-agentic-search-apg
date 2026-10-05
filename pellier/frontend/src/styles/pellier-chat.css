@@ -163,11 +163,15 @@
   text-underline-offset: 3px;
 }
 
-/* Product cards after the sentence that names them. */
+/* Product cards after the sentence that names them: up to four, two by two,
+   each pair the same height. */
 .ec-artifacts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+}
+.ec-artifacts .pa-card {
+  height: 100%;
 }
 .ec-owned-artifacts {
   display: flex;
@@ -223,7 +227,9 @@
   background: transparent;
 }
 
-@media (max-width: 420px) {
+/* Two across down to a 360px phone, so an answer's four cards sit two by
+   two; one across below that. */
+@media (max-width: 359px) {
   .ec-artifacts {
     grid-template-columns: minmax(0, 1fr);
   }

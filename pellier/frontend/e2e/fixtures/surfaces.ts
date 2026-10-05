@@ -8,6 +8,8 @@
  * model runs.
  */
 import { expect, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { ANNA, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './anna-turn'
 import { ANNA_RESULT_CARDS } from './anna-cards'
 import { HADLEY_RESULT_CARDS } from './two-searches-turn'
@@ -36,17 +38,53 @@ export const HOME_EDIT = [
   ...PRODUCTS,
   ...ANNA_RESULT_CARDS.filter(card => !PRODUCTS.some(product => product.id === card.id)).slice(0, 8),
 ]
+
+interface CatalogRow {
+  id: number
+  name: string
+  brand: string
+  color: string
+  price: number
+  department: string
+  tags: string[]
+  rating: number
+  reviews: number
+  image: string
+  quantity: number
+}
+
+/** The repository's 100 pieces (`data/pellier_catalog.json`), as listing cards. */
+const CATALOG: typeof PRODUCTS = (JSON.parse(readFileSync(
+  fileURLToPath(new URL('../../../../data/pellier_catalog.json', import.meta.url)), 'utf-8',
+)) as CatalogRow[]).map(row => ({
+  id: row.id, name: row.name, brand: row.brand, color: row.color, price: row.price, category: row.department,
+  imageUrl: `/products/${row.image.replace(/\.png$/, '.webp')}`, rating: row.rating, reviewCount: row.reviews,
+  tags: row.tags, quantity: row.quantity, warehouses: WAREHOUSES,
+}))
+
+/**
+ * The whole catalog in the home grid's order, as `GET /api/products?page=`
+ * pages it: the home edit first, then every other piece by department,
+ * highest rated first, then by name.
+ */
+export const CATALOG_ORDER = [
+  ...HOME_EDIT,
+  ...CATALOG.filter(row => !HOME_EDIT.some(card => card.id === row.id)).sort((a, b) =>
+    a.category.localeCompare(b.category) || b.rating - a.rating || a.name.localeCompare(b.name)),
+]
+
+/** `GET /api/products?page=&page_size=`: one page of `CATALOG_ORDER`, or 404 past the end. */
+export function catalogPage(page: number, pageSize: number): { status: number; body: unknown } {
+  const products = CATALOG_ORDER.slice((page - 1) * pageSize, page * pageSize)
+  if (products.length === 0 && page > 1) return { status: 404, body: { detail: 'page_not_found' } }
+  const total = CATALOG_ORDER.length
+  return { status: 200, body: { products, page, pageSize, total, pages: Math.ceil(total / pageSize) } }
+}
+
 export const DETAIL = {
   ...PRODUCTS[0],
   description: 'A stoneware dripper and carafe in ash gray that brews two cups by hand.',
   availability: { onHand: 32, warehouses: WAREHOUSES },
-}
-const CATALOG_STATS = {
-  product_count: 100,
-  category_count: 7,
-  standout_name: 'Stoneware Pour-Over Set',
-  standout_category: 'Kitchen and table',
-  generated_at: '2026-10-04T00:00:00Z',
 }
 const SCENARIOS = {
   scenarios: [
@@ -84,6 +122,10 @@ export async function stubStorefront(page: Page, { signedIn = true, turn = ANNA_
     if (path.endsWith('/api/products') && url.searchParams.has('ids')) {
       return route.fulfill(json(resultCards(url.searchParams.get('ids') ?? '')))
     }
+    if (path.endsWith('/api/products') && url.searchParams.has('page')) {
+      const { status, body } = catalogPage(Number(url.searchParams.get('page')), Number(url.searchParams.get('page_size') ?? 12))
+      return route.fulfill(json(body, status))
+    }
     if (path.endsWith('/api/health')) return route.fulfill(json({ status: 'ok' }))
     if (path.endsWith('/api/auth/me')) return route.fulfill(signedIn ? json(ANNA_ME) : json({ detail: 'not signed in' }, 401))
     if (path.includes('/api/auth/')) return route.fulfill(json({ detail: 'not signed in' }, 401))
@@ -94,7 +136,6 @@ export async function stubStorefront(page: Page, { signedIn = true, turn = ANNA_
     if (path.endsWith('/api/products')) return route.fulfill(json(HOME_EDIT))
     if (path.endsWith('/api/scenarios')) return route.fulfill(json(SCENARIOS))
     if (path.includes('/api/agent/session/')) return route.fulfill(json({ turns: [] }))
-    if (path.endsWith('/api/storefront/catalog-stats')) return route.fulfill(json(CATALOG_STATS))
     if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ preferences: null }))
     return route.fulfill(json({}))
   })

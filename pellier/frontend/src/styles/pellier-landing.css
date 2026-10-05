@@ -300,9 +300,11 @@
  * from 1800px. A card is at most `--pellier-card-max` wide; past that the
  * row keeps its count and leaves the rest of the column empty.
  * ----------------------------------------------------------------------- */
-/* The home grid follows the hero's suggestion row on the first screen. */
+/* The home grid follows the hero's suggestion row on the first screen. A
+   page link lands on its top edge, clear of the sticky chrome. */
 .pellier-home-grid {
   padding-top: clamp(18px, 3.2vh, 30px);
+  scroll-margin-top: calc(var(--pellier-chrome-height, 64px) + var(--pellier-storefront-nav-height, 56px));
 }
 
 .pellier-edit-shell {
@@ -324,6 +326,26 @@
   font-size: var(--text-card);
   font-weight: 500;
   letter-spacing: var(--dl-track-tight);
+}
+
+/* One line: the catalog's size, then the page's quiet range. */
+.pellier-gridhead-meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: baseline;
+  gap: 12px;
+  margin: 0;
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: var(--dl-fs-eyebrow);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--dl-track-eyebrow);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.pellier-gridhead-meta > span:first-child {
+  color: var(--dl-ink-2);
 }
 
 .pellier-product-grid {
@@ -349,6 +371,123 @@
 /* Docked beside the page (chat-drawer.css), the column holds three. */
 @media (min-width: 1080px) {
   html[data-ask-docked='true'] .pellier-product-grid { --pellier-columns: 3; }
+}
+
+/* -----------------------------------------------------------------------
+ * The pager under the home grid: Previous, the page numbers, Next. The
+ * current page is filled ink. On a phone the numbers give way to "Page 2
+ * of 9" so the row never wraps.
+ * ----------------------------------------------------------------------- */
+.pellier-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: clamp(32px, 4vh, 44px);
+  font-family: var(--dl-font-sans);
+}
+
+.pellier-pager-pages {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pellier-pager-page,
+.pellier-pager-step {
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: var(--dl-r-pill);
+  color: var(--dl-ink-2);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  transition: background 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.pellier-pager-step {
+  padding: 0 18px;
+  border-color: var(--dl-line-strong);
+  color: var(--dl-ink);
+}
+
+.pellier-pager-page:hover,
+.pellier-pager-step:not([aria-disabled='true']):hover {
+  background: var(--dl-paper-2);
+  color: var(--dl-ink);
+}
+
+.pellier-pager-page[aria-current='page'],
+.pellier-pager-page[aria-current='page']:hover {
+  border-color: var(--dl-ink);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+}
+
+.pellier-pager-step[aria-disabled='true'] {
+  border-color: var(--dl-line);
+  color: var(--dl-faint);
+  cursor: default;
+}
+
+.pellier-pager-page:focus-visible,
+.pellier-pager-step:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
+}
+
+.pellier-pager-status {
+  display: none;
+  margin: 0 8px;
+  color: var(--dl-ink-2);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .pellier-pager-pages {
+    display: none;
+  }
+
+  .pellier-pager-status {
+    display: block;
+  }
+
+  .pellier-gridhead {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+}
+
+/* "More from the collection" on a product page: four pieces, so its row is
+   four across, two on a narrow column (two rows) and one on the narrowest
+   phone. It follows its own column, so the docked panel is accounted for. */
+.pellier-related {
+  container: pellier-related / inline-size;
+}
+
+.pellier-product-grid.pellier-related-grid {
+  --pellier-related-columns: 1;
+  grid-template-columns: repeat(var(--pellier-related-columns), minmax(0, var(--pellier-card-max)));
+}
+
+@container pellier-related (min-width: 330px) {
+  .pellier-product-grid.pellier-related-grid { --pellier-related-columns: 2; }
+}
+
+@container pellier-related (min-width: 720px) {
+  .pellier-product-grid.pellier-related-grid { --pellier-related-columns: 4; }
 }
 
 .pellier-card {

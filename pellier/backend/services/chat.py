@@ -11,6 +11,7 @@ import os
 from typing import List, Dict, Any, Optional, Tuple
 import re
 
+from models.search import ANSWER_CARDS_MAX
 from pellier_copy import CREDIT_REQUEST_PENDING
 from services import active_requirements, evidence_spans, store_tools, tool_evidence
 from services.chat_error_taxonomy import classify_chat_error
@@ -1571,7 +1572,7 @@ class EnhancedChatService:
                 cards = msg.get("products") or []
                 if cards:
                     card_lines = []
-                    for card in cards[:3]:
+                    for card in cards[:ANSWER_CARDS_MAX]:
                         if not isinstance(card, dict):
                             continue
                         name = str(card.get("name") or "").strip()

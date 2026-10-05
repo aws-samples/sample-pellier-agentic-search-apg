@@ -6,6 +6,10 @@ pellier-storefront spec:
   * ``GET /api/products``              editorial or personalized product list
   * ``GET /api/products?ids=31,36,22``  the cards for one search result, in
                                        that order (at most 30 ids, one read)
+  * ``GET /api/products?persona=anna&page=2&page_size=12``
+                                       one page of the whole catalog: the
+                                       edit first, then every other piece
+                                       (one read, at most 30 cards)
   * ``GET /api/products/{id}``         one product with catalog copy and
                                        live stock (404 on unknown id)
   * ``GET /api/inventory``             live status-strip signal
@@ -196,6 +200,46 @@ _WAREHOUSE_LIST_SELECT = """
      ORDER BY product_id, quantity DESC, warehouse_code ASC
 """
 
+# The home grid pages through the whole catalog in one stable order: the
+# edit's pieces first, in their storefront order, then every other piece by
+# department, highest rated first, then by name. ``COUNT(*) OVER ()`` is the
+# catalog's size before the LIMIT, so one statement answers a page and its
+# total. With no edit, the CASE is NULL for every row and the department
+# order alone remains.
+_PAGE_SELECT = """
+    SELECT
+        "productId"          AS id,
+        brand,
+        name,
+        color,
+        price,
+        rating,
+        reviews,
+        category,
+        "imgUrl"             AS image_url,
+        badge,
+        tags,
+        tier,
+        quantity,
+        COUNT(*) OVER ()     AS total
+    FROM pellier.product_catalog
+    ORDER BY
+        CASE WHEN persona_id = %s AND storefront_rank IS NOT NULL
+             THEN storefront_rank END ASC NULLS LAST,
+        category ASC NULLS LAST,
+        rating DESC,
+        name ASC,
+        "productId" ASC
+    LIMIT %s OFFSET %s
+"""
+
+# A page is twelve cards by default, so its rows are full at two, three, four
+# or six across, and never more cards than one result's grid draws.
+PAGE_SIZE_DEFAULT = 12
+PAGE_SIZE_MAX = RESULT_IDS_MAX
+# Far past any catalog this store holds; it bounds the OFFSET a caller can ask for.
+PAGE_MAX = 1000
+
 
 _VALID_BADGES = {"EDITORS_PICK", "BESTSELLER", "JUST_IN"}
 
@@ -342,6 +386,32 @@ async def _fetch_products_by_ids(db: Any, ids: List[str]) -> List[StorefrontProd
     return products
 
 
+async def _catalog_page(
+    db: Any, *, persona_id: Optional[str], page: int, page_size: int
+) -> Dict[str, Any]:
+    """One page of the whole catalog, from one read, with the catalog's size.
+
+    Raises:
+        HTTPException: 404 when ``page`` is past the last page. The first page
+            of an empty catalog is an empty page, not an error.
+    """
+    rows = [dict(row) for row in await db.fetch_all(
+        _PAGE_SELECT, persona_id, page_size, (page - 1) * page_size
+    )]
+    if not rows and page > 1:
+        raise HTTPException(status_code=404, detail="page_not_found")
+    products = [_row_to_storefront_product(row) for row in rows]
+    await _attach_warehouse_stock(db, products)
+    total = int(rows[0]["total"]) if rows else 0
+    return {
+        "products": [p.model_dump(mode="json", by_alias=True) for p in products],
+        "page": page,
+        "pageSize": page_size,
+        "total": total,
+        "pages": -(-total // page_size),
+    }
+
+
 def _prefs_empty(prefs: Optional[Preferences]) -> bool:
     """Return True when ``prefs`` is null or has nothing to match on.
 
@@ -366,6 +436,8 @@ async def list_storefront_products(
     category: Optional[str] = Query(default=None),
     persona: Optional[str] = Query(default=None, min_length=1, max_length=64),
     ids: Optional[str] = Query(default=None, max_length=256),
+    page: Optional[int] = Query(default=None, ge=1, le=PAGE_MAX),
+    page_size: int = Query(default=PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
     db: Any = Depends(get_db_service),
     identity: AgentCoreIdentityService = Depends(get_agentcore_identity_service),
     memory: AgentCoreMemory = Depends(get_agentcore_memory),
@@ -378,6 +450,11 @@ async def list_storefront_products(
     With ``ids``, return exactly those cards in that order and nothing else:
     the storefront grid draws the agent's own search result from the ids the
     turn's evidence carried, so the page never runs a search of its own.
+
+    With ``page``, return one page of the whole catalog as
+    ``{products, page, pageSize, total, pages}``: the ``persona`` edit's
+    pieces first, then the rest by department, so every piece appears on
+    exactly one page. ``category`` and ``personalized`` do not apply to it.
     """
     if ids is not None:
         cards = await _fetch_products_by_ids(db, parse_product_ids(ids))
@@ -386,11 +463,14 @@ async def list_storefront_products(
             content=[p.model_dump(mode="json", by_alias=True) for p in cards],
         )
 
-    products = await _fetch_editorial_catalog(
-        db,
-        category=category,
-        persona_id=persona.lower().strip() if persona else None,
-    )
+    persona_id = persona.lower().strip() if persona else None
+    if page is not None:
+        return JSONResponse(
+            status_code=200,
+            content=await _catalog_page(db, persona_id=persona_id, page=page, page_size=page_size),
+        )
+
+    products = await _fetch_editorial_catalog(db, category=category, persona_id=persona_id)
 
     # Short-circuit: no opt-in -> editorial order. This is the anon home
     # page path, and also the path for authenticated shoppers who

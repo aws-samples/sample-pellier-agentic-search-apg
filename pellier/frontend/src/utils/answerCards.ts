@@ -7,8 +7,15 @@
  */
 
 /**
+ * The most pieces one answer shows as cards. Four lay out two by two in the
+ * panel. The backend bounds the history it accepts by the same number
+ * (`ANSWER_CARDS_MAX` in `models/search.py`).
+ */
+export const ANSWER_CARDS_MAX = 4
+
+/**
  * The pieces an answer shows as cards: those its words name, in order of first
- * mention, at most three.
+ * mention, at most `ANSWER_CARDS_MAX`.
  */
 export function productsNamedInAnswer<T extends { name: string }>(products: readonly T[], content: string): T[] {
   const normalizedContent = content.toLowerCase()
@@ -28,5 +35,5 @@ export function productsNamedInAnswer<T extends { name: string }>(products: read
         : a.mentionIndex - b.mentionIndex,
     )
     .map((item) => item.product)
-    .slice(0, 3)
+    .slice(0, ANSWER_CARDS_MAX)
 }

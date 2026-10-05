@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from models.search import ChatRequest
+from models.search import ANSWER_CARDS_MAX, ChatRequest
 from services.chat import (
     _effective_price_limit,
     _reconcile_continuity_followup,
@@ -46,6 +46,26 @@ def test_chat_history_retains_bounded_rendered_product_identity() -> None:
         (41, "Beeswax Pillar Candle", 38),
         (42, "Brass Incense Holder", 45),
     ]
+
+
+def _history_with(card_count: int) -> ChatRequest:
+    cards = [
+        {"id": 60 + index, "name": f"Piece {index}", "price": 40}
+        for index in range(card_count)
+    ]
+    return ChatRequest(
+        message="Which of those is lightest?",
+        conversation_history=[{"role": "assistant", "content": "Four pieces.", "products": cards}],
+    )
+
+
+def test_chat_history_carries_every_card_the_answer_showed() -> None:
+    """Ask Pellier shows up to four cards under an answer; the next turn may send all four."""
+    assert ANSWER_CARDS_MAX == 4
+    cards = _history_with(ANSWER_CARDS_MAX).conversation_history[0].products
+    assert [card.id for card in cards] == [60, 61, 62, 63]
+    with pytest.raises(ValidationError):
+        _history_with(ANSWER_CARDS_MAX + 1)
 
 
 def test_a_price_ceiling_survives_into_the_next_turn() -> None:

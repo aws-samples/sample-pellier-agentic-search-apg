@@ -7,6 +7,8 @@
  * "Show all". One more capture shows a turn with two searches at once in
  * Builder view (`fixtures/two-searches-turn.ts`): a pick from each search
  * leads the grid, and the page shows one search's "How it ranked" at a time.
+ * And an answer that names four pieces (`fixtures/four-picks-turn.ts`): all
+ * four are cards in Ask Pellier, two by two, and lead the grid tagged.
  * No backend or model runs.
  *
  *   npx vite --port 5199 &
@@ -19,6 +21,7 @@ import { join } from 'node:path'
 import { ANNA_PICKS, ANNA_QUESTION, ANNA_RESULT_IDS } from './fixtures/anna-turn'
 import { ANNA_RESULT_CARDS } from './fixtures/anna-cards'
 import { HADLEY_RESULT_CARDS, TWO_SEARCHES_EVENTS, TWO_SEARCHES_PICKS, TWO_SEARCHES_QUESTION } from './fixtures/two-searches-turn'
+import { FOUR_PICKS, FOUR_PICKS_EVENTS } from './fixtures/four-picks-turn'
 import { askAnna } from './fixtures/surfaces'
 
 const SHOTS = process.env.RESULTS_SHOTS ?? 'test-results/search-results'
@@ -142,7 +145,7 @@ test('two searches at once, Builder view on, light theme, 1440px', async ({ page
   await page.screenshot({ path: join(SHOTS, 'two-searches-second-light-1440.png') })
 })
 
-test('the wordmark returns to "This week at Pellier", keeping the conversation', async ({ page }) => {
+test("the wordmark returns to the store's first page, keeping the conversation", async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' })
   await page.setViewportSize({ width: 1440, height: 900 })
   await askAnna(page)
@@ -150,8 +153,49 @@ test('the wordmark returns to "This week at Pellier", keeping the conversation',
   await page.getByTestId('surface-navigation').getByTestId('pellier-wordmark').click()
   await expect(page).toHaveURL(/\/$/)
   await expect(page.getByTestId('results-view')).toHaveCount(0)
-  await expect(page.getByTestId('home-grid-title')).toHaveText('This week at Pellier')
+  // Anna is signed in, so page 1 is her edit.
+  await expect(page.getByTestId('home-grid-title')).toHaveText("Anna's edit")
+  await expect(page.getByTestId('home-grid-range')).toHaveText('1–12 of 100')
   await expect(page.getByTestId('pellier-hero-search')).toHaveValue('')
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0)
   await expect(page.getByTestId('chat-drawer')).toContainText(ANNA_QUESTION)
 })
+
+for (const theme of ['light', 'dark'] as const) {
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    test(`an answer naming four pieces, ${theme} theme, ${viewport.width}px`, async ({ page }) => {
+      await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+      await page.setViewportSize(viewport)
+      await askAnna(page, { turn: FOUR_PICKS_EVENTS })
+      const nameOf = (id: string) => ANNA_RESULT_CARDS.find(card => String(card.id) === id)?.name as string
+      const view = page.getByTestId('results-view')
+      // All four lead the grid, tagged, in the answer's order.
+      await expect(view.getByTestId('results-grid').locator('[data-pick="true"] .pellier-card-name'))
+        .toHaveText(FOUR_PICKS.map(nameOf))
+      await expect(view.getByTestId('results-grid').locator('.pellier-card-name').first()).toHaveText(nameOf(FOUR_PICKS[0]))
+      // Ask Pellier shows the same four, two by two.
+      const drawer = page.getByTestId('chat-drawer')
+      const cards = drawer.locator('.ec-artifacts .pa-card')
+      await expect(drawer.locator('.pa-name')).toHaveText(FOUR_PICKS.map(nameOf))
+      const boxes = await cards.evaluateAll(nodes => nodes.map(node => {
+        const { x, y, width } = node.getBoundingClientRect()
+        return { x: Math.round(x), y: Math.round(y), width: Math.round(width) }
+      }))
+      expect(new Set(boxes.map(box => box.y)).size).toBe(2)
+      expect(new Set(boxes.map(box => box.x)).size).toBe(2)
+      expect(boxes[0].y).toBe(boxes[1].y)
+      expect(boxes[2].y).toBe(boxes[3].y)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width)
+
+      const shot = (name: string) => join(SHOTS, `four-picks-${name}-${theme}-${viewport.width}.png`)
+      if (viewport.width < 1080) await page.locator('#shop').evaluate(el => el.scrollIntoView({ block: 'start' }))
+      await page.waitForTimeout(400)
+      await page.screenshot({ path: shot('page') })
+      // The panel scrolls inside one screen; a tall window shows all four cards at once.
+      await page.setViewportSize({ width: viewport.width, height: 1700 })
+      await cards.first().evaluate(el => el.scrollIntoView({ block: 'start' }))
+      await page.waitForTimeout(400)
+      await drawer.screenshot({ path: shot('panel') })
+    })
+  }
+}
