@@ -115,7 +115,7 @@ def build_inventory_agent() -> Agent:
     unchanged by consolidating the five factories onto the same
     substrate.
     """
-    # Stock Keeper — Sonnet 4.6 reporting profile. Pure factual lookups
+    # Stock Keeper — Sonnet 5 reporting profile. Pure factual lookups
     # (warehouse, count, ETA), with no temperature override.
     return Agent(
         name="inventory",

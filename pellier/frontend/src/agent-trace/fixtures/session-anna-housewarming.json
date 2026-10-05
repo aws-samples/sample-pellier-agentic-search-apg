@@ -48,7 +48,7 @@
       ],
       "meta": {
         "agent": "Curator",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "skill": "the-gift-table",
         "latencyMs": 1380
       }

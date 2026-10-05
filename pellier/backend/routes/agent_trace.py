@@ -24,7 +24,7 @@ Endpoints:
     GET  /build-state          - shipped vs exercise maps for agents and tools
     GET  /readiness            - workshop readiness checks for live pillars
     GET  /proof-board          - required-path evidence cards and fallbacks
-    POST /skills/route         - Live skill router demo (Sonnet 4.6)
+    POST /skills/route         - Live skill router demo (Sonnet 5)
     GET  /policies             - Cedar policies for the Write-path surface
     GET  /tool-audit/recent    - Recent rows from pellier.tool_audit
 """

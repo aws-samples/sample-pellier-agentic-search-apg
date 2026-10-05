@@ -147,9 +147,10 @@ def readiness(args: argparse.Namespace) -> int:
         and result["application"]["database"] == "connected"
         and bool(result["claudeCode"]["version"])
         and result["claudeCode"]["bedrockMode"] == "1"
-        # Pinned global profile — Workshop Studio does not expose Sonnet 5,
-        # so the floating `sonnet` alias would resolve to a denied model.
-        and result["claudeCode"]["model"] == "global.anthropic.claude-sonnet-4-6"
+        # Pinned global profile — bootstrap sets ANTHROPIC_MODEL to the
+        # explicit Sonnet 5 profile rather than the floating `sonnet`
+        # alias, so this checks the participant path actually got that pin.
+        and result["claudeCode"]["model"] == "global.anthropic.claude-sonnet-5"
         and set(result["exercise"].values()) == {"exercise"}
     )
     if not ready:

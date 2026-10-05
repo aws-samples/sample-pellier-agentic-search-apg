@@ -253,7 +253,7 @@ describe('Pellier Labs live agent workbench', () => {
           classifier: 'deterministic',
           response_mode: 'balanced',
           model_family: 'opus',
-          model_id: 'global.anthropic.claude-opus-4-8',
+          model_id: 'global.anthropic.claude-opus-5',
         });
         onUpdate({
           type: 'skill_routing',
@@ -362,11 +362,11 @@ describe('Pellier Labs live agent workbench', () => {
       within(tracePanel(container)).getByText('find_pieces'),
     ).toBeInTheDocument();
     expect(screen.getByText('Recommendation')).toBeInTheDocument();
-    expect(screen.getByText('Claude Opus 4.8')).toBeInTheDocument();
+    expect(screen.getByText('Claude Opus 5')).toBeInTheDocument();
     expect(screen.getByText('Routing decision')).toBeInTheDocument();
     expect(screen.getByText('Deterministic')).toBeInTheDocument();
     expect(
-      screen.getByText('global.anthropic.claude-opus-4-8'),
+      screen.getByText('global.anthropic.claude-opus-5'),
     ).toBeInTheDocument();
     expect(screen.getByText('In process')).toBeInTheDocument();
     expect(

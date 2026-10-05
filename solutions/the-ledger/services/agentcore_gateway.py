@@ -196,7 +196,10 @@ class ManagedGatewayDispatcher:
 
             agent = Agent(
                 name=specialist,
-                model=BedrockModel(model_id=model_id, max_tokens=4096),
+                # Sonnet 5 thinks by default and max_tokens caps thinking +
+                # answer together; 16000 keeps this tool-using agent from
+                # truncating a reply mid-turn.
+                model=BedrockModel(model_id=model_id, max_tokens=16000),
                 system_prompt=system_prompt,
                 tools=selected,
             )
@@ -362,7 +365,10 @@ def create_gateway_orchestrator(access_token: Optional[str] = None):
         orchestrator = Agent(
             model=BedrockModel(
                 model_id=model_id,
-                max_tokens=4096,
+                # Sonnet 5 thinks by default and max_tokens caps thinking +
+                # answer together; 16000 keeps this tool-using agent from
+                # truncating a reply mid-turn.
+                max_tokens=16000,
             ),
             system_prompt=(
                 "You are the Pellier shopping assistant. "
@@ -433,7 +439,10 @@ def create_gateway_orchestrator_with_semantic_search(access_token: Optional[str]
         orchestrator = Agent(
             model=BedrockModel(
                 model_id=model_id,
-                max_tokens=4096,
+                # Sonnet 5 thinks by default and max_tokens caps thinking +
+                # answer together; 16000 keeps this tool-using agent from
+                # truncating a reply mid-turn.
+                max_tokens=16000,
             ),
             system_prompt=(
                 "You are the Pellier shopping assistant. "

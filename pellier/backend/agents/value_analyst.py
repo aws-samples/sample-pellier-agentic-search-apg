@@ -82,7 +82,7 @@ def build_pricing_agent() -> Agent:
     Pellier Labs output (both injections are no-ops when their
     ContextVars are empty).
     """
-    # Value Analyst — Sonnet 4.6 reporting profile. Reports numbers and
+    # Value Analyst — Sonnet 5 reporting profile. Reports numbers and
     # ranges with no temperature override. The only thing worse than a
     # slow price check is a wrong one.
     model_id, max_tokens, _ = resolve_specialist_model("sonnet")

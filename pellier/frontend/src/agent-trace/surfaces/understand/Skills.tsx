@@ -38,7 +38,7 @@ function filterSkillsByPersona(skills: Skill[], filter: PersonaFilter): Skill[] 
 /* -----------------------------------------------------------------------
  * Skill Router Demo Card
  *
- * Live demonstration of the SkillRouter (Sonnet 4.6).
+ * Live demonstration of the SkillRouter (Sonnet 5).
  * Mirrors the Tools page's DiscoveryDemoCard pattern: type a query,
  * see what the router would decide for that turn (which skills to
  * load + which it considered and why it rejected them).
@@ -159,7 +159,7 @@ const SkillRouterDemoCard: React.FC<SkillRouterDemoCardProps> = ({
 
   return (
     <ExpCard>
-      <Eyebrow label="Live skill router · Sonnet 4.6" />
+      <Eyebrow label="Live skill router · Sonnet 5" />
       <h3
         style={{
           fontFamily: 'var(--at-serif)',

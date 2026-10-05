@@ -68,7 +68,7 @@
       ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "skill": "the-packing-list",
         "latencyMs": 1380
       }
@@ -134,7 +134,7 @@
       ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "skill": "the-packing-list",
         "latencyMs": 1380
       }
@@ -196,7 +196,7 @@
       ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "latencyMs": 1380
       }
     },
@@ -237,7 +237,7 @@
       ],
       "meta": {
         "agent": "Value Analyst",
-        "model": "Claude Sonnet 4.6",
+        "model": "Claude Sonnet 5",
         "latencyMs": 1380
       }
     },

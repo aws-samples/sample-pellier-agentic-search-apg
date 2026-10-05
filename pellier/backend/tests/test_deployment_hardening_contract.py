@@ -34,10 +34,10 @@ ENVIRONMENT_BOOTSTRAP = REPO / "scripts" / "bootstrap-environment.sh"
 LABS_BOOTSTRAP = REPO / "scripts" / "bootstrap-labs.sh"
 
 # Chosen for the release contract and tested against Bedrock mode, the explicit
-# Sonnet 4.6 profile id, a no-auth-prompt start, and the sibling workshop's
+# Sonnet 5 profile id, a no-auth-prompt start, and the sibling workshop's
 # preflight flag set. Bump only as a deliberate release action.
 PINNED_CLAUDE_CODE_VERSION = "2.1.233"
-EXPLICIT_SONNET_PROFILE = "global.anthropic.claude-sonnet-4-6"
+EXPLICIT_SONNET_PROFILE = "global.anthropic.claude-sonnet-5"
 
 
 @pytest.fixture(scope="module")

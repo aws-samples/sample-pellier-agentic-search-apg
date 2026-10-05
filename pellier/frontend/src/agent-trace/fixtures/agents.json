@@ -5,7 +5,7 @@
     "role": "Interprets intent, searches the catalog, and curates options.",
     "status": "shipped",
     "tools": ["find_pieces", "explore_collection", "side_by_side", "style_match", "escalate_to_stylist"],
-    "model": "Claude Opus 4.8"
+    "model": "Claude Opus 5"
   },
   {
     "numeral": "II",
@@ -13,7 +13,7 @@
     "role": "Personalized recommendations, trending picks, gift curation. Reads persona memory.",
     "status": "shipped",
     "tools": ["find_pieces_hybrid", "whats_trending", "preference_snapshot", "trace_receipt", "side_by_side", "explore_collection"],
-    "model": "Claude Opus 4.8"
+    "model": "Claude Opus 5"
   },
   {
     "numeral": "III",
@@ -21,7 +21,7 @@
     "role": "Price intelligence – deals, comparisons, value-per-dollar across collections.",
     "status": "shipped",
     "tools": ["price_intelligence", "explore_collection", "find_pieces"],
-    "model": "Claude Sonnet 4.6"
+    "model": "Claude Sonnet 5"
   },
   {
     "numeral": "IV",
@@ -29,7 +29,7 @@
     "role": "Inventory – stock levels, restock operations, low-stock alerts.",
     "status": "exercise",
     "tools": ["floor_check", "restock_shelf", "running_low"],
-    "model": "Claude Sonnet 4.6",
+    "model": "Claude Sonnet 5",
     "exerciseFiles": ["pellier/backend/agents/stock_keeper.py"]
   },
   {
@@ -38,6 +38,6 @@
     "role": "Returns, care instructions, post-purchase support.",
     "status": "shipped",
     "tools": ["returns_and_care", "find_pieces", "process_return", "trace_receipt", "escalate_to_stylist"],
-    "model": "Claude Opus 4.8"
+    "model": "Claude Opus 5"
   }
 ]

@@ -47,31 +47,31 @@ type JourneyTurnMeta = Omit<JourneyTurn, 'pill' | 'n' | 'skills'>;
 const MARCO_TURNS_META: JourneyTurnMeta[] = [
   {
     agent: 'Style Advisor',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Category browse opens a carry-on linen edit without inventing intent.',
     sessionId: 'marco-opening-demo',
   },
   {
     agent: 'Style Advisor',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Hadley resolves first; style_match returns packable companions.',
     sessionId: 'marco-opening-demo',
   },
   {
     agent: 'Style Advisor',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Two named shirts resolve to product IDs before a factual comparison.',
     sessionId: 'marco-capstone',
   },
   {
     agent: 'Value Analyst',
-    model: 'Claude Sonnet 4.6',
+    model: 'Claude Sonnet 5',
     outcome: 'A deterministic price distribution keeps the answer numerical.',
     sessionId: 'marco-opening-demo',
   },
   {
     agent: 'Stock Keeper',
-    model: 'Claude Sonnet 4.6',
+    model: 'Claude Sonnet 5',
     outcome:
       'Opening path preserves the floor_check stub; the midpoint replay shows the real Brooklyn breakdown after the build.',
     sessionId: 'marco-opening-demo',
@@ -82,32 +82,32 @@ const MARCO_TURNS_META: JourneyTurnMeta[] = [
 const ANNA_TURNS_META: JourneyTurnMeta[] = [
   {
     agent: 'Curator',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome:
       'Gift and maker skills shape a ceramics-first hybrid result under budget.',
     sessionId: 'anna-morning-ritual',
   },
   {
     agent: 'Curator',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Aurora preference proof is read before hybrid retrieval uses past orders.',
     sessionId: 'anna-under-100',
   },
   {
     agent: 'Curator',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Popularity is answered by whats_trending rather than another search.',
     sessionId: 'anna-candle-pairing',
   },
   {
     agent: 'Curator',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'The Proof Counter reads the latest hybrid-retrieval audit receipt.',
     sessionId: 'anna-birthday-gift',
   },
   {
     agent: 'Curator',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome:
       'Sympathy gifting goes directly to a person; retrieval cannot read the room.',
     sessionId: 'anna-housewarming',
@@ -117,31 +117,31 @@ const ANNA_TURNS_META: JourneyTurnMeta[] = [
 const THEO_TURNS_META: JourneyTurnMeta[] = [
   {
     agent: 'Style Advisor',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Maker language grounds a semantic search in hand-thrown home objects.',
     sessionId: 'theo-pour-over',
   },
   {
     agent: 'Experience Guide',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'The linen throw resolves before its care guidance and return window.',
     sessionId: 'theo-linen-seasons',
   },
   {
     agent: 'Experience Guide',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'Read-before-write order resolves product and policy before filing.',
     sessionId: 'theo-ceramics-return',
   },
   {
     agent: 'Experience Guide',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome: 'The Proof Counter reads tool_audit to verify that the return exists.',
     sessionId: 'theo-pour-over-pairing',
   },
   {
     agent: 'Experience Guide',
-    model: 'Claude Opus 4.8',
+    model: 'Claude Opus 5',
     outcome:
       'A known out-of-window durability exception bypasses a doomed write and escalates.',
     sessionId: 'theo-home-not-wardrobe',
@@ -172,7 +172,7 @@ const JOURNEYS: PersonaJourney[] = [
       "Returning customer. Marco's five turns move from category browse to pairing, comparison, price intelligence, and live inventory. Turn 5 remains the workshop build: the opening path shows the floor_check gap, then the midpoint replay proves the wired result.",
     turns: attachPills(MARCO_TURNS_META, PERSONA_HERO_PILLS.marco, PERSONA_TURN_TRACES.marco),
     capstoneNote:
-      "Claude Opus 4.8 handles editorial discovery and comparison; Claude Sonnet 4.6 handles numerical and inventory reporting. Turn 5 is where the wiring exercise lands.",
+      "Claude Opus 5 handles editorial discovery and comparison; Claude Sonnet 5 handles numerical and inventory reporting. Turn 5 is where the wiring exercise lands.",
   },
   {
     id: 'anna',

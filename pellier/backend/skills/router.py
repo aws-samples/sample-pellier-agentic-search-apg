@@ -2,7 +2,7 @@
 SkillRouter — one-call LLM decider.
 
 Given a user message and the registry's library of skills, the router
-asks Sonnet 4.6 which skills to load for this turn. One
+asks Sonnet 5 which skills to load for this turn. One
 LLM call. No embeddings, no scoring, no multi-call cascades. The skill
 descriptions ARE the activation contract — the router trusts them.
 
@@ -83,7 +83,7 @@ class SkillRouter:
         """
         Build (or return cached) the Strands Agent used for routing.
 
-        We construct a tool-free Agent with Sonnet 4.6 and a fixed system
+        We construct a tool-free Agent with Sonnet 5 and a fixed system
         prompt. The skill library is baked into the
         system prompt at construction time; when a skill is added at
         runtime we'd need to reset this cache (not a v1 concern — the
@@ -99,6 +99,14 @@ class SkillRouter:
             model=BedrockModel(
                 model_id=self._model_id,
                 max_tokens=settings.SKILL_ROUTER_MAX_TOKENS_SONNET,
+                # Single-call, tool-free JSON decision. Sonnet 5 thinks by
+                # default; disable it to keep this call's prior latency/cost
+                # and because the 640-token budget has no room for a
+                # thinking block too. `additional_request_fields` is a
+                # confirmed strands.models.BedrockModel config key (see
+                # strands/models/bedrock.py) that maps onto Converse's
+                # additionalModelRequestFields.
+                additional_request_fields={"thinking": {"type": "disabled"}},
             ),
             system_prompt=self._build_prompt(),
             tools=[],

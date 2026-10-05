@@ -72,7 +72,7 @@ def build_recommendation_agent() -> Agent:
     agent as before in those scenarios.
     === REFERENCE: END ===
     """
-    # Curator — Claude Opus 4.8. Recommendations carry "taste";
+    # Curator — Claude Opus 5. Recommendations carry "taste";
     # Bedrock rejects the deprecated temperature field for this model,
     # so we rely on the model default.
     #

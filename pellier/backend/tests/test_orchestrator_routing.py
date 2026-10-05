@@ -1,6 +1,6 @@
 """Routing tests for the in-process orchestrator multi-agent orchestrator.
 
-  The orchestrator is constructed with Sonnet 4.6 model id exactly,
+  The orchestrator is constructed with Sonnet 5 model id exactly,
          no temperature override, and five specialist tools following the Strands
          "Agents as Tools" pattern.
   Intent classification priority: pricing > inventory > support >
@@ -73,7 +73,7 @@ _SEARCH = re.compile(
 def _route(query: str) -> str:
     """Return the tool_name of the specialist a priority-respecting
     orchestrator would call for `query`. Mirrors the logic the
-    ORCHESTRATOR_SYSTEM_PROMPT asks Sonnet 4.6 to perform."""
+    ORCHESTRATOR_SYSTEM_PROMPT asks Sonnet 5 to perform."""
     if _PRICING.search(query):
         return "pricing"
     if _INVENTORY.search(query):
@@ -92,7 +92,7 @@ def _route(query: str) -> str:
 
 class _StubBedrockModel:
     """Swap for `BedrockModel`. Captures kwargs so the test can assert
-    the Sonnet 4.6 model id is wired exactly without a temperature field."""
+    the Sonnet 5 model id is wired exactly without a temperature field."""
 
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs
@@ -242,7 +242,7 @@ def orchestrator_factory(monkeypatch: pytest.MonkeyPatch, stubbed_specialists):
 def test_orchestrator_uses_sonnet_5_without_temperature_override(
     orchestrator_factory,
 ) -> None:
-    """The orchestrator SHALL wrap BedrockModel with the exact Sonnet 4.6
+    """The orchestrator SHALL wrap BedrockModel with the exact Sonnet 5
     model id and no temperature override per Req 2.4.6."""
     orchestrator_factory()
 
@@ -250,8 +250,8 @@ def test_orchestrator_uses_sonnet_5_without_temperature_override(
     assert isinstance(model, _StubBedrockModel)
     assert (
         model.kwargs.get("model_id")
-        == "global.anthropic.claude-sonnet-4-6"
-    ), f"Sonnet 4.6 model id mismatch: {model.kwargs.get('model_id')!r}"
+        == "global.anthropic.claude-sonnet-5"
+    ), f"Sonnet 5 model id mismatch: {model.kwargs.get('model_id')!r}"
     assert "temperature" not in model.kwargs
 
 

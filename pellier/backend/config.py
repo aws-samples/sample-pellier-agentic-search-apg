@@ -63,41 +63,49 @@ class Settings(BaseSettings):
     #
     # Per-agent model selection is an architectural decision, not a knob:
     #
-    #   Claude Opus 4.8   — editorial specialists (Style Advisor, Curator,
+    #   Claude Opus 5   — editorial specialists (Style Advisor, Curator,
     #                  Experience Guide). Needs voice + personality.
-    #   Claude Sonnet 4.6 — routing, structured extraction, and reporting
+    #   Claude Sonnet 5 — routing, structured extraction, and reporting
     #                  specialists (Value Analyst, Stock Keeper).
     #
-    # Workshop Studio accounts do not yet expose the Claude 5 family, so the
-    # defaults pin the newest globally-available generation instead.
+    # Opus 4.5-4.8 and Sonnet 4.5/4.6 are deprecated; both editorial and
+    # routing tiers now default to the Opus 5 / Sonnet 5 generation.
     #
     # Model IDs follow Bedrock global cross-region inference profile naming.
     # Editorial agents (Style Advisor, Curator, Experience Guide) read
     # BEDROCK_OPUS_MODEL. It is intentionally env-OVERRIDABLE: the model-access
     # preflight (scripts/check_model_access.py, run in bootstrap) probes
-    # Opus 4.8 then Opus 4.6, and if NEITHER is reachable, writes
-    #   BEDROCK_OPUS_MODEL=global.anthropic.claude-sonnet-4-6
-    # into .env so editorial agents fall back to Sonnet 4.6 cleanly — no code
+    # Opus 5, and if it is NOT reachable, writes
+    #   BEDROCK_OPUS_MODEL=global.anthropic.claude-sonnet-5
+    # into .env so editorial agents fall back to Sonnet 5 cleanly — no code
     # path change, no per-request retry. BEDROCK_SONNET_MODEL is the canonical
-    # fallback target (real Sonnet 4.6, not an Opus alias).
-    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-4-8"
-    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-4-6"
-    BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-4-6"
-    BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-4-6"
+    # fallback target (real Sonnet 5, not an Opus alias).
+    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-5"
+    BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-5"
+    BEDROCK_ROUTER_MODEL: str = "global.anthropic.claude-sonnet-5"
+    BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-5"
 
     # Legacy alias — kept for tests + scripts that still reference it.
     # Prefer the role-specific Opus/Sonnet settings in agent factories.
-    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-4-8"
+    BEDROCK_CHAT_MODEL: str = "global.anthropic.claude-opus-5"
 
     # max_tokens is a safety ceiling, not a target — billing and latency track
     # tokens actually generated, so a higher cap costs nothing unless a reply
     # truly runs that long. Replies stay short because the system prompts ask
     # for 2-4 sentences; these values just guard against a runaway response and
     # must clear the longest expected reply so it never truncates mid-sentence.
-    AGENT_MAX_TOKENS_OPUS: int = 1200       # editorial agents (Style, Experience, Curator)
-    AGENT_MAX_TOKENS_SONNET: int = 2048     # Stock Keeper + Value Analyst (richer reveals)
-    SKILL_ROUTER_MAX_TOKENS_SONNET: int = 640  # five-skill audit JSON
-    ROUTER_MAX_TOKENS_SONNET: int = 1200    # tool route plus concise final handoff
+    #
+    # Opus 5 / Sonnet 5 think by default and max_tokens caps thinking + the
+    # answer together. AGENT_MAX_TOKENS_OPUS, AGENT_MAX_TOKENS_SONNET, and
+    # ROUTER_MAX_TOKENS_SONNET all feed tool-using Strands Agents (the five
+    # specialists plus the Pattern I orchestrator) that keep thinking on, so
+    # they're set to 16000 to leave room for both. SKILL_ROUTER_MAX_TOKENS_SONNET
+    # feeds the tool-free skill router, which explicitly disables thinking
+    # (skills/router.py) and so keeps its original, tighter budget.
+    AGENT_MAX_TOKENS_OPUS: int = 16000      # editorial agents (Style, Experience, Curator)
+    AGENT_MAX_TOKENS_SONNET: int = 16000    # Stock Keeper + Value Analyst (richer reveals)
+    SKILL_ROUTER_MAX_TOKENS_SONNET: int = 640  # five-skill audit JSON (thinking disabled)
+    ROUTER_MAX_TOKENS_SONNET: int = 16000   # tool route plus concise final handoff
     
     # ========================================
     # Application Configuration

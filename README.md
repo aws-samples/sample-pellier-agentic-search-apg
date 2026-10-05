@@ -275,7 +275,7 @@ state-transition, and durable-evidence boundaries.
 | Vector retrieval | pgvector 0.8.1, `vector(1024)`, HNSW, cosine distance |
 | Lexical retrieval | PostgreSQL `tsvector`, GIN, `ts_rank_cd`, and `pg_trgm` |
 | Hybrid merge | Application-layer Reciprocal Rank Fusion |
-| Models | Claude Opus 4.8, Claude Sonnet 4.6, Cohere Embed v4, and Cohere Rerank v3.5 through Amazon Bedrock |
+| Models | Claude Opus 5, Claude Sonnet 5, Cohere Embed v4, and Cohere Rerank v3.5 through Amazon Bedrock |
 | Agent framework | Strands Agents SDK with `Agent`, `@tool`, hooks, and `GraphBuilder` |
 | Backend | Python, FastAPI, psycopg 3, boto3, Pydantic, and SSE streaming |
 | Frontend | React 18, TypeScript 5, Vite 6, Tailwind CSS 3, Framer Motion 12, and Lucide |

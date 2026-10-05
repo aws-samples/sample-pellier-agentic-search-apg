@@ -1,7 +1,7 @@
 """Relevance test for the recommendation specialist `recommendation` agent.
 
   The specialist is a Strands `Agent` wrapping `BedrockModel` with
-         the Opus 4.8 support factory and the four tools
+         the Opus 5 support factory and the four tools
          `[find_pieces, whats_trending, side_by_side,
          explore_collection]`.
   The system prompt emphasizes warm, editorial, catalog-style
@@ -160,9 +160,9 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_seven_tools(
     """Building the Curator SHALL match the per-agent model mix
     documented in the Workshop Studio repo's content/ model-mix sidebar:
 
-      - Claude Opus 4.8 (BEDROCK_OPUS_MODEL)
+      - Claude Opus 5 (BEDROCK_OPUS_MODEL)
       - no temperature field; Bedrock rejects that deprecated field for
-        Opus 4.8
+        Opus 5
       - exactly seven tools: find_pieces_hybrid + whats_trending +
         preference_snapshot + trace_receipt + side_by_side +
         explore_collection + escalate_to_stylist.
@@ -181,8 +181,8 @@ def test_curator_is_constructed_with_per_agent_model_mix_and_seven_tools(
     kwargs = _StubAgent.last_kwargs
     assert "model" in kwargs, "Agent SHALL be constructed with a model= kwarg"
     assert isinstance(kwargs["model"], _StubBedrockModel)
-    assert kwargs["model"].kwargs["model_id"] == "global.anthropic.claude-opus-4-8"
-    assert kwargs["model"].kwargs["max_tokens"] == 1200
+    assert kwargs["model"].kwargs["model_id"] == "global.anthropic.claude-opus-5"
+    assert kwargs["model"].kwargs["max_tokens"] == 16000
     assert "temperature" not in kwargs["model"].kwargs
 
     tool_names = [getattr(t, "__name__", repr(t)) for t in kwargs.get("tools", [])]

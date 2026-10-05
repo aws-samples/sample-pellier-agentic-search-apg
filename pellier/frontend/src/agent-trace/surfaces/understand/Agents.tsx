@@ -422,7 +422,7 @@ const RelatedCard: React.FC = () => (
           <code style={CODE_INLINE}>the-packing-list</code>,{' '}
           <code style={CODE_INLINE}>the-gift-table</code>, and{' '}
           <code style={CODE_INLINE}>the-makers-shelf</code>. Loaded per-turn by
-          SkillRouter (Sonnet 4.6). Injected into the specialist&apos;s system
+          SkillRouter (Sonnet 5). Injected into the specialist&apos;s system
           prompt – they change voice and handling, not routing.
         </p>
         <Link
@@ -710,7 +710,7 @@ const Agents: React.FC = () => {
     <div className="pellier-labs-reference-page" style={{ maxWidth: '1100px' }}>
       <EditorialTitle
         backToReferences
-        eyebrow="Understand · Agents · five peers · Opus 4.8 + Sonnet 4.6"
+        eyebrow="Understand · Agents · five peers · Opus 5 + Sonnet 5"
         title="Specialists and handoffs"
         summary="One intent router selects a specialist. Each agent owns a bounded prompt, model role, and tool set."
         references={[

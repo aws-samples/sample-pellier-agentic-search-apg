@@ -58,7 +58,10 @@ def create_analytics_agent():
         agent = Agent(
             model=BedrockModel(
                 model_id=settings.BEDROCK_CHAT_MODEL,
-                max_tokens=8192,
+                # Opus 5 thinks by default and max_tokens caps thinking +
+                # answer together; 16000 keeps this tool-using agent from
+                # truncating a reply mid-turn.
+                max_tokens=16000,
             ),
             system_prompt=(
                 "You are Pellier's Data Analyst. You help users understand "

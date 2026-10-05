@@ -52,7 +52,7 @@
       ],
       "meta": {
         "agent": "Stock Keeper",
-        "model": "Claude Sonnet 4.6",
+        "model": "Claude Sonnet 5",
         "latencyMs": 1380
       }
     }

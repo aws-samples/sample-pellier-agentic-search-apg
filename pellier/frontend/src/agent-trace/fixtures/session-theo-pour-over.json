@@ -68,7 +68,7 @@
       ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "skill": "the-makers-shelf",
         "latencyMs": 1380
       }

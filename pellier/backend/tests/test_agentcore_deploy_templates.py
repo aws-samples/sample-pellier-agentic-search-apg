@@ -85,7 +85,7 @@ def _render(tmp_path: Path, *, include_policies: bool) -> tuple[Path, dict[str, 
         cognito_pool="us-east-1_example",
         cognito_client="client-id",
         lambda_arns=_lambda_arns(),
-        model_id="global.anthropic.claude-sonnet-4-6",
+        model_id="global.anthropic.claude-sonnet-5",
         workshop_id="p12345678",
         include_policies=include_policies,
         gateway_arn=GATEWAY_ARN if include_policies else "",
@@ -136,8 +136,8 @@ def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) ->
 
     env = {item["name"]: item["value"] for item in runtime["envVars"]}
     assert env == {
-        "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-4-6",
-        "BEDROCK_ROUTER_MODEL": "global.anthropic.claude-sonnet-4-6",
+        "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-5",
+        "BEDROCK_ROUTER_MODEL": "global.anthropic.claude-sonnet-5",
     }
     assert "AGENTCORE_GATEWAY_URL" not in env
     assert "AGENTCORE_MEMORY_ID" not in env

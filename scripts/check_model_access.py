@@ -42,14 +42,10 @@ REGION = os.environ.get("AWS_DEFAULT_REGION") or os.environ.get("AWS_REGION") or
 MODELS = [
     {
         "name": "Claude Opus",
-        # Workshop Studio accounts do not expose the Claude 5 family, so the
-        # editorial tier probes the newest globally-available Opus generations
-        # in order and pins config to the first that answers.
-        # Live profile ids verified via `aws bedrock list-inference-profiles`:
-        # Opus 4.8 has no suffix, Opus 4.6 carries `-v1`.
+        # Opus 4.5/4.6/4.7/4.8 are deprecated in favor of a single Opus 5
+        # generation, so the editorial tier probes just that global profile.
         "model_id_variants": [
-            "global.anthropic.claude-opus-4-8",
-            "global.anthropic.claude-opus-4-6-v1",
+            "global.anthropic.claude-opus-5",
         ],
         # Editorial specialists (Style Advisor, Curator, Experience Guide).
         # NOT hard-required: if Opus is denied but a Sonnet fallback
@@ -58,32 +54,37 @@ MODELS = [
         "required": False,
         "role": "editorial",  # consumed by the fallback logic in main()
         "access_hint": (
-            "Enable Claude Opus 4.8 or Claude Opus 4.6 in Bedrock model access."
+            "Enable Claude Opus 5 in Bedrock model access."
         ),
         "body": {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 16,
             "messages": [{"role": "user", "content": "Say hi."}],
+            # Opus 5 thinks by default; a 16-token probe budget must not be
+            # spent on reasoning instead of the reply.
+            "thinking": {"type": "disabled"},
         },
     },
     {
         "name": "Claude Sonnet",
         "model_id_variants": [
-            "global.anthropic.claude-sonnet-4-6",
+            "global.anthropic.claude-sonnet-5",
         ],
         # Hard-required: routing, reporting specialists, structured extraction,
         # the AgentCore Runtime, AND the Claude Code CLI lane all pin this
-        # global Sonnet 4.6 profile (Workshop Studio does not expose Sonnet 5,
-        # so the floating `sonnet` CLI alias would resolve to a denied model).
+        # global Sonnet 5 profile.
         "required": True,
         "role": "sonnet",
         "access_hint": (
-            "Enable Claude Sonnet 4.6 in Bedrock model access."
+            "Enable Claude Sonnet 5 in Bedrock model access."
         ),
         "body": {
             "anthropic_version": "bedrock-2023-05-31",
             "max_tokens": 16,
             "messages": [{"role": "user", "content": "Say hi."}],
+            # Sonnet 5 thinks by default; a 16-token probe budget must not be
+            # spent on reasoning instead of the reply.
+            "thinking": {"type": "disabled"},
         },
     },
     {

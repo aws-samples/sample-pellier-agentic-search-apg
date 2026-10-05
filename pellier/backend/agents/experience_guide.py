@@ -139,7 +139,7 @@ def build_support_agent() -> Agent:
     actual order history; both injections are no-ops for anonymous
     sessions.
     """
-    # Experience Guide — Claude Opus 4.8. Opus for tone when handling a
+    # Experience Guide — Claude Opus 5. Opus for tone when handling a
     # return. Bedrock rejects the deprecated temperature field for this
     # model, so we rely on the model default.
     model_id, max_tokens, _ = resolve_specialist_model("opus")

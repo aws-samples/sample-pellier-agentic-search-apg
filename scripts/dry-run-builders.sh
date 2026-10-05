@@ -78,19 +78,19 @@ else
   exit 1
 fi
 
-# Prove the installed CLI can invoke the pinned global Sonnet 4.6 profile with
+# Prove the installed CLI can invoke the pinned global Sonnet 5 profile with
 # the participant instance role. This catches package, shell, model-access, and
 # IAM drift before participants reach the recommended Lab 2 path.
 #
 # Model selection is left to ANTHROPIC_MODEL on purpose. Passing `--model sonnet`
-# here would override the pin with the CLI's floating alias, which a current CLI
-# resolves to a newer Sonnet than Workshop Studio accounts expose — so the check
-# would either fail on a correctly provisioned account or pass while testing a
-# model no participant uses. Bootstrap pins the same variable, so this now
-# exercises the participant path.
+# here would override the pin with the CLI's floating alias, which could resolve
+# to a different Sonnet generation than the one this account has been granted —
+# so the check would either fail on a correctly provisioned account or pass while
+# testing a model no participant uses. Bootstrap pins the same variable, so this
+# now exercises the participant path.
 claude_smoke="$(
   CLAUDE_CODE_USE_BEDROCK=1 \
-  ANTHROPIC_MODEL=global.anthropic.claude-sonnet-4-6 \
+  ANTHROPIC_MODEL=global.anthropic.claude-sonnet-5 \
   AWS_REGION="${AWS_REGION:-us-east-1}" \
   timeout 75 claude -p \
     "Reply with exactly PELLIER_CLAUDE_READY and no other text." \

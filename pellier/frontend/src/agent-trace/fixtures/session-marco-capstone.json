@@ -65,7 +65,7 @@
       ],
       "meta": {
         "agent": "Style Advisor",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "latencyMs": 1380
       }
     }

@@ -966,7 +966,7 @@ if [ ! -z "${STAGE2_SCRIPT_URL}" ]; then
         export AWS_REGION='$AWS_REGION' && \
         export BEDROCK_EMBEDDING_MODEL='${BEDROCK_EMBEDDING_MODEL:-us.cohere.embed-v4:0}' && \
         export BEDROCK_RERANK_MODEL='${BEDROCK_RERANK_MODEL:-cohere.rerank-v3-5:0}' && \
-        export BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-4-8}' && \
+        export BEDROCK_CHAT_MODEL='${BEDROCK_CHAT_MODEL:-global.anthropic.claude-opus-5}' && \
         export ASSETS_BUCKET_NAME='${ASSETS_BUCKET_NAME:-}' && \
         export ASSETS_BUCKET_PREFIX='${ASSETS_BUCKET_PREFIX:-}' && \
         nohup /tmp/bootstrap-labs.sh > /var/log/bootstrap-labs.log 2>&1 &"

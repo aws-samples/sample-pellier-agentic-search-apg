@@ -1455,7 +1455,7 @@ async def compare_search_strategies(query: str):
          loses on conversational queries with this corpus.
       3. **hybrid + rerank** — same as #2 plus Cohere Rerank v3.5.
       4. **agentic (Sonnet → filter → vector → rerank)** — Anna's
-         shipped path. Sonnet 4.6 extracts {categories, tags,
+         shipped path. Sonnet 5 extracts {categories, tags,
          price_max, in_stock, soft_signal}; pgvector cosine
          runs over the filtered candidate set with
          ``hnsw.iterative_scan = 'relaxed_order'`` so filtered recall

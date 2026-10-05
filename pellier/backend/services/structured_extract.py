@@ -1,5 +1,5 @@
 """
-Structured query extraction via Claude Sonnet 4.6.
+Structured query extraction via Claude Sonnet 5.
 
 Path 2 retrieval — the agentic upgrade to hybrid+rerank — splits a
 shopper query into:
@@ -15,7 +15,7 @@ filters (with ``hnsw.iterative_scan`` so a strict WHERE doesn't drop
 the candidate count below ``ef_search``), then sends a smaller pool
 through Cohere Rerank using ``soft_signal`` as the query.
 
-Why Sonnet 4.6 specifically:
+Why Sonnet 5 specifically:
 
   - Reliable JSON-shaped output against a 6-category / 28-tag enum.
   - Reporting-profile behavior: the structured path, not the editorial one.
@@ -127,6 +127,10 @@ class StructuredExtractor:
             "messages": [
                 {"role": "user", "content": _build_prompt(query.strip())},
             ],
+            # Single-call JSON extraction, no tools. Sonnet 5 thinks by
+            # default; disable it to keep the prior latency/cost and because
+            # a 400-token cap leaves no room for a thinking block too.
+            "thinking": {"type": "disabled"},
         }
 
         try:

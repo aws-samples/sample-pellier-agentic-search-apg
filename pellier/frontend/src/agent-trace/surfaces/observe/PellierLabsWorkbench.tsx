@@ -1055,8 +1055,8 @@ export default function PellierLabsWorkbench() {
                       {responseMode === 'balanced'
                         ? 'Opus for editorial specialists; Sonnet for reporting.'
                         : responseMode === 'editorial'
-                          ? 'Claude Opus 4.8 composes the specialist response.'
-                          : 'Claude Sonnet 4.6 composes the specialist response.'}
+                          ? 'Claude Opus 5 composes the specialist response.'
+                          : 'Claude Sonnet 5 composes the specialist response.'}
                     </p>
                   </fieldset>
 

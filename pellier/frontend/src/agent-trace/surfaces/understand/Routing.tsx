@@ -516,7 +516,8 @@ const StorefrontProductionCard: React.FC = () => (
       High-traffic commerce assistants optimize for predictability, latency, and
       cost. Pellier&apos;s storefront keeps{' '}
       <Emphasis>Dispatcher + specialists</Emphasis> on the hot path – not an LLM
-      intent resolver at temperature&nbsp;0 (still drifts with model updates).
+      intent resolver at temperature&nbsp;0 (a knob Claude Opus 5 / Sonnet 5 no
+      longer even accept, and which still drifted with model updates before that).
     </p>
     <ul
       style={{

@@ -34,7 +34,7 @@ def _load_model_check():
     return module
 
 
-def test_model_preflight_persists_sonnet_46_runtime_fallback(
+def test_model_preflight_persists_sonnet_5_runtime_fallback(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     module = _load_model_check()
@@ -45,7 +45,7 @@ def test_model_preflight_persists_sonnet_46_runtime_fallback(
         if model.get("role") == "editorial":
             return False
         if model.get("role") == "sonnet":
-            model["_resolved_id"] = "global.anthropic.claude-sonnet-4-6"
+            model["_resolved_id"] = "global.anthropic.claude-sonnet-5"
         return True
 
     monkeypatch.setattr(module, "check_model", fake_check)
@@ -61,23 +61,23 @@ def test_model_preflight_persists_sonnet_46_runtime_fallback(
         for line in env_file.read_text(encoding="utf-8").splitlines()
         if "=" in line
     )
-    assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-4-6"
-    assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-4-6"
+    assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5"
+    assert values["BEDROCK_ROUTER_MODEL"] == "global.anthropic.claude-sonnet-5"
     assert "CLAUDE_CODE_MODEL" not in values
-    assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-4-6"
+    assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-5"
     assert values["BEDROCK_MODEL_ACCESS_READY"] == "true"
 
 
-def test_claude_code_pins_global_sonnet_46_profile() -> None:
-    """Workshop Studio does not expose Sonnet 5, so the CLI must pin the
-    global Sonnet 4.6 profile instead of the floating ``sonnet`` alias
-    (which a current CLI resolves to a denied model on the event account)."""
+def test_claude_code_pins_global_sonnet_5_profile() -> None:
+    """The CLI must pin the explicit global Sonnet 5 profile instead of the
+    floating ``sonnet`` alias, so a future CLI release repointing that alias
+    can't silently drift the workshop off its tested model."""
     source = BUILDERS_BOOTSTRAP.read_text(encoding="utf-8")
     dry_run = BUILDERS_DRY_RUN.read_text(encoding="utf-8")
-    pin = "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-4-6}"
+    pin = "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}"
     assert "export CLAUDE_CODE_USE_BEDROCK=1" in source
     assert f"export {pin}" in source
-    assert "ANTHROPIC_MODEL=global.anthropic.claude-sonnet-4-6" in dry_run
+    assert "ANTHROPIC_MODEL=global.anthropic.claude-sonnet-5" in dry_run
     assert "ANTHROPIC_MODEL=sonnet" not in dry_run
     assert "CLAUDE_CODE_MODEL" not in source
 

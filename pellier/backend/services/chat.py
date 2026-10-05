@@ -737,7 +737,10 @@ CURRENT REQUEST: {message}"""
                 single_prompt += GUARDRAILS_SUFFIX
 
             agent = Agent(
-                model=BedrockModel(model_id=self.model_id, max_tokens=8192),
+                # Opus 5 thinks by default and max_tokens caps thinking +
+                # answer together; 16000 keeps this tool-using agent from
+                # truncating a reply mid-turn.
+                model=BedrockModel(model_id=self.model_id, max_tokens=16000),
                 system_prompt=single_prompt,
                 tools=[find_pieces, whats_trending, price_intelligence]
             )
@@ -950,7 +953,10 @@ CURRENT REQUEST: {message}"""
             agent = Agent(
                 model=BedrockModel(
                     model_id=self.model_id,
-                    max_tokens=8192,
+                    # Opus 5 thinks by default and max_tokens caps thinking +
+                    # answer together; 16000 keeps this tool-using agent from
+                    # truncating a reply mid-turn.
+                    max_tokens=16000,
                 ),
                 system_prompt=single_prompt,
                 tools=[find_pieces, whats_trending, price_intelligence]
@@ -1811,7 +1817,7 @@ CURRENT REQUEST: {message}"""
         yield build_intent_signal(intent, response_mode)
 
         # --- Skill router ---------------------------------------------------
-        # One LLM call to Sonnet 4.6 decides which skills to inject into the
+        # One LLM call to Sonnet 5 decides which skills to inject into the
         # reasoning specialists' system prompts for this turn. Runs after
         # intent classification so the triage fast-path (greetings, meta,
         # thanks) short-circuits before reaching here.

@@ -84,7 +84,7 @@ def otel_spans(monkeypatch: pytest.MonkeyPatch) -> Iterable[InMemorySpanExporter
 
 class _StubBedrockModel:
     """Swap for ``BedrockModel``. Captures kwargs so the test can assert
-    the Sonnet 4.6 router model id is still wired."""
+    the Sonnet 5 router model id is still wired."""
 
     def __init__(self, **kwargs: Any) -> None:
         self.kwargs = kwargs

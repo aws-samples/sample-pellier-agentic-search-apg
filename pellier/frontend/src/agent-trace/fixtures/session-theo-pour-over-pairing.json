@@ -49,7 +49,7 @@
       ],
       "meta": {
         "agent": "Experience Guide",
-        "model": "Claude Opus 4.8",
+        "model": "Claude Opus 5",
         "skill": "the-proof-counter",
         "latencyMs": 1380
       }
