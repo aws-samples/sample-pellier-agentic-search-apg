@@ -108,6 +108,14 @@ def test_no_customer_id_outside_the_pattern_can_be_written(fresh_db):
                       "VALUES ('theo', 'Theo', 'theo-alias')")
 
 
+@pytest.mark.parametrize("username", ["", "Theo", "theo smith"])
+def test_a_sign_in_name_is_lowercase_and_never_empty(fresh_db, username):
+    """An unbound session names '' and the binding lowercases, so neither can match a row."""
+    with pytest.raises(AssertionError, match="customers_cognito_username_check"):
+        fresh_db.psql("INSERT INTO pellier.customers (id, name, cognito_username) "
+                      f"VALUES ('CUST-ZED', 'Zed', '{username}')")
+
+
 def test_jessicas_case_is_exactly_one_hundred_dollars_and_nothing_is_credited(fresh_db):
     returned = _rows(fresh_db, """
         SELECT p.name || '|' || o.amount_paid_cents FROM pellier.orders o

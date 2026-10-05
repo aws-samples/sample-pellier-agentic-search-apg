@@ -32,6 +32,7 @@ made the request.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from contextvars import ContextVar
@@ -114,12 +115,24 @@ def current_turn_id() -> Optional[str]:
 
 # Which customer each sign-in name belongs to, read from
 # ``pellier.customers.cognito_username`` when the app starts
-# (:func:`load_customer_usernames`). Until it is loaded, no username maps to a
-# customer, so a verified shopper gets no customer scope: the read is refused,
-# not widened.
+# (:func:`load_customer_usernames_until_ready`). Until it is loaded, no username
+# maps to a customer, so a verified shopper gets no customer scope: the read is
+# refused, not widened.
 _customer_by_username: Dict[str, str] = {}
 
 _CUSTOMER_USERNAMES_SQL = "SELECT cognito_username, id FROM pellier.customers"
+
+# How long the loader waits between reads while the customers cannot be read.
+CUSTOMER_USERNAMES_RETRY_SECONDS = 10.0
+
+
+def normalize_username(username: Optional[str]) -> Optional[str]:
+    """The one form of a sign-in name: trimmed and lowercased, or ``None``.
+
+    ``pellier.customers`` stores names in this form (a CHECK holds it), so the
+    customer lookup and the row-level security binding compare like with like.
+    """
+    return str(username or "").strip().lower() or None
 
 
 async def load_customer_usernames(db: Any) -> int:
@@ -129,11 +142,43 @@ async def load_customer_usernames(db: Any) -> int:
     return len(_customer_by_username)
 
 
+async def load_customer_usernames_until_ready(
+    db: Any, *, retry_seconds: float = CUSTOMER_USERNAMES_RETRY_SECONDS
+) -> int:
+    """Read the map, retrying until it holds at least one name.
+
+    A database that cannot be read when the app starts (setup still running,
+    or a schema from before the customers table) would otherwise leave every
+    signed-in shopper with no customer scope until a restart. The first
+    failure is logged as an error; the retries after it are quiet.
+    """
+    failures = 0
+    while True:
+        try:
+            loaded = await load_customer_usernames(db)
+            problem = "pellier.customers holds no sign-in names yet"
+        except Exception as exc:  # noqa: BLE001 - retried, and the first one is logged
+            loaded, problem = 0, f"{exc.__class__.__name__}: {exc}"
+        if loaded:
+            logger.info("✅ %d customer sign-in names loaded", loaded)
+            return loaded
+        log = logger.error if failures == 0 else logger.debug
+        log(
+            "Customer sign-in names could not be read (%s). Signed-in shoppers have "
+            "no customer scope until they load; retrying every %.0f s.",
+            problem,
+            retry_seconds,
+        )
+        failures += 1
+        await asyncio.sleep(retry_seconds)
+
+
 def set_customer_usernames(mapping: Dict[str, str]) -> None:
     """Replace the username-to-customer map (the loader above, and tests)."""
     _customer_by_username.clear()
     _customer_by_username.update(
-        {str(name).strip().casefold(): str(customer) for name, customer in mapping.items()}
+        {normalize_username(name): str(customer) for name, customer in mapping.items()
+         if normalize_username(name)}
     )
 
 
@@ -161,8 +206,8 @@ def new_turn_id() -> str:
 
 def customer_id_for_verified_username(username: Optional[str]) -> Optional[str]:
     """Map a verified Cognito username to its Aurora customer."""
-    normalized = str(username or "").strip().casefold()
-    return _customer_by_username.get(normalized)
+    normalized = normalize_username(username)
+    return _customer_by_username.get(normalized) if normalized else None
 
 
 @dataclass(frozen=True)
@@ -271,14 +316,15 @@ def resolve_turn_identity(
     user = user or {}
     principal_sub = (user.get("sub") or "").strip() or None
     persona_id = str(requested_customer_id or "").strip() or None
+    # Normalized once, here: the customer lookup and the row-level security
+    # binding must name the same person in the same form.
+    principal_username = normalize_username(user.get("username")) if principal_sub else None
 
     # The customer scope follows the verified principal when we have one.
     # Without a principal, a persona selection is the only scope available
     # and the turn is explicitly marked as simulated.
     if principal_sub:
-        shopper_customer_id = customer_id_for_verified_username(
-            user.get("username")
-        )
+        shopper_customer_id = customer_id_for_verified_username(principal_username)
         persona_is_simulated = False
     else:
         shopper_customer_id = persona_id
@@ -297,7 +343,5 @@ def resolve_turn_identity(
         demo_persona_id=persona_id,
         authenticated=principal_sub is not None,
         persona_is_simulated=persona_is_simulated,
-        principal_username=(
-            str(user.get("username") or "").strip() or None if principal_sub else None
-        ),
+        principal_username=principal_username,
     )

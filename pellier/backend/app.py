@@ -271,13 +271,13 @@ async def lifespan(app: FastAPI):
         await db_service.connect()
         logger.info("✅ Database service initialized")
         # Which customer each sign-in name belongs to, from pellier.customers.
-        from services.turn_identity import load_customer_usernames
+        # The first read usually finishes within the wait below. If the
+        # database cannot be read yet, the task keeps retrying in the
+        # background, so signed-in shoppers get their scope without a restart.
+        from services.turn_identity import load_customer_usernames_until_ready
 
-        try:
-            mapped = await load_customer_usernames(db_service)
-            logger.info(f"✅ {mapped} customer sign-in names loaded")
-        except Exception as exc:  # noqa: BLE001 - shoppers get no customer scope until it loads
-            logger.error(f"Customer sign-in names could not be read: {exc}")
+        customer_names = asyncio.create_task(load_customer_usernames_until_ready(db_service))
+        await asyncio.wait({customer_names}, timeout=5)
         
         embedding_service = EmbeddingService()
         logger.info("✅ Embedding service initialized (Cohere Embed v4)")
@@ -345,7 +345,8 @@ async def lifespan(app: FastAPI):
     
     # Shutdown
     logger.info("Shutting down Pellier API...")
-    
+    customer_names.cancel()
+
     if db_service:
         await db_service.disconnect()
     
@@ -816,8 +817,16 @@ def _managed_browse_results(tool_call: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-async def _aurora_profile_receipt(customer_id: Optional[str]) -> Dict[str, Any]:
-    """Return bounded evidence that the verified profile exists in Aurora."""
+async def _aurora_profile_receipt(
+    customer_id: Optional[str], principal_username: Optional[str]
+) -> Dict[str, Any]:
+    """Return bounded evidence that the verified profile exists in Aurora.
+
+    The orders are counted as ``pellier_agent`` with the signed-in shopper
+    named, so row-level security counts that shopper's orders and no one
+    else's. The customer row is read as the owner: the role has no SELECT on
+    ``preferences_summary``.
+    """
     from services.data_source import database_source_label
 
     if not customer_id:
@@ -839,27 +848,23 @@ async def _aurora_profile_receipt(customer_id: Optional[str]) -> Dict[str, Any]:
     try:
         row = await db_service.fetch_one(
             """
-            SELECT
-              EXISTS (
-                SELECT 1 FROM pellier.customers WHERE id = %s
-              ) AS customer_exists,
-              (
-                SELECT count(*) FROM pellier.customers
-                 WHERE id = %s AND preferences_summary IS NOT NULL
-              ) AS facts_available,
-              (
-                SELECT count(*) FROM pellier.orders WHERE customer_id = %s
-              ) AS orders_available
+            SELECT count(*) AS customer_exists,
+                   count(preferences_summary) AS facts_available
+              FROM pellier.customers
+             WHERE id = %s
             """,
             customer_id,
-            customer_id,
+        )
+        orders = await db_service.fetch_all_as(
+            principal_username,
+            "SELECT count(*) AS orders_available FROM pellier.orders WHERE customer_id = %s",
             customer_id,
         )
         return {
             "source": database_source_label(),
             "customer_id": customer_id,
             "facts_available": int((row or {}).get("facts_available") or 0),
-            "orders_available": int((row or {}).get("orders_available") or 0),
+            "orders_available": int((orders or [{}])[0].get("orders_available") or 0),
             "available": bool((row or {}).get("customer_exists")),
         }
     except Exception as exc:
@@ -1085,7 +1090,9 @@ async def chat_stream(
                     return
 
                 profile_customer_id = turn_identity.shopper_customer_id
-                profile_receipt = await _aurora_profile_receipt(profile_customer_id)
+                profile_receipt = await _aurora_profile_receipt(
+                    profile_customer_id, turn_identity.principal_username,
+                )
                 yield (
                     "data: "
                     + json.dumps(
@@ -1342,8 +1349,10 @@ async def chat_stream(
                 set_turn_context,
             )
 
+            # Only a signed-in shopper names a customer. A signed-out turn reads
+            # no one's orders or preferences, whatever the request body says.
             local_user = dict(effective_user)
-            if turn_identity.shopper_customer_id:
+            if turn_identity.authenticated and turn_identity.shopper_customer_id:
                 local_user["customer_id"] = turn_identity.shopper_customer_id
 
             receipt_context = set_turn_context(

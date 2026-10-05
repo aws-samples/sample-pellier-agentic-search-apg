@@ -540,10 +540,17 @@ ANNA_ORDERS = [
 
 
 class _SeededAnna:
-    """The two reads the preamble makes, answered from the seed."""
+    """The two reads the preamble makes, answered from the seed.
+
+    The orders are read as ``pellier_agent`` with the signed-in username named,
+    so only Anna's own name returns them, as row-level security would.
+    """
 
     async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
-        if "pellier.orders" in sql:
+        return []
+
+    async def fetch_all_as(self, username: Optional[str], sql: str, *params: Any) -> List[Dict[str, Any]]:
+        if "pellier.orders" in sql and username == "anna":
             return list(ANNA_ORDERS)
         return []
 
@@ -575,7 +582,8 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
     service.db_service = _SeededAnna()
     _run(
         service, _Agent(_anna_agent().calls, "The placemats."), monkeypatch,
-        user={"customer_id": "CUST-ANNA"}, session_id="sess-anna",
+        user={"sub": "sub-anna", "username": "anna", "customer_id": "CUST-ANNA"},
+        session_id="sess-anna",
     )
     preamble = seen["preamble"]
     assert preamble.startswith("PERSONA CONTEXT: Anna (CUST-ANNA)\n")

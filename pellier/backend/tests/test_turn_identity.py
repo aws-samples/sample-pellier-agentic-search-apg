@@ -132,6 +132,51 @@ def test_jessica_has_a_verified_customer_scope_without_becoming_a_persona() -> N
     assert identity.persona_is_simulated is False
 
 
+def test_the_username_is_normalized_once_for_the_customer_and_the_binding() -> None:
+    """The customer lookup and the row-level security name are the same value.
+
+    A token whose username is not lowercase used to resolve a customer (the map
+    casefolded) while row-level security bound the raw name and found no rows.
+    """
+    identity = resolve_turn_identity(user={"sub": "sub-theo", "username": "  Theo "})
+
+    assert identity.shopper_customer_id == "CUST-THEO"
+    assert identity.principal_username == "theo"
+
+
+def test_an_anonymous_turn_binds_no_username() -> None:
+    identity = resolve_turn_identity(user={"username": "theo"}, requested_customer_id="CUST-THEO")
+
+    assert identity.principal_username is None
+
+
+@pytest.mark.asyncio
+async def test_the_username_map_keeps_retrying_until_the_customers_can_be_read() -> None:
+    """An unreadable database at startup must not leave shoppers unscoped until a restart."""
+    from services.turn_identity import (
+        customer_id_for_verified_username,
+        load_customer_usernames_until_ready,
+        set_customer_usernames,
+    )
+
+    answers = [RuntimeError("relation pellier.customers does not exist"), [],
+               [{"cognito_username": "theo", "id": "CUST-THEO"}]]
+
+    class _Db:
+        async def fetch_all(self, sql: str):
+            answer = answers.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+
+    set_customer_usernames({})
+    assert customer_id_for_verified_username("theo") is None
+
+    assert await load_customer_usernames_until_ready(_Db(), retry_seconds=0) == 1
+    assert answers == []
+    assert customer_id_for_verified_username("Theo") == "CUST-THEO"
+
+
 def test_unknown_verified_username_does_not_fall_back_to_persona() -> None:
     identity = resolve_turn_identity(
         user={"sub": "sub-1", "username": "participant-99"},

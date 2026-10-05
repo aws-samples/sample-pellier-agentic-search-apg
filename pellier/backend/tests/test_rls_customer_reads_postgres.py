@@ -199,3 +199,132 @@ def test_on_the_gateway_the_owner_would_have_read_theos_orders(dataapi_on_cluste
         "CUST-JESSICA", lambda run: store_tools.get_orders(run, customer_id="CUST-THEO")
     )
     assert leaked["count"] == 4
+
+
+# ---------------------------------------------------------------------------
+# Ask Pellier's opening read, through the real route
+# ---------------------------------------------------------------------------
+
+THEOS_ANSWER = "Last time you bought the Wabi-Sabi Bowl."
+
+
+@pytest_asyncio.fixture
+async def ask_pellier(live_db, monkeypatch):
+    """POST /api/chat/stream on the real route and chat service, over the cluster.
+
+    Only the model is replaced: a scripted agent that records the message it
+    was given and answers by naming Theo's bowl, as a model using an order
+    history in its context would. Returns ``post(user, body) -> (events, prompts)``.
+    """
+    import sys
+    import types
+
+    import httpx
+
+    import app as app_module
+    import services.chat as chat_module
+    from services.chat import EnhancedChatService
+    from tests.test_chat_stream_contract import ScriptedAgent
+
+    prompts: List[str] = []
+
+    class _RecordingAgent(ScriptedAgent):
+        def __call__(self, prompt: str):
+            prompts.append(prompt)
+            return super().__call__(prompt)
+
+    service = EnhancedChatService.__new__(EnhancedChatService)
+    service.model_id = "test-model"
+    service.strands_available = True
+    service.db_service = live_db
+    service._agent_stats = {
+        "query_count": 0, "products_found": 0, "agent_calls_by_type": {},
+        "total_response_time_ms": 0, "avg_response_time_ms": 0,
+    }
+    monkeypatch.setitem(
+        sys.modules,
+        "services.otel_trace_extractor",
+        types.SimpleNamespace(extract_agent_execution_from_otel=lambda **kwargs: {}),
+    )
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
+    monkeypatch.setattr(
+        chat_module, "_build_dispatcher_specialist",
+        lambda *_a, **_k: _RecordingAgent([], THEOS_ANSWER),
+    )
+    monkeypatch.setattr(app_module.settings, "USE_AGENTCORE_RUNTIME", False, raising=False)
+    monkeypatch.setattr(app_module, "chat_service", service)
+
+    async def post(user: Any, body: Dict[str, Any]):
+        prompts.clear()
+        app_module.app.dependency_overrides[app_module.get_current_user] = lambda: user
+        try:
+            transport = httpx.ASGITransport(app=app_module.app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://pellier") as client:
+                response = await client.post("/api/chat/stream", json={
+                    "message": "What did I order last time?",
+                    "conversation_history": [],
+                    "session_id": "sess-preamble",
+                    **body,
+                })
+        finally:
+            app_module.app.dependency_overrides.pop(app_module.get_current_user, None)
+        assert response.status_code == 200
+        events = [
+            json.loads(line[len("data: "):])
+            for line in response.text.splitlines() if line.startswith("data: ")
+        ]
+        return events, list(prompts)
+
+    return post
+
+
+def _owned_cards(events: List[Dict[str, Any]]) -> List[str]:
+    return [
+        e["product"]["name"] for e in events
+        if e.get("type") == "product" and e["product"].get("badge") == "From your orders"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_a_signed_out_turn_naming_theo_reads_nothing_about_him(ask_pellier):
+    """The request body's customer_id is a persona choice, not an identity.
+
+    Signed out, naming CUST-THEO must not put his preferences or orders in the
+    model's context, report his profile, or send his orders back as cards.
+    """
+    events, prompts = await ask_pellier(None, {"customer_id": "CUST-THEO"})
+
+    start = next(e for e in events if e.get("type") == "turn_start")
+    assert start["principal"]["authenticated"] is False
+    assert prompts and all("PERSONA CONTEXT" not in p for p in prompts)
+    assert all("Wabi-Sabi Bowl" not in p for p in prompts)
+    assert [e for e in events if e.get("type") == "aurora_profile_context"] == []
+    assert _owned_cards(events) == []
+
+
+@pytest.mark.asyncio
+async def test_a_signed_in_turn_reads_its_own_orders_as_pellier_agent(ask_pellier):
+    """The positive control: signed in as theo, the opening read finds his four orders."""
+    user = {"sub": "sub-theo", "username": "Theo"}
+    events, prompts = await ask_pellier(user, {"customer_id": "CUST-ANNA"})
+
+    profile = next(e for e in events if e.get("type") == "aurora_profile_context")["profile"]
+    assert profile["customer_id"] == "CUST-THEO" and profile["orders_available"] == 4
+    assert prompts[0].startswith("PERSONA CONTEXT: Theo")
+    assert "Wabi-Sabi Bowl" in prompts[0]
+    assert _owned_cards(events) == ["Wabi-Sabi Bowl"]
+
+
+@pytest.mark.asyncio
+async def test_the_managed_profile_receipt_counts_orders_as_the_signed_in_shopper(
+    live_db, monkeypatch,
+):
+    """The managed rail's profile receipt counts orders under the same binding."""
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "db_service", live_db)
+    own = await app_module._aurora_profile_receipt("CUST-THEO", "theo")
+    assert (own["available"], own["facts_available"], own["orders_available"]) == (True, 1, 4)
+    # A wrong customer for the name: the count is contained, not Theo's four.
+    wrong = await app_module._aurora_profile_receipt("CUST-THEO", "jessica")
+    assert wrong["orders_available"] == 0

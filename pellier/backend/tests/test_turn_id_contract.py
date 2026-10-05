@@ -159,16 +159,17 @@ def test_transport_completion_carries_the_actual_turn_outcome(
             "CUST-ANNA",
             "CUST-MARCO",
         ),
-        (None, "CUST-ANNA", "CUST-ANNA"),
+        # Signed out, the body's customer_id names no one: no customer reaches chat.
+        (None, "CUST-ANNA", None),
     ],
 )
 def test_local_turn_receives_server_resolved_aurora_customer(
     monkeypatch: pytest.MonkeyPatch,
     verified_user: Dict[str, Any] | None,
     requested_customer_id: str,
-    expected_customer_id: str,
+    expected_customer_id: str | None,
 ) -> None:
-    """Profile context follows verified identity, then demo persona fallback."""
+    """Profile context follows the verified identity only, never the request body."""
     captured_users: list[Dict[str, Any] | None] = []
 
     async def _stream(**kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
@@ -201,8 +202,7 @@ def test_local_turn_receives_server_resolved_aurora_customer(
 
     assert response.status_code == 200
     assert len(captured_users) == 1
-    assert captured_users[0] is not None
-    assert captured_users[0]["customer_id"] == expected_customer_id
+    assert (captured_users[0] or {}).get("customer_id") == expected_customer_id
     if verified_user:
         assert captured_users[0]["sub"] == verified_user["sub"]
         assert captured_users[0]["access_token"] == verified_user["access_token"]

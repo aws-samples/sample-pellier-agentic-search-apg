@@ -1611,11 +1611,15 @@ class EnhancedChatService:
             )
 
         # --- Persona preamble ----------------------------------------------
-        # When a persona is active (customer_id is set), read their recorded
+        # When a signed-in shopper's customer is set, read their recorded
         # preferences and order history from Aurora and prepend them to the
         # orchestrator message so specialists ground their reply in the
-        # persona's actual history. Skipped for anonymous sessions:
-        # they get the editorial fallback.
+        # shopper's actual history. The route names a customer only for a
+        # signed-in turn, so a signed-out one gets the editorial fallback.
+        # The orders are read as pellier_agent with the signed-in username
+        # named, so row-level security shows that shopper's orders and no one
+        # else's. The customer row stays an owner read: the role has no SELECT
+        # on name or preferences_summary.
         persona_preamble = ""
         persona_orders_for_cards: list = []  # hydrated product rows for past-order cards
         persona_fact_count = 0
@@ -1624,7 +1628,8 @@ class EnhancedChatService:
         persona_profile_available = False
         if customer_id and self.db_service:
             try:
-                orders_rows = await self.db_service.fetch_all(
+                orders_rows = await self.db_service.fetch_all_as(
+                    turn_identity.principal_username,
                     'SELECT pc."productId", pc.name, pc.brand, pc.color, '
                     'pc.price, pc.category, pc."imgUrl", pc.rating, pc.reviews, '
                     'o.amount_paid_cents / 100.0 AS price_paid, o.placed_at '

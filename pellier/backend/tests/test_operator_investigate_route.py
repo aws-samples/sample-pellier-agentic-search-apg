@@ -117,3 +117,47 @@ def test_the_investigate_route_is_gated_like_every_desk_route() -> None:
 
     route = next(r for r in operator_module.router.routes if r.path.endswith("/investigate"))
     assert any(dep.call is require_operator for dep in route.dependant.dependencies)
+
+
+def test_the_investigators_customer_reads_are_bound_to_the_clients_username(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The route hands the graph a customer runner that reads as pellier_agent.
+
+    The runner must go through ``fetch_all_as`` with the client's own sign-in
+    name, so row-level security holds the Investigator's get_orders and
+    get_tickets to the case customer. A runner on plain ``fetch_all`` would
+    read as the owner and contain nothing.
+    """
+    calls: List[tuple] = []
+
+    class _BindingDb(_Db):
+        async def fetch_one(self, query: str, *params: Any):
+            if "FROM pellier.customers c" in query and params[0] == "CUST-THEO":
+                return {"customer_id": "CUST-THEO", "name": "Theo Okafor", "cognito_username": "theo"}
+            return None
+
+        async def fetch_all(self, query: str, *params: Any):
+            calls.append(("owner", None, query, params))
+            return []
+
+        async def fetch_all_as(self, username: Any, query: str, *params: Any):
+            calls.append(("pellier_agent", username, query, params))
+            return [{"order_id": 13}]
+
+    orders_sql = "SELECT id FROM pellier.orders WHERE customer_id = %s"
+
+    def run_investigation(**kwargs: Any) -> GRAPH.InvestigationResult:
+        rows = kwargs["run_customer"](orders_sql, ("CUST-THEO",))
+        assert rows == [{"order_id": 13}]
+        return GRAPH.InvestigationResult(
+            turn_id=kwargs["turn_id"], customer_id=kwargs["customer_id"], status="complete",
+            facts=[], missing=[], planner="", proposal=None, model_id="model-test",
+        )
+
+    monkeypatch.setattr(GRAPH, "run_investigation", run_investigation)
+    response = _client(_BindingDb()).post("/api/operator/clients/CUST-THEO/investigate")
+
+    assert response.status_code == 200
+    assert [kind for kind, _ in _frames(response.text)][-1] == "complete"
+    assert calls == [("pellier_agent", "theo", orders_sql, ("CUST-THEO",))]

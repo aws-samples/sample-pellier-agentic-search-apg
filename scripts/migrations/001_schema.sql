@@ -109,13 +109,15 @@ CREATE TABLE pellier.warehouse_inventory (
 -- ===========================================================================
 -- 3. Customers: Anna, Marco, Theo and Jessica
 -- ===========================================================================
--- cognito_username is the sign-in name. It ties a verified token to its
--- customer, and row-level security (section 11) reads it.
+-- cognito_username is the sign-in name, in lowercase. It ties a verified
+-- token to its customer, and row-level security (section 11) reads it. It is
+-- never empty, so a session that names no one (an empty name) matches no
+-- customer.
 
 CREATE TABLE pellier.customers (
     id                  text PRIMARY KEY CHECK (id ~ '^CUST-[A-Z]+$'),
     name                text NOT NULL,
-    cognito_username    text NOT NULL UNIQUE,
+    cognito_username    text NOT NULL UNIQUE CHECK (cognito_username ~ '^[a-z0-9._-]+$'),
     preferences_summary text
 );
 
@@ -516,20 +518,36 @@ CREATE TRIGGER retrieval_receipts_append_only
 --     Planner's proposal and Nadia's decision;
 --   * the staff money path, apply_store_credit, which is held by its own
 --     checks above and by Cedar on the Gateway;
---   * the evidence writes to tool_audit and retrieval_receipts.
+--   * the evidence writes to tool_audit and retrieval_receipts;
+--   * a signed-in shopper's name and preferences, read at the start of a
+--     turn (pellier_agent may read only id and cognito_username);
+--   * three Operator reads of one client: the client record's orders and
+--     tickets (routes/operator.py), the Planner's received returns
+--     (services/operator_graph.py) and the orders a review covers
+--     (services/operator_review.py). Staff may read any client, and these
+--     are fixed SQL for the client the desk opened, not a model's tool call,
+--     so there is no signed-in shopper to name. require_operator gates them.
 --
--- Reads about one customer run as pellier_agent instead: get_orders and
--- get_tickets, whether a shopper's agent or the Operator's Investigator asks.
--- Each runs inside a transaction that sets the role and names the signed-in
--- person:
+-- Reads of one customer's orders and tickets on that customer's behalf run as
+-- pellier_agent instead: get_orders and get_tickets, whether a shopper's agent
+-- or the Operator's Investigator asks, and the order history and order count
+-- a signed-in shopper's turn starts with. Each runs inside a transaction that
+-- sets the role and names one customer:
 --
 --     SET LOCAL ROLE pellier_agent;
 --     SELECT set_config('pellier.principal_username', 'theo', true);
 --
 -- pellier/backend/services/database.py and scripts/deploy/common/dataapi.py
--- are the two places that do this. The policies below then show the role
--- only that person's orders and tickets, even if the application asked for
--- someone else's. With no name set, it sees nothing.
+-- are the two places that do this. Who is named depends on the rail. In
+-- process, the customer comes from the signed token (for the Investigator,
+-- the client the desk opened). On the Gateway, it is the customer Cedar's
+-- owner-only permit admitted. Either way the policies below return only that
+-- customer's rows, even if the tool's own SQL asks for someone else's. With
+-- no name set, the role sees nothing.
+--
+-- This contains a wrong query, not an untrusted session: a session running
+-- as pellier_agent can set the name itself, so the name is only as good as
+-- the code that binds it in those two places.
 
 -- The role is shared by every database on the cluster, so it is created once.
 -- NOBYPASSRLS keeps the policies binding; the owner joins it to SET ROLE into it.
