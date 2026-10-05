@@ -127,9 +127,10 @@ voice as the concierge, with two extra rules:
   the stack once, in its chips; the prose names the three surfaces in plain
   words: the store, the Operator desk, the Observatory.
 
-Photography for these pages belongs to one world: warm limewash plaster,
-travertine, raking afternoon light, oat and sand and espresso. Persona
-portraits share that wall. Real things in real rooms, not showroom staging.
+Photography for these pages belongs to one world: soft natural window
+daylight, warm-white plaster walls, pale oak and linen, true colors, no
+golden-hour light and no leaf shadows. Persona portraits share one warm-white
+wall. Real things in real rooms, not showroom staging.
 
 ## Words we do not use
 

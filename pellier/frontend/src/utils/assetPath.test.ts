@@ -55,8 +55,8 @@ describe('assetPath helpers', () => {
   it('preserves an Aurora image that already names a responsive derivative', async () => {
     vi.stubEnv('BASE_URL', '/')
     const { imageSrc } = await import('./assetPath')
-    expect(imageSrc('/products/persona-marco-portrait-160.webp')).toBe(
-      '/products/persona-marco-portrait-160.webp',
+    expect(imageSrc('/products/hero-marco-480.webp')).toBe(
+      '/products/hero-marco-480.webp',
     )
   })
 

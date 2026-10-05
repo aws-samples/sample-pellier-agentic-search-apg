@@ -60,7 +60,7 @@ const STEPS: SpotlightStep[] = [
     media: {
       kind: 'photo',
       src: '/products/landing-hero-weekender-1600.webp',
-      alt: 'Leather Weekend Holdall on travertine beside folded linen in warm daylight',
+      alt: 'A leather weekender on an oak bench beside a linen throw, a wooden bowl and a stoneware vase of olive branches',
     },
   },
   {
@@ -72,7 +72,7 @@ const STEPS: SpotlightStep[] = [
     media: {
       kind: 'photo',
       src: '/products/hero-anna-1600.webp',
-      alt: 'Wrapped gift, beeswax candles, and a ceramic ring dish',
+      alt: 'A white gift box tied with a blush-pink ribbon, a blank kraft tag and a vase with one eucalyptus stem on a small oak side table',
     },
   },
   {

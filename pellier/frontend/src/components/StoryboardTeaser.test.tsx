@@ -12,9 +12,10 @@
  *   - Hovering a card scales its image `transform` to `scale(1.05)`
  *     (Req 1.9.3).
  *   - The three cards render in the exact authored order:
- *     `FIELD NOTE \u00b7 No. 02 \u00b7 Marco`,
- *     `FIELD NOTE \u00b7 No. 03 \u00b7 Anna`,
- *     `FIELD NOTE \u00b7 No. 04 \u00b7 Theo` (Req 1.9.4).
+ *     `FIELD NOTE No. 02: Marco`,
+ *     `FIELD NOTE No. 03: Anna`,
+ *     `FIELD NOTE No. 04: Theo` (Req 1.9.4), with no middle dots.
+ *   - The daylight photographs render untinted: no overlay sits on them.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
@@ -48,13 +49,13 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     expect(screen.getByTestId('storyboard-card-eyebrow-0')).toHaveTextContent(
-      'FIELD NOTE \u00b7 No. 02 \u00b7 Marco',
+      'FIELD NOTE No. 02: Marco',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-1')).toHaveTextContent(
-      'FIELD NOTE \u00b7 No. 03 \u00b7 Anna',
+      'FIELD NOTE No. 03: Anna',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-2')).toHaveTextContent(
-      'FIELD NOTE \u00b7 No. 04 \u00b7 Theo',
+      'FIELD NOTE No. 04: Theo',
     )
   })
 
@@ -75,7 +76,7 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     })
   })
 
-  it('renders an editorial image with the golden wash overlay per card', () => {
+  it('renders each editorial image as photographed, with no tint overlay', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     STORYBOARD_TEASERS.forEach((card, i) => {
@@ -84,7 +85,7 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
       ) as HTMLImageElement
       expect(img.getAttribute('src')).toBe(imageSrc(card.imageUrl))
       expect(img.getAttribute('alt')).toBe(card.imageAlt)
-      expect(screen.getByTestId(`storyboard-card-wash-${i}`)).toBeInTheDocument()
+      expect(screen.queryByTestId(`storyboard-card-wash-${i}`)).toBeNull()
     })
   })
 

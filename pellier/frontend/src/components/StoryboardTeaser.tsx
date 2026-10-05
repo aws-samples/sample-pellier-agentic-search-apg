@@ -12,12 +12,6 @@ import { cssVar as c } from '../design/cssVars'
 // --- Design tokens (storefront.md) ---------------------------------------
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 
-// Warm amber gradient over every editorial image so the grid reads as
-// a single "golden hour" series rather than three disconnected photos.
-// Req 1.9.2 calls this the "golden wash".
-const GOLDEN_WASH =
-  'linear-gradient(180deg, rgba(196, 69, 54, 0.08) 0%, rgba(45, 24, 16, 0.18) 45%, rgba(166, 134, 104, 0.22) 100%)'
-
 // --- Public component ----------------------------------------------------
 
 export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 1 | 2 }) {
@@ -90,8 +84,8 @@ interface StoryboardCardProps {
 function StoryboardCard({ card, index }: StoryboardCardProps) {
   const [hovered, setHovered] = useState(false)
 
-  // Eyebrow line: `{badge} \u00b7 {volume} \u00b7 {theme}` per Req 1.9.4.
-  const eyebrow = `${card.badge} \u00b7 ${card.volume} \u00b7 ${card.theme}`
+  // Eyebrow line: `{badge} {volume}: {theme}`, with no middle dots (VOICE.md).
+  const eyebrow = `${card.badge} ${card.volume}: ${card.theme}`
 
   return (
     <article
@@ -109,7 +103,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
         background: c.paper,
       }}
     >
-      {/* --- Image panel with golden wash ----------------------------- */}
+      {/* --- Image panel ---------------------------------------------- */}
       <div
         style={{
           position: 'relative',
@@ -136,17 +130,6 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
             transform: hovered ? 'scale(1.05)' : 'scale(1)',
             transition: 'transform 600ms ease-out',
             willChange: 'transform',
-          }}
-        />
-        {/* Golden wash overlay sits above the image and below the text. */}
-        <div
-          aria-hidden
-          data-testid={`storyboard-card-wash-${index}`}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: GOLDEN_WASH,
-            pointerEvents: 'none',
           }}
         />
       </div>

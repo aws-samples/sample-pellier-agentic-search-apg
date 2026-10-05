@@ -28,41 +28,37 @@ interface Note {
 const NOTES: readonly Note[] = [
   {
     id: 'field-note-editors',
-    kicker: 'Field note · No. 01',
+    kicker: 'Field note No. 01',
     title: 'On asking for the piece, not the product.',
     body: [
-      'A boutique that knows its floor should answer "a linen piece that travels well" as readily as "camp shirt, size 41." They are the same question dressed differently. The first is softer. The second assumes you already know the name.',
-      'Pellier is built on the smaller, quieter assumption: that you know what you want, not what it is called.',
+      'A store that knows its floor should answer "a linen piece that travels well" as readily as "camp shirt, size 41." You know what you want before you know its name.',
     ],
     signature: 'The editors',
   },
   {
     id: 'field-note-marco',
-    kicker: 'Field note · No. 02',
+    kicker: 'Field note No. 02',
     title: 'Marco, on being remembered.',
     body: [
-      'A run of orders tells a story. A Hadley linen shirt, then the camp shirt, drawstring trousers, an overshirt, a crew tee. Then a leather holdall and merino travel socks. Nobody who buys in that order is dressing for the office.',
-      'When Marco signs back in, Pellier does not start over. It leads with the next piece for the trip rather than another copy of what he already owns, because the thread of his orders points there.',
+      'Seven orders, from a Hadley linen shirt to a leather holdall, point to travel. When Marco signs back in, Pellier leads with the next piece for the trip.',
     ],
     signature: 'Marco, a regular',
   },
   {
     id: 'field-note-anna',
-    kicker: 'Field note · No. 03',
+    kicker: 'Field note No. 03',
     title: 'Anna, on gifting as a practiced art.',
     body: [
-      'Gifts are the hardest requests a boutique will take. They are indirect by design: the shopper is not the recipient, the recipient is not in the room, and the occasion matters more than the object.',
-      'Anna arrives with people, not products. A milestone gift under a hundred is a real constraint, and a useful one. Pellier holds to it, and can show that it did.',
+      'Anna arrives with people, not products, and a gift under $100 is a real limit. Pellier holds to it, and can show that it did.',
     ],
     signature: 'Anna, a gift-giver',
   },
   {
     id: 'field-note-theo',
-    kicker: 'Field note · No. 04',
+    kicker: 'Field note No. 04',
     title: 'Theo, on pieces that wear in.',
     body: [
-      'First a brass incense holder. Then ceramic tumblers, a stoneware pour-over set, and most recently a wabi-sabi bowl. Nothing in that sequence was an impulse. Each piece earned the next.',
-      'Slow craft is what happens when a shopper does not want to be told what is new. Theo returns for ceramics, linen throws and stoneware: pieces that do more of their work later than sooner.',
+      'First a brass incense holder, then ceramic tumblers, a stoneware pour-over set and a wabi-sabi bowl. Each piece earned the next, and Theo comes back for things that wear in.',
     ],
     signature: 'Theo, a slow shopper',
   },
@@ -134,9 +130,7 @@ export default function FieldNotes() {
               maxWidth: 560,
             }}
           >
-            Short pieces Pellier wrote about how it reads the
-            floor, what it remembers, and why it answers the way it
-            does.
+            Short notes on how Pellier reads the floor.
           </p>
         </header>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 64 }}>
@@ -233,8 +227,7 @@ export default function FieldNotes() {
               maxWidth: 420,
             }}
           >
-            More notes arrive with each Edit. Until then, four short essays
-            on how Pellier reads the floor.
+            More notes arrive with each Edit.
           </p>
         </div>
       </div>

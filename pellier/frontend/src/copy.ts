@@ -169,47 +169,6 @@ export const ASK_BAR = {
 } as const;
 
 /**
- * Mood rail under the hero. Each tile browses the floor: the collections
- * are an editorial entry point into the same catalog, not four separate
- * routes that do not exist.
- */
-export const COLLECTIONS = {
-  EYEBROW: "Curated collections",
-  TITLE: "Explore by mood",
-  VIEW_ALL: "View all",
-  ITEMS: [
-    {
-      title: "Weekend Away",
-      description: "Effortless pieces for unhurried escapes.",
-      image: "/products/landing-collection-weekend-away.png",
-      alt: "Leather weekender on travertine beside folded linen",
-      tone: "light",
-    },
-    {
-      title: "At Home",
-      description: "Objects that elevate the everyday.",
-      image: "/products/landing-collection-at-home.png",
-      alt: "Amber glass candle on a travertine slab with a wooden bowl",
-      tone: "light",
-    },
-    {
-      title: "Warm Evenings",
-      description: "Layers and textures for golden hours.",
-      image: "/products/landing-collection-warm-evenings.png",
-      alt: "Linen shirt and open-knit layer in late afternoon light",
-      tone: "light",
-    },
-    {
-      title: "Gifting",
-      description: "Considered pieces they will keep.",
-      image: "/products/landing-collection-gifting.png",
-      alt: "Wrapped gift box tied with a burgundy ribbon",
-      tone: "dark",
-    },
-  ],
-} as const;
-
-/**
  * What the storefront stands for, in four claims. Each links to a page that
  * explains it; do not add a claim without one.
  */
@@ -223,7 +182,8 @@ export const PELLIER_APPROACH = {
   CTA_LABEL: "About Pellier",
   CTA_HREF: "/about",
   IMAGE: "/products/landing-approach-atelier.png",
-  IMAGE_ALT: "A maker stitching a leather bag by hand at the bench",
+  IMAGE_ALT:
+    "A leather holdall on a pale wood workbench beside a roll of burlap, a stitching awl and a spool of waxed thread",
   PILLARS: [
     {
       title: "A reason for every recommendation",
@@ -497,36 +457,33 @@ export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
     volume: "No. 02",
     theme: "Marco",
     title: "On being remembered.",
-    excerpt:
-      "A linen shirt, a holdall, a thread worth keeping. How a returning shopper's earlier choices shape what comes next.",
+    excerpt: "How a returning shopper's choices shape what comes next.",
     link: "Read Marco's note \u203a",
     noteId: "field-note-marco",
     imageUrl: "/products/story-summer.png",
-    imageAlt: "A folded stack of oatmeal linen shirt and trousers on a travertine ledge, a stem of dried wheat across it and a charcoal stoneware tumbler beside it, in raking afternoon light",
+    imageAlt: "A folded linen shirt tied with twine and dried wheat on an oak window ledge, a charcoal stoneware mug beside it",
   },
   {
     badge: "FIELD NOTE",
     volume: "No. 03",
     theme: "Anna",
     title: "On gifting as a practiced art.",
-    excerpt:
-      "Start with the person, then the piece. Anna's gift search holds the occasion and the budget in equal regard.",
+    excerpt: "Start with the person, then the piece.",
     link: "Read Anna's note \u203a",
     noteId: "field-note-anna",
     imageUrl: "/products/story-edit.png",
-    imageAlt: "Linen swatches in sage, oat, charcoal and warm white fanned across an oak table, with a folded linen shirt, a stoneware cup, wooden rings and tailor's shears",
+    imageAlt: "Linen fabrics in white, oat, sage, charcoal and grey fanned across a pale wood table, with a stoneware cup, a coiled leather strap and black shears",
   },
   {
     badge: "FIELD NOTE",
     volume: "No. 04",
     theme: "Theo",
     title: "On pieces that wear in.",
-    excerpt:
-      "Stoneware, ceramics, and the pleasure of a piece that lasts. Theo returns for the things that earn their place over time.",
+    excerpt: "Stoneware and linen that earn their place over time.",
     link: "Read Theo's note \u203a",
     noteId: "field-note-theo",
     imageUrl: "/products/story-makers.png",
-    imageAlt: "A freshly thrown charcoal stoneware bowl resting on a potter's wheel with a wooden rib tool, olive-branch shadows on the plaster wall behind",
+    imageAlt: "A freshly thrown charcoal stoneware bowl on a potter's wheel against a white plaster wall",
   },
 ];
 
@@ -544,12 +501,11 @@ export const ABOUT_BRIEF = {
   EYEBROW: "About",
   IMAGE: "/products/hero-about.png",
   IMAGE_ALT:
-    "A leather weekender, a folded stack of linen, a charcoal stoneware bowl and tumbler, and a ceramic vase holding an olive branch on a travertine counter in raking afternoon light",
+    "A leather weekender, folded linen, two charcoal stoneware cups and a stoneware vase with an olive sprig on an oak shelf against a white wall",
   TITLE_LINES: ["A store that", "shows its work."],
   LABEL: "Pellier + Pellier Operator",
   PARAGRAPHS: [
-    "Pellier is a working store for natural materials: linen for travel, stoneware for the table, leather that wears in. Ask for what you mean, a linen shirt for ten days in Goa, a gift under a hundred, a tumbler that earns its place, and Pellier answers with one piece, one reason, and whether it is on the floor today.",
-    "Every answer is read from live stock and your own history in Aurora PostgreSQL, checked before it is promised, and written down. Some requests should not be settled by software alone. A return, a credit, an action the policy holds back: those go to the Pellier Operator desk, where a person sees the same client record and the same evidence, decides, and the decision is kept.",
+    "Pellier sells natural materials: linen for travel, stoneware for the table, leather that wears in. Ask in your own words. Every answer is checked against live stock in Aurora, and anything that moves money goes to a person.",
   ],
   STACK: [
     "Aurora PostgreSQL",
@@ -563,7 +519,7 @@ export const ABOUT_BRIEF = {
     "Cedar",
   ],
   COLOPHON:
-    "Built for teams who need the same answer to hold for the shopper, the operator, and the auditor.",
+    "Built so the shopper, the operator and the auditor see the same answer.",
 } as const;
 
 // Footer \u2014 two live columns + a brand + a bottom strip.
@@ -588,7 +544,7 @@ export const FOOTER = {
   },
   STORYBOARD: {
     HEADING: "Stories",
-    COPY: "Field notes from a slower kind of shopping. One short essay at a time.",
+    COPY: "Field notes from a slower kind of shopping.",
     CTA_LABEL: "Read the stories",
     CTA_HREF: "/storyboard",
   },

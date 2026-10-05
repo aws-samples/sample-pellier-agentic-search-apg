@@ -2,22 +2,22 @@
 const scenes: Record<string, { image: string; alt: string; label: string }> = {
   fresh: {
     image: '/products/landing-hero-weekender.webp',
-    alt: 'Leather weekender beside folded linen and an olive branch in warm daylight',
+    alt: 'A leather weekender on an oak bench beside a linen throw, a wooden bowl and a stoneware vase of olive branches',
     label: 'The weekend edit',
   },
   marco: {
     image: '/products/hero-marco.png',
-    alt: 'Leather weekender with folded linen and brass travel details in warm daylight',
+    alt: 'A cognac leather holdall and a folded linen shirt on a short oak bench against a plain white wall',
     label: 'The weekend edit',
   },
   anna: {
     image: '/products/hero-anna.png',
-    alt: 'Ribbon-wrapped gift beside an amber candle and a ceramic bud vase',
+    alt: 'A white gift box tied with a blush-pink ribbon, a blank kraft tag and a vase with one eucalyptus stem on a small oak side table',
     label: 'The gifting edit',
   },
   theo: {
     image: '/products/hero-theo.png',
-    alt: 'Charcoal stoneware beside natural linen, a beeswax candle, and olive branches',
+    alt: 'A charcoal stoneware bowl holding a beeswax taper beside folded linen on a small oak side table',
     label: 'The everyday ritual',
   },
   jessica: {
