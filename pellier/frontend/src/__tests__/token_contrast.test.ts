@@ -123,15 +123,6 @@ describe('the browser chrome', () => {
   })
 })
 
-describe('the brand-mark ground', () => {
-  /* Payment marks keep their own colors and are drawn for white; a ground
-     within a step of white keeps every one of them as legible as on white. */
-  it.each([['light', LIGHT], ['dark', DARK]] as const)('stays within a step of white in the %s theme', (_name, theme) => {
-    expect(theme['--dl-mark-ground']).toBeDefined()
-    expect(contrast(theme['--dl-mark-ground'], '#ffffff')).toBeLessThanOrEqual(1.2)
-  })
-})
-
 describe('the theme-independent values', () => {
   it('on-photo is the same ivory in both themes, so it reads on a seeded color either way', () => {
     expect(LIGHT['--dl-on-photo']).toBe(DARK['--dl-on-photo'])

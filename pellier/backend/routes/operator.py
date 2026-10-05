@@ -48,6 +48,7 @@ from pydantic import BaseModel, Field
 
 from services.auth import require_operator
 from services.data_source import database_source_label
+from services.personas import persona_for_customer
 from services.store_tools import is_returned
 
 logger = logging.getLogger(__name__)
@@ -77,15 +78,6 @@ async def get_db_service() -> Any:
 # Read models
 # ---------------------------------------------------------------------------
 
-# The four shoppers have portraits and a storefront sign-in. The desk uses the
-# id to pick the portrait and to offer "open her storefront".
-_PERSONA_CUSTOMER_IDS = {
-    "CUST-MARCO": "marco",
-    "CUST-ANNA": "anna",
-    "CUST-THEO": "theo",
-    "CUST-JESSICA": "jessica",
-}
-
 _CLIENTS_SELECT = """
     SELECT
         c.id   AS customer_id,
@@ -114,10 +106,6 @@ _CLIENTS_SELECT = """
              ORDER BY o.placed_at DESC, o.id DESC
              LIMIT 1
       ) o ON TRUE
-     -- left() rather than a LIKE prefix match: psycopg parses a bare percent
-     -- sign as a placeholder even when no parameters are bound.
-     WHERE left(c.id, 5) = 'CUST-'
-       AND c.id <> 'CUST-FRESH'
      ORDER BY open_requests DESC, c.name ASC
 """
 
@@ -190,7 +178,8 @@ def _client_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "customerId": customer_id,
         "slug": _client_slug(customer_id),
         "name": row.get("name") or customer_id,
-        "personaId": _PERSONA_CUSTOMER_IDS.get(customer_id),
+        # Picks the portrait and offers "open her storefront".
+        "personaId": persona_for_customer(customer_id),
         "openRequests": int(row.get("open_requests") or 0),
         "openRequest": row.get("open_request") or None,
         "openRequestStatus": row.get("open_request_status") or None,
@@ -344,7 +333,7 @@ async def get_client(
         "customerId": str(row.get("customer_id") or client_id),
         "slug": _client_slug(str(row.get("customer_id") or client_id)),
         "name": row.get("name") or client_id,
-        "personaId": _PERSONA_CUSTOMER_IDS.get(str(row.get("customer_id") or "")),
+        "personaId": persona_for_customer(str(row.get("customer_id") or "")),
         "openTicketCount": sum(1 for t in tickets if t["status"] in ("open", "pending")),
         "returnedCount": sum(1 for o in orders if o["returned"]),
         "creditBalanceCents": credit_cents,
@@ -500,7 +489,7 @@ def _review_payload(
         "customerId": customer_id,
         "customerName": row.get("customer_name") or customer_id,
         "slug": _client_slug(customer_id),
-        "personaId": _PERSONA_CUSTOMER_IDS.get(customer_id),
+        "personaId": persona_for_customer(customer_id),
         "action": str(row.get("action") or ""),
         "parameters": args,
         "amountCents": int(amount_cents) if amount_cents is not None else None,
@@ -544,7 +533,7 @@ def _request_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         "customerId": customer_id,
         "customerName": row.get("customer_name") or customer_id,
         "slug": _client_slug(customer_id),
-        "personaId": _PERSONA_CUSTOMER_IDS.get(customer_id),
+        "personaId": persona_for_customer(customer_id),
         "status": str(row.get("status") or "open"),
         "issue": row.get("issue") or "",
         "answeredByReviewId": int(answered_by) if answered_by else None,
@@ -639,7 +628,7 @@ async def get_review(
             "customerId": customer.get("id") or customer_id,
             "name": customer.get("name") or "",
             "slug": _client_slug(customer_id),
-            "personaId": _PERSONA_CUSTOMER_IDS.get(customer_id),
+            "personaId": persona_for_customer(customer_id),
         },
         "orders": [_hydrated_order(o) for o in (hydrated.get("orders") or [])],
         "record": record,

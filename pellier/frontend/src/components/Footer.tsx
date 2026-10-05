@@ -3,7 +3,7 @@
  *
  * Every link points at a route the router serves:
  *
- *   - Masthead:     the wordmark at 36px, demo payment marks right.
+ *   - Masthead:     the wordmark at 36px.
  *   - Brand column: tagline plus what this storefront is, as a list.
  *   - Explore:      The floor (`/#shop`), Stories, About.
  *   - Storyboard:   blurb plus a real link to `/storyboard`.
@@ -11,9 +11,6 @@
  *                   and AI-generated imagery is illustrative.
  *   - Legal strip:  copyright, licence, team credit, source link. No Privacy/
  *                   Terms/Accessibility stubs.
- *
- * The footer keeps official marks inside an explicitly disclosed demo
- * checkout: no payment is processed, and no card is charged.
  *
  * Copy from `FOOTER` in copy.ts.
  */
@@ -71,53 +68,14 @@ export default function Footer() {
 }
 
 /**
- * Brand lockup opposite the disclosed demo payment strip. This is the row that
- * makes the footer read as a shopfront rather than a sitemap.
+ * The brand lockup. This is the row that makes the footer read as a shopfront
+ * rather than a sitemap. The bag keeps a list and places no order, so there is
+ * no checkout or payment strip beside it.
  */
 function Masthead() {
   return (
-    <div
-      data-testid="footer-masthead"
-      className="flex flex-col gap-5 pb-10 sm:flex-row sm:items-center sm:justify-between"
-    >
+    <div data-testid="footer-masthead" className="pb-10">
       <Wordmark size="footer" />
-      <CheckoutTrust />
-    </div>
-  )
-}
-
-function CheckoutTrust() {
-  return (
-    <div
-      data-testid="footer-checkout-trust"
-      className="flex flex-col gap-2 sm:items-end"
-    >
-      <span
-        data-testid="footer-checkout-label"
-        className="font-sans text-[12px] text-muted"
-      >
-        {FOOTER.CHECKOUT.LABEL}
-      </span>
-      <ul
-        aria-label={FOOTER.CHECKOUT.ARIA_LABEL}
-        className="grid w-fit grid-cols-3 gap-1.5 m-0 p-0 list-none sm:flex sm:flex-wrap sm:justify-end"
-      >
-        {FOOTER.CHECKOUT.PAYMENT_METHODS.map((method) => (
-          <li
-            key={method.id}
-            className="flex h-9 shrink-0 items-center justify-center rounded-[6px] border border-line bg-[var(--dl-mark-ground)] px-2.5"
-          >
-            <img
-              alt=""
-              aria-hidden="true"
-              className="h-5 w-auto object-contain"
-              height={20}
-              src={`/assets/icons/payment/${method.id}.svg`}
-            />
-            <span className="sr-only">{method.label}</span>
-          </li>
-        ))}
-      </ul>
     </div>
   )
 }

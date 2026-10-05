@@ -17,7 +17,6 @@
      --dl-ink       primary ink                    #111110 / #f3ebe2
      --dl-on-ink    text on an ink-filled control  #fbf8f2 / #0b0b0b
      --dl-accent    copper, used sparingly         #9a4d20 / #da9562
-     --dl-mark-ground  under brand-colored marks   #ffffff / #f3ebe2
    ============================================================ */
 
 :root {
@@ -49,9 +48,6 @@
      dark theme's copper. */
   --dl-on-photo:        #fbf8f2;
   --dl-accent-on-photo: #da9562;
-  /* Payment and other brand marks keep their own colors, drawn for a white
-     ground, so they sit on a light chip in both themes. */
-  --dl-mark-ground:     #ffffff;
 
   /* ---------- Color: semantic ---------- */
   --dl-ok:           #3f6212;
@@ -150,7 +146,6 @@
   --dl-accent-soft:  #2a1d14;
   --dl-accent-ink:   #da9562;
   --dl-accent-on-ink: #9a4d20;
-  --dl-mark-ground:  #f3ebe2;
 
   --dl-ok:           #a5c87a;
   --dl-ok-soft:      #14240e;

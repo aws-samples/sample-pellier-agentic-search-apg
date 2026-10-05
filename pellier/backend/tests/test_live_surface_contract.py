@@ -32,10 +32,11 @@ def _prompts() -> list[dict]:
 
 def test_personas_and_prompts_are_checked_in_files_and_orders_come_from_aurora() -> None:
     body = (BACKEND / "app.py").read_text()
+    loader = (BACKEND / "services" / "personas.py").read_text()
 
     assert "personas-config.json" not in body
     assert "/api/observatory/personas/reload" not in body
-    assert '"personas.json"' in body and '"scenarios.json"' in body
+    assert '"personas.json"' in loader and '"scenarios.json"' in body
     # The order counts on the persona cards are read, not written into the file.
     assert "FROM pellier.orders GROUP BY customer_id" in body
     for profile in _personas().values():
@@ -52,6 +53,21 @@ def test_every_shopper_profile_names_its_customer_and_its_edit() -> None:
     assert {p["id"]: p["edit"] for p in personas.values()} == {
         "fresh": "fresh", "marco": "marco", "anna": "anna", "theo": "theo", "jessica": "house",
     }
+
+
+def test_the_persona_file_is_the_one_persona_to_customer_map() -> None:
+    """The agent tools and the Operator read persona and customer from the file."""
+    from services.personas import customer_for_persona, persona_for_customer
+
+    for persona, profile in _personas().items():
+        customer = profile["customer_id"]
+        assert customer_for_persona(persona) == customer
+        if customer:
+            assert persona_for_customer(customer) == persona
+    assert customer_for_persona("Marco") == "CUST-MARCO"
+    assert persona_for_customer("CUST-NOBODY") is None
+    for consumer in ("services/agent_tools.py", "routes/operator.py"):
+        assert "_PERSONA_CUSTOMER_IDS" not in (BACKEND / consumer).read_text(), consumer
 
 
 def test_theo_and_jessica_share_a_home_in_the_files_and_in_the_seed() -> None:

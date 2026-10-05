@@ -209,7 +209,6 @@ function caught(line: string): boolean {
    follow the theme. Draw them inline with `fill="currentColor"` instead. Only
    brand artwork, which must keep its own colors, may be an <img>. */
 const BRAND_ICON_SETS = new Map<string, string>([
-  ['payment/', 'card and wallet marks keep their brand colors; they sit on --dl-mark-ground'],
   ['aws/', 'AWS architecture icons carry their own colored tile'],
 ])
 const ICON_FILE = /\/assets\/icons\/([\w./-]+)/g

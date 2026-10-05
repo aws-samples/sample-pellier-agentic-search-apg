@@ -1,9 +1,10 @@
-// Scan src/copy.ts for copy compliance violations.
+// Scan src/copy.ts, and the copy in data/*.json, for copy compliance violations.
 //
 // Rules enforced (Requirement 1.12):
 //   1. No emoji (any non-ASCII codepoint except the small allowlist of
 //      typographic punctuation we actually use).
-//   2. No em dashes (U+2014).
+//   2. No em dashes (U+2014), and no en dash (U+2013) used as a dash, with a
+//      space on either side. An en dash in a range ("10–12") stays allowed.
 //   3. No forbidden words (case-insensitive whole-word match) from the
 //      storefront conventions: AI, intelligent, smart, agent, LLM, vector,
 //      embedding. Plus 'search' used as a standalone noun.
@@ -20,17 +21,28 @@
 //   - each sentence in ALLOWED_SENTENCES, matched exactly and by name.
 //
 // `npm test` runs it through src/__tests__/copy_scanner.test.ts. It also runs
-// on its own:
+// on its own, over copy.ts and data/*.json:
 //   node pellier/frontend/src/__tests__/copy.test.mjs
 // Exits 0 when clean. Exits 1 with per-violation messages when not.
 
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const COPY_PATH = resolve(__dirname, "..", "copy.ts");
+// The shopper profiles, guided prompts and catalog in data/ are copy too: the
+// storefront shows them. Every JSON file there is scanned except these.
+export const DATA_DIR = resolve(__dirname, "..", "..", "..", "..", "data");
+export const DATA_NOT_COPY = new Map([
+  ["embeddings_cache.json", "the catalog's embedding vectors, numbers only"],
+]);
+
+export async function dataCopyFiles() {
+  const names = await readdir(DATA_DIR);
+  return names.filter((name) => name.endsWith(".json") && !DATA_NOT_COPY.has(name)).sort();
+}
 
 // Same allowlist as the Python scanner. Middle dots (U+00B7) are not on it:
 // VOICE.md bans them in copy.
@@ -42,6 +54,7 @@ const ALLOWED_NON_ASCII = new Set([
 ]);
 
 const EM_DASH = "\u2014";
+const SPACED_EN_DASH = /\s\u2013\s/g;
 // A middle dot written as an escape is still a middle dot on screen.
 const MIDDLE_DOT_ESCAPE = /\\(?:u00b7|u\{b7\}|xb7)/gi;
 
@@ -178,12 +191,11 @@ function stripComments(source) {
   return out.join("");
 }
 
-export function scan(source) {
+export function scan(source, fileName = "copy.ts") {
   const violations = [];
   const rawLines = source.split("\n");
   const scrubbed = stripComments(source);
   const scrubbedLines = scrubbed.split("\n");
-  const fileName = "copy.ts";
 
   // 1. Emoji / disallowed non-ASCII.
   for (let lineno = 0; lineno < rawLines.length; lineno++) {
@@ -225,6 +237,13 @@ export function scan(source) {
       );
       col = line.indexOf(EM_DASH, col + 1);
     }
+    SPACED_EN_DASH.lastIndex = 0;
+    let dash;
+    while ((dash = SPACED_EN_DASH.exec(line)) !== null) {
+      violations.push(
+        `${fileName}:${lineno + 1}:${dash.index + 2}: en dash (U+2013) used as a dash; use a period, comma or colon`,
+      );
+    }
   }
 
   // 3. Forbidden words, scanned on scrubbed source.
@@ -260,14 +279,16 @@ export function scan(source) {
 }
 
 async function main() {
-  const source = await readFile(COPY_PATH, "utf-8");
-  const violations = scan(source);
+  const violations = scan(await readFile(COPY_PATH, "utf-8"));
+  for (const name of await dataCopyFiles()) {
+    violations.push(...scan(await readFile(resolve(DATA_DIR, name), "utf-8"), `data/${name}`));
+  }
   if (violations.length > 0) {
-    console.error("copy.ts contains compliance violations:");
+    console.error("The copy contains compliance violations:");
     for (const v of violations) console.error(`  ${v}`);
     process.exit(1);
   }
-  console.log("copy.ts: clean.");
+  console.log("copy.ts and data/*.json: clean.");
   process.exit(0);
 }
 

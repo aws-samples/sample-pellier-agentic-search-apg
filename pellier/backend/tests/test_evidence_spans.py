@@ -24,15 +24,12 @@ def test_attribute_names_are_namespaced_and_stable():
     """These strings are quoted in participant CLI queries. Pin them."""
     assert ev.ATTR_TURN_ID == "pellier.turn_id"
     assert ev.ATTR_PRINCIPAL_SUB == "pellier.principal_sub"
-    assert ev.ATTR_POLICY_MODE == "pellier.policy_mode"
-    assert ev.ATTR_POLICY_VERDICT == "pellier.policy_verdict"
     assert ev.ATTR_CALLER == "pellier.caller"
     assert ev.ATTR_EXECUTION_OUTCOME == "pellier.execution_outcome"
 
 
-def test_span_names_are_the_three_teaching_boundaries():
+def test_span_names_are_the_teaching_boundaries():
     assert ev.SPAN_ROUTING == "routing"
-    assert ev.SPAN_POLICY == "policy"
     assert ev.tool_span_name("give_store_credit") == "tool.give_store_credit"
 
 
@@ -60,8 +57,6 @@ def test_full_attribute_set_maps_every_reconstruction_field():
         principal_sub="sub-abc",
         authenticated=True,
         persona_is_simulated=False,
-        policy_mode="LOG_ONLY",
-        policy_verdict="WOULD_DENY",
         caller="in-process",
         execution_outcome="denied",
         tool="give_store_credit",
@@ -71,8 +66,6 @@ def test_full_attribute_set_maps_every_reconstruction_field():
         ev.ATTR_PRINCIPAL_SUB: "sub-abc",
         ev.ATTR_AUTHENTICATED: True,
         ev.ATTR_PERSONA_SIMULATED: False,
-        ev.ATTR_POLICY_MODE: "LOG_ONLY",
-        ev.ATTR_POLICY_VERDICT: "WOULD_DENY",
         ev.ATTR_CALLER: "in-process",
         ev.ATTR_EXECUTION_OUTCOME: "denied",
         ev.ATTR_TOOL: "give_store_credit",
@@ -87,8 +80,6 @@ def test_spans_are_no_ops_when_tracing_is_unavailable(monkeypatch):
     monkeypatch.setattr(ev, "_tracer", lambda: None)
 
     with ev.routing_span(turn_id="t") as span:
-        assert span is None
-    with ev.policy_span(turn_id="t", policy_verdict="DENY") as span:
         assert span is None
     with ev.tool_span("check_stock", turn_id="t") as span:
         assert span is None
@@ -174,25 +165,6 @@ def test_tool_span_records_name_and_canonical_attributes(monkeypatch, recorded_s
     assert recorded.attributes[ev.ATTR_CALLER] == "in-process"
     assert recorded.attributes[ev.ATTR_TOOL] == "give_store_credit"
     assert recorded.attributes[ev.ATTR_EXECUTION_OUTCOME] == "denied"
-
-
-def test_policy_span_carries_literal_service_verdict(monkeypatch, recorded_spans):
-    """The workshop must show the service's own vocabulary, not a synonym."""
-    tracer, exporter = recorded_spans
-    monkeypatch.setattr(ev, "_tracer", lambda: tracer)
-
-    with ev.policy_span(
-        turn_id="turn-7",
-        principal_sub="sub-abc",
-        policy_mode="LOG_ONLY",
-        policy_verdict="WOULD_DENY",
-    ):
-        pass
-
-    recorded = exporter.get_finished_spans()[0]
-    assert recorded.name == "policy"
-    assert recorded.attributes[ev.ATTR_POLICY_MODE] == "LOG_ONLY"
-    assert recorded.attributes[ev.ATTR_POLICY_VERDICT] == "WOULD_DENY"
 
 
 def test_anonymous_turn_omits_principal_but_states_it_is_unauthenticated(

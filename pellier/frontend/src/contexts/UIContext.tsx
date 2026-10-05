@@ -4,7 +4,7 @@
  * Two concerns live here:
  *
  *  1. Modal singleton (Req 1.11.2 through 1.11.5): every overlay surface in
- *     the storefront (drawer, auth, cart, checkout) is
+ *     the storefront (drawer, auth, cart) is
  *     coordinated through `activeModal`. Opening any modal closes the
  *     previous one first so only one is ever visible. A single global
  *     keydown handler lives in `UIProvider` so every route inherits the
@@ -32,7 +32,6 @@ export type ModalName =
   | 'drawer'
   | 'auth'
   | 'cart'
-  | 'checkout'
 
 export type ActiveModal = ModalName | null
 export type ChatSurface = 'drawer' | 'none'

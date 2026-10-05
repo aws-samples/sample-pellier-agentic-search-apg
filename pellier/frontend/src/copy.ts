@@ -428,20 +428,6 @@ export const FOOTER = {
     CTA_LABEL: "Read the stories",
     CTA_HREF: "/storyboard",
   },
-  /** Official owner artwork in the footer only. The visible label and the
-   * disclaimer keep the strip inside the same non-processing demo contract. */
-  CHECKOUT: {
-    LABEL: "Secure demo checkout",
-    ARIA_LABEL: "Secure demo checkout payment methods",
-    PAYMENT_METHODS: [
-      { id: "visa", label: "Visa" },
-      { id: "mastercard", label: "Mastercard" },
-      { id: "amex", label: "American Express" },
-      { id: "paypal", label: "PayPal" },
-      { id: "apple-pay", label: "Apple Pay" },
-      { id: "google-pay", label: "Google Pay" },
-    ],
-  },
   /** Stated outright rather than implied, because a storefront that looks
    * this finished invites the assumption that it transacts. */
   DISCLAIMER:
@@ -455,7 +441,6 @@ export const FOOTER = {
     SERVICE_ITEMS: [
       "Free shipping over $150",
       "Returns within 30 days",
-      "Confirmed totals",
     ],
     /** The repository is MIT, explicitly NOT MIT-0. Formal individual
      * attribution remains in NOTICE; the storefront credits the team and

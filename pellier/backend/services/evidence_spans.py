@@ -1,5 +1,5 @@
 """
-Evidence spans — the three teaching boundaries of one governed turn.
+Evidence spans — the teaching boundaries of one governed turn.
 
 Stage 1 of the governed-search design. This module owns the canonical span
 vocabulary so the observability spine has exactly one definition of it. See
@@ -13,9 +13,11 @@ calls in `chat.py`:
   workshop CLI query filters on `pellier.turn_id`; if two call sites spell
   that differently the reconstruction exercise silently returns nothing.
   Defining the names once makes that impossible.
-* **Three boundaries, not a call graph.** The spec is explicit that spans
-  teach architecture (`routing`, `policy`, `tool`), not the Python call
-  stack. Exposing only three helpers makes the wrong thing hard to do.
+* **Two boundaries, not a call graph.** Spans teach architecture (`routing`
+  and `tool`), not the Python call stack. Exposing only these helpers makes
+  the wrong thing hard to do. Authorization has no span here: AgentCore
+  Policy decides at the Gateway, the desk stores its answer on the review
+  (`approvals.last_attempt`), and the tables hold what ran.
 * **Observability must never fail a turn.** Same rule the tool-audit writer
   follows: failing to observe cannot fail the thing being observed. Every
   helper degrades to a no-op when the OpenTelemetry SDK is absent or the
@@ -46,15 +48,12 @@ ATTR_TURN_ID = "pellier.turn_id"
 ATTR_PRINCIPAL_SUB = "pellier.principal_sub"
 ATTR_AUTHENTICATED = "pellier.authenticated"
 ATTR_PERSONA_SIMULATED = "pellier.persona_is_simulated"
-ATTR_POLICY_MODE = "pellier.policy_mode"
-ATTR_POLICY_VERDICT = "pellier.policy_verdict"
 ATTR_CALLER = "pellier.caller"
 ATTR_EXECUTION_OUTCOME = "pellier.execution_outcome"
 ATTR_TOOL = "pellier.tool"
 
-# The three teaching boundaries. Span names are also a participant contract.
+# The teaching boundaries. Span names are also a participant contract.
 SPAN_ROUTING = "routing"
-SPAN_POLICY = "policy"
 SPAN_TOOL_PREFIX = "tool"
 
 _TRACER_NAME = "pellier.evidence"
@@ -87,8 +86,6 @@ def evidence_attributes(
     principal_sub: Optional[str] = None,
     authenticated: Optional[bool] = None,
     persona_is_simulated: Optional[bool] = None,
-    policy_mode: Optional[str] = None,
-    policy_verdict: Optional[str] = None,
     caller: Optional[str] = None,
     execution_outcome: Optional[str] = None,
     tool: Optional[str] = None,
@@ -105,8 +102,6 @@ def evidence_attributes(
         ATTR_PRINCIPAL_SUB: principal_sub,
         ATTR_AUTHENTICATED: authenticated,
         ATTR_PERSONA_SIMULATED: persona_is_simulated,
-        ATTR_POLICY_MODE: policy_mode,
-        ATTR_POLICY_VERDICT: policy_verdict,
         ATTR_CALLER: caller,
         ATTR_EXECUTION_OUTCOME: execution_outcome,
         ATTR_TOOL: tool,
@@ -177,33 +172,6 @@ def routing_span(
         principal_sub=principal_sub,
         authenticated=authenticated,
         persona_is_simulated=persona_is_simulated,
-    ) as span:
-        yield span
-
-
-@contextmanager
-def policy_span(
-    *,
-    turn_id: Optional[str] = None,
-    principal_sub: Optional[str] = None,
-    policy_mode: Optional[str] = None,
-    policy_verdict: Optional[str] = None,
-    caller: Optional[str] = None,
-) -> Iterator[Optional[Any]]:
-    """The authorization boundary.
-
-    `policy_mode` and `policy_verdict` must carry the literal values the
-    AgentCore Policy API emits, not prettier local synonyms (spec 5, 16).
-    For a Cedar ENFORCE denial this span is the authoritative artifact,
-    because no database execution artifact should exist (Invariant 11).
-    """
-    with evidence_span(
-        SPAN_POLICY,
-        turn_id=turn_id,
-        principal_sub=principal_sub,
-        policy_mode=policy_mode,
-        policy_verdict=policy_verdict,
-        caller=caller,
     ) as span:
         yield span
 

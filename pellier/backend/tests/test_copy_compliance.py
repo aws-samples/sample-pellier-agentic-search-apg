@@ -5,7 +5,8 @@ Rules enforced (Requirement 1.12):
      excluding the en dash U+2013 which is allowed, and excluding curly
      quotes). Middle dots (U+00B7) are not allowed: VOICE.md bans them as
      separators.
-  2. No em dashes (U+2014).
+  2. No em dashes (U+2014), and no en dash (U+2013) used as a dash, with a
+     space on either side. An en dash in a range stays allowed.
   3. No forbidden words (case-insensitive whole-word match) from the
      Pellier conventions: AI, intelligent, smart, agent, LLM, vector,
      embedding, and 'search' used as a standalone noun.
@@ -49,6 +50,7 @@ ALLOWED_NON_ASCII = {
 }
 
 EM_DASH = "\u2014"
+SPACED_EN_DASH = re.compile(r"\s\u2013\s")
 # A middle dot written as an escape is still a middle dot on screen.
 MIDDLE_DOT_ESCAPE = re.compile(r"\\(?:u00b7|xb7|N\{MIDDLE DOT\})", re.IGNORECASE)
 
@@ -160,6 +162,11 @@ def scan(source: str) -> list[str]:
                 "not allowed in user-facing copy; use a regular hyphen"
             )
             col = line.find(EM_DASH, col + 1)
+        for m in SPACED_EN_DASH.finditer(line):
+            violations.append(
+                f"{COPY_PATH.name}:{lineno}:{m.start() + 2}: en dash (U+2013) used "
+                "as a dash; use a period, comma or colon"
+            )
 
     # 3. Forbidden words - case-insensitive whole-word match, scanned on the
     #    scrubbed source so the module docstring and comments describing the
@@ -193,6 +200,12 @@ def test_scan_flags_middle_dots() -> None:
     for sample in ('X = "Quiet \u00b7 Considered"\n', 'X = "Quiet \\u00b7 Considered"\n'):
         assert any("U+00B7" in v or "middle dot" in v for v in scan(sample)), sample
     assert scan('X = "Quiet, considered"\n') == []
+
+
+def test_scan_flags_an_en_dash_used_as_a_dash() -> None:
+    """A spaced en dash is a dash; one in a range is not."""
+    assert any("en dash" in v for v in scan('X = "A wedding \u2013 not cards"\n'))
+    assert scan('X = "Ships in 3\u20135 days"\n') == []
 
 
 def test_copy_compliance() -> None:

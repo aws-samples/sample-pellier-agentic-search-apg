@@ -76,7 +76,6 @@ function ToastSlot() {
 const TRANSIENT_MODALS = new Set([
   'auth',
   'cart',
-  'checkout',
 ])
 
 function ModalRouteGuard() {

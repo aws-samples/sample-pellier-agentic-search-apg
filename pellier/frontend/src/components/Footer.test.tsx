@@ -10,9 +10,8 @@
  *   - Every Explore link points at a real router route.
  *   - Storyboard + Pellier Observatory each carry an italic blurb and a single
  *     call-to-action link to `/storyboard` / `/observatory`.
- *   - Checkout trust glyphs are generic: no payment-network wordmark may
- *     appear, because Pellier never charges anything and the marks are
- *     third-party trademarks.
+ *   - No checkout and no payment marks: the bag keeps a list and places no
+ *     order, so nothing may suggest a payment.
  *   - The disclaimer states plainly that nothing is charged, the catalog is
  *     synthetic, and AI-generated imagery is illustrative.
  *   - The legal strip carries the real licence. The repository is MIT and its
@@ -116,7 +115,7 @@ describe('Footer — bottom strip', () => {
   })
 })
 
-describe('Footer — masthead and demo payment strip', () => {
+describe('Footer — masthead', () => {
   it('renders the brand lockup in the masthead', () => {
     renderFooter()
     const masthead = screen.getByTestId('footer-masthead')
@@ -125,41 +124,11 @@ describe('Footer — masthead and demo payment strip', () => {
     expect(wordmark).toHaveAttribute('href', '/')
   })
 
-  it('renders official marks inside the disclosed demo contract', () => {
+  it('shows no checkout and no payment marks, because the bag places no order', () => {
     renderFooter()
-    expect(screen.getByTestId('footer-checkout-label')).toHaveTextContent(
-      FOOTER.CHECKOUT.LABEL,
-    )
-    const methods = screen.getByRole('list', {
-      name: FOOTER.CHECKOUT.ARIA_LABEL,
-    })
-    expect(
-      within(methods)
-        .getAllByRole('listitem')
-        .map((item) => item.textContent),
-    ).toEqual(FOOTER.CHECKOUT.PAYMENT_METHODS.map(({ label }) => label))
-    expect(
-      [...methods.querySelectorAll('img')].map((image) =>
-        image.getAttribute('src'),
-      ),
-    ).toEqual(
-      FOOTER.CHECKOUT.PAYMENT_METHODS.map(
-        ({ id }) => `/assets/icons/payment/${id}.svg`,
-      ),
-    )
-    expect(
-      [...methods.querySelectorAll('img')].map((image) =>
-        image.getAttribute('height'),
-      ),
-    ).toEqual(['20', '20', '20', '20', '20', '20'])
-    for (const item of within(methods).getAllByRole('listitem')) {
-      expect(item).toHaveClass('h-9', 'px-2.5')
-    }
-    for (const image of methods.querySelectorAll('img')) {
-      expect(image).toHaveAttribute('alt', '')
-      expect(image).toHaveAttribute('aria-hidden', 'true')
-    }
-    expect(methods.textContent).not.toMatch(/hsa|fsa|eligible/i)
+    const footer = screen.getByTestId('footer')
+    expect(footer).not.toHaveTextContent(/\b(checkout|visa|mastercard|paypal|american express)\b/i)
+    expect(footer.querySelector('img[src*="/payment/"]')).toBeNull()
   })
 
   it('renders the retail assurances as discrete items', () => {

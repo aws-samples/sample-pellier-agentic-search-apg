@@ -322,7 +322,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     // route to the Shopping agent instead of refusing as "outside
     // shopping," and it teaches the Shopping agent that catalog tools
     // can't satisfy the ask.
-    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards.",
+    "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding, not product cards.",
   ],
   anna: [
     ...WORKSHOP_JOURNEYS.anna.prompts,
@@ -341,7 +341,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     // Durability-expectation framing past the standard return window —
     // the return policy says no, ask_a_person is the honest
     // fallback for an exception that needs a human.
-    'The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
+    'The linen throw I bought 4 months ago developed a tear at the seam. I know the standard window closed but pieces like this should last. Can you handle this as an exception?',
   ],
   fresh: [
     'A considered carry-all for a long weekend.',

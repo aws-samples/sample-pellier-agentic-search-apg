@@ -188,28 +188,23 @@ def _receipt_context() -> dict:
     }
 
 
-_PERSONA_CUSTOMER_IDS = {
-    "marco": "CUST-MARCO",
-    "anna": "CUST-ANNA",
-    "theo": "CUST-THEO",
-    "jessica": "CUST-JESSICA",
-}
-
-
 def _infer_customer_id(customer_id: str = "", persona: str = "") -> str:
-    """Resolve a customer id from explicit args or the active persona preamble."""
+    """Resolve a customer id from explicit args or the active persona preamble.
+
+    A first name the model passed (``marco``) is read through the persona file,
+    the one place a persona names its customer.
+    """
+    from services.personas import customer_for_persona, persona_profiles
+
     raw_customer = (customer_id or "").strip()
     if raw_customer:
         if raw_customer.upper().startswith("CUST-"):
             return raw_customer.upper()
-        mapped = _PERSONA_CUSTOMER_IDS.get(raw_customer.lower())
-        if mapped:
-            return mapped
-        return raw_customer
+        return customer_for_persona(raw_customer) or raw_customer
 
-    raw_persona = (persona or "").strip().lower()
-    if raw_persona in _PERSONA_CUSTOMER_IDS:
-        return _PERSONA_CUSTOMER_IDS[raw_persona]
+    mapped = customer_for_persona(persona)
+    if mapped:
+        return mapped
 
     try:
         from services.persona_context import get_persona_preamble
@@ -223,9 +218,10 @@ def _infer_customer_id(customer_id: str = "", persona: str = "") -> str:
         return match.group(0)
 
     preamble_lower = preamble.lower()
-    for persona_id, mapped in _PERSONA_CUSTOMER_IDS.items():
-        if re.search(rf"\b{re.escape(persona_id)}\b", preamble_lower):
-            return mapped
+    for profile in persona_profiles():
+        named = profile.get("customer_id")
+        if named and re.search(rf"\b{re.escape(str(profile['id']))}\b", preamble_lower):
+            return str(named)
     return ""
 
 

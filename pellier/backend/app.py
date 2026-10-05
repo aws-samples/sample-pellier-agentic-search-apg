@@ -2170,17 +2170,14 @@ _PRIVATE_PERSONA_FIELDS = ("customer_id", "shares_home_with")
 
 
 @lru_cache(maxsize=1)
-def _persona_profiles() -> tuple[dict[str, Any], ...]:
-    return tuple(json.loads((_DATA_DIR / "personas.json").read_text()))
-
-
-@lru_cache(maxsize=1)
 def _guided_prompts() -> tuple[dict[str, Any], ...]:
     return tuple(json.loads((_DATA_DIR / "scenarios.json").read_text()))
 
 
 def _persona_profile(persona_id: str) -> Optional[dict[str, Any]]:
-    return next((p for p in _persona_profiles() if p["id"] == persona_id), None)
+    from services.personas import persona_profiles
+
+    return next((p for p in persona_profiles() if p["id"] == persona_id), None)
 
 
 async def _order_counts() -> dict[str, int]:
@@ -2213,10 +2210,12 @@ def _persona_payload(
 @app.get("/api/personas")
 async def list_personas():
     """Return the selectable shopper profiles."""
+    from services.personas import persona_profiles
+
     orders = await _order_counts()
     return [
         _persona_payload(profile, orders, include_customer_id=False)
-        for profile in _persona_profiles()
+        for profile in persona_profiles()
     ]
 
 
