@@ -135,12 +135,6 @@ def create_probe_user(idp: Any, pool_id: str) -> Tuple[str, str]:
     return username, password
 
 
-async def _gateway_call(gateway_url: str, token: str, tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
-    from probe_gateway_tool import _call
-
-    return await _call(gateway_url, token, tool, args)
-
-
 async def _gateway_catalog(gateway_url: str, token: str) -> List[str]:
     import httpx
     from mcp import ClientSession
@@ -164,6 +158,23 @@ def _scoped_read_tool(catalog: List[str]) -> Optional[str]:
     return None
 
 
+def _gateway_outcome(gateway_url: str, token: str, tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    """One call through ``gateway_policy_probe``, classified ``allow``, ``deny`` or ``error``.
+
+    Only a raised Cedar denial is ``deny``; a 401, a transport failure or a
+    result the tool marked as an error is ``error``.
+    """
+    import anyio
+    from gateway_policy_probe import _call_tool, classify_call
+
+    call, failure = None, None
+    try:
+        call = anyio.run(_call_tool, gateway_url, token, tool, args)
+    except Exception as exc:  # noqa: BLE001 - every failure shape is classified
+        failure = exc
+    return classify_call(call, failure)
+
+
 def gateway_probes(
     gateway_url: str,
     tokens: Dict[str, str],
@@ -182,27 +193,19 @@ def gateway_probes(
         return [{"case": "catalog", "outcome": "error", "detail": "no customer-scoped read on the Gateway"}]
     cases = [
         ("owner", tokens[owner], {"customer_id": customers[owner]}, {"allow", "error"}),
-        ("mismatched", tokens[owner], {"customer_id": other}, {"policy_denied"}),
+        ("mismatched", tokens[owner], {"customer_id": other}, {"deny"}),
     ]
     if unmapped_token:
-        cases.append(("unmapped", unmapped_token, {"customer_id": customers[owner]}, {"policy_denied"}))
+        cases.append(("unmapped", unmapped_token, {"customer_id": customers[owner]}, {"deny"}))
     results = []
     for case, token, args, expected in cases:
-        try:
-            outcome = anyio.run(_gateway_call, gateway_url, token, tool, args)
-        except BaseException as exc:  # noqa: BLE001 - the outcome IS the result
-            from gateway_client import _exception_summary, _is_authorization_denial
-
-            outcome = {
-                "outcome": "policy_denied" if _is_authorization_denial(exc) else "error",
-                "serviceResponse": _exception_summary(exc),
-            }
+        outcome = _gateway_outcome(gateway_url, token, tool, args)
         results.append({
             "case": case,
             "tool": tool,
             "arguments": args,
-            "outcome": outcome.get("outcome"),
-            "passed": outcome.get("outcome") in expected,
+            "outcome": outcome["outcome"],
+            "passed": outcome["outcome"] in expected,
             "expected": sorted(expected),
         })
     return results

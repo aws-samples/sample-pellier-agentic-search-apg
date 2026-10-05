@@ -1,6 +1,7 @@
 """The hosted browser gate must not silently skip required live journeys."""
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -11,17 +12,14 @@ FRONTEND = Path(__file__).resolve().parents[2] / "frontend"
 COGNITO_E2E = FRONTEND / "e2e" / "cognito"
 
 
-def test_hosted_job_requires_all_three_identities_and_a_boundary_receipt() -> None:
+def test_hosted_job_requires_the_approved_origin_and_both_identities() -> None:
     source = WORKFLOW.read_text(encoding="utf-8")
 
     expected_fragments = (
         "E2E_BASE_URL: ${{ inputs.base_url }}",
         "E2E_ALLOWED_BASE_URL: ${{ vars.E2E_ALLOWED_BASE_URL }}",
-        "E2E_BOUNDARY_RUN: ${{ inputs.boundary_run }}",
         "E2E_TEST_USER_EMAIL: ${{ secrets.E2E_TEST_USER_EMAIL }}",
         "E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}",
-        "E2E_GOVERN_USERNAME: ${{ secrets.E2E_GOVERN_USERNAME }}",
-        "E2E_GOVERN_PASSWORD: ${{ secrets.E2E_GOVERN_PASSWORD }}",
         "E2E_NADIA_USERNAME: ${{ secrets.E2E_NADIA_USERNAME }}",
         "E2E_NADIA_PASSWORD: ${{ secrets.E2E_NADIA_PASSWORD }}",
         "python3 tests/e2e/validate_deployment_inputs.py",
@@ -48,13 +46,20 @@ def test_optional_cognito_job_runs_the_frontend_cognito_suite() -> None:
 
     assert "e2e/cognito" in source
     assert "e2e/workshop-smoke.spec.ts" in source
-    assert "e2e/operator-client-preview.spec.ts" in source
-    assert "e2e/resolution-trace.spec.ts" in source
-    assert "e2e/workbench-live.spec.ts" in source
     assert "tests/e2e/auth-happy-path.spec.ts" not in source
     assert "tests/e2e/auth-refresh.spec.ts" not in source
     assert "tests/e2e/auth-refresh-fail.spec.ts" not in source
     assert "tests/e2e/anon-to-auth.spec.ts" not in source
+
+
+def test_every_spec_the_hosted_job_runs_exists() -> None:
+    """A deleted spec left in the list silently shrinks the hosted gate."""
+    source = WORKFLOW.read_text(encoding="utf-8")
+    named = re.findall(r"(?<![\w/])(e2e/[\w./-]+)", source)
+
+    assert named, "the hosted job names no Playwright spec"
+    missing = [path for path in named if not (FRONTEND / path).exists()]
+    assert not missing, f"the hosted job runs specs that do not exist: {missing}"
 
 
 def test_frontend_package_contains_each_cognito_auth_spec() -> None:
@@ -82,11 +87,8 @@ def live_inputs():
     return {
         "E2E_BASE_URL": "https://workshop.example.com",
         "E2E_ALLOWED_BASE_URL": "https://workshop.example.com",
-        "E2E_BOUNDARY_RUN": "boundaries-" + "a" * 32,
         "E2E_TEST_USER_EMAIL": "auth@example.com",
         "E2E_TEST_USER_PASSWORD": "private-auth-value",
-        "E2E_GOVERN_USERNAME": "marco",
-        "E2E_GOVERN_PASSWORD": "private-shopper-value",
         "E2E_NADIA_USERNAME": "nadia",
         "E2E_NADIA_PASSWORD": "private-staff-value",
     }
@@ -97,9 +99,8 @@ def test_approved_deployment_with_complete_inputs_is_accepted(input_validator, l
 
 
 @pytest.mark.parametrize("key", [
-    "E2E_ALLOWED_BASE_URL", "E2E_TEST_USER_PASSWORD", "E2E_GOVERN_USERNAME",
-    "E2E_GOVERN_PASSWORD", "E2E_NADIA_USERNAME", "E2E_NADIA_PASSWORD",
-    "E2E_BOUNDARY_RUN",
+    "E2E_ALLOWED_BASE_URL", "E2E_TEST_USER_EMAIL", "E2E_TEST_USER_PASSWORD",
+    "E2E_NADIA_USERNAME", "E2E_NADIA_PASSWORD",
 ])
 def test_missing_live_inputs_fail_without_disclosing_credentials(
     input_validator, live_inputs, key,
@@ -133,10 +134,4 @@ def test_unapproved_origin_or_confusing_url_fails_before_sign_in(
 ):
     live_inputs["E2E_BASE_URL"] = url
     with pytest.raises(ValueError):
-        input_validator.validate(live_inputs)
-
-
-def test_malformed_boundary_run_cannot_stand_in_for_live_proof(input_validator, live_inputs):
-    live_inputs["E2E_BOUNDARY_RUN"] = "synthetic-fixture"
-    with pytest.raises(ValueError, match="completed boundary"):
         input_validator.validate(live_inputs)

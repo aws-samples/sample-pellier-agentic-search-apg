@@ -16,35 +16,31 @@ to the same approved deployment:
 | --- | --- |
 | Variable `E2E_ALLOWED_BASE_URL` | Approved HTTPS origin, including a nondefault port if needed. |
 | Secrets `E2E_TEST_USER_EMAIL`, `E2E_TEST_USER_PASSWORD` | Existing dedicated, nonstaff Cognito identity for password sign-in, cookie, refresh, and authorization checks. |
-| Secrets `E2E_GOVERN_USERNAME`, `E2E_GOVERN_PASSWORD` | Existing Marco workshop identity for the governed shopper and workbench paths. |
-| Secrets `E2E_NADIA_USERNAME`, `E2E_NADIA_PASSWORD` | Nadia, the staff identity in `pellier-operators`, who approves credits on the Operator desk. |
+| Secrets `E2E_NADIA_USERNAME`, `E2E_NADIA_PASSWORD` | Nadia, the staff identity in `pellier-operators`, for the Operator checks. |
 
-Supply both required dispatch inputs:
-
-- `base_url`: the approved HTTPS origin, without a trailing slash, path, query,
-  fragment, or embedded credentials.
-- `boundary_run`: an already completed five-outcome boundary proof from that
-  deployment, in the form `boundaries-` followed by 32 lowercase hexadecimal
-  characters.
+Supply the one dispatch input, `base_url`: the approved HTTPS origin, without a
+trailing slash, path, query, fragment, or embedded credentials.
 
 [The input validator](../tests/e2e/validate_deployment_inputs.py) runs before
 dependency setup and browser tests. It rejects missing live inputs, a non-HTTPS
-or malformed origin, a mismatch with `E2E_ALLOWED_BASE_URL`, and an invalid
-boundary-run identifier. Format validation does not establish that a boundary
-run exists or is complete; the live test checks the supplied run's evidence.
+or malformed origin, and a mismatch with `E2E_ALLOWED_BASE_URL`.
 
-The job runs workshop smoke, persona modal, govern reference, resolution trace,
-live workbench, Cognito, and Operator client-preview tests. The Operator preview
-signs in through the application's password API with its existing Operator
-identity, establishing the browser context's HTTP-only cookies. It does not set
-a global `Authorization` header that could be attached to third-party image
-requests. No fixed bearer-token secret or AWS identity-management permission is
-needed by this workflow.
+The job runs four Playwright suites from `pellier/frontend/e2e/` against the
+deployment: `workshop-smoke.spec.ts` (fonts, the signed-out Operator redirect,
+the reset link, readable layouts), `shopper-sign-in.spec.ts` (choosing a
+shopper signs in and the next turn runs as them, against a stand-in API),
+`retail-journey.spec.ts` (the product page, Stories, and, with Nadia's
+credentials, the Operator's client records and reviews), and `cognito/` (sign
+in, refresh, refresh failure, and anonymous to signed in). The Operator checks
+sign in through the application's password API, which sets the browser
+context's HTTP-only cookies. No fixed bearer-token secret or AWS
+identity-management permission is needed by this workflow.
+`pellier/backend/tests/test_cognito_e2e_workflow_contract.py` fails if the job
+names a spec that does not exist.
 
 Keep passwords in the protected environment's secrets and the test process
-environment. Configure the three identity pairs explicitly; the manual helper
-does not create customer bindings, Marco's persona association, staff groups,
-or Operator permissions.
+environment. The manual helper below does not create customer bindings, staff
+groups, or Operator permissions.
 
 ## Optional manual identity creation
 

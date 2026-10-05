@@ -12,15 +12,17 @@ The contract: nine tools on one Gateway target, `pellier-store-tools`. The start
 
 from __future__ import annotations
 
+import importlib
 import os
 import pathlib
 import re
 import sys
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 
 import pytest
 
 sys.path.insert(0, os.path.abspath("../../scripts/deploy"))
+sys.path.insert(0, os.path.abspath("../../scripts"))
 
 from gateway_tool_schemas import (  # noqa: E402
     TOOL_SCHEMAS,
@@ -31,6 +33,8 @@ from gateway_tool_schemas import (  # noqa: E402
     workshop_target_tools,
 )
 from render_agentcore_project import baseline_policies  # noqa: E402
+
+lab4 = importlib.import_module("lab4_policy_check")
 
 STORE = "pellier-store-tools"
 CREDIT_ACTION = f"{STORE}___give_store_credit"
@@ -414,51 +418,31 @@ def test_the_renderer_documents_the_omission_as_deliberate() -> None:
 SHOPPER = {CUSTOMER_CLAIM: "CUST-MARCO"}
 STAFF = {STAFF_CLAIM: "returns"}
 STRANGER: Dict[str, str] = {}
+SCHEMA = lab4.gateway_cedar_schema()
 
 
-def _conditions_hold(body: str, claims: Dict[str, str], inp: Dict[str, object]) -> bool:
-    """Whether one `when`/`unless` body holds for this principal and input.
+def _credit(cents: int) -> Dict[str, object]:
+    """A schema-valid `give_store_credit` input for Marco's account."""
+    return {"customer_id": "CUST-MARCO", "amount_cents": cents,
+            "reason": "fresh policy test", "idempotency_key": "fresh-policy-test"}
 
-    A deliberately small model of the conditions the baseline and the Lab 4 rule
-    actually use: the `false` literal, claim presence, claim-to-input equality, a
-    literal scope, input presence, and the amount ceiling. Anything a policy starts
-    using that this does not model must be added here, so a new condition cannot pass
-    by being ignored.
+
+def _schema_for(action: str, inp: Dict[str, object]) -> Optional[Dict[str, Any]]:
+    """The Gateway's Cedar schema when the request is well formed, else none.
+
+    A request on a published action with every required input is validated
+    against the schema, so its DENY is Cedar's decision on a request the Gateway
+    could send. An undeclared action (deferred `get_tickets`, a future tool) or an
+    input missing a required attribute would only fail schema validation, which
+    proves nothing about the policies; those are evaluated without a schema, so
+    what decides is Cedar's default deny or the policy's own `has` guard.
     """
-    body = " ".join(body.split())
-    if not body:
-        return True
-    if body == "false":
-        return False
-    if f'principal.hasTag("{CUSTOMER_CLAIM}")' in body and CUSTOMER_CLAIM not in claims:
-        return False
-    if f'principal.hasTag("{STAFF_CLAIM}")' in body and STAFF_CLAIM not in claims:
-        return False
-    if "context.input has customer_id" in body and "customer_id" not in inp:
-        return False
-    if f'principal.getTag("{CUSTOMER_CLAIM}") == context.input.customer_id' in body:
-        if claims.get(CUSTOMER_CLAIM) != inp.get("customer_id"):
-            return False
-    scope = re.search(rf'principal\.getTag\("{STAFF_CLAIM}"\) == "([a-z_-]+)"', body)
-    if scope and claims.get(STAFF_CLAIM) != scope.group(1):
-        return False
-    if "context.input has amount_cents" in body and "amount_cents" not in inp:
-        return False
-    ceiling = re.search(r"context\.input\.amount_cents <= (\d+)", body)
-    if ceiling and int(inp.get("amount_cents", 0)) > int(ceiling.group(1)):
-        return False
-    return True
-
-
-def _statement_applies(statement: str, claims: Dict[str, str], inp: Dict[str, object]) -> bool:
-    """A permit or forbid applies when its `when` holds and its `unless` does not."""
-    when = re.search(r"when\s*\{(.*?)\}", statement, re.DOTALL)
-    unless = re.search(r"unless\s*\{(.*?)\}", statement, re.DOTALL)
-    if not _conditions_hold(when.group(1) if when else "", claims, inp):
-        return False
-    if unless and _conditions_hold(unless.group(1), claims, inp):
-        return False
-    return True
+    declared = SCHEMA["AgentCore"]["actions"].get(action)
+    if declared is None:
+        return None
+    attributes = declared["appliesTo"]["context"]["attributes"]["input"]["attributes"]
+    missing = [name for name, spec in attributes.items() if spec["required"] and name not in inp]
+    return None if missing else SCHEMA
 
 
 def _decide(
@@ -468,39 +452,36 @@ def _decide(
     claims: Dict[str, str] = SHOPPER,
     extra: List[str] | None = None,
 ) -> str:
-    """Evaluate the generated statements. Cedar is default-deny and forbid wins."""
-    inp = inp or {}
-    permits, forbids = [], []
-    statements = [(p["name"], p["statement"]) for p in _policies()]
-    statements += [(f"extra-{i}", text) for i, text in enumerate(extra or [])]
-    for name, statement in statements:
-        if action not in _actions(statement):
-            continue
-        if not _statement_applies(statement, claims, inp):
-            continue
-        effect = " ".join(
-            line for line in statement.splitlines() if not line.strip().startswith("//")
-        ).lstrip()
-        (forbids if effect.startswith("forbid") else permits).append(name)
-    if forbids:
-        return "DENY"
-    return "ALLOW" if permits else "DENY"
+    """Authorize one call with the Cedar engine, through the Lab 4 checker's `decide`.
+
+    The policy set is the generated baseline plus any `extra` statements. Cedar
+    is default-deny and forbid wins. A diagnostic error fails the test, so a
+    malformed request can never pass as a DENY.
+    """
+    inp = dict(inp or {})
+    policies = [(p["name"], p["statement"]) for p in _policies()]
+    policies += [(f"extra-{i}", text) for i, text in enumerate(extra or [])]
+    caller = lab4.Caller("test principal", "test-principal", dict(claims))
+    decision = lab4.decide(policies, _schema_for(action, inp), caller, action, inp,
+                           gateway_arn=GATEWAY_ARN)
+    assert not decision.errors, decision.errors
+    return decision.decision
 
 
 @pytest.mark.parametrize(("who", "action", "inp", "expected"), [
-    ("stranger", f"{STORE}___check_stock", {}, "ALLOW"),
-    ("shopper", f"{STORE}___search_products", {}, "ALLOW"),
-    ("shopper", f"{STORE}___ask_a_person", {}, "ALLOW"),
+    ("stranger", f"{STORE}___check_stock", {"product_query": "linen shirt"}, "ALLOW"),
+    ("shopper", f"{STORE}___search_products", {"query": "linen"}, "ALLOW"),
+    ("shopper", f"{STORE}___ask_a_person", {"reason": "a person, please"}, "ALLOW"),
     ("shopper", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "ALLOW"),
     ("shopper", f"{STORE}___get_orders", {"customer_id": "CUST-THEO"}, "DENY"),
     ("shopper", f"{STORE}___get_orders", {}, "DENY"),
     ("staff", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "DENY"),
     ("stranger", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "DENY"),
     ("shopper", f"{STORE}___get_tickets", {"customer_id": "CUST-MARCO"}, "DENY"),
-    ("shopper", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 500}, "DENY"),
-    ("staff", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 500}, "ALLOW"),
-    ("staff", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 50000}, "ALLOW"),
-    ("stranger", CREDIT_ACTION, {"customer_id": "CUST-MARCO", "amount_cents": 500}, "DENY"),
+    ("shopper", CREDIT_ACTION, _credit(500), "DENY"),
+    ("staff", CREDIT_ACTION, _credit(500), "ALLOW"),
+    ("staff", CREDIT_ACTION, _credit(50000), "ALLOW"),
+    ("stranger", CREDIT_ACTION, _credit(500), "DENY"),
     ("shopper", f"{STORE}___some_future_tool", {}, "DENY"),
 ])
 def test_the_fresh_authorization_matrix(who: str, action: str, inp, expected: str) -> None:
@@ -523,8 +504,8 @@ CHALLENGE = pathlib.Path("../../policies/workshop_credit_limit.cedar")
 STARTER = pathlib.Path("../../workshop/starters/workshop_credit_limit.cedar")
 SOLUTION = pathlib.Path(
     "../../solutions/the-concierge/policies/workshop_credit_limit.cedar")
-OVER_LIMIT = {"customer_id": "CUST-MARCO", "amount_cents": 25000}
-WITHIN_LIMIT = {"customer_id": "CUST-MARCO", "amount_cents": 10000}
+OVER_LIMIT = _credit(25000)
+WITHIN_LIMIT = _credit(10000)
 
 
 def _solution_statement() -> str:
@@ -620,18 +601,18 @@ def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> No
     assert GATEWAY_TARGET == STORE
 
 
-def test_the_handoff_contract_names_every_baseline_policy() -> None:
-    """The doc that tells a facilitator what ships must not drift from what ships.
+def test_the_readiness_map_names_every_baseline_policy() -> None:
+    """The doc that tells a maintainer what ships must not drift from what ships.
 
     A prose table nobody checks is a claim, not a contract. The renderer produces
     three policies on the starter (four after Lab 3A publishes `get_tickets`).
     """
-    handoff = (
+    readiness = (
         pathlib.Path(__file__).resolve().parents[3]
         / "docs"
-        / "HANDOFF-SOURCE-CONTRACT.md"
+        / "AGENTCORE-READINESS.md"
     )
-    text = handoff.read_text(encoding="utf-8")
+    text = readiness.read_text(encoding="utf-8")
     rendered = set(_by_name())
 
     section = text.split("## Baseline authorization on a fresh stack", 1)[1]
@@ -639,12 +620,12 @@ def test_the_handoff_contract_names_every_baseline_policy() -> None:
 
     for name in rendered:
         assert f"`{name}`" in section, (
-            f"{name} is rendered onto a fresh stack but absent from the handoff "
-            "contract's baseline table"
+            f"{name} is rendered onto a fresh stack but absent from the readiness "
+            "map's baseline table"
         )
     documented = set(re.findall(r"^\| `([a-z0-9_]+)` \|", section, re.M))
     assert documented == rendered, (
-        f"handoff table and renderer disagree: "
+        f"readiness table and renderer disagree: "
         f"only in doc {documented - rendered}, only in code {rendered - documented}"
     )
     assert f"{len(rendered)} policies" in section.lower()

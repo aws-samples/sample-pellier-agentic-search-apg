@@ -1,15 +1,11 @@
 """Contract tests for the shared search executor.
 
 ``execute_search_plan`` runs ``store_tools.run_search_plan``, the retrieval
-pipeline the storefront tool (on both rails), the Observatory strategies, the
-Lab 1 receipt, the micro-eval, and the eval harness all run. These tests pin its stage order, its pool bound, its tolerance for a
-row value it cannot read, and its refusal to return a row that breaks a hard
-constraint even when the reranker put it first.
-
-Two paths deliberately do not run it and are out of scope here: the Operator
-Concierge's ``replacement_search.find_replacements`` and the Observatory's
-``app.explain_search``. The module docstring in
-``services/planned_hybrid_retrieval.py`` says why.
+pipeline the storefront tool runs on both rails, so the retrieval harness
+measures what a shopper gets. These tests pin its stage order, its pool
+bound, its tolerance for a row value it cannot read, and its refusal to
+return a row that breaks a hard constraint even when the reranker put it
+first.
 """
 
 from __future__ import annotations
@@ -387,7 +383,7 @@ def test_limit_below_one_is_clamped() -> None:
 
 @pytest.mark.parametrize("name", ["retrieve_planned_hybrid", "rerank_hybrid_candidates"])
 def test_private_comparison_helpers_are_gone(name: str) -> None:
-    """One executor replaces the two half-pipelines the Observatory used."""
+    """One executor replaces the two half-pipelines a deleted comparison view used."""
     import services.planned_hybrid_retrieval as module
 
     assert not hasattr(module, name)
@@ -447,18 +443,6 @@ def test_row_values_coerce_to_a_number_or_to_absent(
     from services.store_tools import as_number
 
     assert as_number(value) == expected
-
-
-def test_the_micro_eval_violation_count_also_survives_an_unreadable_row() -> None:
-    """``_breaks_price_or_stock`` scores returned rows and must not raise."""
-    from services.planned_hybrid_retrieval import _breaks_price_or_stock
-
-    plan = _plan()
-
-    assert _breaks_price_or_stock(_row(1, price="wildly expensive"), plan) is False
-    assert _breaks_price_or_stock(_row(1, quantity="none left"), plan) is False
-    assert _breaks_price_or_stock(_row(1, price="150.00"), plan) is True
-    assert _breaks_price_or_stock(_row(1, quantity="0"), plan) is True
 
 
 def test_the_recheck_drops_a_row_whose_materials_are_excluded() -> None:

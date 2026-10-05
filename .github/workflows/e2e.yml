@@ -7,10 +7,6 @@ on:
         description: Fresh Workshop Studio deployment URL, without a trailing slash
         required: true
         type: string
-      boundary_run:
-        description: Completed five-outcome boundary proof run from this deployment
-        required: true
-        type: string
 
 concurrency:
   group: fresh-deployment-e2e-${{ inputs.base_url }}
@@ -27,11 +23,8 @@ jobs:
     env:
       E2E_BASE_URL: ${{ inputs.base_url }}
       E2E_ALLOWED_BASE_URL: ${{ vars.E2E_ALLOWED_BASE_URL }}
-      E2E_BOUNDARY_RUN: ${{ inputs.boundary_run }}
       E2E_TEST_USER_EMAIL: ${{ secrets.E2E_TEST_USER_EMAIL }}
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-      E2E_GOVERN_USERNAME: ${{ secrets.E2E_GOVERN_USERNAME }}
-      E2E_GOVERN_PASSWORD: ${{ secrets.E2E_GOVERN_PASSWORD }}
       E2E_NADIA_USERNAME: ${{ secrets.E2E_NADIA_USERNAME }}
       E2E_NADIA_PASSWORD: ${{ secrets.E2E_NADIA_PASSWORD }}
 
@@ -63,11 +56,8 @@ jobs:
           npx playwright test \
             e2e/workshop-smoke.spec.ts \
             e2e/shopper-sign-in.spec.ts \
-            e2e/govern-reference.spec.ts \
-            e2e/resolution-trace.spec.ts \
-            e2e/workbench-live.spec.ts \
-            e2e/cognito \
-            e2e/operator-client-preview.spec.ts
+            e2e/retail-journey.spec.ts \
+            e2e/cognito
 
       - name: Upload Playwright report
         if: always()

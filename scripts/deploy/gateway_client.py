@@ -2,8 +2,8 @@
 
 Environment loading, Cognito token minting for one named test principal, and
 the classifier that tells a managed Policy DENY apart from every other
-failure. ``probe_gateway_tool.py`` is the generic probe built on these; the
-customer-claim and memory scripts reuse the environment and token helpers.
+failure. ``gateway_policy_probe.py`` is the one Gateway probe built on these;
+the customer-claim and memory scripts reuse the environment and token helpers.
 """
 from __future__ import annotations
 
