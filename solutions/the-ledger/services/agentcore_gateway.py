@@ -24,6 +24,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any, Sequence
 
+from pellier_copy import OUTPUT_RULES
 from services.product_envelope import ProductExtractor, select_products_for_reply
 
 logger = logging.getLogger(__name__)
@@ -93,19 +94,25 @@ _TOOL_LOOKUPS: Dict[str, str] = {
 }
 
 
-def unpublished_tools_prompt(unpublished: Sequence[str]) -> str:
+def unpublished_tools_prompt(unpublished: Sequence[str], *, can_hand_off: bool = False) -> str:
     """The instruction an agent gets for the tools the Gateway did not list for this caller.
 
     The agent must say plainly that it cannot look the thing up here, never
-    guess it and never claim a look-up it did not make.
+    guess it and never claim a look-up it did not make. It offers a person
+    only when it holds the handoff, and the offer names no tool, because the
+    shopper never sees a tool name.
+
+    Args:
+        unpublished: The tools the agent asked for and was not given.
+        can_hand_off: Whether the agent holds ``ask_a_person`` this turn.
     """
     lookups = ", ".join(_TOOL_LOOKUPS.get(name, name) for name in unpublished)
-    return (
+    note = (
         " The Gateway does not list these tools for you, so they are not available: "
         f"{', '.join(unpublished)}. If the shopper asks for {lookups}, say "
-        f"plainly that you can't look up {lookups} here. Do not guess or invent them. "
-        "Offer ask_a_person if it is available."
+        f"plainly that you can't look up {lookups} here. Do not guess or invent them."
     )
+    return note + (" Offer to hand this to a person." if can_hand_off else "")
 
 
 def unpublished_tools_note(agent: str, unpublished: Sequence[str]) -> str:
@@ -145,8 +152,11 @@ def _managed_specialist_prompt(
 ) -> str:
     """Return transport-neutral instructions for a Gateway-backed agent.
 
-    ``skills`` are the agent's fixed skills, appended to the prompt exactly as
-    the in-process agent carries them: the deployed agent is the same agent.
+    The prompt ends with the agent's output rules from ``pellier_copy``, the
+    same text the in-process agent carries, so a managed answer keeps the copy
+    and store credit rules. ``skills`` are the agent's fixed skills, appended
+    exactly as the in-process agent carries them: the deployed agent is the
+    same agent.
     """
     from services.specialist_models import agent_name
     from skills import inject_skills
@@ -180,6 +190,7 @@ def _managed_specialist_prompt(
             "list of those words, including limits the shopper stated earlier "
             "in this conversation. The database enforces them as filters."
         )
+    prompt += "\n" + OUTPUT_RULES[specialist]
     return inject_skills(prompt, skills)
 
 
@@ -601,7 +612,8 @@ class ManagedGatewayDispatcher:
                     "Gateway does not list %s tools for this caller: %s",
                     specialist, ", ".join(unpublished),
                 )
-                system_prompt += unpublished_tools_prompt(unpublished)
+                system_prompt += unpublished_tools_prompt(
+                    unpublished, can_hand_off="ask_a_person" in selected_names)
             self.last_unpublished_tools = unpublished
 
             agent = Agent(

@@ -70,6 +70,72 @@ PRODUCT_REQUIREMENTS_PROMPT = (
     "category. Broaden a preference only, and keep every requirement.\n"
 )
 
+# Each specialist's output rules, shared by both rails. The in-process
+# prompts carry them as written, and the managed Runtime appends the same
+# text in services.agentcore_gateway._managed_specialist_prompt, so an answer
+# follows the copy and credit rules whichever rail served it. The Runtime
+# package ships this module for that reason (services/build_fingerprint.py).
+SHOPPING_OUTPUT_RULES = (
+    "<output-rules>\n"
+    "Call a tool before writing anything. After the tool returns, choose two "
+    "or three returned pieces (or every piece when fewer than two qualify) "
+    "and write one compact sentence for each. Do not name a piece you did "
+    "not choose. The chosen pieces render as cards automatically. If a tool "
+    "returns nothing or an error, say so in one sentence. Never use markdown "
+    "tables, numbered lists, headers, emojis or em dashes. Never ask a "
+    "follow-up question.\n"
+    "</output-rules>"
+)
+
+STOCK_OUTPUT_RULES = (
+    "<output-rules>"
+    "ALWAYS call the tool first. No text before the tool call. "
+    "When the tool returns status='success', answer in 2-4 sentences with "
+    "quiet confidence, the way someone at the store confirms a piece is "
+    "ready:\n"
+    "  1. OPEN with a direct yes or no on the warehouse the customer named, "
+    "by its city, with the exact count (e.g. 'Yes, Brooklyn has it: 8 of "
+    "the Pellier Linen Shirt in ivory on the floor right now').\n"
+    "  2. WIDEN to the other cities and their counts, and the total_units "
+    "across all three warehouses (e.g. '21 in all, with Austin and Portland "
+    "holding the balance').\n"
+    "  3. CLOSE on the ship window from the customer's warehouse, framed as "
+    "time to dispatch (e.g. 'Brooklyn's recorded dispatch window is 1-2 "
+    "days'). A dispatch window does not establish an arrival date.\n"
+    "Use warehouse CITY names (Brooklyn, Austin, Portland), not codes like "
+    "BK-01. Vary your phrasing; never read back a template. "
+    "When the tool returns status='success' with total_units 0, say the "
+    "piece is sold out everywhere; never call it unknown. "
+    "When the tool returns status='ambiguous', list the candidate names and "
+    "ask which one the customer means. "
+    "When the tool returns status='not_found', say plainly that Pellier does "
+    "not carry that piece; never report a count for it. "
+    "Never use markdown tables, numbered lists, headers, emojis, or em "
+    "dashes. Never ask follow-up questions when stock data was returned."
+    "</output-rules>"
+)
+
+SUPPORT_OUTPUT_RULES = (
+    "Output: call a tool before writing, then write one or two sentences. "
+    "Lead with empathy when a piece arrived damaged and with clarity when the "
+    "shopper asks what is possible. Say only what a tool result shows: never "
+    "say a refund, return or credit was made unless a tool result says so. "
+    "Set credit_request to true only when the shopper asks for store credit, "
+    "and never name or suggest an amount: a person reviews the case and works "
+    "out any credit from the records. "
+    "After a store credit request, say a person at Pellier will review the "
+    "store credit and that nothing has changed yet. Do not name an amount, a "
+    "timeframe or an outcome. Never show the shopper a tool name, a status code, or "
+    "words like 'Cedar' or 'rail'. No markdown tables, numbered lists, emojis "
+    "or em dashes. Never ask a follow-up question.\n"
+)
+
+OUTPUT_RULES = {
+    "shopping": SHOPPING_OUTPUT_RULES,
+    "stock": STOCK_OUTPUT_RULES,
+    "support": SUPPORT_OUTPUT_RULES,
+}
+
 # The Shopping agent's instructions: what to find, browse and compare, in the
 # store's own voice (VOICE.md). Preferences reach it from AgentCore Memory and
 # the persona preamble, never from a tool.
@@ -123,13 +189,5 @@ SHOPPING_SYSTEM_PROMPT = (
     + PRODUCT_REQUIREMENTS_PROMPT
     + "</grounding-rules>\n"
     "\n"
-    "<output-rules>\n"
-    "Call a tool before writing anything. After the tool returns, choose two "
-    "or three returned pieces (or every piece when fewer than two qualify) "
-    "and write one compact sentence for each. Do not name a piece you did "
-    "not choose. The chosen pieces render as cards automatically. If a tool "
-    "returns nothing or an error, say so in one sentence. Never use markdown "
-    "tables, numbered lists, headers, emojis or em dashes. Never ask a "
-    "follow-up question.\n"
-    "</output-rules>"
+    + SHOPPING_OUTPUT_RULES
 )

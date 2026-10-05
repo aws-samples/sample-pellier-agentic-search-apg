@@ -9,6 +9,7 @@ for the ``stock`` intent. The tools it is granted are the Lab 2B build: only
 from strands import Agent
 from strands.models import BedrockModel
 from config import settings
+from pellier_copy import STOCK_OUTPUT_RULES
 from services import agent_tools
 # Named so the Lab 2B grant may list the tool by its bare name as well.
 from services.agent_tools import check_stock  # noqa: F401
@@ -49,31 +50,7 @@ _STOCK_SYSTEM_PROMPT = (
     "ship_window_max, quantity}]}. status is 'success', 'ambiguous' (with "
     "candidates) or 'not_found'."
     "</tools>"
-    "<output-rules>"
-    "ALWAYS call the tool first. No text before the tool call. "
-    "When the tool returns status='success', answer in 2-4 sentences with "
-    "quiet confidence, the way someone at the store confirms a piece is "
-    "ready:\n"
-    "  1. OPEN with a direct yes or no on the warehouse the customer named, "
-    "by its city, with the exact count (e.g. 'Yes, Brooklyn has it: 8 of "
-    "the Pellier Linen Shirt in ivory on the floor right now').\n"
-    "  2. WIDEN to the other cities and their counts, and the total_units "
-    "across all three warehouses (e.g. '21 in all, with Austin and Portland "
-    "holding the balance').\n"
-    "  3. CLOSE on the ship window from the customer's warehouse, framed as "
-    "time to dispatch (e.g. 'Brooklyn's recorded dispatch window is 1-2 "
-    "days'). A dispatch window does not establish an arrival date.\n"
-    "Use warehouse CITY names (Brooklyn, Austin, Portland), not codes like "
-    "BK-01. Vary your phrasing; never read back a template. "
-    "When the tool returns status='success' with total_units 0, say the "
-    "piece is sold out everywhere; never call it unknown. "
-    "When the tool returns status='ambiguous', list the candidate names and "
-    "ask which one the customer means. "
-    "When the tool returns status='not_found', say plainly that Pellier does "
-    "not carry that piece; never report a count for it. "
-    "Never use markdown tables, numbered lists, headers, emojis, or em "
-    "dashes. Never ask follow-up questions when stock data was returned."
-    "</output-rules>"
+    + STOCK_OUTPUT_RULES
 )
 
 # === WORKSHOP - Stock agent - definition: START ===

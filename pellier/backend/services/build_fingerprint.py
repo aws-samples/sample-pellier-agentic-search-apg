@@ -65,6 +65,7 @@ __all__ = [
 # manifests below) and the digest covers exactly these.
 RUNTIME_SOURCE_FILES: tuple[Path, ...] = (
     Path("agentcore_runtime.py"),
+    Path("pellier_copy.py"),
     Path("services/__init__.py"),
     Path("services/agentcore_gateway.py"),
     Path("services/catalog_vocabulary.py"),

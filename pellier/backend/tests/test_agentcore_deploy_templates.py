@@ -231,7 +231,7 @@ def test_runtime_bundle_contains_only_managed_import_graph(tmp_path: Path) -> No
 
 
 def test_the_staged_bundle_loads_its_own_skills_into_the_managed_prompt(tmp_path: Path) -> None:
-    """From the bundle alone, the managed Support agent carries its two skills."""
+    """From the bundle alone, the managed Support agent carries its skills and output rules."""
     root, _ = _render(tmp_path, include_policies=False)
     runtime_dir = root / "runtime-src"
     env = os.environ.copy()
@@ -251,7 +251,8 @@ def test_the_staged_bundle_loads_its_own_skills_into_the_managed_prompt(tmp_path
                 "_, prompt, _, skills = _managed_specialist_spec('support'); "
                 "print(json.dumps({'names': [s['name'] for s in skills], "
                 "'paths': [s['path'] for s in skills], "
-                "'in_prompt': 'The Care Card' in prompt}))"
+                "'in_prompt': 'The Care Card' in prompt, "
+                "'rules': 'Set credit_request to true only when' in prompt}))"
             ),
         ],
         cwd=tmp_path,
@@ -265,6 +266,7 @@ def test_the_staged_bundle_loads_its_own_skills_into_the_managed_prompt(tmp_path
     assert report["names"] == ["the-care-card", "the-proof-counter"]
     assert report["paths"] == ["skills/the-care-card/SKILL.md", "skills/the-proof-counter/SKILL.md"]
     assert report["in_prompt"] is True
+    assert report["rules"] is True
 
 
 def test_runtime_bridges_cli_injected_discovery_names() -> None:

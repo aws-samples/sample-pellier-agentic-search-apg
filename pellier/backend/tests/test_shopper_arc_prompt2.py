@@ -26,13 +26,20 @@ if str(BACKEND) not in sys.path:
 # MARCO — GROUND. Live truth, including fulfilment timing.
 # ---------------------------------------------------------------------------
 
+def _stock_prompt() -> str:
+    """The Stock agent's instructions as the model reads them, output rules included."""
+    from agents.stock_agent import _STOCK_SYSTEM_PROMPT
+
+    return _STOCK_SYSTEM_PROMPT
+
+
 def test_marco_canonical_question_asks_about_fulfilment_timing() -> None:
     """The strengthened question is two halves answered by one tool call.
 
     Aurora provides warehouse quantity and dispatch timing. It does not
     establish a delivery date without destination and carrier evidence.
     """
-    prompt = (BACKEND / "agents" / "stock_agent.py").read_text()
+    prompt = _stock_prompt()
     assert "Brooklyn" in prompt and "what ship window is recorded?" in prompt
     assert "check_stock(product_query='Hadley Linen Shirt')" in prompt
     assert "A dispatch window does not establish an arrival date" in prompt
@@ -48,7 +55,7 @@ def test_marco_tool_reads_the_ship_window_from_aurora() -> None:
 
 def test_marco_answer_rules_require_warehouse_count_and_ship_window() -> None:
     """All three, or the answer is not grounded in what the tool returned."""
-    prompt = (BACKEND / "agents" / "stock_agent.py").read_text()
+    prompt = _stock_prompt()
     assert "ship window" in prompt.lower()
     assert "total_units" in prompt
     assert "BK-01" in prompt
@@ -60,7 +67,7 @@ def test_marco_quantity_is_never_hard_coded_in_the_prompt() -> None:
     A literal count in the instructions would have the agent assert a number
     Aurora may no longer agree with.
     """
-    prompt = (BACKEND / "agents" / "stock_agent.py").read_text()
+    prompt = _stock_prompt()
     # The prompt's illustrative examples use deliberately different numbers so
     # no single value can read as the real one.
     assert "20 of the Hadley" not in prompt
@@ -105,7 +112,8 @@ def test_theo_agent_hands_a_credit_request_to_a_person() -> None:
     """
     flat = _support_prompt()
     assert "ask_a_person" in flat
-    assert "set credit_request to true and never name or suggest an amount" in flat
+    assert ("Set credit_request to true only when the shopper asks for store credit, "
+            "and never name or suggest an amount") in flat
     assert "store_credit_cents" not in flat
     assert "nothing has changed yet" in flat
 

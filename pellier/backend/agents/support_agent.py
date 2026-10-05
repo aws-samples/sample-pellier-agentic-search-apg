@@ -9,6 +9,7 @@ a person to review.
 """
 from strands import Agent
 from strands.models import BedrockModel
+from pellier_copy import SUPPORT_OUTPUT_RULES
 from services.agent_tools import (
     ask_a_person,
     get_orders,
@@ -38,24 +39,14 @@ _SUPPORT_SYSTEM_PROMPT = (
     "  - ask_a_person: hand the case to a person at Pellier. Use it when the "
     "shopper asks for a person, or when the case needs a decision you cannot "
     "make: an exception to the return window, a refund dispute, a damaged "
-    "piece. When the shopper asks for store credit, set credit_request to "
-    "true and never name or suggest an amount: a person reviews the case "
-    "and works out any credit from the records.\n"
+    "piece.\n"
     "\n"
     "When a tool returns status 'customer_scope_required', the shopper is not "
     "signed in. Say you can look up their orders and tickets once they sign "
     "in. If the message opens with a PERSONA CONTEXT block, you may answer "
     "questions about past orders from its 'Past orders' list.\n"
     "\n"
-    "Output: call a tool before writing, then write one or two sentences. "
-    "Lead with empathy when a piece arrived damaged and with clarity when the "
-    "shopper asks what is possible. Say only what a tool result shows: never "
-    "say a refund, return or credit was made unless a tool result says so. "
-    "After a store credit request, say a person at Pellier will review the "
-    "store credit and that nothing has changed yet. Do not name an amount, a "
-    "timeframe or an outcome. Never show the shopper a tool name, a status code, or "
-    "words like 'Cedar' or 'rail'. No markdown tables, numbered lists, emojis "
-    "or em dashes. Never ask a follow-up question.\n"
+    + SUPPORT_OUTPUT_RULES
 )
 
 
