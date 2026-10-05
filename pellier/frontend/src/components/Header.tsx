@@ -8,7 +8,9 @@
  * Signed-out visitors see a "Choose a shopper" pill. Once a shopper is signed
  * in, the same pill shows them and opens the shared portrait-led PersonaModal
  * to switch shopper or sign out. Choosing a shopper is a real sign-in with
- * their demo account.
+ * their demo account. While Ask Pellier is docked open on a desktop width,
+ * the pill steps aside for the panel's "Signed in as" chips, so one chooser
+ * is on screen at a time; it returns when the panel closes and on phones.
  *
  * The pill names only the shopper session that answered `/api/auth/me`, never
  * the edit on screen, and never the staff session the same browser may hold
@@ -30,7 +32,7 @@ import { Avatar } from '../design/primitives'
 import { getPersonaPhoto } from '../data/personaPhotos'
 import { IconButton } from '../design/primitives'
 import PersonaModal from './PersonaModal'
-import { useSignedInShopper } from '../hooks/useShopperSignIn'
+import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
 import {
   ShoppingBag,
   User as UserIcon,
@@ -129,11 +131,6 @@ function SignedOutPersonaTrigger({
       <span className="hidden whitespace-nowrap min-[360px]:inline sm:hidden">Shopper</span>
     </button>
   )
-}
-
-/** "jessica" to "Jessica", for a session whose edit has not opened. */
-function shopperName(id: string): string {
-  return id.charAt(0).toUpperCase() + id.slice(1)
 }
 
 function AuthenticatedPersonaTrigger({ shopper }: { shopper: string }) {
@@ -274,7 +271,12 @@ export default function Header({
 
           {/* Right: persona, bag, menu */}
           <div className="flex items-center gap-1.5 justify-end min-w-0">
-            <PersonaAccountControl chooserOpen={chooserOpen} onOpenChooser={openChooser} />
+            {/* Hidden while Ask Pellier is docked open on a desktop width: the
+                panel's "Signed in as" chips do the same job there
+                (chat-drawer.css). */}
+            <div className="pellier-header-chooser">
+              <PersonaAccountControl chooserOpen={chooserOpen} onOpenChooser={openChooser} />
+            </div>
 
             <div className="relative">
               <IconButton

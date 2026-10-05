@@ -14,16 +14,6 @@
 main:focus { outline: none; }
 main, [id='shop'] { scroll-margin-top: 88px; }
 
-/* Reserve both sticky navigation rows when the browser scrolls keyboard focus. */
-html:has(.observatory-root) {
-  scroll-padding-block-start: calc(var(--pellier-chrome-height, 64px) + 88px);
-}
-@media (max-width: 820px) {
-  html:has(.observatory-root) {
-    scroll-padding-block-start: calc(var(--pellier-chrome-height, 56px) + 140px);
-  }
-}
-
 .pellier-nav-link {
   position: relative;
   display: inline-flex;
@@ -92,7 +82,6 @@ html:has(.observatory-root) {
   transition: background-color 160ms ease-out, color 160ms ease-out;
 }
 .pellier-retry:hover { background: var(--dl-ink); color: var(--dl-on-ink); }
-.pellier-profile-loading { min-height: 120px; display: grid; align-items: center; color: var(--ink-soft); font-size: 14px; }
 
 @media (max-width: 1023px) {
   [data-testid='mobile-menu'] .pellier-nav-link { justify-content: flex-start; padding-inline: 12px; }
@@ -101,7 +90,6 @@ html:has(.observatory-root) {
 
 @media (prefers-reduced-motion: reduce) {
   .pellier-nav-link::after, .pellier-nav-link, .pellier-retry { transition: none; }
-  .observatory-workbench-grid > section { animation: none; }
 }
 .pellier-session-notice {
   display: flex;

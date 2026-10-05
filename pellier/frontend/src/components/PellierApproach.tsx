@@ -1,5 +1,6 @@
 /**
- * PellierApproach - the storefront's bridge into Pellier Observatory.
+ * PellierApproach - the band below the collection that says how Pellier
+ * answers, with a link for each claim.
  *
  * This is the one place the storefront names what sits behind it. Each claim
  * points at a surface a participant can open, which is what earns the module
@@ -47,7 +48,7 @@ export default function PellierApproach() {
             src={PELLIER_APPROACH.IMAGE}
             alt={PELLIER_APPROACH.IMAGE_ALT}
             widths={[480, 960]}
-            sizes="(min-width: 1160px) 30vw, 100vw"
+            sizes="(min-width: 720px) 420px, 100vw"
             loading="lazy"
             decoding="async"
             pictureClassName="block h-full w-full"

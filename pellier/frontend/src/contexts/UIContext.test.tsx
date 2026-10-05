@@ -5,7 +5,7 @@
  */
 import { act, fireEvent, render, renderHook, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { UIProvider, useUI } from './UIContext'
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -164,6 +164,67 @@ describe('UIContext hook ergonomics', () => {
     expect(result.current.activeModal).toBe('drawer')
 
     act(() => result.current.toggleDrawer())
+    expect(result.current.activeModal).toBe(null)
+  })
+})
+
+describe('Ask Pellier docked by default on a desktop width', () => {
+  const width = window.innerWidth
+  const setWidth = (value: number) =>
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value })
+
+  afterEach(() => {
+    setWidth(width)
+    window.history.pushState({}, '', '/')
+  })
+
+  it('opens docked beside the store, without taking focus as an open the shopper asked for', () => {
+    setWidth(1440)
+    const { result } = renderHook(() => useUI(), { wrapper })
+    expect(result.current.activeModal).toBe('drawer')
+    expect(result.current.drawerOpenedByShopper()).toBe(false)
+
+    act(() => result.current.openModal('drawer'))
+    expect(result.current.drawerOpenedByShopper()).toBe(true)
+  })
+
+  it('stays closed where it stacks under the page, and on the Operator and sign-in pages', () => {
+    setWidth(1079)
+    expect(renderHook(() => useUI(), { wrapper }).result.current.activeModal).toBe(null)
+
+    setWidth(1440)
+    window.history.pushState({}, '', '/operator')
+    expect(renderHook(() => useUI(), { wrapper }).result.current.activeModal).toBe(null)
+    window.history.pushState({}, '', '/signin')
+    expect(renderHook(() => useUI(), { wrapper }).result.current.activeModal).toBe(null)
+  })
+
+  it('docks again on the storefront after a route closed it, unless the shopper closed it', () => {
+    setWidth(1440)
+    const { result } = renderHook(() => useUI(), { wrapper })
+
+    act(() => result.current.closeModal())
+    act(() => result.current.restoreDock())
+    expect(result.current.activeModal).toBe('drawer')
+
+    act(() => result.current.dismissDrawer())
+    act(() => result.current.restoreDock())
+    expect(result.current.activeModal).toBe(null)
+
+    act(() => result.current.openModal('drawer'))
+    act(() => result.current.closeModal())
+    act(() => result.current.restoreDock())
+    expect(result.current.activeModal).toBe('drawer')
+  })
+
+  it('remembers Escape as the shopper closing the panel', () => {
+    setWidth(1440)
+    const { result } = renderHook(() => useUI(), { wrapper })
+    act(() => {
+      fireEvent.keyDown(window, { key: 'Escape' })
+    })
+    expect(result.current.activeModal).toBe(null)
+    act(() => result.current.restoreDock())
     expect(result.current.activeModal).toBe(null)
   })
 })

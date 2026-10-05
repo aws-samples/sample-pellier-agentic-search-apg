@@ -18,9 +18,13 @@
  * Mounts via ``createPortal(..., document.body)``. Reuses ``useAgentChat``
  * for state, streaming, and persistence. Operator does not mount it.
  *
- * It opens for anyone. Signed out, it is the neutral new-visitor store; a
- * shopper chosen on the home page or in the header is signed in with their
- * demo account, and the session details say who the server verified.
+ * On a desktop width it is docked open by default (UIContext), and closing
+ * it is remembered until the page reloads. It opens for anyone. Its top row,
+ * "Signed in as", is where a shopper is chosen: the four demo shoppers in lab
+ * order (AskShoppers). Signed out, it is the neutral new-visitor store and
+ * the empty panel points at the home bar and the chips; a chosen shopper is
+ * signed in with their demo account, the subtitle names the shopper the
+ * server verified, and the session details say how.
  *
  * Each turn is reported to the storefront's results view, so a question
  * typed here fills the page grid exactly as one typed in the home bar. The
@@ -39,7 +43,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useUI } from '../contexts/UIContext'
+import { docksBesideStore, useDocksBesideStore, useUI } from '../contexts/UIContext'
 import { useLayout } from '../contexts/LayoutContext'
 import { useCart } from '../contexts/CartContext'
 import { usePersona } from '../contexts/PersonaContext'
@@ -48,11 +52,14 @@ import {
   type AgentChatMessage,
 } from '../hooks/useAgentChat'
 import PellierChatBody from './PellierChatBody'
+import AskShoppers from './AskShoppers'
 import { PellierMark } from './Wordmark'
 import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
 import { SkillModeToggle, useBuilderView } from './turn'
 import { useStoreResults } from '../contexts/StoreResultsContext'
+import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
+import { ASK_PANEL } from '../copy'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
 
@@ -64,9 +71,6 @@ const FRESH_GREETING =
   "Welcome to Pellier. I'm your personal shopping concierge. Tell me what you're looking for and I'll find the right pieces for you."
 const RETURNING_GREETING =
   "Welcome back. Tell me what you're looking for and I'll find the right pieces for you."
-
-/** Below this width the panel stacks under the page instead of docking. */
-const DOCK_MIN_WIDTH = 1080
 
 // ---------------------------------------------------------------------------
 // Platform detection for keyboard hint
@@ -81,20 +85,20 @@ function detectMac(): boolean {
   return /mac|iphone|ipad|ipod/i.test(platform)
 }
 
-function docksBesideStore(): boolean {
-  if (typeof window === 'undefined') return true
-  return window.innerWidth >= DOCK_MIN_WIDTH
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 export default function ChatDrawer() {
-  const { activeModal, closeModal, openModal, consumePendingQuery, setTurnRunning } = useUI()
+  const {
+    activeModal, dismissDrawer, drawerOpenedByShopper, openModal, consumePendingQuery,
+    pendingConciergeQuery, setTurnRunning,
+  } = useUI()
   const { guardrailsEnabled } = useLayout()
   const { addToCart, cartOpen } = useCart()
   const { persona } = usePersona()
+  const signedInAs = useSignedInShopper()
+  const docked = useDocksBesideStore()
 
   const isOpen = activeModal === 'drawer' && !cartOpen
   const reducedMotion = useReducedMotion()
@@ -191,9 +195,11 @@ export default function ChatDrawer() {
     return () => root.removeAttribute('data-ask-docked')
   }, [isOpen])
 
-  // Focus input on open, and bring a stacked panel on screen.
+  // Focus input on an open the shopper asked for, and bring a stacked panel
+  // on screen. Docked by default on arrival, the panel leaves focus where it
+  // is.
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen || !drawerOpenedByShopper?.()) return
     openerRef.current = document.activeElement as HTMLElement
     if (!docksBesideStore()) {
       drawerRef.current?.scrollIntoView({
@@ -203,7 +209,7 @@ export default function ChatDrawer() {
     }
     const t = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50)
     return () => clearTimeout(t)
-  }, [isOpen, reducedMotion])
+  }, [isOpen, reducedMotion, drawerOpenedByShopper])
 
   // Return focus on close
   useEffect(() => {
@@ -212,25 +218,24 @@ export default function ChatDrawer() {
     openerRef.current = null
   }, [isOpen, cartOpen])
 
-  // A question from the home bar opens the panel and is sent once. Run after
-  // the persona reset above so it cannot erase the seeded turn. A pending
-  // query adds to the active thread: storefront suggestions are follow-on
-  // shopping questions, so clearing the conversation here silently discarded
-  // the shopper's context.
-  const hasConsumedRef = useRef(false)
+  // A question from the home bar opens the panel and is sent once, also when
+  // the panel is already docked open: the pending question itself is the
+  // signal, and reading it clears it. Run after the persona reset above so
+  // it cannot erase the seeded turn. A pending query adds to the active
+  // thread: storefront suggestions are follow-on shopping questions, so
+  // clearing the conversation here silently discarded the shopper's context.
+  // While the bag covers the panel the question waits for it.
   useEffect(() => {
     if (!isOpen) {
-      hasConsumedRef.current = false
       if (activeModal !== 'drawer') consumePendingQuery()
       return
     }
-    if (hasConsumedRef.current) return
-    hasConsumedRef.current = true
+    if (!pendingConciergeQuery) return
     const seeded = consumePendingQuery()
     if (seeded) {
       void sendMessage(seeded)
     }
-  }, [isOpen, activeModal, consumePendingQuery, sendMessage])
+  }, [isOpen, activeModal, pendingConciergeQuery, consumePendingQuery, sendMessage])
 
   // Follow the reply until the shopper scrolls back. A new question resumes
   // following; streamed chunks never pull someone away from earlier text.
@@ -322,37 +327,26 @@ export default function ChatDrawer() {
           <div className="cd-head">
             <PellierMark size={28} className="cd-mark" />
             <div className="cd-head-stack">
-              <h3 className="cd-head-title">Ask Pellier</h3>
-              <div className="cd-head-meta">
-                {persona && persona.id !== 'fresh' && (
-                  <span className="cd-persona-mark">
-                    <span
-                      className="cd-persona-av"
-                      style={{ background: persona.avatar_color }}
-                    >
-                      {persona.avatar_initial}
-                    </span>
-                    <span className="cd-persona-name">
-                      {persona.display_name.split(' ')[0]}
-                    </span>
-                  </span>
-                )}
-                <span>Your shopping concierge</span>
-              </div>
+              <h3 className="cd-head-title">{ASK_PANEL.TITLE}</h3>
+              {/* The verified session, never the last click. */}
+              <p className="cd-head-meta" data-testid="ask-panel-subtitle">
+                {signedInAs ? ASK_PANEL.signedIn(shopperName(signedInAs)) : ASK_PANEL.PICK}
+              </p>
             </div>
             <SkillModeToggle />
             <button
               type="button"
               className="cd-close"
               aria-label="Close Ask Pellier"
-              onClick={() => closeModal()}
+              onClick={() => dismissDrawer()}
             >
               <X size={14} />
             </button>
           </div>
 
-          {/* Who the server verified and which rail served the last turn. The
-              shopper is chosen on the home page or in the header, never here. */}
+          <AskShoppers />
+
+          {/* Who the server verified and which rail served the last turn. */}
           <details className="cd-session-details">
             <summary>Session details <ChevronDown size={14} aria-hidden="true" /></summary>
             <StatusLines messages={messages} />
@@ -365,12 +359,17 @@ export default function ChatDrawer() {
             followLatestRef.current = body.scrollHeight - body.scrollTop - body.clientHeight < 80
           }}>
             <div className="cd-messages" ref={contentRef}>
-            {!hasUserMessages && (
+            {!hasUserMessages && !signedInAs ? (
+              <p className="cd-empty" data-testid="ask-panel-empty">
+                {docked ? ASK_PANEL.EMPTY_DOCKED : ASK_PANEL.EMPTY_STACKED}
+              </p>
+            ) : null}
+            {!hasUserMessages && signedInAs ? (
               <PellierWelcome
                 persona={persona}
                 onSend={(text) => void sendMessage(text)}
               />
-            )}
+            ) : null}
             {hasUserMessages && (
               <PellierChatBody
                 messages={messages}

@@ -77,10 +77,10 @@ describe('first-visit orientation', () => {
       ).toBeInTheDocument(),
     );
     expect(screen.getByRole('dialog')).toHaveTextContent(
-      'the Operator workspace and Observatory follow the evidence',
+      'Turn on the Builder view to see the steps behind each answer.',
     );
     expect(screen.getByRole('dialog')).toHaveTextContent(
-      'through retrieval, managed execution, policy, and Aurora.',
+      'it waits on the Operator desk until someone on the team approves or declines it.',
     );
     // The four people the evidence is followed for, not a screenshot of the
     // surface that follows it. One accessible name covers the strip, and each

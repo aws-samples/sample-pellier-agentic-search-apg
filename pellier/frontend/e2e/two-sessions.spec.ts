@@ -141,12 +141,14 @@ test('Nadia stays signed in on the Operator while Jessica asks for her credit in
   await expect(operator.getByTestId('operator-reviews-empty')).toBeVisible()
   await expect(operator.getByTestId('operator-requests')).toHaveCount(0)
 
-  // Tab two: the storefront, where Jessica's card is the one click.
+  // Tab two: the storefront, where Jessica's chip in the docked panel is the
+  // one click.
   const store = await context.newPage()
   await store.setViewportSize({ width: 1440, height: 900 })
   await store.goto('/')
-  await store.getByTestId('hero-profile-jessica').click()
-  await expect(store.getByTestId('persona-pill')).toContainText('Jessica')
+  await store.getByTestId('ask-shopper-jessica').click()
+  await expect(store.getByTestId('ask-shopper-jessica')).toHaveAttribute('aria-pressed', 'true')
+  await expect(store.getByTestId('ask-panel-subtitle')).toHaveText('Jessica, signed in')
 
   // She asks for her credit; the turn runs as Jessica.
   const ask = store.getByTestId('pellier-hero-search')

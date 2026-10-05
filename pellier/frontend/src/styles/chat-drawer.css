@@ -15,6 +15,15 @@
   }
 }
 
+/* One chooser on screen at a time: while the panel is docked open, its
+   "Signed in as" chips do the header control's job. Closed, or stacked on a
+   phone, the header control is back. */
+@media (min-width: 1080px) {
+  html[data-ask-docked='true'] .pellier-header-chooser {
+    display: none;
+  }
+}
+
 /* ---- Panel shell ---- */
 .cd-drawer {
   position: fixed;
@@ -68,38 +77,10 @@
   line-height: 1.2;
 }
 .cd-head-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  margin: 0;
   color: var(--dl-muted);
   font-size: 12.5px;
   line-height: 1.4;
-}
-.cd-persona-mark {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 7px 2px 2px;
-  border: 1px solid var(--dl-line);
-  border-radius: var(--dl-r-pill);
-  background: var(--dl-paper-2);
-}
-/* The initial sits on the persona's seeded color (a brown in every seed), so
-   it takes the ivory that reads over a photograph in both themes. */
-.cd-persona-av {
-  display: flex;
-  width: 16px;
-  height: 16px;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  color: var(--dl-on-photo);
-  font-size: 10px;
-  font-weight: 500;
-}
-.cd-persona-name {
-  color: var(--dl-ink);
-  font-size: 11px;
 }
 .cd-close {
   display: flex;
@@ -122,6 +103,93 @@
   color: var(--dl-ink);
 }
 
+/* ---- Signed in as: the four shoppers, in lab order ---- */
+.cd-shoppers {
+  flex-shrink: 0;
+  padding: 10px 16px 11px;
+  border-bottom: 1px solid var(--dl-line);
+}
+.cd-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+/* The label takes its own line above the chips. */
+.cd-who-label {
+  flex-basis: 100%;
+  margin-bottom: 2px;
+  color: var(--dl-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.cd-who-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 11px 3px 3px;
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-pill);
+  background: transparent;
+  color: var(--dl-ink-2);
+  font: 400 13px/1.4 var(--dl-font-sans);
+  cursor: pointer;
+  transition:
+    background-color 160ms ease-out,
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+.cd-who-chip:hover:not(:disabled) {
+  border-color: var(--dl-line-strong);
+}
+.cd-who-chip[aria-pressed='true'] {
+  border-color: var(--dl-ink);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+}
+.cd-who-chip:disabled {
+  cursor: wait;
+}
+.cd-who-chip:disabled:not([aria-busy='true']):not([aria-pressed='true']) {
+  opacity: 0.6;
+}
+.cd-who-av {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--dl-paper-2);
+  object-fit: cover;
+}
+/* Quiet, at the end of the row: back to the neutral store. */
+.cd-who-signout {
+  margin-left: auto;
+  padding: 4px 0;
+  border: 0;
+  background: none;
+  color: var(--dl-ink-2);
+  font: 400 12.5px/1.4 var(--dl-font-sans);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.cd-who-signout:hover {
+  color: var(--dl-ink);
+}
+.cd-who-note {
+  margin: 6px 0 0;
+  color: var(--dl-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.cd-who-alert {
+  margin: 6px 0 0;
+  color: var(--dl-tag-blocked-ink);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
 /* ---- Body ---- */
 .cd-body {
   flex: 1;
@@ -132,11 +200,18 @@
   scrollbar-width: thin;
   scrollbar-color: var(--dl-line-strong) transparent;
 }
-.cd-empty-state {
-  padding: 48px 24px;
+/* Signed out and nothing asked yet: one quiet paragraph, centered in the
+   thread, pointing at the home bar and the chips. */
+.cd-body:has(.cd-empty) {
+  display: grid;
+  align-items: center;
+}
+.cd-empty {
+  margin: 0;
+  padding: 0 20px;
   color: var(--dl-muted);
-  font-size: 15px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.6;
   text-align: center;
 }
 
@@ -379,6 +454,7 @@
 
 @media (max-width: 767.98px) {
   .cd-head { padding: 12px 14px; }
+  .cd-shoppers { padding-inline: 14px; }
   .cd-body { padding: 16px 14px; }
   .cd-session-details > summary { padding-inline: 14px; }
   .cd-status-lines { grid-template-columns: minmax(0, 1fr); gap: 6px; }
@@ -392,7 +468,8 @@
 @media (prefers-reduced-motion: reduce) {
   .cd-send,
   .cd-input-row,
-  .cd-close {
+  .cd-close,
+  .cd-who-chip {
     animation: none;
     transition: none;
   }

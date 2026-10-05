@@ -144,14 +144,13 @@ export default function ProductDetailPage() {
     window.scrollTo({ top: 0 })
   }, [numericId])
 
-  // Every other route in the app (Observatory, Operator, and
-  // HowPellierWorksPage) sets a specific document title; this route and
-  // the two below kept the generic index.html default the whole time the
-  // shopper was reading a specific piece, which loses the product identity
-  // in a browser tab or a screen reader's tab list. Falls back to the
-  // default title (restored on unmount) while the product hasn't loaded
-  // yet or failed to load, since a stale "Pellier" tab is honest and an
-  // invented product name is not.
+  // The Operator, Stories, About and sign-in routes set their own document
+  // title. Without one here the tab kept the generic index.html default the
+  // whole time the shopper was reading a specific piece, which loses the
+  // product identity in a browser tab or a screen reader's tab list. Falls
+  // back to the default title (restored on unmount) while the product
+  // hasn't loaded yet or failed to load, since a stale "Pellier" tab is
+  // honest and an invented product name is not.
   useEffect(() => {
     if (!detail) return
     const previous = document.title
@@ -331,9 +330,12 @@ export default function ProductDetailPage() {
         </nav>
 
         <div className="mx-auto max-w-[1200px] px-container-x pb-16 pt-8 md:pb-24">
-          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,520px)_minmax(0,1fr)] lg:gap-16 xl:gap-20">
+          {/* The photograph takes a little under half the page column, at
+              most 460px wide, whether or not Ask Pellier is docked beside
+              the page; the details get the rest. */}
+          <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)] lg:gap-12">
             {/* --- Piece ------------------------------------------------ */}
-            <div className="overflow-hidden rounded-[var(--pellier-image-radius-lg)] bg-recessed shadow-frame">
+            <div className="w-full max-w-[460px] overflow-hidden rounded-[var(--pellier-image-radius-lg)] bg-recessed shadow-frame">
               {/* One photograph per piece today. A zoom is the honest version
                   of a gallery until more angles exist: the shopper can still
                   look closely at the weave before paying for it. */}
@@ -348,7 +350,7 @@ export default function ProductDetailPage() {
                   src={view.imageUrl}
                   alt={view.name}
                   widths={[480, 960, 1122]}
-                  sizes="(min-width: 1200px) 520px, (min-width: 1024px) 44vw, 100vw"
+                  sizes="(min-width: 1024px) 460px, 100vw"
                   loading="eager"
                   decoding="async"
                   pictureClassName="block h-full w-full"
@@ -464,7 +466,7 @@ export default function ProductDetailPage() {
                 loading={loading}
               />
 
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
                 <button
                   type="button"
                   data-testid="product-detail-add"
@@ -477,7 +479,7 @@ export default function ProductDetailPage() {
                   type="button"
                   data-testid="product-detail-ask"
                   onClick={() => openDrawerWithQuery(PRODUCT_DETAIL.askQuestion(view.name))}
-                  className="pellier-action-quiet min-h-[46px] justify-center"
+                  className="pellier-action-quiet min-h-[46px] justify-center whitespace-nowrap"
                 >
                   <Sparkles
                     className="pellier-concierge-sparkle"
@@ -518,7 +520,7 @@ export default function ProductDetailPage() {
                         mode resolves every `tag.match` entry to the same
                         vocabulary label, which would render four identical
                         chips; `tool` mode prints the internal signal name,
-                        which belongs in the Observatory, not on a piece. */}
+                        which belongs in the Builder view, not on a piece. */}
                     {signals.map(signal => (
                       <TraceChip
                         key={signal}
@@ -548,13 +550,15 @@ export default function ProductDetailPage() {
               >
                 {PRODUCT_DETAIL.MORE_HEADING}
               </h2>
-              <div
-                data-testid="product-detail-siblings"
-                className="pellier-product-grid mt-8"
-              >
-                {siblings.map((product, index) => (
-                  <ProductCard key={product.id} product={product} index={index % 3} />
-                ))}
+              <div className="pellier-grid-frame mt-8">
+                <div
+                  data-testid="product-detail-siblings"
+                  className="pellier-product-grid"
+                >
+                  {siblings.map((product, index) => (
+                    <ProductCard key={product.id} product={product} index={index % 3} />
+                  ))}
+                </div>
               </div>
             </div>
           </section>

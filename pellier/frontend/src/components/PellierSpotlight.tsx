@@ -77,9 +77,9 @@ const STEPS: SpotlightStep[] = [
   },
   {
     label: 'Trace',
-    eyebrow: 'Operator and Observatory',
+    eyebrow: 'Builder view and Operator',
     headline: 'Follow the evidence.',
-    body: 'When a recommendation becomes a case, the Operator workspace and Observatory follow the evidence from grounded answers through retrieval, managed execution, policy, and Aurora.',
+    body: 'Turn on the Builder view to see the steps behind each answer. When a request needs a person, such as a store credit, it waits on the Operator desk until someone on the team approves or declines it.',
     // The four people the evidence is followed for, rather than a screenshot of
     // the surface that follows it. A cropped UI capture read as washed-out
     // chrome at this size and dated the moment the panel changed.
@@ -88,7 +88,6 @@ const STEPS: SpotlightStep[] = [
 ]
 
 export const SPOTLIGHT_SEEN_KEY = 'pellier-storefront-spotlight-seen'
-const SPOTLIGHT_SEEN_EVENT = 'pellier:spotlight-seen'
 const MOTION_EASE: [number, number, number, number] = [0.16, 1, 0.3, 1]
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -115,24 +114,6 @@ function markSpotlightSeen(): void {
   } catch {
     // Storage is optional. Do not trap the visitor in the tour.
   }
-  window.dispatchEvent(new Event(SPOTLIGHT_SEEN_EVENT))
-}
-
-/**
- * Whether the welcome tour has already run this session. The hero used to
- * keep its "Who are you shopping for?" chooser on screen behind the tour and
- * after it, so a first visit asked the persona question three times (tour,
- * hero card, header pill). Once the tour has been seen, the header pill is the
- * persistent mechanism and the hero card retires.
- */
-export function useSpotlightSeen(): boolean {
-  const [seen, setSeen] = useState<boolean>(() => hasSeenSpotlight())
-  useEffect(() => {
-    const sync = () => setSeen(hasSeenSpotlight())
-    window.addEventListener(SPOTLIGHT_SEEN_EVENT, sync)
-    return () => window.removeEventListener(SPOTLIGHT_SEEN_EVENT, sync)
-  }, [])
-  return seen
 }
 
 export default function PellierSpotlight() {

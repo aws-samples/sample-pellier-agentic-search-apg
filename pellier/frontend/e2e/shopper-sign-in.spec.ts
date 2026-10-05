@@ -100,41 +100,53 @@ test.beforeEach(async ({ page }) => {
   })
 })
 
-test('choosing a shopper signs in, switching changes the principal, signing out clears it', async ({ page }) => {
+test('choosing a shopper in the panel signs in, switching changes the principal, signing out clears it', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await serve(page)
   await page.goto('/')
 
-  // The chooser: the four customers, never staff or the guest edit.
-  const chooser = page.getByTestId('persona-concierge')
-  await expect(chooser.getByRole('button')).toHaveCount(4)
-  for (const id of SHOPPERS) await expect(page.getByTestId(`hero-profile-${id}`)).toBeVisible()
-  await expect(page.getByTestId('hero-profile-nadia')).toHaveCount(0)
+  // Docked open on a desktop: "Signed in as", the four customers in lab
+  // order, never staff or the guest edit. The header control steps aside.
+  const drawer = page.getByTestId('chat-drawer')
+  await expect(drawer).toBeVisible()
+  await expect(drawer.getByRole('group', { name: 'Signed in as' }).getByRole('button'))
+    .toHaveText(['Anna', 'Marco', 'Theo', 'Jessica'])
+  await expect(page.getByTestId('ask-shopper-nadia')).toHaveCount(0)
   await expect(page.getByTestId('persona-identity-boundary')).toHaveText(
     'Choosing a shopper signs you in with their demo account. Pellier trusts the signed token, not this choice.',
   )
+  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Pick a customer to start')
+  await expect(page.getByTestId('persona-pill')).toBeHidden()
 
-  // Browsing without choosing stays signed out.
+  // Browsing without choosing stays signed out. Closing the panel brings
+  // the header control back.
   expect(await askAndReadPrincipal(page)).toBe('Not signed in')
+  await expect(page.getByTestId('persona-pill')).toBeVisible()
 
-  // Choosing Theo signs Theo in; the next turn runs as Theo.
-  await page.getByTestId('hero-profile-theo').click()
-  await expect(page.getByTestId('persona-pill')).toContainText('Theo')
+  // Choosing Theo in the panel signs Theo in; the next turn runs as Theo.
+  await page.getByTestId('header-ask-pellier').click()
+  await page.getByTestId('ask-shopper-theo').click()
+  await expect(page.getByTestId('ask-shopper-theo')).toHaveAttribute('aria-pressed', 'true')
+  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Theo, signed in')
   expect(await askAndReadPrincipal(page)).toBe('Workshop sign-in, CUST-THEO')
 
-  // Switching to Anna from the header signs Theo out and Anna in.
+  // With the panel closed, switching to Anna from the header's window signs
+  // Theo out and Anna in.
   await page.getByTestId('persona-pill').click()
   await page.getByTestId('persona-card-anna').click()
   await expect(page.getByTestId('persona-modal')).toHaveCount(0)
   await expect(page.getByTestId('persona-pill')).toContainText('Anna')
   expect(await askAndReadPrincipal(page)).toBe('Workshop sign-in, CUST-ANNA')
 
-  // Signing out returns to the neutral store, with no principal. Sign-out
-  // reloads the page once the server cleared the session.
-  await page.getByTestId('persona-pill').click()
+  // Sign out at the end of the panel's chips returns to the neutral store,
+  // with no principal. Sign-out reloads the page once the server cleared the
+  // session, and the panel docks open again.
+  await page.getByTestId('header-ask-pellier').click()
+  await expect(page.getByTestId('ask-shopper-anna')).toHaveAttribute('aria-pressed', 'true')
   const reloaded = page.waitForEvent('load')
-  await page.getByTestId('persona-sign-out').click()
+  await page.getByTestId('ask-sign-out').click()
   await reloaded
-  await expect(page.getByTestId('persona-concierge')).toBeVisible()
+  await expect(page.getByTestId('ask-shopper-anna')).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByTestId('ask-sign-out')).toHaveCount(0)
   expect(await askAndReadPrincipal(page)).toBe('Not signed in')
 })

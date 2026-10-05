@@ -64,9 +64,7 @@ export const NAV = {
   ACCOUNT: "Account",
   ASK_PELLIER: "Ask Pellier",
   WORDMARK: "Pellier",
-  /** The core participant surface for labs and connected system evidence. */
-  OBSERVATORY: "Pellier Observatory",
-  /** The clienteling desk, connected to Storefront conversations and Observatory evidence. */
+  /** The staff desk, where a person approves or declines a shopper's request. */
   OPERATOR: "Pellier Operator",
 } as const;
 
@@ -75,21 +73,12 @@ export const ACCOUNT_LABEL_SIGNED_OUT = "Account";
 export const accountLabelSignedIn = (givenName: string): string =>
   `Hi, ${givenName}`;
 
-export const PELLIER_HERO_SIGNED_OUT = {
-  LINE_1: "Choose a shopper profile to begin.",
-  LINE_2: "Pellier will tailor the floor around that visit.",
-} as const;
-
 /**
- * The home page's shopper chooser. Choosing a shopper signs in with that
- * shopper's demo account and opens their edit; browsing without choosing
- * stays signed out.
+ * Choosing a shopper, in the Ask Pellier panel or the header's window.
+ * Choosing signs in with that shopper's demo account and opens their edit;
+ * browsing without choosing stays signed out.
  */
 export const HERO_CONCIERGE = {
-  EYEBROW: "Welcome to Pellier",
-  TITLE: "Choose who enters Pellier.",
-  HELPER:
-    "Choose Anna, Marco, Theo or Jessica to see their edit and ask Pellier as them.",
   /**
    * Stated where the choice is made. The choice performs a real sign-in, and
    * every governed check reads the signed token it produced, never this click.
@@ -110,10 +99,12 @@ export const HERO_CONCIERGE = {
  * `data/personaCurations.ts` so the storefront speaks one voice.
  */
 export const HERO_STATEMENT = {
-  CTA: "Shop the collection",
+  /** The store's line over the headline while signed out. */
+  EYEBROW: "Everyday prices, well made",
   fresh: {
-    HEADLINE: "Pieces that travel well.",
-    ACCENT: "travel",
+    HEADLINE: "Good things for every day.",
+    ACCENT: "every day",
+    LEDE: "Linen, stoneware and the things that get used. Ask Pellier what you need and get a straight answer, from the real catalog.",
   },
   marco: {
     HEADLINE: "Pieces that travel.",
@@ -152,6 +143,29 @@ export const ASK_BAR = {
     "Everyday basics",
     "Made to last",
   ],
+} as const;
+
+/** The home grid: the edit's pieces out of the whole catalog. */
+export const HOME_GRID = {
+  TITLE: "This week at Pellier",
+  count: (shown: number, total: number): string => `${shown} of ${total}`,
+} as const;
+
+/**
+ * The Ask Pellier panel. The four shoppers are chosen here, in lab order;
+ * the subtitle names the shopper the server verified, never the click.
+ */
+export const ASK_PANEL = {
+  TITLE: "Ask Pellier",
+  PICK: "Pick a customer to start",
+  signedIn: (name: string): string => `${name}, signed in`,
+  SIGNED_IN_AS: "Signed in as",
+  /** Signed out, docked beside the page: the home bar is to the left. */
+  EMPTY_DOCKED:
+    "Search from the box on the left, or choose Anna, Marco, Theo or Jessica above to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb
+  /** Signed out, stacked under the page on a phone: the home bar is at the top. */
+  EMPTY_STACKED:
+    "Search from the box at the top of the page, or choose Anna, Marco, Theo or Jessica above to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb
 } as const;
 
 /**

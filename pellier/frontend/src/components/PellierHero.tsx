@@ -1,28 +1,27 @@
 import { apiFetch } from '../services/apiBase'
 /**
- * PellierHero: the storefront's first viewport, direction A.
+ * PellierHero: the storefront's first viewport, left-aligned in the page
+ * column beside the docked Ask Pellier panel.
  *
- * The statement, then the large bar: agentic search, "Search or ask
- * Pellier". Enter opens the docked panel with the question. Under the bar
- * sits one row of suggestions at a time: the store's moments while signed
- * out, and only the signed-in shopper's lab prompts, read from Aurora, once
- * a shopper is chosen. Signed out, the shopper chooser follows. The
- * collection follows directly beneath.
+ * The eyebrow, the statement and a short lede, then the large bar: agentic
+ * search, "Search or ask Pellier". Enter opens the docked panel with the
+ * question. Under the bar sits one row of suggestions at a time: the store's
+ * moments while signed out, and only the signed-in shopper's lab prompts,
+ * read from Aurora, once a shopper is chosen. The collection follows
+ * directly beneath. Shoppers are chosen in the panel, not here.
  *
  * While the page shows a question's results, the hero folds to its bar
- * (`compact`): no statement, no suggestions, no chooser, so the grid sits
- * above the fold. As in the prototype, the folded bar keeps the question the
- * page shows (`query`), whether it was asked here or in the dock. Asking
- * again works the same way.
+ * (`compact`): no statement and no suggestions, so the grid sits above the
+ * fold. As in the prototype, the folded bar keeps the question the page
+ * shows (`query`), whether it was asked here or in the dock. Asking again
+ * works the same way.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 import { splitHeadlineAtAccent } from '../utils/headlineAccent'
-import { ASK_BAR, HERO_STATEMENT } from '../copy'
-import PersonaConcierge from './PersonaConcierge'
-import { useSpotlightSeen } from './PellierSpotlight'
+import { ASK_BAR, HERO_STATEMENT, SHOPPER } from '../copy'
 
 interface LiveScenario {
   id: number
@@ -35,7 +34,7 @@ type StatementId = 'fresh' | 'marco' | 'anna' | 'theo' | 'jessica'
 
 /** The lede under each persona's statement. Aurora owns the scenarios below. */
 const PERSONA_LEDES: Record<StatementId, string> = {
-  fresh: 'Choose who is shopping, then browse a floor arranged around them.',
+  fresh: HERO_STATEMENT.fresh.LEDE,
   marco: 'Travel-ready linen, leather, and natural fibers for a considered edit.',
   anna: 'Thoughtful gifts and warm home objects, considered within your budget.',
   theo: 'Quiet craft, ceramics, and lasting pieces for a slower home rhythm.',
@@ -43,7 +42,7 @@ const PERSONA_LEDES: Record<StatementId, string> = {
 }
 
 function statementIdFor(personaId: string): StatementId {
-  return (personaId in HERO_STATEMENT ? personaId : 'fresh') as StatementId
+  return (personaId in PERSONA_LEDES ? personaId : 'fresh') as StatementId
 }
 
 interface PellierHeroProps {
@@ -54,7 +53,6 @@ interface PellierHeroProps {
 }
 
 export default function PellierHero({ compact = false, query }: PellierHeroProps) {
-  const spotlightSeen = useSpotlightSeen()
   const { openDrawerWithQuery } = useUI()
   const { persona } = usePersona()
   const [searchValue, setSearchValue] = useState('')
@@ -135,6 +133,11 @@ export default function PellierHero({ compact = false, query }: PellierHeroProps
       <div className="pellier-hero-inner">
         {/* Folded, the statement stays the page's heading for assistive tech. */}
         <div className={compact ? 'gov-visually-hidden' : 'pellier-hero-copy'}>
+          <span className="pellier-eyebrow" data-testid="pellier-hero-eyebrow">
+            {statementId === 'fresh' || !persona
+              ? HERO_STATEMENT.EYEBROW
+              : SHOPPER.edit(persona.display_name.split(' ')[0])}
+          </span>
           <h1
             data-testid="pellier-hero-headline"
             className="pellier-statement"
@@ -207,7 +210,6 @@ export default function PellierHero({ compact = false, query }: PellierHeroProps
           )}
         </form>
 
-        {!persona && spotlightSeen && !compact ? <PersonaConcierge /> : null}
       </div>
     </section>
   )

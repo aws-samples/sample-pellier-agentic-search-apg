@@ -115,7 +115,7 @@ interface Visit {
 }
 
 /** The storage a visit starts with, set before the first script runs. */
-async function visit(page: Page, { signedIn = true, overlay = false, cart = false }: Visit = {}) {
+export async function visit(page: Page, { signedIn = true, overlay = false, cart = false }: Visit = {}) {
   await page.addInitScript(({ persona, signedIn, overlay, cart }) => {
     if (!overlay) sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.removeItem('pellier-theme')

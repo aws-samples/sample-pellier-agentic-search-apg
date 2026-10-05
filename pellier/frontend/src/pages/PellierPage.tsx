@@ -1,42 +1,37 @@
 import { apiFetch } from '../services/apiBase'
 /**
- * PellierPage: the `/` route composition, direction A.
+ * PellierPage: the `/` route composition, products first.
  *
  *   Header (local storefront row, under the shared bar)
- *   → PellierHero: the statement, the large Ask Pellier bar and chips
- *   → the featured piece and its edit
- *   → the collection grid, one stock line per card
+ *   → PellierHero: the statement, the large Ask Pellier bar and one row of
+ *     suggestions
+ *   → "This week at Pellier": the edit's pieces, one stock line per card,
+ *     starting on the first screen
  *   → the approach band, the service strip and the footer
  *
- * Ask Pellier docks beside all of this as a 440px panel (ChatDrawer). A
- * question from the home bar or the dock puts the page into its results
- * view (SearchResults): the hero folds to its bar and the featured piece
- * and collection give way to the pieces the answer came from, until the
- * shopper goes back to the whole store.
+ * Ask Pellier docks beside all of this as a 440px panel (ChatDrawer), open
+ * by default on desktop; the shoppers are chosen there. A question from the
+ * home bar or the dock puts the page into its results view (SearchResults):
+ * the hero folds to its bar and the collection gives way to the pieces the
+ * answer came from, until the shopper goes back to the whole store.
  */
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import Header, { type NavItem } from '../components/Header'
 import PellierHero from '../components/PellierHero'
 import PellierApproach from '../components/PellierApproach'
 import PellierServiceStrip from '../components/PellierServiceStrip'
-import RationaleBand from '../components/RationaleBand'
 import ProductCard from '../components/ProductCard'
-import ResponsiveImage from '../components/ResponsiveImage'
 import Footer from '../components/Footer'
 import PellierSpotlight from '../components/PellierSpotlight'
 import SearchResults, { StoreFailedNotice } from '../components/SearchResults'
 import { useStoreResults } from '../contexts/StoreResultsContext'
 import { useAuth } from '../contexts/AuthContext'
-import { useCart } from '../contexts/CartContext'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
-import {
-  PERSONA_INTERESTS,
-  weekendEditForPersona,
-} from '../data/personaCurations'
+import { useCatalogStats } from '../hooks/useCatalogStats'
+import { HOME_GRID } from '../copy'
 import type { PellierProduct } from '../services/types'
-import { splitHeadlineAtRe } from '../utils/headlineAccent'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -49,18 +44,11 @@ const NAV_ROUTES: Record<NavItem, string> = {
   'ask-pellier': '/',
 }
 
-export function selectStorefrontGridProducts(
-  products: readonly PellierProduct[],
-  personaId: string | null,
-): readonly PellierProduct[] {
-  return personaId ? products.slice(1) : products
-}
-
 export default function PellierPage() {
   const { prefsVersion } = useAuth()
   const { openModal, setChatSurface } = useUI()
-  const { addToCart } = useCart()
   const { persona } = usePersona()
+  const catalogStats = useCatalogStats()
   const navigate = useNavigate()
   const resultsView = useStoreResults()?.view
   const showingResults = resultsView?.kind === 'results'
@@ -118,16 +106,6 @@ export default function PellierPage() {
     }
   }, [storefrontEdit, catalogRevision])
 
-  const featuredProduct = products[0] ?? null
-  const gridProducts = selectStorefrontGridProducts(products, personaId)
-  // Product rows and their order come from Aurora. This source-controlled
-  // layer is only the editorial frame around each durable storefront edit.
-  const edit = weekendEditForPersona(personaId)
-  const editHeadline = splitHeadlineAtRe(edit.headline)
-  const curatedHeadline =
-    PERSONA_INTERESTS[personaId ?? 'fresh']?.curatedHeadline
-    ?? 'Things worth discovering.'
-
   useEffect(() => {
     setChatSurface('drawer')
   }, [setChatSurface])
@@ -166,15 +144,6 @@ export default function PellierPage() {
     const target = NAV_ROUTES[item]
     if (target) navigate(target)
   }
-
-  const handleAddToBag = (product: PellierProduct) =>
-    addToCart({
-      productId: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.imageUrl,
-      origin: 'manual',
-    })
 
   return (
     <div className="pellier-page-surface min-h-dvh bg-page">
@@ -228,7 +197,7 @@ export default function PellierPage() {
               </div>
             ) : null}
 
-            {!catalogLoading && !catalogError && !featuredProduct ? (
+            {!catalogLoading && !catalogError && products.length === 0 ? (
               <div className="mx-auto max-w-[760px] px-container-x py-24 text-center">
                 <p className="pellier-eyebrow">No pieces to show just now</p>
                 <p className="mt-4 font-sans text-[14px] text-ink-2">
@@ -237,91 +206,32 @@ export default function PellierPage() {
               </div>
             ) : null}
 
-            {!catalogLoading && !catalogError && featuredProduct ? (
-              <>
-                <div className="pellier-edit-shell pt-10 pb-12">
-                  <div className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
-                    <Link
-                      to={`/product/${featuredProduct.id}`}
-                      aria-hidden="true"
-                      tabIndex={-1}
-                      className="pellier-card-photo"
-                    >
-                      <ResponsiveImage
-                        src={featuredProduct.imageUrl}
-                        alt={featuredProduct.name}
-                        widths={[480, 960, 1122]}
-                        sizes="(min-width: 1560px) 708px, (min-width: 1024px) 46vw, 100vw"
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                        pictureClassName="block h-full w-full"
-                      />
-                    </Link>
-
-                    <div className="flex flex-col justify-center py-4 lg:py-0">
-                      <p className="pellier-eyebrow">{edit.eyebrow}</p>
-                      <h2
-                        className="pellier-statement mt-3"
-                        style={{ fontSize: 'var(--text-section)', whiteSpace: 'pre-line' }}
-                      >
-                        {editHeadline.tail ? (
-                          <>
-                            <span>{editHeadline.lead}</span>
-                            <span className="text-muted">{editHeadline.tail}</span>
-                          </>
-                        ) : (
-                          editHeadline.lead
-                        )}
-                      </h2>
-                      <p className="mt-4 max-w-[480px] font-sans text-[15px] leading-relaxed text-ink-2">
-                        {edit.subheadline}
-                      </p>
-
-                      <div className="mt-7 border-t border-line pt-5">
-                        <p className="pellier-card-brand">{featuredProduct.brand}</p>
-                        <p className="mt-1 font-sans text-[17px] font-medium text-ink">
-                          <Link
-                            to={`/product/${featuredProduct.id}`}
-                            data-testid="featured-product-link"
-                            className="inline-flex min-h-[44px] items-center hover:underline underline-offset-4"
-                          >
-                            {featuredProduct.name}
-                          </Link>
-                        </p>
-                        <p className="font-sans text-[15px] text-ink tabular-nums">${featuredProduct.price}</p>
-                        <button
-                          type="button"
-                          onClick={() => handleAddToBag(featuredProduct)}
-                          className="pellier-action mt-5"
-                        >
-                          Add to bag
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+            {/* The edit's pieces from Aurora, in its order. The count says how
+                many of the whole catalog this selection is. */}
+            {!catalogLoading && !catalogError && products.length > 0 ? (
+              <div className="pellier-edit-shell pellier-home-grid pb-16 md:pb-20">
+                <div className="pellier-gridhead">
+                  <h2 data-testid="home-grid-title" className="pellier-statement">
+                    {HOME_GRID.TITLE}
+                  </h2>
+                  {catalogStats ? (
+                    <span className="pellier-eyebrow" data-testid="home-grid-count">
+                      {HOME_GRID.count(products.length, catalogStats.product_count)}
+                    </span>
+                  ) : null}
                 </div>
-
-                <div className="pellier-edit-shell pb-16 md:pb-20">
-                  <div className="mb-6">
-                    <div className="pellier-gridhead">
-                      <h2 data-testid="curated-headline" className="pellier-statement">
-                        {curatedHeadline}
-                      </h2>
-                    </div>
-                    <RationaleBand />
-                  </div>
-
+                <div className="pellier-grid-frame">
                   <div
                     key={`${prefsVersion}-${personaId ?? 'fresh'}`}
                     className="pellier-product-grid"
+                    data-testid="home-grid"
                   >
-                    {gridProducts.map((product, index) => (
+                    {products.map((product, index) => (
                       <ProductCard key={product.id} product={product} index={index % 3} />
                     ))}
                   </div>
                 </div>
-              </>
+              </div>
             ) : null}
           </section>
         )}

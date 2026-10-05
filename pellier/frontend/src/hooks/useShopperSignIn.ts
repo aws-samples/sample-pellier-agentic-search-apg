@@ -1,12 +1,13 @@
 /**
  * Choosing a shopper signs in with their demo account. One way in.
  *
- * The home chooser and the header's switcher both call `choose`, which does
- * three things in order: the workshop sign-in (a real Cognito sign-in on the
- * server, for the four demo shoppers only; choosing another shopper revokes
- * the previous one's session there), a fresh read of the verified session,
- * and then the shopper's storefront edit. The edit follows the sign-in and
- * never the other way round: Pellier trusts the signed token, not the choice.
+ * The Ask Pellier panel's chips and the header's switcher both call
+ * `choose`, which does three things in order: the workshop sign-in (a real
+ * Cognito sign-in on the server, for the four demo shoppers only; choosing
+ * another shopper revokes the previous one's session there), a fresh read
+ * of the verified session, and then the shopper's storefront edit. The edit
+ * follows the sign-in and never the other way round: Pellier trusts the
+ * signed token, not the choice.
  *
  * A workshop convenience, not a production pattern. Nadia, the staff member,
  * is never offered here: she signs in with her password on the Operator desk,
@@ -28,6 +29,11 @@ import {
 
 /** The four customers, in the order the chooser shows them. */
 export const SHOPPER_ORDER: readonly WorkshopShopper[] = ['anna', 'marco', 'theo', 'jessica']
+
+/** "jessica" to "Jessica": a shopper's name before, or without, their edit. */
+export function shopperName(id: string): string {
+  return id.charAt(0).toUpperCase() + id.slice(1)
+}
 
 export function isWorkshopShopper(id: string): id is WorkshopShopper {
   return (WORKSHOP_SHOPPERS as readonly string[]).includes(id)

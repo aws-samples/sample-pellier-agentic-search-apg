@@ -17,7 +17,7 @@ import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { CartProvider, useCart } from './contexts/CartContext'
-import { UIProvider, useUI } from './contexts/UIContext'
+import { UIProvider, opensDockOn, useUI } from './contexts/UIContext'
 import { LayoutProvider } from './contexts/LayoutContext'
 import { PersonaProvider } from './contexts/PersonaContext'
 import { StoreResultsProvider } from './contexts/StoreResultsContext'
@@ -80,7 +80,7 @@ const TRANSIENT_MODALS = new Set([
 
 function ModalRouteGuard() {
   const { pathname } = useLocation()
-  const { activeModal, closeModal, setChatSurface } = useUI()
+  const { activeModal, closeModal, restoreDock, setChatSurface } = useUI()
   useEffect(() => {
     const isDedicatedSurface =
       pathname.startsWith('/operator')
@@ -93,6 +93,9 @@ function ModalRouteGuard() {
     ) {
       closeModal()
     }
+    // Back on the storefront from the Operator, Ask Pellier docks again
+    // unless the shopper closed it.
+    if (opensDockOn(pathname)) restoreDock()
     // intentionally only run on pathname changes — activeModal in the
     // dep array would close the modal the instant it opened.
   }, [pathname])

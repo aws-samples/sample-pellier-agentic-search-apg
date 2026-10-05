@@ -131,7 +131,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           src={product.imageUrl}
           alt={product.name}
           widths={[480, 960, 1122]}
-          sizes="(min-width: 1180px) 33vw, (min-width: 700px) 50vw, 100vw"
+          sizes="(min-width: 700px) 300px, 50vw"
           loading="lazy"
           decoding="async"
           pictureClassName="block h-full w-full"

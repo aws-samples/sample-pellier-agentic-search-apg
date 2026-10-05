@@ -51,9 +51,7 @@ vi.mock('./Header', () => ({ default: () => null }))
 vi.mock('./Footer', () => ({ default: () => null }))
 vi.mock('./PellierApproach', () => ({ default: () => null }))
 vi.mock('./PellierServiceStrip', () => ({ default: () => null }))
-vi.mock('./PellierSpotlight', () => ({ default: () => null, useSpotlightSeen: () => true }))
-vi.mock('./PersonaConcierge', () => ({ default: () => null }))
-vi.mock('./RationaleBand', () => ({ default: () => null }))
+vi.mock('./PellierSpotlight', () => ({ default: () => null }))
 vi.mock('./PellierWelcome', () => ({ default: () => null }))
 
 function card(id: number, name: string, quantity = 9) {
@@ -202,7 +200,7 @@ describe('the results view', () => {
 
   it('appears on submit with a skeleton and the stream status, then the grid in the evidence order', async () => {
     render(<Storefront />)
-    expect(await screen.findByTestId('featured-product-link')).toHaveTextContent('Store Edit Feature')
+    expect(await screen.findByTestId('home-grid')).toHaveTextContent('Store Edit Feature')
 
     await askFromTheHomeBar(ANNA_QUESTION)
     expect(screen.getByTestId('results-title')).toHaveTextContent(`Results for “${ANNA_QUESTION}”`)
@@ -300,11 +298,11 @@ describe('the results view', () => {
 
   it('returns to the store on a support question from the store', async () => {
     render(<Storefront />)
-    await screen.findByTestId('featured-product-link')
+    await screen.findByTestId('home-grid')
     await askFromTheHomeBar('Where is my order?')
     await emit(ROUTE_SUPPORT)
     expect(screen.queryByTestId('results-view')).toBeNull()
-    expect(screen.getByTestId('featured-product-link')).toBeVisible()
+    expect(screen.getByTestId('home-grid')).toBeVisible()
     await finish()
     expect(screen.queryByTestId('results-view')).toBeNull()
   })
@@ -319,7 +317,7 @@ describe('the results view', () => {
 
     fireEvent.click(screen.getByTestId('results-clear'))
     expect(screen.queryByTestId('results-view')).toBeNull()
-    expect(screen.getByTestId('featured-product-link')).toBeVisible()
+    expect(screen.getByTestId('home-grid')).toBeVisible()
     expect(screen.getByTestId('pellier-hero')).toHaveAttribute('data-compact', 'false')
     // The conversation is untouched: the question and its answer are still in the dock.
     const dock = screen.getByTestId('chat-drawer')
@@ -362,7 +360,7 @@ describe('the results view', () => {
 
   it('says calmly that the store is as it was when a turn fails from the store', async () => {
     render(<Storefront />)
-    await screen.findByTestId('featured-product-link')
+    await screen.findByTestId('home-grid')
     await askFromTheHomeBar(ANNA_QUESTION)
     await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
     await act(async () => {
@@ -371,7 +369,7 @@ describe('the results view', () => {
     const notice = await screen.findByTestId('results-failed-store')
     expect(notice).toHaveTextContent('That request did not finish. The store is as it was.')
     expect(screen.queryByTestId('results-view')).toBeNull()
-    expect(screen.getByTestId('featured-product-link')).toBeVisible()
+    expect(screen.getByTestId('home-grid')).toBeVisible()
   })
 
   it('keeps a Builder-only note out of shopper copy and shows it in the panel with Builder view on', async () => {
