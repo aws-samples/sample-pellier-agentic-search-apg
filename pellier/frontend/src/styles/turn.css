@@ -398,7 +398,7 @@
 .tn-rank-num {
   font: 400 12px/1.4 var(--dl-font-mono);
   color: var(--dl-ink-2);
-  white-space: nowrap;
+  white-space: pre;
 }
 .tn-rank-sim {
   color: var(--dl-muted);
@@ -421,11 +421,45 @@
   height: 100%;
 }
 
+/* The dock's one line for a search: it scrolls to the page's panel, or
+   opens the panel in place when the page is not showing that search. */
+.tn-rank-summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px 8px;
+  margin-top: 6px;
+  padding: 5px 10px;
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper);
+  color: var(--dl-ink-2);
+  font: 400 12px/1.4 var(--dl-font-sans);
+  text-align: left;
+  cursor: pointer;
+}
+.tn-rank-summary b {
+  color: var(--dl-ink);
+  font-weight: 600;
+}
+.tn-rank-summary:hover {
+  border-color: var(--dl-line-strong);
+}
+.tn-rank-summary:focus-visible {
+  outline: 2px solid var(--pellier-copper);
+  outline-offset: 2px;
+}
+.tn-rank-summary[aria-expanded='true'] .tn-chev {
+  transform: rotate(90deg);
+}
+
 /* ---- Phone widths: only the active step shows its detail while live ---- */
 @media (max-width: 767.98px) {
   .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-finding,
   .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-evidence,
-  .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-rank {
+  .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-rank,
+  .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-rank-summary {
     display: none;
   }
   .tn-rank-table {

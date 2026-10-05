@@ -12,12 +12,14 @@ import { describe, expect, it } from 'vitest'
 import RankingPanel from './RankingPanel'
 import {
   ANNA_RANKING,
+  ANNA_RESULT_IDS,
   FULL_TEXT_ARM,
   RERANK_POOL,
   RERANKED,
   RRF_K,
   VECTOR_ARM,
 } from '../../../e2e/fixtures/anna-turn'
+import { ANNA_RESULT_CARDS } from '../../../e2e/fixtures/anna-cards'
 
 /** RRF written out again: a score per product, then a stable sort, vector rows first. */
 function fusedOrder(): Array<{ id: string; score: number; fts: number | null; vec: number | null }> {
@@ -72,12 +74,26 @@ describe("Anna's fixture ranking", () => {
     rows.forEach((row, index) => {
       const position = fused.findIndex(entry => entry.id === row.product_id) + 1
       const moved = position - row.after
-      const tag = rendered[index].querySelector('.tn-rank-move')?.textContent ?? null
-      const expected = moved > 0 ? `up ${moved}` : moved < 0 ? `down ${-moved}` : null
-      expect(tag, row.name).toBe(expected)
+      const shown = rendered[index].querySelector('.tn-rank-move [aria-hidden="true"]')?.textContent ?? null
+      const spoken = rendered[index].querySelector('.tn-rank-move .gov-visually-hidden')?.textContent ?? null
+      expect(shown, row.name).toBe(moved > 0 ? `\u2191${moved}` : moved < 0 ? `\u2193${-moved}` : null)
+      expect(spoken, row.name).toBe(moved > 0 ? `up ${moved}` : moved < 0 ? `down ${-moved}` : null)
     })
     // The hero row: first in the vector arm only, so below the eight rows in both arms.
     expect(rendered[0].textContent).toContain('Stoneware Pour-Over Set')
-    expect(rendered[0].querySelector('.tn-rank-move')?.textContent).toBe('up 8')
+    expect(rendered[0].querySelector('.tn-rank-move .gov-visually-hidden')?.textContent).toBe('up 8')
+  })
+
+  it('orders the grid as the pipeline would: reranked rows, then the pool in RRF order', () => {
+    const reranked = RERANKED.map(([id]) => id)
+    const rest = fused.map(entry => entry.id).filter(id => !reranked.includes(id))
+    expect(ANNA_RESULT_IDS).toEqual([...reranked, ...rest].slice(0, 30))
+    // The recorded cards are those ids, in that order, each in stock and under $100.
+    expect(ANNA_RESULT_CARDS.map(card => String(card.id))).toEqual(ANNA_RESULT_IDS)
+    for (const card of ANNA_RESULT_CARDS) {
+      expect(card.price, card.name).toBeLessThanOrEqual(100)
+      expect(card.quantity, card.name).toBeGreaterThan(0)
+      expect(card.tags, card.name).not.toContain('candle')
+    }
   })
 })

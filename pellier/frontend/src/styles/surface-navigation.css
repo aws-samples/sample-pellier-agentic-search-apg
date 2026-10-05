@@ -133,6 +133,17 @@
   margin-left: auto;
 }
 
+/* The global Builder view switch sits just before the tools, which then
+   need no auto margin of their own. */
+.pellier-builder-toggle {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.pellier-builder-toggle + .pellier-surface-tools {
+  margin-left: 0;
+}
+
 .pellier-ask-button {
   display: inline-flex;
   height: 38px;
@@ -193,12 +204,15 @@
   .pellier-surface-link { padding-inline: 12px; }
 }
 
-/* On a phone the switch drops to its own row under the wordmark. */
+/* On a phone the surface switch drops to its own row under the wordmark,
+   with the Builder view switch beside it. */
 @media (max-width: 560px) {
   :root { --pellier-surface-bar-height: 104px; }
   .pellier-surface-bar { flex-wrap: wrap; row-gap: 0; padding-block: 6px 8px; }
-  .pellier-surface-links { order: 3; width: 100%; justify-content: center; }
+  .pellier-surface-links { order: 3; flex: 1 1 auto; justify-content: center; }
   .pellier-surface-link { flex: 1; }
+  .pellier-builder-toggle { order: 4; margin-left: 0; }
+  .pellier-builder-toggle + .pellier-surface-tools { margin-left: auto; }
   .pellier-ask-button { padding-inline: 14px; }
 }
 

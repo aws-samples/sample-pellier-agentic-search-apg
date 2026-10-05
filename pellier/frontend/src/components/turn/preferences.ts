@@ -3,8 +3,12 @@
  *
  * Both are off by default. They are view and request preferences, not
  * evidence, so browser storage is the right home for them.
+ *
+ * Builder view is one global switch in the shared header: the page's ranking
+ * panel, the dock's evidence and the Operator's investigation all read it, so
+ * every reader subscribes to the same value and moves together.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useSyncExternalStore } from 'react'
 
 export const BUILDER_VIEW_KEY = 'pellier-builder-view'
 export const SKILL_MODE_KEY = 'pellier-skill-mode'
@@ -31,8 +35,27 @@ export function readBuilderView(): boolean {
   return read(BUILDER_VIEW_KEY) === 'on'
 }
 
+const builderViewListeners = new Set<() => void>()
+// Where storage throws, the choice lasts for this page in memory.
+let builderViewInMemory = false
+
 export function writeBuilderView(on: boolean): void {
   write(BUILDER_VIEW_KEY, on ? 'on' : 'off')
+  builderViewInMemory = on
+  builderViewListeners.forEach(listener => listener())
+}
+
+function builderViewSnapshot(): boolean {
+  try {
+    return localStorage.getItem(BUILDER_VIEW_KEY) === 'on'
+  } catch {
+    return builderViewInMemory
+  }
+}
+
+function subscribeBuilderView(listener: () => void): () => void {
+  builderViewListeners.add(listener)
+  return () => builderViewListeners.delete(listener)
 }
 
 export function readSkillMode(): SkillMode {
@@ -44,11 +67,8 @@ export function writeSkillMode(mode: SkillMode): void {
 }
 
 export function useBuilderView(): [boolean, (on: boolean) => void] {
-  const [on, setOn] = useState<boolean>(readBuilderView)
-  const update = useCallback((next: boolean) => {
-    writeBuilderView(next)
-    setOn(next)
-  }, [])
+  const on = useSyncExternalStore(subscribeBuilderView, builderViewSnapshot, builderViewSnapshot)
+  const update = useCallback((next: boolean) => writeBuilderView(next), [])
   return [on, update]
 }
 

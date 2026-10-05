@@ -20,6 +20,7 @@ import { CartProvider, useCart } from './contexts/CartContext'
 import { UIProvider, useUI } from './contexts/UIContext'
 import { LayoutProvider } from './contexts/LayoutContext'
 import { PersonaProvider } from './contexts/PersonaContext'
+import { StoreResultsProvider } from './contexts/StoreResultsContext'
 import AuthModal from './components/AuthModal'
 import CartPanel from './components/CartPanel'
 import Toast from './components/Toast'
@@ -212,6 +213,7 @@ function App() {
       <LayoutProvider>
         <CartProvider>
           <UIProvider>
+          <StoreResultsProvider>
             {/*
              * Modal singleton slots. Mounting here puts them above every
              * route; they read `UIContext.activeModal` to decide whether
@@ -244,6 +246,7 @@ function App() {
                 <AppRouteBoundary />
               </div>
             </BrowserRouter>
+          </StoreResultsProvider>
           </UIProvider>
         </CartProvider>
       </LayoutProvider>

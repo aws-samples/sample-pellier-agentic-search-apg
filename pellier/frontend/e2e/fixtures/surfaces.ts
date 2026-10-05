@@ -9,6 +9,7 @@
  */
 import { expect, type Page } from '@playwright/test'
 import { ANNA, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './anna-turn'
+import { ANNA_RESULT_CARDS } from './anna-cards'
 import { BOOK, NADIA_ME, OPEN_REQUEST, RECORD } from './jessica-case'
 
 export const WAREHOUSES = [
@@ -47,12 +48,23 @@ const SCENARIOS = {
 
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
+/** `GET /api/products?ids=`: the recorded cards for exactly those ids, in that order. */
+export function resultCards(ids: string): unknown[] {
+  return ids.split(',').filter(Boolean)
+    .map(id => ANNA_RESULT_CARDS.find(card => String(card.id) === id))
+    .filter(Boolean)
+}
+
 /** The storefront API: Anna signed in by the shopper chooser, or nobody. */
 export async function stubStorefront(page: Page, { signedIn = true }: { signedIn?: boolean } = {}) {
   await page.route('**/api/**', (route) => {
-    const path = new URL(route.request().url()).pathname.replace(/^\/ports\/\d+/, '')
+    const url = new URL(route.request().url())
+    const path = url.pathname.replace(/^\/ports\/\d+/, '')
     if (path.endsWith('/api/chat/stream')) {
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sseBody(ANNA_TURN_EVENTS) })
+    }
+    if (path.endsWith('/api/products') && url.searchParams.has('ids')) {
+      return route.fulfill(json(resultCards(url.searchParams.get('ids') ?? '')))
     }
     if (path.endsWith('/api/health')) return route.fulfill(json({ status: 'ok' }))
     if (path.endsWith('/api/auth/me')) return route.fulfill(signedIn ? json(ANNA_ME) : json({ detail: 'not signed in' }, 401))
@@ -113,6 +125,18 @@ async function visit(page: Page, { signedIn = true, overlay = false, cart = fals
       }]))
     }
   }, { persona: ANNA, signedIn, overlay, cart })
+}
+
+/** Anna asks from the home bar; the page fills with her result and the dock answers. */
+export async function askAnna(page: Page) {
+  await visit(page)
+  await stubStorefront(page)
+  await page.goto('/')
+  const ask = page.getByTestId('pellier-hero-search')
+  await ask.fill(ANNA_QUESTION)
+  await ask.press('Enter')
+  await expect(page.getByTestId('results-grid')).toBeVisible({ timeout: 20_000 })
+  await expect(page.getByTestId('chat-drawer').getByTestId('turn-fold')).toBeVisible({ timeout: 20_000 })
 }
 
 export interface Surface {
@@ -215,17 +239,27 @@ export const SURFACES: Surface[] = [
     name: 'ask-pellier-builder',
     fullPage: false,
     open: async (page) => {
-      await visit(page)
-      await stubStorefront(page)
-      await page.goto('/')
-      const ask = page.getByTestId('pellier-hero-search')
-      await ask.fill(ANNA_QUESTION)
-      await ask.press('Enter')
+      await askAnna(page)
       const drawer = page.getByTestId('chat-drawer')
-      await expect(drawer.getByTestId('turn-fold')).toBeVisible({ timeout: 20_000 })
-      await drawer.getByRole('switch', { name: 'Builder view' }).click()
+      await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
       await drawer.getByTestId('turn-fold').click()
-      await expect(drawer.getByTestId('ranking-panel')).toBeVisible()
+      await expect(drawer.getByTestId('ranking-summary')).toBeVisible()
+    },
+  },
+  {
+    name: 'results',
+    fullPage: true,
+    open: async (page) => {
+      await askAnna(page)
+    },
+  },
+  {
+    name: 'results-builder',
+    fullPage: true,
+    open: async (page) => {
+      await askAnna(page)
+      await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
+      await expect(page.getByTestId('results-view').getByTestId('ranking-panel')).toBeVisible()
     },
   },
   {

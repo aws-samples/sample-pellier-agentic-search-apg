@@ -1,20 +1,27 @@
 /**
- * The small switch in the panel header. Off by default, remembered per
- * browser. When on, a second switch lets the agent load its own skills
- * (progressive disclosure, in-process only).
+ * The Builder view switches.
+ *
+ * `BuilderViewToggle` is the one global switch, in the shared header: it
+ * governs the page's "How it ranked" panel, the dock's evidence and the
+ * Operator's investigation together. Off by default, remembered per browser.
+ *
+ * `SkillModeToggle` stays in the Ask Pellier dock and shows only while the
+ * Builder view is on: it lets the agent load its own skills (progressive
+ * disclosure, in-process only).
  */
-import type { SkillMode } from './preferences'
+import { useBuilderView, useSkillMode } from './preferences'
 
 interface ToggleProps {
   id: string
   label: string
   checked: boolean
   onChange: (next: boolean) => void
+  className?: string
 }
 
-function Toggle({ id, label, checked, onChange }: ToggleProps) {
+function Toggle({ id, label, checked, onChange, className }: ToggleProps) {
   return (
-    <label className="tn-switch" htmlFor={id}>
+    <label className={['tn-switch', className ?? ''].filter(Boolean).join(' ')} htmlFor={id}>
       <span className="tn-switch-label">{label}</span>
       <button
         id={id}
@@ -31,30 +38,31 @@ function Toggle({ id, label, checked, onChange }: ToggleProps) {
   )
 }
 
-export interface BuilderViewSwitchProps {
-  builderView: boolean
-  onBuilderView: (on: boolean) => void
-  skillMode?: SkillMode
-  onSkillMode?: (mode: SkillMode) => void
+export function BuilderViewToggle({ className }: { className?: string }) {
+  const [builderView, setBuilderView] = useBuilderView()
+  return (
+    <Toggle
+      id="tn-builder-view"
+      label="Builder view"
+      checked={builderView}
+      onChange={setBuilderView}
+      className={className}
+    />
+  )
 }
 
-export default function BuilderViewSwitch({
-  builderView,
-  onBuilderView,
-  skillMode,
-  onSkillMode,
-}: BuilderViewSwitchProps) {
+export function SkillModeToggle() {
+  const [builderView] = useBuilderView()
+  const [skillMode, setSkillMode] = useSkillMode()
+  if (!builderView) return null
   return (
-    <div className="tn-switches" data-testid="builder-view-switch">
-      <Toggle id="tn-builder-view" label="Builder view" checked={builderView} onChange={onBuilderView} />
-      {builderView && onSkillMode && (
-        <Toggle
-          id="tn-skill-mode"
-          label="Agent loads its skills"
-          checked={skillMode === 'on_demand'}
-          onChange={next => onSkillMode(next ? 'on_demand' : 'fixed')}
-        />
-      )}
+    <div className="tn-switches" data-testid="skill-mode-switch">
+      <Toggle
+        id="tn-skill-mode"
+        label="Agent loads its skills"
+        checked={skillMode === 'on_demand'}
+        onChange={next => setSkillMode(next ? 'on_demand' : 'fixed')}
+      />
     </div>
   )
 }

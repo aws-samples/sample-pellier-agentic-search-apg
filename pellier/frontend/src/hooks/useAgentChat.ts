@@ -104,6 +104,19 @@ export interface AgentChatMessage {
   reviewPending?: ReviewPending
 }
 
+/**
+ * What a turn reports to the page beside the dock, from the same stream
+ * events: it started (with the shopper's words), its status changed, a step
+ * arrived, it ended. The storefront's results grid follows these, so the page
+ * and the answer read one stream.
+ */
+export type TurnEvent =
+  | { type: 'start'; query: string }
+  | { type: 'status'; label: string }
+  | { type: 'step'; step: TurnStep }
+  /** `productIds` are the pieces the answer named, on a completed turn. */
+  | { type: 'end'; outcome: 'complete' | 'failed' | 'stopped'; productIds?: string[] }
+
 export interface UseAgentChatOptions {
   workshopMode?: WorkshopMode
   guardrailsEnabled?: boolean
@@ -116,6 +129,8 @@ export interface UseAgentChatOptions {
    * from the backend's authoritative store if localStorage is empty.
    */
   sessionId?: string
+  /** Hears each turn's start, status, steps and end. */
+  onTurn?: (event: TurnEvent) => void
 }
 
 export interface UseAgentChatReturn {
@@ -238,7 +253,13 @@ export function useAgentChat(
     initialMessages = [],
     persistKey,
     sessionId,
+    onTurn,
   } = options
+
+  // The listener can change between renders; the running turn reads the latest.
+  const onTurnRef = useRef(onTurn)
+  onTurnRef.current = onTurn
+  const report = useCallback((event: TurnEvent) => onTurnRef.current?.(event), [])
 
   const [messages, setMessages] = useState<AgentChatMessage[]>(() =>
     loadPersistedMessages(persistKey, initialMessages),
@@ -304,6 +325,9 @@ export function useAgentChat(
     activeRef.current = true
     return () => {
       activeRef.current = false
+      // A turn cut off by leaving the storefront ends for the page too, so
+      // its results view never waits on a stream nobody is reading.
+      if (sendingRef.current) onTurnRef.current?.({ type: 'end', outcome: 'stopped' })
       turnAbortRef.current?.abort()
     }
   }, [])
@@ -361,6 +385,7 @@ export function useAgentChat(
       }
       setInputValue('')
       setIsLoading(true)
+      report({ type: 'start', query: text })
 
       // CRITICAL: every updater below must be PURE. React 18 StrictMode
       // double-invokes state updaters in dev to surface impurity; any
@@ -409,6 +434,7 @@ export function useAgentChat(
               if (principal) updateLast(lastMsg => ({ ...lastMsg, principal }))
             } else if (data.type === 'status') {
               if (typeof data.label !== 'string') return
+              report({ type: 'status', label: data.label })
               updateLast(lastMsg => ({
                 ...lastMsg,
                 status: { label: data.label, state: 'working' },
@@ -421,7 +447,9 @@ export function useAgentChat(
                 finding: typeof data.finding === 'string' ? data.finding : undefined,
                 tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
                 builder: data.builder ?? undefined,
+                results: data.results && typeof data.results === 'object' ? data.results : undefined,
               }
+              report({ type: 'step', step })
               updateLast(lastMsg => ({
                 ...lastMsg,
                 steps: upsertStep(lastMsg.steps ?? [], step),
@@ -525,11 +553,17 @@ export function useAgentChat(
           }
         })
         setBackendOnline(true)
+        report({
+          type: 'end',
+          outcome: 'complete',
+          productIds: (response.products ?? []).map(product => String(mapProduct(product).id)),
+        })
       } catch (error) {
         // An unmount aborts `controller`, which surfaces here as a rejected
         // fetch. There is no drawer left to show a failure card in.
         if (!activeRef.current) return
         if (stoppedRef.current) {
+          report({ type: 'end', outcome: 'stopped' })
           // The shopper pressed stop: what streamed is the answer so far.
           updateLast(lastMsg => ({
             ...lastMsg,
@@ -541,6 +575,7 @@ export function useAgentChat(
           return
         }
         const chatError = normalizeChatError(error)
+        report({ type: 'end', outcome: 'failed' })
         updateLast(lastMsg => ({
           ...lastMsg,
           content: '',
@@ -563,7 +598,7 @@ export function useAgentChat(
         sendingRef.current = false
       }
     },
-    [inputValue, isLoading, workshopMode, guardrailsEnabled, persona?.customer_id],
+    [inputValue, isLoading, workshopMode, guardrailsEnabled, persona?.customer_id, report],
   )
 
   const sendMessage = useCallback(

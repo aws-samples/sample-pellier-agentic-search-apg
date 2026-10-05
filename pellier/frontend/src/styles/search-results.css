@@ -1,0 +1,196 @@
+/* ========================================================================
+ * The results view: a question's own pieces in the page grid.
+ *
+ * It sits in the page column beside the docked Ask Pellier panel: the title
+ * and count, the turn's status line while it runs, the limits as tags with a
+ * way back to the whole store, "How it ranked" full width in Builder view,
+ * then the grid. Tokens only, so both themes come from the token file; the
+ * page ground stays --dl-bg (true black in dark).
+ * ======================================================================== */
+
+.results-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: clamp(20px, 3vh, 32px);
+  padding-bottom: clamp(48px, 7vh, 80px);
+}
+
+.results-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.results-gridhead {
+  margin-bottom: 0;
+}
+
+.results-gridhead .pellier-statement {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.results-count {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.results-status {
+  align-self: flex-start;
+}
+
+.results-limits {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.results-limit-origin {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid currentColor;
+  font-weight: 400;
+}
+
+.results-clear {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dl-ink-2);
+  font: 400 13.5px/1.4 var(--dl-font-sans);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.results-clear:hover {
+  color: var(--dl-ink);
+}
+
+.results-clear:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+.results-notice,
+.results-note {
+  margin: 0;
+  color: var(--dl-ink-2);
+  font: 400 14px/1.5 var(--dl-font-sans);
+}
+
+.results-note {
+  color: var(--dl-muted);
+  font-size: 13px;
+}
+
+/* "How it ranked" on the page: the dock's panel, given room. */
+.results-ranking.tn-rank {
+  margin-top: 0;
+  padding: 16px 18px;
+  gap: 12px;
+  border-radius: var(--dl-r-card);
+}
+
+.results-ranking .tn-rank-head b {
+  font-size: 15px;
+}
+
+.results-ranking .tn-rank-table {
+  min-width: 640px;
+}
+
+.results-ranking .tn-rank-row {
+  grid-template-columns: 64px minmax(160px, 1.4fr) 80px 120px minmax(150px, 1.4fr) 70px;
+  gap: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+}
+
+.results-ranking .tn-rank-hdr {
+  font-size: 11.5px;
+}
+
+/* The grid while the turn's search runs. */
+.results-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.results-skeleton-photo {
+  display: block;
+  aspect-ratio: 4 / 5;
+  border-radius: var(--dl-r-card);
+  background: var(--dl-paper-2);
+}
+
+.results-skeleton-line {
+  display: block;
+  width: 70%;
+  height: 12px;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
+}
+
+.results-skeleton-line-short {
+  width: 36%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .results-skeleton-photo,
+  .results-skeleton-line {
+    animation: results-breathe 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes results-breathe {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.results-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 28px;
+  border: 1px dashed var(--dl-line-strong);
+  border-radius: var(--dl-r-card);
+  color: var(--dl-ink-2);
+  font: 400 15px/1.5 var(--dl-font-sans);
+}
+
+.results-empty p {
+  margin: 0;
+}
+
+.results-empty-title {
+  color: var(--dl-ink);
+  font-weight: 500;
+}
+
+/* The home hero, folded to its bar while results show, so the grid is
+   above the fold. */
+.pellier-hero[data-compact='true'] .pellier-hero-inner {
+  padding-top: clamp(14px, 2vh, 22px);
+  padding-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .results-gridhead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .results-empty {
+    padding: 20px;
+  }
+}

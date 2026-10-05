@@ -30,6 +30,11 @@
  *
  * Every product named is in stock, under $100, carries no candle tag, and
  * shows its own photo.
+ *
+ * The search step also carries `results`, what the storefront grid draws: the
+ * result order (`ANNA_RESULT_IDS`, the reranked rows, then the rest of the
+ * fused pool in RRF order, at most 30), the limits as tags and the same filter
+ * counts. `anna-cards.ts` holds the cards for those ids.
  */
 
 export const ANNA = {
@@ -193,12 +198,35 @@ const RANKING = {
   rrf_k: RRF_K,
   rerank_pool: RERANK_POOL,
   arms: { full_text: FULL_TEXT_ARM.length, vector: VECTOR_ARM.length, fused: FUSED.length },
-  filters: { kept: 64, of: 100, removed: { budget: 31, stock: 1, exclusions: 4 } },
+  filters: {
+    kept: 64,
+    of: 100,
+    removed: { budget: 31, stock: 1, exclusions: 4 },
+    excluded: [{ value: 'candle', count: 4, noun: 'candles' }],
+  },
   rows: RANKING_ROWS,
   note: 'Kept counts the hard limits only; the first pass also asks for the preferences the shopper implied, so the fused pool can be smaller',
 }
 
 export const ANNA_RANKING = RANKING
+
+/** The grid's order: the reranked rows, then the rest of the fused pool in RRF order. */
+export const ANNA_RESULT_IDS: readonly string[] = [
+  ...RERANKED.map(([id]) => id),
+  ...FUSED.map(row => row.product_id).filter(id => !RERANKED.some(([reranked]) => reranked === id)),
+].slice(0, 30)
+
+const RESULTS = {
+  available: true,
+  rail: 'in-process',
+  product_ids: ANNA_RESULT_IDS,
+  limits: [
+    { kind: 'budget', label: 'Under $100', origin: 'stated' },
+    { kind: 'stock', label: 'In stock', origin: 'stated' },
+    { kind: 'exclusions', value: 'candle', label: 'No candles', origin: 'stated' },
+  ],
+  filters: RANKING.filters,
+}
 
 const REQUIREMENTS = { applied: ['under $100', 'in stock', 'no candles'], carried: [] }
 
@@ -238,6 +266,7 @@ export const ANNA_TURN_EVENTS: object[] = [
     type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', finding: FINDING,
     tags: ['Aurora'],
     builder: { tool: 'search_products', rail: 'in-process', duration_ms: 731, audit_id: 9031, receipt_id: 6, identity: null, ranking: RANKING, requirements: REQUIREMENTS },
+    results: RESULTS,
   },
   { type: 'tool_call', tool: 'search_products', status: 'completed', duration_ms: 731 },
   { type: 'content_reset' },

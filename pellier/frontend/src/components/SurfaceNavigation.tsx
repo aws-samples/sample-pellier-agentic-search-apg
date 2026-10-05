@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useUI } from '../contexts/UIContext'
 import ThemeControl from '../theme/ThemeControl'
+import { BuilderViewToggle } from './turn'
 import Wordmark from './Wordmark'
 import '../styles/surface-navigation.css'
 import '../styles/turn.css'
@@ -27,6 +28,10 @@ function surfaceFor(path: string): Surface {
  *
  * The Ask Pellier button opens the docked panel on storefront routes; its
  * copper dot pulses only while a turn runs (signature element 2).
+ *
+ * The Builder view switch is global: it governs the storefront's "How it
+ * ranked" panel, the dock's evidence and the Operator's investigation. On a
+ * phone it shares the second row with the surface switch.
  */
 export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
@@ -65,6 +70,7 @@ export default function SurfaceNavigation() {
           </Link>
         ))}
       </nav>
+      {pathname !== '/signin' ? <BuilderViewToggle className="pellier-builder-toggle" /> : null}
       <div className="pellier-surface-tools">
         <ThemeControl />
         {active === 'storefront' && pathname !== '/signin' ? (

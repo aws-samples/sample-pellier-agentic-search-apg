@@ -271,6 +271,27 @@ describe('useAgentChat — unmount mid-stream', () => {
     }).not.toThrow()
   })
 
+  it('ends the turn for the page when the dock unmounts mid-stream', async () => {
+    const onTurn = vi.fn()
+    const { result, unmount } = renderHook(() => useAgentChat({ onTurn }), { wrapper })
+    act(() => {
+      void result.current.sendMessage('show me linen')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    expect(onTurn).toHaveBeenCalledWith({ type: 'start', query: 'show me linen' })
+    act(() => {
+      capturedOnUpdate?.({
+        type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', tags: [],
+        builder: { tool: 'search_products' },
+        results: { available: true, product_ids: ['31'], limits: [], filters: null },
+      })
+    })
+    const stepEvent = onTurn.mock.calls.map(([event]) => event).find(event => event.type === 'step')
+    expect(stepEvent.step.results.product_ids).toEqual(['31'])
+    unmount()
+    expect(onTurn).toHaveBeenLastCalledWith({ type: 'end', outcome: 'stopped' })
+  })
+
   it('does not update messages/isLoading from a response that resolves after unmount', async () => {
     const { result, unmount } = renderHook(
       () => useAgentChat(),

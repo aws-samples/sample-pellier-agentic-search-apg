@@ -13,6 +13,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ANNA, ANNA_FINDING, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './fixtures/anna-turn'
+import { resultCards } from './fixtures/surfaces'
 
 const SHOTS = process.env.ASK_PELLIER_SHOTS ?? 'test-results/ask-pellier'
 const PNG_1x1 = Buffer.from(
@@ -55,6 +56,9 @@ async function stubApi(page: Page) {
     if (path.endsWith('/api/personas')) return route.fulfill(json([ANNA]))
     if (path.endsWith('/api/persona/current')) return route.fulfill(json({ persona: ANNA }))
     if (path.endsWith('/api/persona/switch')) return route.fulfill(json({ session_id: 'session-shots', persona: ANNA }))
+    if (path.endsWith('/api/products') && url.searchParams.has('ids')) {
+      return route.fulfill(json(resultCards(url.searchParams.get('ids') ?? '')))
+    }
     if (path.endsWith('/api/products')) return route.fulfill(json(PRODUCTS))
     if (path.endsWith('/api/scenarios')) {
       return route.fulfill(json({
@@ -113,23 +117,19 @@ for (const width of [1440, 390]) {
     await expect(drawer.getByText('Sold out')).toHaveCount(0)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-answered.png`) })
 
-    // Builder view on: layer tags, the evidence line and how it ranked.
-    await drawer.getByRole('switch', { name: 'Builder view' }).click()
+    // Builder view on, from the header: layer tags and the evidence line in
+    // the dock, How it ranked once, on the page above the results.
+    await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
     await drawer.getByTestId('turn-fold').click()
-    await expect(drawer.getByTestId('ranking-panel')).toBeVisible()
-    await expect(drawer.getByText('Kept 64 of 100')).toBeVisible()
-    await expect(drawer.getByText('31 over budget')).toBeVisible()
-    await expect(drawer.getByText('1 sold out')).toBeVisible()
-    await expect(drawer.getByText('4 excluded')).toBeVisible()
-    await expect(drawer.getByText('Full text 20')).toBeVisible()
-    await expect(drawer.getByText('Vector 20')).toBeVisible()
+    await expect(drawer.getByTestId('ranking-summary')).toContainText('Kept 64 of 100')
+    await expect(drawer.getByTestId('ranking-panel')).toHaveCount(0)
+    const panel = page.getByTestId('results-view').getByTestId('ranking-panel')
+    await expect(panel).toBeVisible()
+    for (const chip of ['Kept 64 of 100', '31 over budget', '1 sold out', '4 candles', 'Full text 20', 'Vector 20']) {
+      await expect(panel.getByText(chip, { exact: true })).toBeVisible()
+    }
     // The verified principal for the turn, from the server, not the chooser.
     await expect(drawer.getByTestId('turn-principal')).toHaveText('IdentityWorkshop sign-in, CUST-ANNA')
-    // Frame the ranking rows, then let the step rows finish rising. The
-    // floating "Latest reply" pill appears once the list is scrolled and
-    // would cover the panel's note; it is not ranking evidence, so this
-    // capture hides it.
-    await drawer.getByTestId('ranking-panel').scrollIntoViewIfNeeded()
     await page.addStyleTag({ content: '.cd-latest { visibility: hidden !important; }' })
     await page.waitForTimeout(400)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-builder.png`) })

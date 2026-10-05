@@ -21,6 +21,11 @@
  * It opens for anyone. Signed out, it is the neutral new-visitor store; a
  * shopper chosen on the home page or in the header is signed in with their
  * demo account, and the session details say who the server verified.
+ *
+ * Each turn is reported to the storefront's results view, so a question
+ * typed here fills the page grid exactly as one typed in the home bar. The
+ * Builder view switch lives in the shared header; only the skills switch
+ * stays here.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -46,7 +51,8 @@ import PellierChatBody from './PellierChatBody'
 import { PellierMark } from './Wordmark'
 import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
-import { BuilderViewSwitch, useBuilderView, useSkillMode } from './turn'
+import { SkillModeToggle, useBuilderView } from './turn'
+import { useStoreResults } from '../contexts/StoreResultsContext'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
 
@@ -130,6 +136,8 @@ export default function ChatDrawer() {
     catch { return undefined }
   })()
 
+  const storeResults = useStoreResults()
+
   const {
     messages,
     inputValue,
@@ -144,6 +152,7 @@ export default function ChatDrawer() {
     initialMessages,
     persistKey: 'pellier-drawer-storefront',
     sessionId: currentSessionId,
+    onTurn: storeResults?.onTurn,
   })
 
   // The header's Ask Pellier dot pulses only while a turn runs.
@@ -152,9 +161,9 @@ export default function ChatDrawer() {
     return () => setTurnRunning(false)
   }, [isLoading, setTurnRunning])
 
-  // Builder view and the on-demand skills flex: off by default, per browser.
-  const [builderView, setBuilderView] = useBuilderView()
-  const [skillMode, setSkillMode] = useSkillMode()
+  // Builder view (the header's switch) and the on-demand skills flex: off by
+  // default, per browser.
+  const [builderView] = useBuilderView()
 
   // Conversation, draft, and reading position belong to the current persona.
   const prevPersonaId = useRef(persona?.id ?? null)
@@ -331,12 +340,7 @@ export default function ChatDrawer() {
                 <span>Your shopping concierge</span>
               </div>
             </div>
-            <BuilderViewSwitch
-              builderView={builderView}
-              onBuilderView={setBuilderView}
-              skillMode={skillMode}
-              onSkillMode={setSkillMode}
-            />
+            <SkillModeToggle />
             <button
               type="button"
               className="cd-close"

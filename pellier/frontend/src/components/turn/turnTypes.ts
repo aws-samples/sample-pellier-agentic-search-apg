@@ -44,10 +44,19 @@ export interface RankingRow {
   after: number
 }
 
+/** One excluded value and how many products it removed, with the noun to show ("4 candles"). */
+export interface ExcludedCount {
+  value: string
+  count: number
+  noun: string
+}
+
 export interface RankingFilters {
   kept: number
   of: number
   removed: Record<string, number>
+  /** Each excluded value on its own, in the order the shopper named them. */
+  excluded?: ExcludedCount[]
 }
 
 export interface RankingPayload {
@@ -62,6 +71,32 @@ export interface RankingPayload {
   rows?: RankingRow[]
   note?: string
   receipt_id?: number | null
+}
+
+/**
+ * One limit a catalog tool applied, as the page's tag. `origin` is where it
+ * came from: `carried` reads "from earlier"; null when the rail keeps no
+ * record of the shopper's limits.
+ */
+export interface ResultLimit {
+  kind: 'budget' | 'stock' | 'exclusions' | 'department' | string
+  label: string
+  value?: string
+  origin: 'stated' | 'carried' | 'agent' | null
+}
+
+/**
+ * The page grid's result for one search or browse: the tool's own order,
+ * its limits and its filter counts. Never computed in the browser.
+ */
+export interface StepResults {
+  available: boolean
+  rail?: string
+  reason?: string
+  product_ids?: string[]
+  limits?: ResultLimit[]
+  filters?: RankingFilters | null
+  note?: string
 }
 
 /** The limits a catalog tool applied, as the shopper would say them. */
@@ -105,6 +140,8 @@ export interface TurnStep {
   finding?: string
   tags: string[]
   builder?: StepBuilder
+  /** A search or browse's result for the page grid, on its done event. */
+  results?: StepResults
 }
 
 /** Merge a streamed step event into the list, by id. */

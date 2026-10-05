@@ -6,7 +6,9 @@
  * work" layout: one status line with the pulsing copper dot, the compact
  * step list with its findings, the answer settling in character by
  * character, then the product cards after the sentence that names them.
- * With the Builder view on, each step adds its layer tags and evidence.
+ * With the Builder view on, each step adds its layer tags and evidence. A
+ * search's "How it ranked" table sits on the page above the results; here it
+ * is one line that scrolls to it, so the table is never shown twice.
  */
 import { useCallback, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
@@ -17,7 +19,17 @@ import type { CartItemOrigin } from '../contexts/CartContext'
 import ProductArtifactCard from './ProductArtifactCard'
 import StylistHandoffCard from './StylistHandoffCard'
 import ChatFailureCard from './ChatFailureCard'
-import { LayerTag, RevealedProse, StatusLine, StepList, principalLine, sentenceEndAfter } from './turn'
+import {
+  LayerTag,
+  RankingSummary,
+  RevealedProse,
+  StatusLine,
+  StepList,
+  principalLine,
+  sentenceEndAfter,
+  type RankingPayload,
+} from './turn'
+import { PAGE_RANKING_ID, useStoreResults } from '../contexts/StoreResultsContext'
 import { imageSrc } from '../utils/assetPath'
 import { catalogTurnFollowUps } from '../utils/catalogFollowUps'
 import { nextJourneyPrompt } from '../data/workshopJourneys'
@@ -211,6 +223,13 @@ function AgentMessage({
   precedingUserQuery,
 }: AgentMessageProps) {
   const reducedMotion = useReducedMotion()
+  const pageRanking = useStoreResults()?.pageRanking ?? null
+  const renderRanking = useCallback(
+    (ranking: RankingPayload) => (
+      <RankingSummary ranking={ranking} onPageId={ranking === pageRanking ? PAGE_RANKING_ID : null} />
+    ),
+    [pageRanking],
+  )
   const streamDone = message.agentStatus === 'complete' || message.agentStatus === undefined
   const hasTurn = Boolean(message.status) || (message.steps?.length ?? 0) > 0
   // Only a turn opened in this session reveals; history shows at once.
@@ -277,6 +296,7 @@ function AgentMessage({
           live={!streamDone}
           builderView={builderView}
           folded={revealFinished && !message.failure}
+          renderRanking={renderRanking}
         />
       )}
 

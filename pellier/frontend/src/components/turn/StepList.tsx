@@ -4,16 +4,18 @@
  * Each step shows its plain label, a ring while it runs, a check when its
  * tool returns, and the one-line finding the backend computed. With the
  * Builder view on, every step adds its layer tags and a mono evidence line,
- * and a search adds the "How it ranked" panel. After the answer, the list
- * folds to one line the shopper can open. On phone widths only the active
- * step shows its detail while the turn runs.
+ * and a search adds "How it ranked": the full panel by default, or whatever
+ * `renderRanking` draws (the storefront dock draws a one-line summary that
+ * points at the page's panel). After the answer, the list folds to one line
+ * the shopper can open. On phone widths only the active step shows its
+ * detail while the turn runs.
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Check, ChevronRight, CircleAlert } from 'lucide-react'
 import LayerTag from './LayerTag'
 import RankingPanel from './RankingPanel'
 import { evidenceLine } from './evidence'
-import type { TurnStep } from './turnTypes'
+import type { RankingPayload, TurnStep } from './turnTypes'
 
 export interface StepListProps {
   steps: TurnStep[]
@@ -26,6 +28,8 @@ export interface StepListProps {
   summary?: string
   defaultOpen?: boolean
   className?: string
+  /** Draws a search's ranking in Builder view; defaults to the full panel. */
+  renderRanking?: (ranking: RankingPayload) => ReactNode
 }
 
 function StepIcon({ status }: { status: TurnStep['status'] }) {
@@ -52,6 +56,7 @@ export default function StepList({
   summary,
   defaultOpen = false,
   className,
+  renderRanking = ranking => <RankingPanel ranking={ranking} />,
 }: StepListProps) {
   const [open, setOpen] = useState(defaultOpen)
   if (steps.length === 0) return null
@@ -78,9 +83,7 @@ export default function StepList({
               </span>
               {step.finding && <span className="tn-finding">{step.finding}</span>}
               {evidence && <span className="tn-evidence" data-testid="turn-evidence">{evidence}</span>}
-              {builderView && ranking && step.status !== 'running' && (
-                <RankingPanel ranking={ranking} />
-              )}
+              {builderView && ranking && step.status !== 'running' && renderRanking(ranking)}
             </span>
           </li>
         )

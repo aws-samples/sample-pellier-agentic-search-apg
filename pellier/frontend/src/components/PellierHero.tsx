@@ -8,6 +8,10 @@ import { apiFetch } from '../services/apiBase'
  * out, and only the signed-in shopper's lab prompts, read from Aurora, once
  * a shopper is chosen. Signed out, the shopper chooser follows. The
  * collection follows directly beneath.
+ *
+ * While the page shows a question's results, the hero folds to its bar
+ * (`compact`): no statement, no suggestions, no chooser, so the grid sits
+ * above the fold. Asking again works the same way.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
@@ -40,7 +44,7 @@ function statementIdFor(personaId: string): StatementId {
   return (personaId in HERO_STATEMENT ? personaId : 'fresh') as StatementId
 }
 
-export default function PellierHero() {
+export default function PellierHero({ compact = false }: { compact?: boolean }) {
   const spotlightSeen = useSpotlightSeen()
   const { openDrawerWithQuery } = useUI()
   const { persona } = usePersona()
@@ -110,11 +114,13 @@ export default function PellierHero() {
     <section
       data-testid="pellier-hero"
       data-persona={personaId}
+      data-compact={compact ? 'true' : 'false'}
       aria-label="Pellier collection"
       className="pellier-hero"
     >
       <div className="pellier-hero-inner">
-        <div className="pellier-hero-copy">
+        {/* Folded, the statement stays the page's heading for assistive tech. */}
+        <div className={compact ? 'gov-visually-hidden' : 'pellier-hero-copy'}>
           <h1
             data-testid="pellier-hero-headline"
             className="pellier-statement"
@@ -149,7 +155,7 @@ export default function PellierHero() {
           </div>
           {/* One row of suggestions at a time: the shopper's own prompts once
               one is signed in, the store's moments before. */}
-          {persona ? (
+          {compact ? null : persona ? (
             suggestions.length > 0 ? (
               <div
                 className="pellier-chips"
@@ -187,7 +193,7 @@ export default function PellierHero() {
           )}
         </form>
 
-        {!persona && spotlightSeen ? <PersonaConcierge /> : null}
+        {!persona && spotlightSeen && !compact ? <PersonaConcierge /> : null}
       </div>
     </section>
   )

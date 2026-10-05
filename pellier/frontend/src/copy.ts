@@ -155,6 +155,31 @@ export const ASK_BAR = {
 } as const;
 
 /**
+ * The results view: a question from the home bar or the dock fills the page
+ * grid with the pieces that answer came from, in its order. Every number is
+ * the turn's own evidence; nothing here is counted in the browser.
+ */
+export const RESULTS = {
+  title: (query: string): string => `Results for \u201c${query}\u201d`,
+  fit: (kept: number, of: number): string => `${kept} of ${of} fit`,
+  shown: (count: number): string => `${count} ${count === 1 ? "piece" : "pieces"}`,
+  FROM_EARLIER: "from earlier",
+  LIMITS: "Limits",
+  CLEAR: "Show the whole store",
+  GRID: "Pieces that fit",
+  LOADING: "Loading the pieces",
+  STARTING: "Sending your request",
+  EMPTY_TITLE: "Nothing fits all of that right now.",
+  emptyLeftOut: (parts: readonly string[]): string => `Left out: ${parts.join(", ")}.`,
+  EMPTY_HINT: "Try a higher budget or one fewer limit.",
+  EMPTY_NO_COUNTS: "Nothing matched that request. Try other words or one fewer limit.",
+  FAILED: "That request did not finish, so the pieces below are from before.",
+  FAILED_STORE: "That request did not finish. The store is as it was.",
+  CARDS_FAILED: "The pieces could not be loaded just now.",
+  RETRY: "Try again",
+} as const;
+
+/**
  * What the storefront stands for, in four claims. Each links to a page that
  * explains it; do not add a claim without one.
  */

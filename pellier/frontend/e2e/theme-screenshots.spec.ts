@@ -61,7 +61,8 @@ for (const theme of ['light', 'dark'] as const) {
       await page.waitForTimeout(500)
       await page.screenshot({ path: shot('product') })
 
-      // Anna's turn in the docked panel, with the Builder view on.
+      // Anna's turn in the docked panel, with the Builder view on: the page
+      // carries How it ranked, the dock one line that points at it.
       await page.goto('/')
       const ask = page.getByTestId('pellier-hero-search')
       await ask.fill(ANNA_QUESTION)
@@ -69,9 +70,10 @@ for (const theme of ['light', 'dark'] as const) {
       const drawer = page.getByTestId('chat-drawer')
       await expect(drawer).toBeVisible()
       await expect(drawer.getByTestId('turn-fold')).toBeVisible({ timeout: 20_000 })
-      await drawer.getByRole('switch', { name: 'Builder view' }).click()
+      await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
       await drawer.getByTestId('turn-fold').click()
-      await expect(drawer.getByTestId('ranking-panel')).toBeVisible()
+      await expect(drawer.getByTestId('ranking-summary')).toBeVisible()
+      await expect(page.getByTestId('results-view').getByTestId('ranking-panel')).toBeVisible()
       if (width < 1080) await drawer.scrollIntoViewIfNeeded()
       await page.waitForTimeout(500)
       await page.screenshot({ path: shot('ask-pellier-builder') })
