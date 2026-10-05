@@ -1,16 +1,19 @@
 /**
- * Every color on the direction A surfaces comes from a token.
+ * Every color in src/ comes from a token.
  *
- * Scans the files cut 5a restyled (the Storefront and Ask Pellier) for a
- * hard-coded hex color, a literal rgb()/rgba()/hsl()/hsla()/hwb(), a CSS
- * named color in a color-bearing declaration, or a fixed Tailwind palette
- * class, and fails on the first one. The token files are the one place a
- * value may be written. The repository-wide guard is cut 5b; the sweep-only
- * files it still owns (CartPanel, the editorial pages, the ui primitives)
- * join this list when they are themed.
+ * Scans every `.ts`, `.tsx` and `.css` file under src/ for a hard-coded hex
+ * color, a literal rgb()/hsl()/hwb()/lab()/lch()/oklab()/oklch(), a CSS
+ * named color in a color-bearing declaration, an SVG paint attribute or a
+ * ternary branch, or a fixed Tailwind palette class or arbitrary color, and
+ * fails on every one it finds. Values live in the token file only; the
+ * bridge files (`daylight-bridge.css`, `governed-tokens.css`) are scanned too,
+ * because they only rename tokens and must never fork a value. Tests are not
+ * scanned: they hold literals on purpose, to prove what the guard catches.
+ *
+ * A file that genuinely needs a literal goes in EXEMPT with its reason.
  */
-import { readFileSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { dirname, extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
@@ -20,72 +23,41 @@ const SRC = resolve(here, '..')
 /** Values live here and nowhere else. */
 const TOKEN_FILES = ['styles/daylight-tokens.css']
 
-const GUARDED_FILES = [
-  'index.css',
-  'App.tsx',
-  'styles/daylight-bridge.css',
-  'styles/pellier-landing.css',
-  'styles/surface-navigation.css',
-  'styles/chat-drawer.css',
-  'styles/pellier-chat.css',
-  'styles/pellier-welcome.css',
-  'styles/product-artifact.css',
-  'styles/chat-outcomes.css',
-  'styles/persona-modal.css',
-  'styles/navigation-polish.css',
-  'styles/pellier-signin.css',
-  'styles/turn.css',
-  'theme/theme.css',
-  'theme/ThemeControl.tsx',
-  'theme/theme.ts',
-  'components/SurfaceNavigation.tsx',
-  'components/Wordmark.tsx',
-  'components/PellierMark.tsx',
-  'components/Header.tsx',
-  'components/Footer.tsx',
-  'components/SignInPage.tsx',
-  'components/PellierHero.tsx',
-  'components/PellierSpotlight.tsx',
-  'components/PersonaConcierge.tsx',
-  'components/ProductCard.tsx',
-  'components/ProductGrid.tsx',
-  'components/ProductAvailabilityPanel.tsx',
-  'components/ChatDrawer.tsx',
-  'components/PellierChatBody.tsx',
-  'components/PellierWelcome.tsx',
-  'components/ProductArtifactCard.tsx',
-  'components/AuthModal.tsx',
-  'components/PreferencesModal.tsx',
-  'components/turn/StatusLine.tsx',
-  'components/turn/StatusTag.tsx',
-  'components/turn/StepList.tsx',
-  'components/turn/RevealedProse.tsx',
-  'components/turn/RankingPanel.tsx',
-  'components/turn/BuilderViewSwitch.tsx',
-  'components/turn/LayerTag.tsx',
-  'design/primitives/Avatar.tsx',
-  'design/primitives/IconButton.tsx',
-  'pages/PellierPage.tsx',
-  'pages/ProductDetailPage.tsx',
-  'components/PersonaModal.tsx',
-  'components/StatusLines.tsx',
-  'operator/styles/operator.css',
-  'operator/shell/OperatorFrame.tsx',
-  'operator/surfaces/ClientBook.tsx',
-  'operator/surfaces/ClientRecord.tsx',
-  'operator/surfaces/ReviewQueue.tsx',
-  'operator/surfaces/ReviewRecord.tsx',
-  'operator/investigation/InvestigationSteps.tsx',
-  'operator/components/ProposedCreditCard.tsx',
-  'operator/components/ClientAvatar.tsx',
-  'operator/components/OperatorState.tsx',
-  'operator/components/OperatorSignInAction.tsx',
-  'operator/hooks/useInvestigation.ts',
-  'operator/hooks/useReview.ts',
-]
+/** Files the scan skips, each with the reason it may hold a literal. */
+const EXEMPT = new Map<string, string>([
+  ['styles/daylight-tokens.css', 'the token file: every value is written here, in both themes'],
+  [
+    'utils/agentIdentity.ts',
+    'byte-identical twin of solutions/the-ledger/frontend/agentIdentity.ts, which bootstrap ' +
+      'copies over it in the builders format (test_solutions_parity.py); nothing in the app ' +
+      'imports it. The workshop-contract cut retires the pair rather than restyling both.',
+  ],
+])
 
-/* The CSS named colors (CSS Color Level 4). `transparent` and
-   `currentColor` are keywords, not values, and stay allowed. */
+const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.css'])
+
+function isTest(file: string): boolean {
+  return (
+    file.split('/').includes('__tests__') ||
+    /\.test\.(ts|tsx)$/.test(file) ||
+    file === 'test-setup.ts'
+  )
+}
+
+function walk(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const path = join(dir, name)
+    if (statSync(path).isDirectory()) return walk(path)
+    return SCANNED_EXTENSIONS.has(extname(name)) ? [relative(SRC, path).split('\\').join('/')] : []
+  })
+}
+
+const SCANNED = walk(SRC).filter((file) => !isTest(file) && !EXEMPT.has(file))
+
+/* The CSS named colors (CSS Color Level 4), matched in lowercase only: a
+   stylesheet writes `white`, while product data writes a colorway such as
+   'White' or 'Ivory'. `transparent` and `currentColor` are keywords, not
+   values, and stay allowed. */
 const NAMED_COLORS = `
   aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond
   blue blueviolet brown burlywood cadetblue chartreuse chocolate coral
@@ -111,51 +83,111 @@ const NAMED_COLORS = `
   .trim()
   .split(/\s+/)
   .join('|')
+const NAMED = `(?<![\\w-])(?:${NAMED_COLORS})(?![\\w-])`
+const QUOTE = `['"\`]`
 
 /* A hex color, but not an HTML entity such as `&#9733;`. */
 const HEX = /(?<!&)#[0-9a-fA-F]{3,8}\b/g
 const RGB_LITERAL = /\brgba?\(\s*\d/g
-const HSL_LITERAL = /\b(?:hsla?|hwb)\(/g
-/* A named color as the value of a color-bearing property, in a stylesheet
-   (`border-bottom: 1px solid white`) or an inline style object
-   (`backgroundColor: 'white'`). The property list keeps prose and copy out
-   of it: a product in "White" is not a color declaration. */
+const COLOR_FUNCTION = /\b(?:hsla?|hwb|lab|lch|oklab|oklch)\(/g
+/* A color-bearing property in a stylesheet (`border-bottom-color`), an inline
+   style object (`borderBottomColor`), a canvas (`fillStyle`), or a custom
+   property (`--rule: ...`, `'--rule': ...`). The property list keeps prose and
+   data out of it: a product in "White" is not a color declaration. */
 const COLOR_PROPERTY =
-  '(?:color|background(?:-?color|-?image)?|border(?:-?(?:top|right|bottom|left|inline|block))?(?:-?color)?|outline(?:-?color)?|box-?shadow|text-?shadow|caret-?color|accent-?color|text-?decoration-?color|scrollbar-?color|fill|stroke)'
+  '(?:\\b(?:color|background(?:-?[cC]olor|-?[iI]mage)?' +
+  '|border(?:-?(?:[tT]op|[rR]ight|[bB]ottom|[lL]eft|[iI]nline|[bB]lock)(?:-?(?:[sS]tart|[eE]nd))?)?(?:-?[cC]olor)?' +
+  '|outline(?:-?[cC]olor)?|box-?[sS]hadow|text-?[sS]hadow|caret-?[cC]olor|accent-?[cC]olor' +
+  '|text-?[dD]ecoration(?:-?[cC]olor)?|scrollbar-?[cC]olor|column-?[rR]ule(?:-?[cC]olor)?' +
+  '|fill|stroke|stop-?[cC]olor|flood-?[cC]olor|lighting-?[cC]olor|fillStyle|strokeStyle|shadowColor)' +
+  '|--[a-zA-Z][\\w-]*)'
+/* The value may wrap onto the next line; it ends at `;`, `}` or a quote. */
 const NAMED_COLOR = new RegExp(
-  `\\b${COLOR_PROPERTY}\\s*:\\s*['"\`]?[^;'"\`}\\n]*?(?<![\\w-])(?:${NAMED_COLORS})(?![\\w-])`,
-  'gi',
+  `${COLOR_PROPERTY}${QUOTE}?\\s*:\\s*${QUOTE}?[^;'"\`}]*?${NAMED}`,
+  'g',
 )
-/* Fixed Tailwind palette classes and arbitrary color values. The palette
-   names in tailwind.config.js (page, paper, ink, copper, ...) resolve to
-   tokens and are allowed. */
+/* SVG and icon paint attributes: `fill="white"`, `stroke={'black'}`. */
+const PAINT_ATTRIBUTE = new RegExp(
+  `\\b(?:fill|stroke|stop-?[cC]olor|flood-?[cC]olor|color)\\s*=\\s*\\{?\\s*${QUOTE}\\s*${NAMED}`,
+  'g',
+)
+/* A named color as a ternary branch: `on ? 'white' : x`, `on ? x : 'black'`. */
+const TERNARY_COLOR = new RegExp(
+  `\\?\\s*(?:${QUOTE}${NAMED}${QUOTE}\\s*:` +
+  `|(?:${QUOTE}[^'"\`\\n]*${QUOTE}|[\\w.$]+)\\s*:\\s*${QUOTE}${NAMED}${QUOTE})`,
+  'g',
+)
+/* Fixed Tailwind palette classes. The palette names in tailwind.config.js
+   (page, paper, ink, copper, ...) resolve to tokens and are allowed. */
 const FIXED_TAILWIND =
-  /(?:^|[\s"'`])(?:[a-z-]+:)*(?:bg|text|border|ring|fill|stroke|from|to|via|outline|divide|shadow|placeholder)-(?:white|black|gray|neutral|stone|zinc|slate|red|green|amber|yellow|blue|emerald|rose|orange|indigo|purple|pink|sky|teal|cyan|lime)(?:-\d{2,3})?(?:\/\d+)?(?=[\s"'`])/g
+  /(?:^|[\s"'`])(?:[a-z-]+:)*(?:bg|text|border|ring|ring-offset|fill|stroke|from|to|via|outline|divide|shadow|placeholder|accent|caret|decoration)-(?:white|black|gray|neutral|stone|zinc|slate|red|green|amber|yellow|blue|emerald|rose|orange|indigo|purple|pink|sky|teal|cyan|lime|violet|fuchsia)(?:-\d{2,3})?(?:\/\d+)?(?=[\s"'`])/g
+/* Tailwind arbitrary color values: `bg-[rgba(...)]`, `accent-[#1f1410]`. */
 const ARBITRARY_COLOR = new RegExp(
-  `\\[(?:#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?|hwb)\\([^\\]]*\\)|(?:${NAMED_COLORS}))\\]`,
-  'gi',
+  `\\[(?:#[0-9a-fA-F]{3,8}|(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\\([^\\]]*\\)|(?:${NAMED_COLORS}))\\]`,
+  'g',
 )
 
-const PATTERNS = [HEX, RGB_LITERAL, HSL_LITERAL, NAMED_COLOR, FIXED_TAILWIND, ARBITRARY_COLOR]
+const PATTERNS = [
+  HEX, RGB_LITERAL, COLOR_FUNCTION, NAMED_COLOR, PAINT_ATTRIBUTE, TERNARY_COLOR,
+  FIXED_TAILWIND, ARBITRARY_COLOR,
+]
 
+/* Comments may name a color; blanking them keeps line numbers. */
 function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
+    .replace(/^(\s*)\/\/.*$/gm, '$1')
 }
 
-function violations(file: string): string[] {
-  const source = stripComments(readFileSync(resolve(SRC, file), 'utf8'))
+function findings(file: string, source: string): string[] {
+  const text = stripComments(source)
   const found: string[] = []
   for (const pattern of PATTERNS) {
     pattern.lastIndex = 0
-    for (const match of source.matchAll(pattern)) found.push(`${file}: ${match[0].trim()}`)
+    for (const match of text.matchAll(pattern)) {
+      const line = text.slice(0, match.index).split('\n').length
+      found.push(`${file}:${line}: ${match[0].trim().replace(/\s+/g, ' ')}`)
+    }
   }
   return found
 }
 
-describe('token guard (direction A surfaces)', () => {
-  it('writes color values only in the token files', () => {
-    const all = GUARDED_FILES.flatMap(violations)
+function caught(line: string): boolean {
+  return findings('sample', line).length > 0
+}
+
+/* Monochrome icon files served through <img> keep their own fill and cannot
+   follow the theme. Draw them inline with `fill="currentColor"` instead. Only
+   brand artwork, which must keep its own colors, may be an <img>. */
+const BRAND_ICON_SETS = new Map<string, string>([
+  ['payment/', 'card and wallet marks keep their brand colors; they sit on --dl-mark-ground'],
+  ['aws/', 'AWS architecture icons carry their own colored tile'],
+])
+const ICON_FILE = /\/assets\/icons\/([\w./-]+)/g
+
+describe('token guard (every file under src/)', () => {
+  it('scans the files it claims to scan', () => {
+    // A guard whose walk silently stops matching passes forever.
+    expect(SCANNED.length).toBeGreaterThan(100)
+    for (const file of ['App.tsx', 'components/CartPanel.tsx', 'operator/styles/operator.css', 'styles/governed-tokens.css']) {
+      expect(SCANNED, file).toContain(file)
+    }
+    for (const file of EXEMPT.keys()) expect(walk(SRC), file).toContain(file)
+  })
+
+  it('writes color values only in the token file', () => {
+    const all = SCANNED.flatMap((file) => findings(file, readFileSync(resolve(SRC, file), 'utf8')))
     expect(all).toEqual([])
+  })
+
+  it('draws monochrome icons inline so they follow the theme', () => {
+    const imgIcons = SCANNED.flatMap((file) => {
+      const source = stripComments(readFileSync(resolve(SRC, file), 'utf8'))
+      return Array.from(source.matchAll(ICON_FILE), (match) => match[1])
+        .filter((icon) => ![...BRAND_ICON_SETS.keys()].some((set) => icon.startsWith(set)))
+        .map((icon) => `${file}: /assets/icons/${icon}`)
+    })
+    expect(imgIcons).toEqual([])
   })
 
   it('defines both themes in the token file', () => {
@@ -177,25 +209,39 @@ describe('token guard (direction A surfaces)', () => {
       'background: rgba(0, 0, 0, 0.5);',
       'border-color: hsl(20 50% 50%);',
       'outline: 2px solid hwb(20 10% 10%);',
+      'color: oklch(70% 0.1 50);',
       'border-bottom: 1px solid white;',
+      'border-bottom:\n    1px solid\n    white;',
+      '--rule: color-mix(in srgb, black 8%, transparent);',
+      "style={{ '--rule': 'black' }}",
       "style={{ backgroundColor: 'black' }}",
+      "style={{ borderTopColor:\n  'white' }}",
+      '<path fill="white" d="M0 0" />',
+      "<circle stroke={'black'} />",
+      '<Check color="white" />',
+      "color: active ? 'white' : 'var(--dl-ink)'",
+      "color: active ? 'var(--dl-ink)' : 'black'",
+      "color: active\n  ? GREEN\n  : 'red'",
       'className="bg-white text-neutral-900"',
+      'className="accent-blue-500 caret-black"',
       'className="text-[white] bg-[hsl(0,0%,0%)]"',
+      'className="hover:bg-[rgba(168,66,58,0.08)] accent-[#1f1410]"',
     ]
-    for (const line of bad) {
-      expect(PATTERNS.some((p) => { p.lastIndex = 0; return p.test(line) }), line).toBe(true)
-    }
+    for (const line of bad) expect(caught(line), line).toBe(true)
     const fine = [
       'color: var(--dl-ink);',
       'white-space: nowrap;',
       'alt="Linen napkins in white"',
       '<span>White</span>',
-      'className="bg-page border-line text-on-photo/70"',
+      "{ name: 'Hadley Linen Shirt', color: 'Ivory', tags: ['linen', 'travel'] }",
+      "const CATEGORY = { Linen: 'linen', Shoes: 'footwear' }",
+      'className="bg-page border-line text-on-photo/70 accent-ink"',
       'background: transparent; color: currentColor;',
+      '<path fill="currentColor" stroke="none" />',
       '--link-color: var(--dl-accent);',
+      'interface Props { tone?: string; label: string }',
+      "const step = done ? 'Delivered' : 'In transit'",
     ]
-    for (const line of fine) {
-      expect(PATTERNS.some((p) => { p.lastIndex = 0; return p.test(line) }), line).toBe(false)
-    }
+    for (const line of fine) expect(caught(line), line).toBe(false)
   })
 })
