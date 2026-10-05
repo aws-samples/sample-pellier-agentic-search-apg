@@ -11,7 +11,7 @@
 
 .pm-card {
   display: flex;
-  width: min(940px, 100%);
+  width: min(1120px, 100%);
   max-height: calc(100dvh - 40px);
   overflow: hidden;
   flex-direction: column;
@@ -94,8 +94,9 @@
   min-height: 0;
   overflow-y: auto;
   flex: 1 1 auto;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-content: start;
+  gap: 14px;
   padding: 18px;
 }
 
@@ -103,8 +104,10 @@
   position: relative;
   display: grid;
   min-width: 0;
-  overflow: hidden;
-  grid-template-rows: 300px minmax(0, 1fr);
+  /* clip, not hidden: a clipping box keeps its content-based minimum height,
+     so the grid can never squeeze the name and details out of the card. */
+  overflow: clip;
+  grid-template-rows: auto 1fr;
   padding: 0;
   border: 1px solid var(--rule-2);
   border-radius: 7px;
@@ -136,6 +139,7 @@
 .pm-avatar {
   position: relative;
   display: block;
+  height: clamp(180px, 36dvh, 340px);
   overflow: hidden;
   background: var(--cream-2);
 }
@@ -152,7 +156,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 30%;
+  object-position: center 22%;
 }
 
 
@@ -196,7 +200,7 @@
 .pm-tag {
   color: var(--red-1);
   font-family: var(--mono);
-  font-size: 8.5px;
+  font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -207,7 +211,7 @@
   margin-top: 8px;
   color: var(--ink-3);
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.45;
 }
 
@@ -218,9 +222,10 @@
   gap: 5px 12px;
   margin-top: auto;
   padding-top: 14px;
+  padding-right: 36px;
   color: var(--ink-4);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 12px;
   line-height: 1.35;
 }
 
@@ -254,12 +259,12 @@
   position: relative;
   display: grid;
   grid-column: 1 / -1;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
 }
 
 .pm-loading > span {
-  height: 310px;
+  height: calc(clamp(180px, 36dvh, 340px) + 150px);
   border-radius: 7px;
   background:
     linear-gradient(
@@ -345,6 +350,13 @@
   }
 }
 
+@media (max-width: 1023px) and (min-width: 761px) {
+  .pm-list,
+  .pm-loading {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   .pm-backdrop {
     align-items: flex-end;
@@ -364,6 +376,10 @@
     min-height: 132px;
     grid-template-rows: none;
     grid-template-columns: 120px minmax(0, 1fr);
+  }
+
+  .pm-avatar {
+    height: auto;
   }
 
   .pm-loading > span {
