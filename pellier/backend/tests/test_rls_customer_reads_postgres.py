@@ -338,18 +338,3 @@ async def test_agent_chat_in_process_reads_the_signed_in_customers_own_orders(as
 
     assert "Wabi-Sabi Bowl" in await ask("theo")
     assert "Wabi-Sabi Bowl" not in await ask(None), "no name, no rows"
-
-
-@pytest.mark.asyncio
-async def test_the_managed_profile_receipt_counts_orders_as_the_signed_in_shopper(
-    live_db, monkeypatch,
-):
-    """The managed rail's profile receipt counts orders under the same binding."""
-    import app as app_module
-
-    monkeypatch.setattr(app_module, "db_service", live_db)
-    own = await app_module._aurora_profile_receipt("CUST-THEO", "theo")
-    assert (own["available"], own["facts_available"], own["orders_available"]) == (True, 1, 4)
-    # A wrong customer for the name: the count is contained, not Theo's four.
-    wrong = await app_module._aurora_profile_receipt("CUST-THEO", "jessica")
-    assert wrong["orders_available"] == 0

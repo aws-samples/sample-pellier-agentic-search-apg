@@ -120,6 +120,25 @@ describe('evidenceLine', () => {
     expect(evidenceLine(route(null))).toBe('intent shopping; model global.anthropic.claude-opus-5')
     expect(evidenceLine(route('guardrail_intervened'))).toContain('stop guardrail_intervened')
   })
+
+  it('names the AgentCore Memory record the prompt carried, apart from the Aurora record', () => {
+    const route = {
+      id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router', 'Memory'],
+      builder: {
+        tool: null, intent: 'shopping',
+        memory: { facts: 1, orders: 4, source: 'Aurora PostgreSQL' },
+        remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: ['mem-theo-1'] },
+      },
+    }
+    expect(evidenceLine(route)).toBe(
+      'intent shopping; 1 facts, 4 orders from Aurora PostgreSQL; '
+      + 'Remembered: AgentCore Memory record mem-theo-1 (user preference)',
+    )
+    const managed = { ...route, builder: { tool: null, remembered: { ...route.builder.remembered, records: ['mem-a', 'mem-b'] } } }
+    expect(evidenceLine(managed)).toBe('Remembered: AgentCore Memory records mem-a, mem-b (user preference)')
+    const none = { ...route, builder: { tool: null, intent: 'shopping', remembered: null } }
+    expect(evidenceLine(none)).toBe('intent shopping')
+  })
 })
 
 describe('parseProse', () => {

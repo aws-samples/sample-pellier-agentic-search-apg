@@ -33,6 +33,12 @@ export function identitySentence(identity: IdentityBinding): string {
   }
 }
 
+/** "Remembered: AgentCore Memory record mem-1 (user preference)": what Memory gave the agent. */
+export function rememberedSentence(records: string[]): string {
+  const noun = records.length === 1 ? 'record' : 'records'
+  return `Remembered: AgentCore Memory ${noun} ${records.join(', ')} (user preference)`
+}
+
 export function evidenceLine(step: TurnStep): string {
   const builder = step.builder
   if (!builder) return ''
@@ -41,6 +47,7 @@ export function evidenceLine(step: TurnStep): string {
     if (builder.intent) parts.push(`intent ${builder.intent}`)
     if (builder.model_id) parts.push(`model ${builder.model_id}`)
     if (builder.memory) parts.push(`${builder.memory.facts} facts, ${builder.memory.orders} orders from ${builder.memory.source}`)
+    if (builder.remembered?.records.length) parts.push(rememberedSentence(builder.remembered.records))
     if (builder.skills && builder.skills.length > 0) {
       const mode = builder.skills[0].loaded
       parts.push(`skills ${builder.skills.map(skill => skill.name).join(', ')} (${mode})`)

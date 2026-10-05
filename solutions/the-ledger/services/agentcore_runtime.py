@@ -95,6 +95,9 @@ class ManagedRuntimeResult:
     stop_reason: str = ""
     # Tools the routed agent asked for that the Gateway does not publish.
     unpublished_tools: List[str] = field(default_factory=list)
+    # The AgentCore Memory records whose preferences the Runtime put ahead of
+    # the prompt, as it reported them; empty when it sent none.
+    remembered: List[str] = field(default_factory=list)
 
 
 def _reported_skills(value: Any) -> List[Dict[str, Any]]:
@@ -443,8 +446,9 @@ def _runtime_session_id_for(session_id: Optional[str], user_id: Optional[str] = 
 # forwards every request here instead of running Strands locally.
 #
 # The runtime contract is a JSON payload ``{"prompt", "session_id",
-# "user_id", "history"}``; the Runtime container unpacks it in the ``@app.entry
-# point`` handler at ``pellier/backend/agentcore_runtime.py``.
+# "user_id", "history", "customer_id", "preferences", "turn_id"}``; the Runtime
+# container unpacks it in the ``@app.entrypoint`` handler at
+# ``pellier/backend/agentcore_runtime.py``.
 #
 # ⏩ SHORT ON TIME? Run:
 #    cp solutions/the-ledger/services/agentcore_runtime.py pellier/backend/services/agentcore_runtime.py
@@ -456,6 +460,7 @@ async def run_agent_on_runtime_result(
     history: Optional[List[Dict[str, Any]]] = None,
     turn_id: Optional[str] = None,
     customer_id: Optional[str] = None,
+    preferences: Optional[List[Dict[str, str]]] = None,
 ) -> ManagedRuntimeResult:
     """Invoke AgentCore Runtime and return its observed execution envelope.
 
@@ -468,6 +473,9 @@ async def run_agent_on_runtime_result(
             authorizer. The managed Runtime rejects anonymous requests.
         history: Prior user/assistant turns read from the identity-scoped
             AgentCore Memory namespace and forwarded as bounded context.
+        preferences: The user-preference records read from AgentCore Memory
+            for the server-resolved customer, each ``{record_id, preference}``.
+            The Runtime puts them ahead of the prompt and reports the ids.
 
     Returns:
         Response text plus observed Gateway calls, products, and routing data.
@@ -502,6 +510,7 @@ async def run_agent_on_runtime_result(
         "user_id": user_id or "anonymous",
         "history": history or [],
         "customer_id": customer_id or None,
+        "preferences": list(preferences or []),
     }
     if turn_id:
         # This is minted by the storefront route, not supplied by the model.
@@ -606,6 +615,7 @@ async def run_agent_on_runtime_result(
             skills=_reported_skills(parsed.get("skills")),
             stop_reason=str(parsed.get("stop_reason") or ""),
             unpublished_tools=_reported_names(parsed.get("unpublished_tools")),
+            remembered=_reported_names(parsed.get("remembered")),
         )
     except ManagedRuntimeError:
         raise

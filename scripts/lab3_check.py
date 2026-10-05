@@ -5,10 +5,13 @@ Run after Theo's turns on the managed path (Task 3B):
 
     python3 scripts/lab3_check.py
 
-It prints three findings, each with Expected, Observed and Evidence:
+It prints four findings, each with Expected, Observed and Evidence:
 
     build    the newest Gateway tool call in a shopper turn ran this checkout's
              build (``tool_audit.build_fingerprint`` beside the local digest)
+    memory   the managed rail's AgentCore Memory read for Theo returns the
+             user-preference record extracted from his provisioning
+             conversation, and the Builder view names that record id
     tickets  every executed ``get_tickets`` call on the Gateway read Theo's own
              tickets, and none read another customer's
     probe    Theo's own token, asking the Gateway directly for Jessica's
@@ -25,7 +28,7 @@ from __future__ import annotations
 import pathlib
 import sys
 import uuid
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
@@ -196,6 +199,101 @@ def judge_tickets(rows: Sequence[Dict[str, Any]]) -> check.Finding:
 
 
 # ---------------------------------------------------------------------------
+# Task 3B: Theo's remembered taste, read the way the managed rail reads it
+# ---------------------------------------------------------------------------
+
+_MEMORY_TITLE = "the managed agent is given Theo's remembered taste"
+MEMORY_EXPECTED = ("the managed rail's AgentCore Memory read for CUST-THEO returns the "
+                   "user-preference record extracted from his provisioning conversation; the "
+                   "Builder view's Router step for his new-session turn names the same record")
+
+
+def _event_text(event: Dict[str, Any]) -> str:
+    for payload in event.get("payload") or []:
+        text = ((payload.get("conversational") or {}).get("content") or {}).get("text")
+        if isinstance(text, str):
+            return text[:90]
+    return ""
+
+
+def judge_memory(memory_id: str, seeded: Dict[str, Any],
+                 remembered: Sequence[Dict[str, str]]) -> check.Finding:
+    """What the managed rail reads for Theo, beside what provisioning recorded.
+
+    ``seeded`` is ``seed_agentcore_memory.seeded_memory`` for CUST-THEO;
+    ``remembered`` is ``AgentCoreMemory.get_semantic_memories`` with the strict
+    client, the same read the storefront's managed rail makes at turn start.
+    """
+    provisioned = {str(r.get("memoryRecordId")) for r in seeded.get("records") or []}
+    ids = [item["record_id"] for item in remembered]
+    evidence = [f"AgentCore Memory {memory_id}, namespace {seeded.get('namespace')}"]
+    evidence += [f"source event {e.get('eventId')} (actor {seeded.get('actor')}, session "
+                 f"{seeded.get('session')}): {_event_text(e)}" for e in seeded.get("events") or []]
+    evidence += [f"record {item['record_id']}: {item['preference'][:90]}" for item in remembered]
+    if ids:
+        evidence.append("the Builder view, Router step of Theo's new-session turn: Remembered: "
+                        f"AgentCore Memory record{'s' if len(ids) > 1 else ''} {', '.join(ids)} "
+                        "(user preference)")
+    observed = (f"the managed rail's read returns {len(ids)} record(s); provisioning's "
+                f"conversation produced {len(provisioned)}")
+    if not seeded.get("events"):
+        return check.Finding("3B", _MEMORY_TITLE, check.CONTRADICTED, MEMORY_EXPECTED,
+                             "Theo's provisioning conversation is missing", evidence,
+                             "rerun scripts/deploy/seed_agentcore_memory.py.")
+    if not provisioned:
+        return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED, observed,
+                             evidence, "extraction runs after the conversation; run this "
+                                       "again in a minute.")
+    if not ids or not set(ids) <= provisioned:
+        return check.Finding("3B", _MEMORY_TITLE, check.CONTRADICTED, MEMORY_EXPECTED, observed,
+                             evidence, "the read and the provisioning record disagree; check "
+                                       "the namespace /pellier/preferences/CUST-THEO/.")
+    return check.Finding("3B", _MEMORY_TITLE, check.PROVED, MEMORY_EXPECTED, observed, evidence)
+
+
+def read_memory() -> Dict[str, Any]:
+    """Theo's provisioning conversation, and what the managed rail's read returns for him."""
+    import asyncio
+
+    for path in (DEPLOY, BACKEND):
+        if str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+    from gateway_client import _load_env
+
+    _load_env()
+    import boto3
+    from config import settings
+    from seed_agentcore_memory import seeded_memory
+    from services.agentcore_memory import AgentCoreMemory
+    from services.memory_showcase import AWS_CONFIG
+
+    memory_id = settings.AGENTCORE_MEMORY_ID
+    if not memory_id:
+        raise RuntimeError("AGENTCORE_MEMORY_ID is not configured")
+    region = settings.aws_region_resolved
+    seeded = seeded_memory(
+        boto3.client("bedrock-agentcore-control", region_name=region, config=AWS_CONFIG),
+        boto3.client("bedrock-agentcore", region_name=region, config=AWS_CONFIG),
+        memory_id, THEO,
+    )
+    strict = AgentCoreMemory(memory_id=memory_id, region=region, strict=True)
+    remembered = asyncio.run(strict.get_semantic_memories(THEO))
+    return {"memory_id": memory_id, "seeded": seeded, "remembered": remembered}
+
+
+def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Finding:
+    """Theo's memory finding; UNCHECKED where AgentCore Memory cannot be read."""
+    try:
+        found = read()
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as UNCHECKED
+        return check.Finding("3B", _MEMORY_TITLE, check.UNCHECKED, MEMORY_EXPECTED,
+                             "AgentCore Memory could not be read here",
+                             [f"{type(exc).__name__}: {str(exc)[:160]}"],
+                             "run this on the workshop box, where Memory is provisioned.")
+    return judge_memory(found["memory_id"], found["seeded"], found["remembered"])
+
+
+# ---------------------------------------------------------------------------
 # Task 3B: Theo's token asks the Gateway directly for Jessica's tickets
 # ---------------------------------------------------------------------------
 
@@ -225,6 +323,11 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
                              "Cedar", evidence,
                              "read the Gateway's words above; a 401 or a transport error is "
                              "not a policy decision.")
+    if audit_rows is None:
+        return check.Finding("3B", _PROBE_TITLE, check.UNCHECKED, PROBE_EXPECTED,
+                             "Cedar denied it, but the tool_audit rows could not be read",
+                             evidence, "run this where the database settings are readable; "
+                                       "a denial is half the proof, the absent row the other.")
     if audit_rows != 0:
         return check.Finding("3B", _PROBE_TITLE, check.CONTRADICTED, PROBE_EXPECTED,
                              f"denied, but {audit_rows} tool_audit row(s) carry its turn",
@@ -312,7 +415,8 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
                 check.Finding("3B", _TICKETS_TITLE, check.UNCHECKED, TICKETS_EXPECTED,
                               "the check could not look", reason),
             ]
-    return [*rows_findings, run_probe(cfg)]
+    build, tickets = rows_findings
+    return [build, memory_finding(), tickets, run_probe(cfg)]
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -321,7 +425,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
     findings = collect()
-    print("Lab 3B: Theo's managed turns, read from tool_audit and the Gateway")
+    print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory and the Gateway")
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PROVED for finding in findings)

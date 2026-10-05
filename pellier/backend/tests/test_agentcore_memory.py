@@ -500,24 +500,24 @@ def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
 # Semantic memory (USER_PREFERENCE extraction) — get_semantic_memories
 # ---------------------------------------------------------------------------
 #
-# These pin the LIVE semantic substrate the Observatory panel flips to. The
+# These pin the semantic substrate both rails put ahead of the prompt. The
 # USER_PREFERENCE strategy writes long-term records whose ``content.text`` is
-# a JSON string ``{"context","preference","categories"[]}`` — LEARNED prose,
+# a JSON string ``{"context","preference","categories"[]}``: LEARNED prose,
 # distinct from the typed onboarding ``Preferences`` blob that
-# ``get_user_preferences`` serves. get_semantic_memories returns the bare
-# ``preference`` strings, reads via ``namespace_prefix`` against
-# ``/pellier/preferences/{actor_id}/``, and degrades to ``[]`` (never raises,
-# never fabricates) so the route can render an empty live semantic panel.
+# ``get_user_preferences`` serves. get_semantic_memories returns each record's
+# ``memoryRecordId`` beside its ``preference``, reads via ``namespace_prefix``
+# against ``/pellier/preferences/{customer_id}/``, and degrades to ``[]``
+# (never fabricates); a strict client raises instead.
 
 
 class _SemRecord:
-    """Mirrors MemoryRecord: .get('content') -> {'text': '<json string>'}."""
+    """Mirrors MemoryRecord: .get('memoryRecordId'), .get('content') -> {'text': ...}."""
 
-    def __init__(self, text: str) -> None:
-        self._content = {"text": text}
+    def __init__(self, text: str, record_id: str = "mem-1") -> None:
+        self._fields = {"memoryRecordId": record_id, "content": {"text": text}}
 
     def get(self, key: str, default=None):
-        return {"content": self._content}.get(key, default)
+        return self._fields.get(key, default)
 
 
 def test_get_semantic_memories_returns_empty_without_sdk(memory) -> None:
@@ -527,10 +527,10 @@ def test_get_semantic_memories_returns_empty_without_sdk(memory) -> None:
     assert _run(memory.get_semantic_memories("CUST-MARCO")) == []
 
 
-def test_get_semantic_memories_extracts_preference_strings_and_namespace() -> None:
-    """SDK path: each record's ``content.text`` JSON SHALL be parsed and
-    its ``preference`` field collected; the read SHALL use
-    ``namespace_prefix='/pellier/preferences/{actor}/'`` + ``max_results``."""
+def test_get_semantic_memories_keeps_each_record_id_beside_its_preference() -> None:
+    """SDK path: each record's ``content.text`` JSON SHALL be parsed and its
+    ``preference`` kept with the record's id; the read SHALL use
+    ``namespace_prefix='/pellier/preferences/{customer}/'`` + ``max_results``."""
     import json
 
     captured: dict = {}
@@ -545,12 +545,12 @@ def test_get_semantic_memories_extracts_preference_strings_and_namespace() -> No
                     "context": "Goa trip planning",
                     "preference": "Prefers lightweight linen in warm neutrals",
                     "categories": ["linen", "travel"],
-                })),
+                }), "mem-linen"),
                 _SemRecord(json.dumps({
                     "context": "fabric talk",
                     "preference": "Favors natural fibers over synthetics",
                     "categories": ["fabric"],
-                })),
+                }), "mem-fibers"),
             ]
 
     mem = AgentCoreMemory(memory_id="mem-test")
@@ -559,16 +559,17 @@ def test_get_semantic_memories_extracts_preference_strings_and_namespace() -> No
     prefs = _run(mem.get_semantic_memories("CUST-MARCO"))
 
     assert prefs == [
-        "Prefers lightweight linen in warm neutrals",
-        "Favors natural fibers over synthetics",
+        {"record_id": "mem-linen", "preference": "Prefers lightweight linen in warm neutrals"},
+        {"record_id": "mem-fibers", "preference": "Favors natural fibers over synthetics"},
     ]
     assert captured["namespace_prefix"] == "/pellier/preferences/CUST-MARCO/"
     assert captured["max_results"] == 20
 
 
 def test_get_semantic_memories_skips_malformed_and_empty_records() -> None:
-    """Malformed JSON, missing ``preference``, and blank text SHALL be
-    skipped silently — a single bad record never breaks the panel."""
+    """Malformed JSON, a missing ``preference``, blank text and a record with
+    no id SHALL be skipped: a single bad record never breaks the turn, and a
+    preference the Builder view cannot attribute is never sent."""
     import json
 
     class _FakeManager:
@@ -577,18 +578,21 @@ def test_get_semantic_memories_skips_malformed_and_empty_records() -> None:
                 _SemRecord("not valid json {{{"),
                 _SemRecord(json.dumps({"context": "x", "categories": []})),  # no preference
                 _SemRecord(json.dumps({"preference": ""})),  # empty preference
-                _SemRecord(json.dumps({"preference": "Keeps it minimal"})),  # the one good one
+                _SemRecord(json.dumps({"preference": "No id"}), record_id=""),  # unattributable
+                _SemRecord(json.dumps({"preference": "Keeps it minimal"}), "mem-good"),
             ]
 
     mem = AgentCoreMemory(memory_id="mem-test")
     mem._sdk_manager = _FakeManager()
 
-    assert _run(mem.get_semantic_memories("CUST-THEO")) == ["Keeps it minimal"]
+    assert _run(mem.get_semantic_memories("CUST-THEO")) == [
+        {"record_id": "mem-good", "preference": "Keeps it minimal"}]
 
 
-def test_get_semantic_memories_returns_empty_on_sdk_error() -> None:
-    """An SDK exception SHALL be swallowed into ``[]`` (empty live state),
-    never propagated — the route must not 500 because extraction is flaky."""
+def test_get_semantic_memories_returns_empty_on_sdk_error_unless_strict() -> None:
+    """A failed read SHALL be ``[]`` on the in-process client, so the turn runs
+    without a remembered preference; the managed rail's strict client SHALL
+    raise instead, never presenting an empty read as "nothing remembered"."""
 
     class _BoomManager:
         def list_long_term_memory_records(self, **kwargs):
@@ -596,8 +600,12 @@ def test_get_semantic_memories_returns_empty_on_sdk_error() -> None:
 
     mem = AgentCoreMemory(memory_id="mem-test")
     mem._sdk_manager = _BoomManager()
-
     assert _run(mem.get_semantic_memories("CUST-ANNA")) == []
+
+    strict = AgentCoreMemory(memory_id="mem-test", strict=True)
+    strict._sdk_manager = _BoomManager()
+    with pytest.raises(ManagedMemoryError):
+        _run(strict.get_semantic_memories("CUST-ANNA"))
 
 
 def test_append_session_turns_reports_the_process_local_store(memory) -> None:

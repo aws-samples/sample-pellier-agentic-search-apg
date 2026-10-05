@@ -131,6 +131,13 @@ class TestTheWorksheetVerdict:
         assert finding.evidence == ["psql: error: connection refused"]
 
 
+def _remembered(state: str = PROVED):
+    """Stands in for ``lab3_check.memory_finding``, which reads AgentCore Memory."""
+    return lambda: check.Finding("3B", "the managed agent is given Theo's remembered taste",
+                                 state, "expected", "observed",
+                                 ["record mem-theo-1: Prefers hand-thrown ceramics"])
+
+
 class TestLabsThreeAndFour:
     BUILD_ROW = {"audit_id": 4, "turn_id": "turn-abc", "tool": "get_tickets",
                  "deployed_fingerprint": BUILD}
@@ -139,18 +146,29 @@ class TestLabsThreeAndFour:
     def test_the_executed_build_and_reads_decide_3b(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
-        assert evidence.task_3b(rows, BUILD).state == PROVED
-        assert evidence.task_3b(rows, "c" * 64).state == CONTRADICTED
+        assert evidence.task_3b(rows, BUILD, _remembered()).state == PROVED
+        assert evidence.task_3b(rows, "c" * 64, _remembered()).state == CONTRADICTED
         unstamped = {**rows, "build": {**self.BUILD_ROW, "deployed_fingerprint": None}}
-        assert evidence.task_3b(unstamped, BUILD).state == UNCHECKED
-        assert evidence.task_3b({"build": None, "tickets": []}, BUILD).state == NOT_YET
-        assert evidence.task_3b(None, BUILD).state == UNCHECKED
+        assert evidence.task_3b(unstamped, BUILD, _remembered()).state == UNCHECKED
+        assert evidence.task_3b({"build": None, "tickets": []}, BUILD,
+                                _remembered()).state == NOT_YET
+        assert evidence.task_3b(None, BUILD, _remembered()).state == UNCHECKED
+
+    def test_3b_needs_the_remembered_record_too(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The build and the reads are not enough: Theo's taste must reach the managed agent."""
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+        rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
+        proved = evidence.task_3b(rows, BUILD, _remembered())
+        assert "record mem-theo-1: Prefers hand-thrown ceramics" in proved.evidence
+        assert evidence.task_3b(rows, BUILD, _remembered(NOT_YET)).state == NOT_YET
+        assert evidence.task_3b(rows, BUILD, _remembered(UNCHECKED)).state == UNCHECKED
+        assert evidence.task_3b(rows, BUILD, _remembered(CONTRADICTED)).state == CONTRADICTED
 
     def test_a_read_for_another_customer_contradicts_3b(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
         rows = {"build": self.BUILD_ROW,
                 "tickets": [self.THEO_READ, {**self.THEO_READ, "customer_id": "CUST-JESSICA"}]}
-        finding = evidence.task_3b(rows, BUILD)
+        finding = evidence.task_3b(rows, BUILD, _remembered())
         assert finding.state == CONTRADICTED
         assert "1 for anyone else" in finding.observed
 

@@ -830,71 +830,6 @@ def _managed_browse_results(tool_call: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-async def _aurora_profile_receipt(
-    customer_id: Optional[str], principal_username: Optional[str]
-) -> Dict[str, Any]:
-    """Return bounded evidence that the verified profile exists in Aurora.
-
-    The orders are counted as ``pellier_agent`` with the signed-in shopper
-    named, so row-level security counts that shopper's orders and no one
-    else's. The customer row is read as the owner: the role has no SELECT on
-    ``preferences_summary``.
-    """
-    from services.data_source import database_source_label
-
-    if not customer_id:
-        return {
-            "source": database_source_label(),
-            "customer_id": None,
-            "facts_available": 0,
-            "orders_available": 0,
-            "available": False,
-        }
-    if db_service is None:
-        return {
-            "source": "unavailable",
-            "customer_id": customer_id,
-            "facts_available": 0,
-            "orders_available": 0,
-            "available": False,
-        }
-    try:
-        row = await db_service.fetch_one(
-            """
-            SELECT count(*) AS customer_exists,
-                   count(preferences_summary) AS facts_available
-              FROM pellier.customers
-             WHERE id = %s
-            """,
-            customer_id,
-        )
-        orders = await db_service.fetch_all_as(
-            principal_username,
-            "SELECT count(*) AS orders_available FROM pellier.orders WHERE customer_id = %s",
-            customer_id,
-        )
-        return {
-            "source": database_source_label(),
-            "customer_id": customer_id,
-            "facts_available": int((row or {}).get("facts_available") or 0),
-            "orders_available": int((orders or [{}])[0].get("orders_available") or 0),
-            "available": bool((row or {}).get("customer_exists")),
-        }
-    except Exception as exc:
-        logger.warning(
-            "Aurora profile receipt unavailable for %s: %s",
-            customer_id,
-            exc.__class__.__name__,
-        )
-        return {
-            "source": "error",
-            "customer_id": customer_id,
-            "facts_available": 0,
-            "orders_available": 0,
-            "available": False,
-        }
-
-
 @app.post("/api/chat/stream")
 async def chat_stream(
     request: ChatRequest, http_request: Request, user=Depends(get_current_user),
@@ -1097,26 +1032,22 @@ async def chat_stream(
                     managed_history = await managed_memory.get_session_history(
                         memory_namespace
                     )
+                    # What AgentCore Memory extracted about this customer in
+                    # earlier conversations, keyed on the server-resolved
+                    # customer. It is the only shopper context the Runtime is
+                    # given: no Aurora customer record is sent on this rail.
+                    remembered = (
+                        await managed_memory.get_semantic_memories(
+                            turn_identity.shopper_customer_id
+                        )
+                        if turn_identity.authenticated
+                        else []
+                    )
                 except ManagedMemoryError as exc:
                     error = classify_chat_error(exc.code)
                     yield f"data: {json.dumps(error, ensure_ascii=False)}\n\n"
                     return
 
-                profile_customer_id = turn_identity.shopper_customer_id
-                profile_receipt = await _aurora_profile_receipt(
-                    profile_customer_id, turn_identity.principal_username,
-                )
-                yield (
-                    "data: "
-                    + json.dumps(
-                        {
-                            "type": "aurora_profile_context",
-                            "profile": profile_receipt,
-                        },
-                        ensure_ascii=False,
-                    )
-                    + "\n\n"
-                )
                 try:
                     managed_result = await run_agent_on_runtime_result(
                         message=request.message,
@@ -1125,7 +1056,8 @@ async def chat_stream(
                         auth_token=(effective_user or {}).get("access_token"),
                         history=managed_history,
                         turn_id=turn_id,
-                        customer_id=profile_customer_id,
+                        customer_id=turn_identity.shopper_customer_id,
+                        preferences=remembered,
                     )
                 except ManagedRuntimeError as exc:
                     error = classify_chat_error(exc.code)
@@ -1195,6 +1127,7 @@ async def chat_stream(
                     STATUS_UNDERSTANDING,
                     STATUS_WRITING,
                     TurnSteps,
+                    remembered_receipt,
                     status_event,
                 )
 
@@ -1210,15 +1143,9 @@ async def chat_stream(
                     model_id=managed_result.model,
                     skills=managed_result.skills,
                     skill_mode="fixed",
-                    memory=(
-                        {
-                            "facts": profile_receipt.get("facts_available", 0),
-                            "orders": profile_receipt.get("orders_available", 0),
-                            "source": profile_receipt.get("source"),
-                        }
-                        if profile_receipt.get("available")
-                        else None
-                    ),
+                    # The records the Runtime reports it put ahead of the
+                    # prompt, never the list the app sent.
+                    remembered=remembered_receipt(managed_result.remembered),
                     rail="gateway-mcp",
                     note=_managed_route_note(managed_result, request.skill_mode, managed_agent),
                     stop_reason=managed_result.stop_reason or None,

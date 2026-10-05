@@ -49,7 +49,7 @@
       "a": "Publish get_tickets and bind it to the caller",
       "b": "Deploy, then challenge with the household request",
       "todo": "Task 3A: publish get_tickets (scripts/deploy/gateway_tool_schemas.py) and bind it to the signed-in caller (services/agentcore_gateway.py). Task 3B: deploy with --mode participant, then prove memory, the executed build and the boundary.",
-      "proof": "python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites reads 9 tools published; python3 scripts/showcase_agentcore_memory.py provisioned --persona theo prints the source event ids beside the preference record ids; python3 scripts/lab3_check.py prints the executed build beside this checkout's, every ticket read Theo's own, and Cedar's denial of his direct read of Jessica's tickets.",
+      "proof": "python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites reads 9 tools published; in a new session the Builder view's Router step reads Remembered: AgentCore Memory record <id> (user preference); python3 scripts/lab3_check.py prints the executed build beside this checkout's, that same record as the managed rail reads it beside the provisioning conversation it came from, every ticket read Theo's own, and Cedar's denial of his direct read of Jessica's tickets.",
       "challenge": "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?",
       "lesson": "The caller comes from the signed token, not the conversation. The server binds it onto every customer-scoped call; Cedar refuses a mismatched direct call; memory is context, never permission.",
       "next": "You can read under the right identity. Next, move Jessica's credit through Nadia's approval and prove it moved once."

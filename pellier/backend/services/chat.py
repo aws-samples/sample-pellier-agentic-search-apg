@@ -22,6 +22,7 @@ from services.turn_steps import (
     STATUS_UNDERSTANDING,
     STATUS_WRITING,
     TurnSteps,
+    remembered_receipt,
     status_event,
 )
 from skills import (
@@ -184,6 +185,52 @@ async def _append_pellier_stm_turn(
         )
     except Exception as exc:
         logger.debug("STM append skipped: %s", exc)
+
+
+async def _remembered_preferences(customer_id: str) -> List[Dict[str, str]]:
+    """The user-preference records AgentCore Memory holds for the signed-in customer.
+
+    ``customer_id`` is the turn's server-resolved customer, never a request
+    value. Non-strict: with no Memory configured, or a failed read, the turn
+    carries no remembered preference rather than failing.
+    """
+    from services.agentcore_memory import AgentCoreMemory
+    from services.conversation_context import remembered_preferences
+
+    return remembered_preferences(await AgentCoreMemory().get_semantic_memories(customer_id))
+
+
+def _persona_preamble(
+    name: str,
+    customer_id: Optional[str],
+    *,
+    known: str,
+    orders: List[Dict[str, Any]],
+    remembered: List[Dict[str, str]],
+) -> str:
+    """The persona context put ahead of the message, or ``""`` when there is none.
+
+    ``known`` and ``orders`` come from the Aurora customer record;
+    ``remembered`` from AgentCore Memory, one labelled line per record.
+    """
+    from services.conversation_context import remembered_lines
+
+    memory_lines = remembered_lines(remembered)
+    if not (known or orders or memory_lines):
+        return ""
+    lines = [f"PERSONA CONTEXT: {name} ({customer_id})"]
+    if known:
+        lines.append(f"Known about them: {known}")
+    lines.extend(memory_lines)
+    if orders:
+        lines.append("Past orders:")
+        for o in orders:
+            lines.append(f"  - {o['name']} (paid ${o['price_paid']:.0f}, {o['category']})")
+    lines.append(
+        "Use this to tailor the reply: reference past purchases, "
+        "respect preferences, avoid asking for info you already know."
+    )
+    return "\n".join(lines) + "\n---\n"
 
 
 def _build_dispatcher_specialist(
@@ -1540,7 +1587,13 @@ class EnhancedChatService:
         # named, so row-level security shows that shopper's orders and no one
         # else's. The customer row stays an owner read: the role has no SELECT
         # on name or preferences_summary.
-        persona_preamble = ""
+        #
+        # Beside the Aurora record, the preferences AgentCore Memory extracted
+        # from the signed-in customer's earlier conversations go in on lines
+        # of their own, labelled with their source, so each stays attributable.
+        persona_name = "the shopper"
+        persona_known = ""
+        persona_orders: list = []
         persona_orders_for_cards: list = []  # hydrated product rows for past-order cards
         persona_fact_count = 0
         persona_order_count = 0
@@ -1564,23 +1617,11 @@ class EnhancedChatService:
                     customer_id,
                 )
                 persona_profile_available = bool(customer_row)
-                name = customer_row["name"] if customer_row else "the shopper"
+                if customer_row:
+                    persona_name = customer_row["name"]
                 preferences = (customer_row or {}).get("preferences_summary") or ""
-                if preferences or orders_rows:
-                    lines = [f"PERSONA CONTEXT: {name} ({customer_id})"]
-                    if preferences:
-                        lines.append(f"Known about them: {preferences}")
-                    if orders_rows:
-                        lines.append("Past orders:")
-                        for o in orders_rows:
-                            lines.append(
-                                f"  - {o['name']} (paid ${o['price_paid']:.0f}, {o['category']})"
-                            )
-                    lines.append(
-                        "Use this to tailor the reply: reference past purchases, "
-                        "respect preferences, avoid asking for info you already know."
-                    )
-                    persona_preamble = "\n".join(lines) + "\n---\n"
+                persona_known = preferences
+                persona_orders = list(orders_rows or [])
 
                 # Hydrate order rows into the shape ProductArtifactCard
                 # expects. Kept as a dict list so the existing product
@@ -1616,6 +1657,15 @@ class EnhancedChatService:
                 persona_memory_source = "error"
                 logger.warning(f"Persona LTM read failed for {customer_id}: {e}")
 
+        remembered = (
+            await _remembered_preferences(turn_identity.shopper_customer_id)
+            if turn_identity.authenticated and turn_identity.shopper_customer_id
+            else []
+        )
+        persona_preamble = _persona_preamble(
+            persona_name, customer_id or turn_identity.shopper_customer_id,
+            known=persona_known, orders=persona_orders, remembered=remembered,
+        )
         if persona_preamble:
             full_message = persona_preamble + full_message
         if customer_id:
@@ -1661,6 +1711,7 @@ class EnhancedChatService:
             "skills": skill_receipt(intent, skill_mode),
             "skill_mode": skill_mode,
             "memory": memory_receipt,
+            "remembered": remembered_receipt([item["record_id"] for item in remembered]),
             "note": (
                 "The agent sees its skills' names and opens the ones it needs"
                 if skill_mode == SKILL_MODE_ON_DEMAND

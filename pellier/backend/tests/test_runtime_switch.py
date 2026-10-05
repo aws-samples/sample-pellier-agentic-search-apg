@@ -423,6 +423,8 @@ def test_run_agent_on_runtime_invokes_agentcore_runtime_with_jwt(
             {"role": "assistant", "content": "Here are three options."},
         ],
         "customer_id": "CUST-MARCO",
+        # No Memory read on this entry point: the storefront route sends them.
+        "preferences": [],
     }
     trace = rt.get_latest_trace("sess-runtime", principal_sub="user-123")
     assert trace["traceKind"] == "managed-runtime-receipt"

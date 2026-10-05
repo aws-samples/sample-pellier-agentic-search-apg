@@ -387,6 +387,18 @@ def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
     return tags
 
 
+def remembered_receipt(record_ids: Sequence[str]) -> Optional[Dict[str, Any]]:
+    """The Router step's evidence for preferences remembered in AgentCore Memory.
+
+    Names each user-preference record whose preference went ahead of the
+    prompt, so the Builder view can print the id. ``None`` when none did.
+    """
+    records = [str(record_id) for record_id in record_ids if str(record_id).strip()]
+    if not records:
+        return None
+    return {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "records": records}
+
+
 @dataclass
 class TurnSteps:
     """Allocate one step id per tool use.
@@ -516,6 +528,7 @@ class TurnSteps:
         skills: Sequence[Dict[str, Any]],
         skill_mode: str,
         memory: Optional[Dict[str, Any]] = None,
+        remembered: Optional[Dict[str, Any]] = None,
         rail: str = "in-process",
         note: Optional[str] = None,
         stop_reason: Optional[str] = None,
@@ -528,9 +541,14 @@ class TurnSteps:
         ``stop_reason`` is how the agent's turn ended, once it has: the same
         step is sent again with it, so the Builder view can say when an
         answer was cut short at ``max_tokens``.
+
+        ``memory`` is the Aurora customer record the prompt carried (facts and
+        orders); ``remembered`` names the AgentCore Memory records whose
+        preferences it carried (:func:`remembered_receipt`). Each is present
+        only when the agent was actually given it.
         """
         tags = list(LAYER_TAGS[ROUTE_STEP_ID])
-        if memory:
+        if memory or remembered:
             tags.append("Memory")
         if skills:
             tags.append("Skills")
@@ -553,6 +571,7 @@ class TurnSteps:
                 "skills": list(skills),
                 "skill_mode": skill_mode,
                 "memory": memory,
+                "remembered": remembered,
                 "note": note,
                 "stop_reason": stop_reason,
             },

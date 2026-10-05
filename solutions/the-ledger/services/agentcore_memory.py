@@ -697,26 +697,32 @@ class AgentCoreMemory:
     # Semantic memory (durable, extracted by a USER_PREFERENCE strategy)
     # ------------------------------------------------------------------
 
-    async def get_semantic_memories(self, actor_id: str) -> List[str]:
-        """Return AgentCore-*extracted* preference strings for ``actor_id``.
+    async def get_semantic_memories(self, customer_id: str) -> List[Dict[str, str]]:
+        """Return the user-preference records AgentCore extracted for ``customer_id``.
 
-        This is the **semantic** substrate — durable taste signals the
-        ``USER_PREFERENCE`` extraction strategy *learns* from conversation
-        and writes as long-term records under
-        ``/pellier/preferences/{actor_id}/``. Each record's ``content.text``
-        is a JSON string ``{"context", "preference", "categories"[]}``; we
-        surface the ``preference`` field.
+        This is the **semantic** substrate: durable taste the
+        ``USER_PREFERENCE`` extraction strategy *learns* from conversation and
+        writes as long-term records under ``/pellier/preferences/{actorId}/``.
+        Each record's ``content.text`` is a JSON string
+        ``{"context", "preference", "categories"[]}``. Each item returned is
+        ``{"record_id", "preference"}``: the record's ``memoryRecordId`` beside
+        its ``preference`` field. The id is what the Builder view names, so a
+        record without one is left out.
 
-        This is deliberately NOT ``get_user_preferences`` — that method
-        returns the *typed onboarding* ``Preferences`` blob the shopper
-        explicitly entered (used for storefront personalization). Learned
-        semantic memory and typed preferences are two different concepts on
-        two different namespaces; never conflate them.
+        ``customer_id`` must be the server-resolved customer of the verified
+        caller, never a request value. Provisioning writes Theo's first
+        conversation as actor ``CUST-THEO``, so the taste he stated there is
+        read here. Live turns write their events under the session namespace
+        as the actor, so what a live turn teaches does not collect under the
+        customer.
 
-        Returns ``[]`` (never raises, never fabricates) when the SDK or
-        ``AGENTCORE_MEMORY_ID`` is unavailable, the strategy has not
-        extracted yet, or no records exist. The Observatory route renders the
-        empty live state with a caveat instead of substituting seeded text.
+        This is deliberately NOT ``get_user_preferences``: that method returns
+        the *typed onboarding* ``Preferences`` blob, on its own namespace.
+
+        Returns ``[]`` when the SDK or ``AGENTCORE_MEMORY_ID`` is unavailable,
+        the strategy has not extracted yet, or no records exist. A failed read
+        also returns ``[]``, except on a strict client, which raises
+        ``ManagedMemoryError`` instead. Nothing is ever substituted.
         """
         import json as _json
 
@@ -728,7 +734,7 @@ class AgentCoreMemory:
         # "/pellier/preferences/{actorId}/"; resolve {actorId} ourselves so
         # the read needs no strategy-id threading. Leading slash MUST match
         # the create-time template.
-        namespace = f"/pellier/preferences/{actor_id}/"
+        namespace = f"/pellier/preferences/{customer_id}/"
         try:
             # 1.6.3 param is ``namespace_prefix`` (NOT ``namespace``).
             records = mgr.list_long_term_memory_records(
@@ -741,27 +747,28 @@ class AgentCoreMemory:
                     "AgentCore semantic memory read failed"
                 ) from exc
             logger.warning(
-                "AgentCore get_semantic_memories failed for %s: %s — "
-                "semantic panel will show an empty live state",
-                actor_id,
+                "AgentCore get_semantic_memories failed for %s: %s; "
+                "the turn carries no remembered preference",
+                customer_id,
                 exc,
             )
             return []
 
-        preferences: List[str] = []
+        remembered: List[Dict[str, str]] = []
         for record in records:
+            record_id = str(record.get("memoryRecordId") or "").strip()
             content = record.get("content", {})
             text = content.get("text") if isinstance(content, dict) else None
-            if not text:
+            if not record_id or not text:
                 continue
             try:
                 payload = _json.loads(text)
             except (ValueError, TypeError):
                 continue
             pref = payload.get("preference") if isinstance(payload, dict) else None
-            if pref:
-                preferences.append(str(pref))
-        return preferences
+            if pref and str(pref).strip():
+                remembered.append({"record_id": record_id, "preference": str(pref).strip()})
+        return remembered
 # === REFERENCE: AgentCore Memory (STM) — END ===
 
 

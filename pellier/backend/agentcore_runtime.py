@@ -63,6 +63,36 @@ def _env_flag(name: str, *, default: bool) -> bool:
     return raw.strip().lower() not in {"0", "false", "no", "off"}
 
 
+def _answered(
+    dispatcher: Any, response: Any, *, rail: str, stop_reason: str, remembered: list,
+) -> Dict[str, Any]:
+    """The Runtime's reply for a completed turn: the answer and what the agent was given."""
+    return {
+        "response": str(response),
+        "products": list(dispatcher.last_products or []),
+        "rail": rail,
+        "intent": dispatcher.last_intent,
+        "specialist": dispatcher.last_specialist,
+        "model": dispatcher.last_model_id,
+        "gateway_tools": list(dispatcher.last_tool_names),
+        # Tools the routed agent asked for that the Gateway does not list for
+        # this caller. The agent ran without them; the Builder view names them.
+        "unpublished_tools": list(dispatcher.last_unpublished_tools),
+        "tool_calls": list(dispatcher.last_tool_events or []),
+        # The skills the routed agent's prompt carried, reported from the
+        # source. The app renders this list and asserts nothing of its own.
+        "skills": list(dispatcher.last_skills or []),
+        # The AgentCore Memory records whose preferences went ahead of the
+        # prompt, reported the same way.
+        "remembered": list(remembered),
+        # How the agent's turn ended, for the receipt. A truncated turn
+        # never reaches here; it is rejected before.
+        "stop_reason": stop_reason,
+        "orchestration": "dispatcher",
+        "build_fingerprint": _build_fingerprint,
+    }
+
+
 # Withhold prompts, completions, and tool results from every span this
 # container exports. Strands' tracer reads OTEL_SEMCONV_STABILITY_OPT_IN once,
 # when it is constructed, so the token must be in place before any module that
@@ -105,7 +135,14 @@ try:
 
     @app.entrypoint
     def invoke(payload: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
-        """Handle the prompt, identity/session ids, and prior Memory history."""
+        """Handle the prompt, identity/session ids, and prior Memory history.
+
+        ``preferences`` are the user-preference records the app read from
+        AgentCore Memory for the signed-in customer, each a ``record_id`` and a
+        ``preference``. They go ahead of the prompt as labelled context, and
+        the ids of the ones sent come back as ``remembered``. The Runtime reads
+        no customer record from Aurora.
+        """
         prompt = (payload or {}).get("prompt", "")
         session_id = (
             getattr(context, "session_id", None)
@@ -116,6 +153,13 @@ try:
         history = (payload or {}).get("history", [])
         turn_id = (payload or {}).get("turn_id")
         customer_id = (payload or {}).get("customer_id")
+        from services.conversation_context import (
+            build_conversation_prompt,
+            build_remembered_prompt,
+            remembered_preferences,
+        )
+
+        remembered = remembered_preferences((payload or {}).get("preferences"))
 
         # Tools execute only through Gateway MCP under the caller's identity.
         # A managed Runtime invocation must never degrade into local tools.
@@ -165,9 +209,9 @@ try:
         except Exception:  # pragma: no cover
             pass
 
-        from services.conversation_context import build_conversation_prompt
-
-        response = dispatcher(build_conversation_prompt(prompt, history))
+        response = dispatcher(
+            build_remembered_prompt(build_conversation_prompt(prompt, history), remembered)
+        )
         stop_reason = str(getattr(response, "stop_reason", "") or "")
         if stop_reason == "max_tokens":
             logger.warning(
@@ -180,27 +224,8 @@ try:
                 "tool_calls": list(dispatcher.last_tool_events or []),
                 "build_fingerprint": _build_fingerprint,
             }
-        return {
-            "response": str(response),
-            "products": list(dispatcher.last_products or []),
-            "rail": rail,
-            "intent": dispatcher.last_intent,
-            "specialist": dispatcher.last_specialist,
-            "model": dispatcher.last_model_id,
-            "gateway_tools": list(dispatcher.last_tool_names),
-            # Tools the routed agent asked for that the Gateway does not
-            # publish. The agent ran without them; the Builder view names them.
-            "unpublished_tools": list(dispatcher.last_unpublished_tools),
-            "tool_calls": list(dispatcher.last_tool_events or []),
-            # The skills the routed agent's prompt carried, reported from the
-            # source. The app renders this list and asserts nothing of its own.
-            "skills": list(dispatcher.last_skills or []),
-            # How the agent's turn ended, for the receipt. A truncated turn
-            # never reaches here; it is rejected above.
-            "stop_reason": stop_reason,
-            "orchestration": "dispatcher",
-            "build_fingerprint": _build_fingerprint,
-        }
+        return _answered(dispatcher, response, rail=rail, stop_reason=stop_reason,
+                         remembered=[item["record_id"] for item in remembered])
 
 except ImportError:
     logger.info("bedrock-agentcore not installed — Runtime entrypoint disabled")

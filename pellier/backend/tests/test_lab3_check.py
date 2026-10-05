@@ -1,11 +1,13 @@
-"""``scripts/lab3_check.py``: Task 3B's three findings.
+"""``scripts/lab3_check.py``: Task 3B's four findings.
 
 Each never blurs "did not happen" with "could not look".
 
 The build is one query on ``tool_audit.build_fingerprint`` beside this
-checkout's digest; the reads are every executed Gateway ``get_tickets`` row;
-the probe is Theo's own token asking for Jessica's tickets. A 401 or a
-transport error is never a Cedar decision.
+checkout's digest; the memory is the managed rail's own AgentCore Memory read
+for Theo beside the record his provisioning conversation produced; the reads
+are every executed Gateway ``get_tickets`` row; the probe is Theo's own token
+asking for Jessica's tickets. A 401 or a transport error is never a Cedar
+decision.
 """
 
 from __future__ import annotations
@@ -95,6 +97,13 @@ class TestTheProbe:
     def test_a_denial_that_left_a_row_contradicts(self) -> None:
         assert lab3.judge_probe(self.DENY, 1).state == check.CONTRADICTED
 
+    def test_a_denial_whose_rows_could_not_be_read_is_unchecked(self) -> None:
+        """Could not look is not did not happen: no rows read, no verdict on them."""
+        finding = lab3.judge_probe(self.DENY, None)
+        assert finding.state == check.UNCHECKED
+        assert "could not be read" in finding.observed
+        assert "rows not read" in " ".join(finding.evidence)
+
     def test_no_managed_environment_is_unchecked(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for key in ("AGENTCORE_GATEWAY_URL", "COGNITO_TEST_CREDENTIALS_SECRET_ARN"):
             monkeypatch.delenv(key, raising=False)
@@ -104,6 +113,75 @@ class TestTheProbe:
         finding = lab3.run_probe(None)
         assert finding.state == check.UNCHECKED
         assert "workshop box" in finding.next_step
+
+
+THEO_EVENT = {"eventId": "0000001-theo-1", "payload": [{"conversational": {
+    "role": "USER", "content": {"text": "I'm building a home slowly, with hand-thrown ceramics"}}}]}
+SEEDED = {"actor": "CUST-THEO", "session": "prefseed",
+          "namespace": "/pellier/preferences/CUST-THEO/", "events": [THEO_EVENT],
+          "records": [{"memoryRecordId": "mem-theo-1"}]}
+REMEMBERED = [{"record_id": "mem-theo-1",
+               "preference": "Prefers hand-thrown ceramics and stoneware"}]
+
+
+class TestTheMemory:
+    def test_the_managed_read_returning_the_provisioned_record_is_proved(self) -> None:
+        finding = lab3.judge_memory("mem-1", SEEDED, REMEMBERED)
+        assert finding.state == check.PROVED
+        evidence = "\n".join(finding.evidence)
+        assert "source event 0000001-theo-1 (actor CUST-THEO, session prefseed)" in evidence
+        assert "record mem-theo-1: Prefers hand-thrown ceramics and stoneware" in evidence
+        assert ("Remembered: AgentCore Memory record mem-theo-1 (user preference)"
+                in evidence), "the line the Builder view prints"
+
+    def test_no_extraction_yet_is_not_yet(self) -> None:
+        waiting = {**SEEDED, "records": []}
+        assert lab3.judge_memory("mem-1", waiting, []).state == check.NOT_YET
+
+    def test_a_missing_conversation_or_a_read_that_misses_it_contradicts(self) -> None:
+        missing = lab3.judge_memory("mem-1", {**SEEDED, "events": [], "records": []}, [])
+        assert missing.state == check.CONTRADICTED
+        assert "seed_agentcore_memory.py" in missing.next_step
+        assert lab3.judge_memory("mem-1", SEEDED, []).state == check.CONTRADICTED
+        foreign = [{"record_id": "mem-other", "preference": "Not from provisioning"}]
+        assert lab3.judge_memory("mem-1", SEEDED, foreign).state == check.CONTRADICTED
+
+    def test_memory_that_cannot_be_read_is_unchecked(self) -> None:
+        def _no_memory() -> dict:
+            raise RuntimeError("AGENTCORE_MEMORY_ID is not configured")
+
+        finding = lab3.memory_finding(_no_memory)
+        assert finding.state == check.UNCHECKED
+        assert "AGENTCORE_MEMORY_ID" in finding.evidence[0]
+
+    def test_the_check_reads_with_the_managed_rails_own_strict_client(self, monkeypatch) -> None:
+        """The same read the storefront's managed rail makes, keyed on CUST-THEO."""
+        import seed_agentcore_memory
+        import services.agentcore_memory as memory_module
+        from config import settings
+
+        reads: list = []
+
+        class _Strict:
+            def __init__(self, *, memory_id: str, region: str, strict: bool) -> None:
+                reads.append(("init", memory_id, strict))
+
+            async def get_semantic_memories(self, customer_id: str) -> list:
+                reads.append(("read", customer_id))
+                return list(REMEMBERED)
+
+        import gateway_client
+
+        monkeypatch.setattr(gateway_client, "_load_env", lambda: None)
+        monkeypatch.setattr(settings, "AGENTCORE_MEMORY_ID", "mem-1", raising=False)
+        monkeypatch.setattr(memory_module, "AgentCoreMemory", _Strict)
+        monkeypatch.setattr(seed_agentcore_memory, "seeded_memory",
+                            lambda control, data, memory_id, actor: dict(SEEDED))
+        monkeypatch.setattr("boto3.client", lambda *a, **k: object())
+        found = lab3.read_memory()
+        assert reads == [("init", "mem-1", True), ("read", "CUST-THEO")]
+        assert lab3.judge_memory(found["memory_id"], found["seeded"],
+                                 found["remembered"]).state == check.PROVED
 
 
 def test_the_build_and_reads_are_read_from_the_real_schema(fresh_db: Any) -> None:  # noqa: F811

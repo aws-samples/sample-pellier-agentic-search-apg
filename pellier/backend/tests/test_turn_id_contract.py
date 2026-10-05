@@ -250,6 +250,10 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
             assert namespace == "user-principal-managed-session-sess-managed"
             return []
 
+        async def get_semantic_memories(self, customer_id: str) -> list[dict[str, str]]:
+            assert customer_id == "CUST-MARCO", "keyed on the server-resolved customer"
+            return []
+
         async def append_session_turns(
             self, namespace: str, turns: list[dict[str, Any]]
         ) -> None:
@@ -311,9 +315,9 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
     assert complete["response"]["rail"] == "gateway-mcp"
     assert complete["response"]["railDecision"]["rail"] == "gateway-mcp"
     assert complete["response"]["railDecision"]["managedRequested"] is True
-    profile = _first(events, "aurora_profile_context")
-    assert profile is not None
-    assert profile["profile"]["customer_id"] == "CUST-MARCO"
+    # The managed rail sends no Aurora customer record to the Runtime, so it
+    # reports none as the turn's context.
+    assert _first(events, "aurora_profile_context") is None
     assert _first(events, "agentcore_memory") is not None
     assert _first(events, "tool_call")["tool"] == "search_products"
     assert _first(events, "tool_call")["status"] == "completed"
@@ -343,6 +347,9 @@ def test_managed_storefront_memory_write_failure_does_not_recast_action(
             assert strict is True
 
         async def get_session_history(self, _namespace: str) -> list[dict[str, Any]]:
+            return []
+
+        async def get_semantic_memories(self, _customer_id: str) -> list[dict[str, str]]:
             return []
 
         async def append_session_turns(
@@ -425,6 +432,9 @@ def test_unexpected_managed_memory_write_failure_preserves_completed_action(
             assert strict is True
 
         async def get_session_history(self, _namespace: str) -> list[dict[str, Any]]:
+            return []
+
+        async def get_semantic_memories(self, _customer_id: str) -> list[dict[str, str]]:
             return []
 
         async def append_session_turns(

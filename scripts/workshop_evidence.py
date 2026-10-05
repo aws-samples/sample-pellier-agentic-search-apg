@@ -16,8 +16,9 @@ Each line runs the same verdict the guide's check prints
 (``workshop/lab-1-rrf.sql``, ``scripts/lab1_compare.py``,
 ``scripts/lab2_contract_check.py``, ``scripts/lab3_check.py``), so the export
 and the lab never disagree. Lab 3B's direct Cedar probe calls the Gateway, so
-it stays in ``lab3_check.py``; the export reads only the system of record. A
-task whose marked region still holds its starter is NOT YET, whatever the
+it stays in ``lab3_check.py``; the export reads only the systems of record:
+the database, the source and, for Theo's remembered taste, AgentCore Memory.
+A task whose marked region still holds its starter is NOT YET, whatever the
 rows say.
 
     python3 scripts/workshop_evidence.py
@@ -219,16 +220,20 @@ def task_3a() -> check.Finding:
                              "the check could not look", [f"{type(exc).__name__}: {exc}"])
 
 
-def task_3b(rows: Optional[Dict[str, Any]], local_build: str) -> check.Finding:
-    """Lab 3B: Theo's managed turn ran this build and read only his own tickets.
+def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
+            memory: Optional[Callable[[], check.Finding]] = None) -> check.Finding:
+    """Lab 3B: Theo's managed turn ran this build, was given his remembered taste
+    from AgentCore Memory, and read only his own tickets.
 
-    The direct Cedar probe calls the Gateway, so it is ``scripts/lab3_check.py``'s
-    alone; the export reads only the system of record.
+    ``memory`` reads AgentCore Memory (``lab3_check.memory_finding`` unless
+    given). The direct Cedar probe calls the Gateway, so it is
+    ``scripts/lab3_check.py``'s alone.
     """
     import lab3_check
 
-    title = "your build answered Theo, and every ticket read was his own"
-    expected = f"{lab3_check.BUILD_EXPECTED}; {lab3_check.TICKETS_EXPECTED}"
+    title = "your build answered Theo, remembered his taste, and read only his own tickets"
+    expected = (f"{lab3_check.BUILD_EXPECTED}; {lab3_check.MEMORY_EXPECTED}; "
+                f"{lab3_check.TICKETS_EXPECTED}")
     if any(source_state(key) == check.STARTER for key in ("3A-catalogue", "3A-binding")):
         return check.Finding("3B", title, NOT_YET, expected, "Task 3A is not complete yet",
                              ["Task 3B deploys the Task 3A edits"], "complete Task 3A first.")
@@ -236,6 +241,7 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str) -> check.Finding:
         return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
     return _combine("3B", title, expected, [
         lab3_check.judge_build(rows.get("build"), local_build),
+        (memory or lab3_check.memory_finding)(),
         lab3_check.judge_tickets(rows.get("tickets") or []),
     ])
 
