@@ -27,6 +27,15 @@ export const PRODUCTS = [
   { id: 22, name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, category: 'Kitchen and table', imageUrl: '/products/anna-linen-napkins.webp', rating: 4.7, reviewCount: 178, tags: ['linen', 'gift', 'home'], quantity: 24, warehouses: WAREHOUSES },
   { id: 12, name: 'Hadley Linen Shirt', brand: 'Hadley', color: 'Natural', price: 78, category: 'Clothing', imageUrl: '/products/fresh-hadley-linen-shirt.webp', rating: 4.8, reviewCount: 91, tags: ['linen', 'travel'], quantity: 0, warehouses: WAREHOUSES.map((w) => ({ ...w, quantity: 0 })) },
 ]
+/**
+ * The home edit: twelve pieces, as every edit now holds, so the grid's rows
+ * are full. The four above (one per stock line) lead; eight of Anna's
+ * recorded result cards follow.
+ */
+export const HOME_EDIT = [
+  ...PRODUCTS,
+  ...ANNA_RESULT_CARDS.filter(card => !PRODUCTS.some(product => product.id === card.id)).slice(0, 8),
+]
 export const DETAIL = {
   ...PRODUCTS[0],
   description: 'A stoneware dripper and carafe in ash gray that brews two cups by hand.',
@@ -82,7 +91,7 @@ export async function stubStorefront(page: Page, { signedIn = true, turn = ANNA_
     if (path.endsWith('/api/persona/current')) return route.fulfill(json({ persona: signedIn ? ANNA : null }))
     if (path.endsWith('/api/persona/switch')) return route.fulfill(json({ session_id: 'session-shots', persona: ANNA }))
     if (/\/api\/products\/\d+$/.test(path)) return route.fulfill(json(DETAIL))
-    if (path.endsWith('/api/products')) return route.fulfill(json(PRODUCTS))
+    if (path.endsWith('/api/products')) return route.fulfill(json(HOME_EDIT))
     if (path.endsWith('/api/scenarios')) return route.fulfill(json(SCENARIOS))
     if (path.includes('/api/agent/session/')) return route.fulfill(json({ turns: [] }))
     if (path.endsWith('/api/storefront/catalog-stats')) return route.fulfill(json(CATALOG_STATS))

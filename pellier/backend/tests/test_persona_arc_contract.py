@@ -179,7 +179,9 @@ def test_theo_owns_the_bowl_once_under_his_customer_id() -> None:
     bowl = [line for line in sql.splitlines()
             if f"'{ARC['theo']['product_id']}'" in line and "'CUST-THEO'" in line]
     assert len(bowl) == 1, f"{ARC['theo']['product_name']} must be seeded once, for CUST-THEO"
-    assert "('theo'," not in sql
+    # "theo" names his storefront edit; it is never a customer id on an order.
+    orders = sql[sql.index("INSERT INTO pellier.orders"):sql.index("-- New orders number on")]
+    assert "'theo'" not in orders
 
 
 def test_theo_damage_request_routes_to_the_support_agent() -> None:

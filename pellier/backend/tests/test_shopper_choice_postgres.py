@@ -82,7 +82,7 @@ async def test_the_four_shoppers_have_an_edit_and_their_lab_prompts(fresh_db, mo
     assert jessica["display_name"] == "Jessica"
     assert (FRONTEND_PUBLIC / jessica["hero_image"].lstrip("/")).is_file(), jessica["hero_image"]
     assert read["required"] == LAB_PROMPTS
-    assert len(read["house"]) == 10 and read["house"][0] == "46"
+    assert len(read["house"]) == 12 and read["house"][0] == "46"
     assert "42" not in read["house"], "the robe she sent back is not in her edit"
 
 

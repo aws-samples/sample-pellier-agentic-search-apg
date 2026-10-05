@@ -206,8 +206,9 @@ export default function PellierPage() {
               </div>
             ) : null}
 
-            {/* The edit's pieces from Aurora, in its order. The count says how
-                many of the whole catalog this selection is. */}
+            {/* The edit's twelve pieces from Aurora, in its order, so the rows
+                are full. The count says how many of the whole catalog this
+                selection is. */}
             {!catalogLoading && !catalogError && products.length > 0 ? (
               <div className="pellier-edit-shell pellier-home-grid pb-16 md:pb-20">
                 <div className="pellier-gridhead">
@@ -220,16 +221,14 @@ export default function PellierPage() {
                     </span>
                   ) : null}
                 </div>
-                <div className="pellier-grid-frame">
-                  <div
-                    key={`${prefsVersion}-${personaId ?? 'fresh'}`}
-                    className="pellier-product-grid"
-                    data-testid="home-grid"
-                  >
-                    {products.map((product, index) => (
-                      <ProductCard key={product.id} product={product} index={index % 3} />
-                    ))}
-                  </div>
+                <div
+                  key={`${prefsVersion}-${personaId ?? 'fresh'}`}
+                  className="pellier-product-grid"
+                  data-testid="home-grid"
+                >
+                  {products.map((product, index) => (
+                    <ProductCard key={product.id} product={product} index={index % 3} />
+                  ))}
                 </div>
               </div>
             ) : null}

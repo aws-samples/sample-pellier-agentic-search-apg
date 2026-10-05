@@ -284,6 +284,9 @@ export const ANNA_TURN_EVENTS: object[] = [
 
 export const ANNA_FINDING = FINDING
 
+/** The answer's cards, in the order it names them: they lead the page grid. */
+export const ANNA_PICKS: readonly string[] = ['31', '36', '22']
+
 /** Anna's session, as `/api/auth/me` reports it after the chooser signed her in. */
 export const ANNA_ME = {
   user_id: 'sub-anna',

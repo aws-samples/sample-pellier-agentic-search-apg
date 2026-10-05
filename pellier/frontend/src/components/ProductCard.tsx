@@ -4,7 +4,8 @@
  * A photograph in a rounded frame with a hairline inner border, then the
  * brand or maker, the name and price on one row, and one plain stock line
  * as a status tag: "In stock", "In stock in Austin and Portland", "Sold
- * out". The photograph and the name both lead to the piece's page.
+ * out". The photograph and the name both lead to the piece's page. A piece
+ * the answer recommended carries a small "Pellier's pick" tag on its photo.
  *
  * Scroll reveal, gated by two stacked safety defenses:
  *
@@ -22,6 +23,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 
+import { RESULTS } from '../copy'
 import type { PellierProduct } from '../services/types'
 import { stockLine } from '../utils/stockLine'
 import ResponsiveImage from './ResponsiveImage'
@@ -32,6 +34,8 @@ interface ProductCardProps {
   product: PellierProduct
   /** Row-wise index (0..2). Drives a compact per-column stagger. */
   index: number
+  /** One of the pieces the answer recommended, in the results grid. */
+  pick?: boolean
 }
 
 // Per-column stagger in ms. Columns within a row play at 0ms, 50ms, 100ms so
@@ -58,7 +62,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export default function ProductCard({ product, index }: ProductCardProps) {
+export default function ProductCard({ product, index, pick = false }: ProductCardProps) {
   // Router `basename` prefixes this for the Workshop Studio /ports/8000/
   // proxy, so the path stays base-relative here.
   const detailPath = `/product/${product.id}`
@@ -116,6 +120,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
       data-testid={`product-card-${product.id}`}
       data-index={index}
       data-revealed={isVisible}
+      data-pick={pick ? 'true' : undefined}
       className="pellier-card"
       style={{
         opacity: isVisible ? 1 : PRE_REVEAL_OPACITY,
@@ -131,7 +136,7 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           src={product.imageUrl}
           alt={product.name}
           widths={[480, 960, 1122]}
-          sizes="(min-width: 700px) 300px, 50vw"
+          sizes="(min-width: 700px) 360px, 50vw"
           loading="lazy"
           decoding="async"
           pictureClassName="block h-full w-full"
@@ -139,6 +144,8 @@ export default function ProductCard({ product, index }: ProductCardProps) {
           style={{ objectPosition: product.imagePosition ?? 'center center' }}
         />
       </Link>
+      {/* Over the photo, but outside its hidden link, so it is read. */}
+      {pick ? <span className="pellier-card-pick">{RESULTS.PICK}</span> : null}
 
       <div className="pellier-card-copy">
         <span className="pellier-card-brand">{product.brand}</span>

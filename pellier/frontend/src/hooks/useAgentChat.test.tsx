@@ -15,7 +15,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { PersonaProvider } from '../contexts/PersonaContext'
-import { useAgentChat } from './useAgentChat'
+import { answerPicks, useAgentChat, type AgentChatMessage } from './useAgentChat'
 
 // --- Chat service mock ---------------------------------------------------
 // Captured callback — the test drives it to simulate the SSE loop.
@@ -472,5 +472,61 @@ describe('useAgentChat — the step contract', () => {
       expect(last?.failure).toBeUndefined()
       expect(last?.status).toEqual({ label: 'Stopped', state: 'done' })
     })
+  })
+})
+
+describe("useAgentChat — the answer's picks", () => {
+  beforeEach(() => {
+    capturedOnUpdate = null
+    releaseStream = null
+    nextStreamFailure = null
+    localStorage.clear()
+  })
+
+  const product = (id: number, name: string, ownership?: 'owned') => ({ id, name, price: 40, image: '', ownership })
+
+  it('reports the cards the panel shows, in the order the answer names them', async () => {
+    const onTurn = vi.fn()
+    const { result } = renderHook(() => useAgentChat({ onTurn }), { wrapper })
+    act(() => {
+      void result.current.sendMessage('for the trip')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      capturedOnUpdate!({ type: 'content_delta', delta: 'Pack the Linen Drawstring Trousers, the Travel Bottles, ' })
+      capturedOnUpdate!({ type: 'content_delta', delta: 'and the Everyday Backpack. Not the Merino Travel Socks you own.' })
+    })
+    act(() => {
+      releaseStream?.({
+        response: 'Pack these.',
+        products: [
+          { id: 96, name: 'Everyday Backpack', price: 118 },
+          { id: 20, name: 'Merino Travel Socks', price: 16, ownership: 'owned' },
+          { id: 14, name: 'Linen Drawstring Trousers', price: 78 },
+          { id: 97, name: 'Travel Bottles', price: 16 },
+          { id: 95, name: 'Canvas Crossbody Bag', price: 54 },
+        ],
+        suggestions: [],
+      })
+    })
+    await waitFor(() => expect(onTurn).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'end' })))
+    // The streamed answer is the one shown; it names three new pieces in this order.
+    expect(onTurn).toHaveBeenLastCalledWith({ type: 'end', outcome: 'complete', picks: ['14', '97', '96'] })
+  })
+
+  it('has no picks when the answer names no piece, or is a request waiting on a person', () => {
+    const base: AgentChatMessage = {
+      role: 'assistant',
+      content: 'The Everyday Backpack is the one.',
+      timestamp: new Date(0),
+      products: [product(96, 'Everyday Backpack'), product(20, 'Merino Travel Socks', 'owned')],
+    }
+    expect(answerPicks(base)).toEqual(['96'])
+    expect(answerPicks({ ...base, content: 'Nothing here fits.' })).toEqual([])
+    expect(answerPicks({ ...base, content: 'Your Merino Travel Socks are already yours.' })).toEqual([])
+    expect(answerPicks({
+      ...base,
+      creditRequestPending: { tool: 'ask_a_person', message: 'A person will look at it.' },
+    })).toEqual([])
   })
 })

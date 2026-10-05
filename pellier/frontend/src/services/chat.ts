@@ -4,6 +4,7 @@
  */
 
 import { API_BASE_URL, apiFetch } from './apiBase'
+import { productsNamedInAnswer } from '../utils/answerCards'
 
 export const CHAT_ERROR_CODES = [
   'policy_denied',
@@ -232,28 +233,6 @@ export interface ChatProduct {
   discountPercent?: number
 }
 
-function renderedProductsForHistory(message: ChatMessage): ChatProduct[] {
-  const products = message.products ?? []
-  const normalizedContent = message.content.toLowerCase()
-
-  return products
-    .map((product, index) => ({
-      product,
-      index,
-      mentionIndex: product.name
-        ? normalizedContent.indexOf(product.name.toLowerCase())
-        : -1,
-    }))
-    .filter((item) => item.mentionIndex >= 0)
-    .sort((a, b) =>
-      a.mentionIndex === b.mentionIndex
-        ? a.index - b.index
-        : a.mentionIndex - b.mentionIndex,
-    )
-    .map((item) => item.product)
-    .slice(0, 3)
-}
-
 export interface AgentExecution {
   agent_steps: Array<{agent: string, action: string, status: string, timestamp: number, duration_ms: number}>
   tool_calls: Array<{tool: string, params?: string, timestamp: number, duration_ms: number, status: string}>
@@ -357,7 +336,7 @@ export async function sendChatMessageStreaming(
           // Keep the last rendered cards available to the next turn so a
           // reference such as "that pair" retains exact product identity.
           // Backend tools still own any current price or stock answer.
-          products: renderedProductsForHistory(msg).map(product => ({
+          products: productsNamedInAnswer(msg.products ?? [], msg.content).map(product => ({
             id: product.id,
             name: product.name,
             price: product.price,

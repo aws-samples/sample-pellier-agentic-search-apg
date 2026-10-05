@@ -15,9 +15,9 @@
  * What is scripted: the two run as one turn, `step-2` finishes first, and
  * the answer names the Hadley Linen Shirt, the Italian Linen Camp Shirt and
  * the Stoneware Pour-Over Set. Each step carries only its own evidence, as
- * the backend now keys evidence by tool use, so the page shows the linen
- * search (it holds two of the named pieces) and the dock shows two search
- * steps, each with its own "How it ranked".
+ * the backend now keys evidence by tool use, so the page follows the linen
+ * search (it holds two of the named pieces), led by all three picks, and
+ * the dock shows two search steps, each with its own "How it ranked".
  */
 import { ANNA_TURN_EVENTS } from './anna-turn'
 
@@ -65,6 +65,9 @@ const ANSWER =
 function deltas(text: string): object[] {
   return text.split(/(?<=\s)/).map(piece => ({ type: 'content_delta', delta: piece }))
 }
+
+/** The answer's cards, in the order it names them: two linen, one housewarming. */
+export const TWO_SEARCHES_PICKS: readonly string[] = ['2', '11', '31']
 
 export const TWO_SEARCHES_EVENTS: object[] = [
   ...opening,

@@ -11,9 +11,14 @@
  *
  * The header shows the wordmark alone. The square p. mark is the favicon and
  * Ask Pellier's avatar, never the header.
+ *
+ * The wordmark always returns to the default home: the whole store, an empty
+ * home bar and the top of the page, even on `/` with results showing. The
+ * Ask Pellier conversation and the signed-in shopper stay as they are.
  */
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import '@fontsource-variable/fraunces'
+import { useStoreResults } from '../contexts/StoreResultsContext'
 import '../styles/surface-navigation.css'
 
 const BRAND_FACE = { fontFamily: 'var(--dl-font-display)' } as const
@@ -40,9 +45,19 @@ interface WordmarkProps {
 }
 
 export default function Wordmark({ size = 'header', ariaLabel = 'Pellier home', className }: WordmarkProps) {
+  const results = useStoreResults()
+  const { pathname } = useLocation()
+  const goHome = () => {
+    results?.clear()
+    // Another route scrolls to the top when it changes; on `/` nothing changes.
+    if (pathname !== '/') return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: reduce ? 'instant' : 'smooth' })
+  }
   return (
     <Link
       to="/"
+      onClick={goHome}
       className={['pellier-brand', size === 'footer' ? 'pellier-brand-footer' : '', className ?? '']
         .filter(Boolean)
         .join(' ')}

@@ -550,15 +550,13 @@ export default function ProductDetailPage() {
               >
                 {PRODUCT_DETAIL.MORE_HEADING}
               </h2>
-              <div className="pellier-grid-frame mt-8">
-                <div
-                  data-testid="product-detail-siblings"
-                  className="pellier-product-grid"
-                >
-                  {siblings.map((product, index) => (
-                    <ProductCard key={product.id} product={product} index={index % 3} />
-                  ))}
-                </div>
+              <div
+                data-testid="product-detail-siblings"
+                className="pellier-product-grid mt-8"
+              >
+                {siblings.map((product, index) => (
+                  <ProductCard key={product.id} product={product} index={index % 3} />
+                ))}
               </div>
             </div>
           </section>

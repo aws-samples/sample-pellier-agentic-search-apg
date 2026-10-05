@@ -22,6 +22,7 @@ import {
 import type { WorkshopMode } from '../contexts/LayoutContext'
 import { usePersona } from '../contexts/PersonaContext'
 import { readSkillMode } from '../components/turn/preferences'
+import { productsNamedInAnswer } from '../utils/answerCards'
 import { upsertStep, type TurnPrincipal, type TurnStatus, type TurnStep } from '../components/turn/turnTypes'
 
 /**
@@ -114,8 +115,20 @@ export type TurnEvent =
   | { type: 'start'; query: string }
   | { type: 'status'; label: string }
   | { type: 'step'; step: TurnStep }
-  /** `productIds` are the pieces the answer named, on a completed turn. */
-  | { type: 'end'; outcome: 'complete' | 'failed' | 'stopped'; productIds?: string[] }
+  /** `picks` are the answer's cards, as Ask Pellier shows them, on a completed turn. */
+  | { type: 'end'; outcome: 'complete' | 'failed' | 'stopped'; picks?: string[] }
+
+/**
+ * The ids of the cards Ask Pellier shows under an answer ("Pulled for you"),
+ * in their order: the pieces the answer names that are new to the shopper,
+ * and none when the answer is a request waiting on a person.
+ */
+export function answerPicks(message: AgentChatMessage): string[] {
+  if (message.creditRequestPending) return []
+  return productsNamedInAnswer(message.products ?? [], message.content)
+    .filter(product => product.ownership !== 'owned')
+    .map(product => String(product.id))
+}
 
 export interface UseAgentChatOptions {
   workshopMode?: WorkshopMode
@@ -386,14 +399,28 @@ export function useAgentChat(
       setIsLoading(true)
       report({ type: 'start', query: text })
 
+      const loadingMessage: AgentChatMessage = {
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        agentStatus: 'thinking',
+        status: SENDING,
+        steps: [],
+        live: true,
+      }
+      // This turn's message as the panel will hold it, from the same patches,
+      // so the turn's end can report the cards the panel shows.
+      let answer = loadingMessage
       // CRITICAL: every updater below must be PURE. React 18 StrictMode
       // double-invokes state updaters in dev to surface impurity; any
       // mutation of `prev[i]` leaks across invocations and doubles additive
       // operations (content += delta). The last message is shallow-cloned
-      // into a new object before writing.
+      // into a new object before writing. Each patch also runs once on
+      // `answer`, which purity makes safe.
       const updateLast = (
         patch: (msg: AgentChatMessage) => AgentChatMessage | null,
       ) => {
+        answer = patch(answer) ?? answer
         setMessages(prev => {
           if (prev.length === 0) return prev
           const lastIdx = prev.length - 1
@@ -407,15 +434,6 @@ export function useAgentChat(
         })
       }
 
-      const loadingMessage: AgentChatMessage = {
-        role: 'assistant',
-        content: '',
-        timestamp: new Date(),
-        agentStatus: 'thinking',
-        status: SENDING,
-        steps: [],
-        live: true,
-      }
       setMessages(prev => [...prev, loadingMessage])
 
       const controller = new AbortController()
@@ -552,11 +570,7 @@ export function useAgentChat(
           }
         })
         setBackendOnline(true)
-        report({
-          type: 'end',
-          outcome: 'complete',
-          productIds: (response.products ?? []).map(product => String(mapProduct(product).id)),
-        })
+        report({ type: 'end', outcome: 'complete', picks: answerPicks(answer) })
       } catch (error) {
         // An unmount aborts `controller`, which surfaces here as a rejected
         // fetch. There is no drawer left to show a failure card in.

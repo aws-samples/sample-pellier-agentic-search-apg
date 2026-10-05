@@ -32,6 +32,7 @@ import {
 import { PAGE_RANKING_ID, useStoreResults } from '../contexts/StoreResultsContext'
 import { imageSrc } from '../utils/assetPath'
 import { catalogTurnFollowUps } from '../utils/catalogFollowUps'
+import { productsNamedInAnswer } from '../utils/answerCards'
 import { nextJourneyPrompt } from '../data/workshopJourneys'
 import { SHOPPER } from '../copy'
 import '../styles/pellier-chat.css'
@@ -72,23 +73,6 @@ function relativeTime(ts: Date): string {
   if (mins < 60) return `${mins}m ago`
   const hrs = Math.floor(mins / 60)
   return `${hrs}h ago`
-}
-
-type Products = NonNullable<AgentChatMessage['products']>
-
-/** The products the prose names, in order of first mention, at most three. */
-function productsForRenderedProse(products: Products, content: string): Products {
-  const normalizedContent = content.toLowerCase()
-  return products
-    .map((product, index) => ({
-      product,
-      index,
-      mentionIndex: product.name ? normalizedContent.indexOf(product.name.toLowerCase()) : -1,
-    }))
-    .filter((item) => item.mentionIndex >= 0)
-    .sort((a, b) => (a.mentionIndex !== b.mentionIndex ? a.mentionIndex - b.mentionIndex : a.index - b.index))
-    .map((item) => item.product)
-    .slice(0, 3)
 }
 
 /**
@@ -252,7 +236,7 @@ function AgentMessage({
   const revealFinished = streamDone && reveal.finished
   const steps = message.steps ?? []
 
-  const orderedProducts = message.products ? productsForRenderedProse(message.products, message.content) : []
+  const orderedProducts = message.products ? productsNamedInAnswer(message.products, message.content) : []
   const recommendedProducts = orderedProducts.filter((product) => product.ownership !== 'owned')
   const ownedProducts = orderedProducts.filter((product) => product.ownership === 'owned')
   // Names and prices are emphasized as rendering over the revealed text. The

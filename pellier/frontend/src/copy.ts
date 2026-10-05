@@ -170,8 +170,8 @@ export const ASK_PANEL = {
 
 /**
  * The results view: a question from the home bar or the dock fills the page
- * grid with the pieces that answer came from, in its order. Every number is
- * the turn's own evidence; nothing here is counted in the browser.
+ * grid with the pieces that answer came from: the answer's picks first, then
+ * the result's own order. Every number is the turn's own evidence.
  */
 export const RESULTS = {
   title: (query: string): string => `Results for \u201c${query}\u201d`,
@@ -191,6 +191,13 @@ export const RESULTS = {
   FAILED_STORE: "That request did not finish. The store is as it was.",
   CARDS_FAILED: "The pieces could not be loaded just now.",
   RETRY: "Try again",
+  /** The tag on a card the answer recommended; those cards lead the grid. */
+  PICK: "Pellier's pick",
+  /** The grid shows twelve pieces first, so its rows are full. */
+  showAll: (count: number): string => `Show all ${count} pieces`,
+  /** Builder view: which of the turn's catalog calls "How it ranked" shows. */
+  RANKED_CALLS: "How each call ranked",
+  rankedCall: (n: number): string => `Call ${n}`,
 } as const;
 
 /**

@@ -13,6 +13,7 @@ import { UIProvider } from '../contexts/UIContext'
 import { StoreResultsProvider } from '../contexts/StoreResultsContext'
 import { writeBuilderView } from './turn/preferences'
 import ChatDrawer from './ChatDrawer'
+import Wordmark from './Wordmark'
 import PellierPage from '../pages/PellierPage'
 
 const stream = vi.hoisted(() => ({
@@ -127,6 +128,7 @@ function Storefront() {
     <MemoryRouter>
       <UIProvider>
         <StoreResultsProvider>
+          <Wordmark />
           <PellierPage />
           <ChatDrawer />
         </StoreResultsProvider>
@@ -169,6 +171,19 @@ async function askInTheDock(question: string) {
 function gridNames(): string[] {
   const grid = screen.getByTestId('results-grid')
   return within(grid).getAllByRole('heading', { level: 3 }).map(heading => heading.textContent ?? '')
+}
+
+/** The names of the cards tagged "Pellier's pick", in grid order. */
+function pickNames(): string[] {
+  const grid = screen.getByTestId('results-grid')
+  return Array.from(grid.querySelectorAll('[data-pick="true"]'))
+    .map(card => card.querySelector('h3')?.textContent ?? '')
+}
+
+/** The answer's cards in the dock ("Pulled for you"), in their order. */
+function dockCardNames(): string[] {
+  const dock = screen.getByTestId('chat-drawer')
+  return Array.from(dock.querySelectorAll('.pa-name')).map(name => name.textContent ?? '')
 }
 
 describe('the results view', () => {
@@ -401,9 +416,14 @@ describe('the results view', () => {
       searchDone(['12', '65'], { id: 'step-2', ranking: otherRanking }),
       searchDone(['36', '22']),
     )
-    await finish({ ...COMPLETE, products: [{ id: 22, name: 'Linen Napkins, Set of 4', price: 44 }] })
-    // The answer named the napkins, from the first search: the page shows that search.
-    await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers', 'Linen Napkins, Set of 4']))
+    await finish({
+      ...COMPLETE,
+      response: 'The Linen Napkins, Set of 4 at $44 are the gift.',
+      products: [{ id: 22, name: 'Linen Napkins, Set of 4', price: 44 }],
+    })
+    // The answer named the napkins, from the first search: the page shows that
+    // search, led by the napkins.
+    await waitFor(() => expect(gridNames()).toEqual(['Linen Napkins, Set of 4', 'Ceramic Tumblers']))
 
     act(() => writeBuilderView(true))
     const dock = screen.getByTestId('chat-drawer')
@@ -444,5 +464,145 @@ describe('the results view', () => {
     if (fold) fireEvent.click(fold)
     expect(await within(dock).findByTestId('ranking-summary')).toHaveTextContent('see the table above the results')
     expect(screen.getAllByTestId('ranking-panel')).toHaveLength(1)
+  })
+
+  it("leads with the answer's cards, a second search's among them, then the rest", async () => {
+    CATALOG.set(96, card(96, 'Everyday Backpack'))
+    CATALOG.set(95, card(95, 'Canvas Crossbody Bag'))
+    CATALOG.set(97, card(97, 'Travel Bottles, Set of 4'))
+    CATALOG.set(14, card(14, 'Linen Drawstring Trousers'))
+    render(<Storefront />)
+    await askFromTheHomeBar('For the trip')
+    await emit(
+      ROUTE_SHOPPING,
+      SEARCH_RUNNING,
+      { ...SEARCH_RUNNING, id: 'step-2' },
+      searchDone(['96', '95', '14', '12']),
+      searchDone(['97'], { id: 'step-2' }),
+    )
+    const answer =
+      'Pack the Linen Drawstring Trousers at $40 for the heat, the Travel Bottles, Set of 4 at $40 ' +
+      'for the bathroom bag, and the Everyday Backpack at $40 to carry it all.'
+    await finish({
+      ...COMPLETE,
+      response: answer,
+      products: [
+        { id: 96, name: 'Everyday Backpack', price: 40 },
+        { id: 14, name: 'Linen Drawstring Trousers', price: 40 },
+        { id: 97, name: 'Travel Bottles, Set of 4', price: 40 },
+      ],
+    })
+    const picks = ['Linen Drawstring Trousers', 'Travel Bottles, Set of 4', 'Everyday Backpack']
+    // The answer's own order, then the first search's order without repeats.
+    await waitFor(() => expect(gridNames()).toEqual([...picks, 'Canvas Crossbody Bag', 'Hadley Linen Shirt']))
+    expect(pickNames()).toEqual(picks)
+    expect(within(screen.getByTestId('results-grid')).getAllByText("Pellier's pick")).toHaveLength(3)
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/^5 pieces$/)
+    // One bounded read for exactly the grid's ids: never a search of its own.
+    expect(idReads.at(-1)).toBe('14,97,96,95,12')
+    // The page and the answer read as one: the dock's cards are the grid's first.
+    await waitFor(() => expect(dockCardNames()).toEqual(picks), { timeout: 4000 })
+  })
+
+  it('shows the first twelve pieces, then all of them on request', async () => {
+    const ids = Array.from({ length: 14 }, (_, index) => String(200 + index))
+    for (const id of ids) CATALOG.set(Number(id), card(Number(id), `Piece ${id}`))
+    render(<Storefront />)
+    await askFromTheHomeBar('Everything in linen')
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(ids))
+    await finish()
+    await waitFor(() => expect(gridNames()).toHaveLength(12))
+    expect(gridNames()).toEqual(ids.slice(0, 12).map(id => `Piece ${id}`))
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/^14 pieces$/)
+    const more = screen.getByTestId('results-show-all')
+    expect(more).toHaveTextContent('Show all 14 pieces')
+
+    fireEvent.click(more)
+    expect(gridNames()).toEqual(ids.map(id => `Piece ${id}`))
+    expect(screen.queryByTestId('results-show-all')).toBeNull()
+    // The first piece it added takes the focus.
+    expect(document.activeElement).toHaveTextContent('Piece 212')
+  })
+
+  it('has no Show all control when the result fits in twelve', async () => {
+    render(<Storefront />)
+    await askFromTheHomeBar(ANNA_QUESTION)
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36', '22', '31']))
+    await finish()
+    await waitFor(() => expect(gridNames()).toHaveLength(3))
+    expect(screen.queryByTestId('results-show-all')).toBeNull()
+    expect(screen.queryAllByText("Pellier's pick")).toHaveLength(0)
+  })
+
+  it('shows one table at a time when the turn ran two searches, never their numbers merged', async () => {
+    const otherRanking = {
+      ...RANKING,
+      filters: { kept: 67, of: 100, removed: { budget: 33 } },
+      rows: [{ ...RANKING.rows[0], product_id: '12', name: 'Hadley Linen Shirt' }],
+    }
+    render(<Storefront />)
+    await askFromTheHomeBar(ANNA_QUESTION)
+    await emit(
+      ROUTE_SHOPPING,
+      SEARCH_RUNNING,
+      { ...SEARCH_RUNNING, id: 'step-2' },
+      searchDone(['36', '22']),
+      searchDone(['12', '65'], { id: 'step-2', ranking: otherRanking }),
+    )
+    await finish({
+      ...COMPLETE,
+      response: 'The Ceramic Tumblers at $40, the Linen Napkins, Set of 4 at $40, and the Hadley Linen Shirt at $40.',
+      products: [
+        { id: 36, name: 'Ceramic Tumblers', price: 40 },
+        { id: 22, name: 'Linen Napkins, Set of 4', price: 40 },
+        { id: 12, name: 'Hadley Linen Shirt', price: 40 },
+      ],
+    })
+    // The first search holds two of the three picks: the grid follows it.
+    await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers', 'Linen Napkins, Set of 4', 'Hadley Linen Shirt']))
+
+    act(() => writeBuilderView(true))
+    const view = screen.getByTestId('results-view')
+    const calls = await within(view).findAllByTestId('results-call')
+    expect(calls.map(call => call.textContent)).toEqual(['12 found', '22 found'])
+    expect(calls[0]).toHaveAttribute('aria-pressed', 'true')
+    const panel = within(view).getByTestId('ranking-panel')
+    expect(panel).toHaveTextContent('Kept 64 of 100')
+    expect(panel).toHaveTextContent('Ceramic Tumblers')
+
+    fireEvent.click(calls[1])
+    expect(calls[1]).toHaveAttribute('aria-pressed', 'true')
+    expect(within(view).getByTestId('ranking-panel')).toHaveTextContent('Kept 67 of 100')
+    expect(within(view).getByTestId('ranking-panel')).toHaveTextContent('Hadley Linen Shirt')
+    expect(within(view).getByTestId('ranking-panel')).not.toHaveTextContent('Kept 64 of 100')
+    expect(within(view).getAllByTestId('ranking-panel')).toHaveLength(1)
+  })
+
+  it('returns to "This week at Pellier" from the wordmark, leaving the conversation', async () => {
+    const scrollTo = vi.fn()
+    vi.stubGlobal('scrollTo', scrollTo)
+    render(<Storefront />)
+    await askFromTheHomeBar(ANNA_QUESTION)
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    await finish()
+    await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers']))
+    expect(screen.getByTestId('pellier-hero-search')).toHaveValue(ANNA_QUESTION)
+    const turnsBefore = stream.turns.length
+
+    fireEvent.click(screen.getByTestId('pellier-wordmark'))
+    expect(screen.queryByTestId('results-view')).toBeNull()
+    expect(await screen.findByTestId('home-grid-title')).toHaveTextContent('This week at Pellier')
+    expect(screen.getByTestId('home-grid')).toBeVisible()
+    expect(screen.getByTestId('pellier-hero')).toHaveAttribute('data-compact', 'false')
+    expect(screen.getByTestId('pellier-hero-search')).toHaveValue('')
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ top: 0 }))
+    // The conversation is untouched.
+    expect(within(screen.getByTestId('chat-drawer')).getByText(ANNA_QUESTION)).toBeInTheDocument()
+    expect(stream.turns.length).toBe(turnsBefore)
+
+    // On the store, words typed into the bar but not sent are cleared too.
+    fireEvent.change(screen.getByTestId('pellier-hero-search'), { target: { value: 'linen' } })
+    fireEvent.click(screen.getByTestId('pellier-wordmark'))
+    expect(screen.getByTestId('pellier-hero-search')).toHaveValue('')
   })
 })

@@ -17,25 +17,36 @@
 BEGIN;
 
 -- ---------------------------------------------------------------------------
--- Each storefront edit's grid order
+-- Each storefront edit: twelve pieces in grid order
 -- ---------------------------------------------------------------------------
-WITH edit (product_id, storefront_rank) AS (VALUES
-    -- fresh: the signed-out edit
-    ('3', 1), ('1', 2), ('2', 3), ('4', 4), ('5', 5), ('6', 6), ('7', 7), ('8', 8), ('9', 9),
-    -- marco
-    ('11', 1), ('14', 2), ('17', 3), ('16', 4), ('13', 5), ('19', 6), ('18', 7), ('12', 8),
-    ('15', 9), ('20', 10),
-    -- anna
-    ('21', 1), ('23', 2), ('27', 3), ('26', 4), ('29', 5), ('22', 6), ('25', 7), ('24', 8),
-    ('28', 9), ('30', 10),
-    -- theo
-    ('31', 1), ('37', 2), ('36', 3), ('39', 4), ('35', 5), ('32', 6), ('34', 7), ('38', 8),
-    ('33', 9), ('40', 10),
-    -- house: Jessica's Home comforts edit (the robe she sent back is not in it)
-    ('46', 1), ('82', 2), ('99', 3), ('100', 4), ('44', 5), ('81', 6), ('84', 7), ('49', 8),
-    ('41', 9), ('47', 10))
+-- Twelve fills complete rows at two, three, four or six cards across. A
+-- piece joins the edit named on its row; most come from the catalog moment
+-- of the same name.
+WITH edit (persona_id, product_id, storefront_rank) AS (VALUES
+    -- fresh: the signed-out edit, "This week at Pellier"
+    ('fresh', '3', 1), ('fresh', '1', 2), ('fresh', '2', 3), ('fresh', '4', 4),
+    ('fresh', '5', 5), ('fresh', '6', 6), ('fresh', '7', 7), ('fresh', '8', 8),
+    ('fresh', '9', 9), ('fresh', '10', 10), ('fresh', '85', 11), ('fresh', '70', 12),
+    -- marco: travel and linen
+    ('marco', '11', 1), ('marco', '14', 2), ('marco', '17', 3), ('marco', '16', 4),
+    ('marco', '13', 5), ('marco', '19', 6), ('marco', '18', 7), ('marco', '12', 8),
+    ('marco', '15', 9), ('marco', '20', 10), ('marco', '98', 11), ('marco', '94', 12),
+    -- anna: gifts
+    ('anna', '21', 1), ('anna', '23', 2), ('anna', '27', 3), ('anna', '26', 4),
+    ('anna', '29', 5), ('anna', '22', 6), ('anna', '25', 7), ('anna', '24', 8),
+    ('anna', '28', 9), ('anna', '30', 10), ('anna', '62', 11), ('anna', '78', 12),
+    -- theo: ceramics and slow craft
+    ('theo', '31', 1), ('theo', '37', 2), ('theo', '36', 3), ('theo', '39', 4),
+    ('theo', '35', 5), ('theo', '32', 6), ('theo', '34', 7), ('theo', '38', 8),
+    ('theo', '33', 9), ('theo', '40', 10), ('theo', '65', 11), ('theo', '71', 12),
+    -- house: Jessica's Home comforts edit, home and bath. The robe she sent
+    -- back is not in it, so the body oil and the rug come from Made to last.
+    ('house', '46', 1), ('house', '82', 2), ('house', '99', 3), ('house', '100', 4),
+    ('house', '44', 5), ('house', '81', 6), ('house', '84', 7), ('house', '49', 8),
+    ('house', '41', 9), ('house', '47', 10), ('house', '56', 11), ('house', '59', 12))
 UPDATE pellier.product_catalog p
-   SET storefront_rank = edit.storefront_rank
+   SET persona_id = edit.persona_id,
+       storefront_rank = edit.storefront_rank
   FROM edit
  WHERE p."productId" = edit.product_id;
 
@@ -179,9 +190,12 @@ BEGIN
          WHERE customer_id = 'CUST-JESSICA' AND return_status = 'received') <> 10000 THEN
         RAISE EXCEPTION 'Jessica''s two returned items must total exactly 10000 cents';
     END IF;
-    IF (SELECT count(*) FROM pellier.product_catalog
-         WHERE persona_id = 'house' AND storefront_rank IS NOT NULL) <> 10 THEN
-        RAISE EXCEPTION 'Expected a ten-piece Home comforts edit';
+    IF (SELECT count(*) FROM (
+            SELECT persona_id FROM pellier.product_catalog
+             WHERE storefront_rank IS NOT NULL
+             GROUP BY persona_id HAVING count(*) = 12) edits) <> 5
+       OR (SELECT count(*) FROM pellier.product_catalog WHERE storefront_rank IS NOT NULL) <> 60 THEN
+        RAISE EXCEPTION 'Expected five storefront edits of twelve pieces each';
     END IF;
 END $$;
 

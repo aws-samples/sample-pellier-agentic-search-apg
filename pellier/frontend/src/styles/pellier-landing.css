@@ -293,17 +293,13 @@
 }
 
 /* -----------------------------------------------------------------------
- * The collection. A card is at most about 300px wide: the grid adds columns
- * as its frame widens rather than enlarging cards. Three across in the page
- * column beside the docked panel on a laptop, four or five with the panel
- * closed, two on a phone. The frame is a size container, so the count
- * follows the column the grid sits in, not the window.
+ * The collection. Every count of cards across divides twelve, so the home's
+ * twelve pieces and a result's first twelve always fill whole rows: two on a
+ * phone, three on a tablet, three beside the docked Ask Pellier panel (291px
+ * cards at 1440, 237px at 1280), four with the panel closed from 1024px, six
+ * from 1800px. A card is at most `--pellier-card-max` wide; past that the
+ * row keeps its count and leaves the rest of the column empty.
  * ----------------------------------------------------------------------- */
-.pellier-grid-frame,
-.results-grid {
-  container-type: inline-size;
-}
-
 /* The home grid follows the hero's suggestion row on the first screen. */
 .pellier-home-grid {
   padding-top: clamp(18px, 3.2vh, 30px);
@@ -331,30 +327,50 @@
 }
 
 .pellier-product-grid {
+  --pellier-card-max: 360px;
+  --pellier-columns: 2;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--pellier-columns), minmax(0, var(--pellier-card-max)));
   gap: 28px 20px;
 }
 
-/* Each step is where the cards of the fewer-column layout would pass 300px:
-   n * 300px + (n - 1) * 20px. */
-@container (min-width: 621px) {
-  .pellier-product-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (min-width: 640px) {
+  .pellier-product-grid { --pellier-columns: 3; }
 }
 
-@container (min-width: 941px) {
-  .pellier-product-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (min-width: 1024px) {
+  .pellier-product-grid { --pellier-columns: 4; }
 }
 
-@container (min-width: 1261px) {
-  .pellier-product-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (min-width: 1800px) {
+  .pellier-product-grid { --pellier-columns: 6; }
+}
+
+/* Docked beside the page (chat-drawer.css), the column holds three. */
+@media (min-width: 1080px) {
+  html[data-ask-docked='true'] .pellier-product-grid { --pellier-columns: 3; }
 }
 
 .pellier-card {
+  position: relative;
   display: flex;
   min-width: 0;
   flex-direction: column;
   gap: 10px;
+}
+
+/* "Pellier's pick": over the photo's top-left corner, ink on the paper's
+   opposite in both themes. */
+.pellier-card-pick {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 9px;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+  font: 500 12px/1.3 var(--dl-font-sans);
+  pointer-events: none;
 }
 
 .pellier-card-photo {

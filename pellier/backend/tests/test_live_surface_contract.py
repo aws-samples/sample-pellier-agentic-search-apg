@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -112,15 +113,50 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
     assert {p["journey_stage"] for p in _prompts()} <= {None, "establish", "exercise", "prove"}
 
 
+def _seed_edits() -> dict[str, list[tuple[str, int]]]:
+    """Each edit's ``(product_id, storefront_rank)`` rows, in seed order."""
+    seed = SEED.read_text()
+    block = seed[seed.index("WITH edit (persona_id, product_id, storefront_rank)"):]
+    block = block[:block.index("UPDATE pellier.product_catalog")]
+    edits: dict[str, list[tuple[str, int]]] = {}
+    for edit, product_id, rank in re.findall(r"\('(\w+)', '(\d+)', (\d+)\)", block):
+        edits.setdefault(edit, []).append((product_id, int(rank)))
+    return edits
+
+
+def test_every_edit_has_twelve_unique_existing_pieces() -> None:
+    """Twelve fills complete rows at two, three, four or six cards across."""
+    edits = _seed_edits()
+    catalog = {str(p["id"]): p for p in json.loads((DATA / "pellier_catalog.json").read_text())}
+
+    assert set(edits) == {p["edit"] for p in _personas().values()}
+    placed: list[str] = []
+    for edit, rows in edits.items():
+        ids = [product_id for product_id, _rank in rows]
+        assert len(ids) == 12, edit
+        assert len(set(ids)) == 12, f"{edit} lists a piece twice"
+        assert [rank for _id, rank in rows] == list(range(1, 13)), edit
+        assert set(ids) <= set(catalog), f"{edit} lists a piece the catalog lacks"
+        placed.extend(ids)
+    assert len(placed) == len(set(placed)), "a piece belongs to one edit"
+    # Jessica's edit keeps out the robe she sent back.
+    assert "42" not in [product_id for product_id, _rank in edits["house"]]
+    # Most of an edit is its own moment; the two exceptions are named in the seed.
+    borrowed = sorted(
+        (edit, product_id)
+        for edit, rows in edits.items()
+        for product_id, _rank in rows
+        if catalog[product_id]["moment"] != edit
+    )
+    assert borrowed == [("house", "56"), ("house", "59")]
+
+
 def test_storefront_persona_edits_are_ranked_in_the_seed() -> None:
     seed = SEED.read_text()
     products_route = (BACKEND / "routes" / "products.py").read_text()
 
-    assert "storefront_rank" in seed
-    for last_of_edit in ("('20', 10)", "('30', 10)", "('40', 10)", "('47', 10)", "('9', 9)"):
-        assert last_of_edit in seed
-    assert "('10', 9)" not in seed, "the signed-out edit ends on the Everyday Runner"
-    assert "Expected a ten-piece Home comforts edit" in seed
+    assert "SET persona_id = edit.persona_id" in seed
+    assert "Expected five storefront edits of twelve pieces each" in seed
     assert "storefront_rank IS NOT NULL" in products_route
     assert "ORDER BY {order}" in products_route
     carry_all = next(p for p in _prompts() if p["prompt"] == "A considered carry-all for a long weekend.")

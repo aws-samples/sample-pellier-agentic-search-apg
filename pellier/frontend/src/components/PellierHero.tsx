@@ -20,6 +20,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
+import { useStoreResults } from '../contexts/StoreResultsContext'
 import { splitHeadlineAtAccent } from '../utils/headlineAccent'
 import { ASK_BAR, HERO_STATEMENT, SHOPPER } from '../copy'
 
@@ -62,10 +63,12 @@ export default function PellierHero({ compact = false, query }: PellierHeroProps
   const statement = HERO_STATEMENT[statementId]
   const headline = splitHeadlineAtAccent(statement.HEADLINE, statement.ACCENT)
 
-  // Folded, the bar holds the results' question; back on the store it is empty.
+  // Folded, the bar holds the results' question; back on the store it is
+  // empty, including after the wordmark when no results were showing.
+  const storeVisits = useStoreResults()?.storeVisits ?? 0
   useEffect(() => {
     setSearchValue(compact && query ? query : '')
-  }, [compact, query])
+  }, [compact, query, storeVisits])
 
   useEffect(() => {
     if (!persona) {
