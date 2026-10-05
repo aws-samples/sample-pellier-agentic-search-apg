@@ -12,8 +12,8 @@ It prints four findings, each with Expected, Observed and Evidence:
     memory   the managed rail's AgentCore Memory read for Theo returns the
              user-preference record extracted from his provisioning
              conversation, and the Builder view names that record id
-    tickets  every executed ``get_tickets`` call on the Gateway read Theo's own
-             tickets, and none read another customer's
+    tickets  every executed ``get_tickets`` call on the Gateway in Theo's turns
+             read his own tickets, and none read another customer's
     probe    Theo's own token, asking the Gateway directly for Jessica's
              tickets, is denied by the owner-only permit and leaves no
              ``tool_audit`` row
@@ -54,12 +54,22 @@ SELECT audit_id, session_id AS turn_id, tool, build_fingerprint AS deployed_fing
  LIMIT 1;
 """
 
+# Theo's turns only: a turn is his when one of its Gateway calls was bound to
+# CUST-THEO. Jessica asks for her credit on the managed path in Lab 4, and her
+# own ticket read is not Theo's. The owner-only permit refuses any read whose
+# customer differs from the token's, so an executed read for another customer
+# can only come from that customer's own turn.
 TICKETS_SQL = """
-SELECT audit_id, session_id AS turn_id, args->>'customer_id' AS customer_id, created_at
-  FROM pellier.tool_audit
- WHERE tool = 'get_tickets'
-   AND caller = 'gateway'
- ORDER BY audit_id;
+SELECT t.audit_id, t.session_id AS turn_id, t.args->>'customer_id' AS customer_id, t.created_at
+  FROM pellier.tool_audit t
+ WHERE t.tool = 'get_tickets'
+   AND t.caller = 'gateway'
+   AND EXISTS (SELECT 1
+                 FROM pellier.tool_audit o
+                WHERE o.caller = 'gateway'
+                  AND o.session_id = t.session_id
+                  AND o.args->>'customer_id' = 'CUST-THEO')
+ ORDER BY t.audit_id;
 """
 
 PROBE_ROWS_SQL = """
@@ -176,8 +186,8 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
 
 
 _TICKETS_TITLE = "every executed ticket read was Theo's own"
-TICKETS_EXPECTED = ("at least one executed get_tickets call on the Gateway, every one for "
-                    f"{THEO}, none for another customer")
+TICKETS_EXPECTED = ("at least one executed get_tickets call on the Gateway in Theo's turns, "
+                    f"every one for {THEO}, none for another customer")
 
 
 def judge_tickets(rows: Sequence[Dict[str, Any]]) -> check.Finding:

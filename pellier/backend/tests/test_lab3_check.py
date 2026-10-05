@@ -5,8 +5,8 @@ Each never blurs "did not happen" with "could not look".
 The build is one query on ``tool_audit.build_fingerprint`` beside this
 checkout's digest; the memory is the managed rail's own AgentCore Memory read
 for Theo beside the record his provisioning conversation produced; the reads
-are every executed Gateway ``get_tickets`` row; the probe is Theo's own token
-asking for Jessica's tickets. A 401 or a transport error is never a Cedar
+are the executed Gateway ``get_tickets`` rows in Theo's turns; the probe is
+Theo's own token asking for Jessica's tickets. A 401 or a transport error is never a Cedar
 decision.
 """
 
@@ -205,3 +205,38 @@ def test_the_build_and_reads_are_read_from_the_real_schema(fresh_db: Any) -> Non
     assert [r["customer_id"] for r in rows["tickets"]] == ["CUST-THEO"], "Gateway reads only"
     assert lab3.judge_build(rows["build"], BUILD).state == check.PROVED
     assert lab3.judge_tickets(rows["tickets"]).state == check.PROVED
+
+
+def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
+    """Jessica's own Lab 4 turn reads her tickets on the Gateway; that is not Theo's read.
+
+    A read for another customer inside a turn bound to Theo still contradicts.
+    """
+    cfg = {"DB_HOST": str(fresh_db.socket), "DB_PORT": "5432", "DB_NAME": "postgres",
+           "DB_USER": "postgres", "DB_PASSWORD": ""}
+    with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
+                         dbname="postgres", autocommit=True) as conn:
+        conn.execute("""
+            INSERT INTO pellier.tool_audit
+                   (session_id, tool, caller, args, result, latency_ms, build_fingerprint)
+            VALUES ('turn-theo-scope', 'get_tickets', 'gateway', '{"customer_id": "CUST-THEO"}',
+                    '{"status": "success"}', 12, %s),
+                   ('turn-jessica-scope', 'get_tickets', 'gateway',
+                    '{"customer_id": "CUST-JESSICA"}', '{"status": "success"}', 11, %s),
+                   ('turn-jessica-scope', 'ask_a_person', 'gateway',
+                    '{"customer_id": "CUST-JESSICA"}', '{"status": "handed_off"}', 10, %s)""",
+                     (BUILD, BUILD, BUILD))
+    mine = [r for r in lab3.read_rows(cfg)["tickets"] if r["turn_id"].endswith("-scope")]
+    assert [r["turn_id"] for r in mine] == ["turn-theo-scope"]
+    assert lab3.judge_tickets(mine).state == check.PROVED
+
+    with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
+                         dbname="postgres", autocommit=True) as conn:
+        conn.execute("""
+            INSERT INTO pellier.tool_audit
+                   (session_id, tool, caller, args, result, latency_ms, build_fingerprint)
+            VALUES ('turn-theo-scope', 'get_tickets', 'gateway', '{"customer_id": "CUST-JESSICA"}',
+                    '{"status": "success"}', 9, %s)""", (BUILD,))
+    mine = [r for r in lab3.read_rows(cfg)["tickets"] if r["turn_id"].endswith("-scope")]
+    assert [r["customer_id"] for r in mine] == ["CUST-THEO", "CUST-JESSICA"]
+    assert lab3.judge_tickets(mine).state == check.CONTRADICTED
