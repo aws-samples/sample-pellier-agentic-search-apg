@@ -51,6 +51,11 @@ LAMBDA_RUNTIME = "python3.12"
 SUPPORTED_TIERS = {"ESSENTIALS", "PLUS"}
 LAMBDA_VERSION = "V2_0"
 PERMISSION_SID = "AllowCognitoPreTokenGeneration"
+# The workshop cluster scales to zero. After five idle minutes (a provisioning
+# run spends longer than that in CDK deploys) the first Data API call is
+# refused with DatabaseResumingException while the cluster wakes.
+RESUME_ATTEMPTS = 24
+RESUME_WAIT_SECONDS = 5
 
 _TRUST = {
     "Version": "2012-10-17",
@@ -92,7 +97,8 @@ def mapping_from_database(
         raise SystemExit("DB_SECRET_ARN (or SECRET_ARN) is required to read pellier.customers")
     database = database or os.environ.get("DB_NAME") or os.environ.get("DATABASE") or "postgres"
     rds = boto3.client("rds-data", region_name=region)
-    response = rds.execute_statement(
+    response = _execute_once_awake(
+        rds,
         resourceArn=cluster_arn,
         secretArn=secret_arn,
         database=database,
@@ -110,6 +116,19 @@ def mapping_from_database(
             "deploying the claim trigger, or no shopper will carry a claim"
         )
     return mapping
+
+
+def _execute_once_awake(rds: Any, **statement: Any) -> Dict[str, Any]:
+    """Run one read, waiting out a scaled-to-zero cluster's resume (about 2 minutes)."""
+    for attempt in range(1, RESUME_ATTEMPTS + 1):
+        try:
+            return rds.execute_statement(**statement)
+        except ClientError as exc:
+            resuming = exc.response["Error"]["Code"] == "DatabaseResumingException"
+            if not resuming or attempt == RESUME_ATTEMPTS:
+                raise
+            time.sleep(RESUME_WAIT_SECONDS)
+    raise AssertionError("unreachable")
 
 
 def deploy_trigger(

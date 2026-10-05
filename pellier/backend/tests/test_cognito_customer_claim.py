@@ -344,3 +344,63 @@ def test_the_map_is_read_from_the_column_row_level_security_reads(monkeypatch) -
     )
     assert seen["sql"] == "SELECT cognito_username, id FROM pellier.customers"
     assert mapping == {"theo": "CUST-THEO"}
+
+
+def _resuming() -> Exception:
+    from botocore.exceptions import ClientError
+
+    return ClientError(
+        {"Error": {"Code": "DatabaseResumingException", "Message": "resuming after auto-pause"}},
+        "ExecuteStatement",
+    )
+
+
+def test_the_map_read_waits_for_a_cluster_resuming_from_zero(monkeypatch) -> None:
+    deploy = _load("deploy_customer_claim_trigger")
+    answers = [_resuming(), _resuming()]
+    slept: list[float] = []
+
+    class RdsData:
+        def execute_statement(self, **_kwargs: Any) -> Dict[str, Any]:
+            if answers:
+                raise answers.pop(0)
+            return {"records": [[{"stringValue": "theo"}, {"stringValue": "CUST-THEO"}]]}
+
+    monkeypatch.setattr(deploy.boto3, "client", lambda *_a, **_k: RdsData())
+    monkeypatch.setattr(deploy.time, "sleep", slept.append)
+    mapping = deploy.mapping_from_database(
+        "us-east-1", cluster_arn="cluster", secret_arn="secret", database="postgres"
+    )
+    assert mapping == {"theo": "CUST-THEO"}
+    assert slept == [deploy.RESUME_WAIT_SECONDS] * 2
+
+
+def test_the_map_read_gives_up_on_other_errors_and_on_a_cluster_that_never_wakes(
+    monkeypatch,
+) -> None:
+    from botocore.exceptions import ClientError
+
+    deploy = _load("deploy_customer_claim_trigger")
+    monkeypatch.setattr(deploy.time, "sleep", lambda _seconds: None)
+    calls: list[str] = []
+
+    class Denied:
+        def execute_statement(self, **_kwargs: Any) -> Dict[str, Any]:
+            calls.append("denied")
+            raise ClientError({"Error": {"Code": "AccessDeniedException", "Message": "no"}}, "ExecuteStatement")
+
+    monkeypatch.setattr(deploy.boto3, "client", lambda *_a, **_k: Denied())
+    with pytest.raises(ClientError, match="AccessDenied"):
+        deploy.mapping_from_database("us-east-1", cluster_arn="c", secret_arn="s", database="d")
+    assert calls == ["denied"]
+
+    class Asleep:
+        def execute_statement(self, **_kwargs: Any) -> Dict[str, Any]:
+            calls.append("asleep")
+            raise _resuming()
+
+    calls.clear()
+    monkeypatch.setattr(deploy.boto3, "client", lambda *_a, **_k: Asleep())
+    with pytest.raises(ClientError, match="DatabaseResuming"):
+        deploy.mapping_from_database("us-east-1", cluster_arn="c", secret_arn="s", database="d")
+    assert len(calls) == deploy.RESUME_ATTEMPTS
