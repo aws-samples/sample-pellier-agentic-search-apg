@@ -10,7 +10,8 @@
 #   1. Backend /api/health is green (DB connected)
 #   2. Catalog row count == expected (100 by default)
 #   3. Warehouse inventory present (300 rows: 100 curated x 3 warehouses)
-#   3b. Governed customer, order, and JSONB audit evidence present
+#   3b. The ten tables, the evidence triggers, the pellier_agent role and its
+#       row-level security policies, and the seeded customers and orders
 #   4. node --version is 24 LTS                   (required for governed format;
 #      warning for builders format; CLI minimum compatibility alone does not
 #      establish a supported workshop release runtime)
@@ -72,10 +73,8 @@ fi
 # This read used to default to `builders`, the inverse of bootstrap-labs.sh,
 # which defaults to `governed`. The two disagreeing is not a style difference:
 # in the lenient branch every managed AgentCore check downgrades from fail to
-# warn AND the whole Aurora verification block below is skipped -- customers,
-# orders, the JSONB tool audit, retrieval receipts, governed turn receipts, the
-# evidence ledger and commerce receipts, which are the exact tables Labs 1-4
-# query. The gate then exits 0 and prints READY, so bootstrap's governed fatal
+# warn AND the whole Aurora verification block below is skipped -- the ten
+# tables, the evidence triggers and the row-level security Labs 1-4 query. The gate then exits 0 and prints READY, so bootstrap's governed fatal
 # check never fires. Defaulting the other way makes an unset variable produce a
 # noisy failure instead of a quiet, green, wrong answer.
 #
@@ -208,127 +207,67 @@ else
   ok=false
 fi
 
-# 3b. Governed forensic receipt seed
-receipt_n="$(_psql "SELECT count(*) FROM pellier.governed_receipts WHERE session_id = 'gateway-marco-for-theo-incident';" || echo '')"
-if [[ "${receipt_n:-0}" =~ ^[0-9]+$ ]] && (( receipt_n == 1 )); then
-  pass "Governed forensic receipt seeded"
-else
-  fail "Governed forensic receipt missing (got: ${receipt_n:-none}). Run 'reset-governed'."
-  ok=false
-fi
-
-# 3c. Governed operational data. These tables are part of the DAT416 contract,
-# not optional demo context: the labs query customer identity and prior orders.
+# 3b. The governed schema. scripts/migrations/001_schema.sql builds exactly ten
+# tables, the two evidence triggers, one application role and two row-level
+# security policies; scripts/migrations/002_seed.sql loads the four customers
+# and their orders. The labs query all of it, so a box missing any of it is not
+# ready. Each query carries a /* tag */ so a reader of the log can tell them apart.
 if $managed_required; then
-  customer_n="$(_psql 'SELECT count(*) FROM pellier.customers;' || echo '')"
-  if [[ "${customer_n:-0}" =~ ^[0-9]+$ ]] && (( customer_n > 0 )); then
-    pass "Customer records queryable ($customer_n rows)"
+  table_n="$(_psql "
+/* schema_tables_check */
+SELECT count(*) FROM pg_tables
+ WHERE schemaname = 'pellier'
+   AND tablename IN ('product_catalog', 'warehouse_inventory', 'customers', 'orders',
+                     'return_policies', 'support_tickets', 'approvals', 'store_credits',
+                     'tool_audit', 'retrieval_receipts');" || echo '')"
+  if [[ "$table_n" == "10" ]]; then
+    pass "The ten Pellier tables are installed"
   else
-    fail "Customer records empty or missing (got: ${customer_n:-none})"
+    fail "Pellier schema incomplete (${table_n:-unknown} of 10 tables). Run 'reset-governed' to rebuild it from scripts/migrations/001_schema.sql."
+    ok=false
+  fi
+
+  trigger_n="$(_psql "
+/* evidence_triggers_check */
+SELECT count(*) FROM pg_trigger
+ WHERE NOT tgisinternal
+   AND tgname IN ('tool_audit_fill_once', 'retrieval_receipts_append_only');" || echo '')"
+  if [[ "$trigger_n" == "2" ]]; then
+    pass "tool_audit is fill-once and retrieval_receipts is append-only"
+  else
+    fail "Evidence triggers missing (${trigger_n:-unknown} of 2). Run 'reset-governed'."
+    ok=false
+  fi
+
+  # The role must not bypass row-level security, and both owner policies must
+  # bind it, or the customer-scoped tools read every customer's rows.
+  rls_n="$(_psql "
+/* row_security_check */
+SELECT count(*) FROM pg_policies p
+  JOIN pg_roles r ON r.rolname = 'pellier_agent' AND NOT r.rolbypassrls
+ WHERE p.schemaname = 'pellier'
+   AND p.policyname IN ('orders_owner', 'support_tickets_owner')
+   AND 'pellier_agent' = ANY (p.roles);" || echo '')"
+  if [[ "$rls_n" == "2" ]]; then
+    pass "Row-level security binds pellier_agent to the signed-in customer's orders and tickets"
+  else
+    fail "Row-level security incomplete (${rls_n:-unknown} of 2 owner policies on pellier_agent). Run 'reset-governed'."
+    ok=false
+  fi
+
+  customer_n="$(_psql 'SELECT count(*) FROM pellier.customers;' || echo '')"
+  if [[ "$customer_n" == "4" ]]; then
+    pass "The four customers are seeded"
+  else
+    fail "Customer records incomplete (got: ${customer_n:-none}, expected 4)"
     ok=false
   fi
 
   order_n="$(_psql 'SELECT count(*) FROM pellier.orders;' || echo '')"
-  if [[ "${order_n:-0}" =~ ^[0-9]+$ ]] && (( order_n >= 20 )); then
+  if [[ "${order_n:-0}" =~ ^[0-9]+$ ]] && (( order_n >= 21 )); then
     pass "Orders queryable and fully seeded ($order_n rows)"
   else
-    fail "Orders incomplete or missing (got: ${order_n:-none}, expected at least 20)"
-    ok=false
-  fi
-
-  audit_n="$(_psql "SELECT count(*) FROM pellier.tool_audit WHERE caller IN ('agent', 'gateway') AND jsonb_typeof(args) = 'object' AND args <> '{}'::jsonb AND jsonb_typeof(result) = 'object' AND result <> '{}'::jsonb;" || echo '')"
-  if [[ "${audit_n:-0}" =~ ^[0-9]+$ ]] && (( audit_n > 0 )); then
-    pass "JSONB tool execution ledger queryable ($audit_n structured rows)"
-  else
-    fail "JSONB tool execution ledger has no completed agent or Gateway actions (got: ${audit_n:-none})"
-    ok=false
-  fi
-
-  # regclass text omits the schema when it is on search_path. Ask PostgreSQL
-  # for existence so both participant and default search paths give one answer.
-  retrieval_receipts_table="$(_psql "SELECT to_regclass('pellier.retrieval_receipts') IS NOT NULL;" || echo '')"
-  if [[ "$retrieval_receipts_table" == "t" ]]; then
-    pass "Retrieval receipt schema is installed"
-  else
-    fail "Retrieval receipt schema missing. Apply scripts/migrations/012_retrieval_receipts.sql."
-    ok=false
-  fi
-
-  retrieval_snapshot_columns="$(_psql "SELECT count(*) FROM information_schema.columns WHERE table_schema = 'pellier' AND table_name = 'retrieval_receipts' AND column_name IN ('citation_snapshots', 'citation_snapshot_hash');" || echo '')"
-  if [[ "${retrieval_snapshot_columns:-0}" =~ ^[0-9]+$ ]] \
-      && (( retrieval_snapshot_columns == 2 )); then
-    pass "Retrieval citation snapshot schema is installed"
-  else
-    fail "Retrieval citation snapshot schema missing. Apply scripts/migrations/046_retrieval_citation_snapshots.sql."
-    ok=false
-  fi
-
-  governed_turn_receipts_table="$(_psql "SELECT to_regclass('pellier.governed_turn_receipts') IS NOT NULL;" || echo '')"
-  if [[ "$governed_turn_receipts_table" == "t" ]]; then
-    pass "Governed turn receipt schema is installed"
-  else
-    fail "Governed turn receipt schema missing. Apply scripts/migrations/014_governed_turn_receipts.sql."
-    ok=false
-  fi
-
-  model_invocation_receipts_table="$(_psql "SELECT to_regclass('pellier.model_invocation_receipts') IS NOT NULL;" || echo '')"
-  evidence_ledger_view="$(_psql "SELECT to_regclass('pellier.evidence_ledger_event_refs') IS NOT NULL;" || echo '')"
-  if [[ "$model_invocation_receipts_table" == "t" ]] \
-      && [[ "$evidence_ledger_view" == "t" ]]; then
-    pass "Typed Evidence Ledger projection is installed"
-  else
-    fail "Evidence Ledger schema missing. Apply scripts/migrations/043_evidence_ledger.sql."
-    ok=false
-  fi
-
-  commerce_receipts_table="$(_psql "SELECT to_regclass('pellier.commerce_receipts') IS NOT NULL;" || echo '')"
-  commerce_payment_events_table="$(_psql "SELECT to_regclass('pellier.commerce_payment_events') IS NOT NULL;" || echo '')"
-  if [[ "$commerce_receipts_table" == "t" ]] \
-      && [[ "$commerce_payment_events_table" == "t" ]]; then
-    pass "Proof-carrying commerce schema is installed"
-  else
-    fail "Proof-carrying commerce schema missing. Apply scripts/migrations/015_proof_carrying_commerce.sql."
-    ok=false
-  fi
-
-  policy_decisions_table="$(_psql "SELECT to_regclass('pellier.policy_decisions') IS NOT NULL;" || echo '')"
-  if [[ "$policy_decisions_table" == "t" ]]; then
-    pass "Policy decision schema is installed"
-  else
-    fail "Policy decision schema missing. Apply scripts/migrations/048_policy_decisions.sql."
-    ok=false
-  fi
-
-  workshop_runs_table="$(_psql "SELECT to_regclass('pellier.workshop_runs') IS NOT NULL;" || echo '')"
-  if [[ "$workshop_runs_table" == "t" ]]; then
-    pass "Workshop run schema is installed"
-  else
-    fail "Workshop run schema missing. Apply scripts/migrations/049_workshop_runs.sql."
-    ok=false
-  fi
-
-  requester_column="$(_psql "SELECT column_name FROM information_schema.columns WHERE table_schema = 'pellier' AND table_name = 'approvals' AND column_name = 'requester_kind';" || echo '')"
-  if [[ "$requester_column" == "requester_kind" ]]; then
-    pass "Review requester schema is installed"
-  else
-    fail "Review requester schema missing. Apply scripts/migrations/051_review_requester.sql."
-    ok=false
-  fi
-
-  # Migration 054's own comment calls this a facilitator-readiness
-  # requirement; nothing checked that claim until now. CREATE EXTENSION
-  # succeeds even when the cluster parameter group has not preloaded the
-  # module, so this can be installed and still collect nothing.
-  query_statistics_extension="$(_psql "SELECT extname FROM pg_extension WHERE extname = 'pg_stat_statements';" || echo '')"
-  if [[ "$query_statistics_extension" == "pg_stat_statements" ]]; then
-    if _psql "SELECT count(*) FROM public.pg_stat_statements;" >/dev/null; then
-      pass "pg_stat_statements extension is installed and queryable"
-    else
-      fail "pg_stat_statements is installed but cannot collect queries. Confirm shared_preload_libraries and restart the cluster if a parameter change is pending."
-      ok=false
-    fi
-  else
-    fail "pg_stat_statements extension missing. Apply scripts/migrations/054_query_statistics.sql and confirm the cluster parameter group preloads pg_stat_statements."
+    fail "Orders incomplete or missing (got: ${order_n:-none}, expected at least 21)"
     ok=false
   fi
 fi
@@ -566,7 +505,7 @@ if [[ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ]]; then
 
   # 13. Shopper tokens carry the customer claim. The owner-scoped Cedar permits
   # read custom:customer_id from the access token, stamped by the pre-token
-  # trigger from pellier.principal_customers. A detached trigger, a stale
+  # trigger from pellier.customers.cognito_username. A detached trigger, a stale
   # mapping, or a pool plan change drops the claim silently, and every
   # owner-scoped Gateway read is then denied for the whole session while
   # sign-in itself still works. Proved the same way the Operator check is: mint
@@ -603,10 +542,9 @@ print(u[0]["password"] if u else "")' "$operator_user" 2>/dev/null || true)"
       shopper_claim="$(printf '%s' "$shopper_token" | python3 -c 'import sys,json,base64
 p=sys.stdin.read().strip().split(".")[1]; p+="="*(-len(p)%4)
 print(json.loads(base64.urlsafe_b64decode(p)).get("custom:customer_id",""))' 2>/dev/null || true)"
-      shopper_sub="$(printf '%s' "$shopper_token" | python3 -c 'import sys,json,base64
-p=sys.stdin.read().strip().split(".")[1]; p+="="*(-len(p)%4)
-print(json.loads(base64.urlsafe_b64decode(p)).get("sub",""))' 2>/dev/null || true)"
-      mapped_customer="$(_psql "SELECT customer_id FROM pellier.principal_customers WHERE principal_sub = '${shopper_sub}' LIMIT 1;" 2>/dev/null || echo '')"
+      # Usernames are lowercase letters; anything else never reaches the SQL.
+      shopper_name="$(printf '%s' "$shopper_user" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')"
+      mapped_customer="$(_psql "/* customer_claim_check */ SELECT id FROM pellier.customers WHERE cognito_username = '${shopper_name}';" 2>/dev/null || echo '')"
       if [[ -z "$shopper_claim" ]]; then
         managed_missing "Shopper ${shopper_user}'s access token carries no custom:customer_id; run scripts/deploy/deploy_customer_claim_trigger.py"
       elif [[ "$shopper_claim" == "$mapped_customer" ]]; then

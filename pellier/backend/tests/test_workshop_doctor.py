@@ -10,11 +10,9 @@ dotenv parser rather than sourcing a secret as shell.
 from __future__ import annotations
 
 import importlib.util
-import json
 import os
 import re
 import shutil
-import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +22,6 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 SCRIPT = REPO / "scripts" / "workshop_doctor.py"
-RUN_ID = "run-0123456789ab"
 
 
 def _load() -> Any:
@@ -74,94 +71,6 @@ class FakeEvidence:
 
 def _by_name(checks: list) -> Dict[str, Any]:
     return {check.name: check for check in checks}
-
-
-_NAMED_PARAM = re.compile(r"%\((\w+)\)s")
-
-
-class SqlEvidence:
-    """Runs the doctor's real SQL over fixture rows, in SQLite.
-
-    ``FakeEvidence`` answers by SQL fragment, so it cannot catch a predicate no
-    row a real writer produces can satisfy. The Lab 3 query is ordinary SQL plus
-    the JSON ``->>`` operator, and SQLite understands both once the ``pellier``
-    schema is attached as a database and psycopg's ``%(name)s`` is rewritten to
-    ``:name``. The columns below are the ones the real writers populate
-    (``services/tool_audit_writer.py``, ``scripts/deploy/common/dataapi.py``,
-    ``services/governed_turn_receipt.py``) plus migration 049's ``run_id``.
-    """
-
-    def __init__(self) -> None:
-        self.reason = ""
-        self._conn = sqlite3.connect(":memory:")
-        self._conn.row_factory = sqlite3.Row
-        self._conn.execute("ATTACH DATABASE ':memory:' AS pellier")
-        self._conn.execute(
-            "CREATE TABLE pellier.tool_audit ("
-            "audit_id INTEGER PRIMARY KEY, session_id TEXT, tool TEXT, caller TEXT, "
-            "args TEXT, result TEXT, latency_ms INTEGER, run_id TEXT)"
-        )
-        self._conn.execute(
-            "CREATE TABLE pellier.governed_turn_receipts ("
-            "turn_id TEXT PRIMARY KEY, session_id TEXT, principal_sub TEXT, rail TEXT, "
-            "terminal_status TEXT, created_at TEXT, run_id TEXT)"
-        )
-
-    @property
-    def available(self) -> bool:
-        return True
-
-    def turn(
-        self,
-        *,
-        turn_id: str,
-        run_id: Optional[str],
-        rail: str = "gateway-mcp",
-        created_at: str = "2026-09-04T10:00:00Z",
-    ) -> None:
-        """Record the turn receipt the application pool writes for one turn."""
-        self._conn.execute(
-            "INSERT INTO pellier.governed_turn_receipts "
-            "(turn_id, session_id, principal_sub, rail, terminal_status, created_at, "
-            "run_id) "
-            "VALUES (?, 'lab3-start-1', 'sub-theo', ?, 'complete', ?, ?)",
-            (turn_id, rail, created_at, run_id),
-        )
-
-    def audit(
-        self,
-        *,
-        audit_id: int,
-        caller: str,
-        turn_id: str,
-        run_id: Optional[str] = None,
-        tool: str = "give_store_credit",
-    ) -> None:
-        """Record one tool_audit row. ``run_id`` defaults to the Lambda's NULL."""
-        self._conn.execute(
-            "INSERT INTO pellier.tool_audit "
-            "(audit_id, session_id, tool, caller, args, result, latency_ms, run_id) "
-            "VALUES (?, 'gateway-CUST-THEO', ?, ?, ?, '{}', 412, ?)",
-            (audit_id, tool, caller, json.dumps({"turn_id": turn_id}), run_id),
-        )
-
-    def one(
-        self, sql: str, params: Optional[Dict[str, Any]] = None
-    ) -> Optional[Dict[str, Any]]:
-        cursor = self._conn.execute(_NAMED_PARAM.sub(r":\1", sql), dict(params or {}))
-        row = cursor.fetchone()
-        return dict(row) if row is not None else None
-
-    def close(self) -> None:
-        self._conn.close()
-
-    def __enter__(self) -> "SqlEvidence":
-        return self
-
-    def __exit__(self, *exc: Any) -> bool:
-        self.close()
-        return False
-
 
 
 WIRED_TOOL = (
@@ -239,38 +148,32 @@ class TestLab2:
 
 
 class TestLab1:
-    def test_prerequisites_do_not_require_a_completed_run(self) -> None:
+    def test_prerequisites_need_no_completed_turn(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
-        checks = doctor.run_lab(1, evidence, None, phase="prerequisites")
+        checks = doctor.run_lab(1, evidence, phase="prerequisites")
         assert len(checks) == 1
-        assert checks[0].name == "migration 046 columns present"
+        assert checks[0].name == "retrieval receipts record citation snapshots"
         assert checks[0].passed is True
 
-    def test_no_run_id_names_the_start_script(self) -> None:
-        evidence = FakeEvidence({"information_schema": {"n": 2}})
-        checks = _by_name(doctor.lab1_checks(evidence, None))
-        assert checks["retrieval receipt for this run"].passed is False
-        assert "workshop-start" in checks["retrieval receipt for this run"].detail
-
-    def test_migration_046_and_a_receipt_pass(self) -> None:
+    def test_the_columns_and_a_hybrid_receipt_pass(self) -> None:
         evidence = FakeEvidence(
             {"information_schema": {"n": 2}, "FROM pellier.retrieval_receipts": {"receipt_id": 12}}
         )
-        checks = _by_name(doctor.lab1_checks(evidence, RUN_ID))
-        assert checks["migration 046 columns present"].passed is True
-        assert checks["retrieval receipt for this run"].passed is True
-        assert "12" in checks["retrieval receipt for this run"].detail
-        # The receipt query is scoped to the run, never to whatever is newest.
-        receipt_query = next(
-            q for q in evidence.queries if "FROM pellier.retrieval_receipts" in q[0]
-        )
-        assert "run_id = %(run)s" in receipt_query[0]
-        assert receipt_query[1] == {"run": RUN_ID}
+        checks = _by_name(doctor.lab1_checks(evidence))
+        assert checks["retrieval receipts record citation snapshots"].passed is True
+        assert checks["hybrid retrieval receipt"].passed is True
+        assert "12" in checks["hybrid retrieval receipt"].detail
 
-    def test_a_partial_046_fails(self) -> None:
+    def test_a_missing_receipt_names_anna(self) -> None:
+        evidence = FakeEvidence({"information_schema": {"n": 2}})
+        check = _by_name(doctor.lab1_checks(evidence))["hybrid retrieval receipt"]
+        assert check.passed is False
+        assert "Anna" in check.detail
+
+    def test_missing_citation_columns_fail(self) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 1}})
-        checks = _by_name(doctor.lab1_checks(evidence, RUN_ID))
-        assert checks["migration 046 columns present"].passed is False
+        checks = _by_name(doctor.lab1_checks(evidence))
+        assert checks["retrieval receipts record citation snapshots"].passed is False
 
 
 RUNTIME_ARN = "arn:aws:bedrock-agentcore:us-east-1:111122223333:runtime/pellier-abc"
@@ -281,26 +184,19 @@ class TestLab3:
 
     def test_the_two_settings_the_backend_reads_pass(self, tmp_path: Path) -> None:
         run_env = tmp_path / "run.env"
-        run_env.write_text(
-            "PELLIER_RUN_ID=run-0123456789ab\nUSE_AGENTCORE_RUNTIME=true\n",
-            encoding="utf-8",
-        )
+        run_env.write_text("USE_AGENTCORE_RUNTIME=true\n", encoding="utf-8")
         env_file = tmp_path / ".env"
         env_file.write_text(f"AGENTCORE_RUNTIME_ENDPOINT={RUNTIME_ARN}\n", encoding="utf-8")
         evidence = FakeEvidence(
-            {
-                "rail = 'gateway-mcp'": {"turn_id": "turn-theo-ceramics"},
-                "memory_record_ids_used": {"receipt_id": 9},
-            }
+            {"caller = 'gateway'": {"turn_id": "turn-theo-ceramics", "deployed_fingerprint": "a" * 64}}
         )
         checks = _by_name(
             doctor.lab3_checks(
-                evidence, RUN_ID, run_env=run_env, env_path=env_file, environ={}
+                evidence, run_env=run_env, env_path=env_file, environ={}
             )
         )
         assert checks["service env selects the managed rail"].passed is True
-        assert checks["managed-rail turn receipt for this run"].passed is True
-        assert checks["memory informed a turn in this run"].passed is True
+        assert checks["managed tool call recorded with its build"].passed is True
 
     def test_the_switch_alone_without_an_endpoint_fails(self, tmp_path: Path) -> None:
         """USE_AGENTCORE_RUNTIME=true with no ARN is the degrade-to-in-process case."""
@@ -309,7 +205,6 @@ class TestLab3:
         checks = _by_name(
             doctor.lab3_checks(
                 FakeEvidence(),
-                RUN_ID,
                 run_env=run_env,
                 env_path=tmp_path / "absent.env",
                 environ={},
@@ -325,7 +220,6 @@ class TestLab3:
         checks = _by_name(
             doctor.lab3_checks(
                 FakeEvidence(),
-                RUN_ID,
                 run_env=tmp_path / "absent",
                 env_path=env_file,
                 environ={},
@@ -344,7 +238,6 @@ class TestLab3:
         checks = _by_name(
             doctor.lab3_checks(
                 FakeEvidence(),
-                RUN_ID,
                 run_env=run_env,
                 env_path=tmp_path / "absent.env",
                 environ={"PELLIER_EXECUTION_RAIL": "gateway-mcp"},
@@ -360,7 +253,6 @@ class TestLab3:
         checks = _by_name(
             doctor.lab3_checks(
                 FakeEvidence(),
-                RUN_ID,
                 run_env=tmp_path / "absent",
                 env_path=tmp_path / "absent.env",
                 environ=environ,
@@ -378,7 +270,7 @@ class TestLab3:
         run_env.write_text("USE_AGENTCORE_RUNTIME=true\n", encoding="utf-8")
         checks = _by_name(
             doctor.lab3_checks(
-                FakeEvidence(), RUN_ID, run_env=run_env, env_path=env_file, environ={}
+                FakeEvidence(), run_env=run_env, env_path=env_file, environ={}
             )
         )
         assert checks["service env selects the managed rail"].passed is True
@@ -387,104 +279,55 @@ class TestLab3:
         checks = _by_name(
             doctor.lab3_checks(
                 FakeEvidence(),
-                RUN_ID,
                 run_env=tmp_path / "absent",
                 env_path=tmp_path / "absent.env",
                 environ={},
             )
         )
-        assert checks["managed-rail turn receipt for this run"].passed is False
-        assert "lab3-start" in checks["managed-rail turn receipt for this run"].detail
+        assert checks["managed tool call recorded with its build"].passed is False
+        assert "lab3-start" in checks["managed tool call recorded with its build"].detail
 
 
-class TestLab3GatewayEvidenceShape:
-    """The Lab 3 check must match the rows Lab 3 as designed actually leaves.
+class TestLab3ManagedBuild:
+    """Lab 3's proof is the Gateway's own tool_audit row, stamped with the build.
 
-    Lab 3 is the managed rail, and Theo's journey ends at a pending review
-    (``tests/golden/journeys.json``: ``endsAt: proposal``). It performs no
-    mutation, and only the one mutation tool leaves a ``caller = 'gateway'``
-    row -- the MCP Lambda audits them in
-    ``scripts/deploy/common/dataapi.py``, while Gateway reads leave no
-    ``tool_audit`` row at all. A Lab 3 check that demanded that row could not be
-    satisfied by completing Lab 3.
-
-    What the managed rail does leave is the turn receipt itself.
-    ``governed_turn_receipts`` is written through the application pool
-    (``services/governed_turn_receipt.py::persist_turn_receipt``), so migration
-    049's DEFAULT stamps the run on it, and its ``rail`` column records the rail
-    that served the turn. That row is the rail proof. When a mutation happens to
-    have run as well, its Lambda-written ``tool_audit`` row carries a NULL
-    ``run_id`` and is reported as detail, never required.
+    The Lambda writes a shopper turn's read with the turn id as its session and
+    the build the Runtime reported. That row says the managed rail ran and which
+    deployed build ran it.
     """
 
-    RAIL_CHECK = "managed-rail turn receipt for this run"
+    CHECK = "managed tool call recorded with its build"
 
-    def _checks(self, evidence: Any, tmp_path: Path) -> Dict[str, Any]:
-        return _by_name(
-            doctor.lab3_checks(
-                evidence,
-                RUN_ID,
-                run_env=tmp_path / "absent",
-                env_path=tmp_path / "absent.env",
-                environ={},
-            )
-        )
+    def test_a_stamped_gateway_row_passes(self) -> None:
+        evidence = FakeEvidence({"caller = 'gateway'": {
+            "turn_id": "turn-theo-ticket", "deployed_fingerprint": "f" * 64}})
+        check = doctor._managed_build(evidence)
+        assert check.passed is True
+        assert check.detail == f"turn turn-theo-ticket ran build {'f' * 12}"
 
-    def test_lab3_as_designed_passes_with_no_mutation_anywhere(
-        self, tmp_path: Path
-    ) -> None:
-        """Theo's journey ends at a proposal, so the run has no gateway row."""
-        with SqlEvidence() as evidence:
-            evidence.turn(turn_id="turn-theo-ceramics", run_id=RUN_ID)
-            check = self._checks(evidence, tmp_path)[self.RAIL_CHECK]
-        assert check.passed is True, check.detail
-        assert check.detail == "turn_id=turn-theo-ceramics"
-
-    def test_a_managed_turn_passes_though_the_lambda_row_carries_no_run_id(
-        self, tmp_path: Path
-    ) -> None:
-        with SqlEvidence() as evidence:
-            evidence.turn(turn_id="turn-theo-return", run_id=RUN_ID)
-            evidence.audit(audit_id=4127, caller="gateway", turn_id="turn-theo-return")
-            check = self._checks(evidence, tmp_path)[self.RAIL_CHECK]
-        assert check.passed is True, check.detail
-        assert check.detail == "turn_id=turn-theo-return"
-
-    def test_a_managed_turn_from_another_run_does_not_count(self, tmp_path: Path) -> None:
-        with SqlEvidence() as evidence:
-            evidence.turn(turn_id="turn-someone-else", run_id="run-ffffffffffff")
-            evidence.audit(audit_id=99, caller="gateway", turn_id="turn-someone-else")
-            check = self._checks(evidence, tmp_path)[self.RAIL_CHECK]
+    def test_a_row_without_a_build_names_the_deploy(self) -> None:
+        evidence = FakeEvidence({"caller = 'gateway'": {
+            "turn_id": "turn-theo-ticket", "deployed_fingerprint": None}})
+        check = doctor._managed_build(evidence)
         assert check.passed is False
+        assert "deploy your Task 3A change" in check.detail
 
-    def test_an_in_process_turn_in_this_run_does_not_count(self, tmp_path: Path) -> None:
-        """The check cannot pass vacuously: an unswitched run still fails it."""
-        with SqlEvidence() as evidence:
-            evidence.turn(turn_id="turn-in-process", run_id=RUN_ID, rail="in-process")
-            evidence.audit(
-                audit_id=7,
-                caller="agent",
-                turn_id="turn-in-process",
-                run_id=RUN_ID,
-            )
-            check = self._checks(evidence, tmp_path)[self.RAIL_CHECK]
-        assert check.passed is False
-        assert "lab3-start" in check.detail
-
-    def test_the_hint_names_an_action_a_participant_can_take(
-        self, tmp_path: Path
-    ) -> None:
-        """No Theo turn performs a return, so the hint must not send them to one."""
-        with SqlEvidence() as evidence:
-            check = self._checks(evidence, tmp_path)[self.RAIL_CHECK]
+    def test_no_gateway_row_names_lab3_start(self) -> None:
+        check = doctor._managed_build(FakeEvidence())
         assert check.passed is False
         assert "lab3-start.sh" in check.detail
-        assert "return" not in check.detail
+
+    def test_the_query_reads_only_shopper_turns(self) -> None:
+        evidence = FakeEvidence()
+        doctor._managed_build(evidence)
+        sql = evidence.queries[0][0]
+        assert "FROM pellier.tool_audit" in sql
+        assert "session_id LIKE 'turn-%'" in sql
 
 
 class TestLab4:
     def test_this_checkout_has_the_pair_but_the_rule_is_unauthored(self) -> None:
-        checks = _by_name(doctor.lab4_checks(FakeEvidence(), RUN_ID))
+        checks = _by_name(doctor.lab4_checks(FakeEvidence()))
         assert checks["Cedar policy present in policies/"].passed is True
         assert checks["identity rule authored"].passed is False
         assert "starter" in checks["identity rule authored"].detail
@@ -505,71 +348,44 @@ class TestLab4:
             ),
             encoding="utf-8",
         )
-        checks = _by_name(doctor.lab4_checks(FakeEvidence(), RUN_ID, repo=repo))
+        checks = _by_name(doctor.lab4_checks(FakeEvidence(), repo=repo))
         assert checks["identity rule authored"].passed is True
 
-    def test_rls_on_orders_and_returns(self) -> None:
-        both = FakeEvidence({"relrowsecurity": {"enabled": True, "n": 2}})
-        rls_name = "RLS enabled on orders and returns"
-        assert _by_name(doctor.lab4_checks(both, RUN_ID))[rls_name].passed
-        partial = FakeEvidence({"relrowsecurity": {"enabled": False, "n": 2}})
-        check = _by_name(doctor.lab4_checks(partial, RUN_ID))[rls_name]
+    def test_row_level_security_on_orders_and_tickets(self) -> None:
+        name = "row-level security on orders and support tickets"
+        both = FakeEvidence({"relrowsecurity": {"enabled": 2, "n": 2, "policies": 2}})
+        assert _by_name(doctor.lab4_checks(both))[name].passed
+        partial = FakeEvidence({"relrowsecurity": {"enabled": 1, "n": 2, "policies": 2}})
+        assert not _by_name(doctor.lab4_checks(partial))[name].passed
+        no_policy = FakeEvidence({"relrowsecurity": {"enabled": 2, "n": 2, "policies": 1}})
+        assert not _by_name(doctor.lab4_checks(no_policy))[name].passed
+
+    CREDIT = {
+        "credit_id": 1, "approval_id": 3, "customer_id": "CUST-JESSICA",
+        "amount_cents": 10000, "approved_cents": 10000,
+        "idempotency_key": "operator-review:3:" + "a" * 32,
+        "credit_rows": 1, "audit_rows": 1,
+    }
+
+    def test_one_credit_and_one_audit_row_for_the_key_pass(self) -> None:
+        evidence = FakeEvidence({"FROM pellier.store_credits sc": dict(self.CREDIT)})
+        check = doctor._credit_recorded_once(evidence)
+        assert check.passed is True
+        assert "operator-review:3:" in check.detail
+
+    @pytest.mark.parametrize("change", [
+        {"credit_rows": 2}, {"audit_rows": 0}, {"audit_rows": 2}, {"amount_cents": 10001},
+    ])
+    def test_anything_but_once_for_the_approved_amount_fails(self, change) -> None:
+        evidence = FakeEvidence({"FROM pellier.store_credits sc": {**self.CREDIT, **change}})
+        check = doctor._credit_recorded_once(evidence)
         assert check.passed is False
+        assert "credit row" in check.detail
 
-    def test_operator_execution_is_not_a_lab_four_requirement(self) -> None:
-        evidence = FakeEvidence({"execution_receipts": {"receipt_id": 3}})
-        checks = _by_name(doctor.lab4_checks(evidence, RUN_ID))
-        check = checks["Jessica Gateway decision chain for this run"]
+    def test_no_credit_yet_names_the_operator_step(self) -> None:
+        check = doctor._credit_recorded_once(FakeEvidence())
         assert check.passed is False
-        assert "pending human checkpoint" in check.detail
-        assert all("execution_receipts" not in sql for sql, _ in evidence.queries)
-
-    def test_keyed_gateway_evidence_satisfies_lab_four(self) -> None:
-        rows = [
-            {"principal_label": name, "decision": "DENY", "args": {"customer_id": "CUST-JESSICA"},
-             "declared_key": f"deny-{name}", "audit_id": None, "policy_name": "ownership"}
-            for name in ("marco",)
-        ]
-        rows.append({"principal_label": "jessica", "decision": "ALLOW",
-                     "args": {"customer_id": "CUST-JESSICA"}, "audit_id": 5,
-                     "completed_at": "2026-09-06", "idempotency_key": "allow-jessica", "policy_name": "ownership"})
-        evidence = FakeEvidence({
-            "WITH decisions": {"rows": rows},
-            "AS execution_rows": {"execution_rows": 0, "write_rows": 0, "completed_writes": 0, "ledger_rows": 0},
-        })
-        assert doctor._governance_chain(evidence, RUN_ID).passed
-        rows[0]["declared_key"] = ""
-        assert not doctor._governance_chain(evidence, RUN_ID).passed
-
-    @pytest.mark.parametrize(
-        ("denied_principal", "allowed_principal", "customer"),
-        [
-            ("anna", "jessica", "CUST-JESSICA"),
-            ("marco", "theo", "CUST-JESSICA"),
-            ("marco", "jessica", "CUST-THEO"),
-        ],
-    )
-    def test_other_principals_or_customers_cannot_replace_the_lab_four_cases(
-        self, denied_principal: str, allowed_principal: str, customer: str
-    ) -> None:
-        rows = [
-            {"principal_label": denied_principal, "decision": "DENY",
-             "args": {"customer_id": customer}, "declared_key": "denied",
-             "audit_id": None, "policy_name": "ownership"},
-            {"principal_label": allowed_principal, "decision": "ALLOW",
-             "args": {"customer_id": customer}, "audit_id": 5,
-             "completed_at": "2026-09-10", "idempotency_key": "allowed",
-             "policy_name": "ownership"},
-        ]
-        evidence = FakeEvidence({
-            "WITH decisions": {"rows": rows},
-            "AS execution_rows": {
-                "execution_rows": 0, "write_rows": 0,
-                "completed_writes": 0, "ledger_rows": 0,
-            },
-        })
-        assert not doctor._governance_chain(evidence, RUN_ID).passed
-
+        assert "Operator" in check.detail
 
 
 class TestEvidenceLifecycle:
@@ -616,7 +432,7 @@ class TestEvidenceLifecycle:
     ) -> None:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
         monkeypatch.setattr(doctor, "open_evidence", lambda env_path: evidence)
-        doctor.main(["--lab", "1", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
+        doctor.main(["--lab", "1", "--run-env", str(tmp_path / "x")])
         assert evidence.closed is True
 
 
@@ -627,13 +443,13 @@ class TestMain:
         monkeypatch.setattr(
             doctor, "open_evidence", lambda env_path: FakeEvidence({"information_schema": {"n": 2}})
         )
-        code = doctor.main(["--lab", "1", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
+        code = doctor.main(["--lab", "1", "--run-env", str(tmp_path / "x")])
         out = capsys.readouterr().out
         assert code == 1
         lines = [line for line in out.splitlines() if line.startswith(("PASS", "FAIL"))]
         assert len(lines) == 2
         assert any(line.startswith("FAIL") for line in lines)
-        assert RUN_ID in out
+        assert "Pellier doctor: Lab 1" in out
 
     def test_exit_zero_when_everything_passes(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
@@ -643,15 +459,9 @@ class TestMain:
             "FROM pellier.retrieval_receipts": {"receipt_id": 1},
         }
         monkeypatch.setattr(doctor, "open_evidence", lambda env_path: FakeEvidence(rows))
-        code = doctor.main(["--lab", "1", "--run-id", RUN_ID, "--run-env", str(tmp_path / "x")])
+        code = doctor.main(["--lab", "1", "--run-env", str(tmp_path / "x")])
         assert code == 0
         assert "FAIL" not in capsys.readouterr().out
-
-    def test_malformed_run_id_is_refused_before_any_query(
-        self, capsys: pytest.CaptureFixture[str]
-    ) -> None:
-        assert doctor.main(["--lab", "1", "--run-id", "run-nope"]) == 2
-        assert "run-<12 hex>" in capsys.readouterr().err
 
 
 BASH = shutil.which("bash")
@@ -751,11 +561,8 @@ class TestLabEntryPoints:
             + "\n",
             encoding="utf-8",
         )
-        # No mintable run id and no managed resources, so both scripts stop
+        # No healthy backend and no managed resources, so both scripts stop
         # early. The dotenv load happens first either way.
-        (repo / "pellier" / "backend" / "services" / "workshop_run.py").write_text(
-            "import sys\nsys.exit(1)\n", encoding="utf-8"
-        )
         result = subprocess.run(
             [BASH, str(REPO / relative)],
             capture_output=True,
@@ -763,7 +570,7 @@ class TestLabEntryPoints:
             env=_clean_env(
                 PELLIER_REPO=str(repo),
                 PELLIER_RUN_ENV=str(tmp_path / "run.env"),
-                PELLIER_PYTHON=sys.executable,
+                HEALTH_URL=(tmp_path / "absent.json").as_uri(),
                 PATH=_stub_path(tmp_path),
             ),
         )
@@ -775,7 +582,7 @@ class TestLabEntryPoints:
 class TestEnvUpsert:
     """Rewriting an env file must not widen its mode or lose its other keys."""
 
-    SCRIPTS = ("scripts/workshop-start.sh", "scripts/lab3-start.sh")
+    SCRIPTS = ("scripts/lab3-start.sh",)
 
     @pytest.mark.parametrize("relative", SCRIPTS)
     def test_a_six_hundred_target_stays_six_hundred(
@@ -785,17 +592,17 @@ class TestEnvUpsert:
         target = tmp_path / ".env"
         target.write_text("DB_PASSWORD=s3cret\nCOGNITO_CLIENT_SECRET=shh\n", encoding="utf-8")
         target.chmod(0o600)
-        assert _run_upsert(tmp_path, REPO / relative, target, "PELLIER_RUN_ID", "run-a") == 0
+        assert _run_upsert(tmp_path, REPO / relative, target, "PELLIER_EXAMPLE", "run-a") == 0
         assert oct(target.stat().st_mode & 0o777) == "0o600"
         body = target.read_text(encoding="utf-8")
         assert "DB_PASSWORD=s3cret" in body
         assert "COGNITO_CLIENT_SECRET=shh" in body
-        assert "PELLIER_RUN_ID=run-a" in body
+        assert "PELLIER_EXAMPLE=run-a" in body
 
     @pytest.mark.parametrize("relative", SCRIPTS)
     def test_a_new_file_is_owner_only(self, relative: str, tmp_path: Path) -> None:
         target = tmp_path / "sub" / "run.env"
-        assert _run_upsert(tmp_path, REPO / relative, target, "PELLIER_RUN_ID", "run-a") == 0
+        assert _run_upsert(tmp_path, REPO / relative, target, "PELLIER_EXAMPLE", "run-a") == 0
         assert oct(target.stat().st_mode & 0o777) == "0o600"
 
     @pytest.mark.parametrize("relative", SCRIPTS)
@@ -803,7 +610,7 @@ class TestEnvUpsert:
         target = tmp_path / "run.env"
         target.write_text("KEEP=1\n", encoding="utf-8")
         target.chmod(0o640)
-        assert _run_upsert(tmp_path, REPO / relative, target, "PELLIER_RUN_ID", "run-a") == 0
+        assert _run_upsert(tmp_path, REPO / relative, target, "PELLIER_EXAMPLE", "run-a") == 0
         assert oct(target.stat().st_mode & 0o777) == "0o640"
 
     @pytest.mark.parametrize("relative", SCRIPTS)
@@ -905,99 +712,40 @@ class TestLab3Start:
 
 @pytest.mark.skipif(BASH is None or CURL is None, reason="bash and curl required")
 class TestWorkshopStart:
-    """One command mints, records idempotently, and exports the run id."""
+    """One command checks the box before Lab 1 and touches no table."""
 
-    FAKE_RUN_ID = "run-0123456789ab"
-
-    def _repo(self, tmp_path: Path) -> Path:
+    def _run(self, tmp_path: Path, health_body: Optional[str]) -> Any:
         repo = tmp_path / "repo"
-        services = repo / "pellier" / "backend" / "services"
-        services.mkdir(parents=True)
-        (repo / ".env").write_text(
-            "DB_HOST=h\nDB_NAME=n\nDB_USER=u\nDB_PASSWORD=p\n", encoding="utf-8"
-        )
-        state = tmp_path / "minted"
-        (services / "workshop_run.py").write_text(
-            "import pathlib, sys\n"
-            f"state = pathlib.Path({str(state)!r})\n"
-            f"run_id = {self.FAKE_RUN_ID!r}\n"
-            "if sys.argv[1] == 'current':\n"
-            "    if not state.exists():\n"
-            "        sys.exit(1)\n"
-            "    print(state.read_text().strip())\n"
-            "else:\n"
-            "    state.write_text(run_id)\n"
-            "    print(run_id)\n",
-            encoding="utf-8",
-        )
-        return repo
-
-    def _run(self, tmp_path: Path, repo: Path, run_env: Path, psql_log: Path) -> Any:
+        repo.mkdir()
+        (repo / ".env").write_text("DB_HOST=h\nDB_NAME=n\nDB_USER=u\n", encoding="utf-8")
         health = tmp_path / "health.json"
-        health.write_text('{"status": "healthy"}', encoding="utf-8")
-        return subprocess.run(
+        if health_body is not None:
+            health.write_text(health_body, encoding="utf-8")
+        psql_log = tmp_path / "psql.log"
+        result = subprocess.run(
             [BASH, str(REPO / "scripts/workshop-start.sh"), "anna"],
             capture_output=True,
             text=True,
             timeout=120,
             env=_clean_env(
                 PELLIER_REPO=str(repo),
-                PELLIER_RUN_ENV=str(run_env),
-                PELLIER_PYTHON=sys.executable,
                 HEALTH_URL=health.as_uri(),
                 PSQL_LOG=str(psql_log),
                 PATH=_stub_path(tmp_path),
             ),
         )
+        return result, psql_log
 
-    def test_it_mints_records_and_exports_the_run(self, tmp_path: Path) -> None:
-        repo = self._repo(tmp_path)
-        run_env = tmp_path / "run.env"
-        psql_log = tmp_path / "psql.log"
-        first = self._run(tmp_path, repo, run_env, psql_log)
-        assert first.returncode == 0, first.stdout + first.stderr
-        assert self.FAKE_RUN_ID in first.stdout
-        recorded = psql_log.read_text(encoding="utf-8")
-        assert "INSERT INTO pellier.workshop_runs" in recorded
-        assert "ON CONFLICT (run_id) DO NOTHING" in recorded
-        assert self.FAKE_RUN_ID in recorded
-        assert f"PELLIER_RUN_ID={self.FAKE_RUN_ID}" in run_env.read_text(encoding="utf-8")
+    def test_a_healthy_backend_is_ready_for_lab_one(self, tmp_path: Path) -> None:
+        result, psql_log = self._run(tmp_path, '{"status": "healthy"}')
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "Ready for Lab 1" in result.stdout
+        assert not psql_log.exists(), "workshop-start wrote to the database"
 
-    def test_a_second_run_reuses_the_same_id(self, tmp_path: Path) -> None:
-        repo = self._repo(tmp_path)
-        run_env = tmp_path / "run.env"
-        psql_log = tmp_path / "psql.log"
-        self._run(tmp_path, repo, run_env, psql_log)
-        second = self._run(tmp_path, repo, run_env, psql_log)
-        assert second.returncode == 0, second.stdout + second.stderr
-        assert "Reusing run id" in second.stdout
-        assert second.stdout.count(self.FAKE_RUN_ID) >= 1
-        assert run_env.read_text(encoding="utf-8").count("PELLIER_RUN_ID=") == 1
-
-    def test_an_unrecordable_run_fails_loudly(self, tmp_path: Path) -> None:
-        """A psql that cannot write is not a run the labs may proceed from."""
-        repo = self._repo(tmp_path)
-        stubs = tmp_path / "stubs"
-        path = _stub_path(tmp_path)
-        (stubs / "psql").write_text("#!/bin/sh\nexit 2\n", encoding="utf-8")
-        (stubs / "psql").chmod(0o755)
-        health = tmp_path / "health.json"
-        health.write_text('{"status": "healthy"}', encoding="utf-8")
-        result = subprocess.run(
-            [BASH, str(REPO / "scripts/workshop-start.sh")],
-            capture_output=True,
-            text=True,
-            timeout=120,
-            env=_clean_env(
-                PELLIER_REPO=str(repo),
-                PELLIER_RUN_ENV=str(tmp_path / "run.env"),
-                PELLIER_PYTHON=sys.executable,
-                HEALTH_URL=health.as_uri(),
-                PATH=path,
-            ),
-        )
+    def test_an_unhealthy_backend_fails_loudly(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, None)
         assert result.returncode == 1
-        assert "049" in result.stderr
+        assert "start-backend" in result.stderr
 
 
 class TestManagedCataloguesAgree:

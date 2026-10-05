@@ -11,7 +11,6 @@ import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { PellierProduct } from '../services/types'
 import { imageSrc } from '../utils/assetPath'
 import { welcomeScene } from '../data/welcomeScenes'
-import { storefrontEditFor } from '../data/personaCurations'
 import '../styles/pellier-welcome.css'
 
 interface PellierWelcomeProps {
@@ -63,6 +62,8 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
   const [revision, setRevision] = useState(0)
   const [imageFailed, setImageFailed] = useState(false)
   const profileId = persona?.id ?? 'fresh'
+  // The persona names its own catalog grouping; signed out is the neutral edit.
+  const storefrontEdit = persona?.edit ?? 'fresh'
   const tod = timeOfDay()
 
   useEffect(() => {
@@ -76,7 +77,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
     const timeout = window.setTimeout(() => controller.abort(new Error('Edit request timed out')), 20000)
 
     void Promise.all([
-      apiFetch(`/api/products?persona=${encodeURIComponent(storefrontEditFor(profileId))}`, {
+      apiFetch(`/api/products?persona=${encodeURIComponent(storefrontEdit)}`, {
         credentials: 'include',
         signal: controller.signal,
       }),
@@ -111,7 +112,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
       active = false
       controller.abort()
     }
-  }, [profileId, revision])
+  }, [profileId, storefrontEdit, revision])
 
   const scene = welcomeScene(profileId)
   const greeting = composeWelcomeGreeting(

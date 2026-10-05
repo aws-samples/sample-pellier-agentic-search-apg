@@ -33,7 +33,6 @@ import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 import {
   PERSONA_INTERESTS,
-  storefrontEditFor,
   weekendEditForPersona,
 } from '../data/personaCurations'
 import type { PellierProduct } from '../services/types'
@@ -69,23 +68,24 @@ export default function PellierPage() {
 
 
   const personaId = persona?.id ?? null
+  // The persona names its own catalog grouping; signed out is the neutral edit.
+  const storefrontEdit = persona?.edit ?? 'fresh'
   const [products, setProducts] = useState<PellierProduct[]>([])
   const [catalogLoading, setCatalogLoading] = useState(true)
   const [catalogRevision, setCatalogRevision] = useState(0)
   const [catalogError, setCatalogError] = useState<string | null>(null)
 
-  // The home edit is an Aurora grouping created by migration 029. Do not
+  // The home edit is a catalog grouping the persona names. Do not
   // retain a browser catalog when the active profile changes: a stale row is
   // worse than a visible unavailable state in a workshop about grounding.
   useEffect(() => {
     let active = true
     const controller = new AbortController()
-    const profile = storefrontEditFor(personaId)
     setCatalogLoading(true)
     setCatalogError(null)
     setProducts([])
 
-    void apiFetch(`/api/products?persona=${encodeURIComponent(profile)}`, {
+    void apiFetch(`/api/products?persona=${encodeURIComponent(storefrontEdit)}`, {
       credentials: 'include',
       signal: controller.signal,
     })
@@ -116,7 +116,7 @@ export default function PellierPage() {
       active = false
       controller.abort()
     }
-  }, [personaId, catalogRevision])
+  }, [storefrontEdit, catalogRevision])
 
   const featuredProduct = products[0] ?? null
   const gridProducts = selectStorefrontGridProducts(products, personaId)

@@ -51,11 +51,11 @@ export const RECORD: OperatorClientRecord = {
     openTicketCount: 1, returnedCount: 2, creditBalanceCents: 0, creditBalance: '0.00',
   },
   orders: [
-    { orderId: 301, productId: '42', productName: 'Waffle Bath Robe, Sage', brand: 'NestWell', amountPaidCents: 6400, amountPaid: '64.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/house-waffle-bath-robe-sage.png', returnStatus: 'approved', returned: true },
-    { orderId: 302, productId: '25', productName: 'Reed Diffuser', brand: 'Pellier', amountPaidCents: 3600, amountPaid: '36.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/anna-reed-diffuser.png', returnStatus: 'approved', returned: true },
-    { orderId: 303, productId: '31', productName: 'Stoneware Pour-Over Set', brand: 'Pellier', amountPaidCents: 5800, amountPaid: '58.00', quantity: 1, placedAt: '2026-06-06T10:00:00Z', imageUrl: '/products/theo-stoneware-pour-over-set.png', returnStatus: null, returned: false },
-    { orderId: 304, productId: '43', productName: 'Quilted Silk Vest', brand: 'Pellier', amountPaidCents: 12900, amountPaid: '129.00', quantity: 1, placedAt: '2026-03-08T10:00:00Z', imageUrl: '/products/house-quilted-silk-vest.png', returnStatus: null, returned: false },
-    { orderId: 305, productId: '50', productName: 'Oat Merino Crew', brand: 'EcoThread', amountPaidCents: 10800, amountPaid: '108.00', quantity: 1, placedAt: '2025-12-08T10:00:00Z', imageUrl: '/products/house-oat-merino-crew.png', returnStatus: null, returned: false },
+    { orderId: 301, productId: '42', productName: 'Waffle Bath Robe, Sage', brand: 'NestWell', amountPaidCents: 6400, amountPaid: '64.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/house-waffle-bath-robe-sage.png', returnStatus: 'received', returned: true, creditId: null },
+    { orderId: 302, productId: '25', productName: 'Reed Diffuser', brand: 'Pellier', amountPaidCents: 3600, amountPaid: '36.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/anna-reed-diffuser.png', returnStatus: 'received', returned: true, creditId: null },
+    { orderId: 303, productId: '31', productName: 'Stoneware Pour-Over Set', brand: 'Pellier', amountPaidCents: 5800, amountPaid: '58.00', quantity: 1, placedAt: '2026-06-06T10:00:00Z', imageUrl: '/products/theo-stoneware-pour-over-set.png', returnStatus: null, returned: false, creditId: null },
+    { orderId: 304, productId: '43', productName: 'Quilted Silk Vest', brand: 'Pellier', amountPaidCents: 12900, amountPaid: '129.00', quantity: 1, placedAt: '2026-03-08T10:00:00Z', imageUrl: '/products/house-quilted-silk-vest.png', returnStatus: null, returned: false, creditId: null },
+    { orderId: 305, productId: '50', productName: 'Oat Merino Crew', brand: 'EcoThread', amountPaidCents: 10800, amountPaid: '108.00', quantity: 1, placedAt: '2025-12-08T10:00:00Z', imageUrl: '/products/house-oat-merino-crew.png', returnStatus: null, returned: false, creditId: null },
   ],
   tickets: [
     {
@@ -89,8 +89,8 @@ export const PENDING_REVIEW: OperatorReview = {
   status: 'pending', humanState: 'confirmation_required',
   assurance: { human: 'CONFIRMATION_REQUIRED', policy: 'PENDING', aurora: 'NOT_EVALUATED', evidence: 'PENDING' },
   sourceTurnId: 'turn-investigation-1', executionTurnId: null, execution: null,
-  orderId: 301, orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
-  recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', orderIds: [301, 302], items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
+  orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
+  recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
   actionHash: ACTION_HASH, decidedBy: null, decidedByName: null, requestedBySub: 'sub-nadia', requesterKind: 'operator',
   requestedAt: '2026-10-04T15:00:00Z', decidedAt: null,
 }
@@ -105,21 +105,22 @@ export const EXECUTED_REVIEW: OperatorReview = {
   ...APPROVED_REVIEW, executionTurnId: 'turn-execution-1',
   assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'PERMITTED', evidence: 'RECEIPTED' },
   execution: {
-    receiptId: 9, executionTurnId: 'turn-execution-1', tool: 'give_store_credit',
-    gatewayActionId: 'pellier-store-tools___give_store_credit', rail: 'gateway-mcp',
-    actorPrincipal: 'sub-nadia', customerSubject: 'sub-jessica', policyEngineId: 'pellier_policy_engine-abc',
-    gatewayMode: 'ENFORCE', matchingForbids: ['workshop_credit_limit'], idempotencyKey: WRITE_KEY,
-    notes: { policy: 'AgentCore Policy evaluated the action and permitted it.', aurora: 'The runtime role was in scope and the transaction committed.' },
-    recordedAt: '2026-10-04T15:03:00Z',
+    executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
+    notes: { policy: 'The Gateway ran the tool, so AgentCore Policy permitted it.' },
   },
 }
 
-export const DENIED_REVIEW: OperatorReview = {
+/**
+ * The same review re-read after an attempt that wrote nothing: no credit and
+ * no audit row for the key. Pellier stores no copy of the policy decision, so
+ * the stored review cannot say DENY; only the execute response can.
+ */
+export const UNWRITTEN_REVIEW: OperatorReview = {
   ...EXECUTED_REVIEW,
-  assurance: { human: 'CONFIRMED', policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' },
+  assurance: { human: 'CONFIRMED', policy: 'NOT_RECORDED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' },
   execution: {
-    ...EXECUTED_REVIEW.execution!,
-    notes: { policy: 'Cedar denied the action; the tool was never entered.', aurora: 'The tool was never entered, so no statement reached the database.' },
+    executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: null,
+    notes: { policy: 'Pellier keeps no copy of a policy decision. No credit and no tool_audit row exist for this key, so the tool did not run.' },
   },
 }
 
@@ -135,11 +136,13 @@ export function detail(review: OperatorReview, record: OperatorReviewDetail['rec
 }
 
 export const RECORDED_ONCE = {
-  idempotencyKey: WRITE_KEY, creditRows: 1, creditIds: [12], amountCents: 10000, auditRows: 1, auditIds: [4051], readable: true,
+  idempotencyKey: WRITE_KEY, creditRows: 1, creditIds: [12], amountCents: 10000, auditRows: 1, auditIds: [4051],
+  auditCaller: 'gateway', readable: true,
 }
 
 export const NOTHING_WRITTEN = {
-  idempotencyKey: WRITE_KEY, creditRows: 0, creditIds: [], amountCents: null, auditRows: 0, auditIds: [], readable: true,
+  idempotencyKey: WRITE_KEY, creditRows: 0, creditIds: [], amountCents: null, auditRows: 0, auditIds: [],
+  auditCaller: null, readable: true,
 }
 
 export const QUEUE: OperatorReviewQueue = {

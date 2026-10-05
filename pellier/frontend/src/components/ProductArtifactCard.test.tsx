@@ -33,20 +33,8 @@ describe('ProductArtifactCard shopping details', () => {
     expect(within(details).queryByText('Service')).not.toBeInTheDocument()
   })
 
-  it('renders reconciled inventory carried by the chat response', () => {
-    render(
-      <ProductArtifactCard
-        product={{
-          ...PRODUCT,
-          quantity: 50,
-          inStock: true,
-          availability: {
-            status: 'reconciled_in_stock',
-            availableQuantity: 4,
-          },
-        }}
-      />,
-    )
+  it('renders the units the turn read across the warehouses', () => {
+    render(<ProductArtifactCard product={{ ...PRODUCT, quantity: 4, inStock: true }} />)
 
     const details = screen.getByLabelText('Shopping details')
     const tag = within(details).getByTestId('status-tag')
@@ -54,21 +42,12 @@ describe('ProductArtifactCard shopping details', () => {
     expect(tag).toHaveAttribute('data-tone', 'good')
   })
 
-  it('does not turn an unresolved catalog quantity into an availability claim', () => {
-    render(
-      <ProductArtifactCard
-        product={{
-          ...PRODUCT,
-          quantity: 50,
-          inStock: true,
-          availability: { status: 'availability_not_verified' },
-        }}
-      />,
-    )
+  it('says how few are left when only a handful remain', () => {
+    render(<ProductArtifactCard product={{ ...PRODUCT, quantity: 2, inStock: true }} />)
 
     const tag = within(screen.getByLabelText('Shopping details')).getByTestId('status-tag')
-    expect(tag).toHaveTextContent('Not verified')
-    expect(tag).toHaveAttribute('data-tone', 'pending')
+    expect(tag).toHaveTextContent('Only 2 left')
+    expect(tag).toHaveAttribute('data-tone', 'good')
   })
 
   it('treats a prior purchase as collection context, not an item for sale', () => {
@@ -87,7 +66,7 @@ describe('ProductArtifactCard shopping details', () => {
 
 describe('ProductArtifactCard stock tag', () => {
   it('is red for a sold-out piece and green for an in-stock one', () => {
-    render(<ProductArtifactCard product={{ ...PRODUCT, quantity: 0, inStock: false, availability: { status: 'reconciled_out_of_stock', availableQuantity: 0 } }} />)
+    render(<ProductArtifactCard product={{ ...PRODUCT, quantity: 0, inStock: false }} />)
     const soldOut = within(screen.getByLabelText('Shopping details')).getByTestId('status-tag')
     expect(soldOut).toHaveTextContent('Sold out')
     expect(soldOut).toHaveAttribute('data-tone', 'blocked')

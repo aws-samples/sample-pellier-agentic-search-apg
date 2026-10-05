@@ -35,6 +35,7 @@ vi.mock('../contexts/PersonaContext', async () => {
 function marco(): PersonaTransition['persona'] {
   return {
     id: 'marco',
+    edit: 'marco',
     display_name: 'Marco Silva',
     role_tag: '',
     avatar_color: '#000',
@@ -83,6 +84,7 @@ describe('PersonaTransitionOverlay', () => {
   ])('shows the %s-specific tagline on selection', (id, displayName, tagline) => {
     const persona: PersonaTransition['persona'] = {
       id,
+      edit: id === 'jessica' ? 'house' : id,
       display_name: displayName,
       role_tag: '',
       avatar_color: '#5a4535',

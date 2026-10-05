@@ -55,10 +55,10 @@ _MATCH_SQL = """
      ORDER BY "productId"
 """
 _STOCK_SQL = """
-    SELECT warehouse_id, quantity
+    SELECT warehouse_code, quantity
       FROM pellier.warehouse_inventory
      WHERE product_id = %s
-     ORDER BY warehouse_id
+     ORDER BY warehouse_code
 """
 
 

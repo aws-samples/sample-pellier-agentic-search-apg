@@ -143,7 +143,7 @@
 /* ---- Prepared, not carried out ----
  * The governed boundary declined a mutation and a person has to confirm it.
  * Quiet and declarative; a left rule and a calmer ink set it apart. */
-.ec-review-pending {
+.ec-credit-request-pending {
   margin: 0;
   padding: 8px 0 8px 12px;
   border-left: 2px solid var(--dl-line);
@@ -152,8 +152,8 @@
   font-size: 13.5px;
   line-height: 1.55;
 }
-.ec-review-pending p { margin: 0; }
-.ec-review-pending a {
+.ec-credit-request-pending p { margin: 0; }
+.ec-credit-request-pending a {
   display: inline-block;
   margin-top: 7px;
   color: var(--dl-accent);

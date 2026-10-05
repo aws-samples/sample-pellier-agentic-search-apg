@@ -20,6 +20,18 @@ sys.path.insert(0, str(ROOT / "pellier" / "backend"))
 sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
 
 
+def _customer_for(database_url: str, username: str) -> str:
+    """The customer whose Cognito username this is, from pellier.customers."""
+    import psycopg
+
+    with psycopg.connect(database_url) as conn:
+        row = conn.execute(
+            "SELECT id FROM pellier.customers WHERE cognito_username = %s",
+            (str(username).casefold(),),
+        ).fetchone()
+    return str(row[0]) if row else ""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=("learn", "status", "recall", "finish"))
@@ -29,7 +41,6 @@ def main() -> int:
     _load_env()
     import boto3
     from services.memory_showcase import AWS_CONFIG, MemoryShowcase
-    from services.turn_identity import customer_id_for_verified_username
     from config import settings
 
     try:
@@ -38,7 +49,7 @@ def main() -> int:
         # Resolve identity with Cognito, never by decoding an unverified JWT.
         user = boto3.client("cognito-idp", region_name=settings.aws_region_resolved, config=AWS_CONFIG).get_user(AccessToken=token)
         sub = next(a["Value"] for a in user["UserAttributes"] if a["Name"] == "sub")
-        customer = customer_id_for_verified_username(user["Username"])
+        customer = _customer_for(settings.database_url, user["Username"])
         if customer != "CUST-" + args.persona.upper():
             raise RuntimeError("Signed-in principal does not match the selected persona")
         if args.command == "learn":

@@ -9,9 +9,10 @@
  *   Recorded   what do the two tables hold for this write key?
  *
  * Every value comes from the API: the decision from the review row, the
- * policy verdict from the stored receipt, and the counts from
- * `store_credits` and `tool_audit`, read from the tables. A person saying yes
- * is not an authorization, and an authorization is not a row.
+ * policy verdict from the execute response (Pellier stores no copy of it),
+ * and the counts from `store_credits` and `tool_audit`, read from the tables.
+ * A person saying yes is not an authorization, and an authorization is not a
+ * row.
  */
 import { CheckCircle2, CircleX, LoaderCircle } from 'lucide-react'
 import React from 'react'
@@ -90,6 +91,10 @@ function policyCheck(review: OperatorReview, attempted: boolean): Check {
   if (policy === 'DENY') {
     return { key: 'policy', label: 'Policy', tone: 'blocked', tag: 'DENY',
              detail: review.execution?.notes.policy ?? 'AgentCore Policy refused the action. The tool was never entered.' }
+  }
+  if (policy === 'NOT_RECORDED') {
+    return { key: 'policy', label: 'Policy', tone: 'pending', tag: 'Not stored',
+             detail: review.execution?.notes.policy ?? 'Pellier keeps no copy of a policy decision.' }
   }
   if (policy === 'NOT_EVALUATED') {
     return { key: 'policy', label: 'Policy', tone: 'pending', tag: 'Not evaluated',
@@ -242,7 +247,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
           </div>
           <div>
             <dt>Rail</dt>
-            <dd>{execution?.rail ?? review.execution?.rail ?? 'not yet run'}</dd>
+            <dd>{execution?.rail ?? (review.execution ? review.execution.rail ?? 'no row written' : 'not yet run')}</dd>
           </div>
         </dl>
       ) : null}

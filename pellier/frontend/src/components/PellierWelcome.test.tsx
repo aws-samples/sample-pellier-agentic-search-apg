@@ -56,6 +56,27 @@ describe('composeWelcomeGreeting', () => {
       .querySelectorAll('button')).toHaveLength(2)
   })
 
+  it("reads the persona's own catalog grouping, and the neutral edit signed out", async () => {
+    const fetchSpy = vi.fn(liveFetch)
+    vi.stubGlobal('fetch', fetchSpy)
+    const { unmount } = render(<PellierWelcome onSend={onSend} persona={{
+      id: 'jessica',
+      edit: 'house',
+      display_name: 'Jessica',
+      customer_id: 'CUST-JESSICA',
+    } as never} />)
+    await screen.findByRole('region', { name: 'Ideas to begin your conversation' })
+    const urls = fetchSpy.mock.calls.map(([input]) => String(input))
+    expect(urls).toContain('/api/products?persona=house')
+    expect(urls).toContain('/api/scenarios?persona=jessica')
+    unmount()
+
+    fetchSpy.mockClear()
+    render(<PellierWelcome onSend={onSend} />)
+    await screen.findByRole('region', { name: 'Ideas to begin your conversation' })
+    expect(fetchSpy.mock.calls.map(([input]) => String(input))).toContain('/api/products?persona=fresh')
+  })
+
   it('keeps editorial photography available while the live edit is loading', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
     render(<PellierWelcome onSend={onSend} persona={{ id: 'marco', display_name: 'Marco' } as never} />)

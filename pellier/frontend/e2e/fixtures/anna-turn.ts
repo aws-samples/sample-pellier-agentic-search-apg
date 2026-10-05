@@ -44,9 +44,9 @@ export const ANNA = {
   avatar_color: '#6b3d2a',
   avatar_initial: 'A',
   customer_id: 'CUST-ANNA',
-  membership: 'circle',
+  edit: 'anna',
   hero_image: '/assets/personas/anna-720.webp',
-  hero_alt: 'Anna at a table set for a housewarming',
+  hero_alt: 'A white gift box tied with a blush-pink ribbon, a blank kraft tag and a vase with one eucalyptus stem on a small oak side table',
   hero_subheadline: 'Gifts, thoughtfully matched.',
   stats: { visits: 6, orders: 5, last_seen_days: 9 },
 }
@@ -54,29 +54,12 @@ export const ANNA = {
 export const ANNA_QUESTION =
   'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.'
 
-function availability(productId: string) {
-  return {
-    productId,
-    status: 'reconciled_in_stock',
-    availableQuantity: 24,
-    scope: 'catalog',
-    locations: [],
-    source: 'warehouse_inventory',
-    observedAt: '2026-10-04T14:40:00+00:00',
-    catalogCacheQuantity: 24,
-    catalogLedgerQuantity: 24,
-    aggregateCacheStale: false,
-    disagreements: [],
-    authority: 'warehouse_inventory',
-  }
-}
-
 // The three cards the answer names, in the shape `chat.py` emits: catalog
-// fields from `_format_products`, availability from `_attach_inventory_evidence`.
+// fields from `_format_products`, stock from `_attach_stock`.
 const PRODUCTS = [
-  { id: '31', name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, rating: 4.9, reviews: 134, category: 'Kitchen and table', image: '/products/theo-stoneware-pour-over-set.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('31') },
-  { id: '36', name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, rating: 4.7, reviews: 245, category: 'Kitchen and table', image: '/products/theo-ceramic-tumblers.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('36') },
-  { id: '22', name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, rating: 4.7, reviews: 178, category: 'Kitchen and table', image: '/products/anna-linen-napkins.webp', badge: null, tags: ['linen', 'gift', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0, availability: availability('22') },
+  { id: '31', name: 'Stoneware Pour-Over Set', brand: 'Pellier', color: 'Ash gray', price: 58, rating: 4.9, reviews: 134, category: 'Kitchen and table', image: '/products/theo-stoneware-pour-over-set.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0 },
+  { id: '36', name: 'Ceramic Tumblers', brand: 'Pellier', color: 'Speckled charcoal', price: 34, rating: 4.7, reviews: 245, category: 'Kitchen and table', image: '/products/theo-ceramic-tumblers.webp', badge: null, tags: ['ceramic', 'slow', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0 },
+  { id: '22', name: 'Linen Napkins, Set of 4', brand: 'Pellier', color: 'White', price: 44, rating: 4.7, reviews: 178, category: 'Kitchen and table', image: '/products/anna-linen-napkins.webp', badge: null, tags: ['linen', 'gift', 'home'], ownership: null, quantity: 24, inStock: true, originalPrice: null, discountPercent: 0 },
 ]
 
 const ANSWER =
@@ -246,7 +229,7 @@ function deltas(text: string): object[] {
 const ROUTE_BUILDER = {
   tool: null, rail: 'in-process', intent: 'shopping', agent: 'Shopping agent',
   model_id: 'global.anthropic.claude-opus-5', skills: SKILLS, skill_mode: 'fixed',
-  memory: { facts: 3, orders: 5, source: 'Aurora PostgreSQL' }, note: null,
+  memory: { facts: 1, orders: 5, source: 'Aurora PostgreSQL' }, note: null,
 }
 
 export const ANNA_TURN_EVENTS: object[] = [
@@ -254,7 +237,7 @@ export const ANNA_TURN_EVENTS: object[] = [
     type: 'turn_start', turn_id: 'turn-' + 'a'.repeat(32), session_id: 'session-shots',
     principal: { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' },
   },
-  { type: 'aurora_profile_context', profile: { source: 'Aurora PostgreSQL', customer_id: 'CUST-ANNA', facts_available: 3, orders_available: 5, available: true } },
+  { type: 'aurora_profile_context', profile: { source: 'Aurora PostgreSQL', customer_id: 'CUST-ANNA', facts_available: 1, orders_available: 5, available: true } },
   { type: 'intent_signal', intent: 'shopping', agent: 'Shopping agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5' },
   { type: 'status', label: 'Understanding your request' },
   {

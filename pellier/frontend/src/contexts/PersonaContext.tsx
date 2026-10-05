@@ -23,11 +23,14 @@ import {
 
 export interface PersonaSnapshot {
   id: string
+  /** The catalog grouping the storefront shows this persona, e.g. `house` for Jessica. */
+  edit: string
   display_name: string
   role_tag: string
   avatar_color: string
   avatar_initial: string
-  customer_id: string
+  /** Null for the signed-out guest, who is not a customer. */
+  customer_id: string | null
   hero_image: string
   hero_alt: string
   hero_subheadline: string
@@ -40,6 +43,7 @@ export interface PersonaSnapshot {
 
 export interface PersonaListItem {
   id: string
+  edit: string
   display_name: string
   role_tag: string
   blurb: string

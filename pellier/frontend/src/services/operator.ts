@@ -56,9 +56,11 @@ export interface OperatorOrder {
   quantity: number
   placedAt: string | null
   imageUrl: string
-  /** The authoritative return state, from `pellier.returns`. */
-  returnStatus?: string | null
+  /** The order row's own return state: requested, received or refunded. */
+  returnStatus?: 'requested' | 'received' | 'refunded' | null
   returned?: boolean
+  /** The store credit that covers this return, when one does. */
+  creditId?: number | null
 }
 
 export interface OperatorTicket {
@@ -126,7 +128,11 @@ export interface OperatorClientRecord {
  */
 export interface ActionAssurance {
   human: 'CONFIRMATION_REQUIRED' | 'CONFIRMED' | 'DECLINED'
-  policy: 'PENDING' | 'NOT_EVALUATED' | 'ALLOW' | 'DENY' | 'EVALUATION_INCOMPLETE'
+  /**
+   * `NOT_RECORDED`: an execution began and Aurora holds no row for its key.
+   * Pellier keeps no copy of a policy decision, so a reload cannot say why.
+   */
+  policy: 'PENDING' | 'NOT_EVALUATED' | 'ALLOW' | 'DENY' | 'EVALUATION_INCOMPLETE' | 'NOT_RECORDED'
   aurora: 'NOT_EVALUATED' | 'NOT_REACHED' | 'PERMITTED' | 'DENIED' | 'OUTCOME_UNKNOWN'
   evidence: 'PENDING' | 'NO_EXECUTION' | 'RECEIPTED' | 'POLICY_PROOF' | 'ATTEMPT_RECEIPT'
 }
@@ -139,6 +145,8 @@ export interface ExecutionRecord {
   amountCents: number | null
   auditRows: number
   auditIds: number[]
+  /** Who wrote the first audit row: `gateway` for the Lambda, else the staff member. */
+  auditCaller: string | null
   readable: boolean
 }
 
@@ -149,7 +157,6 @@ export interface OperatorExecutionResult {
   executionTurnId: string
   idempotencyKey: string
   actorPrincipal: string
-  customerSubject: string | null
   assurance: ActionAssurance
   notes: Partial<Record<'policy' | 'aurora' | 'audit' | 'rail' | 'evidence', string>>
   tool: string
@@ -157,21 +164,15 @@ export interface OperatorExecutionResult {
   record: ExecutionRecord
 }
 
-/** A stored execution receipt: what the governance layers decided, and what decided it. */
-export interface OperatorExecutionReceipt {
-  receiptId: number
+/**
+ * What the tables say about a review whose execution began. `rail` is read
+ * from the first audit row (null when the attempt left none).
+ */
+export interface OperatorExecutionState {
   executionTurnId: string
-  tool: string
-  gatewayActionId: string
-  rail: 'gateway-mcp' | 'in-process' | 'refused'
-  actorPrincipal: string
-  customerSubject: string | null
-  policyEngineId: string
-  gatewayMode: string
-  matchingForbids: string[]
   idempotencyKey: string
-  notes: Partial<Record<'policy' | 'aurora' | 'audit' | 'rail' | 'evidence', string>>
-  recordedAt: string | null
+  rail: 'gateway-mcp' | 'in-process' | null
+  notes: Partial<Record<'policy', string>>
 }
 
 export type ReviewHumanState = 'confirmation_required' | 'confirmed' | 'declined'
@@ -193,14 +194,12 @@ export interface OperatorReview {
   assurance: ActionAssurance
   sourceTurnId: string | null
   executionTurnId: string | null
-  execution: OperatorExecutionReceipt | null
-  orderId: number | null
+  execution: OperatorExecutionState | null
   orderIds: number[]
   issue: string
   recommendation: {
     primaryAction?: string
     rationale?: string
-    orderIds?: number[]
     items?: string[]
     investigationTurnId?: string
   }

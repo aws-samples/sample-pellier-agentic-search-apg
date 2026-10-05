@@ -502,20 +502,6 @@ export const PERSONA_WEEKEND_EDIT: Record<string, WeekendEditContent> = {
   },
 }
 
-/**
- * The Aurora grouping each shopper's storefront edit reads. Marco, Anna and
- * Theo own a grouping named after them; Jessica's edit is the ranked Home
- * comforts moment (`house`, migration 057). Signed out is the neutral edit.
- */
-const STOREFRONT_EDITS: Record<string, string> = {
-  jessica: 'house',
-}
-
-export function storefrontEditFor(personaId: string | null | undefined): string {
-  if (!personaId) return 'fresh'
-  return STOREFRONT_EDITS[personaId] ?? personaId
-}
-
 export function weekendEditForPersona(
   personaId: string | null | undefined,
 ): WeekendEditContent {

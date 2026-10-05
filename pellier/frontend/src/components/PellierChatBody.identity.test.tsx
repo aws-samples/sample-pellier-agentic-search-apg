@@ -15,6 +15,7 @@ import type { AgentChatMessage } from '../hooks/useAgentChat'
 
 const MARCO: PersonaSnapshot = {
   id: 'marco',
+  edit: 'marco',
   display_name: 'Marco Delgado',
   role_tag: 'Returning',
   avatar_color: '#5a3528',

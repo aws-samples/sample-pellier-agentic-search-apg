@@ -582,8 +582,8 @@ def _deploy_claim_trigger(
     )
     if not mapping:
         raise RuntimeError(
-            "pellier.principal_customers is empty; run scripts/seed_principal_mappings.py "
-            "before managed provisioning so shopper tokens carry their customer claim"
+            "pellier.customers is empty; run scripts/setup/database-setup.sh before "
+            "managed provisioning so shopper tokens carry their customer claim"
         )
     return trigger.deploy_trigger(region=region, pool_id=user_pool_id, mapping=mapping)
 
@@ -2180,8 +2180,8 @@ def _live_policy_proof(
       ``tool_audit`` row for its turn id. This is the positive control: the
       DENY below cannot then be a broken Gateway, a 401 or a transport error.
     * ``give_store_credit`` for a customer that does not exist must be a Cedar
-      DENY with zero ``tool_audit``, ``write_operations`` and ``store_credits``
-      rows for its idempotency key. The supplied baseline has no shopper permit
+      DENY with zero ``tool_audit`` and ``store_credits`` rows for its
+      idempotency key. The supplied baseline has no shopper permit
       for the tool; if Cedar failed open, the call would execute and those rows
       would expose it without crediting a real account.
 
@@ -2261,7 +2261,7 @@ def _check_policy_proof(expected: str, payload: dict[str, Any]) -> None:
         )
     nonzero = {
         name: evidence.get(name)
-        for name in ("tool_audit_rows", "write_operations_rows", "store_credits_rows")
+        for name in ("tool_audit_rows", "store_credits_rows")
         if evidence.get(name) != 0
     }
     if nonzero:
@@ -2864,9 +2864,10 @@ def main() -> int:
 
         # Identity reaches Cedar as a claim, so the pool's pre-token trigger is
         # part of the authorization boundary and deploys before any token is
-        # minted for a proof. The map is read from the same table RLS keys off;
-        # bootstrap seeds the mapping before this deployment. An empty map is
-        # a provisioning failure because no shopper would carry a customer claim.
+        # minted for a proof. The map is read from customers.cognito_username,
+        # the column RLS reads; the database seed writes it before this
+        # deployment. An empty map is a provisioning failure because no shopper
+        # would carry a customer claim.
         claim_trigger = _deploy_claim_trigger(
             region=region,
             user_pool_id=required["cognito_pool"],
@@ -2878,7 +2879,7 @@ def main() -> int:
             claim_trigger["lambdaConfig"].get("PreTokenGenerationConfig", {}).get("LambdaVersion")
             == "V2_0"
         )
-        result["verification"]["claim_trigger_mapped_subjects"] = claim_trigger["mappedSubjects"]
+        result["verification"]["claim_trigger_mapped_users"] = claim_trigger["mappedUsers"]
         checkpoint()
 
         # Gateway spans, including the policy engine's own decision attributes,

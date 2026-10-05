@@ -44,35 +44,6 @@ describe('chat service auth transport', () => {
     expect(result.response).toBe('done')
   })
 
-  it('returns the durable Evidence Ledger from the terminal event', async () => {
-    const ledger = {
-      version: '1.0',
-      authority: 'canonical-receipt-projection',
-      principalScoped: true,
-      turnId: 'turn-1',
-      events: [],
-      evidenceSufficiency: [],
-    }
-    fetchMock.mockResolvedValueOnce(
-      new Response(
-        `data: ${JSON.stringify({
-          type: 'complete',
-          response: {
-            response: 'done',
-            products: [],
-            evidence_ledger: ledger,
-          },
-        })}\n\n`,
-        { status: 200 },
-      ),
-    )
-
-    const { sendChatMessageStreaming } = await import('./chat')
-    const result = await sendChatMessageStreaming('hello', [], vi.fn())
-
-    expect(result.evidence_ledger).toEqual(ledger)
-  })
-
   it('sends the selected live agent configuration', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
@@ -123,7 +94,6 @@ describe('chat service auth transport', () => {
               price: 38,
               image: '',
               category: 'Home',
-              availability: { status: 'in_stock' },
             },
             {
               id: 42,
@@ -131,7 +101,6 @@ describe('chat service auth transport', () => {
               price: 45,
               image: '',
               category: 'Home',
-              availability: { status: 'in_stock' },
             },
             {
               id: 43,
@@ -139,7 +108,6 @@ describe('chat service auth transport', () => {
               price: 35,
               image: '',
               category: 'Home',
-              availability: { status: 'in_stock' },
             },
           ],
         },
@@ -158,14 +126,12 @@ describe('chat service auth transport', () => {
             name: 'Beeswax Pillar Candle',
             price: 38,
             category: 'Home',
-            availability: 'in_stock',
           },
           {
             id: 42,
             name: 'Brass Incense Holder',
             price: 45,
             category: 'Home',
-            availability: 'in_stock',
           },
         ],
       },

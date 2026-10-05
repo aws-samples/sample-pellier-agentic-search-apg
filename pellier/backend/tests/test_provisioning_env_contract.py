@@ -178,22 +178,13 @@ def test_the_model_id_is_resolved_not_hardcoded() -> None:
     assert "export AGENT_MODEL_ID=" in _sudo_block()
 
 
-def test_the_rls_seed_runs_as_the_user_that_owns_the_dependencies() -> None:
-    """Root's python3 has no boto3, and an empty mapping denies every shopper.
+def test_bootstrap_needs_no_identity_seed_step() -> None:
+    """The database seed writes each customer's Cognito username.
 
-    Dependencies are installed with `pip install --user` for the participant. Running the
-    seed as root raised ModuleNotFoundError on a fresh box, left
-    `pellier.principal_customers` empty, and Row-Level Security then denied every
-    signed-in shopper their own orders. That presents as a broken storefront rather than
-    as governance.
+    Row-level security and the pre-token claim trigger both read
+    ``pellier.customers.cognito_username``, so no bootstrap step maps Cognito
+    subjects to customers any more, and none may come back.
     """
     body = BOOTSTRAP.read_text()
-    # The INVOCATION, not the `[ -f ... ]` existence guard a few lines above it. Anchoring
-    # on the bare filename found the guard and read the wrong window.
-    marker = 'python3.14 "$REPO_PATH/scripts/seed_principal_mappings.py"'
-    assert marker in body, "bootstrap no longer invokes the RLS principal seed"
-    call = body.index(marker)
-    window = body[max(0, call - 700): call]
-    assert 'sudo -u "$CODE_EDITOR_USER"' in window, (
-        "the RLS principal seed runs as root, whose python3 has no --user dependencies"
-    )
+    assert "seed_principal_mappings" not in body
+    assert "principal_customers" not in body

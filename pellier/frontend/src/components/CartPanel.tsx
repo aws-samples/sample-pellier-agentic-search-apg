@@ -3,29 +3,16 @@
  *
  * Every color is a Daylight token, so the panel follows the light and
  * dark themes with the rest of the storefront. Filled controls are ink
- * with on-ink text; the paid and failed states use the ok and err pairs.
+ * with on-ink text.
  *
- * Checkout triggers an in-panel confirmation state (no alert())
- * with a checkmark animation and "Continue shopping" reset.
+ * The bag is a list of pieces the shopper liked. Pellier is a workshop
+ * store and places no orders, so the panel has no checkout.
  */
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import {
-  X,
-  ShoppingBag,
-  Plus,
-  Minus,
-  ChevronRight,
-  Package,
-  Check,
-  AlertCircle,
-  Clock3,
-  FileCheck2,
-  ShieldCheck,
-} from 'lucide-react'
+import { X, ShoppingBag, Plus, Minus, Package } from 'lucide-react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { useCart } from '../contexts/CartContext'
-import { useAuth } from '../contexts/AuthContext'
 import { imageSrc } from '../utils/assetPath'
 import { useFocusTrap } from '../shared/useFocusTrap'
 
@@ -40,8 +27,6 @@ const TEXT_SOFT = 'var(--ink-soft)'
 const TEXT_QUIET = 'var(--ink-quiet)'
 const BORDER = 'var(--dl-line)'
 const ON_TEXT = 'var(--dl-on-ink)'
-const OK = 'var(--dl-ok)'
-const ERR = 'var(--dl-err)'
 
 interface CartPanelProps {
   isOpen: boolean
@@ -49,22 +34,7 @@ interface CartPanelProps {
 }
 
 const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
-  const {
-    items,
-    updateQuantity,
-    removeFromCart,
-    handleCheckout,
-    confirmAndPlaceOrder,
-    checkoutStage,
-    checkoutQuote,
-    checkoutReceipt,
-    checkoutError,
-    checkoutComplete,
-    resetCheckout,
-    clearCart,
-  } = useCart()
-  const { isAuthenticated, login } = useAuth()
-  const [acknowledged, setAcknowledged] = useState(false)
+  const { items, updateQuantity, removeFromCart, clearCart } = useCart()
   const panelRef = useRef<HTMLDivElement>(null)
   const reducedMotion = useReducedMotion()
   useFocusTrap({ containerRef: panelRef, active: isOpen, onClose })
@@ -78,21 +48,6 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
 
   const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0)
-  const isWorking = ['quoting', 'confirming', 'executing'].includes(checkoutStage)
-  const needsSignIn =
-    !isAuthenticated
-    && (checkoutError?.code === 'sign_in_required'
-      || checkoutError?.code === 'auth_failed')
-  const quoteExpires = checkoutQuote
-    ? new Date(checkoutQuote.expiresAt).toLocaleTimeString([], {
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-    : null
-
-  useEffect(() => {
-    setAcknowledged(false)
-  }, [checkoutQuote?.quoteId])
 
   return createPortal(
     <AnimatePresence>
@@ -145,7 +100,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                   >
                     Your bag
                   </h2>
-                  {itemCount > 0 && !checkoutComplete && (
+                  {itemCount > 0 && (
                     <motion.span
                       key={itemCount}
                       initial={{ scale: 0.6, opacity: 0 }}
@@ -158,7 +113,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  {items.length > 0 && !checkoutComplete && (
+                  {items.length > 0 && (
                     <button
                       onClick={clearCart}
                       className="text-xs font-medium px-3 py-1.5 rounded-full transition-all duration-200
@@ -183,134 +138,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
             {/* Divider */}
             <div className="mx-7" style={{ height: '1px', background: BORDER }} />
 
-            {/* ── Checkout confirmation state ── */}
-            {checkoutComplete ? (
-              <div className="flex-1 overflow-y-auto px-8 py-10 text-center">
-                <motion.div
-                  initial={{ scale: 0, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-                  className="w-20 h-20 rounded-full flex items-center justify-center mb-6"
-                  style={{
-                    background:
-                      checkoutReceipt?.status === 'paid'
-                        ? 'var(--dl-ok-soft)'
-                        : 'var(--dl-err-soft)',
-                    marginLeft: 'auto',
-                    marginRight: 'auto',
-                  }}
-                >
-                  {checkoutReceipt?.status === 'paid' ? (
-                    <Check className="h-9 w-9" style={{ color: OK }} strokeWidth={2.5} />
-                  ) : (
-                    <AlertCircle className="h-9 w-9" style={{ color: ERR }} strokeWidth={2.2} />
-                  )}
-                </motion.div>
-                <motion.h3
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.15 }}
-                  className="font-sans mb-2"
-                  style={{ fontSize: '26px', color: TEXT, fontWeight: 400 }}
-                >
-                  {checkoutReceipt?.status === 'paid'
-                    ? 'Order placed.'
-                    : checkoutReceipt?.status === 'payment_declined'
-                      ? 'Payment was declined.'
-                      : 'Payment did not complete.'}
-                </motion.h3>
-                <motion.p
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.25 }}
-                  style={{ fontSize: '14px', lineHeight: 1.6, color: TEXT_SOFT }}
-                >
-                  {checkoutReceipt?.status === 'paid'
-                    ? `${checkoutReceipt.orderNumber} is recorded with its payment and inventory evidence.`
-                    : 'The order did not complete. Reserved inventory was returned to the catalog.'}
-                </motion.p>
-                {checkoutReceipt && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="mt-7 w-full p-4 text-left rounded-lg"
-                    style={{ border: `1px solid ${BORDER}`, background: BG_CARD }}
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileCheck2 className="h-4 w-4" style={{ color: TEXT }} />
-                      <span className="font-semibold" style={{ fontSize: '13px', color: TEXT }}>
-                        Evidence receipt
-                      </span>
-                    </div>
-                    <div className="space-y-2" style={{ fontSize: '12px', color: TEXT_SOFT }}>
-                      <div className="flex justify-between gap-4">
-                        <span>Confirmed total</span>
-                        <span className="font-semibold" style={{ color: TEXT }}>
-                          ${checkoutReceipt.amounts.total}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <span>Receipt</span>
-                        <span className="font-semibold" style={{ color: TEXT }}>
-                          {checkoutReceipt.receipt.verified ? 'Verified' : 'Verification failed'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <span>Inventory</span>
-                        <span className="font-semibold capitalize" style={{ color: TEXT }}>
-                          {checkoutReceipt.evidence.inventory.status}
-                        </span>
-                      </div>
-                      <div className="flex justify-between gap-4">
-                        <span>Payment</span>
-                        <span className="font-semibold capitalize" style={{ color: TEXT }}>
-                          Sandbox {checkoutReceipt.payment.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div
-                      className="mt-3 pt-3 font-mono break-all"
-                      style={{
-                        borderTop: `1px solid ${BORDER}`,
-                        fontSize: '10px',
-                        lineHeight: 1.5,
-                        color: TEXT_QUIET,
-                      }}
-                    >
-                      Receipt {checkoutReceipt.receipt.receiptHash}
-                    </div>
-                  </motion.div>
-                )}
-                <motion.button
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.4 }}
-                  onClick={resetCheckout}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="mt-7 px-8 py-3 rounded-full font-medium text-[14px] tracking-wide transition-shadow duration-200"
-                  style={{
-                    background: TEXT,
-                    color: ON_TEXT,
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  {checkoutReceipt?.status === 'paid' ? 'Continue shopping' : 'Return to bag'}
-                </motion.button>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.55 }}
-                  className="mt-4"
-                  style={{ fontSize: '11px', color: TEXT_QUIET, letterSpacing: '0.04em' }}
-                >
-                  Sandbox payment. No card was charged.
-                </motion.p>
-              </div>
-            ) : (
-              <>
+            <>
                 {/* ── Cart Items ── */}
                 <div className="flex-1 overflow-y-auto">
                   {items.length === 0 ? (
@@ -465,155 +293,20 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
                   >
-                    {checkoutError && (
-                      <div
-                        className="mb-4 p-3 rounded-lg flex gap-2.5"
-                        style={{
-                          border: `1px solid color-mix(in srgb, ${ERR} 30%, transparent)`,
-                          background: 'var(--dl-err-soft)',
-                        }}
-                        role="alert"
-                      >
-                        <AlertCircle
-                          className="h-4 w-4 mt-0.5 flex-shrink-0"
-                          style={{ color: ERR }}
-                        />
-                        <p style={{ fontSize: '12px', lineHeight: 1.5, color: TEXT_SOFT }}>
-                          {checkoutError.message}
-                        </p>
-                      </div>
-                    )}
-
-                    {checkoutQuote ? (
-                      <>
-                        <div className="space-y-2 mb-4" style={{ fontSize: '13px' }}>
-                          <div className="flex justify-between">
-                            <span style={{ color: TEXT_SOFT }}>Subtotal</span>
-                            <span style={{ color: TEXT }}>${checkoutQuote.amounts.subtotal}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span style={{ color: TEXT_SOFT }}>Shipping</span>
-                            <span style={{ color: TEXT }}>${checkoutQuote.amounts.shipping}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span style={{ color: TEXT_SOFT }}>Tax</span>
-                            <span style={{ color: TEXT }}>${checkoutQuote.amounts.tax}</span>
-                          </div>
-                        </div>
-                        <div
-                          className="flex items-center justify-between mb-4 pt-4"
-                          style={{ borderTop: `1px solid ${BORDER}` }}
-                        >
-                          <span className="font-semibold" style={{ fontSize: '16px', color: TEXT }}>
-                            Confirmed total
-                          </span>
-                          <span className="font-bold" style={{ fontSize: '22px', color: TEXT }}>
-                            ${checkoutQuote.amounts.total}
-                          </span>
-                        </div>
-                        <label
-                          className="flex items-start gap-3 mb-4 cursor-pointer"
-                          style={{ fontSize: '12px', lineHeight: 1.45, color: TEXT_SOFT }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={acknowledged}
-                            onChange={event => setAcknowledged(event.target.checked)}
-                            className="mt-0.5 h-4 w-4 accent-ink"
-                          />
-                          <span>
-                            I confirm this ${checkoutQuote.amounts.total} total and authorize this
-                            sandbox order.
-                          </span>
-                        </label>
-                        <div className="flex items-center gap-2 mb-4" style={{ color: TEXT_QUIET }}>
-                          <Clock3 className="h-3.5 w-3.5" />
-                          <span style={{ fontSize: '11px' }}>Quote valid until {quoteExpires}</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between mb-2">
-                          <span style={{ fontSize: '14px', color: TEXT_SOFT }}>
-                            Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})
-                          </span>
-                          <span className="font-medium" style={{ fontSize: '14px', color: TEXT }}>
-                            ${total.toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between mb-5">
-                          <span style={{ fontSize: '13px', color: TEXT_SOFT }}>
-                            Shipping and tax
-                          </span>
-                          <span style={{ fontSize: '12px', color: TEXT_QUIET }}>
-                            Calculated in review
-                          </span>
-                        </div>
-                      </>
-                    )}
-
-                    <motion.button
-                      onClick={() => {
-                        if (needsSignIn) {
-                          login()
-                        } else if (checkoutQuote) {
-                          void confirmAndPlaceOrder()
-                        } else {
-                          void handleCheckout()
-                        }
-                      }}
-                      disabled={isWorking || (!!checkoutQuote && !acknowledged)}
-                      whileHover={{ scale: 1.015 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="w-full py-3.5 rounded-full font-medium flex items-center justify-center gap-2 transition-shadow duration-200"
-                      style={{
-                        fontSize: '15px',
-                        letterSpacing: '0.02em',
-                        background: TEXT,
-                        color: ON_TEXT,
-                        border: 'none',
-                        cursor:
-                          isWorking || (!!checkoutQuote && !acknowledged)
-                            ? 'not-allowed'
-                            : 'pointer',
-                        opacity: isWorking || (!!checkoutQuote && !acknowledged) ? 0.55 : 1,
-                        boxShadow: 'var(--dl-sh-paper)',
-                      }}
-                    >
-                      {needsSignIn
-                        ? 'Sign in to continue'
-                        : checkoutStage === 'quoting'
-                          ? 'Checking price and availability'
-                          : checkoutStage === 'confirming'
-                            ? 'Recording confirmation'
-                            : checkoutStage === 'executing'
-                              ? 'Placing sandbox order'
-                              : checkoutQuote
-                                ? 'Confirm and place order'
-                                : 'Review order'}
-                      {checkoutQuote ? (
-                        <ShieldCheck className="h-4 w-4" strokeWidth={2.3} />
-                      ) : (
-                        <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
-                      )}
-                    </motion.button>
-
-                    <p
-                      className="text-center mt-3"
-                      style={{
-                        fontSize: '11px',
-                        letterSpacing: '0.04em',
-                        color: TEXT_QUIET,
-                      }}
-                    >
-                      {checkoutQuote
-                        ? 'Identity, consent, inventory, and payment state are recorded.'
-                        : 'Prices and availability are verified before confirmation.'}
+                    <div className="flex items-center justify-between">
+                      <span style={{ fontSize: '14px', color: TEXT_SOFT }}>
+                        Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})
+                      </span>
+                      <span className="font-medium" style={{ fontSize: '14px', color: TEXT }}>
+                        ${total.toFixed(2)}
+                      </span>
+                    </div>
+                    <p className="mt-3" style={{ fontSize: '12px', lineHeight: 1.5, color: TEXT_QUIET }}>
+                      Pellier is a workshop store, so your bag keeps a list and places no order.
                     </p>
                   </motion.div>
                 )}
-              </>
-            )}
+            </>
           </motion.div>
         </>
       )}

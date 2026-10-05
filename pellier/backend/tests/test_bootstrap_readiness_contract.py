@@ -25,7 +25,8 @@ RESET_GOVERNED = REPO / "scripts" / "reset-governed-workshop.sh"
 DATABASE_SETUP = REPO / "scripts" / "setup" / "database-setup.sh"
 DATABASE_RESET = REPO / "scripts" / "setup" / "database-reset.sh"
 CATALOG_SEED = REPO / "scripts" / "seed_pellier_catalog.py"
-WAREHOUSE_MIGRATION = REPO / "scripts" / "migrations" / "006_warehouse_inventory.sql"
+SCHEMA = REPO / "scripts" / "migrations" / "001_schema.sql"
+SEED = REPO / "scripts" / "migrations" / "002_seed.sql"
 SEED_PREFERENCES = REPO / "scripts" / "seed-sample-preferences.sh"
 FACILITATOR_DRY_RUN = REPO / "scripts" / "dry-run-builders.sh"
 WRITE_TEST_CREDENTIALS = REPO / "scripts" / "write-test-credentials.sh"
@@ -379,7 +380,6 @@ def _valid_managed_receipt() -> dict[str, object]:
                     ),
                     "evidence": {
                         "tool_audit_rows": 0,
-                        "write_operations_rows": 0,
                         "store_credits_rows": 0,
                     },
                 },
@@ -468,18 +468,11 @@ def _run_health_gate(
     *,
     workshop_format: str = "builders",
     managed_ready: bool = False,
-    customer_count: int = 5,
-    order_count: int = 20,
-    audit_count: int = 1,
-    retrieval_receipts_exists: bool = True,
-    retrieval_citation_snapshot_schema_ready: bool = True,
-    governed_turn_receipts_exists: bool = True,
-    evidence_ledger_schema_exists: bool = True,
-    commerce_schema_exists: bool = True,
-    policy_decisions_exists: bool = True,
-    workshop_runs_exists: bool = True,
-    query_statistics_extension_exists: bool = True,
-    query_statistics_queryable: bool = True,
+    customer_count: int = 4,
+    order_count: int = 21,
+    table_count: int = 10,
+    trigger_count: int = 2,
+    rls_policy_count: int = 2,
     managed_receipt: dict[str, object] | None = None,
     shopper_in_operator_group: bool = False,
     group_lookup_error_for: str | None = None,
@@ -488,7 +481,6 @@ def _run_health_gate(
     quarantine: str | None = None,
     provision_state: str | None = None,
     provision_phase: str | None = None,
-    schema_on_search_path: bool = True,
     schema_query_error: bool = False,
     credential_secret_arn: str | None = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
     node_version: str = "v24.21.0",
@@ -562,46 +554,20 @@ case "$*" in
 esac
 """,
     )
+    schema_answer = "exit 1" if schema_query_error else None
     _write_executable(
         fake_bin / "psql",
         f"""#!/bin/bash
-query="$*"
-relation_result() {{
-  if [[ "{str(schema_query_error).lower()}" == "true" ]]; then
-    exit 1
-  fi
-  if [[ "$query" == *" IS NOT NULL"* ]]; then
-    if [[ "$1" == "true" ]]; then printf 't\\n'; else printf 'f\\n'; fi
-  elif [[ "$1" == "true" ]]; then
-    # PostgreSQL displays an unqualified regclass when its schema is visible.
-    if [[ "{str(schema_on_search_path).lower()}" == "true" ]]; then
-      printf '%s\\n' "${{2#pellier.}}"
-    else
-      printf '%s\\n' "$2"
-    fi
-  fi
-}}
 case "$*" in
   *inventory_consistency_check*) printf '0\n' ;;
-  *"principal_customers WHERE principal_sub"*) printf 'CUST-MARCO\n' ;;
+  *customer_claim_check*) printf 'CUST-MARCO\n' ;;
+  *schema_tables_check*) {schema_answer or f"printf '{table_count}\\n'"} ;;
+  *evidence_triggers_check*) {schema_answer or f"printf '{trigger_count}\\n'"} ;;
+  *row_security_check*) {schema_answer or f"printf '{rls_policy_count}\\n'"} ;;
   *product_catalog*) printf '100\n' ;;
   *warehouse_inventory*) printf '300\n' ;;
-  *governed_receipts*) printf '1\n' ;;
   *customers*) printf '{customer_count}\n' ;;
   *orders*) printf '{order_count}\n' ;;
-  *tool_audit*) printf '{audit_count}\n' ;;
-  *"to_regclass('pellier.retrieval_receipts')"*) relation_result {str(retrieval_receipts_exists).lower()} pellier.retrieval_receipts ;;
-  *"column_name IN ('citation_snapshots', 'citation_snapshot_hash')"*) printf '{"2" if retrieval_citation_snapshot_schema_ready else "0"}\n' ;;
-  *"to_regclass('pellier.governed_turn_receipts')"*) relation_result {str(governed_turn_receipts_exists).lower()} pellier.governed_turn_receipts ;;
-  *"to_regclass('pellier.model_invocation_receipts')"*) relation_result {str(evidence_ledger_schema_exists).lower()} pellier.model_invocation_receipts ;;
-  *"to_regclass('pellier.evidence_ledger_event_refs')"*) relation_result {str(evidence_ledger_schema_exists).lower()} pellier.evidence_ledger_event_refs ;;
-  *"to_regclass('pellier.commerce_receipts')"*) relation_result {str(commerce_schema_exists).lower()} pellier.commerce_receipts ;;
-  *"to_regclass('pellier.commerce_payment_events')"*) relation_result {str(commerce_schema_exists).lower()} pellier.commerce_payment_events ;;
-  *"to_regclass('pellier.policy_decisions')"*) relation_result {str(policy_decisions_exists).lower()} pellier.policy_decisions ;;
-  *"to_regclass('pellier.workshop_runs')"*) relation_result {str(workshop_runs_exists).lower()} pellier.workshop_runs ;;
-  *"column_name = 'requester_kind'"*) printf 'requester_kind\n' ;;
-  *"FROM public.pg_stat_statements"*) {"printf '1\\n'" if query_statistics_queryable else "exit 1"} ;;
-  *"extname = 'pg_stat_statements'"*) {"printf 'pg_stat_statements\\n'" if query_statistics_extension_exists else "true"} ;;
 esac
 """,
     )
@@ -732,7 +698,8 @@ def test_governed_health_gate_requires_complete_managed_receipt(
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert "gateway-mcp Runtime smoke" in proc.stdout
     assert "Labs 1-2 start in-process" in proc.stdout
-    assert "pg_stat_statements extension is installed" in proc.stdout
+    assert "The ten Pellier tables are installed" in proc.stdout
+    assert "Row-level security binds pellier_agent" in proc.stdout
     assert "READY" in proc.stdout
 
 
@@ -749,45 +716,6 @@ def test_governed_health_requires_the_release_lts_runtime(
     assert "NOT READY" in proc.stdout
 
 
-def test_governed_health_gate_rejects_missing_query_statistics_extension(
-    tmp_path: Path,
-) -> None:
-    """Migration 054's own comment calls this a facilitator-readiness
-
-    requirement, but ``CREATE EXTENSION`` succeeds even when the cluster
-    parameter group never preloaded the module — so nothing before this test
-    proved the gate would actually notice a box where that preload is
-    missing.
-    """
-    proc = _run_health_gate(
-        tmp_path,
-        model_ready=True,
-        workshop_format="governed",
-        managed_ready=True,
-        query_statistics_extension_exists=False,
-    )
-    assert proc.returncode == 1
-    assert "pg_stat_statements extension missing" in proc.stdout
-    assert "NOT READY" in proc.stdout
-
-
-@pytest.mark.parametrize("schema_on_search_path", [True, False])
-def test_schema_readiness_is_independent_of_regclass_display_names(
-    tmp_path: Path, schema_on_search_path: bool
-) -> None:
-    proc = _run_health_gate(
-        tmp_path,
-        model_ready=True,
-        workshop_format="governed",
-        managed_ready=True,
-        schema_on_search_path=schema_on_search_path,
-    )
-    assert proc.returncode == 0, proc.stdout + proc.stderr
-    assert "Retrieval receipt schema is installed" in proc.stdout
-    assert "Typed Evidence Ledger projection is installed" in proc.stdout
-    assert "Workshop run schema is installed" in proc.stdout
-
-
 def test_schema_query_failure_cannot_report_ready(tmp_path: Path) -> None:
     proc = _run_health_gate(
         tmp_path,
@@ -797,7 +725,8 @@ def test_schema_query_failure_cannot_report_ready(tmp_path: Path) -> None:
         schema_query_error=True,
     )
     assert proc.returncode == 1
-    assert "Retrieval receipt schema missing" in proc.stdout
+    assert "Pellier schema incomplete (unknown of 10 tables)" in proc.stdout
+    assert "Row-level security incomplete" in proc.stdout
     assert "NOT READY" in proc.stdout
 
 
@@ -923,40 +852,12 @@ def test_governed_health_gate_rejects_incomplete_managed_receipt(
 @pytest.mark.parametrize(
     ("missing_data", "message"),
     [
-        ({"customer_count": 0}, "Customer records empty or missing"),
-        ({"order_count": 19}, "Orders incomplete or missing"),
-        (
-            {"audit_count": 0},
-            "JSONB tool execution ledger has no completed agent or Gateway actions",
-        ),
-        (
-            {"retrieval_receipts_exists": False},
-            "Retrieval receipt schema missing",
-        ),
-        (
-            {"retrieval_citation_snapshot_schema_ready": False},
-            "Retrieval citation snapshot schema missing",
-        ),
-        (
-            {"governed_turn_receipts_exists": False},
-            "Governed turn receipt schema missing",
-        ),
-        (
-            {"evidence_ledger_schema_exists": False},
-            "Evidence Ledger schema missing",
-        ),
-        (
-            {"commerce_schema_exists": False},
-            "Proof-carrying commerce schema missing",
-        ),
-        (
-            {"policy_decisions_exists": False},
-            "Policy decision schema missing. Apply scripts/migrations/048_policy_decisions.sql",
-        ),
-        (
-            {"workshop_runs_exists": False},
-            "Workshop run schema missing. Apply scripts/migrations/049_workshop_runs.sql",
-        ),
+        ({"customer_count": 0}, "Customer records incomplete"),
+        ({"customer_count": 5}, "Customer records incomplete (got: 5, expected 4)"),
+        ({"order_count": 20}, "Orders incomplete or missing"),
+        ({"table_count": 9}, "Pellier schema incomplete (9 of 10 tables)"),
+        ({"trigger_count": 1}, "Evidence triggers missing (1 of 2)"),
+        ({"rls_policy_count": 1}, "Row-level security incomplete (1 of 2 owner policies"),
     ],
 )
 def test_governed_health_gate_rejects_missing_operational_data(
@@ -999,12 +900,12 @@ def test_claim_trigger_requires_seeded_customer_identity(
     monkeypatch: pytest.MonkeyPatch, mapped: bool
 ) -> None:
     provisioner = _load_provisioner()
-    mapping = {"marco-sub": "CUST-MARCO"} if mapped else {}
+    mapping = {"marco": "CUST-MARCO"} if mapped else {}
     deployed: list[dict] = []
 
     def deploy(**kwargs):
         deployed.append(kwargs)
-        return {"mappedSubjects": len(kwargs["mapping"])}
+        return {"mappedUsers": len(kwargs["mapping"])}
 
     monkeypatch.setitem(
         sys.modules,
@@ -1021,58 +922,12 @@ def test_claim_trigger_requires_seeded_customer_identity(
         "db_secret_arn": "example-secret",
     }
     if mapped:
-        assert provisioner._deploy_claim_trigger(**kwargs)["mappedSubjects"] == 1
+        assert provisioner._deploy_claim_trigger(**kwargs)["mappedUsers"] == 1
         assert deployed[0]["mapping"] == mapping
     else:
         with pytest.raises(RuntimeError, match="before managed provisioning"):
             provisioner._deploy_claim_trigger(**kwargs)
         assert deployed == []
-
-
-@pytest.mark.parametrize("seed_exit_code", [0, 1])
-def test_bootstrap_requires_identity_seed_before_managed_deployment(
-    tmp_path: Path, seed_exit_code: int
-) -> None:
-    source = BOOTSTRAP.read_text(encoding="utf-8")
-    seed_call = source.index('python3.14 "$REPO_PATH/scripts/seed_principal_mappings.py"')
-    managed_call = source.index("Provisioning full AgentCore managed path")
-    assert seed_call < managed_call
-    start = source.index("# Seed identity before the managed deployment")
-    end = source.index("# STEP 16:", start)
-    seed_block = source[start:end]
-    (tmp_path / "scripts").mkdir()
-    (tmp_path / "scripts/seed_principal_mappings.py").touch()
-    program = f"""
-set -euo pipefail
-log() {{ :; }}
-warn() {{ :; }}
-fail() {{ printf '%s\\n' "$*" >&2; exit 1; }}
-sudo() {{ printf 'identity_seed\\n'; return {seed_exit_code}; }}
-tee() {{ cat; }}
-{seed_block}
-printf 'managed_deployment\\n'
-"""
-    result = subprocess.run(
-        ["bash", "-c", program],
-        env={
-            "PATH": os.environ["PATH"],
-            "REPO_PATH": str(tmp_path),
-            "CODE_EDITOR_USER": "participant",
-            "WORKSHOP_FORMAT": "governed",
-            "COGNITO_USER_POOL_ID": "example-pool",
-            "AWS_REGION": "us-east-1",
-        },
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    if seed_exit_code:
-        assert result.returncode == 1
-        assert "Principal mapping seed failed" in result.stderr
-        assert "managed_deployment" not in result.stdout
-    else:
-        assert result.returncode == 0, result.stderr
-        assert result.stdout.splitlines() == ["identity_seed", "managed_deployment"]
 
 
 @pytest.mark.parametrize(
@@ -1236,17 +1091,24 @@ def test_deploy_wrapper_requires_runtime_log_protection_inputs() -> None:
     assert "AGENTCORE_RUNTIME_LOG_RETENTION_DAYS" in source
 
 
-def test_governed_reset_restores_catalog_before_exact_warehouse_matrix() -> None:
+def test_a_reset_database_is_built_by_the_fresh_setup_itself() -> None:
+    """A reset drops the schema and runs the fresh setup, so the two cannot differ."""
     reset = DATABASE_RESET.read_text(encoding="utf-8")
-    seeder = CATALOG_SEED.read_text(encoding="utf-8")
-    warehouse = WAREHOUSE_MIGRATION.read_text(encoding="utf-8")
+    assert "DROP SCHEMA IF EXISTS pellier CASCADE;" in reset
+    assert reset.index("DROP SCHEMA") < reset.index('bash "$REPO/scripts/setup/database-setup.sh"')
+    assert "TRUNCATE" not in reset
 
-    catalog_reset = '"$REPO/scripts/seed_pellier_catalog.py"'
-    warehouse_reset = "006_warehouse_inventory.sql"
-    assert reset.index(catalog_reset) < reset.index(warehouse_reset)
-    assert "quantity = EXCLUDED.quantity" in seeder
-    assert "DELETE FROM pellier.warehouse_inventory;" in warehouse
-    assert "IF nrows <> 300 OR invalid_products <> 0 OR drift_count <> 0 THEN" in warehouse
+
+def test_the_seed_runs_after_the_catalog_it_reads() -> None:
+    """The seed's 300 warehouse rows are derived from the catalog's quantities."""
+    setup = DATABASE_SETUP.read_text(encoding="utf-8")
+    schema = setup.index("apply 001_schema.sql")
+    catalog = setup.index("scripts/seed_pellier_catalog.py --from-cache")
+    seed = setup.index("apply 002_seed.sql")
+    assert schema < catalog < seed
+    seed_sql = SEED.read_text(encoding="utf-8")
+    assert "INSERT INTO pellier.warehouse_inventory" in seed_sql
+    assert "products disagree with their warehouse rows" in seed_sql
 
 
 def test_facilitator_dry_run_requires_managed_rail_and_the_stock_audit_row() -> None:
@@ -1272,27 +1134,18 @@ def test_hash_locked_test_requirements_include_async_pytest_plugin() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Governed database roles and RLS provisioning (spec sections 10, 11)
+# Governed database role and row-level security
 # ---------------------------------------------------------------------------
 #
-# Three separate steps have to survive edits to two long shell scripts, and a
-# missing one fails quietly rather than loudly:
-#
-#   * bootstrap must apply migration 016, or the runtime roles and policies
-#     never exist and the governed rail silently runs ungoverned;
-#   * bootstrap must seed the principal mappings, or Row-Level Security denies
-#     every signed-in shopper their own orders;
-#   * reset must re-apply 016, because a participant experimenting with
-#     `ALTER TABLE ... DISABLE ROW LEVEL SECURITY` would otherwise leave the
-#     box in a state where the exercise cannot be repeated.
-
-RLS_MIGRATION = REPO / "scripts" / "migrations" / "016_runtime_roles_rls.sql"
-PRINCIPAL_SEED = REPO / "scripts" / "seed_principal_mappings.py"
+# 001_schema.sql creates the one application role and its two owner policies,
+# and 002_seed.sql writes each customer's Cognito username, which both the
+# policies and the pre-token claim trigger read. No bootstrap or reset step
+# maps Cognito subjects to customers any more.
 
 
-def test_rls_migration_and_seeder_exist() -> None:
-    assert RLS_MIGRATION.is_file(), "migration 016 is missing"
-    assert PRINCIPAL_SEED.is_file(), "principal mapping seeder is missing"
+def test_the_whole_database_is_two_migration_files() -> None:
+    names = sorted(p.name for p in (REPO / "scripts" / "migrations").glob("*.sql"))
+    assert names == ["001_schema.sql", "002_seed.sql"]
 
 
 def test_bootstrap_delegates_database_setup() -> None:
@@ -1300,60 +1153,35 @@ def test_bootstrap_delegates_database_setup() -> None:
     assert "scripts/setup/database-setup.sh" in body
 
 
-def test_bootstrap_applies_the_rls_migration() -> None:
-    assert "016_runtime_roles_rls.sql" in DATABASE_SETUP.read_text(), (
-        "bootstrap must apply migration 016, or pellier_agent, pellier_query, "
-        "and the RLS policies never exist on a fresh box"
-    )
+def test_the_schema_creates_the_role_and_both_owner_policies() -> None:
+    sql = SCHEMA.read_text(encoding="utf-8")
+    assert "CREATE ROLE pellier_agent NOLOGIN NOINHERIT NOBYPASSRLS;" in sql
+    assert "CREATE POLICY orders_owner ON pellier.orders TO pellier_agent" in sql
+    assert "CREATE POLICY support_tickets_owner ON pellier.support_tickets TO pellier_agent" in sql
+    assert "current_setting('pellier.principal_username', true)" in sql
 
 
-def test_query_statistics_extension_is_created_during_bootstrap_and_reset() -> None:
-    name = "054_query_statistics.sql"
-    sql = (REPO / "scripts/migrations" / name).read_text()
-    assert "CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;" in sql
-    assert name in DATABASE_SETUP.read_text()
-    assert name in DATABASE_RESET.read_text()
+def test_the_seed_names_every_shopper_by_their_sign_in() -> None:
+    seed = SEED.read_text(encoding="utf-8")
+    for username, customer in (("marco", "CUST-MARCO"), ("anna", "CUST-ANNA"),
+                               ("theo", "CUST-THEO"), ("jessica", "CUST-JESSICA")):
+        assert re.search(rf"'{customer}', '[^']+', '{username}'", seed), customer
 
 
-def test_bootstrap_seeds_the_principal_mappings() -> None:
-    body = BOOTSTRAP.read_text()
-    assert "seed_principal_mappings.py" in body, (
-        "bootstrap must seed pellier.principal_customers; an empty mapping "
-        "denies every signed-in shopper their own orders"
-    )
-
-
-def test_reset_reapplies_the_rls_migration() -> None:
-    assert "016_runtime_roles_rls.sql" in DATABASE_RESET.read_text(), (
-        "reset must re-apply migration 016 so a disabled policy or altered "
-        "grant returns to the shipped state"
-    )
-
-
-def test_reset_verifies_the_principal_mappings() -> None:
+def test_reset_refreshes_the_customer_claim_trigger_and_fails_closed() -> None:
     body = RESET_GOVERNED.read_text()
-    invocation = next(
-        (line for line in body.splitlines() if "seed_principal_mappings.py" in line),
-        "",
-    )
-    assert invocation and "--check" in invocation, (
-        "reset must verify pellier.principal_customers; it is authorization "
-        "config rather than evidence, so it is not truncated, but an empty "
-        "mapping must not pass silently"
-    )
-    # Both identity steps fail closed: a warning let the reset report READY while
-    # every shopper was denied their own rows or every owner-scoped read was denied.
-    assert "_quarantine principal-mappings" in body
+    assert "scripts/deploy/deploy_customer_claim_trigger.py" in body
     assert "_quarantine claim-trigger" in body
-    assert 'warn "RLS principal mappings incomplete' not in body
     assert 'warn "Customer claim trigger' not in body
+    assert "seed_principal_mappings" not in body
 
 
 def test_health_gate_proves_the_customer_claim_on_a_shopper_token() -> None:
     gate = HEALTH_GATE.read_text(encoding="utf-8")
     assert "custom:customer_id" in gate
-    assert "principal_customers WHERE principal_sub" in gate
+    assert "FROM pellier.customers WHERE cognito_username" in gate
     assert "carries no custom:customer_id" in gate
+    assert "principal_customers" not in gate
 
 
 def test_the_health_gate_refuses_a_shopper_token_without_the_customer_claim(tmp_path) -> None:
@@ -1373,112 +1201,20 @@ def test_the_health_gate_passes_a_shopper_token_whose_claim_matches_the_mapping(
     assert "custom:customer_id=CUST-MARCO, matching the mapping" in proc.stdout, proc.stdout
 
 
-def test_reset_does_not_truncate_the_authorization_mapping() -> None:
-    """The mapping is configuration, not turn evidence.
-
-    Truncating it would make every reset break every signed-in shopper until
-    someone re-ran the seeder.
-    """
-    body = DATABASE_RESET.read_text()
-    truncate_block = body.split("TRUNCATE TABLE", 1)
-    assert len(truncate_block) == 2, "reset no longer truncates evidence tables"
-    statement = truncate_block[1].split(";", 1)[0]
-    assert "principal_customers" not in statement
-
-
-# Tables the reset script's migrations create that are deliberately NOT
-# truncated, each with the reason it is configuration rather than turn
-# evidence. Anything not listed here and not truncated fails the test below.
-_RESET_EXEMPT_TABLES = {
-    # Authorization mapping. Truncating it denies every signed-in shopper
-    # their own orders; reset verifies it instead (see the test above).
-    "principal_customers",
-    # Deterministic warehouse rows, reseeded by 006 rather than emptied.
-    "warehouse_inventory",
-    # Warehouse dimension (code, city, ship window). Reference data 006
-    # re-inserts; `warehouse_inventory` has an FK onto it.
-    "warehouses",
-    # Idempotency-key registry recreated by 011 with its own constraints.
-    "write_keys",
-    # Source-controlled persona metadata and deterministic guided requests.
-    # These are reseeded/presentation reference rows, not a participant turn.
-    "persona_profiles",
-    "workshop_scenarios",
-}
-
-
-def test_reset_truncates_every_evidence_table_its_migrations_create() -> None:
-    """A surviving evidence row makes the next participant's first proof lie.
-
-    Several proofs read "this table was empty, you acted, now there is one
-    row". `pellier.governed_query_receipts` was created by migration 017 and
-    re-applied by reset for a full workshop cycle without being truncated,
-    so a second run started with the previous participant's receipts and the
-    count-based proof read as already-done.
-
-    Rather than pin today's list, this derives it: every table created by a
-    migration reset applies must be truncated or exempted with a reason.
-    """
-    body = DATABASE_RESET.read_text()
-    migrations_dir = REPO / "scripts" / "migrations"
-
-    applied = [
-        name
-        for name in sorted(p.name for p in migrations_dir.glob("*.sql"))
-        if name in body
-    ]
-    assert applied, "reset applies no migrations — the list moved"
-
-    created: dict[str, str] = {}
-    for name in applied:
-        sql = (migrations_dir / name).read_text()
-        for match in re.finditer(
-            r"CREATE TABLE\s+(?:IF NOT EXISTS\s+)?pellier\.([a-z_]+)", sql
-        ):
-            created.setdefault(match.group(1), name)
-
-    truncated = body.split("TRUNCATE TABLE", 1)[1].split(";", 1)[0]
-    missing = {
-        table: migration
-        for table, migration in created.items()
-        if table not in truncated and table not in _RESET_EXEMPT_TABLES
-    }
-
-    assert not missing, (
-        "reset creates these tables but neither truncates nor exempts them, "
-        "so rows survive into the next run: "
-        + ", ".join(f"pellier.{t} (from {m})" for t, m in sorted(missing.items()))
-    )
-
-
-def test_runtime_roles_never_request_bypassrls() -> None:
+def test_the_runtime_role_never_requests_bypassrls() -> None:
     """A runtime role with BYPASSRLS would void every policy silently.
 
-    Scoped to role-defining statements: the migration legitimately mentions
-    BYPASSRLS in comments, in a `pg_roles` verification query, and in the
-    exception message that query raises.
+    Scoped to role-defining statements. The health gate then checks the live
+    attribute, because ALTER ROLE ... NOBYPASSRLS needs a true superuser on
+    Aurora and a later grant would change nothing in the schema file.
     """
-    sql = RLS_MIGRATION.read_text()
-
-    for line in sql.splitlines():
+    for line in SCHEMA.read_text().splitlines():
         stripped = line.strip()
-        if stripped.startswith("--"):
-            continue
         lowered = stripped.lower()
-        if not ("create role" in lowered or "alter role" in lowered):
+        if stripped.startswith("--") or not ("create role" in lowered or "alter role" in lowered):
             continue
-        if "bypassrls" not in lowered:
-            continue
-        assert "nobypassrls" in lowered, (
-            f"role statement grants BYPASSRLS, voiding every policy: {stripped}"
-        )
-
-    # And the migration must actively verify it rather than only asserting it,
-    # because ALTER ROLE ... NOBYPASSRLS needs a true superuser on Aurora.
-    assert "rolbypassrls" in sql.lower(), (
-        "the migration should verify pg_roles.rolbypassrls, since it cannot "
-        "set the attribute on Aurora"
-    )
+        assert "nobypassrls" in lowered, f"role statement may grant BYPASSRLS: {stripped}"
+    assert "NOT r.rolbypassrls" in HEALTH_GATE.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -1741,8 +1477,7 @@ def _run_reset(
     policy_exit: int = 0,
     quarantine_seed: str | None = None,
     backend_listening: bool = False,
-    recovery_installed: str = "f",
-    recovery_records: str = "0",
+    baseline_ok: bool = True,
     deployment_suffix: str = "",
 ) -> tuple[subprocess.CompletedProcess[str], Path]:
     """Run the real reset against a sandbox repo with every external binary faked.
@@ -1786,9 +1521,10 @@ def _run_reset(
     )
     for migration in (REPO / "scripts" / "migrations").glob("*.sql"):
         (repo / "scripts" / "migrations" / migration.name).touch()
-    # The real database reset runs against the faked psql and interpreter below.
+    # The real database reset and setup run against the faked psql and interpreter below.
     (repo / "scripts" / "setup").mkdir()
     shutil.copy2(DATABASE_RESET, repo / "scripts" / "setup" / DATABASE_RESET.name)
+    shutil.copy2(DATABASE_SETUP, repo / "scripts" / "setup" / DATABASE_SETUP.name)
     _write_executable(repo / "scripts" / "health-gate.sh", "#!/bin/bash\nexit 0\n")
     _write_executable(
         repo / "pellier" / "backend" / ".venv" / "bin" / "python",
@@ -1801,18 +1537,20 @@ esac
 exit 0
 """,
     )
-    # Baseline verification reads real counts: every runtime table empty, and exactly
-    # one row each for the migration 010 forensic incident.
+    # Baseline verification reads real counts: the lab tables empty, the seeded
+    # tables at their fresh counts, and Jessica's two returns open.
+    approvals = "0" if baseline_ok else "1"
     _write_executable(
         fake_bin / "psql",
         f"""#!/bin/bash
 case "$*" in
-  *"to_regclass('pellier.replacements')"*) printf '%s\\n' '{recovery_installed}' ;;
-  *"FROM pellier.replacements;"*) printf '%s\\n' '{recovery_records}' ;;
-  *CUST-JESSICA*) printf '0\\n' ;;
-  *"FROM pellier.returns;"*) printf '1\\n' ;;
-  *"FROM pellier.tool_audit;"*) printf '1\\n' ;;
-  *"FROM pellier.governed_receipts;"*) printf '1\\n' ;;
+  *CUST-JESSICA*) printf '2\\n' ;;
+  *"FROM pellier.approvals;"*) printf '{approvals}\\n' ;;
+  *"FROM pellier.product_catalog;"*) printf '100\\n' ;;
+  *"FROM pellier.warehouse_inventory;"*) printf '300\\n' ;;
+  *"FROM pellier.customers;"*) printf '4\\n' ;;
+  *"FROM pellier.orders;"*) printf '21\\n' ;;
+  *"FROM pellier.support_tickets;"*) printf '3\\n' ;;
   *"count(*)"*) printf '0\\n' ;;
 esac
 exit 0
@@ -1868,15 +1606,11 @@ def test_reset_resolves_isolated_project_and_policy_engine(tmp_path: Path) -> No
     assert "/.agentcore-project/pellierrehearsal/agentcore/agentcore.json" in inspected
 
 
-@pytest.mark.parametrize(("installed", "records"), [("t", "1"), ("t", ""), ("", "0")])
-def test_reset_refuses_owned_or_unknown_recovery_records_before_reseeding(
-    tmp_path: Path, installed: str, records: str,
-) -> None:
-    proc, _ = _run_reset(tmp_path, recovery_installed=installed, recovery_records=records)
+def test_a_reset_that_leaves_a_stray_review_is_not_ready(tmp_path: Path) -> None:
+    proc, _ = _run_reset(tmp_path, baseline_ok=False, backend_listening=True)
     assert proc.returncode == 1, proc.stdout + proc.stderr
-    assert "replacement recovery" in proc.stdout.lower() or "replacement recovery records" in proc.stdout.lower()
-    assert "Catalog quantities restored" not in proc.stdout
-    assert "Cleared:" not in proc.stdout
+    assert "Baseline: pellier.approvals should be empty, has 1" in proc.stdout
+    assert "Baseline verified" not in proc.stdout
 
 
 @pytest.mark.parametrize(
@@ -2138,18 +1872,6 @@ def test_credential_file_routes_participants_through_pellier_not_a_raw_hosted_ui
     assert 'echo "Sign-in URL: $HOSTED_UI"' not in credentials_writer
 
 
-def test_governed_health_gate_rejects_installed_but_unusable_query_statistics(tmp_path):
-    proc = _run_health_gate(tmp_path, model_ready=True, workshop_format="governed",
-                           managed_ready=True, query_statistics_queryable=False)
-    assert proc.returncode == 1
-    assert "installed but cannot collect queries" in proc.stdout
-    assert "NOT READY" in proc.stdout
-
-
-# ---------------------------------------------------------------------------
-# The live Cedar proof at provisioning time
-# ---------------------------------------------------------------------------
-
 def _probe_payload(expected: str, **overrides) -> dict:
     proof = _valid_managed_receipt()["verification"]["live_policy_proof"][expected]
     payload = json.loads(json.dumps(proof))
@@ -2205,7 +1927,7 @@ def test_live_policy_proof_probes_the_money_tool_as_a_shopper(
     [
         (
             "deny",
-            lambda: _probe_payload("deny", evidence={"write_operations_rows": 1}),
+            lambda: _probe_payload("deny", evidence={"tool_audit_rows": 1}),
             "left rows for idempotency key",
         ),
         (
@@ -2230,7 +1952,7 @@ def test_live_policy_proof_probes_the_money_tool_as_a_shopper(
             "deny",
             lambda: _probe_payload(
                 "deny", outcome="allow", cedar_denial=False, error_type=None, error=None,
-                evidence={"tool_audit_rows": 1, "write_operations_rows": 1},
+                evidence={"tool_audit_rows": 1, "store_credits_rows": 1},
             ),
             "Cedar did not block the money tool",
         ),

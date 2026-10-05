@@ -577,7 +577,7 @@ setup_database() {
             return 1
         fi
 
-        # ---- 1-3. Schema, catalog seed and every fresh-cluster migration.
+        # ---- 1-3. The schema, the catalog, then the seed that reads it.
         # scripts/setup/database-setup.sh owns the sequence and its ordering
         # rationale; the fresh-setup test harness runs the same script against
         # PostgreSQL 18 with pgvector. ----
@@ -585,8 +585,8 @@ setup_database() {
         # Must run as $CODE_EDITOR_USER: the script runs the catalog seeder,
         # and psycopg is installed via `pip install --user` for that user in
         # Stage 1, so root's python3.14 cannot import it. Without sudo -u the
-        # seeder dies with ModuleNotFoundError and the catalog stays empty —
-        # cascading silent failures into 003's persona-orders JOIN. psql runs
+        # seeder dies with ModuleNotFoundError and the catalog stays empty, and
+        # the seed that follows refuses a catalog without 100 products. psql runs
         # as that user too and authenticates with PGPASSWORD, as it did as root.
         # DB_USER/DB_PASSWORD are passed via `env NAME=value`, never
         # interpolated into a string a nested shell parses, so a literal ' or \
@@ -620,7 +620,7 @@ setup_database & PID_DB=$!
 FRONTEND_SETUP_OK=true
 wait "$PID_FE" || FRONTEND_SETUP_OK=false
 if wait "$PID_DB"; then
-    log "✅ Database setup complete (expanded catalog, HNSW index, workshop tables)"
+    log "✅ Database setup complete (ten tables, 100 products, the seed)"
 else
     # Stop before later application/managed milestones can overwrite FAILED.
     fail "Database setup failed; see /var/log/database-setup.log"
@@ -863,7 +863,7 @@ cat << 'ALS'
 alias start-backend='sudo systemctl restart pellier && journalctl -fu pellier --no-pager'
 alias rebuild-frontend='bash /workshop/sample-pellier-agentic-search-apg/scripts/rebuild-frontend-builders.sh'
 alias reset-governed='bash /workshop/sample-pellier-agentic-search-apg/scripts/reset-governed-workshop.sh'
-# One word per lab entry point. `workshop-start` mints the run id before Lab 1,
+# One word per lab entry point. `workshop-start` checks the box before Lab 1,
 # `lab3-start` switches the storefront to the managed rail and proves it, and
 # `doctor --lab N` names the prerequisite a stuck participant has not met.
 alias workshop-start='bash /workshop/sample-pellier-agentic-search-apg/scripts/workshop-start.sh'
@@ -1059,8 +1059,8 @@ User=$CODE_EDITOR_USER
 Group=$CODE_EDITOR_USER
 WorkingDirectory=$REPO_PATH/pellier/backend
 EnvironmentFile=$REPO_PATH/.env
-# workshop-start.sh and lab3-start.sh prefer /etc/pellier/run.env for the
-# run id and the managed-rail switch and fall back to the repo .env when
+# lab3-start.sh prefers /etc/pellier/run.env for the managed-rail switch
+# and falls back to the repo .env when
 # that path is not writable. Load it after .env so a value written there
 # reaches the service instead of being silently ignored; '-' tolerates
 # its absence.
@@ -1160,30 +1160,10 @@ log "✅ OAuth callback registration is a CloudFormation readiness dependency"
 write_status_json "in_progress" "pending" ""
 log "✅ Status marker created"
 
-# Seed identity before the managed deployment snapshots these mappings into
-# Cognito's pre-token trigger. Seeding after deployment leaves every shopper
-# token without its customer claim, even when the SQL rows are later correct.
-if [ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ] \
-   && [ -f "$REPO_PATH/scripts/seed_principal_mappings.py" ]; then
-    log "Seeding RLS principal mappings (Cognito subject -> customer scope)..."
-    export COGNITO_POOL_ID="${COGNITO_POOL_ID:-$COGNITO_USER_POOL_ID}"
-    export COGNITO_REGION="${COGNITO_REGION:-$AWS_REGION}"
-    # Dependencies belong to the participant's Python installation.
-    if sudo -u "$CODE_EDITOR_USER" env \
-         PATH="/opt/pellier/bin:/usr/bin:/usr/local/bin:$PATH" \
-         AWS_REGION="$AWS_REGION" AWS_DEFAULT_REGION="$AWS_REGION" \
-         COGNITO_POOL_ID="$COGNITO_POOL_ID" COGNITO_REGION="$COGNITO_REGION" \
-         python3.14 "$REPO_PATH/scripts/seed_principal_mappings.py" 2>&1 \
-         | tee /var/log/pellier-seed-principal-mappings.log; then
-        log "✅ Principal mappings seeded"
-    elif [ "$WORKSHOP_FORMAT" = "governed" ]; then
-        fail "Principal mapping seed failed; managed deployment requires customer identity mappings"
-    else
-        warn "seed_principal_mappings.py reported issues — RLS will deny signed-in shoppers until it succeeds"
-    fi
-elif [ "$WORKSHOP_FORMAT" = "governed" ]; then
-    fail "Cognito pool and seed_principal_mappings.py are required before managed deployment"
-fi
+# Customer identity needs no seeding step here: the database seed writes each
+# customer's Cognito username (pellier.customers.cognito_username), which both
+# row-level security and the pre-token claim trigger the managed deployment
+# installs read.
 
 # ============================================================================
 # STEP 16: WORKSHOP FORMAT — Pre-apply everything participants don't build

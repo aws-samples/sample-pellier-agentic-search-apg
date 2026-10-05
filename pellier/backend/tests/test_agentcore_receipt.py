@@ -223,7 +223,6 @@ def _valid_receipt() -> dict[str, Any]:
                     ),
                     "evidence": {
                         "tool_audit_rows": 0,
-                        "write_operations_rows": 0,
                         "store_credits_rows": 0,
                     },
                 },
@@ -601,7 +600,7 @@ def test_ready_receipt_requires_the_live_policy_flags(flag: str) -> None:
     assert any(flag in error for error in errors)
 
 
-@pytest.mark.parametrize("table", ["tool_audit", "write_operations", "store_credits"])
+@pytest.mark.parametrize("table", ["tool_audit", "store_credits"])
 def test_a_deny_that_left_rows_is_not_a_policy_proof(table: str) -> None:
     errors = _policy_errors(
         lambda v: v["live_policy_proof"]["deny"]["evidence"].update({f"{table}_rows": 1})

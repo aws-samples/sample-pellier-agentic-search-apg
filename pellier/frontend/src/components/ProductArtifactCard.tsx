@@ -30,31 +30,8 @@ interface CommerceSignal {
   value: string
 }
 
-function confirmedAvailabilityLabel(quantity: number | null | undefined): string {
-  if (typeof quantity !== 'number') return 'In stock'
-  if (quantity <= 3) return `Only ${quantity} left`
-  return 'In stock'
-}
-
+/** The card's stock line, from the units the turn read across the three warehouses. */
 function availabilitySignal(product: ChatProduct): string {
-  const availability = product.availability
-  if (availability) {
-    switch (availability.status) {
-      case 'reconciled_in_stock':
-        return confirmedAvailabilityLabel(availability.availableQuantity)
-      case 'reconciled_out_of_stock':
-        return 'Sold out'
-      case 'observed_in_stock':
-        return typeof availability.availableQuantity === 'number'
-          ? `${availability.availableQuantity} observed`
-          : 'Observed'
-      case 'observed_out_of_stock':
-        return 'No units observed'
-      default:
-        return 'Not verified'
-    }
-  }
-
   if (product.inStock === false || product.quantity === 0) return 'Sold out'
   if (typeof product.quantity === 'number') {
     if (product.quantity <= 3) return `Only ${product.quantity} left`
@@ -66,10 +43,6 @@ function availabilitySignal(product: ChatProduct): string {
 
 /** Green for in stock, red for sold out, grey when stock was not read. */
 export function stockTone(product: ChatProduct): TagTone {
-  const status = product.availability?.status
-  if (status === 'reconciled_in_stock' || status === 'observed_in_stock') return 'good'
-  if (status === 'reconciled_out_of_stock' || status === 'observed_out_of_stock') return 'blocked'
-  if (status) return 'pending'
   if (product.inStock === false || product.quantity === 0) return 'blocked'
   if (product.inStock === true || (typeof product.quantity === 'number' && product.quantity > 0)) return 'good'
   return 'pending'

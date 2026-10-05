@@ -30,11 +30,11 @@ export const BOOK = {
 }
 
 const ORDERS = [
-  { orderId: 301, productId: '42', productName: 'Waffle Bath Robe, Sage', brand: 'NestWell', amountPaidCents: 6400, amountPaid: '64.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/house-waffle-bath-robe-sage.png', returnStatus: 'approved', returned: true },
-  { orderId: 302, productId: '25', productName: 'Reed Diffuser', brand: 'Pellier', amountPaidCents: 3600, amountPaid: '36.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/anna-reed-diffuser.png', returnStatus: 'approved', returned: true },
-  { orderId: 303, productId: '31', productName: 'Stoneware Pour-Over Set', brand: 'Pellier', amountPaidCents: 5800, amountPaid: '58.00', quantity: 1, placedAt: '2026-06-06T10:00:00Z', imageUrl: '/products/theo-stoneware-pour-over-set.png', returnStatus: null, returned: false },
-  { orderId: 304, productId: '43', productName: 'Quilted Silk Vest', brand: 'Pellier', amountPaidCents: 12900, amountPaid: '129.00', quantity: 1, placedAt: '2026-03-08T10:00:00Z', imageUrl: '/products/house-quilted-silk-vest.png', returnStatus: null, returned: false },
-  { orderId: 305, productId: '50', productName: 'Oat Merino Crew', brand: 'EcoThread', amountPaidCents: 10800, amountPaid: '108.00', quantity: 1, placedAt: '2025-12-08T10:00:00Z', imageUrl: '/products/house-oat-merino-crew.png', returnStatus: null, returned: false },
+  { orderId: 301, productId: '42', productName: 'Waffle Bath Robe, Sage', brand: 'NestWell', amountPaidCents: 6400, amountPaid: '64.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/house-waffle-bath-robe-sage.png', returnStatus: 'received', returned: true, creditId: null },
+  { orderId: 302, productId: '25', productName: 'Reed Diffuser', brand: 'Pellier', amountPaidCents: 3600, amountPaid: '36.00', quantity: 1, placedAt: '2026-08-31T10:00:00Z', imageUrl: '/products/anna-reed-diffuser.png', returnStatus: 'received', returned: true, creditId: null },
+  { orderId: 303, productId: '31', productName: 'Stoneware Pour-Over Set', brand: 'Pellier', amountPaidCents: 5800, amountPaid: '58.00', quantity: 1, placedAt: '2026-06-06T10:00:00Z', imageUrl: '/products/theo-stoneware-pour-over-set.png', returnStatus: null, returned: false, creditId: null },
+  { orderId: 304, productId: '43', productName: 'Quilted Silk Vest', brand: 'Pellier', amountPaidCents: 12900, amountPaid: '129.00', quantity: 1, placedAt: '2026-03-08T10:00:00Z', imageUrl: '/products/house-quilted-silk-vest.png', returnStatus: null, returned: false, creditId: null },
+  { orderId: 305, productId: '50', productName: 'Oat Merino Crew', brand: 'EcoThread', amountPaidCents: 10800, amountPaid: '108.00', quantity: 1, placedAt: '2025-12-08T10:00:00Z', imageUrl: '/products/house-oat-merino-crew.png', returnStatus: null, returned: false, creditId: null },
 ]
 
 export const RECORD = {
@@ -69,8 +69,8 @@ const BASE_REVIEW = {
   action: 'give_store_credit',
   parameters: { customer_id: 'CUST-JESSICA', amount_cents: 10000, reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).' },
   amountCents: 10000, amount: '100.00', reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).',
-  sourceTurnId: 'turn-investigation-1', orderId: 301, orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
-  recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', orderIds: [301, 302], items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
+  sourceTurnId: 'turn-investigation-1', orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
+  recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
   actionHash: ACTION_HASH, requestedBySub: 'sub-nadia', requesterKind: 'operator', requestedAt: '2026-10-04T15:00:00Z',
 }
 
@@ -90,16 +90,15 @@ export const EXECUTED_REVIEW = {
   ...APPROVED_REVIEW, executionTurnId: 'turn-execution-1',
   assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'PERMITTED', evidence: 'RECEIPTED' },
   execution: {
-    receiptId: 9, executionTurnId: 'turn-execution-1', tool: 'give_store_credit',
-    gatewayActionId: 'pellier-store-tools___give_store_credit', rail: 'gateway-mcp',
-    actorPrincipal: 'sub-nadia', customerSubject: 'sub-jessica', policyEngineId: 'pellier_policy_engine-abc',
-    gatewayMode: 'ENFORCE', matchingForbids: ['workshop_credit_limit'], idempotencyKey: WRITE_KEY,
-    notes: { policy: 'AgentCore Policy evaluated the action and permitted it.', aurora: 'The runtime role was in scope and the transaction committed.' },
-    recordedAt: '2026-10-04T15:03:00Z',
+    executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
+    notes: { policy: 'The Gateway ran the tool, so AgentCore Policy permitted it.' },
   },
 }
 
-export const RECORDED_ONCE = { idempotencyKey: WRITE_KEY, creditRows: 1, creditIds: [12], amountCents: 10000, auditRows: 1, auditIds: [4051], readable: true }
+export const RECORDED_ONCE = {
+  idempotencyKey: WRITE_KEY, creditRows: 1, creditIds: [12], amountCents: 10000, auditRows: 1, auditIds: [4051],
+  auditCaller: 'gateway', readable: true,
+}
 
 export function detail(review: Record<string, unknown>, record: Record<string, unknown> | null = null) {
   return {
@@ -112,8 +111,8 @@ export function detail(review: Record<string, unknown>, record: Record<string, u
 
 export const EXECUTE_RESULT = {
   reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
-  actorPrincipal: 'sub-nadia', customerSubject: 'sub-jessica', assurance: EXECUTED_REVIEW.assurance,
-  notes: EXECUTED_REVIEW.execution.notes, tool: 'give_store_credit',
+  actorPrincipal: 'sub-nadia', assurance: EXECUTED_REVIEW.assurance,
+  notes: { policy: 'AgentCore Policy evaluated the action and permitted it.' }, tool: 'give_store_credit',
   result: { status: 'success', credit_id: 12, amount: '100.00', idempotent_replay: false }, record: RECORDED_ONCE,
 }
 

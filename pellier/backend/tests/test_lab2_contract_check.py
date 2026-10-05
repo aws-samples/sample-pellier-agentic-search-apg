@@ -20,7 +20,7 @@ def _load():
 VEST = {"product_id": "43", "name": "Quilted Silk Vest"}
 SHIRTS = [{"product_id": "2", "name": "Hadley Linen Shirt"},
           {"product_id": "7", "name": "Italian Linen Camp Shirt"}]
-ZERO_STOCK = [{"warehouse_id": "BK-01", "quantity": 0}, {"warehouse_id": "ATX-02", "quantity": 0}]
+ZERO_STOCK = [{"warehouse_code": "BK-01", "quantity": 0}, {"warehouse_code": "ATX-02", "quantity": 0}]
 
 CATALOG = {
     "unknown": {"matches": [], "stock": []},
@@ -57,7 +57,7 @@ def test_the_contract_passes_when_all_three_answers_stay_distinct() -> None:
     # One match is not ambiguity.
     ("ambiguous", {"matches": [VEST], "stock": ZERO_STOCK}),
     # A piece with stock is not a sold-out test.
-    ("sold_out", {"matches": [VEST], "stock": [{"warehouse_id": "BK-01", "quantity": 3}]}),
+    ("sold_out", {"matches": [VEST], "stock": [{"warehouse_code": "BK-01", "quantity": 3}]}),
 ])
 def test_a_test_input_that_is_not_what_it_claims_fails(case, catalog) -> None:
     check = _load()

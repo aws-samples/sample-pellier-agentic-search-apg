@@ -22,8 +22,9 @@ type Surface = keyof typeof COOKIE
 
 function profile(id: string) {
   return {
-    id, display_name: NAMES[id], role_tag: `${NAMES[id]}'s edit`, blurb: 'Live profile.',
-    avatar_color: '#5a4535', avatar_initial: NAMES[id][0], customer_id: `CUST-${id.toUpperCase()}`,
+    id, edit: id === 'jessica' ? 'house' : id, display_name: NAMES[id], role_tag: `${NAMES[id]}'s edit`,
+    blurb: 'Live profile.', avatar_color: '#5a4535', avatar_initial: NAMES[id][0],
+    customer_id: id === 'fresh' || id === 'nadia' ? null : `CUST-${id.toUpperCase()}`,
     hero_image: '/products/hero-theo.png', hero_alt: NAMES[id], hero_subheadline: 'Live profile.',
     stats: { visits: 1, orders: 1, last_seen_days: 1 },
   }

@@ -5,10 +5,10 @@ The claim contract has three parts, and each is proved from the token or the
 service rather than from configuration:
 
 1. Every mapped shopper's ACCESS token carries ``custom:customer_id`` equal to
-   the customer ``pellier.principal_customers`` maps their subject to.
+   the customer whose ``pellier.customers.cognito_username`` is their username.
 2. A refreshed access token carries the same claim, so a session that outlives
    the first token does not silently lose its identity binding.
-3. A subject with no mapping receives no claim. With ``--probe-unmapped`` a
+3. A user with no customer receives no claim. With ``--probe-unmapped`` a
    throwaway user is created for this and deleted again in ``finally``.
 
 With ``--gateway`` the script also calls the claim-scoped read on the Gateway
@@ -107,17 +107,17 @@ def refresh(idp: Any, sm: Any, pool_id: str, client_id: str, username: str, refr
 
 
 def expected_mapping(region: str) -> Dict[str, str]:
-    """Subject -> customer from the table row-level security keys off."""
+    """Username -> customer from the column row-level security reads."""
     rds = boto3.client("rds-data", region_name=region)
     secret_arn = os.environ.get("DB_SECRET_ARN") or os.environ.get("SECRET_ARN") or ""
     response = rds.execute_statement(
         resourceArn=_require("DB_CLUSTER_ARN"),
         secretArn=secret_arn,
         database=os.environ.get("DB_NAME") or os.environ.get("DATABASE") or "postgres",
-        sql="SELECT principal_sub, customer_id FROM pellier.principal_customers",
+        sql="SELECT cognito_username, id FROM pellier.customers",
     )
     return {
-        record[0].get("stringValue", ""): record[1].get("stringValue", "")
+        record[0].get("stringValue", "").casefold(): record[1].get("stringValue", "")
         for record in response.get("records", [])
     }
 
@@ -237,7 +237,7 @@ def main() -> int:
         session = sign_in(idp, sm, pool_id, client_id, username, password)
         claims = decode_claims(session["access"])
         sub = claims.get("sub", "")
-        expected = mapping.get(sub)
+        expected = mapping.get(username.casefold())
         issued = claims.get(CLAIM)
         refreshed = decode_claims(refresh(idp, sm, pool_id, client_id, username, session["refresh"])).get(CLAIM) if session["refresh"] else None
         row = {

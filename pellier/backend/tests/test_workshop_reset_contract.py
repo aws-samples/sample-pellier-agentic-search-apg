@@ -8,12 +8,12 @@ Two release blockers this file locks down
    governed writes on the in-process rail: no human review, no Cedar verdict, no
    `tool_audit` receipt. It happened, and a shopper executed a return directly.
 
-2. `reset-governed-workshop.sh` predates `execution_receipts`, `operator_episodes` and
-   the Concierge conversation tables, so a reset cluster kept rows a freshly provisioned
-   one has never had. Nothing seeds `conversations`; the fresh baseline is zero.
+2. A reset that cleared tables one by one kept rows a freshly provisioned box has never
+   had whenever a new table was added and the list was not. The database reset now drops
+   the pellier schema and runs the fresh setup itself, so the two cannot differ.
 
-The reset plan and post-reset state are captured artifacts, so these are contract tests
-over the script and the migration chain rather than a live reset.
+These are contract tests over the scripts rather than a live reset; the fresh-setup
+harness (`tests/fresh_cluster.py`) runs the real setup and reset on PostgreSQL.
 """
 
 from __future__ import annotations
@@ -35,14 +35,6 @@ def _reset_body() -> str:
 
 def _database_reset_body() -> str:
     return DATABASE_RESET.read_text()
-
-
-def _truncate_list() -> set[str]:
-    """The tables the reset clears, parsed from the TRUNCATE statement itself."""
-    body = _database_reset_body()
-    start = body.index("TRUNCATE TABLE")
-    block = body[start: body.index("RESTART IDENTITY", start)]
-    return set(re.findall(r"pellier\.([a-z_]+)", block))
 
 
 # ---------------------------------------------------------------------------
@@ -105,54 +97,29 @@ def test_the_managed_rail_is_required_under_the_default() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_reset_clears_the_evidence_tables_added_since_it_was_written() -> None:
-    cleared = _truncate_list()
-    for table in (
-        "execution_receipts",
-        "operator_episodes",
-        "model_invocation_receipts",
-    ):
-        assert table in cleared, table
+def test_the_database_reset_drops_the_schema_and_runs_the_fresh_setup() -> None:
+    """Nothing survives a reset, so no new table can be forgotten by a clear list."""
+    body = _database_reset_body()
+    assert "DROP SCHEMA IF EXISTS pellier CASCADE;" in body
+    drop = body.index("DROP SCHEMA")
+    assert drop < body.index('bash "$REPO/scripts/setup/database-setup.sh"')
+    assert "TRUNCATE" not in body
 
 
-def test_the_reset_clears_the_conversation_substrate() -> None:
-    """Nothing seeds these, so a fresh cluster has zero and a reset one must too."""
-    cleared = _truncate_list()
-    for table in ("conversations", "messages", "session_metadata", "tool_uses"):
-        assert table in cleared, table
-
-
-def test_the_reset_clears_spans_and_never_recreates_the_retired_table() -> None:
+def test_the_reset_never_recreates_the_retired_span_table() -> None:
     """The retired name is spelled from parts, so this file does not carry it.
 
     `tests/test_surface_naming.py` scans the repository for it and is right to: a test
     that hardcodes the token is indistinguishable from code that reintroduces it.
     """
-    assert "observatory_spans" in _truncate_list()
     retired = "agent_" + "trace_spans"
     assert retired not in _reset_body()
     assert retired.rsplit("_", 1)[0] not in _reset_body()
 
 
-def test_the_reset_preserves_the_authorization_mapping() -> None:
-    """`principal_customers` is authorization config, not turn evidence.
-
-    Clearing it denies every signed-in shopper their own orders, which presents as a
-    broken application rather than as governance.
-    """
-    assert "principal_customers" not in _truncate_list()
-
-
 def test_reset_delegates_database_reset() -> None:
     body = RESET.read_text()
     assert "scripts/setup/database-reset.sh" in body
-
-
-def test_the_reset_reapplies_every_migration_through_027() -> None:
-    body = _database_reset_body()
-    for n in range(23, 28):
-        prefix = f"0{n}_"
-        assert any(prefix in line for line in body.splitlines()), prefix
 
 
 def test_every_migration_in_the_chain_is_reachable_from_bootstrap() -> None:
@@ -161,68 +128,6 @@ def test_every_migration_in_the_chain_is_reachable_from_bootstrap() -> None:
     registered = DATABASE_SETUP.read_text()
     missing = sorted(name for name in on_disk if name not in registered)
     assert not missing, f"migrations not registered in database setup: {missing}"
-
-
-def test_recovery_reset_keeps_foreign_keys_complete_and_refuses_existing_operations() -> None:
-    body = _reset_body()
-    assert {
-        "replacements", "replacement_outbox", "replacement_events",
-        "replacement_callbacks", "replacement_simulator_operations",
-    } <= _truncate_list()
-    for migration in ("052_replacement_recovery.sql", "053_replacement_follow_up.sql"):
-        assert migration in _database_reset_body()
-    # The guard must run before catalog reseeding or any truncate. A database
-    # activity snapshot alone cannot establish that a callback workflow is idle.
-    guard = body[body.index("_assert_no_active_execution()"):body.index("# Restore the STARTING")]
-    assert "SELECT count(*) FROM pellier.replacements" in guard
-    assert 'if [[ "$recovery_records" != "0" ]]' in guard
-    assert "cannot quiesce the recovery worker and Step Functions" in guard
-    calls = body[body.index('echo "Pellier governed reset'): ]
-    assert calls.index("_assert_no_active_execution") < calls.index(
-        'bash "$REPO/scripts/setup/database-reset.sh"'
-    )
-
-
-NEW_EVIDENCE_MIGRATIONS = (
-    "047_evidence_immutability.sql",
-    "048_policy_decisions.sql",
-    "049_workshop_runs.sql",
-)
-
-
-def test_the_new_evidence_migrations_are_registered_everywhere() -> None:
-    """A migration that exists but is never applied is a table nobody has.
-
-    047 (immutability triggers), 048 (`pellier.policy_decisions`) and 049
-    (`pellier.workshop_runs`) are registered by name in every apply list before
-    the files land, so bootstrap, reset and the operator README agree on the chain.
-    """
-    bootstrap = DATABASE_SETUP.read_text()
-    reset = _database_reset_body()
-    readme = (MIGRATIONS / "README.md").read_text()
-    health = pathlib.Path("../../scripts/health-gate.sh").read_text()
-    for name in NEW_EVIDENCE_MIGRATIONS:
-        assert name in bootstrap, f"bootstrap does not apply {name}"
-        assert name in reset, f"reset does not re-apply {name}"
-        assert readme.count(name) >= 2, f"README lacks a numbered entry or list line for {name}"
-    # Apply order is preserved: each new file follows 046 in every list.
-    for text, label in ((bootstrap, "bootstrap"), (reset, "reset"), (readme, "README")):
-        anchor = text.rindex("046_retrieval_citation_snapshots.sql")
-        for name in NEW_EVIDENCE_MIGRATIONS:
-            assert text.rindex(name) > anchor, f"{label} lists {name} before 046"
-    assert "Apply scripts/migrations/048_policy_decisions.sql" in health
-    assert "Apply scripts/migrations/049_workshop_runs.sql" in health
-    assert "to_regclass('pellier.policy_decisions')" in health
-    assert "to_regclass('pellier.workshop_runs')" in health
-
-
-def test_the_reset_clears_and_verifies_the_new_evidence_tables() -> None:
-    """Policy decisions and workshop runs are per-run evidence; a fresh box has none."""
-    cleared = _truncate_list()
-    section = _reset_body()[_reset_body().index("_verify_baseline() {"):]
-    for table in ("policy_decisions", "workshop_runs"):
-        assert table in cleared, f"{table} survives a reset"
-        assert table in section, f"{table} is truncated but never verified empty"
 
 
 def test_the_bootstrap_registers_the_workshop_journey_aliases() -> None:
@@ -239,16 +144,10 @@ def test_the_bootstrap_registers_the_workshop_journey_aliases() -> None:
         assert alias in body, alias
 
 
-def test_the_reset_uses_truncate_rather_than_delete() -> None:
-    """TRUNCATE fires no row-level triggers.
-
-    A DELETE would run `record_inventory_movement` on warehouse_inventory, writing new
-    ledger history while trying to clear history, and would be refused outright by
-    `reject_governed_turn_receipt_mutation` on governed_turn_receipts.
-    """
-    assert "TRUNCATE TABLE" in _database_reset_body()
+def test_the_reset_never_deletes_rows() -> None:
+    """A DELETE would fire the evidence triggers, which refuse it outright."""
     for body in (_reset_body(), _database_reset_body()):
-        assert not re.search(r"^\s*DELETE FROM pellier\.", body, re.MULTILINE)
+        assert not re.search(r"\bDELETE FROM pellier\.", body, re.MULTILINE)
 
 
 def test_the_reset_does_not_require_control_plane_authority() -> None:
@@ -321,25 +220,21 @@ def test_the_memory_cleanup_covers_long_term_not_only_events() -> None:
 # ---------------------------------------------------------------------------
 # The service-state contract.
 #
-# Audit finding P2-06: the reset had no defined service state, so it TRUNCATEd the
-# evidence tables while the application was free to serve a turn. Postgres will not
-# corrupt anything, but "not corrupt" is not the property a workshop needs. The
-# dangerous interleavings are specific:
+# Audit finding P2-06: the reset had no defined service state, so it reset the
+# database while the application was free to serve a turn. The dangerous interleavings
+# are specific:
 #
-#   * a `write_operations` claim cleared after its domain write committed, so a replay
-#     applies the effect twice;
-#   * an `approvals` row cleared after the execution it authorized, so a receipt points
-#     at a review that no longer exists;
-#   * a conversation or Memory event written just after the truncate, so the clean
-#     baseline opens with someone else's residue in it.
+#   * a store credit or its tool_audit row written just after the rebuild, so the clean
+#     baseline opens with someone else's residue in it;
+#   * a Memory event written after the Memory leg, so the next shopper inherits it.
 #
 # One box, one systemd unit, one database. The fix is to own the service state, not to
 # build a lock.
 # ---------------------------------------------------------------------------
 
 
-def test_the_reset_quiesces_before_it_truncates() -> None:
-    """Order is the whole property. Quiescing after the truncate proves nothing."""
+def test_the_reset_quiesces_before_it_rebuilds() -> None:
+    """Order is the whole property. Quiescing after the rebuild proves nothing."""
     body = _reset_body()
     for call in ("_quiesce_services\n", "_assert_no_active_execution\n"):
         assert call in body, f"the reset no longer calls {call.strip()}"
@@ -348,11 +243,11 @@ def test_the_reset_quiesces_before_it_truncates() -> None:
         "_assert_no_active_execution does not run after _quiesce_services"
     )
     assert_no_active = body.index("_assert_no_active_execution\n", quiesce)
-    # The TRUNCATE lives in the database reset, so its call site is the truncate point.
-    truncate = body.index('bash "$REPO/scripts/setup/database-reset.sh"')
-    assert quiesce < assert_no_active < truncate, (
+    # The rebuild lives in the database reset, so its call site is the rebuild point.
+    rebuild = body.index('bash "$REPO/scripts/setup/database-reset.sh"')
+    assert quiesce < assert_no_active < rebuild, (
         "the reset must stop the application and prove nothing is executing BEFORE it "
-        "truncates"
+        "rebuilds"
     )
 
 
@@ -362,7 +257,7 @@ def test_the_reset_controls_the_service_through_sudo_when_not_root() -> None:
     The `reset-governed` alias runs as the participant, whose sudoers drop-in permits
     exactly `systemctl start|stop|restart|is-active|status pellier` without a password.
     A bare `systemctl stop` there returns "Access denied", the script treats the unit as
-    already stopped, and the TRUNCATE runs underneath a live application. Every service
+    already stopped, and the rebuild runs underneath a live application. Every service
     call therefore goes through one helper that prepends `sudo -n` when EUID is not 0.
     """
     body = _reset_body()
@@ -492,7 +387,7 @@ def test_every_systemctl_vector_the_reset_uses_is_permitted_by_the_sudoers_line(
     `_systemctl list-unit-files` made `_have_systemd_unit` return false on a box
     that has the unit, so every participant reset aborted; and
     `_systemctl is-active --quiet pellier` was denied, read as "already stopped",
-    and let the TRUNCATE run underneath a live application.
+    and let the reset run underneath a live application.
     """
     permitted = _sudoers_permitted_vectors()
     assert permitted == {
@@ -561,20 +456,14 @@ def test_the_reset_refuses_a_live_backend_it_cannot_stop() -> None:
     assert "exit 1" in section, "the quiesce path warns instead of refusing"
 
 
-def test_the_active_execution_check_uses_a_deterministic_marker() -> None:
-    """An unfinished claim is `completed_at IS NULL`, not a timestamp heuristic.
-
-    `write_operations` is the idempotency ledger: one row per key, `completed_at` set
-    when the effect landed. That is an exact in-flight marker, so the check does not
-    have to guess from ages or counts.
-    """
+def test_the_active_execution_check_reads_the_database_itself() -> None:
+    """No active Pellier statement may be running when the rebuild starts."""
     body = _reset_body()
     assert "pg_stat_activity" in body
     assert "pg_backend_pid()" in body, (
         "the active-session count must exclude the reset's own session or it always "
         "finds itself"
     )
-    assert "FROM pellier.write_operations WHERE completed_at IS NULL" in body
 
 
 def test_the_reset_cleans_agentcore_memory_runtime_state() -> None:
@@ -598,36 +487,16 @@ def test_the_reset_cleans_agentcore_memory_runtime_state() -> None:
 def test_the_reset_verifies_the_baseline_it_claims_to_have_restored() -> None:
     """Asserting each step is not the same claim as asserting the result."""
     body = _reset_body()
-    assert "_verify_baseline() {" in body
-    cleared = _truncate_list()
-    verified = set(
-        re.findall(r"SELECT count\(\*\) FROM pellier\.\$\{table\}", body)
-    )
-    assert verified, "the baseline check no longer counts anything"
     section = body[body.index("_verify_baseline() {"):]
-    for table in ("approvals", "execution_receipts", "operator_episodes",
-                  "write_operations", "conversations", "observatory_spans"):
-        assert table in section, f"{table} is truncated but never verified empty"
-        assert table in cleared, f"{table} is verified empty but never truncated"
-    # The forensic incident is the one intentional row; zero is as wrong as two.
-    for table in ("returns", "tool_audit", "governed_receipts"):
-        assert table in section
-
-
-def test_the_reset_still_truncates_rather_than_deletes() -> None:
-    """The trigger-safe semantics must survive every change above.
-
-    A DELETE here fires `record_inventory_movement` and the receipt-immutability
-    trigger, writing fresh history while trying to clear history.
-    """
-    body = _database_reset_body()
-    assert "TRUNCATE TABLE" in body
-    assert "RESTART IDENTITY" in body
-    for text in (_reset_body(), body):
-        assert not re.search(r"\bDELETE FROM pellier\.", text), (
-            "a DELETE reappeared in the reset; that fires the row-level triggers "
-            "TRUNCATE deliberately bypasses"
-        )
+    section = section[: section.index("\n}\n")]
+    assert "SELECT count(*) FROM pellier.${table};" in section
+    for table in ("approvals", "store_credits", "tool_audit", "retrieval_receipts"):
+        assert table in section, f"{table} is never verified empty"
+    for seeded in ("product_catalog:100", "warehouse_inventory:300", "customers:4",
+                   "orders:21", "support_tickets:3"):
+        assert seeded in section, seeded
+    # Lab 4 starts from Jessica's two received returns with no credit on them.
+    assert "return_status = 'received' AND store_credit_id IS NULL" in section
 
 
 # ---------------------------------------------------------------------------

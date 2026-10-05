@@ -47,40 +47,40 @@ function renderBody(messages: AgentChatMessage[]) {
   )
 }
 
-describe('the review-pending notice', () => {
+describe('the credit-request notice', () => {
   it('renders the backend sentence', () => {
-    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
-    const notice = screen.getByTestId('pellier-review-pending')
+    renderBody([message({ creditRequestPending: { tool: 'store_credit_request', message: NOTICE } })])
+    const notice = screen.getByTestId('pellier-credit-request-pending')
     expect(notice.textContent).toBe(NOTICE)
   })
 
   it('says nothing changed, which the prose alone did not', () => {
-    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
-    const notice = screen.getByTestId('pellier-review-pending')
+    renderBody([message({ creditRequestPending: { tool: 'store_credit_request', message: NOTICE } })])
+    const notice = screen.getByTestId('pellier-credit-request-pending')
     expect(notice.textContent?.toLowerCase()).toContain('will review')
     expect(notice.textContent?.toLowerCase()).toContain('nothing on your account has changed')
   })
 
   it('is absent when no mutation was refused', () => {
     renderBody([message()])
-    expect(screen.queryByTestId('pellier-review-pending')).toBeNull()
+    expect(screen.queryByTestId('pellier-credit-request-pending')).toBeNull()
   })
 
   it('never shows the shopper the internal tool name', () => {
-    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
-    const notice = screen.getByTestId('pellier-review-pending')
+    renderBody([message({ creditRequestPending: { tool: 'store_credit_request', message: NOTICE } })])
+    const notice = screen.getByTestId('pellier-credit-request-pending')
     expect(notice.textContent).not.toContain('store_credit_request')
   })
 
   it('announces itself to assistive technology without being an alert', () => {
     // A boundary working as designed is not an error, so `status` rather than `alert`.
-    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
-    expect(screen.getByTestId('pellier-review-pending')).toHaveAttribute('role', 'status')
+    renderBody([message({ creditRequestPending: { tool: 'store_credit_request', message: NOTICE } })])
+    expect(screen.getByTestId('pellier-credit-request-pending')).toHaveAttribute('role', 'status')
   })
 
   it('leaves the answer prose alone', () => {
     // The notice sits beside the answer; it does not rewrite or replace it.
-    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
+    renderBody([message({ creditRequestPending: { tool: 'store_credit_request', message: NOTICE } })])
     expect(
       screen.getByText(/passed your store credit request/),
     ).toBeTruthy()
@@ -89,7 +89,7 @@ describe('the review-pending notice', () => {
   it('does not merchandise a product beside the request', () => {
     renderBody([
       message({
-        reviewPending: { tool: 'store_credit_request', message: NOTICE },
+        creditRequestPending: { tool: 'store_credit_request', message: NOTICE },
         products: [
           {
             id: 37,
@@ -111,7 +111,7 @@ describe('the review-pending notice', () => {
   it('hands the request to the client record on the Operator desk', () => {
     renderBody([
       message({
-        reviewPending: {
+        creditRequestPending: {
           tool: 'store_credit_request',
           message: NOTICE,
           requestId: 44,
@@ -126,7 +126,7 @@ describe('the review-pending notice', () => {
   })
 
   it('names no amount', () => {
-    renderBody([message({ reviewPending: { tool: 'store_credit_request', message: NOTICE } })])
-    expect(screen.getByTestId('pellier-review-pending').textContent).not.toMatch(/\$|\d/)
+    renderBody([message({ creditRequestPending: { tool: 'store_credit_request', message: NOTICE } })])
+    expect(screen.getByTestId('pellier-credit-request-pending').textContent).not.toMatch(/\$|\d/)
   })
 })

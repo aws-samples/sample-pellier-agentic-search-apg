@@ -600,7 +600,7 @@ def validate_live_policy_proof(payload: dict[str, Any]) -> list[str]:
     if not str(deny.get("idempotency_key") or "").strip():
         errors.append("Policy DENY must record the probe idempotency key")
     evidence = deny.get("evidence") if isinstance(deny.get("evidence"), dict) else {}
-    for name in ("tool_audit_rows", "write_operations_rows", "store_credits_rows"):
+    for name in ("tool_audit_rows", "store_credits_rows"):
         if evidence.get(name) != 0:
             table = name.removesuffix("_rows")
             errors.append(f"Policy DENY must show zero {table} rows for the probe key")

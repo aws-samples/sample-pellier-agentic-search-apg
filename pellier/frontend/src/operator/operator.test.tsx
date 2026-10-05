@@ -8,8 +8,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer } from '../services/operator'
 import {
-  ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, DENIED_REVIEW, EXECUTED_REVIEW, NOTHING_WRITTEN,
-  OPEN_REQUEST, PENDING_REVIEW, QUEUE, RECORD, RECORDED_ONCE, STEPS, WRITE_KEY, detail,
+  ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, EXECUTED_REVIEW, NOTHING_WRITTEN,
+  OPEN_REQUEST, PENDING_REVIEW, QUEUE, RECORD, RECORDED_ONCE, UNWRITTEN_REVIEW, STEPS, WRITE_KEY, detail,
 } from './fixtures'
 
 const api = vi.hoisted(() => ({
@@ -75,7 +75,7 @@ beforeEach(() => {
   api.declineReview.mockResolvedValue({ reviewId: 41, status: 'rejected', humanState: 'declined', decidedBy: 'sub-nadia', decidedByName: 'nadia', decidedAt: null, assurance: { human: 'DECLINED', policy: 'NOT_EVALUATED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' } })
   api.executeReview.mockResolvedValue({
     reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
-    actorPrincipal: 'sub-nadia', customerSubject: 'sub-jessica', assurance: EXECUTED_REVIEW.assurance,
+    actorPrincipal: 'sub-nadia', assurance: EXECUTED_REVIEW.assurance,
     notes: {}, tool: 'give_store_credit', result: { status: 'success', credit_id: 12, idempotent_replay: false }, record: RECORDED_ONCE,
   })
   api.streamInvestigation.mockImplementation(async (_id: string, onStep: (s: TurnStep) => void, onAnswer: (a: InvestigationAnswer) => void) => {
@@ -269,19 +269,37 @@ describe('the review record', () => {
     expect(checks).toHaveTextContent('Credit #12 and tool_audit row #4051')
     expect(screen.getByTestId('operator-credit-recorded')).toHaveTextContent('Credit #12 recorded for Jessica Nakamura')
     expect(screen.getByTestId('operator-review-retry')).toHaveTextContent('Retry execution')
-    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('ENFORCE')
+    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('gateway-mcp')
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent(WRITE_KEY)
   })
 
-  it('shows a Cedar denial as DENY with nothing written for the key', async () => {
-    api.fetchReview.mockResolvedValue(detail(DENIED_REVIEW, NOTHING_WRITTEN))
+  it('shows a Cedar denial from the execute response as DENY with nothing written for the key', async () => {
+    api.fetchReview.mockResolvedValueOnce(detail(APPROVED_REVIEW)).mockResolvedValue(detail(UNWRITTEN_REVIEW, NOTHING_WRITTEN))
+    api.executeReview.mockResolvedValueOnce({
+      reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
+      actorPrincipal: 'sub-nadia', assurance: { human: 'CONFIRMED', policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' },
+      notes: { policy: 'Cedar denied the action; the tool was never entered.' }, tool: 'give_store_credit',
+      result: { status: 'policy_denied' }, record: NOTHING_WRITTEN,
+    })
     renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-execute'))
     const checks = await screen.findByTestId('operator-credit-checks')
-    expect(within(checks).getByText('DENY')).toBeInTheDocument()
+    await waitFor(() => expect(within(checks).getByText('DENY')).toBeInTheDocument())
     expect(within(checks).getByText('Not written')).toBeInTheDocument()
     expect(checks).toHaveTextContent('Zero store_credits rows and zero tool_audit rows for this key: the tool was never entered.')
     expect(screen.getByTestId('operator-credit-denied')).toBeInTheDocument()
     expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute again')
+  })
+
+  it('after a reload, says the decision is not stored and what the tables hold', async () => {
+    api.fetchReview.mockResolvedValue(detail(UNWRITTEN_REVIEW, NOTHING_WRITTEN))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const checks = await screen.findByTestId('operator-credit-checks')
+    expect(within(checks).getByText('Not stored')).toBeInTheDocument()
+    expect(checks).toHaveTextContent('Pellier keeps no copy of a policy decision.')
+    expect(within(checks).getByText('Not written')).toBeInTheDocument()
+    expect(screen.queryByTestId('operator-credit-denied')).not.toBeInTheDocument()
+    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('no row written')
   })
 
   it('surfaces a governed refusal with what is missing', async () => {
@@ -296,11 +314,11 @@ describe('the review record', () => {
 
 describe('the reviews list', () => {
   it('names where each credit stands', async () => {
-    api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, reviews: [PENDING_REVIEW, EXECUTED_REVIEW, DENIED_REVIEW], total: 3, pendingCount: 1 })
+    api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, reviews: [PENDING_REVIEW, EXECUTED_REVIEW, UNWRITTEN_REVIEW], total: 3, pendingCount: 1 })
     renderAt('/operator/reviews', <ReviewList />)
     expect(await screen.findByTestId('operator-reviews')).toBeInTheDocument()
     const rows = screen.getAllByTestId('operator-review-41')
-    expect(rows.map(r => r.getAttribute('data-outcome'))).toEqual(['Waiting for Nadia', 'Credited', 'DENY'])
+    expect(rows.map(r => r.getAttribute('data-outcome'))).toEqual(['Waiting for Nadia', 'Credited', 'Not written'])
     expect(screen.getByTestId('operator-reviews-count')).toHaveTextContent('1 waiting')
   })
 
@@ -321,7 +339,8 @@ describe('the reviews list', () => {
     expect(reviewOutcome(APPROVED_REVIEW).word).toBe('Approved')
     expect(reviewOutcome({ ...APPROVED_REVIEW, executionTurnId: 'turn-x' }).word).toBe('Outcome unverified')
     expect(reviewOutcome(EXECUTED_REVIEW).word).toBe('Credited')
-    expect(reviewOutcome(DENIED_REVIEW).word).toBe('DENY')
+    expect(reviewOutcome(UNWRITTEN_REVIEW).word).toBe('Not written')
+    expect(reviewOutcome({ ...EXECUTED_REVIEW, assurance: { ...EXECUTED_REVIEW.assurance, policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' } }).word).toBe('DENY')
   })
 })
 

@@ -16,11 +16,9 @@
  * union: when Pellier and Observatory disagree about what "governed" means,
  * an attendee cannot trust either. One vocabulary, two presentations.
  *
- * Deliberate omission: there is no `turnId` here. The chat contract does
- * not yet emit a stable per-turn identifier, and deriving one from array
+ * Deliberate omission: there is no `turnId` here. Deriving one from array
  * position would produce deep links that silently point at the wrong turn
- * after a refresh. See `governedReceipt.ts` for the identifiers that do
- * exist end-to-end.
+ * after a refresh; the turn id travels on the chat response instead.
  */
 
 /**

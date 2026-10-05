@@ -12,7 +12,7 @@
 #   4. Retrieval      — run the exact five-strategy Lab 1 request
 #   5. Audit ledger   — query the check_stock execution rows this run left
 #   6. SQL claims     — Beeswax 40/30/30 split (pin run-of-show number) +
-#                       pg_trgm index presence/plan (migration 008 claim)
+#                       pg_trgm index presence/plan
 #
 # This applies both Lab 2 marker-scoped solutions temporarily and creates the
 # same audit evidence rows as a participant. It backs both source
@@ -324,8 +324,8 @@ echo "[6/6] SQL claims — Beeswax warehouse split + pg_trgm index"
 # 6a. Beeswax at Brooklyn: confirm the 40/30/30 split holds (BK-01 is the
 # largest share) and surface the live number so the run-of-show success
 # check can quote observed data instead of a guessed figure.
-bees_bk="$(_psql "SELECT wi.quantity FROM pellier.warehouse_inventory wi JOIN pellier.product_catalog pc ON pc.\"productId\" = wi.product_id WHERE pc.name ILIKE '%beeswax taper%' AND wi.warehouse_id = 'BK-01';")"
-bees_other="$(_psql "SELECT COALESCE(max(wi.quantity),0) FROM pellier.warehouse_inventory wi JOIN pellier.product_catalog pc ON pc.\"productId\" = wi.product_id WHERE pc.name ILIKE '%beeswax taper%' AND wi.warehouse_id <> 'BK-01';")"
+bees_bk="$(_psql "SELECT wi.quantity FROM pellier.warehouse_inventory wi JOIN pellier.product_catalog pc ON pc.\"productId\" = wi.product_id WHERE pc.name ILIKE '%beeswax taper%' AND wi.warehouse_code = 'BK-01';")"
+bees_other="$(_psql "SELECT COALESCE(max(wi.quantity),0) FROM pellier.warehouse_inventory wi JOIN pellier.product_catalog pc ON pc.\"productId\" = wi.product_id WHERE pc.name ILIKE '%beeswax taper%' AND wi.warehouse_code <> 'BK-01';")"
 if [[ -z "${bees_bk}" ]]; then
   fail "No Beeswax Taper warehouse rows — catalog/warehouse seed incomplete"
 elif [[ "${bees_bk}" =~ ^[0-9]+$ && "${bees_other}" =~ ^[0-9]+$ ]] && (( bees_bk >= bees_other )); then
@@ -334,21 +334,20 @@ else
   warn "Beeswax BK-01=${bees_bk} is NOT the largest (other max=${bees_other}) — 40/30/30 split may have re-seeded oddly; recheck run-of-show number."
 fi
 
-# 6b. pg_trgm: confirm migration 008's "prevents sequential scans" claim by
-# asking the planner. At 40 rows Postgres seq-scans regardless (correct +
-# cheap), so this is informational — what we're checking is that the trigram
-# index EXISTS and that the plan is what the migration comment implies.
-trgm_idx="$(_psql "SELECT count(*) FROM pg_indexes WHERE schemaname='pellier' AND indexname='product_catalog_name_trgm_idx';")"
+# 6b. pg_trgm: confirm the schema's trigram index by asking the planner. At
+# 100 rows Postgres seq-scans regardless (correct + cheap), so this is
+# informational — what we're checking is that the trigram index EXISTS.
+trgm_idx="$(_psql "SELECT count(*) FROM pg_indexes WHERE schemaname='pellier' AND indexname='product_catalog_name_trgm';")"
 if [[ "${trgm_idx:-0}" == "1" ]]; then
   plan="$(_psql "EXPLAIN SELECT \"productId\" FROM pellier.product_catalog WHERE lower(name) LIKE '%hadley%';" | tr '\n' ' ')"
   if echo "$plan" | grep -qi "trgm\|bitmap index scan"; then
     pass "pg_trgm index exists and the planner uses it for lower(name) LIKE '%…%'."
   else
     info "pg_trgm index exists; at this row count the planner seq-scans (expected). Plan: ${plan:0:120}"
-    info "  → migration 008's 'prevents seq scans' claim is a production-scale statement, not a 40-row one. Comment is accurate as written."
+    info "  → the index pays off at production scale, not at 100 rows."
   fi
 else
-  warn "pg_trgm index product_catalog_name_trgm_idx missing — migration 008 may not have applied."
+  warn "pg_trgm index product_catalog_name_trgm missing — rebuild with scripts/setup/database-setup.sh."
 fi
 
 if $GOVERNED; then

@@ -5,12 +5,12 @@
 #
 # THE LIFECYCLE, in order. Each step exists because skipping it produced a defect:
 #
-#   1. Quiesce the application.        A truncate underneath a live turn can clear an
-#                                      idempotency claim after its write committed.
+#   1. Quiesce the application.        Dropping the schema underneath a live turn
+#                                      fails that turn half way through.
 #   2. Prove nothing is executing.     No active Pellier database session.
-#   3. Reset Aurora runtime state.     TRUNCATE, never DELETE: DELETE fires the ledger
-#                                      and receipt-immutability triggers, writing new
-#                                      history while trying to clear history.
+#   3. Rebuild Aurora.                 Drop the pellier schema and build it again with
+#                                      the same three steps as a fresh database, so a
+#                                      reset database and a fresh one cannot differ.
 #   4. Clean AgentCore Memory runtime. Aurora is not the whole workshop; preference
 #                                      records are actor-scoped and outlive a session.
 #   5. Restore participant Cedar state through the CLI project.
@@ -111,7 +111,7 @@ if ! command -v "$PYTHON" >/dev/null 2>&1; then
 fi
 AWS_REGION="${AWS_REGION:-${AWS_DEFAULT_REGION:-us-east-1}}"
 
-# This script TRUNCATEs the evidence tables, so it must never guess which
+# This script drops and rebuilds the pellier schema, so it must never guess which
 # database to talk to. Require DB_NAME/DB_USER from the sourced .env rather
 # than silently defaulting to the `postgres` maintenance database.
 : "${DB_NAME:?DB_NAME is not set in $ENV_FILE — refusing to run a destructive reset against a guessed database}"
@@ -137,17 +137,12 @@ _psql_scalar() {
 # ---------------------------------------------------------------------------
 # SERVICE STATE CONTRACT
 #
-# The reset TRUNCATEs the evidence and runtime tables. Postgres will not corrupt
-# anything while the application is running, but "not corrupt" is not the property this
-# workshop needs. A turn in flight during the truncate can leave a half-story that is
-# worse than either outcome:
+# The reset drops and rebuilds the pellier schema. A turn in flight during the rebuild
+# leaves a half-story that is worse than either outcome:
 #
-#   * a `write_operations` idempotency claim cleared after its domain write committed,
-#     so a replay applies the effect a second time;
-#   * an `approvals` row cleared after the execution it authorized, so an execution
-#     receipt references a review that no longer exists;
-#   * a conversation or Memory event written a moment after the truncate, so the
-#     "clean" baseline starts with one shopper's residue in it.
+#   * a store credit or its tool_audit row written a moment after the rebuild, so the
+#     "clean" baseline starts with one participant's residue in it;
+#   * a Memory event written after the Memory leg, so the next shopper inherits it.
 #
 # So reset OWNS the service state: it stops the application, proves nothing is
 # executing, resets, and starts it again. One box, one unit, one database. That does not
@@ -166,7 +161,7 @@ _service_was_running=false
 # participant, not root, and the sudoers drop-in bootstrap writes permits exactly
 # `systemctl start|stop|restart|is-active|status pellier` without a password. A bare
 # `systemctl stop` from that account returns "Access denied", the script would treat the
-# unit as already stopped, and the TRUNCATE would run underneath a live application.
+# unit as already stopped, and the rebuild would run underneath a live application.
 # `-n` never prompts: a missing sudoers entry fails loudly instead of hanging bootstrap.
 _systemctl() {
   if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then systemctl "$@"; else sudo -n systemctl "$@"; fi
@@ -205,7 +200,7 @@ _quiesce_services() {
     # `is-active`, not `is-active --quiet`. The sudoers drop-in grants the exact
     # vector `systemctl is-active pellier`; the flag makes it a different vector,
     # sudo denies it, and a denial reads here as "already stopped" - which is how a
-    # TRUNCATE ends up running underneath a live application. Redirect instead.
+    # rebuild ends up running underneath a live application. Redirect instead.
     if _systemctl is-active "$PELLIER_SERVICE" >/dev/null 2>&1; then
       if _systemctl stop "$PELLIER_SERVICE" >/dev/null 2>&1; then
         _service_was_running=true
@@ -324,11 +319,10 @@ _clear_quarantine() {
   fi
 }
 
-# Run AFTER quiescing. Before that, an unfinished claim may be a live execution; after
-# it, the only sessions left are ones this script does not control, and an unfinished
-# claim is residue that the TRUNCATE correctly clears.
+# Run AFTER quiescing. After it, the only sessions left are ones this script does not
+# control, and the rebuild must not run underneath them.
 _assert_no_active_execution() {
-  local active claims recovery_installed recovery_records
+  local active
   active="$(_psql_scalar "
     SELECT count(*) FROM pg_stat_activity
      WHERE datname = current_database()
@@ -338,53 +332,20 @@ _assert_no_active_execution() {
        AND query NOT ILIKE '%pg_stat_activity%';
   " 2>/dev/null | tr -d '[:space:]')" || active=""
   # An unreadable probe is not quiescence. Converting a failed read into "" and
-  # then reporting PASS is how a truncate ends up running underneath a live
+  # then reporting PASS is how a rebuild ends up running underneath a live
   # application: the one condition this function exists to rule out is exactly
   # the one an empty string cannot rule out. Refuse before mutating.
   if [[ -z "$active" ]]; then
     fail "Could not read pg_stat_activity; quiescence is unestablished, not proven."
-    fail "Reset refuses to truncate on an unverified box. Check the database connection and re-run."
+    fail "Reset refuses to rebuild on an unverified box. Check the database connection and re-run."
     exit 1
   fi
   if [[ "$active" != "0" ]]; then
     fail "${active} database session(s) are actively running Pellier statements."
-    fail "Reset refuses to truncate underneath them. Stop the application and re-run."
+    fail "Reset refuses to rebuild underneath them. Stop the application and re-run."
     exit 1
   fi
   pass "No active Pellier database session; nothing is mid-execution"
-
-  claims="$(_psql_scalar "
-    SELECT count(*) FROM pellier.write_operations WHERE completed_at IS NULL;
-  " 2>/dev/null | tr -d '[:space:]')" || claims=""
-  if [[ -z "$claims" ]]; then
-    fail "Could not count unfinished idempotency claims; this box's write state is unknown."
-    exit 1
-  fi
-  if [[ "$claims" != "0" ]]; then
-    warn "${claims} idempotency claim(s) never completed. They are interrupted residue and the reset clears them."
-  else
-    pass "No unfinished idempotency claim"
-  fi
-
-  # A quiet database does not quiesce a scheduled Lambda or a waiting Standard
-  # execution. This local reset cannot retire their durable operation identity.
-  recovery_installed="$(_psql_scalar "
-    SELECT to_regclass('pellier.replacements') IS NOT NULL;
-  " 2>/dev/null | tr -d '[:space:]')" || recovery_installed=""
-  if [[ "$recovery_installed" == "t" ]]; then
-    recovery_records="$(_psql_scalar "
-      SELECT count(*) FROM pellier.replacements;
-    " 2>/dev/null | tr -d '[:space:]')" || recovery_records=""
-    if [[ "$recovery_records" != "0" ]]; then
-      fail "Replacement recovery records exist or could not be counted."
-      fail "This reset cannot quiesce the recovery worker and Step Functions executions."
-      fail "Preserve their records and use a fresh workshop deployment."
-      exit 1
-    fi
-  elif [[ "$recovery_installed" != "f" ]]; then
-    fail "Could not establish whether replacement recovery is installed; reset refused."
-    exit 1
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -453,33 +414,12 @@ _restore_execution_rail() {
   fi
 }
 
-# `workshop_runs` is truncated below, so the run id cached on disk names a run
-# the database no longer has. Leaving it makes every later evidence query scope
-# to an id with no rows and report NOT YET for work that was really done.
-# `workshop-start` mints a fresh one.
-_clear_local_run_state() {
-  local f cleared=0
-  for f in "$HOME/.pellier/run_id" "$HOME/.pellier/run_persona"; do
-    [[ -e "$f" ]] || continue
-    if rm -f "$f" 2>/dev/null; then cleared=$((cleared + 1)); else
-      fail "Could not clear stale run state at $f"
-      exit 1
-    fi
-  done
-  if [[ "$cleared" -gt 0 ]]; then
-    pass "Stale local run state cleared; workshop-start will mint a fresh run id"
-  else
-    pass "No stale local run state to clear"
-  fi
-}
-
 echo "Pellier governed reset - $(date '+%H:%M:%S')"
 echo "------------------------------------------------------------"
 
 _quiesce_services
 _assert_no_active_execution
 _restore_execution_rail
-_clear_local_run_state
 
 if ! "$PYTHON" "$REPO/scripts/reset_participant_exercises.py" \
     --repo "$REPO" >/tmp/pellier-governed-reset-exercises.log 2>&1; then
@@ -488,10 +428,9 @@ if ! "$PYTHON" "$REPO/scripts/reset_participant_exercises.py" \
 fi
 pass "Labs 1-4 restored to their incomplete participant starters"
 
-# Aurora runtime state: catalog quantities, the reset migrations, the evidence TRUNCATE,
-# then the seed migrations the TRUNCATE empties and the HNSW index.
-# scripts/setup/database-reset.sh owns that sequence; the fresh-setup test harness runs
-# the same script against PostgreSQL 18 with pgvector.
+# Aurora: drop the pellier schema, then the schema, the catalog and the seed, exactly as
+# a fresh database is built. scripts/setup/database-reset.sh owns that sequence; the
+# fresh-setup test harness runs the same script against PostgreSQL 18 with pgvector.
 if ! env DB_HOST="${DB_HOST:-localhost}" DB_PORT="${DB_PORT:-5432}" \
     DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="${DB_PASSWORD:-}" \
     PYTHON="$PYTHON" REPO="$REPO" bash "$REPO/scripts/setup/database-reset.sh" \
@@ -499,41 +438,18 @@ if ! env DB_HOST="${DB_HOST:-localhost}" DB_PORT="${DB_PORT:-5432}" \
   fail "Database reset failed; see /tmp/pellier-governed-reset-db.log"
   exit 1
 fi
-pass "Catalog quantities restored from committed embedding cache"
-pass "Exactly three warehouse rows per curated product reseeded"
-pass "Cleared: returns, stock movements, write keys, audits, receipts, episodes, conversations, spans, and operator reviews"
-pass "Inventory ledger reseeded from deterministic warehouse state"
-pass "Operator desk reseeded: support tickets, credit on file, empty semantic cache"
-pass "Proof-carrying commerce lifecycle restored"
-pass "Canonical governed forensic incident reseeded"
-pass "HNSW index present: product_catalog_embedding_hnsw"
+pass "Schema rebuilt from scripts/migrations/001_schema.sql: ten tables, pellier_agent and its row-level security"
+pass "Catalog reloaded from the committed embedding cache"
+pass "Seed reloaded: stock, four customers and their orders, return policies, tickets"
 
-# Row-Level Security authorization mapping.
-#
-# `pellier.principal_customers` is authorization configuration, not turn
-# evidence, so it is deliberately absent from the database reset's TRUNCATE. It still
-# gets verified here: an empty mapping denies every signed-in shopper their
-# own orders, which presents as a broken application rather than as
-# governance, and reset is where a deterministic starting state is asserted.
-# Both identity steps fail closed. A warning here used to let the reset report a
-# healthy box while every signed-in shopper was denied their own rows (empty
-# mapping) or every owner-scoped Gateway read was denied (token without the
-# customer claim). Neither presents as governance; both present as a broken
-# application, and only at the first shopper turn.
-if "$PYTHON" "$REPO/scripts/seed_principal_mappings.py" --check \
-     >/tmp/pellier-governed-reset-principals.log 2>&1; then
-  pass "RLS principal mappings intact for every named shopper"
-else
-  fail "RLS principal mappings incomplete — run scripts/seed_principal_mappings.py (see /tmp/pellier-governed-reset-principals.log)"
-  _quarantine principal-mappings "RLS principal mappings incomplete"
-  exit 1
-fi
-
-# The token claim is rendered from the same table, so it is refreshed here
-# rather than trusted to still match. Idempotent: same function, same pool.
+# The token claim is rendered from customers.cognito_username, the column row-level
+# security reads, so it is refreshed here rather than trusted to still match. It fails
+# closed: a token without the customer claim denies every owner-scoped Gateway read,
+# which presents as a broken application, and only at the first shopper turn.
+# Idempotent: same function, same pool.
 if "$PYTHON" "$REPO/scripts/deploy/deploy_customer_claim_trigger.py" \
      >/tmp/pellier-governed-reset-claim-trigger.log 2>&1; then
-  pass "Customer claim trigger matches the principal mappings"
+  pass "Customer claim trigger matches the customers' sign-in names"
 else
   fail "Customer claim trigger not refreshed — shopper tokens would carry no customer claim (see /tmp/pellier-governed-reset-claim-trigger.log)"
   _quarantine claim-trigger "Customer claim trigger not refreshed"
@@ -591,49 +507,39 @@ fi
 # STEP 7: baseline verification.
 #
 # The reset above asserts each step it performs. This asserts the RESULT, which is a
-# different claim: every table that should be empty is empty, and the tables that carry
-# the deterministic forensic incident carry exactly one row each. A reset that reported
-# eleven passes and left a stray review behind would otherwise look complete.
+# different claim: every table the labs write to is empty, and the seeded tables hold
+# exactly the dataset a fresh database holds. A reset that reported every step passing
+# and left a stray review behind would otherwise look complete.
 _verify_baseline() {
-  local empty_tables=(
-    approvals execution_receipts operator_episodes write_operations
-    conversations messages observatory_spans semantic_cache
-    session_metadata tool_uses retrieval_receipts model_invocation_receipts
-    policy_decisions governance_boundary_observations workshop_runs
-  )
-  local table count bad=0
-  for table in "${empty_tables[@]}"; do
+  local table count expected bad=0
+  for table in approvals store_credits tool_audit retrieval_receipts; do
     count="$(_psql_scalar "SELECT count(*) FROM pellier.${table};" 2>/dev/null | tr -d '[:space:]')"
     if [[ "$count" != "0" ]]; then
-      fail "Baseline: pellier.${table} should be empty, has ${count}"
+      fail "Baseline: pellier.${table} should be empty, has ${count:-unknown}"
       bad=$((bad + 1))
     fi
   done
-  # The migration 010 forensic incident is the ONE intentional row in each of these.
-  # It is the fixture the Observatory reconstructs, so zero is as wrong as two.
-  for table in returns tool_audit governed_receipts; do
+  for expected in product_catalog:100 warehouse_inventory:300 customers:4 orders:21 support_tickets:3; do
+    table="${expected%%:*}"
     count="$(_psql_scalar "SELECT count(*) FROM pellier.${table};" 2>/dev/null | tr -d '[:space:]')"
-    if [[ "$count" != "1" ]]; then
-      fail "Baseline: pellier.${table} should hold exactly the forensic incident (1 row), has ${count}"
+    if [[ "$count" != "${expected##*:}" ]]; then
+      fail "Baseline: pellier.${table} should hold ${expected##*:} seeded rows, has ${count:-unknown}"
       bad=$((bad + 1))
     fi
   done
-  # The Operator service-recovery walkthrough is built on Jessica's ticket
-  # asserting a return that the authoritative table does not carry. The count
-  # above says one return exists; it does not say whose. Assert the customer
-  # explicitly, because a stray row here empties the human checkpoint and the
-  # symptom (a section that renders nothing) points nowhere near the cause.
-  count="$(_psql_scalar "SELECT count(*) FROM pellier.returns WHERE customer_id = 'CUST-JESSICA';" 2>/dev/null | tr -d '[:space:]')"
-  if [[ "$count" != "0" ]]; then
-    fail "Baseline: CUST-JESSICA should have no authoritative returns, has ${count}. The Operator human checkpoint reads this as a resolved dispute."
+  # Lab 4 starts from Jessica's two received returns with no credit on them. A stray
+  # credit here makes the Operator's Planner find nothing left to propose.
+  count="$(_psql_scalar "SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-JESSICA' AND return_status = 'received' AND store_credit_id IS NULL;" 2>/dev/null | tr -d '[:space:]')"
+  if [[ "$count" != "2" ]]; then
+    fail "Baseline: CUST-JESSICA should have two received, uncredited returns, has ${count:-unknown}"
     bad=$((bad + 1))
   fi
 
   if [[ "$bad" -gt 0 ]]; then
-    fail "Baseline verification failed on ${bad} table(s); this reset did not land a clean state"
+    fail "Baseline verification failed on ${bad} check(s); this reset did not land a clean state"
     return 1
   fi
-  pass "Baseline verified: runtime tables empty, forensic incident intact"
+  pass "Baseline verified: lab tables empty, seed intact, Jessica's case open"
 }
 
 if ! _verify_baseline; then

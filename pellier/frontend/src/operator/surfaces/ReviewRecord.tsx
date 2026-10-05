@@ -105,20 +105,11 @@ const ReviewRecordPage: React.FC = () => {
         {review.execution ? (
           <section className="op-card" aria-labelledby="op-review-receipt-title" data-testid="operator-review-receipt">
             <div className="op-card-head">
-              <h2 id="op-review-receipt-title" className="op-h2">What decided this</h2>
+              <h2 id="op-review-receipt-title" className="op-h2">What ran</h2>
             </div>
             <dl className="op-key">
-              <div><dt>Rail</dt><dd>{review.execution.rail}</dd></div>
-              <div>
-                <dt>Policy engine</dt>
-                <dd>{review.execution.policyEngineId || 'none, this rail consults no engine'}</dd>
-              </div>
-              <div>
-                <dt>Enforcement</dt>
-                <dd>{review.execution.gatewayMode === 'ENFORCE' ? 'ENFORCE' : review.execution.gatewayMode === 'LOG_ONLY' ? 'LOG_ONLY, observed not enforced' : 'not recorded'}</dd>
-              </div>
-              {review.execution.gatewayActionId ? <div><dt>Action</dt><dd>{review.execution.gatewayActionId}</dd></div> : null}
-              <div><dt>Actor</dt><dd>{review.execution.actorPrincipal}</dd></div>
+              <div><dt>Rail</dt><dd>{review.execution.rail ?? 'no row written'}</dd></div>
+              <div><dt>Execution turn</dt><dd>{review.execution.executionTurnId}</dd></div>
               <div><dt>Write key</dt><dd>{review.execution.idempotencyKey}</dd></div>
             </dl>
           </section>

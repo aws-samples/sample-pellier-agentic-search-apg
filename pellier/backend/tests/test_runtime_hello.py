@@ -85,7 +85,7 @@ def test_workshop_start_runs_it_without_letting_it_fail_the_run() -> None:
     assert "--label baseline" in start
     # The call sits in an if/else, so a non-zero status warns instead of exiting.
     hello_block = start[start.index("RUNTIME_HELLO="):]
-    hello_block = hello_block[: hello_block.index("PELLIER_RUN_ID=")]
+    hello_block = hello_block[: hello_block.index('pass "Ready for Lab 1"')]
     assert "warn " in hello_block
     assert "exit 1" not in hello_block
 

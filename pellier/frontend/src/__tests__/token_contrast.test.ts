@@ -10,11 +10,10 @@ import { describe, expect, it } from 'vitest'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const css = readFileSync(resolve(here, '../styles/daylight-tokens.css'), 'utf8')
-/* The persona initial sits on the color each persona is seeded with. */
-const seed = readFileSync(
-  resolve(here, '../../../../scripts/migrations/029_live_surface_data.sql'),
-  'utf8',
-)
+/* The persona initial sits on the color each persona file gives it. */
+const personas = JSON.parse(
+  readFileSync(resolve(here, '../../../../data/personas.json'), 'utf8'),
+) as Array<{ avatar_color: string }>
 /* The static theme-color meta the inline script picks from before paint. */
 const indexHtml = readFileSync(resolve(here, '../../index.html'), 'utf8')
 
@@ -28,11 +27,7 @@ const darkStart = css.indexOf(':root[data-theme="dark"]')
 const LIGHT = tokens(css.slice(0, darkStart))
 const DARK = { ...LIGHT, ...tokens(css.slice(darkStart)) }
 
-/* `'#5a3528', 'M',`: the avatar color precedes the avatar initial. */
-const SEEDED_AVATAR_COLORS = Array.from(
-  seed.matchAll(/'(#[0-9a-fA-F]{6})',\s*'[A-Z]',/g),
-  (match) => match[1],
-)
+const SEEDED_AVATAR_COLORS = personas.map((persona) => persona.avatar_color)
 
 function luminance(hex: string): number {
   const channel = (c: number) => {

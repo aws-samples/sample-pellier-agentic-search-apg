@@ -30,7 +30,9 @@ export function reviewOutcome(review: OperatorReview): ReviewOutcome {
   if (aurora === 'PERMITTED' && evidence === 'RECEIPTED') return { tone: 'good', word: 'Credited', pulse: false }
   if (policy === 'DENY') return { tone: 'blocked', word: 'DENY', pulse: false }
   if (aurora === 'DENIED') return { tone: 'blocked', word: 'Refused by Aurora', pulse: false }
-  if (review.execution?.rail === 'refused') return { tone: 'blocked', word: 'Not submitted', pulse: false }
+  // An attempt that left no credit and no audit row. Pellier keeps no copy of
+  // the policy decision, so the list says what the tables say.
+  if (policy === 'NOT_RECORDED' && evidence === 'NO_EXECUTION') return { tone: 'blocked', word: 'Not written', pulse: false }
   if (review.execution || review.executionTurnId) return { tone: 'pending', word: 'Outcome unverified', pulse: false }
   return { tone: 'good', word: 'Approved', pulse: false }
 }

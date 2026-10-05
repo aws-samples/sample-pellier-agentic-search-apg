@@ -334,18 +334,18 @@ function AgentMessage({
 
       {/* Requested, not carried out. The backend supplies the wording so no
           paraphrase can lose the guarantee. */}
-      {message.reviewPending && revealFinished && (
-        <div className="ec-review-pending" data-testid="pellier-review-pending" role="status">
-          <p>{message.reviewPending.message}</p>
-          {message.reviewPending.customerId ? (
-            <Link to={`/operator/clients/${encodeURIComponent(message.reviewPending.customerId)}`}>
+      {message.creditRequestPending && revealFinished && (
+        <div className="ec-credit-request-pending" data-testid="pellier-credit-request-pending" role="status">
+          <p>{message.creditRequestPending.message}</p>
+          {message.creditRequestPending.customerId ? (
+            <Link to={`/operator/clients/${encodeURIComponent(message.creditRequestPending.customerId)}`}>
               Open the request in Operator
             </Link>
           ) : null}
         </div>
       )}
 
-      {visibleProducts.length > 0 && !message.reviewPending && (
+      {visibleProducts.length > 0 && !message.creditRequestPending && (
         <div className="ec-artifacts">
           {visibleProducts.map((product, pIdx) => (
             <motion.div
@@ -373,7 +373,7 @@ function AgentMessage({
         </div>
       )}
 
-      {ownedProducts.length > 0 && revealFinished && !message.reviewPending && (
+      {ownedProducts.length > 0 && revealFinished && !message.creditRequestPending && (
         <section className="ec-owned-artifacts" aria-labelledby="collection-pieces-heading">
           <div id="collection-pieces-heading" className="ec-owned-artifacts-label">
             Already in your collection

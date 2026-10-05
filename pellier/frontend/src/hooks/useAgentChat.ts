@@ -52,7 +52,7 @@ export interface ChatFailure {
 }
 
 /** A store credit request waiting for a person, as the backend states it. */
-export interface ReviewPending {
+export interface CreditRequestPending {
   /** What was opened. Internal; not shown to the shopper. */
   tool: string
   /** The durable request on the customer's case. */
@@ -101,7 +101,7 @@ export interface AgentChatMessage {
    * Its own field rather than a sentence in `content`: the backend owns the
    * wording so a paraphrase cannot lose the guarantee.
    */
-  reviewPending?: ReviewPending
+  creditRequestPending?: CreditRequestPending
 }
 
 /**
@@ -164,7 +164,6 @@ function mapProduct(p: any): ChatProduct {
     url: p.url || p.producturl || '',
     quantity: p.quantity,
     inStock: p.inStock,
-    availability: p.availability,
     ownership:
       p.ownership === 'owned' || p.badge === 'From your orders'
         ? 'owned'
@@ -498,10 +497,10 @@ export function useAgentChat(
                 ...lastMsg,
                 escalation: data.escalation as StylistHandoff,
               }))
-            } else if (data.type === 'review_pending') {
+            } else if (data.type === 'credit_request_pending') {
               updateLast(lastMsg => ({
                 ...lastMsg,
-                reviewPending: data.reviewPending as ReviewPending,
+                creditRequestPending: data.creditRequestPending as CreditRequestPending,
               }))
             }
           },
