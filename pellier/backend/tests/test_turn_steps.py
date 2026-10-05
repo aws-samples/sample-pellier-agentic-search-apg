@@ -140,6 +140,20 @@ def test_stock_finding_reads_the_three_warehouses_in_order() -> None:
     assert finding_for("check_stock", parsed) == "Brooklyn 0, Austin 6, Portland 14"
 
 
+def test_stock_finding_names_the_seeded_warehouses_by_their_plain_city() -> None:
+    """The seed's city carries the state ("Brooklyn, NY"); the finding reads "Brooklyn"."""
+    parsed = {
+        "status": "success",
+        "total_units": 20,
+        "warehouses": [
+            {"warehouse_name": "Portland", "city": "Portland, OR", "quantity": 14},
+            {"warehouse_name": "Austin", "city": "Austin, TX", "quantity": 6},
+            {"warehouse_name": "Brooklyn", "city": "Brooklyn, NY", "quantity": 0},
+        ],
+    }
+    assert finding_for("check_stock", parsed) == "Brooklyn 0, Austin 6, Portland 14"
+
+
 def test_stock_finding_distinguishes_zero_from_unknown() -> None:
     sold_out = {"status": "success", "total_units": 0, "warehouses": [{"city": "Austin", "quantity": 0}]}
     assert finding_for("check_stock", sold_out) == "Sold out in all three warehouses"

@@ -250,11 +250,14 @@ def _stock_finding(parsed: Dict[str, Any]) -> str:
     warehouses = [row for row in parsed.get("warehouses") or [] if isinstance(row, dict)]
     if _count(parsed.get("total_units")) == 0 or not warehouses:
         return "Sold out in all three warehouses"
-    by_city = {str(row.get("city")): _count(row.get("quantity")) for row in warehouses}
+    # warehouse_name is the plain city ("Brooklyn"); city carries the state too.
+    named = [(str(row.get("warehouse_name") or row.get("city")), _count(row.get("quantity")))
+             for row in warehouses]
+    by_city = dict(named)
     if all(city in by_city for city in _CITY_ORDER):
         ordered = [(city, by_city[city]) for city in _CITY_ORDER]
     else:
-        ordered = [(str(row.get("city")), _count(row.get("quantity"))) for row in warehouses]
+        ordered = named
     return ", ".join(f"{city} {quantity}" for city, quantity in ordered)
 
 
