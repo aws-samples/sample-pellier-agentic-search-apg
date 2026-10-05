@@ -626,6 +626,25 @@ def _enable_memory_observability(
     )
 
 
+# CloudWatch Logs refuses delivery source and destination names over 60 characters.
+_DELIVERY_NAME_LIMIT = 60
+
+
+def _delivery_name(resource_id: str, kind: str) -> str:
+    """``<resource id>-<kind>``, keeping the id's unique tail when that is too long.
+
+    A suffixed deployment's Gateway id, such as
+    ``pellierfourlab-pellier-fourlab-gateway-ru1p9ac0r0``, plus ``-traces-source``
+    is 64 characters, and PutDeliverySource refuses it. The tail keeps the
+    service-generated part of the id that makes the name unique. A name that
+    already fits is unchanged, so existing deliveries keep their names.
+    """
+    name = f"{resource_id}-{kind}"
+    if len(name) <= _DELIVERY_NAME_LIMIT:
+        return name
+    return f"{resource_id[-(_DELIVERY_NAME_LIMIT - len(kind) - 1):]}-{kind}"
+
+
 def _enable_resource_observability(
     *, region: str, account_id: str, resource_arn: str, resource_id: str,
     log_group: str, kms_key_arn: str, retention_days: int,
@@ -649,18 +668,18 @@ def _enable_resource_observability(
     log_group_arn = f"arn:{partition}:logs:{region}:{account_id}:log-group:{log_group}"
 
     logs_source = logs.put_delivery_source(
-        name=f"{resource_id}-logs-source", logType="APPLICATION_LOGS", resourceArn=resource_arn
+        name=_delivery_name(resource_id, "logs-source"), logType="APPLICATION_LOGS", resourceArn=resource_arn
     )["deliverySource"]["name"]
     traces_source = logs.put_delivery_source(
-        name=f"{resource_id}-traces-source", logType="TRACES", resourceArn=resource_arn
+        name=_delivery_name(resource_id, "traces-source"), logType="TRACES", resourceArn=resource_arn
     )["deliverySource"]["name"]
     logs_destination = logs.put_delivery_destination(
-        name=f"{resource_id}-logs-destination",
+        name=_delivery_name(resource_id, "logs-destination"),
         deliveryDestinationType="CWL",
         deliveryDestinationConfiguration={"destinationResourceArn": log_group_arn},
     )["deliveryDestination"]["arn"]
     traces_destination = logs.put_delivery_destination(
-        name=f"{resource_id}-traces-destination", deliveryDestinationType="XRAY"
+        name=_delivery_name(resource_id, "traces-destination"), deliveryDestinationType="XRAY"
     )["deliveryDestination"]["arn"]
 
     def _deliver(source: str, destination: str) -> str:

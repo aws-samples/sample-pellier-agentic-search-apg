@@ -2203,3 +2203,23 @@ def test_a_deploy_refuses_an_edited_rule_the_check_could_not_decide(tmp_path, mo
     repo = _lab4_repo(tmp_path, LAB4_SOLUTION.read_text(encoding="utf-8"))
     with pytest.raises(RuntimeError, match=r"could not run \(unsound\)"):
         provisioner._lab4_rule_gate(repo)
+
+
+def test_delivery_names_fit_the_logs_limit_for_a_suffixed_deployment() -> None:
+    """A dev-account deploy with suffix ``fourlab`` failed PutDeliverySource at 64 characters."""
+    provisioner = _load_provisioner()
+    kinds = ("logs-source", "traces-source", "logs-destination", "traces-destination")
+    short = "pellier-pellier-gateway-gwgjwkwczj"
+    assert [provisioner._delivery_name(short, kind) for kind in kinds] == [
+        f"{short}-{kind}" for kind in kinds
+    ]
+    for resource_id in (
+        "pellierfourlab-pellier-fourlab-gateway-ru1p9ac0r0",
+        "pellierabcdefghijkl-pellier-abcdefghijkl-gateway-ru1p9ac0r0",
+        "pellierfourlab_PellierFourlabMemory-uuQGPhBbs2",
+    ):
+        names = [provisioner._delivery_name(resource_id, kind) for kind in kinds]
+        assert all(len(name) <= 60 for name in names), names
+        assert all(name.endswith(kind) for name, kind in zip(names, kinds))
+        assert all(resource_id.rsplit("-", 1)[1] in name for name in names)
+        assert len(set(names)) == len(kinds)
