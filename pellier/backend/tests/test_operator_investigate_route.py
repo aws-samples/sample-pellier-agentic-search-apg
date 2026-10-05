@@ -97,6 +97,30 @@ def test_the_stream_sends_status_steps_answer_then_complete(monkeypatch: pytest.
     assert seen["customer_name"] == "Jessica Nakamura"
 
 
+@pytest.mark.parametrize("fail", [False, True])
+def test_the_steps_keep_their_place_when_the_graph_finishes_before_it_is_awaited(
+    monkeypatch: pytest.MonkeyPatch, fail: bool
+) -> None:
+    """A graph that is already done when the route looks must not lose its steps.
+
+    The stand-in ``to_thread`` returns only after the graph has run, which is
+    what Python 3.14 produced for a fast graph about four runs in five: the
+    route resumed without yielding to the loop, and its answer and end of
+    stream overtook the steps still waiting to be delivered.
+    """
+    import asyncio
+
+    async def already_finished(func: Any, /, *args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    _fake_graph(monkeypatch, fail=fail)
+    monkeypatch.setattr(asyncio, "to_thread", already_finished)
+    response = _client().post("/api/operator/clients/CUST-JESSICA/investigate")
+
+    expected = ["status", "step", "error"] if fail else ["status", "step", "step", "answer", "complete"]
+    assert [kind for kind, _ in _frames(response.text)] == expected
+
+
 def test_an_unknown_client_is_a_404_before_any_model_runs(monkeypatch: pytest.MonkeyPatch) -> None:
     seen = _fake_graph(monkeypatch)
     response = _client().post("/api/operator/clients/CUST-NOBODY/investigate")

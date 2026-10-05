@@ -403,13 +403,21 @@ async def investigate_client(
         )
         return [dict(r) for r in future.result(timeout=30) or []]
 
-    def emit(event: Dict[str, Any]) -> None:
-        loop.call_soon_threadsafe(queue.put_nowait, ("step", event))
+    # Every event, the steps and the outcome alike, reaches the queue through
+    # this one call from the worker thread, so the stream keeps the order the
+    # graph produced. Putting the outcome from the awaiting coroutine instead
+    # raced the steps: when the thread finished before the await, the
+    # coroutine resumed without yielding to the loop and queued the answer
+    # and the end of stream ahead of steps still waiting to be delivered.
+    def post(kind: Optional[str], data: Dict[str, Any]) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, (kind, data))
 
-    async def investigate() -> None:
+    def emit(event: Dict[str, Any]) -> None:
+        post("step", event)
+
+    def investigate() -> None:
         try:
-            result = await asyncio.to_thread(
-                operator_graph.run_investigation,
+            result = operator_graph.run_investigation(
                 run=run,
                 run_customer=run_customer,
                 customer_id=client_id,
@@ -419,15 +427,15 @@ async def investigate_client(
                 emit=emit,
             )
             payload = result.as_payload()
-            queue.put_nowait(("answer", payload))
-            queue.put_nowait(("complete", {**payload, "type": "complete"}))
+            post("answer", payload)
+            post("complete", {**payload, "type": "complete"})
         except Exception as exc:  # noqa: BLE001 - the stream must close cleanly
             logger.warning("investigation stream failed: %s", exc)
-            queue.put_nowait(("error", {"detail": "investigation_failed", "turnId": turn_id}))
+            post("error", {"detail": "investigation_failed", "turnId": turn_id})
         finally:
-            queue.put_nowait((None, {}))
+            post(None, {})
 
-    task = asyncio.create_task(investigate())
+    task = asyncio.create_task(asyncio.to_thread(investigate))
 
     async def events() -> Any:
         yield _sse("status", {"type": "status", "turnId": turn_id, "label": "Investigator reads the case"})
