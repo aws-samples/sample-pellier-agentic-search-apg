@@ -25,6 +25,7 @@ from typing import Any, Sequence
 from config import settings
 from services import active_requirements, store_tools, tool_evidence
 from services.ranking_evidence import (
+    ORIGIN_AGENT,
     filter_counts,
     ranking_from_execution,
     ranking_unavailable,
@@ -301,13 +302,29 @@ def _verified_read_customer_scope(
 
 
 def _page_limits(plan: Any, extracted: dict | None, carried: Sequence[str]) -> list[dict]:
-    """The plan's limits as the page's tags, each placed as stated, carried or the agent's."""
-    return result_limits(
-        plan.to_dict(),
+    """The plan's limits as the page's tags, each placed as stated, carried or the agent's.
+
+    A limit is the agent's ("added by Pellier") only when its value is in no
+    message the shopper wrote in this conversation. The reading cannot tell on
+    its own: from "under $300 for him and under $150 for her" it keeps one
+    budget or neither. A limit the shopper did write, or one that cannot be
+    told, carries no mark, because a wrong mark is worse than none.
+    """
+    planned = plan.to_dict()
+    limits = result_limits(
+        planned,
         carried=list(carried),
         carried_exclusions=active_requirements.carried_exclusions(),
         shopper_price=(extracted or {}).get("price_max_usd"),
     )
+    ceiling = (planned.get("hard_constraints") or {}).get("price_max_usd")
+    for limit in limits:
+        value = ceiling if limit["kind"] == "budget" else limit.get("value")
+        if limit["origin"] == ORIGIN_AGENT and not active_requirements.shopper_never_said(
+            limit["kind"], value
+        ):
+            limit["origin"] = None
+    return limits
 
 
 def _search_evidence(

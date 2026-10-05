@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import StepList, { foldSummary } from './StepList'
+import StepList, { HIDE_EARLIER, earlierSummary, foldSummary } from './StepList'
 import type { TurnStep } from './turnTypes'
 
 const ROUTE: TurnStep = {
@@ -104,6 +104,62 @@ describe('StepList', () => {
     expect(screen.getByTestId('turn-evidence')).toHaveTextContent(
       'model asked for CUST-JESSICA, server bound CUST-THEO (overwritten); audit row 9032; rail in-process',
     )
+  })
+
+  it('shows the latest steps and collapses the earlier ones, never merging them', async () => {
+    const user = userEvent.setup()
+    const searches: TurnStep[] = [1, 2, 3, 4, 5, 6].map(index => ({
+      ...SEARCH,
+      id: `step-${index}`,
+      finding: `${index} found under $100`,
+      builder: { ...SEARCH.builder!, receipt_id: 600 + index, ranking: null },
+    }))
+    render(<StepList steps={[ROUTE, ...searches]} live={false} builderView latest={4} />)
+    const rows = () =>
+      screen.getAllByTestId('turn-step').map(row => row.querySelector('.tn-finding')?.textContent)
+    expect(rows()).toEqual([3, 4, 5, 6].map(index => `${index} found under $100`))
+
+    const earlier = screen.getByTestId('turn-earlier')
+    expect(earlier).toHaveTextContent('Show 3 earlier steps')
+    expect(earlier).toHaveAttribute('aria-expanded', 'false')
+    expect(earlier).toHaveAttribute('aria-controls', screen.getByTestId('turn-steps').id)
+
+    await user.click(earlier)
+    expect(earlier).toHaveTextContent(HIDE_EARLIER)
+    expect(earlier).toHaveAttribute('aria-expanded', 'true')
+    expect(rows()).toEqual(['Sent to the Shopping agent', ...searches.map(step => step.finding)])
+    // Every step keeps its own evidence: six receipts, one each.
+    const receipts = screen.getAllByTestId('turn-evidence').slice(1)
+      .map(line => line.textContent?.match(/receipt (\d+)/)?.[1])
+    expect(receipts).toEqual(['601', '602', '603', '604', '605', '606'])
+
+    await user.click(earlier)
+    expect(screen.getAllByTestId('turn-step')).toHaveLength(4)
+    expect(earlierSummary(1)).toBe('Show 1 earlier step')
+  })
+
+  it('shows every step with no control when the turn fits or no limit is set', () => {
+    const { rerender } = render(
+      <StepList steps={[ROUTE, SEARCH, TICKETS]} live={false} builderView={false} latest={4} />,
+    )
+    expect(screen.getAllByTestId('turn-step')).toHaveLength(3)
+    expect(screen.queryByTestId('turn-earlier')).toBeNull()
+    const many = [ROUTE, SEARCH, TICKETS, RUNNING, { ...RUNNING, id: 'step-4' }]
+    rerender(<StepList steps={many} live builderView={false} />)
+    expect(screen.getAllByTestId('turn-step')).toHaveLength(5)
+    expect(screen.queryByTestId('turn-earlier')).toBeNull()
+  })
+
+  it('keeps the earlier steps collapsed inside the opened fold', async () => {
+    const user = userEvent.setup()
+    const many = [ROUTE, SEARCH, TICKETS, RUNNING, { ...TICKETS, id: 'step-4' }]
+      .map(step => ({ ...step, status: 'done' as const }))
+    render(<StepList steps={many} live={false} builderView={false} folded latest={4} />)
+    expect(screen.getByTestId('turn-fold')).toHaveTextContent('How Pellier answered, 5 steps')
+    expect(screen.queryByTestId('turn-earlier')).toBeNull()
+    await user.click(screen.getByTestId('turn-fold'))
+    expect(screen.getByTestId('turn-earlier')).toHaveTextContent('Show 1 earlier step')
+    expect(screen.getAllByTestId('turn-step')).toHaveLength(4)
   })
 
   it('marks a failed step without a check', () => {

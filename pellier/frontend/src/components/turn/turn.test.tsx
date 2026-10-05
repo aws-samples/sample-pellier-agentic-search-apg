@@ -19,7 +19,7 @@ import {
   useBuilderView,
   useSkillMode,
 } from './preferences'
-import { upsertStep } from './turnTypes'
+import { upsertStep, type TurnStep } from './turnTypes'
 
 describe('StatusTag', () => {
   it('maps the three roles to tones and keeps the word on the tag', () => {
@@ -165,6 +165,24 @@ describe('upsertStep', () => {
     const running = { id: 'step-1', label: 'Searching', status: 'running' as const, tags: ['Aurora'] }
     const done = { ...running, status: 'done' as const, finding: '3 found' }
     expect(upsertStep(upsertStep([], running), done)).toEqual([done])
+  })
+
+  it('keeps six tool uses of one tool as six steps, each with its own evidence', () => {
+    const ids = [1, 2, 3, 4, 5, 6].map(index => `step-${index}`)
+    const label = 'Searching the catalog in Aurora'
+    const running = ids.map(id => ({ id, label, status: 'running' as const, tags: ['Aurora'] }))
+    // The calls finish out of order, as parallel calls do.
+    const done = [...running].reverse().map((step, index) => ({
+      ...step,
+      status: 'done' as const,
+      finding: `${index + 1} found`,
+      builder: { tool: 'search_products', receipt_id: 700 + Number(step.id.slice(5)) },
+      results: { available: true, product_ids: [step.id] },
+    }))
+    const steps = [...running, ...done].reduce(upsertStep, [] as TurnStep[])
+    expect(steps.map(step => step.id)).toEqual(ids)
+    expect(steps.map(step => step.builder?.receipt_id)).toEqual([701, 702, 703, 704, 705, 706])
+    expect(steps.map(step => step.results?.product_ids)).toEqual(ids.map(id => [id]))
   })
 })
 

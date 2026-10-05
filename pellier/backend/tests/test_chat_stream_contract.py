@@ -378,13 +378,38 @@ def test_a_skill_opened_twice_is_one_load_in_the_step_and_the_receipt(service, m
     assert [skill["name"] for skill in receipt["skills"]] == ["the-gift-table"]
 
 
-def test_a_turn_never_shows_more_than_four_steps(service, monkeypatch) -> None:
+def test_six_tool_uses_are_six_steps_each_with_its_own_evidence(service, monkeypatch) -> None:
+    """The live two-request turn: four searches and two browses, run at once.
+
+    No step budget folds the later calls together: each tool use keeps its own
+    step, ranking, receipt and result, so the Builder view shows all six.
+    """
+    browse = json.dumps({"status": "success", "count": 1, "department": "Home", "products": []})
     calls = [
-        {"tool": tool, "result": json.dumps({"status": "success", "count": 0, "products": []})}
-        for tool in ("search_products", "browse_department", "compare_products", "check_stock", "get_return_policy")
+        {
+            "tool": tool,
+            "input": {"query": f"request {index}"},
+            "result": SEARCH_RESULT if tool == "search_products" else browse,
+            "publish": [{
+                "ranking": {**RANKING, "rows": [{"product_id": str(index), "after": 1}]},
+                "receipt_id": 600 + index,
+                "results": {**RESULTS, "product_ids": [str(index)], "count": 1},
+            }],
+        }
+        for index, tool in enumerate(("search_products",) * 4 + ("browse_department",) * 2)
     ]
-    events = _run(service, ScriptedAgent(calls, "Nothing fits all of that."), monkeypatch)
-    assert len({step["id"] for step in _of(events, "step")}) == 4
+    events = _run(service, ParallelAgent(calls, "Two answers, one turn."), monkeypatch)
+    done = {
+        step["id"]: step for step in _of(events, "step")
+        if step["id"] != "route" and step["status"] == "done"
+    }
+    assert sorted(done) == [f"step-{index}" for index in range(1, 7)]
+    payloads = [
+        (step["builder"]["receipt_id"], step["builder"]["ranking"]["rows"][0]["product_id"],
+         step["results"]["product_ids"])
+        for step in (done[f"step-{index + 1}"] for index in range(6))
+    ]
+    assert payloads == [(600 + index, str(index), [str(index)]) for index in range(6)]
 
 
 def test_a_failed_tool_is_a_failed_step_with_the_calm_template(service, monkeypatch) -> None:

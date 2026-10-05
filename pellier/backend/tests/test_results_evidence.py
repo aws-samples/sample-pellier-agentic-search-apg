@@ -244,6 +244,102 @@ def test_a_rail_with_no_record_places_no_limit() -> None:
     assert {tag["origin"] for tag in result_limits(PLAN)} == {None}
 
 
+def _budget_tag(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    message: str,
+    reading: Dict[str, Any],
+    max_price: float | None = None,
+    history: Sequence[str] = (),
+    remembered: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    """One in-process search in a bound turn; the page's budget tag."""
+    session = "sess-budgets"
+    if remembered is not None:
+        active_requirements.remember(session, remembered)
+    monkeypatch.setattr(agent_tools, "_extract_query_structure", lambda _q: dict(reading))
+    token = active_requirements.bind_turn(
+        session_id=session, message=message,
+        conversation_history=[{"role": "user", "content": text} for text in history],
+    )
+    try:
+        _, evidence = _search_in_turn(query="a gift", limit=5, max_price=max_price)
+    finally:
+        active_requirements.reset_turn(token)
+        active_requirements.forget_session(session)
+    return next(tag for tag in evidence["results"]["limits"] if tag["kind"] == "budget")
+
+
+@pytest.mark.parametrize(
+    ("kept", "ceiling"), [(300.0, 150.0), (150.0, 300.0), (None, 150.0), (None, 300.0)],
+)
+def test_a_budget_the_shopper_wrote_is_never_added_by_pellier(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch, kept: float | None, ceiling: float,
+) -> None:
+    """One message, two budgets: the reading keeps one or neither, the agent applies the other."""
+    tag = _budget_tag(
+        monkeypatch,
+        message="Under $300 for him and under $150 for her",
+        reading={"price_max_usd": kept},
+        max_price=ceiling,
+    )
+    assert tag["label"] == f"Under ${ceiling:g}"
+    assert tag["origin"] is None
+
+
+def test_a_budget_written_in_an_earlier_message_is_not_added_by_pellier(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tag = _budget_tag(
+        monkeypatch,
+        message="And something for her under $150",
+        history=["Under $300 for him"],
+        reading={"price_max_usd": 150.0},
+        max_price=300.0,
+    )
+    assert tag["origin"] is None
+
+
+def test_a_ceiling_the_shopper_never_wrote_is_added_by_pellier(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tag = _budget_tag(
+        monkeypatch,
+        message="A linen shirt for a hot trip",
+        history=["Something for my 3 nieces"],
+        reading={"price_max_usd": None},
+        max_price=100.0,
+    )
+    assert (tag["label"], tag["origin"]) == ("Under $100", "agent")
+
+
+def test_a_budget_in_words_cannot_be_placed_so_it_carries_no_mark(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    tag = _budget_tag(
+        monkeypatch,
+        message="A scarf under fifty dollars",
+        reading={"price_max_usd": None},
+        max_price=50.0,
+    )
+    assert tag["origin"] is None
+
+
+@pytest.mark.parametrize("ceiling", [None, 100.0])
+def test_a_carried_budget_keeps_from_earlier(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch, ceiling: float | None,
+) -> None:
+    tag = _budget_tag(
+        monkeypatch,
+        message="What else would go with it for the trip?",
+        history=["The Hadley Linen Shirt, in stock, under $100"],
+        reading={"price_max_usd": None},
+        max_price=ceiling,
+        remembered={"price_max_usd": 100.0, "in_stock_only": True},
+    )
+    assert (tag["label"], tag["origin"]) == ("Under $100", "carried")
+
+
 def test_carried_exclusions_name_only_the_values_kept_from_earlier(monkeypatch) -> None:
     active_requirements.remember("sess-c3", {"exclusions": ["candle"], "price_max_usd": 100.0})
     token = active_requirements.bind_turn(

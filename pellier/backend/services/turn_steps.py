@@ -35,9 +35,6 @@ SKILL_MODE_ON_DEMAND = "on_demand"
 # The kinds of limit a plan applies, in the order the findings name them.
 _LIMIT_KINDS = ("budget", "stock", "exclusions", "department")
 
-# One Router step plus three tool steps; anything beyond folds into the last.
-MAX_STEPS = 4
-
 STEP_LABELS: Dict[str, str] = {
     "search_products": "Searching the catalog in Aurora",
     "browse_department": "Browsing a department in Aurora",
@@ -389,13 +386,16 @@ def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
 
 @dataclass
 class TurnSteps:
-    """Allocate step ids inside the budget and fold extra work.
+    """Allocate one step id per tool use.
 
     Each tool use gets its own step, keyed by its tool-use id, so a Shopping
     turn that searches twice, even two at once, shows two search steps, each
     with its own finding, ranking and result. A call with no id keys by its
-    tool. Skill loads share one step. A fourth tool step folds into the last
-    step rather than growing the list.
+    tool. Skill loads share one step. There is no cap on the number of steps,
+    so no call's evidence is ever merged into another's: keeping the list
+    short is the browser's job, which shows the latest few and collapses the
+    earlier ones. Each step travels as its own small event, so nothing about
+    the stream needs a cap either.
 
     Args:
         skill_names: Skill name to display name, for the loader's labels.
@@ -414,8 +414,6 @@ class TurnSteps:
         key = SKILL_STEP_ID if tool == SKILL_LOAD_TOOL else (call_id or tool)
         if key in self.ids:
             return self.ids[key]
-        if len(self.order) >= MAX_STEPS:
-            return self.order[-1]
         step_id = f"step-{len(self.order)}"
         self.ids[key] = step_id
         self.order.append(step_id)

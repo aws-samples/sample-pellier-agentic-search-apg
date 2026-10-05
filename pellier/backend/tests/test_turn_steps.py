@@ -1,4 +1,4 @@
-"""The step contract: one label table, fixed finding templates, a four-step budget."""
+"""The step contract: one label table, fixed finding templates, one step per tool use."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ import pytest
 
 from services import turn_steps
 from services.turn_steps import (
-    MAX_STEPS,
     SKILL_LOAD_TOOL,
     STATUS_UNDERSTANDING,
     STATUS_WRITING,
@@ -217,20 +216,38 @@ def test_layer_tags_follow_the_tool_and_the_outcome() -> None:
 
 
 # ---------------------------------------------------------------------------
-# The budget and the fold
+# One step per tool use, however many
 # ---------------------------------------------------------------------------
 
 
-def test_steps_never_exceed_the_budget() -> None:
-    assert MAX_STEPS == 4, "the brief allows at most four steps per turn"
+def test_six_tool_uses_are_six_steps_with_six_payloads() -> None:
+    """No cap folds a later call into an earlier step: each keeps its own evidence."""
+    tools = ("search_products", "search_products", "search_products",
+             "search_products", "browse_department", "browse_department")
     steps = TurnSteps()
-    ids = {
-        steps.running(tool)["id"]
-        for tool in ("search_products", "browse_department", "compare_products", "check_stock", "get_orders")
-    }
-    assert len(steps.order) == 4
-    assert ids <= set(steps.order)
-    assert steps.step_id("get_orders") == steps.order[-1]
+    started = [
+        steps.running(tool, call_id=f"use-{index}")["id"] for index, tool in enumerate(tools)
+    ]
+    assert started == [f"step-{index}" for index in range(1, 7)]
+    done = [
+        steps.finished(
+            tool,
+            json.dumps(_search(index + 1)),
+            call_id=f"use-{index}",
+            evidence={
+                "receipt_id": 500 + index,
+                "results": {"available": True, "product_ids": [str(index)]},
+            },
+        )
+        for index, tool in reversed(list(enumerate(tools)))
+    ]
+    by_id = {event["id"]: event for event in done}
+    assert sorted(by_id) == sorted(started)
+    receipts = [by_id[step_id]["builder"]["receipt_id"] for step_id in started]
+    assert receipts == list(range(500, 506))
+    results = [by_id[step_id]["results"]["product_ids"] for step_id in started]
+    assert results == [[str(index)] for index in range(6)]
+    assert steps.order == ["route", *started]
 
 
 def test_each_tool_use_gets_its_own_step() -> None:

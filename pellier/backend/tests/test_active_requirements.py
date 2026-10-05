@@ -230,6 +230,49 @@ def test_the_turns_reading_becomes_the_active_set_with_its_source() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Whether the shopper ever wrote a value: every message, normalized
+# ---------------------------------------------------------------------------
+
+
+def _never_said(kind: str, value: Any, *, message: str, history: tuple = ()) -> bool:
+    token = active_requirements.bind_turn(
+        session_id="sess-words", message=message,
+        conversation_history=[{"role": "user", "content": text} for text in history]
+        + [{"role": "assistant", "content": "Under $40 is a good place to start."}],
+    )
+    try:
+        return active_requirements.shopper_never_said(kind, value)
+    finally:
+        active_requirements.reset_turn(token)
+        active_requirements.forget_session("sess-words")
+
+
+def test_a_budget_compares_as_a_normalized_number_in_every_shopper_message() -> None:
+    message = "Something under $1,200, or 2k at most; the scarf about 99.50"
+    assert not _never_said("budget", 1200.0, message=message)
+    assert not _never_said("budget", 2000, message=message)
+    assert not _never_said("budget", 99.5, message=message)
+    assert _never_said("budget", 150.0, message=message)
+    # An earlier message counts; the assistant's words never do.
+    assert not _never_said("budget", 300.0, message="and for her?", history=("Under $300 for him",))
+    assert _never_said("budget", 40.0, message="and for her?", history=("Under $300 for him",))
+
+
+def test_an_excluded_value_compares_as_a_word_singular_or_plural() -> None:
+    assert not _never_said("exclusions", "wool", message="a shirt, no wool please")
+    assert not _never_said("exclusions", "candle", message="and for her?", history=("no candles",))
+    assert _never_said("exclusions", "watch", message="no candles")
+
+
+def test_what_cannot_be_decided_is_never_called_unsaid() -> None:
+    # An amount written in words, a kind with no value to compare, and no turn.
+    assert not _never_said("budget", 50.0, message="something under fifty dollars")
+    assert not _never_said("stock", True, message="anything")
+    assert not _never_said("budget", "a lot", message="anything")
+    assert not active_requirements.shopper_never_said("budget", 150.0)
+
+
+# ---------------------------------------------------------------------------
 # Through the tools: one reading per turn, both tools apply it, only the
 # shopper's words are remembered
 # ---------------------------------------------------------------------------

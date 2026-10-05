@@ -169,6 +169,31 @@
   transform: rotate(90deg);
 }
 
+/* ---- Earlier steps: collapsed behind one line, never merged ---- */
+.tn-earlier {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 0 0 0 26px;
+  border: 0;
+  background: none;
+  font: 400 12.5px/1.4 var(--dl-font-sans);
+  color: var(--dl-muted);
+  cursor: pointer;
+}
+.tn-earlier:hover {
+  color: var(--dl-ink-2);
+}
+.tn-earlier:focus-visible {
+  outline: 2px solid var(--pellier-copper);
+  outline-offset: 2px;
+}
+.tn-earlier[aria-expanded='true'] .tn-chev {
+  transform: rotate(90deg);
+}
+
 /* ---- The turn's verified principal (Builder view) ---- */
 .tn-principal {
   display: flex;

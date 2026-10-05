@@ -97,6 +97,12 @@ function productsForRenderedProse(products: Products, content: string): Products
  */
 const MAX_FOLLOWUPS = 3
 
+/**
+ * Short by design: a turn shows its latest four steps, and any earlier ones
+ * wait behind "Show N earlier steps". Every tool use keeps its own step.
+ */
+const VISIBLE_STEPS = 4
+
 function followupsForMessage(message: AgentChatMessage, precedingUserQuery: string | undefined): string[] {
   const catalog = catalogTurnFollowUps(
     (message.products ?? []).filter((product) => product.ownership !== 'owned'),
@@ -297,6 +303,7 @@ function AgentMessage({
           builderView={builderView}
           folded={revealFinished && !message.failure}
           renderRanking={renderRanking}
+          latest={VISIBLE_STEPS}
         />
       )}
 

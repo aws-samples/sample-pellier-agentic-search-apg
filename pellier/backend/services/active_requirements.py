@@ -36,6 +36,11 @@ The per-turn scope is a ``ContextVar`` holding one object the chat stream
 creates before the agent runs. ``asyncio.to_thread`` copies the context into
 the Strands worker, so every tool call in the turn shares that object and
 the first reading of the shopper's words serves them all.
+
+The scope also keeps the shopper's own messages, this one and the earlier
+ones, so the page can tell a limit the shopper wrote from one only the agent
+chose (``shopper_never_said``). The reading alone cannot: when one message
+names two budgets, the extractor keeps one of them or neither.
 """
 
 from __future__ import annotations
@@ -139,6 +144,7 @@ class TurnScope:
     session_id: Optional[str]
     message: str
     principal: Optional[str] = None
+    earlier: Tuple[str, ...] = ()
     reading: Optional[Dict[str, Any]] = None
     carried: List[str] = field(default_factory=list)
     carried_exclusions: List[str] = field(default_factory=list)
@@ -166,10 +172,13 @@ def bind_turn(
 
     A conversation with no earlier shopper turn starts clean, and so does a
     session whose verified principal is not the one that stated the limits.
+    The scope keeps the shopper's earlier messages too, so a limit can be
+    checked against everything the shopper wrote in the conversation.
     """
-    earlier = any(
-        isinstance(item, dict) and item.get("role") == "user"
+    earlier = tuple(
+        str(item.get("content") or "")
         for item in (conversation_history or [])
+        if isinstance(item, dict) and item.get("role") == "user"
     )
     if session_id:
         own = _key(principal, session_id)
@@ -177,7 +186,9 @@ def bind_turn(
             _by_session.pop(key, None)
         if not earlier:
             _by_session.pop(own, None)
-    return _turn.set(TurnScope(session_id=session_id, message=message, principal=principal))
+    return _turn.set(
+        TurnScope(session_id=session_id, message=message, principal=principal, earlier=earlier)
+    )
 
 
 def reset_turn(token: contextvars.Token) -> None:
@@ -354,6 +365,57 @@ def carried_exclusions() -> List[str]:
     """The excluded values this turn kept from earlier, each one, not just the kind."""
     scope = _turn.get()
     return list(scope.carried_exclusions) if scope is not None else []
+
+
+# Every amount written in digits, to compare as a number: "$1,200", "150", "99.50", "2k".
+_AMOUNT = re.compile(r"(\d[\d,]*(?:\.\d+)?)(\s*k\b)?", re.I)
+# An amount written in words cannot be compared with a number.
+_AMOUNT_WORDS = re.compile(
+    r"\b(?:ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen"
+    r"|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|grand)\b",
+    re.I,
+)
+
+
+def _amounts(text: str) -> List[float]:
+    amounts: List[float] = []
+    for digits, thousands in _AMOUNT.findall(text):
+        amount = float(digits.replace(",", ""))
+        amounts.append(amount * 1000 if thousands else amount)
+    return amounts
+
+
+def shopper_never_said(kind: str, value: Any) -> bool:
+    """Whether no message the shopper wrote in this conversation names ``value``.
+
+    True only when that is certain: a turn is bound, so the current message
+    and the earlier ones are known, and none of them names the value. A
+    budget compares as a number ("$1,200" is 1200, "2k" is 2000); an excluded
+    value compares as a word, singular or plural. Any other kind, an amount
+    written in words, or no bound turn cannot be decided and returns False,
+    so a limit is never called the agent's on a guess.
+
+    Args:
+        kind: The limit's kind, ``budget`` or ``exclusions``.
+        value: The ceiling in dollars, or the excluded word.
+    """
+    scope = _turn.get()
+    if scope is None:
+        return False
+    texts = (scope.message, *scope.earlier)
+    if kind == KIND_BUDGET:
+        try:
+            ceiling = float(value)
+        except (TypeError, ValueError):
+            return False
+        if any(_AMOUNT_WORDS.search(text) for text in texts):
+            return False
+        return all(abs(amount - ceiling) >= 0.005 for text in texts for amount in _amounts(text))
+    word = str(value or "").strip()
+    if kind == KIND_EXCLUSIONS and word:
+        named = re.compile(rf"\b{re.escape(word)}(?:s|es)?\b", re.I)
+        return not any(named.search(text) for text in texts)
+    return False
 
 
 def remember_turn() -> None:
