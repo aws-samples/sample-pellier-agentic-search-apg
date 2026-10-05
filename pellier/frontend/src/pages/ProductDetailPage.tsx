@@ -4,7 +4,7 @@ import { apiFetch } from '../services/apiBase'
  *
  * A real route rather than a modal, so a piece can be linked, opened in a
  * new tab, and shared. The existing `UIContext.activeModal` singleton keeps
- * coordinating the concierge, cart, and comparison overlays; product detail
+ * coordinating the concierge and cart overlays; product detail
  * is a destination, not an overlay.
  *
  * The product detail and its related pieces come from Aurora. A failed

@@ -24,15 +24,12 @@ import { describe, expect, it } from 'vitest'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SRC = resolve(HERE, '..')
 
-// Two directories plus the shared files that render *on* those surfaces.
-// `TurnReceipt` takes `surface="observatory"`, so it and its stylesheet are
-// part of the Observatory even though they live under components/ and
-// styles/. A guard scoped to directories missed exactly that.
+// Two directories: the Operator desk and the shared primitives it renders.
 //
 // `shared/` holds the design primitives -- SectionEyebrow, EvidenceCard,
-// DataTable, EmptyState -- that both surfaces compose. A size
-// that drifts there drifts on both at once, which is the worst version of
-// this defect, so the primitives are inside the fence from the day they land.
+// DataTable, EmptyState -- that the desk composes. A size that drifts there
+// drifts everywhere they render, which is the worst version of this defect,
+// so the primitives are inside the fence from the day they land.
 //
 // `styles/observatory-arch.css` used to be listed here. It was retired with
 // the rest of the legacy `at-*` architecture set (`components/observatory/`

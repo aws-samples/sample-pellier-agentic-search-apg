@@ -132,7 +132,7 @@ const SKILL_VOCABULARY: Record<string, AgentToolEntry> = {
   'skill.gift-table': {
     name: 'skill.gift-table' as AgentToolName,
     label: 'The Gift Table',
-    description: 'Curated gift-ready pieces for thoughtful giving.',
+    description: 'Gift-ready pieces chosen for thoughtful giving.',
   },
   'skill.makers-shelf': {
     name: 'skill.makers-shelf' as AgentToolName,

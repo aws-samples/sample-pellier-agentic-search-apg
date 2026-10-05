@@ -4,7 +4,7 @@
  * Two concerns live here:
  *
  *  1. Modal singleton (Req 1.11.2 through 1.11.5): every overlay surface in
- *     the storefront (drawer, auth, preferences, cart, checkout) is
+ *     the storefront (drawer, auth, cart, checkout) is
  *     coordinated through `activeModal`. Opening any modal closes the
  *     previous one first so only one is ever visible. A single global
  *     keydown handler lives in `UIProvider` so every route inherits the
@@ -31,35 +31,17 @@ import type { WorkshopMode } from './LayoutContext'
 export type ModalName =
   | 'drawer'
   | 'auth'
-  | 'preferences'
   | 'cart'
   | 'checkout'
-  | 'comparison'
 
 export type ActiveModal = ModalName | null
 export type ChatSurface = 'drawer' | 'none'
-
-/**
- * Minimal product shape understood by ProductComparison. We keep the fields
- * loose so the shopper drawer can hand off to the comparison modal without
- * importing chat types into this context. ComparisonHost casts this back to
- * ChatProduct at the render boundary.
- */
-export interface ComparisonProduct {
-  id: number
-  name: string
-  price: number
-  image?: string
-  category?: string
-  rating?: number
-  reviews?: number
-}
 
 interface UIContextValue {
   // Modal singleton
   activeModal: ActiveModal
   openModal: (name: ModalName) => void
-  closeModal: (options?: { restoreDrawer?: boolean }) => void
+  closeModal: () => void
 
   // Chat is a storefront-only surface. Dedicated operational and evidence
   // routes set this to `none`, leaving their keyboard conventions untouched.
@@ -81,13 +63,6 @@ interface UIContextValue {
   turnRunning: boolean
   setTurnRunning: (running: boolean) => void
 
-  // Comparison payload — set when opening the comparison modal so the
-  // receiver can render the product list without prop-drilling. The drawer
-  // closes, comparison opens with this payload, and when the user dismisses
-  // comparison we restore the drawer (useAgentChat preserves chat state).
-  comparisonProducts: ComparisonProduct[]
-  openComparison: (products: ComparisonProduct[]) => void
-
   // Legacy helpers (preserved for existing consumers)
   openChat: () => void
   announcementDismissed: Record<WorkshopMode, boolean>
@@ -105,9 +80,6 @@ export function useUI() {
 export function UIProvider({ children }: { children: ReactNode }) {
   // --- Modal singleton -----------------------------------------------------
   const [activeModal, setActiveModal] = useState<ActiveModal>(null)
-  const [comparisonProducts, setComparisonProducts] = useState<
-    ComparisonProduct[]
-  >([])
   // Ref mirror for synchronous reads — React 18 batches state updates,
   // so setPendingConciergeQuery's updater may not run synchronously.
   // The ref is always in sync so consumePendingQuery can read it
@@ -128,25 +100,12 @@ export function UIProvider({ children }: { children: ReactNode }) {
     setActiveModal(name)
   }, [])
 
-  const closeModal = useCallback((options?: { restoreDrawer?: boolean }) => {
-    const restoreDrawer = options?.restoreDrawer ?? true
-    setActiveModal(prev => {
-      // Closing the comparison modal restores the drawer so the user
-      // can continue the conversation they triggered Compare from.
-      // `useAgentChat` preserves the chat state across this transition
-      // because its state lives in the hook, not the modal DOM.
-      if (prev === 'comparison' && restoreDrawer) return 'drawer'
-      return null
-    })
+  const closeModal = useCallback(() => {
+    setActiveModal(null)
   }, [])
 
   const toggleDrawer = useCallback(() => {
     setActiveModal(prev => (prev === 'drawer' ? null : 'drawer'))
-  }, [])
-
-  const openComparison = useCallback((products: ComparisonProduct[]) => {
-    setComparisonProducts(products)
-    setActiveModal('comparison')
   }, [])
 
   const openDrawerWithQuery = useCallback((text: string) => {
@@ -181,13 +140,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
         setActiveModal(prev => (prev === 'drawer' ? null : 'drawer'))
         return
       }
-      // Escape: close comparison back to the drawer, or close whichever other
-      // modal is active (no-op when none is open).
+      // Escape: close whichever modal is active (no-op when none is open).
       if (e.key === 'Escape') {
-        setActiveModal(prev => {
-          if (prev === 'comparison' && chatSurface === 'drawer') return 'drawer'
-          return null
-        })
+        setActiveModal(null)
       }
     }
     window.addEventListener('keydown', handler)
@@ -230,8 +185,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
       consumePendingQuery,
       turnRunning,
       setTurnRunning,
-      comparisonProducts,
-      openComparison,
       openChat,
       announcementDismissed,
       dismissAnnouncement,
@@ -247,8 +200,6 @@ export function UIProvider({ children }: { children: ReactNode }) {
       pendingConciergeQuery,
       consumePendingQuery,
       turnRunning,
-      comparisonProducts,
-      openComparison,
       openChat,
       announcementDismissed,
       dismissAnnouncement,

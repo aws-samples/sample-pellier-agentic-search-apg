@@ -80,7 +80,6 @@ const SPEC_FILES: string[] = [
   'components/Footer.tsx',
   'components/CommandPill.tsx',
   'components/AuthModal.tsx',
-  'components/PreferencesModal.tsx',
   'components/ProductAvailabilityPanel.tsx',
   'pages/ProductDetailPage.tsx',
   'pages/StoryboardPage.tsx',

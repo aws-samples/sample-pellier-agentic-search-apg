@@ -2,8 +2,9 @@
 
 Rules enforced (Requirement 1.12):
   1. No emoji (any Unicode codepoint outside ASCII-plus-common-punctuation,
-     excluding the en dash U+2013 which is allowed, and excluding curly quotes
-     and middle dots used as typographic separators).
+     excluding the en dash U+2013 which is allowed, and excluding curly
+     quotes). Middle dots (U+00B7) are not allowed: VOICE.md bans them as
+     separators.
   2. No em dashes (U+2014).
   3. No forbidden words (case-insensitive whole-word match) from the
      Pellier conventions: AI, intelligent, smart, agent, LLM, vector,
@@ -34,7 +35,6 @@ COPY_PATH = Path(__file__).resolve().parents[1] / "pellier_copy.py"
 # typographic punctuation used in our copy and are not emoji.
 #   U+00A0 non-breaking space
 #   U+00A9 copyright sign
-#   U+00B7 middle dot
 #   U+2013 en dash
 #   U+2018 U+2019 U+201C U+201D curly quotes
 #   U+2022 bullet
@@ -42,13 +42,15 @@ COPY_PATH = Path(__file__).resolve().parents[1] / "pellier_copy.py"
 #   U+2039 U+203A single angle quotes (used in 'Read the full vision >' link)
 #   U+2318 command key symbol (in COMMAND_PILL keycap)
 ALLOWED_NON_ASCII = {
-    0x00A0, 0x00A9, 0x00B7, 0x2013,
+    0x00A0, 0x00A9, 0x2013,
     0x2018, 0x2019, 0x201C, 0x201D,
     0x2022, 0x2026, 0x2039, 0x203A,
     0x2318,
 }
 
 EM_DASH = "\u2014"
+# A middle dot written as an escape is still a middle dot on screen.
+MIDDLE_DOT_ESCAPE = re.compile(r"\\(?:u00b7|xb7|N\{MIDDLE DOT\})", re.IGNORECASE)
 
 FORBIDDEN_WORDS = [
     "AI",
@@ -141,6 +143,14 @@ def scan(source: str) -> list[str]:
                 f"character U+{cp:04X} ({ch!r})"
             )
 
+    # 1b. Middle dots spelled as escapes, which rule 1 cannot see.
+    for lineno, line in enumerate(raw_lines, start=1):
+        for m in MIDDLE_DOT_ESCAPE.finditer(line):
+            violations.append(
+                f"{COPY_PATH.name}:{lineno}:{m.start() + 1}: middle dot "
+                f"({m.group(0)}) is not allowed; use a comma or a period"
+            )
+
     # 2. Em dash. Also checked on raw source so docstring uses are caught.
     for lineno, line in enumerate(raw_lines, start=1):
         col = line.find(EM_DASH)
@@ -176,6 +186,13 @@ def scan(source: str) -> list[str]:
             )
 
     return violations
+
+
+def test_scan_flags_middle_dots() -> None:
+    """A middle dot fails whether it is typed or escaped."""
+    for sample in ('X = "Quiet \u00b7 Considered"\n', 'X = "Quiet \\u00b7 Considered"\n'):
+        assert any("U+00B7" in v or "middle dot" in v for v in scan(sample)), sample
+    assert scan('X = "Quiet, considered"\n') == []
 
 
 def test_copy_compliance() -> None:

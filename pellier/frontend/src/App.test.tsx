@@ -14,10 +14,9 @@
  *      which is the stable home-page marker rendered at the top of
  *      `AppContent`.
  *   3. The modal singleton slots are mounted at the App root:
- *      `AuthModal` and `PreferencesModal` exist in
- *      the tree and render
- *      nothing while `UIContext.activeModal === null`, as required by
- *      the UIContext contract (Task 4.1).
+ *      `AuthModal` exists in the tree and renders nothing while
+ *      `UIContext.activeModal === null`, as required by the UIContext
+ *      contract (Task 4.1).
  *
  * The test mocks `fetch` globally so the AuthProvider hydration path
  * (GET /api/auth/me, GET /api/user/preferences) settles quickly and
@@ -125,7 +124,7 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     expect(screen.getByTestId('persona-pill')).toBeInTheDocument()
   })
 
-  it('mounts sign-in and preference modals as hidden singletons at the App root', async () => {
+  it('mounts the sign-in modals as hidden singletons at the App root', async () => {
     render(<App />)
 
     // Every modal reads `activeModal` from UIContext. With no opener
@@ -134,12 +133,10 @@ describe('App - provider wiring (Task 6.2 / Req 7.2.1)', () => {
     await screen.findByTestId('sticky-header')
     expect(screen.queryByTestId('auth-modal')).not.toBeInTheDocument()
     expect(screen.queryByTestId('operator-signin-modal')).not.toBeInTheDocument()
-    expect(screen.queryByTestId('prefs-modal')).not.toBeInTheDocument()
     expect(screen.queryByTestId('auth-modal-backdrop')).not.toBeInTheDocument()
     expect(
       screen.queryByTestId('operator-signin-modal-backdrop'),
     ).not.toBeInTheDocument()
-    expect(screen.queryByTestId('prefs-modal-backdrop')).not.toBeInTheDocument()
   })
 
   it('renders the skip-to-content link before the surface navigation, so it is the first Tab stop', async () => {

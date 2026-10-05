@@ -72,8 +72,6 @@ vi.mock('../contexts/UIContext', () => ({
     openDrawerWithQuery,
     pendingConciergeQuery: null,
     consumePendingQuery: vi.fn(),
-    comparisonProducts: [],
-    openComparison: vi.fn(),
     openChat: vi.fn(),
     announcementDismissed: {
       legacy: false,

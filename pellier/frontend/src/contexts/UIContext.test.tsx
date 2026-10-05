@@ -25,7 +25,7 @@ function Probe() {
       <span data-testid="active">{activeModal ?? 'none'}</span>
       <button onClick={() => openModal('drawer')}>open-drawer</button>
       <button onClick={() => openModal('auth')}>open-auth</button>
-      <button onClick={() => openModal('preferences')}>open-preferences</button>
+      <button onClick={() => openModal('cart')}>open-cart</button>
       <button onClick={() => closeModal()}>close</button>
       <button onClick={toggleDrawer}>toggle-drawer</button>
     </div>
@@ -50,15 +50,15 @@ describe('UIContext modal singleton', () => {
     expect(screen.getByTestId('active')).toHaveTextContent('auth')
   })
 
-  it('opening preferences while auth is open replaces auth', async () => {
+  it('opening the cart while auth is open replaces auth', async () => {
     const user = userEvent.setup()
     render(<Probe />, { wrapper })
 
     await user.click(screen.getByText('open-auth'))
     expect(screen.getByTestId('active')).toHaveTextContent('auth')
 
-    await user.click(screen.getByText('open-preferences'))
-    expect(screen.getByTestId('active')).toHaveTextContent('preferences')
+    await user.click(screen.getByText('open-cart'))
+    expect(screen.getByTestId('active')).toHaveTextContent('cart')
   })
 
   it('closeModal() resets activeModal to null', async () => {
@@ -125,9 +125,9 @@ describe('UIContext global keyboard shortcuts', () => {
     await user.keyboard('{Escape}')
     expect(screen.getByTestId('active')).toHaveTextContent('none')
 
-    // Close preferences via Escape.
-    await user.click(screen.getByText('open-preferences'))
-    expect(screen.getByTestId('active')).toHaveTextContent('preferences')
+    // Close the cart via Escape.
+    await user.click(screen.getByText('open-cart'))
+    expect(screen.getByTestId('active')).toHaveTextContent('cart')
     await user.keyboard('{Escape}')
     expect(screen.getByTestId('active')).toHaveTextContent('none')
   })

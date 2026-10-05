@@ -302,9 +302,9 @@ function BottomStrip({
 
 /**
  * The GitHub mark, drawn inline so it takes the link's token color in both
- * themes; an <img> keeps the file's own black fill. The path is
- * `public/assets/icons/github-mark.svg` (Primer Octicons, MIT; see
- * GITHUB-MARK-LICENSE.txt beside it).
+ * themes; an <img> keeps the file's own black fill. The path is Primer
+ * Octicons' mark-github-24 (MIT); see
+ * `public/assets/icons/GITHUB-MARK-LICENSE.txt`.
  */
 function GitHubMark() {
   return (

@@ -115,31 +115,6 @@ async function visit(page: Page, { signedIn = true, overlay = false, cart = fals
   }, { persona: ANNA, signedIn, overlay, cart })
 }
 
-/**
- * Opens a modal through the UI context, for a modal the app mounts but no
- * control opens today (the preferences onboarding).
- */
-async function openModal(page: Page, name: string) {
-  const opened = await page.evaluate((modal) => {
-    const root = document.getElementById('root') as (HTMLElement & Record<string, unknown>) | null
-    const key = root ? Object.keys(root).find((k) => k.startsWith('__reactContainer$')) : undefined
-    type Fiber = { child?: Fiber; sibling?: Fiber; memoizedProps?: { value?: { openModal?: (n: string) => void } } }
-    const stack: Fiber[] = key ? [root![key] as Fiber] : []
-    while (stack.length) {
-      const fiber = stack.pop()!
-      const value = fiber.memoizedProps?.value
-      if (value && typeof value.openModal === 'function') {
-        value.openModal(modal)
-        return true
-      }
-      if (fiber.sibling) stack.push(fiber.sibling)
-      if (fiber.child) stack.push(fiber.child)
-    }
-    return false
-  }, name)
-  expect(opened, `the UI context opened ${name}`).toBe(true)
-}
-
 export interface Surface {
   name: string
   /** A page captures whole; a drawer, dialog or overlay captures the viewport. */
@@ -263,18 +238,6 @@ export const SURFACES: Surface[] = [
       await expect(page.getByTestId('bag-count')).toHaveText('1')
       await page.getByTestId('sticky-header').getByRole('button', { name: 'Bag' }).click()
       await expect(page.getByRole('dialog', { name: /bag/i })).toContainText('Stoneware Pour-Over Set')
-    },
-  },
-  {
-    name: 'preferences',
-    fullPage: false,
-    open: async (page) => {
-      await visit(page)
-      await stubStorefront(page)
-      await page.goto('/')
-      await expect(page.getByTestId('pellier-hero-search')).toBeVisible()
-      await openModal(page, 'preferences')
-      await expect(page.getByTestId('prefs-modal')).toBeVisible()
     },
   },
 ]

@@ -2,7 +2,7 @@
  * App — root component.
  *
  * Composition is intentionally minimal: provider chain, BrowserRouter,
- * root-level modal hosts (AuthModal, PreferencesModal, ComparisonHost), and
+ * root-level modal hosts (AuthModal, the cart and the persona overlay), and
  * the final route table. The two product surfaces are the storefront
  * PellierPage (`/`) and Pellier Operator (`/operator/*`).
  *
@@ -24,10 +24,8 @@ import AuthModal from './components/AuthModal'
 import CartPanel from './components/CartPanel'
 import Toast from './components/Toast'
 import PersonaTransitionOverlay from './components/PersonaTransitionOverlay'
-import PreferencesModal from './components/PreferencesModal'
 import ChatDrawer from './components/ChatDrawer'
 import { useNeutralWhenSignedOut } from './hooks/useShopperSignIn'
-import ComparisonHost from './components/ComparisonHost'
 import SignInPage from './components/SignInPage'
 import SurfaceNavigation from './components/SurfaceNavigation'
 import { routerBasename } from './utils/assetPath'
@@ -54,7 +52,7 @@ const AboutPage = lazy(() => import('./pages/AboutPage'))
 // to pathname changes, and keeps surface-specific interaction from leaking
 // across product boundaries. The shopper drawer stays on storefront routes;
 // Operator owns its scoped work area without an overlay
-// chat from a different surface. Auth, preferences, and cart also close
+// chat from a different surface. Auth and cart also close
 // because they are context-bound to a specific page.
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
@@ -76,7 +74,6 @@ function ToastSlot() {
 
 const TRANSIENT_MODALS = new Set([
   'auth',
-  'preferences',
   'cart',
   'checkout',
 ])
@@ -94,7 +91,7 @@ function ModalRouteGuard() {
       activeModal &&
       (TRANSIENT_MODALS.has(activeModal) || isDedicatedSurface)
     ) {
-      closeModal({ restoreDrawer: false })
+      closeModal()
     }
     // intentionally only run on pathname changes — activeModal in the
     // dep array would close the modal the instant it opened.
@@ -211,12 +208,11 @@ function App() {
             {/*
              * Modal singleton slots. Mounting here puts them above every
              * route; they read `UIContext.activeModal` to decide whether
-             * to render. AuthModal + PreferencesModal are route-independent;
-             * the surface-scoped drawer and comparison host live inside
-             * BrowserRouter so route boundaries can close them safely.
+             * to render. AuthModal is route-independent; the
+             * surface-scoped drawer lives inside BrowserRouter so route
+             * boundaries can close it safely.
             */}
             <AuthModal />
-            <PreferencesModal />
             <PersonaTransitionOverlay />
             <NeutralWhenSignedOut />
             <CartPanelSlot />
@@ -234,7 +230,6 @@ function App() {
                 <SessionStatusNotice />
                 <ModalRouteGuard />
                 <ShopperChatSlot />
-              <ComparisonHost />
               {/* The routed page. While Ask Pellier is docked on a desktop
                   width, this wrapper pads its right edge by the panel's
                   width (see chat-drawer.css) so the store reflows beside it. */}

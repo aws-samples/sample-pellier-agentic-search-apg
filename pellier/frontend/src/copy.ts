@@ -75,12 +75,6 @@ export const ACCOUNT_LABEL_SIGNED_OUT = "Account";
 export const accountLabelSignedIn = (givenName: string): string =>
   `Hi, ${givenName}`;
 
-// Hero breadcrumb + curated chip (Requirement 1.3.4, 1.3.10)
-export const HERO_BREADCRUMB = "Someone just asked";
-export const CURATED_FOR_YOU_CHIP = "Curated for you";
-export const SEARCH_PILL_PLACEHOLDER =
-  "Tell Pellier what you're looking for...";
-
 export const PELLIER_HERO_SIGNED_OUT = {
   LINE_1: "Choose a shopper profile to begin.",
   LINE_2: "Pellier will tailor the floor around that visit.",
@@ -466,76 +460,6 @@ export const AUTH_MODAL = {
   BUTTON_EMAIL: "Continue with workshop account",
   DISCLAIMER: "Use the username and password provided in your workshop workspace.",
   FOOTER: "Sign-in with Amazon Cognito",
-} as const;
-
-// Preferences onboarding modal (storefront.md "Preferences onboarding modal")
-export interface PreferenceChip {
-  label: string;
-  descriptor?: string;
-  swatch?: string;
-}
-export interface PreferenceGroup {
-  heading: string;
-  kind: "card" | "pill";
-  chips: PreferenceChip[];
-}
-export const PREFERENCES_MODAL = {
-  HEADER: "A quick tune-up",
-  SUBHEADER: "Takes about 20 seconds. You can change these anytime.",
-  ITALIC_HEADLINE: "What moves you?",
-  SUBHEADLINE: "Pick what resonates. Pellier will take it from here.",
-  GROUPS: [
-    {
-      heading: "Your overall vibe",
-      kind: "card",
-      chips: [
-        { label: "Minimal", descriptor: "Quiet, considered" },
-        { label: "Bold", descriptor: "Statement, saturated" },
-        { label: "Serene", descriptor: "Soft, calming" },
-        { label: "Adventurous", descriptor: "Outdoor, durable" },
-        { label: "Creative", descriptor: "Layered, textured" },
-        { label: "Classic", descriptor: "Timeless, refined" },
-      ],
-    },
-    {
-      heading: "Favorite colors",
-      kind: "pill",
-      chips: [
-        { label: "Warm tones", swatch: "terracotta-to-amber" },
-        { label: "Neutrals", swatch: "sand-to-ink-soft" },
-        { label: "Earth", swatch: "ink-soft-to-dusk" },
-        { label: "Soft pastels", swatch: "cream-warm-to-cream" },
-        { label: "Deep and moody", swatch: "ink-to-near-black" },
-      ],
-    },
-    {
-      heading: "Where you wear it",
-      kind: "pill",
-      chips: [
-        { label: "Everyday" },
-        { label: "Travel" },
-        { label: "Evenings out" },
-        { label: "Outdoor" },
-        { label: "Slow mornings" },
-        { label: "Work" },
-      ],
-    },
-    {
-      heading: "Categories you love",
-      kind: "pill",
-      chips: [
-        { label: "Linen" },
-        { label: "Shoes" },
-        { label: "Outerwear" },
-        { label: "Accessories" },
-        { label: "Home" },
-        { label: "Dresses" },
-      ],
-    },
-  ] as PreferenceGroup[],
-  SKIP: "Skip for now",
-  SUBMIT: "Save and see my storefront",
-  FOOTER: "Preferences stored with AgentCore Memory",
 } as const;
 
 // Error copy (design.md "Error Handling" table). Machine codes are colocated

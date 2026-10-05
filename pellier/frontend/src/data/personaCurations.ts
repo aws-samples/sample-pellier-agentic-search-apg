@@ -1,12 +1,12 @@
 /**
  * personaCurations — the single source of truth for how each persona
- * reshapes the storefront's "Curated for you" ordering and
+ * reshapes the storefront's product ordering and
  * "Because you asked..." editorial lineup.
  *
  * Design:
  *   - Each persona declares a set of weighted tag interests. Those
  *     interests are applied against the live catalog rows' tags to
- *     compute a score per product; the Curated grid sorts products
+ *     compute a score per product; the home grid sorts products
  *     descending by score.
  *   - Each persona also declares its own ordered list of editorial
  *     cards for the "Because you asked..." band. Marco sees
@@ -33,8 +33,6 @@ export interface PersonaInterests {
   tagWeights: Record<string, number>
   /** Optional section headline override. Falls back to canonical if unset. */
   curatedHeadline?: string
-  /** Optional section eyebrow override. */
-  curatedEyebrow?: string
 }
 
 export const PERSONA_INTERESTS: Record<string, PersonaInterests> = {
@@ -56,7 +54,6 @@ export const PERSONA_INTERESTS: Record<string, PersonaInterests> = {
       everyday: 4,
       neutral: 3,
     },
-    curatedEyebrow: 'Curated for Marco',
     curatedHeadline: 'Pieces that travel.',
   },
   anna: {
@@ -77,7 +74,6 @@ export const PERSONA_INTERESTS: Record<string, PersonaInterests> = {
       timeless: 5,
       classic: 4,
     },
-    curatedEyebrow: 'Curated for Anna',
     curatedHeadline: 'Gifts, thoughtfully matched.',
   },
   theo: {
@@ -98,7 +94,6 @@ export const PERSONA_INTERESTS: Record<string, PersonaInterests> = {
       loungewear: 5,
       candle: 4,
     },
-    curatedEyebrow: 'Curated for Theo',
     curatedHeadline: 'Quiet pieces, lived-in.',
   },
   jessica: {
