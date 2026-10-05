@@ -49,7 +49,7 @@ function reviewTone(review: OperatorReview): { tone: 'good' | 'blocked' | 'pendi
       return { tone: 'good', word: 'Credited', pulse: false }
     }
     if (review.assurance.policy === 'DENY') return { tone: 'blocked', word: 'Denied by policy', pulse: false }
-    if (review.assurance.policy === 'NOT_RECORDED' && review.assurance.evidence === 'NO_EXECUTION') {
+    if (review.assurance.evidence === 'NO_EXECUTION') {
       return { tone: 'blocked', word: 'Not written', pulse: false }
     }
     return { tone: 'good', word: 'Approved', pulse: false }

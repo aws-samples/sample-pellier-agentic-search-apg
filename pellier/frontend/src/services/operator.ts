@@ -129,8 +129,9 @@ export interface OperatorClientRecord {
 export interface ActionAssurance {
   human: 'CONFIRMATION_REQUIRED' | 'CONFIRMED' | 'DECLINED'
   /**
-   * `NOT_RECORDED`: an execution began and Aurora holds no row for its key.
-   * Pellier keeps no copy of a policy decision, so a reload cannot say why.
+   * After a reload, read from the review's stored last attempt (what the
+   * Gateway answered the desk). `NOT_RECORDED`: an execution began and no
+   * answer is stored for it.
    */
   policy: 'PENDING' | 'NOT_EVALUATED' | 'ALLOW' | 'DENY' | 'EVALUATION_INCOMPLETE' | 'NOT_RECORDED'
   aurora: 'NOT_EVALUATED' | 'NOT_REACHED' | 'PERMITTED' | 'DENIED' | 'OUTCOME_UNKNOWN'
@@ -165,14 +166,34 @@ export interface OperatorExecutionResult {
 }
 
 /**
- * What the tables say about a review whose execution began. `rail` is read
- * from the first audit row (null when the attempt left none).
+ * What the Gateway answered the desk the last time a person ran the credit,
+ * stored on the review. A record of the answer, not proof that anything ran:
+ * `tool_audit` and `store_credits` are that evidence.
+ */
+export interface LastAttempt {
+  outcome: 'allowed' | 'denied' | 'refused' | 'failed'
+  at: string
+  idempotencyKey: string
+  rail: 'gateway-mcp' | 'in-process' | 'refused'
+  policy: ActionAssurance['policy']
+  engineMode: string | null
+  matchingForbids: string[]
+  policyEngineId: string | null
+  policyDigest: string | null
+  detail: string | null
+}
+
+/**
+ * What the tables say about a review whose execution began, and the stored
+ * answer. `rail` is read from the first audit row (null when the attempt left
+ * none).
  */
 export interface OperatorExecutionState {
   executionTurnId: string
   idempotencyKey: string
   rail: 'gateway-mcp' | 'in-process' | null
   notes: Partial<Record<'policy', string>>
+  lastAttempt: LastAttempt | null
 }
 
 export type ReviewHumanState = 'confirmation_required' | 'confirmed' | 'declined'

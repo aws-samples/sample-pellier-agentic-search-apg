@@ -49,12 +49,13 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
                            "ON n.oid = p.pronamespace WHERE n.nspname = 'pellier' "
                            "ORDER BY 1") == [
         "apply_store_credit", "retrieval_receipts_append_only", "set_updated_at",
-        "tool_audit_fill_once",
+        "store_credits_require_approval", "tool_audit_fill_once",
     ]
     assert _rows(fresh_db, "SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
                            "JOIN pg_namespace n ON n.oid = c.relnamespace "
                            "WHERE n.nspname = 'pellier' AND NOT t.tgisinternal ORDER BY 1") == [
-        "product_catalog_set_updated_at", "retrieval_receipts_append_only", "tool_audit_fill_once",
+        "product_catalog_set_updated_at", "retrieval_receipts_append_only",
+        "store_credits_require_approval", "tool_audit_fill_once",
     ]
     assert _rows(fresh_db, "SELECT tablename || '.' || policyname FROM pg_policies "
                            "WHERE schemaname = 'pellier' ORDER BY 1") == [
@@ -256,11 +257,14 @@ def test_store_credits_keep_one_row_per_key_under_a_retry(fresh_db):
             assert first["credit_id"] == second["credit_id"]
             assert conn.execute("SELECT count(*) AS n FROM pellier.store_credits "
                                 "WHERE idempotency_key = %s", (key,)).fetchone()["n"] == 1
-            with pytest.raises(psycopg.errors.UniqueViolation):
+            # A second row for the same approval, even with its exact terms and key,
+            # is refused by the owner's own table: the orders it covers are paid.
+            with pytest.raises(psycopg.errors.CheckViolation) as again:
                 with conn.transaction():
                     conn.execute("INSERT INTO pellier.store_credits (approval_id, customer_id, "
                                  "amount_cents, reason, idempotency_key) VALUES "
-                                 "(%s, 'CUST-JESSICA', 1, 'x', 'another-key')", (review,))
+                                 "(%s, 'CUST-JESSICA', 10000, 'Two returns.', %s)", (review, key))
+            assert again.value.diag.constraint_name == "store_credits_require_approval"
 
 
 def test_tool_audit_refuses_a_second_fill_and_any_delete(fresh_db):

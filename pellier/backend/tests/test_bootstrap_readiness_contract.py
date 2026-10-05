@@ -471,7 +471,7 @@ def _run_health_gate(
     customer_count: int = 4,
     order_count: int = 21,
     table_count: int = 10,
-    trigger_count: int = 2,
+    trigger_count: int = 3,
     rls_policy_count: int = 2,
     managed_receipt: dict[str, object] | None = None,
     shopper_in_operator_group: bool = False,
@@ -856,7 +856,7 @@ def test_governed_health_gate_rejects_incomplete_managed_receipt(
         ({"customer_count": 5}, "Customer records incomplete (got: 5, expected 4)"),
         ({"order_count": 20}, "Orders incomplete or missing"),
         ({"table_count": 9}, "Pellier schema incomplete (9 of 10 tables)"),
-        ({"trigger_count": 1}, "Evidence triggers missing (1 of 2)"),
+        ({"trigger_count": 2}, "Evidence triggers missing (2 of 3)"),
         ({"rls_policy_count": 1}, "Row-level security incomplete (1 of 2 owner policies"),
     ],
 )

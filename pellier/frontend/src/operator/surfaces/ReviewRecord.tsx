@@ -111,6 +111,17 @@ const ReviewRecordPage: React.FC = () => {
               <div><dt>Rail</dt><dd>{review.execution.rail ?? 'no row written'}</dd></div>
               <div><dt>Execution turn</dt><dd>{review.execution.executionTurnId}</dd></div>
               <div><dt>Write key</dt><dd>{review.execution.idempotencyKey}</dd></div>
+              {review.execution.lastAttempt ? (
+                <div data-testid="operator-review-last-attempt">
+                  <dt>Gateway answered the desk</dt>
+                  <dd>
+                    {review.execution.lastAttempt.outcome}, {shortDate(review.execution.lastAttempt.at)} (stored)
+                  </dd>
+                </div>
+              ) : null}
+              {review.execution.lastAttempt?.policyDigest ? (
+                <div><dt>Policy set</dt><dd>{review.execution.lastAttempt.policyDigest.slice(0, 19)}</dd></div>
+              ) : null}
             </dl>
           </section>
         ) : null}

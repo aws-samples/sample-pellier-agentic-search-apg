@@ -890,32 +890,44 @@ async def _execution_record(ge: Any, row: Dict[str, Any], db: Any = None) -> Opt
     return await ge.evidence_for_key(db, _write_key(row))
 
 
-# Pellier stores no copy of a policy decision. After a reload the axes are
-# read back from the two tables: a credit the Gateway wrote was permitted, an
-# in-process write consulted no engine, and an attempt that left no row at all
-# says nothing more than that.
+# After a reload the policy axis is read from the review's last_attempt: what
+# the Gateway answered the desk the last time a person ran it. It is a record
+# of that answer, never inferred from which caller wrote an audit row. The
+# other two axes are read from the tables, which hold what ran and what was
+# paid.
 _POLICY_NOT_RECORDED_NOTE = (
-    "Pellier keeps no copy of a policy decision. No credit and no tool_audit row "
-    "exist for this key, so the tool did not run."
+    "No answer from the Gateway is stored for this attempt. The tool_audit and "
+    "store_credits rows for this key are all the record there is."
 )
+
+
+def _last_attempt(row: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """The review's stored answer from its last execute attempt, if one is stored."""
+    from services import operator_review as rv
+
+    attempt = rv.parse_json(row.get("last_attempt"))
+    return attempt if isinstance(attempt, dict) and attempt.get("outcome") else None
 
 
 def _assurance_from_record(
     human_state: str, row: Dict[str, Any], record: Optional[Dict[str, Any]]
 ) -> Dict[str, str]:
-    """The four axes, read from the tables once an execution has begun.
+    """The four axes once an execution has begun.
 
-    The human axis stays the human axis: a confirmation is not revised by what
-    the governance layers went on to decide.
+    Policy is the stored answer from the last attempt, or NOT_RECORDED when
+    none is stored. Aurora and evidence are read from the tables. The human
+    axis stays the human axis: a confirmation is not revised by what the
+    governance layers went on to decide.
     """
     base = _assurance(human_state)
     if not row.get("execution_turn_id") or record is None:
         return base
+    attempt = _last_attempt(row)
+    policy = str(attempt.get("policy") or "NOT_RECORDED") if attempt else "NOT_RECORDED"
     if not record.get("readable"):
-        return {**base, "policy": "NOT_RECORDED", "aurora": "OUTCOME_UNKNOWN", "evidence": "PENDING"}
+        return {**base, "policy": policy, "aurora": "OUTCOME_UNKNOWN", "evidence": "PENDING"}
     if not record.get("auditRows"):
-        return {**base, "policy": "NOT_RECORDED", "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
-    policy = "ALLOW" if record.get("auditCaller") == "gateway" else "NOT_EVALUATED"
+        return {**base, "policy": policy, "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
     if record.get("creditRows"):
         return {**base, "policy": policy, "aurora": "PERMITTED", "evidence": "RECEIPTED"}
     return {**base, "policy": policy, "aurora": "DENIED", "evidence": "ATTEMPT_RECEIPT"}
@@ -924,23 +936,25 @@ def _assurance_from_record(
 def _execution_payload(
     row: Dict[str, Any], record: Optional[Dict[str, Any]]
 ) -> Optional[Dict[str, Any]]:
-    """Which run wrote what, for a review whose execution began."""
+    """Which run wrote what, and the stored answer, for a review whose execution began."""
+    from services import governed_execution as ge
+
     if not row.get("execution_turn_id"):
         return None
     audited = bool(record and record.get("auditRows"))
     rail = None
     if audited:
         rail = "gateway-mcp" if record.get("auditCaller") == "gateway" else "in-process"
+    attempt = _last_attempt(row)
     notes: Dict[str, str] = {}
-    if record and record.get("readable") and not audited:
+    if attempt is not None:
+        notes["policy"] = ge.attempt_note(attempt)
+    elif record and record.get("readable"):
         notes["policy"] = _POLICY_NOT_RECORDED_NOTE
-    elif rail == "gateway-mcp":
-        notes["policy"] = "The Gateway ran the tool, so AgentCore Policy permitted it."
-    elif rail == "in-process":
-        notes["policy"] = "This execution ran in process, so no policy engine was asked."
     return {
         "executionTurnId": row.get("execution_turn_id") or "",
         "idempotencyKey": _write_key(row),
         "rail": rail,
         "notes": notes,
+        "lastAttempt": ge.attempt_payload(attempt),
     }

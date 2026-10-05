@@ -106,21 +106,44 @@ export const EXECUTED_REVIEW: OperatorReview = {
   assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'PERMITTED', evidence: 'RECEIPTED' },
   execution: {
     executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
-    notes: { policy: 'The Gateway ran the tool, so AgentCore Policy permitted it.' },
+    notes: { policy: 'What the Gateway answered the desk, 2026-10-04 15:04 UTC: the call went through and the tool ran, under ENFORCE, so AgentCore Policy permitted it. tool_audit and store_credits show what ran and what was paid.' },
+    lastAttempt: {
+      outcome: 'allowed', at: '2026-10-04T15:04:00+00:00', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
+      policy: 'ALLOW', engineMode: 'ENFORCE', matchingForbids: ['credit_limit_forbid'], policyEngineId: 'engine-1',
+      policyDigest: `sha256:${'d'.repeat(64)}`, detail: null,
+    },
   },
 }
 
 /**
- * The same review re-read after an attempt that wrote nothing: no credit and
- * no audit row for the key. Pellier stores no copy of the policy decision, so
- * the stored review cannot say DENY; only the execute response can.
+ * The same review re-read after an attempt Cedar denied: no credit and no
+ * audit row for the key, and the Gateway's answer stored on the review.
+ */
+export const DENIED_ON_RELOAD: OperatorReview = {
+  ...EXECUTED_REVIEW,
+  assurance: { human: 'CONFIRMED', policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' },
+  execution: {
+    executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: null,
+    notes: { policy: 'What the Gateway answered the desk, 2026-10-04 15:04 UTC: AgentCore Policy denied it before the tool ran (forbid policies naming this action: credit_limit_forbid). tool_audit and store_credits show what ran and what was paid.' },
+    lastAttempt: {
+      outcome: 'denied', at: '2026-10-04T15:04:00+00:00', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
+      policy: 'DENY', engineMode: 'ENFORCE', matchingForbids: ['credit_limit_forbid'], policyEngineId: 'engine-1',
+      policyDigest: `sha256:${'d'.repeat(64)}`, detail: 'Tool call not allowed due to policy enforcement',
+    },
+  },
+}
+
+/**
+ * The same review re-read after an attempt that wrote nothing and left no
+ * stored answer: no credit, no audit row and no last attempt for the key.
  */
 export const UNWRITTEN_REVIEW: OperatorReview = {
   ...EXECUTED_REVIEW,
   assurance: { human: 'CONFIRMED', policy: 'NOT_RECORDED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' },
   execution: {
     executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: null,
-    notes: { policy: 'Pellier keeps no copy of a policy decision. No credit and no tool_audit row exist for this key, so the tool did not run.' },
+    notes: { policy: 'No answer from the Gateway is stored for this attempt. The tool_audit and store_credits rows for this key are all the record there is.' },
+    lastAttempt: null,
   },
 }
 

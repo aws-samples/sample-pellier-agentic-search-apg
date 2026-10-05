@@ -76,6 +76,7 @@ class FakeDb:
         self.existing_execution_turn = existing_execution_turn
         self.statements: List[str] = []
         self.claimed_turns: List[str] = []
+        self.last_attempts: List[Dict[str, Any]] = []
 
     async def fetch_one(self, query: str, *params: Any) -> Optional[Dict[str, Any]]:
         self.statements.append(query)
@@ -91,6 +92,11 @@ class FakeDb:
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         self.statements.append(query)
+        if "SET last_attempt" in query:
+            import json
+
+            self.last_attempts.append(json.loads(params[0]))
+            return [{"id": params[1]}]
         if "apply_store_credit" not in query:
             return []
         key, customer_id, amount_cents, reason, issued_by = params
@@ -731,6 +737,7 @@ async def test_engine_state_for_action_is_labeled_inferred(
     assert state["policies"]["credit_limit_forbid"] == ("forbid", "ACTIVE")
     assert state["policy_ids"]["credit_limit_forbid"] == "pol-1"
     assert state["policy_engine_id"] == "engine-1"
+    assert state["policy_digest"].startswith("sha256:")
     assert "WOULD_DENY" not in str(state)
 
 
@@ -1138,3 +1145,135 @@ async def test_an_unreadable_evidence_table_never_reads_as_absence() -> None:
 
     record = await ge.evidence_for_key(_Db(), "operator-review:41:abc")
     assert record["readable"] is False and record["creditRows"] == 0
+
+
+# ---------------------------------------------------------------------------
+# approvals.last_attempt: what the Gateway answered the desk, stored per attempt
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_each_attempt_stores_what_the_gateway_answered(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Allowed and denied are each stored with the key and the engine's attribution."""
+    _governed(monkeypatch)
+    engine = ge.PolicyEngineState(
+        gateway_mode="ENFORCE", matching_forbids=("credit_limit_forbid",),
+        policy_engine_id="engine-1", policy_digest="sha256:" + "d" * 64,
+    )
+    _gateway_returns(monkeypatch, ge.POLICY_ALLOW)
+    db = FakeDb()
+    await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT,
+                                      access_token="jwt", engine_state=engine)
+    _gateway_returns(monkeypatch, ge.POLICY_DENY)
+    await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT,
+                                      access_token="jwt", engine_state=engine)
+
+    allowed, denied = db.last_attempts
+    key = ge.execution_idempotency_key(12, CREDIT_HASH)
+    assert (allowed["outcome"], allowed["policy"], allowed["rail"]) == ("allowed", "ALLOW", "gateway-mcp")
+    assert (denied["outcome"], denied["policy"]) == ("denied", "DENY")
+    for attempt in (allowed, denied):
+        assert attempt["idempotency_key"] == key and attempt["at"]
+        assert attempt["engine_mode"] == "ENFORCE"
+        assert attempt["matching_forbids"] == ["credit_limit_forbid"]
+        assert attempt["policy_digest"] == "sha256:" + "d" * 64
+
+
+@pytest.mark.asyncio
+async def test_a_refused_or_failed_attempt_is_stored_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A reload must tell a refusal and a lost call apart from a denial."""
+    _governed(monkeypatch, gateway_url="")
+    db = FakeDb()
+    with pytest.raises(ge.GovernedRailUnavailable):
+        await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT,
+                                          access_token="jwt", engine_state=ENFORCED)
+    assert db.last_attempts[-1]["outcome"] == "refused"
+    assert "AGENTCORE_GATEWAY_URL" in db.last_attempts[-1]["detail"]
+
+    _governed(monkeypatch)
+
+    async def lost(**_kwargs: Any):
+        raise ge.ExecutionError("gateway_unavailable:ConnectError", 502)
+
+    monkeypatch.setattr(ge, "_execute_through_gateway", lost)
+    with pytest.raises(ge.ExecutionError):
+        await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT,
+                                          access_token="jwt", engine_state=ENFORCED)
+    failed = db.last_attempts[-1]
+    assert (failed["outcome"], failed["policy"]) == ("failed", "EVALUATION_INCOMPLETE")
+    assert failed["detail"] == "gateway_unavailable:ConnectError"
+
+
+@pytest.mark.asyncio
+async def test_an_in_process_attempt_is_stored_with_no_engine(monkeypatch: pytest.MonkeyPatch) -> None:
+    db = FakeDb()
+    await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT,
+                                      engine_state=ENFORCED)
+    (attempt,) = db.last_attempts
+    assert (attempt["outcome"], attempt["rail"], attempt["policy"]) == (
+        "allowed", "in-process", "NOT_EVALUATED")
+    assert attempt["engine_mode"] is None and attempt["policy_digest"] is None
+
+
+@pytest.mark.asyncio
+async def test_a_store_failure_never_hides_the_answer(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The stored answer is a record, not a gate: the attempt still returns."""
+    class _NoStore(FakeDb):
+        async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
+            if "SET last_attempt" in query:
+                raise RuntimeError("down")
+            return await super().fetch_all(query, *params)
+
+    outcome = await ge.execute_confirmed_review(_NoStore(), approved_review(),
+                                                operator_sub=OPERATOR_SUBJECT)
+    assert outcome.result["status"] == "success"
+
+
+def _executed_row(last_attempt: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    return {**approved_review(), "execution_turn_id": "turn-" + "e" * 32,
+            "last_attempt": last_attempt}
+
+
+def test_a_reload_reads_policy_from_the_stored_answer_never_from_the_audit_caller() -> None:
+    """A gateway audit row is execution evidence, not an ALLOW."""
+    from routes import operator as OP
+
+    gateway_row = {"readable": True, "auditRows": 1, "auditIds": [7], "auditCaller": "gateway",
+                   "creditRows": 1, "creditIds": [3], "amountCents": 2500}
+    unstored = OP._review_payload(_executed_row(None), gateway_row)
+    assert unstored["assurance"]["policy"] == "NOT_RECORDED"
+    assert unstored["assurance"]["evidence"] == "RECEIPTED"
+    assert "No answer from the Gateway is stored" in unstored["execution"]["notes"]["policy"]
+    assert unstored["execution"]["lastAttempt"] is None
+
+    attempt = ge.last_attempt("allowed", idempotency_key="k", rail="gateway-mcp",
+                              policy="EVALUATION_INCOMPLETE",
+                              engine_state=ge.PolicyEngineState(gateway_mode="LOG_ONLY"))
+    observed = OP._review_payload(_executed_row(attempt), gateway_row)
+    assert observed["assurance"]["policy"] == "EVALUATION_INCOMPLETE"
+    assert "LOG_ONLY, so that is not a decision" in observed["execution"]["notes"]["policy"]
+    assert observed["execution"]["lastAttempt"]["engineMode"] == "LOG_ONLY"
+
+
+def test_a_reloaded_denial_reads_deny_and_the_tables_say_nothing_ran() -> None:
+    from routes import operator as OP
+
+    empty = {"readable": True, "auditRows": 0, "auditIds": [], "auditCaller": None,
+             "creditRows": 0, "creditIds": [], "amountCents": None}
+    attempt = ge.last_attempt("denied", idempotency_key="k", rail="gateway-mcp", policy="DENY",
+                              engine_state=ENFORCED, detail="not allowed due to policy")
+    payload = OP._review_payload(_executed_row(attempt), empty)
+    assert payload["assurance"] == {"human": "CONFIRMED", "policy": "DENY",
+                                    "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
+    assert payload["execution"]["notes"]["policy"].startswith("What the Gateway answered the desk")
+
+
+def test_the_policy_digest_names_the_authored_policy_set() -> None:
+    from services.managed_policy import policy_digest
+
+    one = policy_digest({"b": "forbid(principal, action, resource);", "a": "permit(...);"})
+    assert one == policy_digest({"a": "permit(...);", "b": "forbid(principal, action, resource);"})
+    assert one != policy_digest({"a": "permit(...);"})
+    assert one.startswith("sha256:") and len(one) == len("sha256:") + 64
+    state = ge.PolicyEngineState.from_engine_read({"gateway_mode": "ENFORCE", "policy_digest": one})
+    assert state is not None and state.policy_digest == one

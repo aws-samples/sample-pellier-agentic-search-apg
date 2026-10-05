@@ -273,7 +273,7 @@ def _ask_for_credit(conn: psycopg.Connection, rail: str, module: ModuleType) -> 
 
 
 def _requests(conn: psycopg.Connection) -> List[Dict[str, Any]]:
-    return _rows_of(conn, "SELECT id, args, action_hash, status, answered_turn_id, review_id "
+    return _rows_of(conn, "SELECT id, args, action_hash, status, answered_turn_id, answered_by_review_id "
                           "FROM pellier.approvals WHERE customer_id = %s "
                           "AND tool = 'store_credit_request' ORDER BY id", JESSICA)
 
@@ -487,7 +487,7 @@ async def test_jessicas_request_and_the_investigation_give_one_review_and_one_cr
             assert proposal["status"] == "review_opened" and proposal["amount_cents"] == 10000
             review_id = int(proposal["review_id"])
             (answered,) = _requests(conn)
-            assert answered["review_id"] == review_id and answered["answered_turn_id"]
+            assert answered["answered_by_review_id"] == review_id and answered["answered_turn_id"]
             assert answered["status"] == "answered", "a request is answered, never decided"
 
             review = await rv.get_review(db, review_id)
@@ -542,7 +542,9 @@ def test_the_database_never_credits_an_order_twice_whoever_asks(fresh_db) -> Non
 
     Jessica's real credit is paid. Then an approved review written straight into
     the table, with different terms, for the same returned orders: the function
-    refuses it, and a direct write to the orders cannot point one at two credits.
+    refuses it, and so does the store_credits trigger when the owner inserts the
+    credit row directly. An order holds one store_credit_id, so it cannot point
+    at two credits.
     """
     with psycopg.connect(**_conninfo(fresh_db)) as conn:
         _clean_case(conn)
@@ -557,6 +559,9 @@ def test_the_database_never_credits_an_order_twice_whoever_asks(fresh_db) -> Non
         again = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
                     (again_key, JESSICA, 6400, "The robe, again."))[0]["result"]
         assert again["status"] == "not_creditable" and again["denied_by"] == "order_guard"
+        with pytest.raises(psycopg.errors.CheckViolation) as direct:
+            _insert_credit(conn, again_key, 6400, "The robe, again.")
+        assert direct.value.diag.constraint_name == "store_credits_require_approval"
 
         # A review that covers no order credits nothing either: the Lab 4 over-limit
         # probe is such a review, so a policy that wrongly allowed it still pays nothing.
@@ -590,10 +595,76 @@ def test_a_credit_needs_its_approval_and_the_amount_ceiling_is_500(fresh_db) -> 
         assert credit(minted, 10001, "Over the limit, valid here.")["status"] == (
             "approval_key_mismatch")
         assert credit(key, 10001, "Over the limit, valid here.")["status"] == "success"
-        with pytest.raises(psycopg.errors.CheckViolation):
-            run("INSERT INTO pellier.store_credits (approval_id, customer_id, amount_cents, reason, "
-                "idempotency_key) SELECT id, %s, 50001, 'x', 'too-much' FROM pellier.approvals "
-                "LIMIT 1 RETURNING credit_id", (JESSICA,))
+
+        # The ceiling is a CHECK of its own: an approved review for $500.01 that
+        # passes every approval rule still cannot be written.
+        pour_over = _order_id(conn, "31")
+        with conn.cursor() as cur:
+            cur.execute("UPDATE pellier.orders SET return_status = 'received' WHERE id = %s",
+                        (pour_over,))
+        try:
+            over_key = _force_approved_review(conn, [pour_over], 50001, "Over the ceiling.")
+            with pytest.raises(psycopg.errors.CheckViolation) as over:
+                _insert_credit(conn, over_key, 50001, "Over the ceiling.")
+            assert over.value.diag.constraint_name == "store_credits_amount_cents_check"
+        finally:
+            with conn.cursor() as cur:
+                cur.execute("UPDATE pellier.orders SET return_status = NULL WHERE id = %s",
+                            (pour_over,))
+
+
+def _insert_credit(conn: psycopg.Connection, key: str, amount: int, reason: str) -> None:
+    """The owner writing a credit row directly, bound to the review its key names."""
+    review_id = int(key.split(":")[1])
+    with conn.cursor() as cur:
+        cur.execute(
+            "INSERT INTO pellier.store_credits (approval_id, customer_id, amount_cents, reason, "
+            "idempotency_key) VALUES (%s, %s, %s, %s, %s)",
+            (review_id, JESSICA, amount, reason, key),
+        )
+
+
+def test_the_owner_cannot_write_a_credit_no_approved_review_names(fresh_db, monkeypatch) -> None:
+    """The money rules hold for the table owner too, not only for the function's callers.
+
+    Each direct insert below names a real approvals row, so only the trigger
+    stands between it and a paid credit: a shopper's request, a pending
+    review, an approved review with other terms, and one under a minted key.
+    """
+    from services.store_tools import execution_idempotency_key
+
+    with psycopg.connect(**_conninfo(fresh_db)) as conn:
+        _clean_case(conn)
+        robe, diffuser = _order_id(conn, "42"), _order_id(conn, "25")
+        module = _lambda(monkeypatch, conn)
+        request_id = int(_ask_for_credit(conn, "in-process", module)["request_id"])
+        key = _force_approved_review(conn, [robe, diffuser], 10000, "The two returns.")
+        approved_id = int(key.split(":")[1])
+        pending_id = int(_scalar(
+            conn, "INSERT INTO pellier.approvals (customer_id, tool, status, args, action_hash, "
+                  "order_ids) SELECT customer_id, tool, 'pending', args, action_hash || 'p', "
+                  "order_ids FROM pellier.approvals WHERE id = %s RETURNING id", approved_id,
+        ))
+
+        def refused(approval_id: int, amount: int, write_key: str) -> None:
+            with pytest.raises(psycopg.errors.CheckViolation) as caught:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "INSERT INTO pellier.store_credits (approval_id, customer_id, amount_cents, "
+                        "reason, idempotency_key) VALUES (%s, %s, %s, %s, %s)",
+                        (approval_id, JESSICA, amount, "The two returns.", write_key),
+                    )
+            assert caught.value.diag.constraint_name == "store_credits_require_approval"
+
+        refused(request_id, 10000, execution_idempotency_key(request_id, "x" * 32))
+        refused(pending_id, 10000, execution_idempotency_key(pending_id, "x" * 32))
+        refused(approved_id, 9999, key)
+        refused(approved_id, 10000, key.rsplit(":", 1)[0] + ":minted")
+        assert _credits(conn) == 0
+
+        # The positive control: the approved review's own terms and key are written.
+        _insert_credit(conn, key, 10000, "The two returns.")
+        assert _credits(conn) == 1
 
 
 @pytest.mark.asyncio
@@ -678,6 +749,57 @@ async def test_a_refused_execution_writes_nothing(fresh_db, monkeypatch) -> None
             with pytest.raises(ge.GovernedRailUnavailable):
                 await _execute(db, review_id)
         assert _credits(conn) == 0
+        assert _count(conn, "SELECT count(*) FROM pellier.tool_audit") == 0
+        (stored,) = _rows_of(conn, "SELECT last_attempt FROM pellier.approvals WHERE id = %s",
+                             review_id)
+        attempt = stored["last_attempt"]
+        assert attempt["outcome"] == "refused" and attempt["policy"] == "NOT_EVALUATED"
+        assert "AGENTCORE_GATEWAY_URL" in attempt["detail"]
+
+
+@pytest.mark.asyncio
+async def test_a_denied_attempt_is_stored_and_read_back_after_a_reload(fresh_db, monkeypatch) -> None:
+    """After a reload the desk shows what the Gateway answered, not a guess from the tables.
+
+    Cedar's DENY is stored on the review with its key, the forbids naming the
+    action and the policy digest. Nothing ran, so the tables still hold no
+    credit and no audit row, and those stay the execution and data evidence.
+    """
+    with psycopg.connect(**_conninfo(fresh_db)) as conn:
+        _clean_case(conn)
+        _set_rail(monkeypatch, "gateway", _lambda(monkeypatch, conn))
+        denial = "Tool call not allowed due to policy enforcement [Policy evaluation denied due to x]"
+
+        async def cedar_denies(*, tool: str, args: Any, idempotency_key: str, access_token: str):
+            return ge.POLICY_DENY, {"status": "policy_denied", "gateway_message": denial}, "Denied."
+
+        monkeypatch.setattr(ge, "_execute_through_gateway", cedar_denies)
+        robe = _order_id(conn, "42")
+        async with await psycopg.AsyncConnection.connect(**_conninfo(fresh_db)) as aconn:
+            db = _PgDb(aconn)
+            review_id = int(_investigate(conn, [robe], "The robe came back.")["review_id"])
+            review = await rv.get_review(db, review_id)
+            await rv.decide_review(db, review_id=review_id, decision=rv.STATUS_CONFIRMED,
+                                   decided_by=NADIA_SUB, action_hash=review["action_hash"])
+            engine = ge.PolicyEngineState(
+                gateway_mode="ENFORCE", matching_forbids=("credit_limit_forbid",),
+                policy_engine_id="engine-1", policy_digest="sha256:" + "d" * 64,
+            )
+            row = await rv.get_review(db, review_id)
+            await ge.execute_confirmed_review(
+                db, row, operator_sub=NADIA_SUB, access_token="jwt", engine_state=engine,
+            )
+            reloaded = await OP.get_review(review_id, db=db)
+
+        key = reloaded["review"]["execution"]["idempotencyKey"]
+        assert reloaded["review"]["assurance"]["policy"] == "DENY"
+        assert reloaded["review"]["assurance"]["evidence"] == "NO_EXECUTION"
+        stored = reloaded["review"]["execution"]["lastAttempt"]
+        assert stored["outcome"] == "denied" and stored["idempotencyKey"] == key
+        assert stored["matchingForbids"] == ["credit_limit_forbid"]
+        assert stored["policyDigest"] == "sha256:" + "d" * 64 and stored["detail"] == denial
+        assert "What the Gateway answered the desk" in reloaded["review"]["execution"]["notes"]["policy"]
+        assert _credits(conn, key) == 0
         assert _count(conn, "SELECT count(*) FROM pellier.tool_audit") == 0
 
 

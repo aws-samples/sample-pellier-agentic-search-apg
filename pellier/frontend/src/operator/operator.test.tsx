@@ -8,7 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer } from '../services/operator'
 import {
-  ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, EXECUTED_REVIEW, NOTHING_WRITTEN,
+  ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, DENIED_ON_RELOAD, EXECUTED_REVIEW, NOTHING_WRITTEN,
   OPEN_REQUEST, PENDING_REVIEW, QUEUE, RECORD, RECORDED_ONCE, UNWRITTEN_REVIEW, STEPS, WRITE_KEY, detail,
 } from './fixtures'
 
@@ -291,15 +291,28 @@ describe('the review record', () => {
     expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute again')
   })
 
-  it('after a reload, says the decision is not stored and what the tables hold', async () => {
+  it('after a reload with no stored answer, says so and what the tables hold', async () => {
     api.fetchReview.mockResolvedValue(detail(UNWRITTEN_REVIEW, NOTHING_WRITTEN))
     renderAt('/operator/reviews/41', <ReviewRecord />)
     const checks = await screen.findByTestId('operator-credit-checks')
     expect(within(checks).getByText('Not stored')).toBeInTheDocument()
-    expect(checks).toHaveTextContent('Pellier keeps no copy of a policy decision.')
+    expect(checks).toHaveTextContent('No answer from the Gateway is stored for this attempt.')
     expect(within(checks).getByText('Not written')).toBeInTheDocument()
     expect(screen.queryByTestId('operator-credit-denied')).not.toBeInTheDocument()
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('no row written')
+    expect(screen.queryByTestId('operator-review-last-attempt')).not.toBeInTheDocument()
+  })
+
+  it('after a reload, shows the stored denial as what the Gateway answered the desk', async () => {
+    api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, NOTHING_WRITTEN))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const checks = await screen.findByTestId('operator-credit-checks')
+    expect(within(checks).getByText('DENY')).toBeInTheDocument()
+    expect(checks).toHaveTextContent('What the Gateway answered the desk')
+    expect(checks).toHaveTextContent('credit_limit_forbid')
+    expect(within(checks).getByText('Not written')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-review-last-attempt')).toHaveTextContent('denied')
+    expect(screen.getByTestId('operator-review-last-attempt')).toHaveTextContent('(stored)')
   })
 
   it('surfaces a governed refusal with what is missing', async () => {
@@ -340,6 +353,9 @@ describe('the reviews list', () => {
     expect(reviewOutcome({ ...APPROVED_REVIEW, executionTurnId: 'turn-x' }).word).toBe('Outcome unverified')
     expect(reviewOutcome(EXECUTED_REVIEW).word).toBe('Credited')
     expect(reviewOutcome(UNWRITTEN_REVIEW).word).toBe('Not written')
+    expect(reviewOutcome(DENIED_ON_RELOAD).word).toBe('DENY')
+    const refused = { ...UNWRITTEN_REVIEW.assurance, policy: 'NOT_EVALUATED' as const }
+    expect(reviewOutcome({ ...UNWRITTEN_REVIEW, assurance: refused }).word).toBe('Not written')
     expect(reviewOutcome({ ...EXECUTED_REVIEW, assurance: { ...EXECUTED_REVIEW.assurance, policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' } }).word).toBe('DENY')
   })
 })

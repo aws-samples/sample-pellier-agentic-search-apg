@@ -28,7 +28,12 @@ under that review's own key (``store_tools.execution_idempotency_key``), so an
 approval for one credit never admits another and never admits the same one
 twice. The ``approvals_one_live_review`` index keeps one live review (pending
 or approved) per exact credit, so there is one approved row and one key to
-bind to. ``pellier.apply_store_credit`` holds the write to the same rules.
+bind to. That index keys on the terms, not the orders: two live reviews with
+different terms may cover the same order, and the Planner does not propose
+one. If a person approved both, the order guard in
+``pellier.apply_store_credit`` pays only the first. The function holds the
+write to these rules, and a trigger on ``pellier.store_credits`` holds any
+other writer to them too.
 
 A decision records two things about the person: ``decided_by``, the verified
 token subject, which is the principal every other ledger carries; and
@@ -137,12 +142,14 @@ _REVIEW_COLUMNS = """
         a.args           AS args,
         a.status         AS status,
         a.source_turn_id AS source_turn_id,
-        -- Claimed when execution BEGINS. Present with no execution receipt means
-        -- an attempt started and produced no verdict, which is its own fact.
+        -- Claimed when execution BEGINS. last_attempt is what the Gateway
+        -- answered the desk that time; tool_audit and store_credits hold
+        -- what actually ran and what was paid.
         a.execution_turn_id AS execution_turn_id,
+        a.last_attempt   AS last_attempt,
         a.order_ids      AS order_ids,
         a.answered_turn_id AS answered_turn_id,
-        a.review_id      AS answered_by_review_id,
+        a.answered_by_review_id AS answered_by_review_id,
         a.issue          AS issue,
         a.recommendation AS recommendation,
         a.action_hash    AS action_hash,

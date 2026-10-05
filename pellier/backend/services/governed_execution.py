@@ -32,6 +32,7 @@ could tell.
 from __future__ import annotations
 
 import asyncio
+import functools
 import json
 import logging
 import re
@@ -313,6 +314,125 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
     record["auditIds"] = [int(a["audit_id"]) for a in audits if a.get("audit_id") is not None]
     record["auditCaller"] = str(audits[0].get("caller") or "") or None if audits else None
     return record
+
+
+# ---------------------------------------------------------------------------
+# approvals.last_attempt: what the Gateway answered the desk, last time
+# ---------------------------------------------------------------------------
+
+ATTEMPT_ALLOWED = "allowed"  # the call got past authorization and the tool ran
+ATTEMPT_DENIED = "denied"    # AgentCore Policy denied it before the tool ran
+ATTEMPT_REFUSED = "refused"  # the desk sent nothing: the governed rail was not ready
+ATTEMPT_FAILED = "failed"    # the call did not complete, so no answer came back
+
+_ATTEMPT_DETAIL_LIMIT = 500
+
+_RECORD_LAST_ATTEMPT = """
+    UPDATE pellier.approvals
+       SET last_attempt = %s::jsonb
+     WHERE id = %s
+    RETURNING id
+"""
+
+
+def last_attempt(
+    outcome: str,
+    *,
+    idempotency_key: str,
+    rail: str,
+    policy: str,
+    engine_state: Optional["PolicyEngineState"],
+    detail: Optional[str] = None,
+) -> Dict[str, Any]:
+    """One execute attempt's answer, in the shape ``approvals.last_attempt`` stores.
+
+    The engine fields are the attribution the control plane gave for this
+    action at the time: its mode, the forbid policies naming the action, and
+    a digest of the policy set. ``detail`` is the Gateway's words for a
+    denial, the error for a failure, or what was missing for a refusal.
+    """
+    from datetime import datetime, timezone
+
+    engine = engine_state
+    return {
+        "outcome": outcome,
+        "at": datetime.now(timezone.utc).isoformat(),
+        "idempotency_key": idempotency_key,
+        "rail": rail,
+        "policy": policy,
+        "engine_mode": (engine.gateway_mode or None) if engine else None,
+        "matching_forbids": list(engine.matching_forbids) if engine else [],
+        "policy_engine_id": (engine.policy_engine_id or None) if engine else None,
+        "policy_digest": (engine.policy_digest or None) if engine else None,
+        "detail": str(detail)[:_ATTEMPT_DETAIL_LIMIT] if detail else None,
+    }
+
+
+async def record_last_attempt(db: Any, review_id: int, attempt: Mapping[str, Any]) -> None:
+    """Overwrite the review's ``last_attempt``.
+
+    Logged, never raised, when the write fails: the attempt's own answer still
+    reaches the desk, and ``tool_audit`` and ``store_credits`` stay the
+    evidence of what ran and what was paid.
+    """
+    try:
+        await db.fetch_all(_RECORD_LAST_ATTEMPT, json.dumps(dict(attempt)), int(review_id))
+    except Exception as exc:  # noqa: BLE001 - the answer is a record, not a gate
+        logger.warning("last attempt not stored for review %s: %s", review_id, exc)
+
+
+# A stored answer, read back after a reload, in the desk's words. Each sentence
+# is labeled as what the Gateway answered, never as proof that anything ran.
+_ATTEMPT_SENTENCES = {
+    ATTEMPT_ALLOWED: "the call went through and the tool ran",
+    ATTEMPT_DENIED: "AgentCore Policy denied it before the tool ran",
+    ATTEMPT_REFUSED: "the desk sent nothing, because the governed rail was not ready",
+    ATTEMPT_FAILED: "the call did not complete, so no verdict came back",
+}
+
+
+def attempt_note(attempt: Mapping[str, Any]) -> str:
+    """One sentence for the desk about a stored ``last_attempt``."""
+    at = str(attempt.get("at") or "")
+    when = f"{at[:10]} {at[11:16]} UTC" if at else "an earlier attempt"
+    evidence = "tool_audit and store_credits show what ran and what was paid."
+    if attempt.get("rail") == RAIL_IN_PROCESS:
+        return (f"Stored from the last attempt, {when}: it ran in process, so no policy "
+                f"engine was asked. {evidence}")
+    said = _ATTEMPT_SENTENCES.get(str(attempt.get("outcome")), "an unrecognized answer")
+    return f"What the Gateway answered the desk, {when}: {said}{_attribution(attempt)}. {evidence}"
+
+
+def _attribution(attempt: Mapping[str, Any]) -> str:
+    """The engine's part of a stored answer: its mode, or the forbids naming the action."""
+    outcome = attempt.get("outcome")
+    if outcome == ATTEMPT_ALLOWED:
+        if attempt.get("policy") == POLICY_ALLOW:
+            return ", under ENFORCE, so AgentCore Policy permitted it"
+        mode = attempt.get("engine_mode") or "unreadable"
+        return f", but the attachment was {mode}, so that is not a decision"
+    forbids = ", ".join(attempt.get("matching_forbids") or [])
+    if outcome == ATTEMPT_DENIED and forbids:
+        return f" (forbid policies naming this action: {forbids})"
+    return ""
+
+
+def attempt_payload(attempt: Optional[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+    """A stored ``last_attempt`` in the API's field names."""
+    if attempt is None:
+        return None
+    return {
+        "outcome": attempt.get("outcome"),
+        "at": attempt.get("at"),
+        "idempotencyKey": attempt.get("idempotency_key"),
+        "rail": attempt.get("rail"),
+        "policy": attempt.get("policy"),
+        "engineMode": attempt.get("engine_mode"),
+        "matchingForbids": list(attempt.get("matching_forbids") or []),
+        "policyEngineId": attempt.get("policy_engine_id"),
+        "policyDigest": attempt.get("policy_digest"),
+        "detail": attempt.get("detail"),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -708,12 +828,16 @@ async def _execute_through_gateway(
                 "Execution and commit require separate Aurora evidence."
             )
         if is_policy_denial(exc):
+            from services.gateway_errors import gateway_error_text
+
             return (
                 POLICY_DENY,
                 {
                     "status": "policy_denied",
                     "message": "AgentCore Policy denied the action before the tool ran.",
                     "denied_by": "agentcore_policy",
+                    # The Gateway's own words, which name the policy that denied.
+                    "gateway_message": gateway_error_text(exc)[:_ATTEMPT_DETAIL_LIMIT],
                 },
                 "Cedar denied the action; the tool was never entered.",
             )
@@ -766,6 +890,8 @@ class PolicyEngineState:
     # policy name -> control-plane policy id, for attribution.
     policy_ids: Dict[str, str] = field(default_factory=dict)
     policy_engine_id: str = ""
+    # SHA-256 over every attached policy's name and Cedar (managed_policy.policy_digest).
+    policy_digest: str = ""
     # Always true for a control-plane read: this is configuration, not a decision.
     inferred: bool = True
 
@@ -784,6 +910,7 @@ class PolicyEngineState:
             matching_forbids=tuple(state.get("matching") or ()),
             policy_ids=dict(state.get("policy_ids") or {}),
             policy_engine_id=str(state.get("policy_engine_id") or ""),
+            policy_digest=str(state.get("policy_digest") or ""),
             inferred=bool(state.get("inferred", True)),
         )
 
@@ -835,7 +962,8 @@ async def execute_confirmed_review(
       3. derive the deterministic write key;
       4. select the rail, and REFUSE when the governed format requires the
          managed rail and cannot have it;
-      5. invoke the governed rail;
+      5. invoke the governed rail, and store its answer on the review
+         (``approvals.last_attempt``), refusals and failures included;
       6. classify policy, Aurora, and evidence from what actually happened;
       7. read the durable record for the key.
 
@@ -858,23 +986,40 @@ async def execute_confirmed_review(
     selection = require_enforced_engine(select_rail(access_token), engine_state)
     rail = selection.rail
 
+    attempt = functools.partial(
+        last_attempt, idempotency_key=idempotency_key, rail=rail,
+        engine_state=None if rail == RAIL_IN_PROCESS else engine_state,
+    )
+
     if rail == RAIL_REFUSED:
         logger.warning(
             "governed execution refused for review %s: missing %s",
             review_id, ", ".join(selection.missing),
         )
+        await record_last_attempt(db, review_id, attempt(
+            ATTEMPT_REFUSED, policy=POLICY_NOT_EVALUATED,
+            detail="Missing: " + ", ".join(selection.missing),
+        ))
         raise GovernedRailUnavailable(selection.missing, reason=selection.refusal_reason)
 
-    if rail == RAIL_GATEWAY:
-        policy, result, notes = await _run_gateway_rail(
-            tool=tool, args=args, idempotency_key=idempotency_key,
-            access_token=str(access_token), engine_state=engine_state,
-        )
-    else:
-        policy, result, notes = await _run_in_process_rail(
-            db, tool=tool, args=args, idempotency_key=idempotency_key,
+    try:
+        policy, result, notes = await _invoke_rail(
+            db, rail, tool=tool, args=args, idempotency_key=idempotency_key,
+            access_token=access_token, engine_state=engine_state,
             operator_sub=operator_sub, customer_id=customer_id,
         )
+    except Exception as exc:
+        await record_last_attempt(db, review_id, attempt(
+            ATTEMPT_FAILED,
+            policy=POLICY_EVALUATION_INCOMPLETE if rail == RAIL_GATEWAY else POLICY_NOT_EVALUATED,
+            detail=getattr(exc, "code", None) or exc.__class__.__name__,
+        ))
+        raise
+
+    await record_last_attempt(db, review_id, attempt(
+        ATTEMPT_DENIED if policy == POLICY_DENY else ATTEMPT_ALLOWED,
+        policy=policy, detail=result.get("gateway_message"),
+    ))
 
     aurora, aurora_note = _classify_aurora_axis(policy, result)
     notes["aurora"] = aurora_note
@@ -892,6 +1037,30 @@ async def execute_confirmed_review(
         result=dict(result),
         notes=notes,
         record=await evidence_for_key(db, idempotency_key),
+    )
+
+
+async def _invoke_rail(
+    db: Any,
+    rail: str,
+    *,
+    tool: str,
+    args: Mapping[str, Any],
+    idempotency_key: str,
+    access_token: Optional[str],
+    engine_state: Optional["PolicyEngineState"],
+    operator_sub: str,
+    customer_id: str,
+) -> tuple[str, Dict[str, Any], Dict[str, str]]:
+    """Run the selected rail: the Gateway, or the builders' in-process rail."""
+    if rail == RAIL_GATEWAY:
+        return await _run_gateway_rail(
+            tool=tool, args=args, idempotency_key=idempotency_key,
+            access_token=str(access_token), engine_state=engine_state,
+        )
+    return await _run_in_process_rail(
+        db, tool=tool, args=args, idempotency_key=idempotency_key,
+        operator_sub=operator_sub, customer_id=customer_id,
     )
 
 

@@ -131,8 +131,9 @@ def execution_idempotency_key(review_id: Any, action_hash: str) -> str:
     machinery, and so the approval guard can recompute it: a write is admitted
     only under the key of the review that fingerprints it, which makes one
     approval worth exactly one credit. The fingerprint is included so a review
-    whose parameters changed could never reuse the previous key; it is
-    truncated to keep the value inside the 128-character column.
+    whose parameters changed could never reuse the previous key; its first 32
+    hex characters tell two fingerprints apart and keep the key short enough
+    to read in a SQL result.
     """
     return f"operator-review:{int(review_id)}:{str(action_hash)[:32]}"
 
@@ -786,7 +787,7 @@ _STANDING_CREDIT_REQUEST_SQL = """
 
 _ANSWER_CREDIT_REQUESTS_SQL = """
     UPDATE pellier.approvals
-       SET status = 'answered', answered_turn_id = %s, review_id = %s
+       SET status = 'answered', answered_turn_id = %s, answered_by_review_id = %s
      WHERE customer_id = %s AND tool = 'store_credit_request' AND status = 'open'
     RETURNING id
 """

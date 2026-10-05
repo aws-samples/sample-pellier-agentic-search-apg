@@ -25,6 +25,7 @@ than raising, so the Observatory surface degrades to "(no policies)" instead of 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import re
@@ -289,6 +290,7 @@ def _read_engine_state(
 
     policies: Dict[str, tuple] = {}
     policy_ids: Dict[str, str] = {}
+    statements: Dict[str, str] = {}
     matching: List[str] = []
     for summary in policy_summaries(client, engine_id):
         detail = client.get_policy(
@@ -304,6 +306,7 @@ def _read_engine_state(
         effect = policy_effect(statement)
         policies[name] = (effect, str(detail.get("enforcementMode") or ""))
         policy_ids[name] = str(summary["policyId"])
+        statements[name] = statement
         if effect == "forbid" and action_id in statement:
             matching.append(name)
 
@@ -313,10 +316,23 @@ def _read_engine_state(
         "policy_ids": policy_ids,
         "matching": matching,
         "policy_engine_id": engine_id,
+        "policy_digest": policy_digest(statements),
         # Not a decision. See `engine_state_for_action`: only the Gateway's
         # answer to a call may produce ALLOW or DENY.
         "inferred": True,
     }
+
+
+def policy_digest(statements: Dict[str, str]) -> str:
+    """One SHA-256 over every attached policy's name and Cedar, in name order.
+
+    It names the authored policy set an answer came from: editing, adding or
+    removing a policy changes it; the same policies under new ids do not.
+    """
+    digest = hashlib.sha256()
+    for name in sorted(statements):
+        digest.update(f"{name}\n{statements[name]}\n".encode("utf-8"))
+    return f"sha256:{digest.hexdigest()}"
 
 
 async def engine_state_for_action(action_id: str) -> Optional[Dict[str, Any]]:

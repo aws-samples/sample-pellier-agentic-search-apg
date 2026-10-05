@@ -9,8 +9,9 @@
  *   Recorded   what do the two tables hold for this write key?
  *
  * Every value comes from the API: the decision from the review row, the
- * policy verdict from the execute response (Pellier stores no copy of it),
- * and the counts from `store_credits` and `tool_audit`, read from the tables.
+ * policy verdict from the execute response or, after a reload, the answer the
+ * Gateway gave the desk as stored on the review, and the counts from
+ * `store_credits` and `tool_audit`, read from the tables.
  * A person saying yes is not an authorization, and an authorization is not a
  * row.
  */
@@ -94,7 +95,7 @@ function policyCheck(review: OperatorReview, attempted: boolean): Check {
   }
   if (policy === 'NOT_RECORDED') {
     return { key: 'policy', label: 'Policy', tone: 'pending', tag: 'Not stored',
-             detail: review.execution?.notes.policy ?? 'Pellier keeps no copy of a policy decision.' }
+             detail: review.execution?.notes.policy ?? 'No answer from the Gateway is stored for this attempt.' }
   }
   if (policy === 'NOT_EVALUATED') {
     return { key: 'policy', label: 'Policy', tone: 'pending', tag: 'Not evaluated',

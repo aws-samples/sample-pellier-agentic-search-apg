@@ -91,7 +91,12 @@ export const EXECUTED_REVIEW = {
   assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'PERMITTED', evidence: 'RECEIPTED' },
   execution: {
     executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
-    notes: { policy: 'The Gateway ran the tool, so AgentCore Policy permitted it.' },
+    notes: { policy: 'What the Gateway answered the desk, 2026-10-04 15:04 UTC: the call went through and the tool ran, under ENFORCE, so AgentCore Policy permitted it. tool_audit and store_credits show what ran and what was paid.' },
+    lastAttempt: {
+      outcome: 'allowed', at: '2026-10-04T15:04:00+00:00', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
+      policy: 'ALLOW', engineMode: 'ENFORCE', matchingForbids: ['credit_limit_forbid'], policyEngineId: 'engine-1',
+      policyDigest: null, detail: null,
+    },
   },
 }
 

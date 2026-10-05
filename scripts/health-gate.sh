@@ -231,11 +231,12 @@ SELECT count(*) FROM pg_tables
 /* evidence_triggers_check */
 SELECT count(*) FROM pg_trigger
  WHERE NOT tgisinternal
-   AND tgname IN ('tool_audit_fill_once', 'retrieval_receipts_append_only');" || echo '')"
-  if [[ "$trigger_n" == "2" ]]; then
-    pass "tool_audit is fill-once and retrieval_receipts is append-only"
+   AND tgname IN ('tool_audit_fill_once', 'retrieval_receipts_append_only',
+                  'store_credits_require_approval');" || echo '')"
+  if [[ "$trigger_n" == "3" ]]; then
+    pass "tool_audit is fill-once, receipts are append-only, credits need an approved review"
   else
-    fail "Evidence triggers missing (${trigger_n:-unknown} of 2). Run 'reset-governed'."
+    fail "Evidence triggers missing (${trigger_n:-unknown} of 3). Run 'reset-governed'."
     ok=false
   fi
 
