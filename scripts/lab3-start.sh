@@ -72,14 +72,11 @@ if ! [[ "$PERSONA" =~ ^[a-z][a-z0-9-]{0,31}$ ]]; then
   exit 1
 fi
 
-# Each smoke message is that persona's shipped first storefront turn, pinned by
-# frontend/src/observatory/__tests__/persona-turn-alignment.test.ts. Anna's opener
-# is the morning-ritual request, not the canonical Lab 1 comparison query: that one
-# is what the retrieval comparison and the eval harness measure, not what she says
-# first. Keep these in step with the fixtures rather than with a lab guide.
+# One ordinary turn per persona. Anna's is her Lab 1 request from
+# data/scenarios.json, not the canonical query the eval harness measures.
 case "$PERSONA" in
   marco)   CUSTOMER_ID="CUST-MARCO";   MESSAGE="What linen do you have for 10 days in Goa?" ;;
-  anna)    CUSTOMER_ID="CUST-ANNA";    MESSAGE="A housewarming gift for someone who loves slow morning rituals." ;;
+  anna)    CUSTOMER_ID="CUST-ANNA";    MESSAGE="A housewarming gift for a friend who loves slow mornings. In stock, under \$100, and no candles." ;;
   jessica) CUSTOMER_ID="CUST-JESSICA"; MESSAGE="Which of my recent orders are still open?" ;;
   *)       CUSTOMER_ID="CUST-THEO";    MESSAGE="Hand-thrown ceramics for a slower morning routine" ;;
 esac

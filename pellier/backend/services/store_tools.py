@@ -1560,10 +1560,22 @@ def result_product_ids(
     return ids
 
 
+def requested_limits(plan: Any) -> Dict[str, Any]:
+    """The hard limits the shopper asked for, from the plan built before any fallback.
+
+    The receipt's own ``hard_constraints`` and ``exclusions`` describe the
+    search that answered, after any relaxation; this is what it was asked to
+    keep, so a check can compare the two.
+    """
+    planned = plan.to_dict()
+    return {"hard_constraints": planned["hard_constraints"], "exclusions": planned["exclusions"]}
+
+
 def _write_search_receipt(
     run: Run,
     *,
     query: str,
+    requested: Any,
     execution: SearchExecution,
     shown_rows: List[Dict[str, Any]],
     merchandising: List[Dict[str, Any]],
@@ -1574,6 +1586,8 @@ def _write_search_receipt(
 
     A receipt is evidence about a turn, not part of serving it: a lost receipt
     is a gap in evidence, a raised exception would be a gap in the product.
+    ``requested`` is the plan built from the shopper's words before any
+    fallback; its limits are recorded as ``retrieval_config.requested``.
     Returns the new ``receipt_id`` when the rail reports it.
     """
     try:
@@ -1592,6 +1606,7 @@ def _write_search_receipt(
                 "search_method": execution.search_method,
                 "relaxation_steps": execution.relaxation_steps,
                 "attempts": execution.attempts,
+                "requested": requested_limits(requested),
             },
             latency_breakdown=execution.latency_breakdown(),
             turn_id=receipt.get("turn_id"),
@@ -1698,6 +1713,7 @@ def search_products(
         receipt_id = _write_search_receipt(
             run,
             query=query,
+            requested=plan,
             execution=execution,
             shown_rows=shown_rows,
             merchandising=merchandising,

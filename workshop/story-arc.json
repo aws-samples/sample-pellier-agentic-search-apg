@@ -15,7 +15,7 @@
       "a": "Recompute the ranking",
       "b": "Keep the limits on the fallback",
       "todo": "Task 1A: write the RRF fusion expression in workshop/lab-1-rrf.sql. Task 1B: keep the shopper's limits in the search-plan fallback (services/search_plan.py).",
-      "proof": "psql -X -P pager=off -f workshop/lab-1-rrf.sql recomputes every recorded score from its two ranks; python3 scripts/lab1_compare.py shows every planned result under $100, in stock, with no candle.",
+      "proof": "psql -X -P pager=off -f workshop/lab-1-rrf.sql recomputes every recorded score from its two ranks; python3 scripts/lab1_compare.py shows the search that answered kept every limit Anna asked for, and every product it returned meets them.",
       "challenge": "A gift with a watch, under $100, in stock, no candles.",
       "lesson": "Ranking is arithmetic you can recompute, and a fallback may relax a preference but never a requirement. Similarity decides the order; SQL decides what is eligible.",
       "next": "You can find suitable products. Next, ground Marco's stock answer in Aurora."

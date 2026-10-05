@@ -27,7 +27,7 @@ shows exactly that failure and the solution does not.
 
 | Lab | The live failure | The fix |
 |---|---|---|
-| 1 | Anna's search, forced onto its fallback, returns a candle and a sold-out piece | 1A: the RRF expression. 1B: the fallback keeps her limits |
+| 1 | Anna asks for a gift in stock, under $100, with no candles; her search, forced onto its fallback, returns a candle and a sold-out piece | 1A: the RRF expression. 1B: the fallback keeps her limits |
 | 2 | Marco asks about a piece Pellier does not carry and hears it is sold out; the Builder view shows the Stock agent may call the catalog tools beside `check_stock` | 2A: `check_stock` keeps not carried apart from zero. 2B: the Stock agent holds `check_stock` alone |
 | 3 | On the managed path the Support agent can't look up Theo's tickets; the Builder view names `get_tickets` as not published | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, then challenge |
 | 4 | Nadia approves Jessica's $100.00 credit and the starter forbid, deployed at provisioning, still denies it | 4A: the $100 per-credit limit in Cedar. 4B: the RLS ownership predicate |
@@ -48,7 +48,9 @@ shows exactly that failure and the solution does not.
 Every check prints three things: what was expected, what was observed, and the
 evidence (the row, the decision, the key). A check that did not pass says what
 to look at next. `python3 scripts/workshop_evidence.py` exports all eight
-lines; a task whose region still holds its starter is never proved.
+lines: 1B, 2A, 2B and 3B from rows alone, the others by running or reading the
+participant's source, where a region that still holds its starter is never
+proved.
 
 ## Acceptance and rejected implementations
 

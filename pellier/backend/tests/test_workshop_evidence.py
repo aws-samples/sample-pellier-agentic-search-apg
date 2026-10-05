@@ -54,7 +54,7 @@ def _no_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # The lines a durable row proves read no source: with no database they cannot look.
-ROW_TASKS = {"2A", "2B"}
+ROW_TASKS = {"1B", "2A", "2B", "3B"}
 
 
 @pytest.fixture()
@@ -144,10 +144,16 @@ class TestTheWorksheetVerdict:
         out = self.PASSED.replace("9 of 9", "3 of 9").replace("passed", "failed")
         assert evidence.read_worksheet(out, "ERROR: Lab 1A check failed").state == CONTRADICTED
 
-    def test_no_receipt_is_not_yet(self) -> None:
-        out = ("Observed  none yet: no pellier.retrieval_receipts row has a session starting "
-               "persona-anna-\nLab 1A check failed\n")
-        assert evidence.read_worksheet(out, "").state == NOT_YET
+    @pytest.mark.parametrize("observed", [
+        "none yet: no pellier.retrieval_receipts row has a session starting persona-anna-",
+        "none yet: no product in receipt 7 is in one list only, so it cannot tell a missing "
+        "rank apart",
+    ])
+    def test_a_receipt_that_cannot_decide_is_not_yet(self, observed: str) -> None:
+        out = f"Observed  {observed}\nLab 1A check not yet\n"
+        finding = evidence.read_worksheet(out, "ERROR:  Lab 1A check not yet")
+        assert finding.state == NOT_YET
+        assert finding.observed == observed
 
     def test_a_worksheet_that_did_not_finish_is_unchecked(self) -> None:
         finding = evidence.read_worksheet("", "psql: error: connection refused")
@@ -167,8 +173,7 @@ class TestLabsThreeAndFour:
                  "deployed_fingerprint": BUILD}
     THEO_READ = {"audit_id": 4, "turn_id": "turn-abc", "customer_id": "CUST-THEO"}
 
-    def test_the_executed_build_and_reads_decide_3b(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+    def test_the_executed_build_and_reads_decide_3b(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         assert evidence.task_3b(rows, BUILD, _remembered()).state == PROVED
         assert evidence.task_3b(rows, "c" * 64, _remembered()).state == CONTRADICTED
@@ -178,9 +183,8 @@ class TestLabsThreeAndFour:
                                 _remembered()).state == NOT_YET
         assert evidence.task_3b(None, BUILD, _remembered()).state == UNCHECKED
 
-    def test_3b_needs_the_remembered_record_too(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_3b_needs_the_remembered_record_too(self) -> None:
         """The build and the reads are not enough: Theo's taste must reach the managed agent."""
-        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         proved = evidence.task_3b(rows, BUILD, _remembered())
         assert "record mem-theo-1: Prefers hand-thrown ceramics" in proved.evidence
@@ -188,19 +192,22 @@ class TestLabsThreeAndFour:
         assert evidence.task_3b(rows, BUILD, _remembered(UNCHECKED)).state == UNCHECKED
         assert evidence.task_3b(rows, BUILD, _remembered(CONTRADICTED)).state == CONTRADICTED
 
-    def test_a_read_for_another_customer_contradicts_3b(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+    def test_a_read_for_another_customer_contradicts_3b(self) -> None:
         rows = {"build": self.BUILD_ROW,
                 "tickets": [self.THEO_READ, {**self.THEO_READ, "customer_id": "CUST-JESSICA"}]}
         finding = evidence.task_3b(rows, BUILD, _remembered())
         assert finding.state == CONTRADICTED
         assert "1 for anyone else" in finding.observed
 
-    def test_lab_three_waits_for_task_3a(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_3a_reads_the_source_and_3b_only_the_rows(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """3B's rows prove it or not on their own: a starter in source does not hide them."""
         monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
         assert evidence.task_3a().state == NOT_YET
-        assert evidence.task_3b(None, BUILD).state == NOT_YET
-        assert "Task 3A" in evidence.task_3b(None, BUILD).observed
+        assert evidence.task_3b(None, BUILD).state == UNCHECKED
+        rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
+        assert evidence.task_3b(rows, BUILD, _remembered()).state == PROVED
 
     def test_3a_reads_the_catalogue_once_the_regions_are_edited(
         self, monkeypatch: pytest.MonkeyPatch,
@@ -233,11 +240,8 @@ class TestLabsThreeAndFour:
 
 @pytest.fixture()
 def solved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A copy of each Lab 1 file with the solution's region, read by the export."""
-    copies = {
-        "1A": lab_variants.LAB1_RRF["solution"],
-        "1B": REPO / "solutions/the-quiet-search/retrieval/search_plan_solution.py",
-    }
+    """A copy of the Lab 1A worksheet with the solution's region, run by the export."""
+    copies = {"1A": lab_variants.LAB1_RRF["solution"]}
     regions = dict(evidence.REGIONS)
     for task, source in copies.items():
         target = tmp_path / f"{task}{source.suffix}"
@@ -256,7 +260,7 @@ def _cfg(cluster: Any) -> Dict[str, str]:
 def test_lab_one_and_two_lines_read_the_real_schema(
     fresh_db: Any, solved: Path, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
 ) -> None:
-    """Labs 1 and 2 from the rows a solved run leaves. Lab 2 runs no checkout code at all."""
+    """Labs 1 and 2 from the rows a solved run leaves; only 1A runs what you wrote."""
     monkeypatch.setenv("PATH", f"{fresh_db.bin}:{os.environ['PATH']}")
     cfg = _cfg(fresh_db)
     for key, value in cfg.items():  # the check sets missing DB_* defaults; undo them after
@@ -267,12 +271,14 @@ def test_lab_one_and_two_lines_read_the_real_schema(
             INSERT INTO pellier.retrieval_receipts
                    (session_id, query_hash, query_preview, search_plan, hard_constraints,
                     exclusions, relaxations, vector_ranks, lexical_ranks, rrf_scores,
-                    citation_ids)
+                    citation_ids, retrieval_config)
             VALUES ('persona-anna-export', 'h', 'gift', '{}',
                     '{"price_max_usd": 100, "in_stock_only": true, "categories": []}',
                     '["candle"]', '[{"step": "drop_tags", "dropped": ["gift"]}]',
                     '{"22": 1, "28": 2}', '{"28": 1}',
-                    jsonb_build_object('22', 1.0/61, '28', 1.0/62 + 1.0/61), '["22", "28"]')""")
+                    jsonb_build_object('22', 1.0/61, '28', 1.0/62 + 1.0/61), '["22", "28"]',
+                    '{"requested": {"hard_constraints": {"price_max_usd": 100,
+                      "in_stock_only": true, "categories": []}, "exclusions": ["candle"]}}')""")
         conn.execute("""
             INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)
             VALUES ('persona-marco-export', 'check_stock', 'agent',

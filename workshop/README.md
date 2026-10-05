@@ -5,10 +5,17 @@ This directory is the source map and portable notebook for the **governed** trac
 The Builders event informed its pacing and exercises; `main` is a different track.
 
 Every check prints what was expected, what was observed, and the evidence behind
-it. `python3 scripts/workshop_evidence.py` exports that proof for all four labs
-from the database and the source you changed. A supplied answer, an open page, or
-a successful conversation is not a completed task; a recovered task keeps the
-same checks.
+it. `python3 scripts/workshop_evidence.py` exports that proof for all four labs.
+Tasks 1B, 2A, 2B and 3B are read from rows alone (`pellier.retrieval_receipts`,
+`pellier.tool_audit`, the catalog and warehouse tables, and AgentCore Memory for
+Theo's record), so no code of yours runs: Lab 2's lines pass only after the
+restart and Marco's questions asked again. Tasks 1A and 4B run your worksheets
+with `psql`, 3A reads the Gateway catalogue and binding in source, and 4A
+evaluates your Cedar rule here beside its stored Gateway denial and Jessica's
+credit; a region that still holds its starter is NOT YET there. The Summary's
+cleanup restores the Cedar starter, so save the export before it. A supplied
+answer, an open page, or a successful conversation is not a completed task; a
+recovered task keeps the same checks.
 
 | Lab and task | Work you do | Check |
 |---|---|---|

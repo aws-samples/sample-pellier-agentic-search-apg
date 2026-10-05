@@ -14,8 +14,8 @@ const EXPECTED = {
     'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
   ],
   anna: [
-    'A housewarming gift for someone who loves slow morning rituals.',
-    'Keep it under $100 and in stock. Show me the strongest two options.',
+    'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
+    'A gift with a watch, under $100, in stock, no candles.',
     'Which one should I choose? Compare the two options using their current prices and availability.',
   ],
   theo: [
@@ -53,8 +53,14 @@ describe('four-lab workshop journey contract', () => {
   describe('nextJourneyPrompt', () => {
     it("keeps each shopper's required prompts to their lab prompts", () => {
       expect(WORKSHOP_REQUIRED_PROMPTS).toEqual({
-        marco: ['How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?'],
-        anna: ['A housewarming gift for someone who loves slow morning rituals.'],
+        marco: [
+          'Is the Velvet Opera Cape in stock?',
+          'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
+        ],
+        anna: [
+          'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
+          'A gift with a watch, under $100, in stock, no candles.',
+        ],
         theo: [
           'Hand-thrown ceramics for a slower morning routine',
           'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',
@@ -64,12 +70,15 @@ describe('four-lab workshop journey contract', () => {
       })
     })
 
-    it('takes Theo from his ticket to the household request, and Marco nowhere past stock', () => {
+    it('takes each shopper through their lab prompts, and Marco nowhere past stock', () => {
       const theo = WORKSHOP_REQUIRED_PROMPTS.theo
       expect(nextJourneyPrompt(theo[0])).toBe(theo[1])
       expect(nextJourneyPrompt(theo[1])).toBe(theo[2])
+      // Lab 2A's Spot, then the stock question Lab 2B judges, asked last.
+      expect(nextJourneyPrompt('Is the Velvet Opera Cape in stock?')).toBe(WORKSHOP_JOURNEYS.marco.prompts[2])
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[2])).toBeUndefined()
       expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[0])).toBeUndefined()
-      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBeUndefined()
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBe(WORKSHOP_JOURNEYS.anna.prompts[1])
     })
 
     it('ends each required chat sequence at the guide’s stopping point', () => {

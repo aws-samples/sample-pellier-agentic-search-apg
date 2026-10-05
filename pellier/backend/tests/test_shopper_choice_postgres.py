@@ -21,8 +21,13 @@ from tests.fresh_cluster import fresh_db, run_reset  # noqa: F401  (fixture impo
 FRONTEND_PUBLIC = Path(__file__).resolve().parents[2] / "frontend" / "public"
 
 LAB_PROMPTS = {
-    "anna": ["A housewarming gift for someone who loves slow morning rituals."],
+    "anna": [
+        "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
+        "and no candles.",
+        "A gift with a watch, under $100, in stock, no candles.",
+    ],
     "marco": [
+        "Is the Velvet Opera Cape in stock?",
         "How many Hadley Linen Shirts are available at the Brooklyn warehouse, "
         "and what ship window is recorded?",
     ],

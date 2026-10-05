@@ -87,10 +87,15 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
         if prompt["journey_role"] == "required":
             required.setdefault(prompt["persona"], []).append(prompt["prompt"])
     assert required == {
-        "anna": ["A housewarming gift for someone who loves slow morning rituals."],
+        "anna": [
+            "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
+            "and no candles.",
+            "A gift with a watch, under $100, in stock, no candles.",
+        ],
         "marco": [
+            "Is the Velvet Opera Cape in stock?",
             "How many Hadley Linen Shirts are available at the Brooklyn warehouse, "
-            "and what ship window is recorded?"
+            "and what ship window is recorded?",
         ],
         "theo": [
             "Hand-thrown ceramics for a slower morning routine",

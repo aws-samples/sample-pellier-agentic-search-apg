@@ -7,12 +7,13 @@
 
   {"id": 6, "persona": "marco", "ordinal": 1, "journey_role": "explore", "journey_stage": null, "preview_product_id": "11", "prompt": "What linen do you have for 10 days in Goa?"},
   {"id": 7, "persona": "marco", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "14", "prompt": "What would go with the Hadley Linen Shirt?"},
-  {"id": 8, "persona": "marco", "ordinal": 3, "journey_role": "required", "journey_stage": "prove", "preview_product_id": "2", "prompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?"},
-  {"id": 9, "persona": "marco", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "2", "prompt": "What's the price range for linen shirts?"},
-  {"id": 10, "persona": "marco", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "19", "prompt": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding, not product cards."},
+  {"id": 25, "persona": "marco", "ordinal": 3, "journey_role": "required", "journey_stage": "exercise", "preview_product_id": null, "prompt": "Is the Velvet Opera Cape in stock?"},
+  {"id": 8, "persona": "marco", "ordinal": 4, "journey_role": "required", "journey_stage": "prove", "preview_product_id": "2", "prompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?"},
+  {"id": 9, "persona": "marco", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "2", "prompt": "What's the price range for linen shirts?"},
+  {"id": 10, "persona": "marco", "ordinal": 6, "journey_role": "explore", "journey_stage": null, "preview_product_id": "19", "prompt": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding, not product cards."},
 
-  {"id": 11, "persona": "anna", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "22", "prompt": "A housewarming gift for someone who loves slow morning rituals."},
-  {"id": 12, "persona": "anna", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "28", "prompt": "Keep it under $100 and in stock. Show me the strongest two options."},
+  {"id": 11, "persona": "anna", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "22", "prompt": "A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles."},
+  {"id": 12, "persona": "anna", "ordinal": 2, "journey_role": "required", "journey_stage": "prove", "preview_product_id": "28", "prompt": "A gift with a watch, under $100, in stock, no candles."},
   {"id": 13, "persona": "anna", "ordinal": 3, "journey_role": "explore", "journey_stage": null, "preview_product_id": null, "prompt": "Which one should I choose? Compare the two options using their current prices and availability."},
   {"id": 14, "persona": "anna", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "26", "prompt": "Wrap-ready gifts with no extra effort"},
   {"id": 15, "persona": "anna", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "28", "prompt": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards."},

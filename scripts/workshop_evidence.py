@@ -5,23 +5,39 @@ One line per task, eight in all. Each one says whether the claim is proved
 and prints the three things every check prints: what was expected, what was
 observed, and the evidence behind it (the row, the decision, the key). A line
 that is not proved says what to look at next. Nothing here writes a row,
-needs a run id, or reads a notes file: the evidence is the database and the
-source the labs changed.
+needs a run id, or reads a notes file.
+
+What each line reads:
+
+    1A  workshop/lab-1-rrf.sql, run with psql: your fusion expression over
+        Anna's newest retrieval receipt
+    1B  pellier.retrieval_receipts and pellier.product_catalog: what Anna asked
+        for, what the search that answered kept, and every product it returned
+    2A  pellier.tool_audit: Marco's latest recorded check_stock call per case,
+        against pellier.product_catalog and pellier.warehouse_inventory
+    2B  pellier.tool_audit: Marco's latest Stock-agent turn, the grant that
+        agent held, and its counts against pellier.warehouse_inventory
+    3A  the source: the Gateway catalogue and the caller binding
+    3B  pellier.tool_audit (the executed build beside this checkout's digest,
+        and every get_tickets read) and AgentCore Memory (Theo's record)
+    4A  policies/workshop_credit_limit.cedar, evaluated with Cedar here, then
+        the stored Gateway denial and Jessica's credit in pellier.approvals,
+        pellier.store_credits and pellier.tool_audit
+    4B  workshop/lab-4-rls.sql and the supplied workshop/lab-4-absence.sql, run
+        with psql
+
+Rows alone prove 1B, 2A, 2B and 3B, so those lines read no source and no
+code of yours runs: 2A and 2B need the backend restarted and the question
+asked again before they can pass, where the guide's 2A check runs your edited
+check_stock directly. The other lines run or read what you wrote, so a region
+that still holds its starter is NOT YET whatever the rows say; the summary's
+cleanup restores the Cedar starter, so run this export before it.
 
 Every line is in one of four states, never two (``workshop_check``):
 PROVED, NOT YET, UNCHECKED and CONTRADICTED. UNCHECKED is not a soft NOT
 YET: "this did not happen" and "I could not look" are different findings.
-
-Each line runs the same verdict the guide's check prints
-(``workshop/lab-1-rrf.sql``, ``scripts/lab1_compare.py``,
-``scripts/lab2_contract_check.py``, ``scripts/lab3_check.py``), except Lab 2A:
-the guide's 2A check runs your edited ``check_stock`` directly, while the export
-reads only what Marco's turns recorded (``lab2_contract_check.judge_recorded_2a``),
-so it needs the restart and the question asked again. Lab 2 reads no source:
-2A and 2B are judged from ``pellier.tool_audit`` alone, 2B by the grant the
-answering Stock agent held. Lab 3B's direct Cedar probe calls the Gateway, so
-it stays in ``lab3_check.py``. For the other tasks, a task whose marked region
-still holds its starter is NOT YET, whatever the rows say.
+Lab 3B's direct Cedar probe calls the Gateway, so it stays in
+``scripts/lab3_check.py``.
 
     python3 scripts/workshop_evidence.py
     python3 scripts/workshop_evidence.py --save /tmp/pellier-evidence/workshop-evidence.txt
@@ -55,8 +71,6 @@ PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
 REGIONS: Dict[str, tuple] = {
     "1A": (REPO / "workshop" / "lab-1-rrf.sql", "PostgreSQL RRF - fusion expression",
            STARTERS / "lab-1-rrf.sql"),
-    "1B": (BACKEND / "services" / "search_plan.py", "Search plan - preserve requirements",
-           STARTERS / "lab-1" / "preserve-requirements.pyfrag"),
     "3A-catalogue": (REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
                      "Gateway catalogue - published tools",
                      STARTERS / "lab-3" / "gateway-published-tools.pyfrag"),
@@ -133,14 +147,9 @@ def read_worksheet(stdout: str, stderr: str) -> check.Finding:
     last_error = stderr.strip().splitlines()[-1] if stderr.strip() else ""
     evidence = lines_after("Evidence") or [last_error]
     observed = " ".join(lines_after("Observed")) or "the worksheet did not finish"
-    if "Lab 1A check passed" in stdout:
-        state = PROVED
-    elif "persona-anna-" in observed and "none yet" in observed:
-        state = NOT_YET
-    elif "Lab 1A check failed" in stdout:
-        state = CONTRADICTED
-    else:
-        state = UNCHECKED
+    verdicts = (("Lab 1A check passed", PROVED), ("Lab 1A check not yet", NOT_YET),
+                ("Lab 1A check failed", CONTRADICTED))
+    state = next((found for line, found in verdicts if line in stdout), UNCHECKED)
     return check.Finding("1A", _LAB1A_TITLE, state, _LAB1A_EXPECTED, observed,
                          [line for line in evidence if line],
                          " ".join(lines_after("Next")) or "run psql -X -f workshop/lab-1-rrf.sql "
@@ -148,12 +157,10 @@ def read_worksheet(stdout: str, stderr: str) -> check.Finding:
 
 
 def task_1b(cfg: Config, connect: Connect) -> check.Finding:
+    """Lab 1B from Anna's newest receipt: what she asked, and what the answer kept."""
     import lab1_compare
 
-    title = "Anna's limits survive the fallback"
-    if source_state("1B") == check.STARTER:
-        return _starter_finding("1B", title, lab1_compare.EXPECTED, "services/search_plan.py")
-    return _with_connection("1B", title, lab1_compare.EXPECTED, cfg, connect,
+    return _with_connection("1B", lab1_compare.TITLE, lab1_compare.EXPECTED, cfg, connect,
                             lambda conn: lab1_compare.evaluate(conn)[0])
 
 
@@ -221,9 +228,6 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
     title = "your build answered Theo, remembered his taste, and read only his own tickets"
     expected = (f"{lab3_check.BUILD_EXPECTED}; {lab3_check.MEMORY_EXPECTED}; "
                 f"{lab3_check.TICKETS_EXPECTED}")
-    if any(source_state(key) == check.STARTER for key in ("3A-catalogue", "3A-binding")):
-        return check.Finding("3B", title, NOT_YET, expected, "Task 3A is not complete yet",
-                             ["Task 3B deploys the Task 3A edits"], "complete Task 3A first.")
     if rows is None:
         return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
     return _combine("3B", title, expected, [

@@ -111,8 +111,9 @@ def test_the_starter_fallback_returns_a_candle_and_drops_annas_limits(conn, monk
 
     finding, rows = lab1_compare.evaluate(conn)
     assert finding.state == "CONTRADICTED", finding
-    assert "a candle" in finding.observed
+    assert "excluded candle" in finding.observed
     assert "dropped under $100, in stock, no candles" in finding.observed
+    assert "the shopper asked: under $100, in stock, no candles" in finding.evidence
     assert any(row[-1] != "ok" for row in rows)
 
 
@@ -126,7 +127,20 @@ def test_the_solution_fallback_keeps_annas_limits(conn, monkeypatch) -> None:
 
     finding, rows = lab1_compare.evaluate(conn)
     assert finding.state == "PROVED", finding
+    assert "keep under $100, in stock, no candles after the fallback" in finding.observed
     assert rows and all(row[-1] == "ok" for row in rows)
+
+
+def test_the_receipt_records_what_was_asked_beside_what_answered(conn, monkeypatch) -> None:
+    _anna_search(conn, monkeypatch, lab_variants.STARTER)
+    with conn.cursor() as cur:
+        cur.execute("SELECT retrieval_config->'requested' AS requested, hard_constraints, "
+                    "exclusions FROM pellier.retrieval_receipts ORDER BY receipt_id DESC LIMIT 1")
+        row = cur.fetchone()
+    assert row["requested"] == {
+        "hard_constraints": {"price_max_usd": 100, "in_stock_only": True, "categories": []},
+        "exclusions": ["candle"]}
+    assert row["hard_constraints"]["price_max_usd"] is None and row["exclusions"] == []
 
 
 @pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
@@ -215,3 +229,22 @@ def test_the_worksheet_says_what_to_do_without_a_receipt(fresh_db) -> None:  # n
             other.execute("DROP DATABASE lab1_empty")
     assert done.returncode != 0
     assert "choose Anna on the home page" in done.stdout
+
+
+@pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
+def test_a_receipt_with_no_one_list_product_is_not_yet(
+    fresh_db, conn, variant,  # noqa: F811
+) -> None:
+    """Every product in both lists scores alike under any expression: nothing to decide."""
+    with conn.cursor() as cur:
+        cur.execute("""
+            INSERT INTO pellier.retrieval_receipts
+                   (session_id, query_hash, search_plan, vector_ranks, lexical_ranks, rrf_scores)
+            VALUES ('persona-anna-both-lists', 'h', '{}', '{"22": 1, "28": 2}',
+                    '{"22": 2, "28": 1}',
+                    jsonb_build_object('22', 1.0/61 + 1.0/62, '28', 1.0/62 + 1.0/61))""")
+    done = _psql_file(fresh_db, lab_variants.LAB1_RRF[variant])
+    assert done.returncode != 0
+    assert "Lab 1A check not yet" in done.stdout, done.stdout
+    assert "is in one list only, so it cannot tell a missing rank apart" in done.stdout
+    assert "Lab 1A check passed" not in done.stdout

@@ -43,8 +43,8 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
     labId: 'retrieval-acceptance',
     surface: 'storefront',
     prompts: [
-      'A housewarming gift for someone who loves slow morning rituals.',
-      'Keep it under $100 and in stock. Show me the strongest two options.',
+      'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
+      'A gift with a watch, under $100, in stock, no candles.',
       'Which one should I choose? Compare the two options using their current prices and availability.',
     ],
   },
@@ -76,13 +76,17 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
 
 /**
  * The guide's required chat requests: each shopper's lab prompts, in order.
- * SQL benchmarks, direct Gateway probes, Memory reads, and human review
- * actions remain separate guide steps. The home page's signed-in suggestion
- * row reads the same roles from Aurora (migration 057), so the two agree.
+ * Anna's states the three limits her starter fallback drops, then the
+ * challenge; Marco asks about a piece Pellier does not carry (Lab 2A's Spot),
+ * then his Brooklyn stock question, last, because Lab 2B judges his latest
+ * Stock-agent turn. SQL benchmarks, direct Gateway probes, Memory reads, and
+ * human review actions remain separate guide steps. The home page's signed-in
+ * suggestion row reads the same roles from `data/scenarios.json`
+ * (`/api/scenarios`), so the two agree.
  */
 export const WORKSHOP_REQUIRED_PROMPTS: Record<WorkshopAnchorId, readonly string[]> = {
-  marco: [WORKSHOP_JOURNEYS.marco.prompts[2]],
-  anna: [WORKSHOP_JOURNEYS.anna.prompts[0]],
+  marco: ['Is the Velvet Opera Cape in stock?', WORKSHOP_JOURNEYS.marco.prompts[2]],
+  anna: [WORKSHOP_JOURNEYS.anna.prompts[0], WORKSHOP_JOURNEYS.anna.prompts[1]],
   theo: [
     WORKSHOP_JOURNEYS.theo.prompts[0],
     'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',

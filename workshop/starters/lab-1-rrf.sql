@@ -93,21 +93,31 @@ SELECT count(*) AS lab_1_products,
     FROM lab_1_fusion
    ORDER BY recorded_rrf DESC, product_id;
   \echo 'Expected  every recomputed score equals the score receipt' :lab_1_receipt 'recorded'
-  \echo 'Observed ' :lab_1_matched 'of' :lab_1_products 'scores match'
-  SELECT :lab_1_matched = :lab_1_products AS lab_1_passed \gset
-  \if :lab_1_passed
-    \echo 'Lab 1A check passed'
+  -- A receipt whose every product is in both lists scores alike under any
+  -- treatment of a missing rank, so it cannot prove the expression.
+  SELECT :lab_1_one_list > 0 AS lab_1_decides \gset
+  \if :lab_1_decides
+    \echo 'Observed ' :lab_1_matched 'of' :lab_1_products 'scores match'
+    SELECT :lab_1_matched = :lab_1_products AS lab_1_passed \gset
+    \if :lab_1_passed
+      \echo 'Lab 1A check passed'
+    \else
+      \echo 'Next      pick a row marked differs and compute it by hand from its two ranks.'
+      \echo '          A rank shown as - means the product was not in that list.'
+      \echo 'Lab 1A check failed'
+      DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check failed; see the lines above'; END $fail$;
+    \endif
   \else
-    \echo 'Next      pick a row marked differs and compute it by hand from its two ranks.'
-    \echo '          A rank shown as - means the product was not in that list.'
-    \echo 'Lab 1A check failed'
-    DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check failed; see the lines above'; END $fail$;
+    \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only, so it cannot tell a missing rank apart'
+    \echo 'Next      send Anna''s request again for a new receipt, then run this again.'
+    \echo 'Lab 1A check not yet'
+    DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check not yet; see the lines above'; END $fail$;
   \endif
 \else
   \echo 'Expected  a search receipt written in a session of Anna''s'
   \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting persona-anna-'
   \echo 'Next      choose Anna on the home page, send her request in Ask Pellier,'
   \echo '          then run this again.'
-  \echo 'Lab 1A check failed'
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check failed; see the lines above'; END $fail$;
+  \echo 'Lab 1A check not yet'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check not yet; see the lines above'; END $fail$;
 \endif

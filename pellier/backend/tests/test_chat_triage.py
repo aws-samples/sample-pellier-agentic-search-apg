@@ -109,7 +109,8 @@ class TestIntentPairing:
         [
             "What would go with the Hadley Linen Shirt?",
             "What pairs with the Ecru overshirt?",
-            "What goes well with the pour-over set, keeping to the same materials and morning routine?",
+            "What goes well with the pour-over set, keeping to the same materials and "
+            "morning routine?",
         ],
     )
     def test_pairing_turns_route_to_shopping(self, query: str) -> None:
@@ -121,7 +122,8 @@ class TestIntentStock:
         "query",
         [
             "Is the Hadley shirt in Brooklyn?",
-            "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?",
+            "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what "
+            "ship window is recorded?",
             "Do you have the linen overshirt in Austin?",
             "Can the camp shirt ship from Portland?",
         ],
@@ -133,7 +135,8 @@ class TestIntentStock:
 @pytest.mark.parametrize("query, expected", [
     ("A housewarming gift under $100 that is currently in stock.", "shopping"),
     ("Keep it under $100 and in stock. Show me the strongest two options.", "shopping"),
-    ("Which one should I choose? Compare the two options using their current prices and availability.", "shopping"),
+    ("Which one should I choose? Compare the two options using their current prices and "
+     "availability.", "shopping"),
     ("Find me a linen shirt that is in stock", "shopping"),
     ("Do you have any available candles for a gift?", "shopping"),
     ("Is the Hadley Linen Shirt in stock?", "stock"),
@@ -170,3 +173,36 @@ def test_returns_and_past_purchases_route_to_support(query):
 ])
 def test_price_compare_and_browse_stay_with_shopping(query):
     assert classify_intent(query) == "shopping"
+
+
+# The guide's Lab 1 and Lab 2 requests, verbatim. The guide lives in another
+# repository, so these are pinned here: a wording change on either side that
+# sends a request to the wrong agent fails the lab silently (Anna's limits on
+# the Stock agent, or Marco's cape on the Shopping agent).
+GUIDE_SENTENCES = (
+    ("A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
+     "and no candles.", "shopping"),
+    ("A gift with a watch, under $100, in stock, no candles.", "shopping"),
+    ("Is the Velvet Opera Cape in stock?", "stock"),
+    ("How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship "
+     "window is recorded?", "stock"),
+    ("What linen do you have for 10 days in Goa?", "shopping"),
+)
+
+
+@pytest.mark.parametrize("sentence, agent", GUIDE_SENTENCES)
+def test_the_guides_lab_1_and_2_requests_reach_their_agent(sentence: str, agent: str) -> None:
+    assert classify_intent(sentence) == agent
+
+
+def test_the_guides_requests_are_the_one_click_lab_prompts() -> None:
+    import json
+    from pathlib import Path
+
+    scenarios = json.loads(
+        (Path(__file__).resolve().parents[3] / "data" / "scenarios.json").read_text())
+    offered = {row["prompt"] for row in scenarios if row["persona"] in ("anna", "marco")}
+    required = {row["prompt"] for row in scenarios
+                if row["persona"] in ("anna", "marco") and row["journey_role"] == "required"}
+    assert {sentence for sentence, _agent in GUIDE_SENTENCES} <= offered
+    assert required <= {sentence for sentence, _agent in GUIDE_SENTENCES}
