@@ -25,7 +25,7 @@ import ProductCard from '../components/ProductCard'
 import ResponsiveImage from '../components/ResponsiveImage'
 import Footer from '../components/Footer'
 import PellierSpotlight from '../components/PellierSpotlight'
-import SearchResults from '../components/SearchResults'
+import SearchResults, { StoreFailedNotice } from '../components/SearchResults'
 import { useStoreResults } from '../contexts/StoreResultsContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useCart } from '../contexts/CartContext'
@@ -63,7 +63,9 @@ export default function PellierPage() {
   const { addToCart } = useCart()
   const { persona } = usePersona()
   const navigate = useNavigate()
-  const showingResults = useStoreResults()?.view.kind === 'results'
+  const resultsView = useStoreResults()?.view
+  const showingResults = resultsView?.kind === 'results'
+  const resultsQuery = resultsView?.kind === 'results' ? resultsView.query : undefined
 
 
   const personaId = persona?.id ?? null
@@ -179,7 +181,7 @@ export default function PellierPage() {
       <Header current="home" onNavigate={handleNavigate} />
 
       <main className="bg-page">
-        <PellierHero compact={showingResults} />
+        <PellierHero compact={showingResults} query={resultsQuery} />
 
         {showingResults ? (
           <section
@@ -204,6 +206,7 @@ export default function PellierPage() {
               scrollMarginTop: 'calc(var(--pellier-chrome-height, 64px) + var(--pellier-storefront-nav-height, 56px) + 16px)',
             }}
           >
+            <StoreFailedNotice />
             {catalogLoading ? (
               <div
                 className="pellier-edit-shell py-16"

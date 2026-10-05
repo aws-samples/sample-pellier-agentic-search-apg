@@ -11,7 +11,9 @@ import { apiFetch } from '../services/apiBase'
  *
  * While the page shows a question's results, the hero folds to its bar
  * (`compact`): no statement, no suggestions, no chooser, so the grid sits
- * above the fold. Asking again works the same way.
+ * above the fold. As in the prototype, the folded bar keeps the question the
+ * page shows (`query`), whether it was asked here or in the dock. Asking
+ * again works the same way.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowUp } from 'lucide-react'
@@ -44,7 +46,14 @@ function statementIdFor(personaId: string): StatementId {
   return (personaId in HERO_STATEMENT ? personaId : 'fresh') as StatementId
 }
 
-export default function PellierHero({ compact = false }: { compact?: boolean }) {
+interface PellierHeroProps {
+  /** Fold to the bar while the page shows a question's results. */
+  compact?: boolean
+  /** The question the results are for; the folded bar shows it. */
+  query?: string
+}
+
+export default function PellierHero({ compact = false, query }: PellierHeroProps) {
   const spotlightSeen = useSpotlightSeen()
   const { openDrawerWithQuery } = useUI()
   const { persona } = usePersona()
@@ -54,6 +63,11 @@ export default function PellierHero({ compact = false }: { compact?: boolean }) 
   const statementId = statementIdFor(personaId)
   const statement = HERO_STATEMENT[statementId]
   const headline = splitHeadlineAtAccent(statement.HEADLINE, statement.ACCENT)
+
+  // Folded, the bar holds the results' question; back on the store it is empty.
+  useEffect(() => {
+    setSearchValue(compact && query ? query : '')
+  }, [compact, query])
 
   useEffect(() => {
     if (!persona) {
@@ -97,9 +111,9 @@ export default function PellierHero({ compact = false }: { compact?: boolean }) 
       const trimmed = query.trim()
       if (!trimmed) return
       openDrawerWithQuery(trimmed)
-      setSearchValue('')
+      setSearchValue(compact ? trimmed : '')
     },
-    [openDrawerWithQuery],
+    [compact, openDrawerWithQuery],
   )
 
   const handleSubmit = useCallback(

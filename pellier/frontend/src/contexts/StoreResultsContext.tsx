@@ -12,9 +12,12 @@
  *   - a search or browse starts: the grid becomes a skeleton;
  *   - its step finishes with `results`: the grid shows exactly those ids, in
  *     that order, read in one bounded request (`/api/products?ids=`);
- *   - an agent may search more than once in a turn, two calls at a time: the
- *     page shows the latest result with pieces while the turn runs, and at
- *     the end the result holding the pieces the answer named;
+ *   - an agent may search more than once in a turn, two calls at a time:
+ *     each call is its own step with its own result (the backend keys the
+ *     evidence by tool use, so no call carries another's); the page shows
+ *     the latest result with pieces while the turn runs, and at the end the
+ *     result holding the most of the pieces the answer named, the later one
+ *     on a tie;
  *   - the turn ends without a search: the page is as it was before the turn;
  *   - the turn fails: the page is as it was, with a calm notice.
  *

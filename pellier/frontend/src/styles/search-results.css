@@ -90,6 +90,11 @@
   font-size: 13px;
 }
 
+/* A turn that failed from the store: one calm line above the store. */
+.results-store-notice {
+  padding-top: clamp(20px, 3vh, 32px);
+}
+
 /* "How it ranked" on the page: the dock's panel, given room. */
 .results-ranking.tn-rank {
   margin-top: 0;

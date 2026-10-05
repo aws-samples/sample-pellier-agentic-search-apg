@@ -85,6 +85,18 @@ describe('the result a turn shows', () => {
     expect(shownIds()).toEqual(['2', '9'])
   })
 
+  it('ends on the later search when two hold the named pieces equally', () => {
+    send(
+      { type: 'start', query: 'linen' },
+      step('search_products', 'running'),
+      step('search_products', 'running'),
+      step('search_products', 'done', ['2', '9']),
+      step('search_products', 'done', ['9', '45']),
+    )
+    send({ type: 'end', outcome: 'complete', productIds: ['9'] })
+    expect(shownIds()).toEqual(['9', '45'])
+  })
+
   it('shows a skeleton while the first catalog call runs, and the store again if none lands', () => {
     send({ type: 'start', query: 'anything' })
     expect(current!.view).toEqual({ kind: 'results', query: 'anything', shown: null })

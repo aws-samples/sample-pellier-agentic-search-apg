@@ -10,6 +10,7 @@
 import { expect, type Page } from '@playwright/test'
 import { ANNA, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './anna-turn'
 import { ANNA_RESULT_CARDS } from './anna-cards'
+import { HADLEY_RESULT_CARDS } from './two-searches-turn'
 import { BOOK, NADIA_ME, OPEN_REQUEST, RECORD } from './jessica-case'
 
 export const WAREHOUSES = [
@@ -48,20 +49,28 @@ const SCENARIOS = {
 
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
+const RECORDED_CARDS = [...ANNA_RESULT_CARDS, ...HADLEY_RESULT_CARDS]
+
 /** `GET /api/products?ids=`: the recorded cards for exactly those ids, in that order. */
 export function resultCards(ids: string): unknown[] {
   return ids.split(',').filter(Boolean)
-    .map(id => ANNA_RESULT_CARDS.find(card => String(card.id) === id))
+    .map(id => RECORDED_CARDS.find(card => String(card.id) === id))
     .filter(Boolean)
 }
 
+interface StorefrontStub {
+  signedIn?: boolean
+  /** The turn the chat stream replays; Anna's by default. */
+  turn?: object[]
+}
+
 /** The storefront API: Anna signed in by the shopper chooser, or nobody. */
-export async function stubStorefront(page: Page, { signedIn = true }: { signedIn?: boolean } = {}) {
+export async function stubStorefront(page: Page, { signedIn = true, turn = ANNA_TURN_EVENTS }: StorefrontStub = {}) {
   await page.route('**/api/**', (route) => {
     const url = new URL(route.request().url())
     const path = url.pathname.replace(/^\/ports\/\d+/, '')
     if (path.endsWith('/api/chat/stream')) {
-      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sseBody(ANNA_TURN_EVENTS) })
+      return route.fulfill({ status: 200, contentType: 'text/event-stream', body: sseBody(turn) })
     }
     if (path.endsWith('/api/products') && url.searchParams.has('ids')) {
       return route.fulfill(json(resultCards(url.searchParams.get('ids') ?? '')))
@@ -128,12 +137,12 @@ async function visit(page: Page, { signedIn = true, overlay = false, cart = fals
 }
 
 /** Anna asks from the home bar; the page fills with her result and the dock answers. */
-export async function askAnna(page: Page) {
+export async function askAnna(page: Page, { turn, question = ANNA_QUESTION }: { turn?: object[]; question?: string } = {}) {
   await visit(page)
-  await stubStorefront(page)
+  await stubStorefront(page, { turn })
   await page.goto('/')
   const ask = page.getByTestId('pellier-hero-search')
-  await ask.fill(ANNA_QUESTION)
+  await ask.fill(question)
   await ask.press('Enter')
   await expect(page.getByTestId('results-grid')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('chat-drawer').getByTestId('turn-fold')).toBeVisible({ timeout: 20_000 })

@@ -42,6 +42,8 @@ export interface RankingRow {
   rerank_score: number | null
   before: number | null
   after: number
+  /** How many places rerank moved the row, up positive; null without a fused rank. */
+  moved: number | null
 }
 
 /** One excluded value and how many products it removed, with the noun to show ("4 candles"). */
@@ -75,8 +77,9 @@ export interface RankingPayload {
 
 /**
  * One limit a catalog tool applied, as the page's tag. `origin` is where it
- * came from: `carried` reads "from earlier"; null when the rail keeps no
- * record of the shopper's limits.
+ * came from: `carried` reads "from earlier", `agent` (a limit the shopper
+ * never stated) reads "added by Pellier"; null when the rail keeps no record
+ * of the shopper's limits.
  */
 export interface ResultLimit {
   kind: 'budget' | 'stock' | 'exclusions' | 'department' | string
@@ -87,15 +90,18 @@ export interface ResultLimit {
 
 /**
  * The page grid's result for one search or browse: the tool's own order,
- * its limits and its filter counts. Never computed in the browser.
+ * its size, its limits and its filter counts. Never computed in the browser.
  */
 export interface StepResults {
   available: boolean
   rail?: string
   reason?: string
   product_ids?: string[]
+  /** How many pieces the result holds: the count above the grid. */
+  count?: number
   limits?: ResultLimit[]
   filters?: RankingFilters | null
+  /** What this result cannot say, for the Builder view only. */
   note?: string
 }
 
@@ -144,7 +150,11 @@ export interface TurnStep {
   results?: StepResults
 }
 
-/** Merge a streamed step event into the list, by id. */
+/**
+ * Merge a streamed step event into the list, by id. The backend gives each
+ * tool use its own id, so two searches at once stay two steps; a call's
+ * running and done events share one.
+ */
 export function upsertStep(steps: TurnStep[], incoming: TurnStep): TurnStep[] {
   const index = steps.findIndex(step => step.id === incoming.id)
   if (index < 0) return [...steps, incoming]

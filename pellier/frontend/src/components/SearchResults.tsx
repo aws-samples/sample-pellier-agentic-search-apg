@@ -1,16 +1,20 @@
 /**
  * SearchResults: the storefront's results view, in the page column.
  *
- * "Results for <query>", the count of pieces that fit, the limits the search
- * applied as tags (each marked "from earlier" when the shopper stated it in
- * an earlier message) and a way back to the whole store. With the Builder
- * view on, "How it ranked" sits full width above the grid. Then the grid: a
- * skeleton while the turn's search runs, the cards in the search's own order
- * once it lands, or a plain empty state naming what the limits left out.
+ * "Results for <query>", the count of pieces in the grid, the limits the
+ * search applied as tags (each marked "from earlier" when the shopper stated
+ * it in an earlier message, or "added by Pellier" when the shopper never
+ * stated it) and a way back to the whole store. With the Builder view on,
+ * "How it ranked" sits full width above the grid. Then the grid: a skeleton
+ * while the turn's search runs, the cards in the search's own order once it
+ * lands, or a plain empty state naming what the limits left out.
  *
  * Everything shown comes from the turn's evidence (`StoreResultsContext`);
- * the cards are read for exactly those ids. While a turn runs, its status
- * line follows the same stream events as the dock.
+ * the count is the result's own size and the cards are read for exactly
+ * those ids. While a turn runs, its status line follows the same stream
+ * events as the dock. A note about what a result cannot say (a managed
+ * rail's receipt) is Builder evidence: it shows only with the Builder view
+ * on, in the ranking panel, and the shopper sees shopper copy alone.
  */
 import { useEffect } from 'react'
 import { RESULTS } from '../copy'
@@ -27,16 +31,22 @@ const LIMIT_TONES: Record<string, TagTone> = {
   exclusions: 'blocked',
 }
 
+// Where a limit came from, when the shopper did not state it in this message.
+const ORIGIN_MARKS: Partial<Record<NonNullable<ResultLimit['origin']>, string>> = {
+  carried: RESULTS.FROM_EARLIER,
+  agent: RESULTS.ADDED_BY_PELLIER,
+}
+
 function LimitTag({ limit }: { limit: ResultLimit }) {
-  const carried = limit.origin === 'carried'
+  const mark = limit.origin ? ORIGIN_MARKS[limit.origin] : undefined
   return (
     <StatusTag tone={LIMIT_TONES[limit.kind] ?? 'pending'} className="results-limit">
       <span data-testid="results-limit" data-origin={limit.origin ?? 'unknown'}>
         {limit.label}
-        {carried ? (
+        {mark ? (
           <span className="results-limit-origin">
             <span className="gov-visually-hidden">, </span>
-            {RESULTS.FROM_EARLIER}
+            {mark}
           </span>
         ) : null}
       </span>
@@ -44,10 +54,10 @@ function LimitTag({ limit }: { limit: ResultLimit }) {
   )
 }
 
-function countLine(shown: ShownResult | null, cardCount: number | null): string | null {
-  const filters = shown?.results.filters
-  if (filters) return RESULTS.fit(filters.kept, filters.of)
-  return cardCount === null ? null : RESULTS.shown(cardCount)
+/** The count above the grid describes the grid: the result's own size, from the backend. */
+function countLine(shown: ShownResult | null): string | null {
+  const count = shown?.results.count
+  return typeof count === 'number' ? RESULTS.shown(count) : null
 }
 
 function Skeleton() {
@@ -82,6 +92,19 @@ function EmptyState({ shown }: { shown: ShownResult }) {
   )
 }
 
+/** A turn that failed while the page showed the store: the store is as it was, and says so. */
+export function StoreFailedNotice() {
+  const results = useStoreResults()
+  if (!results?.failed || results.view.kind !== 'store') return null
+  return (
+    <div className="pellier-edit-shell results-store-notice">
+      <p className="results-notice" role="status" data-testid="results-failed-store">
+        {RESULTS.FAILED_STORE}
+      </p>
+    </div>
+  )
+}
+
 export default function SearchResults() {
   const results = useStoreResults()
   const [builderView] = useBuilderView()
@@ -89,6 +112,8 @@ export default function SearchResults() {
   const shown = view?.kind === 'results' ? view.shown : null
   const ranking = shown?.ranking ?? null
   const panelShown = Boolean(builderView && ranking)
+  // Builder evidence: never shown with the Builder view off.
+  const note = builderView ? shown?.results.note ?? null : null
   const setPagePanelShown = results?.setPagePanelShown
 
   useEffect(() => {
@@ -100,7 +125,7 @@ export default function SearchResults() {
   const { cards, status, failed, clear, retryCards } = results
   const ids = shown?.results.product_ids ?? []
   const ready = cards?.status === 'ready' ? cards.products : null
-  const count = countLine(shown, ready ? ready.length : null)
+  const count = countLine(shown)
   const limits = shown?.results.limits ?? []
 
   return (
@@ -124,11 +149,11 @@ export default function SearchResults() {
             {RESULTS.CLEAR}
           </button>
         </div>
-        {shown?.results.note ? <p className="results-note">{shown.results.note}</p> : null}
+        {note && !panelShown ? <p className="results-note" data-testid="results-note">{note}</p> : null}
       </div>
 
       {panelShown && ranking ? (
-        <RankingPanel ranking={ranking} id={PAGE_RANKING_ID} className="results-ranking" />
+        <RankingPanel ranking={ranking} id={PAGE_RANKING_ID} className="results-ranking" resultsNote={note} />
       ) : null}
 
       <section aria-label={RESULTS.GRID} className="results-grid">

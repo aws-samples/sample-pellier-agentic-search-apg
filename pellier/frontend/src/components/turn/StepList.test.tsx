@@ -39,7 +39,7 @@ const SEARCH: TurnStep = {
       arms: { full_text: 12, vector: 20, fused: 23 },
       filters: { kept: 23, of: 100, removed: { budget: 61, stock: 9, exclusions: 4 } },
       rows: [
-        { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 2, vec_rank: 1, similarity: 0.61, rrf_score: 0.0325, rerank_score: 0.84, before: 1, after: 1 },
+        { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 2, vec_rank: 1, similarity: 0.61, rrf_score: 0.0325, rerank_score: 0.84, before: 1, after: 1, moved: 0 },
       ],
     },
   },

@@ -14,6 +14,9 @@
  * cosine similarity, the fused RRF score with a stacked bar of each arm's
  * 1 / (k + rank), and the rerank score. Every number is the turn's evidence;
  * the browser computes only the bar widths. An empty cell is an en dash.
+ *
+ * Builder-only notes about the result (`resultsNote`, such as what a managed
+ * rail's receipt cannot say) sit at the panel's foot, never in shopper copy.
  */
 import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
@@ -25,6 +28,8 @@ export interface RankingPanelProps {
   /** The page's panel carries the id the dock's summary scrolls to. */
   id?: string
   className?: string
+  /** What the page's result cannot say, shown here and only here. */
+  resultsNote?: string | null
 }
 
 const EMPTY = '–'
@@ -70,8 +75,8 @@ function methodLine(ranking: RankingPayload, k: number): string {
   return fused
 }
 
-function Movement({ moved }: { moved: number }) {
-  if (moved === 0) return null
+function Movement({ moved }: { moved: number | null }) {
+  if (!moved) return null
   const up = moved > 0
   return (
     <StatusTag tone={up ? 'good' : 'blocked'} className="tn-rank-move">
@@ -84,12 +89,11 @@ function Movement({ moved }: { moved: number }) {
 function Row({ row, k, maxFused }: { row: RankingRow; k: number; maxFused: number }) {
   const full = contribution(row.fts_rank, k)
   const vec = contribution(row.vec_rank, k)
-  const moved = row.before != null ? row.before - row.after : 0
   return (
     <div className="tn-rank-row" role="row" data-testid="ranking-row">
       <span className="tn-rank-pos" role="cell">
         {row.after}
-        <Movement moved={moved} />
+        <Movement moved={row.moved} />
       </span>
       <span className="tn-rank-name" role="cell">{row.name ?? row.product_id}</span>
       <span className="tn-rank-num" role="cell">{row.fts_rank ? `#${row.fts_rank}` : EMPTY}</span>
@@ -109,13 +113,15 @@ function Row({ row, k, maxFused }: { row: RankingRow; k: number; maxFused: numbe
   )
 }
 
-export default function RankingPanel({ ranking, id, className }: RankingPanelProps) {
+export default function RankingPanel({ ranking, id, className, resultsNote }: RankingPanelProps) {
   const classes = ['tn-rank', className ?? ''].filter(Boolean).join(' ')
+  const footNote = resultsNote ? <span className="tn-rank-note" data-testid="ranking-results-note">{resultsNote}</span> : null
   if (!ranking.available) {
     return (
       <div id={id} className={`${classes} tn-rank-unavailable`} data-testid="ranking-panel">
         <b>How it ranked</b>
         <span className="tn-rank-note">{ranking.reason ?? 'Ranking detail is unavailable on this rail'}</span>
+        {footNote}
       </div>
     )
   }
@@ -157,6 +163,7 @@ export default function RankingPanel({ ranking, id, className }: RankingPanelPro
         </div>
       </div>
       {ranking.note && <span className="tn-rank-note">{ranking.note}</span>}
+      {footNote}
     </section>
   )
 }

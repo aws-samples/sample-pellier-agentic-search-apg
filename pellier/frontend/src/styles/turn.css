@@ -350,6 +350,10 @@
   font-size: 12px;
   color: var(--dl-muted);
 }
+/* The prototype's gap between the swatches and the method line. */
+.tn-rank-method {
+  margin-left: 6px;
+}
 .tn-rank-steps {
   display: flex;
   flex-wrap: wrap;
@@ -399,9 +403,6 @@
   font: 400 12px/1.4 var(--dl-font-mono);
   color: var(--dl-ink-2);
   white-space: pre;
-}
-.tn-rank-sim {
-  color: var(--dl-muted);
 }
 .tn-rank-barcell {
   display: flex;

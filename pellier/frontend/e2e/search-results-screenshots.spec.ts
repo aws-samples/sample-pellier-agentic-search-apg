@@ -2,7 +2,9 @@
  * Anna's housewarming question fills the page grid: Builder view off and on,
  * both themes, at 1440px and 390px, against the real app with the recorded
  * turn (`fixtures/anna-turn.ts`) and the recorded cards for its ids
- * (`fixtures/anna-cards.ts`). No backend or model runs.
+ * (`fixtures/anna-cards.ts`). One more capture shows a turn with two
+ * searches at once in Builder view (`fixtures/two-searches-turn.ts`): two
+ * steps, each with its own "How it ranked". No backend or model runs.
  *
  *   npx vite --port 5199 &
  *   E2E_BASE_URL=http://localhost:5199 RESULTS_SHOTS=/path/to/dir \
@@ -13,6 +15,7 @@ import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { ANNA_QUESTION, ANNA_RESULT_IDS } from './fixtures/anna-turn'
 import { ANNA_RESULT_CARDS } from './fixtures/anna-cards'
+import { HADLEY_RESULT_CARDS, TWO_SEARCHES_EVENTS, TWO_SEARCHES_QUESTION } from './fixtures/two-searches-turn'
 import { askAnna } from './fixtures/surfaces'
 
 const SHOTS = process.env.RESULTS_SHOTS ?? 'test-results/search-results'
@@ -31,9 +34,12 @@ for (const theme of ['light', 'dark'] as const) {
       await askAnna(page)
       const view = page.getByTestId('results-view')
       await expect(view.getByTestId('results-title')).toHaveText(`Results for “${ANNA_QUESTION}”`)
-      await expect(view.getByTestId('results-count')).toHaveText('64 of 100 fit')
+      // The count describes the grid below it; "Kept 64 of 100" is the panel's.
+      await expect(view.getByTestId('results-count')).toHaveText(`${ANNA_RESULT_IDS.length} pieces`)
       await expect(view.getByTestId('results-limit')).toHaveText(['Under $100', 'In stock', 'No candles'])
       await expect(page.getByTestId('pellier-hero')).toHaveAttribute('data-compact', 'true')
+      // The folded bar keeps the question, as the prototype's does.
+      await expect(page.getByTestId('pellier-hero-search')).toHaveValue(ANNA_QUESTION)
 
       // The grid is the evidence's order, card for card.
       const names = view.getByTestId('results-grid').locator('.pellier-card-name')
@@ -72,3 +78,30 @@ for (const theme of ['light', 'dark'] as const) {
     })
   }
 }
+
+test('two searches at once, Builder view on, light theme, 1440px', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light', reducedMotion: 'reduce' })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await askAnna(page, { turn: TWO_SEARCHES_EVENTS, question: TWO_SEARCHES_QUESTION })
+  const view = page.getByTestId('results-view')
+  // The answer named two pieces of the linen search: the page shows that search, in its order.
+  const names = view.getByTestId('results-grid').locator('.pellier-card-name')
+  await expect(names).toHaveText(HADLEY_RESULT_CARDS.map(card => card.name))
+  await expect(view.getByTestId('results-count')).toHaveText(`${HADLEY_RESULT_CARDS.length} pieces`)
+
+  await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
+  await expect(view.getByTestId('ranking-panel')).toContainText('Hadley Linen Shirt')
+  const drawer = page.getByTestId('chat-drawer')
+  await drawer.getByTestId('turn-fold').click()
+  const summaries = drawer.getByTestId('ranking-summary')
+  await expect(summaries).toHaveCount(2)
+  await expect(summaries.nth(0)).toContainText('Kept 67 of 100, see the table above the results')
+  await expect(summaries.nth(1)).toContainText('Kept 64 of 100, show the table')
+  // The housewarming search opens its own ranking in the dock.
+  await summaries.nth(1).click()
+  const inDock = drawer.getByTestId('ranking-panel')
+  await expect(inDock).toContainText('Stoneware Pour-Over Set')
+  await expect(inDock).not.toContainText('Hadley Linen Shirt')
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: join(SHOTS, 'two-searches-on-light-1440.png') })
+})

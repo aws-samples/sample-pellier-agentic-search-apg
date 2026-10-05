@@ -33,8 +33,8 @@
  *
  * The search step also carries `results`, what the storefront grid draws: the
  * result order (`ANNA_RESULT_IDS`, the reranked rows, then the rest of the
- * fused pool in RRF order, at most 30), the limits as tags and the same filter
- * counts. `anna-cards.ts` holds the cards for those ids.
+ * fused pool in RRF order, at most 30) and its size, the limits as tags and
+ * the same filter counts. `anna-cards.ts` holds the cards for those ids.
  */
 
 export const ANNA = {
@@ -185,10 +185,11 @@ export const RERANKED: ReadonlyArray<readonly [string, number]> = [
   ['39', 0.31],
 ]
 
+// `moved` is what `ranking_evidence.ranking_from_execution` sends: before minus after.
 const RANKING_ROWS = RERANKED.map(([id, rerank_score], index) => {
   const before = FUSED.findIndex(row => row.product_id === id) + 1
   if (before === 0) throw new Error(`reranked product ${id} is not in the fused pool`)
-  return { ...FUSED[before - 1], rerank_score, before, after: index + 1 }
+  return { ...FUSED[before - 1], rerank_score, before, after: index + 1, moved: before - (index + 1) }
 })
 
 const RANKING = {
@@ -205,7 +206,7 @@ const RANKING = {
     excluded: [{ value: 'candle', count: 4, noun: 'candles' }],
   },
   rows: RANKING_ROWS,
-  note: 'Kept counts the hard limits only; the first pass also asks for the preferences the shopper implied, so the fused pool can be smaller',
+  note: 'Kept counts only the hard limits, so the fused pool can be smaller.',
 }
 
 export const ANNA_RANKING = RANKING
@@ -220,6 +221,7 @@ const RESULTS = {
   available: true,
   rail: 'in-process',
   product_ids: ANNA_RESULT_IDS,
+  count: ANNA_RESULT_IDS.length,
   limits: [
     { kind: 'budget', label: 'Under $100', origin: 'stated' },
     { kind: 'stock', label: 'In stock', origin: 'stated' },

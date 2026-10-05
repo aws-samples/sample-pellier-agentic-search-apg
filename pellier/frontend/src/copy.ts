@@ -161,9 +161,9 @@ export const ASK_BAR = {
  */
 export const RESULTS = {
   title: (query: string): string => `Results for \u201c${query}\u201d`,
-  fit: (kept: number, of: number): string => `${kept} of ${of} fit`,
   shown: (count: number): string => `${count} ${count === 1 ? "piece" : "pieces"}`,
   FROM_EARLIER: "from earlier",
+  ADDED_BY_PELLIER: "added by Pellier",
   LIMITS: "Limits",
   CLEAR: "Show the whole store",
   GRID: "Pieces that fit",

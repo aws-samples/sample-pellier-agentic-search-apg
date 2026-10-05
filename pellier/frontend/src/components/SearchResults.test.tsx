@@ -102,15 +102,23 @@ const FILTERS = {
 const RANKING = {
   available: true, rail: 'in-process', method: 'hybrid+rerank', rrf_k: 60, rerank_pool: 15,
   arms: { full_text: 20, vector: 20, fused: 31 }, filters: FILTERS,
-  rows: [{ product_id: '36', name: 'Ceramic Tumblers', fts_rank: 17, vec_rank: 2, similarity: 0.76, rrf_score: 0.0291, rerank_score: 0.84, before: 2, after: 1 }],
+  rows: [{ product_id: '36', name: 'Ceramic Tumblers', fts_rank: 17, vec_rank: 2, similarity: 0.76, rrf_score: 0.0291, rerank_score: 0.84, before: 2, after: 1, moved: 1 }],
 }
 
-function searchDone(ids: string[], { limits = LIMITS, filters = FILTERS }: { limits?: unknown[]; filters?: unknown } = {}) {
+interface SearchDoneOptions {
+  id?: string
+  limits?: unknown[]
+  filters?: unknown
+  ranking?: unknown
+  note?: string
+}
+
+function searchDone(ids: string[], { id = 'step-1', limits = LIMITS, filters = FILTERS, ranking = RANKING, note }: SearchDoneOptions = {}) {
   return {
-    type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done',
+    type: 'step', id, label: 'Searching the catalog in Aurora', status: 'done',
     finding: `${ids.length} found`, tags: ['Aurora'],
-    builder: { tool: 'search_products', rail: 'in-process', ranking: RANKING },
-    results: { available: true, rail: 'in-process', product_ids: ids, limits, filters },
+    builder: { tool: 'search_products', rail: 'in-process', ranking },
+    results: { available: true, rail: 'in-process', product_ids: ids, count: ids.length, limits, filters, ...(note ? { note } : {}) },
   }
 }
 
@@ -208,7 +216,8 @@ describe('the results view', () => {
     await emit(searchDone(['36', '22', '31']))
     await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers', 'Linen Napkins, Set of 4', 'Stoneware Pour-Over Set']))
     expect(idReads).toEqual(['36,22,31'])
-    expect(screen.getByTestId('results-count')).toHaveTextContent('64 of 100 fit')
+    // The count describes the grid below it; "Kept 64 of 100" is the panel's.
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/^3 pieces$/)
     expect(screen.getAllByTestId('results-limit').map(tag => tag.textContent)).toEqual([
       'Under $100', 'In stock', 'No candles',
     ])
@@ -231,6 +240,35 @@ describe('the results view', () => {
     expect(tags[0]).toHaveTextContent('Under $100, from earlier')
     expect(tags[0]).toHaveAttribute('data-origin', 'carried')
     expect(tags[1]).not.toHaveTextContent('from earlier')
+  })
+
+  it('marks a limit the shopper never stated as added by Pellier', async () => {
+    render(<Storefront />)
+    await askFromTheHomeBar('A gift for a friend')
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['65'], {
+      limits: [
+        { kind: 'budget', label: 'Under $50', origin: 'agent' },
+        { kind: 'stock', label: 'In stock', origin: 'stated' },
+      ],
+    }))
+    const tags = await screen.findAllByTestId('results-limit')
+    expect(tags[0]).toHaveTextContent('Under $50, added by Pellier')
+    expect(tags[0]).toHaveAttribute('data-origin', 'agent')
+    expect(tags[1]).toHaveTextContent(/^In stock$/)
+  })
+
+  it('keeps the question in the folded home bar, from the bar or the dock', async () => {
+    render(<Storefront />)
+    await askFromTheHomeBar(ANNA_QUESTION)
+    const bar = screen.getByTestId('pellier-hero-search')
+    expect(bar).toHaveValue(ANNA_QUESTION)
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    await finish()
+    expect(bar).toHaveValue(ANNA_QUESTION)
+
+    await askInTheDock('Something in linen for the trip')
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    expect(screen.getByTestId('pellier-hero-search')).toHaveValue('Something in linen for the trip')
   })
 
   it('replaces the grid with a follow-up search typed in the dock, and a support turn leaves it', async () => {
@@ -302,7 +340,7 @@ describe('the results view', () => {
     const empty = await screen.findByTestId('results-empty')
     expect(empty).toHaveTextContent('Nothing fits all of that right now.')
     expect(empty).toHaveTextContent('Left out: 96 over budget, 4 candles.')
-    expect(screen.getByTestId('results-count')).toHaveTextContent('0 of 100 fit')
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/^0 pieces$/)
     expect(idReads).toEqual([])
   })
 
@@ -320,6 +358,71 @@ describe('the results view', () => {
     })
     await waitFor(() => expect(screen.getByTestId('results-failed')).toBeInTheDocument())
     expect(gridNames()).toEqual(['Ceramic Tumblers'])
+  })
+
+  it('says calmly that the store is as it was when a turn fails from the store', async () => {
+    render(<Storefront />)
+    await screen.findByTestId('featured-product-link')
+    await askFromTheHomeBar(ANNA_QUESTION)
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    await act(async () => {
+      latestTurn().fail(new Error('service_unavailable'))
+    })
+    const notice = await screen.findByTestId('results-failed-store')
+    expect(notice).toHaveTextContent('That request did not finish. The store is as it was.')
+    expect(screen.queryByTestId('results-view')).toBeNull()
+    expect(screen.getByTestId('featured-product-link')).toBeVisible()
+  })
+
+  it('keeps a Builder-only note out of shopper copy and shows it in the panel with Builder view on', async () => {
+    const note = 'Read from the retrieval receipt: no filter counts, and no record of which limits were kept from earlier'
+    render(<Storefront />)
+    await askFromTheHomeBar(ANNA_QUESTION)
+    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36', '22'], { filters: null, note }))
+    await finish()
+    await waitFor(() => expect(gridNames()).toHaveLength(2))
+    const view = screen.getByTestId('results-view')
+    expect(view).not.toHaveTextContent('retrieval receipt')
+    expect(screen.getByTestId('results-count')).toHaveTextContent(/^2 pieces$/)
+
+    act(() => writeBuilderView(true))
+    const panel = await screen.findByTestId('ranking-panel')
+    expect(within(panel).getByTestId('ranking-results-note')).toHaveTextContent(note)
+    expect(screen.queryByTestId('results-note')).toBeNull()
+  })
+
+  it('shows two searches at once as two steps, and the page the one the answer named', async () => {
+    const otherRanking = { ...RANKING, rows: [{ ...RANKING.rows[0], product_id: '12', name: 'Hadley Linen Shirt' }] }
+    render(<Storefront />)
+    await askFromTheHomeBar(ANNA_QUESTION)
+    await emit(
+      ROUTE_SHOPPING,
+      SEARCH_RUNNING,
+      { ...SEARCH_RUNNING, id: 'step-2' },
+      // The second search finishes first; each step carries only its own evidence.
+      searchDone(['12', '65'], { id: 'step-2', ranking: otherRanking }),
+      searchDone(['36', '22']),
+    )
+    await finish({ ...COMPLETE, products: [{ id: 22, name: 'Linen Napkins, Set of 4', price: 44 }] })
+    // The answer named the napkins, from the first search: the page shows that search.
+    await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers', 'Linen Napkins, Set of 4']))
+
+    act(() => writeBuilderView(true))
+    const dock = screen.getByTestId('chat-drawer')
+    const fold = within(dock).queryByTestId('turn-fold')
+    if (fold) fireEvent.click(fold)
+    const searches = within(dock).getAllByTestId('turn-step').filter(step => step.textContent?.includes('Searching the catalog'))
+    expect(searches).toHaveLength(2)
+    const summaries = within(dock).getAllByTestId('ranking-summary')
+    expect(summaries.map(summary => summary.textContent)).toEqual([
+      expect.stringContaining('see the table above the results'),
+      expect.stringContaining('show the table'),
+    ])
+    // The second step opens its own ranking in place, not the page's.
+    fireEvent.click(summaries[1])
+    const inPlace = within(dock).getByTestId('ranking-panel')
+    expect(inPlace).toHaveTextContent('Hadley Linen Shirt')
+    expect(within(screen.getByTestId('results-view')).getByTestId('ranking-panel')).toHaveTextContent('Ceramic Tumblers')
   })
 
   it('shows How it ranked above the grid with Builder view on, and one line in the dock', async () => {

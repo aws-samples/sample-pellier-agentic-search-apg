@@ -21,9 +21,9 @@ const RANKING: RankingPayload = {
     ],
   },
   rows: [
-    { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 3, vec_rank: 1, similarity: 0.61, rrf_score: 1 / 63 + 1 / 61, rerank_score: 0.84, before: 1, after: 1 },
-    { product_id: '22', name: 'Linen Napkins, Set of 4', fts_rank: 1, vec_rank: null, similarity: null, rrf_score: 1 / 61, rerank_score: 0.72, before: 4, after: 2 },
-    { product_id: '27', name: 'Ceramic Bud Vase', fts_rank: null, vec_rank: 2, similarity: 0.58, rrf_score: 1 / 62, rerank_score: null, before: 2, after: 3 },
+    { product_id: '65', name: 'Stoneware Mugs, Set of 2', fts_rank: 3, vec_rank: 1, similarity: 0.61, rrf_score: 1 / 63 + 1 / 61, rerank_score: 0.84, before: 1, after: 1, moved: 0 },
+    { product_id: '22', name: 'Linen Napkins, Set of 4', fts_rank: 1, vec_rank: null, similarity: null, rrf_score: 1 / 61, rerank_score: 0.72, before: 4, after: 2, moved: 2 },
+    { product_id: '27', name: 'Ceramic Bud Vase', fts_rank: null, vec_rank: 2, similarity: 0.58, rrf_score: 1 / 62, rerank_score: null, before: 2, after: 3, moved: -1 },
   ],
 }
 
@@ -93,6 +93,14 @@ describe('RankingPanel', () => {
     expect(down).toHaveAttribute('data-tone', 'blocked')
   })
 
+  it('shows the movement the payload sent, never before minus after', () => {
+    const sent = { ...RANKING, rows: [{ ...RANKING.rows![1], moved: 5 }, { ...RANKING.rows![2], moved: null }] }
+    render(<RankingPanel ranking={sent} />)
+    const rows = screen.getAllByTestId('ranking-row')
+    expect(within(rows[0]).getByTestId('status-tag')).toHaveTextContent('↑5')
+    expect(within(rows[1]).queryByTestId('status-tag')).toBeNull()
+  })
+
   it('says plainly when the detail is unavailable on a rail', () => {
     render(<RankingPanel ranking={{ available: false, rail: 'gateway-mcp', reason: 'No retrieval receipt was written for this turn' }} />)
     expect(screen.getByTestId('ranking-panel')).toHaveTextContent('No retrieval receipt was written for this turn')
@@ -103,6 +111,14 @@ describe('RankingPanel', () => {
     render(<RankingPanel ranking={{ ...RANKING, filters: null, note: 'Read from the retrieval receipt: no vector similarity or filter counts on this rail' }} />)
     expect(screen.getByText(/Read from the retrieval receipt/)).toBeInTheDocument()
     expect(screen.queryByText(/Kept/)).toBeNull()
+  })
+
+  it("puts the page result's Builder note at its foot, and with a ranking that is unavailable", () => {
+    const note = 'Read from the retrieval receipt: no filter counts'
+    const { rerender } = render(<RankingPanel ranking={RANKING} resultsNote={note} />)
+    expect(screen.getByTestId('ranking-results-note')).toHaveTextContent(note)
+    rerender(<RankingPanel ranking={{ available: false, reason: 'No receipt' }} resultsNote={note} />)
+    expect(screen.getByTestId('ranking-results-note')).toHaveTextContent(note)
   })
 })
 
