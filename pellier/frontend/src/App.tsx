@@ -198,7 +198,9 @@ export function AppRoutes() {
 // ---------------------------------------------------------------------------
 function App() {
   return (
-    <AuthProvider>
+    // The shopper session, for the storefront tree. The Operator mounts its
+    // own staff session inside `OperatorFrame`.
+    <AuthProvider surface="shopper">
       <PersonaProvider>
       <LayoutProvider>
         <CartProvider>

@@ -36,9 +36,15 @@ const auth = vi.hoisted(() => ({
   logout: vi.fn(),
 }))
 
+const providers = vi.hoisted(() => ({ surfaces: [] as string[] }))
+
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => auth,
   useOptionalAuth: () => auth,
+  AuthProvider: ({ children, surface }: { children: React.ReactNode; surface?: string }) => {
+    providers.surfaces.push(surface ?? 'shopper')
+    return children
+  },
 }))
 
 import ClientBook, { ClientList } from './surfaces/ClientBook'
@@ -125,9 +131,14 @@ describe("Jessica's record", () => {
     expect(within(screen.getByTestId('operator-order-303')).getByTestId('status-tag')).toHaveTextContent('Delivered')
     expect(screen.getByTestId('operator-credits-none')).toHaveTextContent('No credit recorded.')
     expect(screen.getByTestId('operator-investigate')).toHaveTextContent('Investigate')
-    // No storefront handoff: choosing a shopper is a sign-in, and a link from
-    // the desk would sign Nadia out to make it.
-    expect(screen.queryByTestId('operator-storefront-handoff')).not.toBeInTheDocument()
+    // A plain link to the storefront in a new tab. It signs nobody in from a
+    // URL: Jessica's card on the home page is the one click, into the shopper
+    // session, so Nadia stays signed in here.
+    const storefront = screen.getByTestId('operator-storefront-handoff')
+    expect(storefront).toHaveTextContent('Open the storefront')
+    expect(storefront).toHaveAttribute('href', '/')
+    expect(storefront).toHaveAttribute('target', '_blank')
+    expect(storefront).toHaveAttribute('rel', expect.stringContaining('noopener'))
   })
 
   it('shows her open chat request with no amount, then the review that answered it', async () => {
@@ -331,6 +342,9 @@ describe('the desk shell', () => {
     )
     const staff = await screen.findByTestId('operator-staff')
     expect(staff).toHaveTextContent('Nadia')
+    // The desk reads the staff session, never the storefront's shopper session.
+    expect(providers.surfaces).toContain('staff')
+    expect(providers.surfaces).not.toContain('shopper')
     expect(staff.querySelector('img')).toHaveAttribute('src', expect.stringContaining('/assets/personas/nadia-720.webp'))
     expect(await screen.findByTestId('operator-book')).toBeInTheDocument()
     expect(screen.getByTestId('operator-book-choose')).toHaveTextContent('Choose a client')

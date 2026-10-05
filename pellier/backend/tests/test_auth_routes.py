@@ -48,6 +48,7 @@ from fastapi.testclient import TestClient
 from jwt.algorithms import RSAAlgorithm
 
 from config import settings
+from services.auth import session_cookie_names
 from services.cognito_auth import (
     ACCESS_TOKEN_COOKIE,
     CognitoAuthService,
@@ -55,15 +56,16 @@ from services.cognito_auth import (
 )
 from routes import auth as auth_module
 from routes.auth import (
-    ID_TOKEN_COOKIE,
     JUST_SIGNED_IN_COOKIE,
     OAUTH_RETURN_TO_COOKIE,
     OAUTH_STATE_COOKIE,
     PKCE_VERIFIER_COOKIE,
-    REFRESH_TOKEN_COOKIE,
     _build_state,
     router as auth_router,
 )
+
+ID_TOKEN_COOKIE = session_cookie_names("shopper").id
+REFRESH_TOKEN_COOKIE = session_cookie_names("shopper").refresh
 
 
 # ---------------------------------------------------------------------------
@@ -397,8 +399,8 @@ def test_callback_missing_state_returns_invalid_state(client: TestClient) -> Non
 
 def test_callback_tampered_state_returns_invalid_state(client: TestClient) -> None:
     good = _build_state()
-    nonce, expiry, _signature = good.split(".")
-    tampered = f"{nonce}.{expiry}.AAAA"  # wrong signature
+    nonce, expiry, surface, _signature = good.split(".")
+    tampered = f"{nonce}.{expiry}.{surface}.AAAA"  # wrong signature
     client.cookies.set(OAUTH_STATE_COOKIE, tampered, path="/api/auth")
     client.cookies.set(PKCE_VERIFIER_COOKIE, "test-verifier", path="/api/auth")
     resp = client.get(

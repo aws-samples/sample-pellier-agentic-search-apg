@@ -16,6 +16,7 @@ const ERROR_COPY: Record<string, string> = {
   password_requirements: 'Choose a stronger password that meets your account’s requirements and has not been used before.',
   password_signin_unavailable: 'Password sign-in is unavailable here. You can continue with another sign-in method.',
   verification_required: 'Your account needs an additional verification step. Continue securely to finish signing in.',
+  staff_use_operator: 'This is a staff account. Sign in from the Operator desk instead.',
 }
 
 type Mode = 'sign-in' | 'forgot' | 'reset'
@@ -23,9 +24,12 @@ type Mode = 'sign-in' | 'forgot' | 'reset'
 export default function SignInPage() {
   const params = new URLSearchParams(window.location.search)
   const returnTo = safeSignInReturn(params.get('returnTo'), asset('/'))
-  // This changes the explanation only. The backend still verifies staff
-  // group membership before returning any Operator or cross-principal data.
+  // The page writes the session of the surface it was opened from, so a staff
+  // sign-in here never replaces the shopper signed in on the storefront. The
+  // backend still verifies staff group membership before returning any
+  // Operator or cross-principal data.
   const operator = params.get('workspace') === 'operator' || /\/operator(?:\/|\?|$)/.test(returnTo)
+  const surface = operator ? 'staff' : 'shopper'
   const [mode, setMode] = useState<Mode>('sign-in')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -39,7 +43,7 @@ export default function SignInPage() {
   const busy = useRef(false)
   const heading = useRef<HTMLHeadingElement | null>(null)
   const mounted = useRef(false)
-  const hosted = apiUrl(`/api/auth/signin?provider=email&returnTo=${encodeURIComponent(returnTo)}`)
+  const hosted = apiUrl(`/api/auth/signin?provider=email&returnTo=${encodeURIComponent(returnTo)}&surface=${surface}`)
 
   useEffect(() => {
     const previous = document.title
@@ -66,7 +70,7 @@ export default function SignInPage() {
     controller.current = request
     const timeout = window.setTimeout(() => request.abort(), 30_000)
     try {
-      const result = await passwordAuth(mode, { username: username.trim(), password, code, returnTo }, request.signal)
+      const result = await passwordAuth(mode, { username: username.trim(), password, code, returnTo, surface }, request.signal)
       if (!mounted.current) return
       if (result.status === 'signed_in') {
         setPassword('')

@@ -2,7 +2,9 @@
  * API client for Pellier Backend.
  *
  * Task 5.1 (auth utility) adds a 401 response interceptor that:
- *   1. Calls /api/auth/refresh on any 401 response.
+ *   1. Calls /api/auth/refresh for the shopper session on any 401 response.
+ *      This client serves the storefront; the Operator's client refreshes
+ *      the staff session instead (`services/operator.ts`).
  *   2. On refresh success, retries the original request exactly once
  *      (flagged via a `_retry` marker on the Axios request config).
  *   3. On rejected credentials, calls `openSignInChooser({ returnTo: ... })`
@@ -79,7 +81,7 @@ class ApiClient {
 
           let refreshed: boolean
           try {
-            refreshed = await refreshAuthTokens()
+            refreshed = await refreshAuthTokens('shopper')
           } catch {
             return Promise.reject(new AxiosError(
               'Sign-in is temporarily unavailable. Please try again.',

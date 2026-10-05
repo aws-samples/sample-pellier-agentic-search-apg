@@ -135,6 +135,14 @@ const ClientRecordPage: React.FC = () => {
             <h1 id="op-record-title" className="op-h1">{client.name}</h1>
             <p className="op-record-meta">
               <code>{client.customerId}</code>
+              {/* A plain link in a new tab. It signs nobody in: a shopper
+                  signs in from their card on the storefront, so Nadia stays
+                  signed in here. */}
+              {client.personaId ? (
+                <Link to="/" target="_blank" rel="noopener noreferrer" className="op-link" data-testid="operator-storefront-handoff">
+                  Open the storefront<span className="gov-visually-hidden"> (opens in a new tab)</span>
+                </Link>
+              ) : null}
             </p>
           </div>
         </header>

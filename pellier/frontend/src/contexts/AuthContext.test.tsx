@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, render, renderHook, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   AUTH_REQUEST_TIMEOUT_MS,
@@ -88,7 +88,7 @@ describe('AuthContext hydration', () => {
     })
     expect(result.current.user).toBeNull()
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/auth/me',
+      '/api/auth/me?surface=shopper',
       expect.objectContaining({ credentials: 'include' }),
     )
   })
@@ -104,16 +104,16 @@ describe('AuthContext hydration', () => {
       expect(result.current.user?.email).toBe('avery@example.com')
     })
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/auth/me',
+      '/api/auth/me?surface=shopper',
       expect.objectContaining({ credentials: 'include' }),
     )
-    expect(localStorage.getItem('pellier-auth-session')).toBe('1')
+    expect(localStorage.getItem('pellier-auth-session:shopper')).toBe('1')
   })
 
   it('uses the auth-session marker to hydrate later cookie-backed loads', async () => {
     const fetchMock = mockAuthFetch()
     vi.stubGlobal('fetch', fetchMock)
-    localStorage.setItem('pellier-auth-session', '1')
+    localStorage.setItem('pellier-auth-session:shopper', '1')
 
     const { result } = renderHook(() => useAuth(), { wrapper })
 
@@ -121,7 +121,7 @@ describe('AuthContext hydration', () => {
       expect(result.current.user?.email).toBe('avery@example.com')
     })
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/auth/me',
+      '/api/auth/me?surface=shopper',
       expect.objectContaining({ credentials: 'include' }),
     )
   })
@@ -159,7 +159,7 @@ describe('AuthContext hydration', () => {
     await act(async () => result.current.refresh())
     expect(result.current.user?.email).toBe('avery@example.com')
     expect(result.current.authUnavailable).toBe(true)
-    expect(localStorage.getItem('pellier-auth-session')).toBe('1')
+    expect(localStorage.getItem('pellier-auth-session:shopper')).toBe('1')
     await act(async () => result.current.refresh())
     expect(result.current.authUnavailable).toBe(false)
     expect(result.current.user?.email).toBe('avery@example.com')
@@ -167,7 +167,7 @@ describe('AuthContext hydration', () => {
       .mockResolvedValueOnce(new Response(null, { status: 401 }))
     await act(async () => result.current.refresh())
     expect(result.current.user).toBeNull()
-    expect(localStorage.getItem('pellier-auth-session')).toBeNull()
+    expect(localStorage.getItem('pellier-auth-session:shopper')).toBeNull()
   })
 
   it('renews an expired access cookie before clearing a valid session', async () => {
@@ -179,7 +179,8 @@ describe('AuthContext hydration', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.user?.email).toBe('avery@example.com')
     expect(fetchMock.mock.calls.map(call => call[0])).toEqual([
-      '/api/auth/me', '/api/auth/refresh', '/api/auth/me', '/api/user/preferences',
+      '/api/auth/me?surface=shopper', '/api/auth/refresh?surface=shopper',
+      '/api/auth/me?surface=shopper', '/api/user/preferences',
     ])
   })
 
@@ -284,5 +285,150 @@ describe('AuthContext hydration', () => {
         '/operator/clients/CUST-JESSICA?view=request',
       )}`,
     )
+  })
+})
+
+/**
+ * One browser, two sessions. The storefront tree reads the shopper session
+ * and the Operator reads the staff session, each from its own provider; the
+ * server stand-in answers each `surface` from its own cookie set.
+ */
+describe('AuthContext surfaces', () => {
+  const sessions: Record<string, string | null> = { shopper: 'jessica', staff: 'nadia' }
+
+  function twoSessionFetch() {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), 'http://localhost')
+      const surface = url.searchParams.get('surface') ?? 'shopper'
+      if (url.pathname === '/api/auth/me') {
+        const username = sessions[surface]
+        return username
+          ? okJson({ user_id: `sub-${username}`, email: `${username}@pellier.example.com`, username })
+          : new Response(null, { status: 401 })
+      }
+      if (url.pathname === '/api/auth/logout') {
+        sessions[surface] = null
+        return okJson({ ok: true })
+      }
+      if (url.pathname === '/api/auth/refresh') return new Response(null, { status: 401 })
+      if (url.pathname === '/api/user/preferences') return okJson({ preferences: null })
+      return okJson({})
+    })
+  }
+
+  function Who({ testId }: { testId: string }) {
+    const { user, loading, surface } = useAuth()
+    return <span data-testid={testId}>{loading ? 'loading' : `${surface}:${user?.username ?? 'signed out'}`}</span>
+  }
+
+  function StaffSignOut() {
+    const { logout } = useAuth()
+    return <button type="button" onClick={logout}>Sign out staff</button>
+  }
+
+  function Tree() {
+    return (
+      <AuthProvider surface="shopper">
+        <Who testId="storefront" />
+        <AuthProvider surface="staff">
+          <Who testId="operator" />
+          <StaffSignOut />
+        </AuthProvider>
+      </AuthProvider>
+    )
+  }
+
+  beforeEach(() => {
+    sessions.shopper = 'jessica'
+    sessions.staff = 'nadia'
+    localStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    localStorage.clear()
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+  })
+
+  it('keeps the two providers independent', async () => {
+    const fetchMock = twoSessionFetch()
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Tree />)
+
+    expect(await screen.findByText('shopper:jessica')).toHaveAttribute('data-testid', 'storefront')
+    expect(await screen.findByText('staff:nadia')).toHaveAttribute('data-testid', 'operator')
+    const urls = fetchMock.mock.calls.map(call => String(call[0]))
+    expect(urls).toContain('/api/auth/me?surface=shopper')
+    expect(urls).toContain('/api/auth/me?surface=staff')
+    // Preferences belong to the shopper: the staff session never reads them.
+    expect(urls.filter(url => url === '/api/user/preferences')).toHaveLength(1)
+    expect(localStorage.getItem('pellier-auth-session:shopper')).toBe('1')
+    expect(localStorage.getItem('pellier-auth-session:staff')).toBe('1')
+  })
+
+  it('signs one surface out and leaves the other signed in', async () => {
+    const reload = vi.fn()
+    Object.defineProperty(window, 'location', {
+      configurable: true, value: { ...originalLocation, pathname: '/operator', search: '', reload, assign: vi.fn() },
+    })
+    const fetchMock = twoSessionFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<Tree />)
+    await screen.findByText('staff:nadia')
+
+    await act(async () => { screen.getByRole('button', { name: 'Sign out staff' }).click() })
+
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1))
+    const logouts = fetchMock.mock.calls.map(call => String(call[0])).filter(url => url.includes('/logout'))
+    expect(logouts).toEqual(['/api/auth/logout?surface=staff'])
+    expect(screen.getByTestId('operator')).toHaveTextContent('staff:signed out')
+    expect(screen.getByTestId('storefront')).toHaveTextContent('shopper:jessica')
+    expect(localStorage.getItem('pellier-auth-session:shopper')).toBe('1')
+    expect(localStorage.getItem('pellier-auth-session:staff')).toBeNull()
+  })
+
+  it('renews an expired staff access cookie through the staff refresh', async () => {
+    const fetchMock = twoSessionFetch()
+    let staffExpired = true
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/auth/me?surface=staff' && staffExpired) return new Response(null, { status: 401 })
+      if (url === '/api/auth/refresh?surface=staff') {
+        staffExpired = false
+        return okJson({ ok: true })
+      }
+      if (url.startsWith('/api/auth/refresh')) return new Response(null, { status: 401 })
+      if (url.startsWith('/api/auth/me')) {
+        const username = url.endsWith('staff') ? 'nadia' : 'jessica'
+        return okJson({ user_id: `sub-${username}`, email: '', username })
+      }
+      return okJson({ preferences: null })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<Tree />)
+
+    expect(await screen.findByText('staff:nadia')).toBeInTheDocument()
+    const refreshes = fetchMock.mock.calls.map(call => String(call[0])).filter(url => url.includes('/refresh'))
+    expect(refreshes).toEqual(['/api/auth/refresh?surface=staff'])
+  })
+
+  it('sends only the Operator back to sign-in when the staff session ends', async () => {
+    const assign = installLocation('/operator/reviews')
+    sessions.shopper = null
+    sessions.staff = null
+    localStorage.setItem('pellier-auth-session:shopper', '1')
+    localStorage.setItem('pellier-auth-session:staff', '1')
+    vi.stubGlobal('fetch', twoSessionFetch())
+
+    render(<Tree />)
+
+    await screen.findByText('staff:signed out')
+    await screen.findByText('shopper:signed out')
+    // The staff provider owns the Operator page; the shopper's ended session
+    // does not redirect it a second time.
+    expect(assign).toHaveBeenCalledTimes(1)
+    expect(assign).toHaveBeenCalledWith(`/signin?returnTo=${encodeURIComponent('/operator/reviews')}`)
   })
 })

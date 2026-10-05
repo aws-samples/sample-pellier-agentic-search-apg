@@ -17,7 +17,17 @@ chip: a member of ``pellier-operators`` is refused here, because a one-click
 staff button would let anyone who opens the app approve store credits, and
 that is the action Lab 4 says only staff can take. Choosing another shopper
 revokes the previous shopper's refresh token before the new cookies replace
-it, so a switch is a sign-out and a sign-in.
+it, so a switch is a sign-out and a sign-in. It writes only the shopper
+session: a staff member signed in on the Operator in the same browser stays
+signed in.
+
+The typed password sign-in
+--------------------------
+
+``POST /sign-in`` writes the session of the surface it was opened from: the
+browser sends ``surface`` (``shopper`` by default, ``staff`` from the
+Operator), and the server accepts only those two values. A staff account is
+refused the shopper session; staff sign in on the Operator.
 """
 from __future__ import annotations
 
@@ -38,12 +48,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from config import settings
-from services.auth import OPERATOR_GROUP
+from services.auth import (
+    OPERATOR_GROUP, SESSION_SURFACES, SHOPPER_SURFACE, staff_on_shopper_surface,
+)
 from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 from routes.auth import (
-    ACCESS_COOKIE_MAX_AGE, SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP,
-    _build_state, _client_id, _safe_return_to, _set_just_signed_in_cookie,
-    _set_session_cookies, _verify_state, revoke_refresh_token,
+    SIGN_IN_METHOD_WORKSHOP, STAFF_USE_OPERATOR, _build_state, _clear_sign_in_method_cookie,
+    _client_id, _safe_return_to, _set_just_signed_in_cookie, _set_session_cookies,
+    _set_sign_in_method_cookie, _verify_state, revoke_refresh_token,
 )
 
 router = APIRouter(prefix="/api/auth/password", tags=["auth"])
@@ -194,9 +206,18 @@ async def csrf() -> JSONResponse:
     return response
 
 
+def _surface(body: dict) -> str:
+    """The session this sign-in writes, from the page it was opened on."""
+    surface = body.get("surface", SHOPPER_SURFACE)
+    if surface not in SESSION_SURFACES:
+        raise HTTPException(400, "invalid_input")
+    return surface
+
+
 @router.post("/sign-in")
 async def sign_in(request: Request, service: CognitoAuthService = Depends(get_cognito_auth_service)):
     body = await _payload(request, ("username", "password"))
+    surface = _surface(body)
     parameters = {"USERNAME": body["username"], "PASSWORD": body["password"]}
     secret_hash = _secret_hash(body["username"])
     if secret_hash:
@@ -211,7 +232,7 @@ async def sign_in(request: Request, service: CognitoAuthService = Depends(get_co
         logger.warning("Cognito sign-in returned no access token")
         raise HTTPException(502, "auth_unavailable")
     try:
-        await service.validate_jwt(access_token)
+        user = await service.validate_jwt(access_token)
     except HTTPException as exc:
         # Keep the provider/verifier failure diagnosable without logging the
         # credentials, returned JWT, claims, or an exception's message.
@@ -219,13 +240,16 @@ async def sign_in(request: Request, service: CognitoAuthService = Depends(get_co
         logger.warning("Cognito sign-in verification failed: %s", type(cause).__name__)
         status = 503 if exc.status_code == 503 else 502
         raise HTTPException(status, "auth_unavailable") from None
+    if staff_on_shopper_surface(user, surface):
+        logger.info("Password sign-in refused: a staff account opened the storefront sign-in")
+        raise HTTPException(403, STAFF_USE_OPERATOR)
     target = body.get("returnTo")
     return_to = _safe_return_to(target if isinstance(target, str) else None) or "/"
     response = _response({"status": "signed_in", "returnTo": return_to})
-    _set_session_cookies(response, access_token=access_token,
+    _set_session_cookies(response, surface=surface, access_token=access_token,
                          id_token=tokens.get("IdToken"), refresh_token=tokens.get("RefreshToken"))
     _set_just_signed_in_cookie(response)
-    response.delete_cookie(SIGN_IN_METHOD_COOKIE, path="/", secure=True, samesite="lax")
+    _clear_sign_in_method_cookie(response, surface)
     response.delete_cookie(CSRF_COOKIE, path="/api/auth/password", secure=True, httponly=True, samesite="strict")
     return response
 
@@ -276,18 +300,18 @@ async def workshop_sign_in(
         raise HTTPException(403, "workshop_user_not_allowed")
     # Switching shopper signs the previous one out: only once the new session
     # is verified, so a refused or failed switch leaves the previous one intact.
-    await revoke_refresh_token(request)
+    # Only the shopper's token: a staff session in the same browser stays.
+    await revoke_refresh_token(request, SHOPPER_SURFACE)
     target = body.get("returnTo")
     return_to = _safe_return_to(target if isinstance(target, str) else None) or "/"
     response = _response({
         "status": "signed_in", "returnTo": return_to,
         "username": username, "signInMethod": SIGN_IN_METHOD_WORKSHOP,
     })
-    _set_session_cookies(response, access_token=access_token,
+    _set_session_cookies(response, surface=SHOPPER_SURFACE, access_token=access_token,
                          id_token=tokens.get("IdToken"), refresh_token=tokens.get("RefreshToken"))
     _set_just_signed_in_cookie(response)
-    response.set_cookie(SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP, max_age=ACCESS_COOKIE_MAX_AGE,
-                        httponly=True, secure=True, samesite="lax", path="/")
+    _set_sign_in_method_cookie(response, SHOPPER_SURFACE, SIGN_IN_METHOD_WORKSHOP)
     response.delete_cookie(CSRF_COOKIE, path="/api/auth/password", secure=True, httponly=True, samesite="strict")
     return response
 

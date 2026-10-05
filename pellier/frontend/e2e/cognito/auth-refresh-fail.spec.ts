@@ -3,10 +3,10 @@ import { signIn } from './helpers'
 
 test('a rejected session returns to the current sign-in form with its destination', async ({ page, context }) => {
   await signIn(page, '/operator')
-  await context.clearCookies({ name: 'access_token' })
-  await context.clearCookies({ name: 'refresh_token' })
+  await context.clearCookies({ name: 'staff_access_token' })
+  await context.clearCookies({ name: 'staff_refresh_token' })
   const refused = page.waitForResponse(response =>
-    response.url().endsWith('/api/auth/refresh') && response.status() === 401)
+    response.url().endsWith('/api/auth/refresh?surface=staff') && response.status() === 401)
   await page.reload()
   await refused
   await expect(page).toHaveURL(/\/signin\?returnTo=/)

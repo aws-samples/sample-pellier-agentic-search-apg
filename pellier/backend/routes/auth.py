@@ -6,21 +6,26 @@ Implements Requirements 3.1.1–3.1.5 and 4.1.3:
   * ``GET  /api/auth/callback`` exchange the authorization code, set
                                 session cookies, redirect to the SPA
   * ``GET  /api/auth/me``       return the verified ``{user_id, email,
-                                given_name}`` triple for the logged-in
-                                shopper
-  * ``POST /api/auth/logout``   clear the session cookies and revoke the
+                                given_name}`` triple for one session
+  * ``POST /api/auth/logout``   clear one session's cookies and revoke its
                                 refresh token at Cognito
-  * ``POST /api/auth/refresh``  rotate tokens from the ``refresh_token``
-                                cookie (used by the frontend interceptor
-                                in Task 3.7 on the frontend).
+  * ``POST /api/auth/refresh``  rotate one session's tokens from its
+                                refresh cookie (used by the frontend
+                                interceptor in Task 3.7 on the frontend).
+
+``me``, ``logout`` and ``refresh`` take ``surface=shopper|staff``, default
+``shopper``: one browser holds a shopper session for the storefront and a
+staff session for the Operator, in separate cookie sets
+(``services.auth.session_cookie_names``), and each call touches only its own.
 
 Design notes
 ------------
 
 * **State + PKCE.** ``state`` is a URL-safe HMAC token built from a random
-  nonce + an expiry and is also stored in an httpOnly browser cookie. The
-  callback requires both copies to match, consumes the cookie, and supplies
-  the browser-bound PKCE verifier during the code exchange.
+  nonce, an expiry and the session surface the sign-in writes, and is also
+  stored in an httpOnly browser cookie. The callback requires both copies to
+  match, reads the surface only from the signed state, consumes the cookie,
+  and supplies the browser-bound PKCE verifier during the code exchange.
 * **Cookies.** Session cookies follow Req 5.3.1: ``httpOnly`` +
   ``Secure`` + ``SameSite=Lax`` + ``Path=/``. The ``just_signed_in``
   flag is explicitly ``httpOnly=False`` so the SPA can read and delete
@@ -58,11 +63,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from config import settings
-from services.cognito_auth import (
-    ACCESS_TOKEN_COOKIE,
-    CognitoAuthService,
-    get_cognito_auth_service,
+from services.auth import (
+    SESSION_SURFACES,
+    SHOPPER_SURFACE,
+    SessionSurface,
+    session_cookie_names,
+    session_user,
+    staff_on_shopper_surface,
 )
+from services.cognito_auth import CognitoAuthService, get_cognito_auth_service
 
 logger = logging.getLogger(__name__)
 
@@ -73,14 +82,15 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 # Cookie names + lifetimes
 # ---------------------------------------------------------------------------
 
-ID_TOKEN_COOKIE = "id_token"
-REFRESH_TOKEN_COOKIE = "refresh_token"
+# The session cookie names live in ``services.auth.session_cookie_names``, one
+# set per surface. Each set's ``sign_in_method`` cookie records how the session
+# began: the workshop's one-click shopper sign-in sets it to ``workshop``, and
+# every other path clears it, so the Builder view can label a demo-shopper
+# session without the backend guessing from the username.
 JUST_SIGNED_IN_COOKIE = "just_signed_in"
-# How the session was established. The workshop's one-click shopper sign-in sets
-# it to ``workshop``; every other path leaves it unset, so the Builder view can
-# label a demo-shopper session without the backend guessing from the username.
-SIGN_IN_METHOD_COOKIE = "signin_method"
 SIGN_IN_METHOD_WORKSHOP = "workshop"
+# A staff account signing in on the storefront: refused, never a shopper session.
+STAFF_USE_OPERATOR = "staff_use_operator"
 OAUTH_STATE_COOKIE = "oauth_state"
 PKCE_VERIFIER_COOKIE = "oauth_pkce"
 OAUTH_RETURN_TO_COOKIE = "oauth_return_to"
@@ -191,6 +201,7 @@ def _canonical_loopback_signin_url(
     *,
     provider: str,
     return_to: Optional[str],
+    surface: str = SHOPPER_SURFACE,
 ) -> Optional[str]:
     """Converge local host aliases before creating browser-bound OAuth state.
 
@@ -223,6 +234,8 @@ def _canonical_loopback_signin_url(
     safe_return_to = _safe_return_to(return_to)
     if safe_return_to:
         params["returnTo"] = safe_return_to
+    if surface != SHOPPER_SURFACE:
+        params["surface"] = surface
     canonical_base = urlunsplit(
         (
             configured_origin.scheme,
@@ -283,54 +296,63 @@ def _b64url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + padding)
 
 
-def _build_state(expiry: Optional[int] = None) -> str:
+def _build_state(expiry: Optional[int] = None, surface: str = SHOPPER_SURFACE) -> str:
     """Return a signed opaque ``state`` token.
 
-    Format: ``<b64url(nonce)>.<expiry>.<b64url(hmac)>``. The expiry is a
-    unix timestamp; the HMAC is computed over ``nonce + "." + expiry``
-    so swapping either field invalidates the signature.
+    Format: ``<b64url(nonce)>.<expiry>.<surface>.<b64url(hmac)>``. The
+    expiry is a unix timestamp and ``surface`` names the session a Hosted UI
+    sign-in writes (the password CSRF nonce carries the default and ignores
+    it). The HMAC is computed over the first three fields, so changing any of
+    them invalidates the signature.
     """
+    if surface not in SESSION_SURFACES:
+        raise ValueError(f"Unknown session surface {surface!r}: use 'shopper' or 'staff'.")
     nonce = secrets.token_bytes(16)
     expiry_ts = expiry if expiry is not None else int(time.time()) + STATE_TTL_SECONDS
-    payload = f"{_b64url_encode(nonce)}.{expiry_ts}"
+    payload = f"{_b64url_encode(nonce)}.{expiry_ts}.{surface}"
     signature = hmac.new(
         _state_signing_key(), payload.encode("ascii"), hashlib.sha256
     ).digest()
     return f"{payload}.{_b64url_encode(signature)}"
 
 
-def _verify_state(state: str) -> bool:
-    """Return True iff ``state`` is a well-formed, unexpired, signed token.
+def _state_surface(state: str) -> Optional[str]:
+    """Return the surface a well-formed, unexpired, signed state names, else None.
 
     Uses ``hmac.compare_digest`` to blunt timing attacks. Expiry is
     checked after signature verification so a malformed state never
     leaks information about the signing key.
     """
     try:
-        nonce_b64, expiry_str, signature_b64 = state.split(".")
+        nonce_b64, expiry_str, surface, signature_b64 = state.split(".")
     except ValueError:
-        return False
+        return None
 
-    payload = f"{nonce_b64}.{expiry_str}"
-    expected = hmac.new(
-        _state_signing_key(), payload.encode("ascii"), hashlib.sha256
-    ).digest()
+    payload = f"{nonce_b64}.{expiry_str}.{surface}"
     try:
+        expected = hmac.new(
+            _state_signing_key(), payload.encode("ascii"), hashlib.sha256
+        ).digest()
         provided = _b64url_decode(signature_b64)
     except Exception:
-        return False
+        return None
 
     if not hmac.compare_digest(expected, provided):
-        return False
+        return None
 
     try:
         expiry_ts = int(expiry_str)
     except ValueError:
-        return False
-    if expiry_ts < int(time.time()):
-        return False
+        return None
+    if expiry_ts < int(time.time()) or surface not in SESSION_SURFACES:
+        return None
 
-    return True
+    return surface
+
+
+def _verify_state(state: str) -> bool:
+    """Return True iff ``state`` is a well-formed, unexpired, signed token."""
+    return _state_surface(state) is not None
 
 
 def _build_pkce_verifier() -> str:
@@ -348,20 +370,22 @@ def _pkce_challenge(verifier: str) -> str:
 def _set_session_cookies(
     response: Response,
     *,
+    surface: str,
     access_token: str,
     id_token: Optional[str],
     refresh_token: Optional[str],
 ) -> None:
-    """Write the three session cookies per Req 3.1.2 / 5.3.1.
+    """Write one surface's three session cookies per Req 3.1.2 / 5.3.1.
 
     ``id_token`` and ``refresh_token`` are optional because the refresh
     flow may not re-issue a refresh token and Cognito occasionally omits
     the id-token when the client requests ``scope=openid`` without the
     ``profile`` + ``email`` combination (we do request both; the guard
-    exists for robustness).
+    exists for robustness). The other surface's cookies are never touched.
     """
+    names = session_cookie_names(surface)
     response.set_cookie(
-        key=ACCESS_TOKEN_COOKIE,
+        key=names.access,
         value=quote(access_token, safe=""),
         max_age=ACCESS_COOKIE_MAX_AGE,
         httponly=True,
@@ -371,7 +395,7 @@ def _set_session_cookies(
     )
     if id_token:
         response.set_cookie(
-            key=ID_TOKEN_COOKIE,
+            key=names.id,
             value=quote(id_token, safe=""),
             max_age=ID_COOKIE_MAX_AGE,
             httponly=True,
@@ -381,7 +405,7 @@ def _set_session_cookies(
         )
     if refresh_token:
         response.set_cookie(
-            key=REFRESH_TOKEN_COOKIE,
+            key=names.refresh,
             value=quote(refresh_token, safe=""),
             max_age=REFRESH_COOKIE_MAX_AGE,
             httponly=True,
@@ -389,6 +413,31 @@ def _set_session_cookies(
             samesite="lax",
             path="/",
         )
+
+
+def _set_sign_in_method_cookie(response: Response, surface: str, method: str) -> None:
+    """Record how ``surface``'s session began, for as long as that session lasts.
+
+    The marker shares the refresh cookie's lifetime, not the access token's
+    hour, so the Builder line still reads "Workshop sign-in" after the access
+    token has been refreshed.
+    """
+    response.set_cookie(
+        key=session_cookie_names(surface).sign_in_method,
+        value=method,
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        path="/",
+    )
+
+
+def _clear_sign_in_method_cookie(response: Response, surface: str) -> None:
+    """Forget how ``surface``'s previous session began; a new one is starting."""
+    response.delete_cookie(
+        session_cookie_names(surface).sign_in_method, path="/", secure=True, samesite="lax",
+    )
 
 
 def _set_just_signed_in_cookie(response: Response) -> None:
@@ -477,14 +526,13 @@ def _oauth_failure_response(
     return response
 
 
-def _clear_session_cookies(response: Response) -> None:
-    for cookie in (
-        ACCESS_TOKEN_COOKIE,
-        ID_TOKEN_COOKIE,
-        REFRESH_TOKEN_COOKIE,
-        JUST_SIGNED_IN_COOKIE,
-        SIGN_IN_METHOD_COOKIE,
-    ):
+def _clear_session_cookies(response: Response, surface: str) -> None:
+    """Clear one surface's session cookies and leave the other session alone."""
+    names = session_cookie_names(surface)
+    cookies = [names.access, names.id, names.refresh, names.sign_in_method]
+    if surface == SHOPPER_SURFACE:
+        cookies.append(JUST_SIGNED_IN_COOKIE)
+    for cookie in cookies:
         # Match the attributes used at set_cookie time; some browsers retain
         # cookies whose deletion attributes don't match the originals.
         response.delete_cookie(cookie, path="/", secure=True, samesite="lax")
@@ -553,26 +601,30 @@ async def signin(
     request: Request,
     provider: str = Query("email", pattern="^(google|apple|email)$"),
     return_to: Optional[str] = Query(None, alias="returnTo"),
+    surface: SessionSurface = Query(SHOPPER_SURFACE),
 ) -> RedirectResponse:
     """Redirect the browser to Cognito's Hosted UI (Req 3.1.1).
 
     Maps the ``provider`` query param to Cognito's ``identity_provider``
     value and generates a signed ``state`` round-tripped through Cognito
-    back to the callback handler. The state carries no session data;
-    its only job is CSRF protection and replay window enforcement.
+    back to the callback handler. The state carries no tokens; it binds
+    the transaction (CSRF protection and replay window) and carries, under
+    its signature, the ``surface`` whose session the callback writes. The
+    callback never reads the surface from anywhere else.
     """
     provider_key = provider.lower()
     canonical_signin_url = _canonical_loopback_signin_url(
         request,
         provider=provider_key,
         return_to=return_to,
+        surface=surface,
     )
     if canonical_signin_url:
         return RedirectResponse(url=canonical_signin_url, status_code=302)
 
     identity_provider = PROVIDER_MAP.get(provider_key)
 
-    state = _build_state()
+    state = _build_state(surface=surface)
     verifier = _build_pkce_verifier()
     params: Dict[str, str] = {
         "client_id": _client_id(),
@@ -609,7 +661,9 @@ async def callback(
 
     Validates ``state``, exchanges ``code`` for tokens at
     ``/oauth2/token``, verifies the returned access token through the
-    JWKS client, writes the four cookies, and 302s back to the SPA.
+    JWKS client, writes the session cookies of the surface the signed
+    state names, and 302s back to the SPA. A staff account is refused
+    the shopper session.
     """
     # Cognito surfaces IdP errors as ``?error=...&error_description=...``.
     # We treat them the same as any other sign-in interruption per Req 3.1.5.
@@ -638,8 +692,10 @@ async def callback(
         _clear_oauth_cookies(response)
         return response
 
-    # Req 5.3.4: state mismatch or tamper → 400 invalid_state.
-    if not _verify_state(state):
+    # Req 5.3.4: state mismatch or tamper → 400 invalid_state. The surface
+    # comes from the signed state only, so a tampered surface fails here.
+    surface = _state_surface(state)
+    if surface is None:
         response = JSONResponse(
             status_code=400,
             content={"error": "invalid_state"},
@@ -676,12 +732,15 @@ async def callback(
     # here bubbles up as 401 from ``validate_jwt``; surface it as 502
     # auth_failed to avoid leaking JWKS internals to the caller.
     try:
-        await service.validate_jwt(access_token)
+        user = await service.validate_jwt(access_token)
     except HTTPException as exc:
         logger.error("Token validation after exchange failed: %s", exc.detail)
         if exc.status_code == 503:
             return _oauth_failure_response(503, "auth_unavailable")
         return _oauth_failure_response()
+    if staff_on_shopper_surface(user, surface):
+        logger.info("Hosted sign-in refused: a staff account opened the storefront sign-in")
+        return _oauth_failure_response(403, STAFF_USE_OPERATOR)
 
     response = RedirectResponse(
         url=_post_signin_redirect(request, return_to),
@@ -690,10 +749,12 @@ async def callback(
     _clear_oauth_cookies(response)
     _set_session_cookies(
         response,
+        surface=surface,
         access_token=access_token,
         id_token=id_token,
         refresh_token=refresh_token,
     )
+    _clear_sign_in_method_cookie(response, surface)
     _set_just_signed_in_cookie(response)
     return response
 
@@ -702,22 +763,24 @@ async def callback(
 async def me(
     request: Request,
     service: CognitoAuthService = Depends(get_cognito_auth_service),
+    surface: SessionSurface = Query(SHOPPER_SURFACE),
 ) -> JSONResponse:
-    """Return the verified shopper's profile (Req 3.1.3).
+    """Return the verified profile of one session (Req 3.1.3).
 
-    Uses the shared ``CognitoAuthService.extract_user`` so both the
-    ``Authorization: Bearer`` header and the ``access_token`` cookie
-    paths work with identical semantics. Returns 401 ``auth_failed``
-    when no valid token is present.
+    Uses the same ``services.auth.session_user`` read as the route
+    dependencies, so the ``Authorization: Bearer`` header and the
+    ``surface``'s own cookie work with identical semantics, and a
+    session is never answered from the other surface's cookies. Returns
+    401 ``auth_failed`` when no valid token is present.
     """
-    user = await service.extract_user(request)
+    user = await session_user(service, request, surface)
     if user is None:
         return JSONResponse(
             status_code=401,
             content={"error": "auth_failed"},
             headers={"Cache-Control": "no-store"},
         )
-    method = request.cookies.get(SIGN_IN_METHOD_COOKIE)
+    method = request.cookies.get(session_cookie_names(surface).sign_in_method)
     return JSONResponse(
         status_code=200,
         content={
@@ -735,14 +798,15 @@ async def me(
     )
 
 
-async def revoke_refresh_token(request: Request) -> None:
-    """Best-effort revoke of the session's refresh token at Cognito.
+async def revoke_refresh_token(request: Request, surface: str) -> None:
+    """Best-effort revoke of one session's refresh token at Cognito.
 
     Used when a session ends: on sign-out, and when the workshop sign-in
-    replaces one shopper with another. Network failures never block the
-    caller, which replaces or clears the cookies regardless.
+    replaces one shopper with another. Only ``surface``'s refresh token is
+    revoked; the other session stays signed in. Network failures never block
+    the caller, which replaces or clears the cookies regardless.
     """
-    raw_refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    raw_refresh_token = request.cookies.get(session_cookie_names(surface).refresh)
     refresh_token = unquote(raw_refresh_token) if raw_refresh_token else None
     if not (refresh_token and settings.COGNITO_DOMAIN and settings.COGNITO_CLIENT_ID):
         return
@@ -765,11 +829,14 @@ async def revoke_refresh_token(request: Request) -> None:
 
 
 @router.post("/logout")
-async def logout(request: Request) -> Response:
-    """Clear the session cookies and revoke the refresh token (Req 3.1.4)."""
-    await revoke_refresh_token(request)
+async def logout(
+    request: Request,
+    surface: SessionSurface = Query(SHOPPER_SURFACE),
+) -> Response:
+    """Clear one session's cookies and revoke its refresh token (Req 3.1.4)."""
+    await revoke_refresh_token(request, surface)
     response = JSONResponse(status_code=200, content={"ok": True})
-    _clear_session_cookies(response)
+    _clear_session_cookies(response, surface)
     return response
 
 
@@ -777,16 +844,19 @@ async def logout(request: Request) -> Response:
 async def refresh(
     request: Request,
     service: CognitoAuthService = Depends(get_cognito_auth_service),
+    surface: SessionSurface = Query(SHOPPER_SURFACE),
 ) -> Response:
-    """Rotate tokens using the ``refresh_token`` cookie (Req 4.2.4).
+    """Rotate one session's tokens using its refresh cookie (Req 4.2.4).
 
     Used by the frontend interceptor (Task 3.7 on the frontend) on any
-    401 from a protected endpoint. Returns ``{"ok": true}`` and rewrites
-    the access/id-token cookies on success; returns 401
-    ``refresh_failed`` when the cookie is missing or the token has
-    been revoked so the SPA can route the user back to ``/signin``.
+    401 from a protected endpoint, for the surface that made the call.
+    Returns ``{"ok": true}`` and rewrites that surface's access/id-token
+    cookies on success; returns 401 ``refresh_failed`` when the cookie is
+    missing or the token has been revoked so the SPA can route the user
+    back to ``/signin``. The other surface's cookies are never touched.
     """
-    raw_refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+    names = session_cookie_names(surface)
+    raw_refresh_token = request.cookies.get(names.refresh)
     refresh_token = unquote(raw_refresh_token) if raw_refresh_token else None
     if not refresh_token:
         return JSONResponse(
@@ -815,7 +885,7 @@ async def refresh(
             status_code=401,
             content={"error": "refresh_failed"},
         )
-        _clear_session_cookies(response)
+        _clear_session_cookies(response, surface)
         return response
 
     access_token = token_response.get("access_token")
@@ -845,8 +915,13 @@ async def refresh(
     response = JSONResponse(status_code=200, content={"ok": True})
     _set_session_cookies(
         response,
+        surface=surface,
         access_token=access_token,
         id_token=id_token,
         refresh_token=new_refresh_token,
     )
+    method = request.cookies.get(names.sign_in_method)
+    if new_refresh_token and method == SIGN_IN_METHOD_WORKSHOP:
+        # A rotated refresh token starts a new lifetime; the marker keeps pace.
+        _set_sign_in_method_cookie(response, surface, method)
     return response

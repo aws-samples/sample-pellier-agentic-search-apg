@@ -103,7 +103,7 @@ async function visit(page: Page, { signedIn = true, overlay = false, cart = fals
     localStorage.setItem('pellier-session-id', 'session-shots')
     if (signedIn) {
       sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
-      localStorage.setItem('pellier-auth-session', '1')
+      localStorage.setItem('pellier-auth-session:shopper', '1')
     }
     if (cart) {
       localStorage.setItem('pellier-cart-session', 'session-shots')
@@ -225,7 +225,7 @@ export const SURFACES: Surface[] = [
     open: async (page) => {
       await page.addInitScript(() => {
         sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
-        localStorage.setItem('pellier-auth-session', '1')
+        localStorage.setItem('pellier-auth-session:staff', '1')
         localStorage.removeItem('pellier-theme')
       })
       await stubOperator(page)

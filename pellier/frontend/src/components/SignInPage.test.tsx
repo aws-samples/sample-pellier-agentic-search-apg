@@ -44,9 +44,31 @@ describe('dedicated Pellier sign-in', () => {
     render(<SignInPage />); credentials()
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     const link = await screen.findByRole('link', { name: 'Continue secure verification' })
-    expect(link).toHaveAttribute('href', '/api/auth/signin?provider=email&returnTo=%2Foperator')
+    expect(link).toHaveAttribute('href', '/api/auth/signin?provider=email&returnTo=%2Foperator&surface=staff')
     expect(assign).not.toHaveBeenCalled()
     expect(screen.getByLabelText('Password', { exact: true })).toHaveValue('')
+  })
+  it('writes the staff session when opened from the Operator', async () => {
+    calls.passwordAuth.mockResolvedValue({ status: 'signed_in', returnTo: '/operator' })
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('/operator'))
+    expect(calls.passwordAuth).toHaveBeenCalledWith(
+      'sign-in', expect.objectContaining({ surface: 'staff', returnTo: '/operator' }), expect.any(AbortSignal),
+    )
+  })
+  it('writes the shopper session from the storefront, and tells staff to use the desk', async () => {
+    Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'http://localhost', search: '?returnTo=%2F', assign } })
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError('staff_use_operator'))
+    render(<SignInPage />); credentials()
+    expect(screen.getByRole('link', { name: 'Use another sign-in method' }))
+      .toHaveAttribute('href', '/api/auth/signin?provider=email&returnTo=%2F&surface=shopper')
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('This is a staff account. Sign in from the Operator desk instead.')
+    expect(calls.passwordAuth).toHaveBeenCalledWith(
+      'sign-in', expect.objectContaining({ surface: 'shopper' }), expect.any(AbortSignal),
+    )
+    expect(assign).not.toHaveBeenCalled()
   })
   it('requires matching passwords before confirming a recovery code', async () => {
     calls.passwordAuth.mockResolvedValueOnce({ status: 'recovery_requested' })

@@ -3,12 +3,12 @@ import { signIn } from './helpers'
 
 test('an expired access cookie refreshes through Cognito and retries hydration', async ({ page, context }) => {
   await signIn(page, '/operator')
-  expect((await context.cookies()).some(cookie => cookie.name === 'refresh_token')).toBe(true)
-  await context.clearCookies({ name: 'access_token' })
+  expect((await context.cookies()).some(cookie => cookie.name === 'staff_refresh_token')).toBe(true)
+  await context.clearCookies({ name: 'staff_access_token' })
   const refreshed = page.waitForResponse(response =>
-    response.url().endsWith('/api/auth/refresh') && response.status() === 200)
+    response.url().endsWith('/api/auth/refresh?surface=staff') && response.status() === 200)
   const verified = page.waitForResponse(response =>
-    response.url().endsWith('/api/auth/me') && response.status() === 200)
+    response.url().endsWith('/api/auth/me?surface=staff') && response.status() === 200)
   await page.reload()
   await refreshed
   await verified

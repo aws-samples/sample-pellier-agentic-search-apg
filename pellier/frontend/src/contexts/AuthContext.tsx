@@ -4,8 +4,16 @@ import { apiFetch } from '../services/apiBase'
  *
  * Uses the backend authorization-code flow. Cognito tokens remain in secure,
  * httpOnly cookies set by `/api/auth/callback`; browser code never handles
- * tokens from a URL fragment or localStorage. This context is the source of
- * truth for:
+ * tokens from a URL fragment or localStorage.
+ *
+ * One browser holds two sessions, each in its own cookie set: the shopper's
+ * and the staff member's. Each `AuthProvider` reads one `surface`. The App
+ * root provides the shopper session to the storefront tree (Storefront, Ask
+ * Pellier, cart, preferences); `OperatorFrame` provides the staff session to
+ * the desk. The nearest provider wins, so the Operator shows only Nadia and
+ * the storefront only the shopper, and signing out of one leaves the other.
+ *
+ * This context is the source of truth for:
  *
  *   - `user`               — Cognito claims (sub, email, givenName)
  *   - `preferences`        — saved preferences from AgentCore Memory
@@ -30,7 +38,9 @@ import {
 } from 'react'
 import { asset } from '../utils/assetPath'
 import type { Preferences } from '../services/types'
-import { refreshAuthTokens } from '../services/authRefresh'
+import { refreshAuthTokens, type AuthSurface } from '../services/authRefresh'
+
+export type { AuthSurface } from '../services/authRefresh'
 
 interface AuthUser {
   sub: string
@@ -43,6 +53,8 @@ interface AuthUser {
 }
 
 interface AuthContextType {
+  /** Which session this provider reads: the storefront's or the Operator's. */
+  surface: AuthSurface
   user: AuthUser | null
   isAuthenticated: boolean
   accessToken: string | null
@@ -96,7 +108,20 @@ export function useOptionalAuth(): AuthContextType | null {
   return useContext(AuthContext) ?? null
 }
 
-const AUTH_SESSION_MARKER_KEY = 'pellier-auth-session'
+/**
+ * One "this browser had a session" marker per surface, so an expired staff
+ * session sends only the Operator back to sign-in, and the reverse.
+ */
+export const AUTH_SESSION_MARKER_KEYS: Record<AuthSurface, string> = {
+  shopper: 'pellier-auth-session:shopper',
+  staff: 'pellier-auth-session:staff',
+}
+
+/** The Operator owns its own page: the shopper session never redirects it. */
+function onOperatorPage(pathname: string): boolean {
+  return /\/operator(?:\/|$)/.test(pathname)
+}
+
 /** A hung local proxy must not strand every surface in its auth loading state. */
 export const AUTH_REQUEST_TIMEOUT_MS = 8_000
 
@@ -133,7 +158,14 @@ interface PreferencesResponse {
   preferences: Preferences | null
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({
+  children,
+  surface = 'shopper',
+}: {
+  children: ReactNode
+  surface?: AuthSurface
+}) {
+  const markerKey = AUTH_SESSION_MARKER_KEYS[surface]
   const [user, setUser] = useState<AuthUser | null>(null)
   const accessToken: string | null = null
   const [loading, setLoading] = useState(true)
@@ -146,22 +178,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const identityGeneration = useRef(0)
 
   /**
-   * `refresh()` — hydrate `user` from /api/auth/me and `preferences` from
-   * /api/user/preferences. Both calls send the httpOnly cookies via
-   * `credentials: 'include'`. A 401 on `/api/auth/me` means the user is
-   * unauthenticated and we clear any stale state.
+   * `refresh()` — hydrate `user` from /api/auth/me for this surface, and the
+   * shopper's `preferences` from /api/user/preferences. Both calls send the
+   * httpOnly cookies via `credentials: 'include'`. A 401 on `/api/auth/me`
+   * means this surface is unauthenticated and we clear any stale state.
    */
   const refresh = useCallback(async () => {
     const generation = ++refreshGeneration.current
     const isCurrent = () => generation === refreshGeneration.current
+    const mePath = `/api/auth/me?surface=${surface}`
     try {
-      let meRes = await authFetch('/api/auth/me', {
+      let meRes = await authFetch(mePath, {
         method: 'GET',
         credentials: 'include',
       })
       if (!isCurrent()) return
-      if (meRes.status === 401 && await refreshAuthTokens()) {
-        meRes = await authFetch('/api/auth/me', {
+      if (meRes.status === 401 && await refreshAuthTokens(surface)) {
+        meRes = await authFetch(mePath, {
           method: 'GET',
           credentials: 'include',
         })
@@ -175,9 +208,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null)
         setPreferences(null)
         if (typeof window !== 'undefined') {
-          const hadSession = localStorage.getItem(AUTH_SESSION_MARKER_KEY) === '1'
-          localStorage.removeItem(AUTH_SESSION_MARKER_KEY)
-          if (hadSession && !/\/signin\/?$/.test(window.location.pathname)) {
+          const hadSession = localStorage.getItem(markerKey) === '1'
+          localStorage.removeItem(markerKey)
+          const { pathname } = window.location
+          const ownsPage = surface === 'staff' || !onOperatorPage(pathname)
+          if (hadSession && ownsPage && !/\/signin\/?$/.test(pathname)) {
             const returnTo = window.location.pathname + window.location.search
             window.location.assign(`${asset('/signin')}?returnTo=${encodeURIComponent(returnTo)}`)
           }
@@ -205,7 +240,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setAuthUnavailable(false)
       if (typeof window !== 'undefined') {
-        localStorage.setItem(AUTH_SESSION_MARKER_KEY, '1')
+        localStorage.setItem(markerKey, '1')
       }
       setUser({
         sub: subject,
@@ -215,6 +250,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInMethod: me.sign_in_method,
       })
 
+      // Preferences belong to the shopper; staff have none to read.
+      if (surface !== 'shopper') {
+        setPreferencesUnavailable(false)
+        return
+      }
       // Fetch preferences only once we know we have a verified user.
       try {
         const prefsRes = await authFetch('/api/user/preferences', {
@@ -238,7 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // protected API still verifies the cookie; this grants no authority.
       if (isCurrent()) setAuthUnavailable(true)
     }
-  }, [])
+  }, [markerKey, surface])
 
   /**
    * `savePreferences(p)` — POST /api/user/preferences. On 2xx, bumps
@@ -246,6 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * throws so the PreferencesModal (Task 5.3) can surface the error.
    */
   const savePreferences = useCallback(async (p: Preferences) => {
+    if (surface !== 'shopper') throw new Error('savePreferences: staff sessions have no preferences')
     const generation = identityGeneration.current
     const res = await authFetch('/api/user/preferences', {
       method: 'POST',
@@ -271,12 +312,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (generation !== identityGeneration.current || !verifiedSubject.current) return
     setPreferences(saved)
     setPrefsVersion(v => v + 1)
-  }, [])
+  }, [surface])
 
   // The session cookies are httpOnly by design, so JavaScript cannot reliably
   // predict whether they exist. Always ask the server once on mount. A clean
   // anonymous load checks both access and refresh cookies; skipping this can strand a
-  // valid operator session in a signed-out SPA state.
+  // valid session in a signed-out SPA state.
   useEffect(() => {
     let cancelled = false
 
@@ -298,24 +339,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  /** Sign this surface out. The other session in the browser stays signed in. */
   const logout = useCallback(() => {
     ++refreshGeneration.current
     verifiedSubject.current = null
     ++identityGeneration.current
     setAuthUnavailable(false)
     setPreferencesUnavailable(false)
-    localStorage.removeItem(AUTH_SESSION_MARKER_KEY)
+    localStorage.removeItem(markerKey)
     setUser(null)
     setPreferences(null)
-    void authFetch('/api/auth/logout', {
+    void authFetch(`/api/auth/logout?surface=${surface}`, {
       method: 'POST',
       credentials: 'include',
     }).finally(() => window.location.reload())
-  }, [])
+  }, [markerKey, surface])
 
   return (
     <AuthContext.Provider
       value={{
+        surface,
         user,
         isAuthenticated: !!user,
         accessToken,

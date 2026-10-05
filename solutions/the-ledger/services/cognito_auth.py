@@ -23,7 +23,8 @@ Key design choices (Req 4.2):
   * An unknown ``kid`` forces one guarded JWKS refresh so Cognito signing-key
     rotation does not reject valid users for the cache TTL.
   * ``extract_user`` checks the ``Authorization: Bearer`` header first
-    and only falls back to the ``access_token`` cookie (spec priority).
+    and only falls back to one session cookie (spec priority): the
+    shopper's ``access_token`` unless the caller names the staff one.
   * Tokens never appear in logs (Req 5.3.3). The service logs validation
     failures with the exception class only.
 
@@ -253,12 +254,15 @@ class CognitoAuthService:
     # Request extraction
     # ------------------------------------------------------------------
 
-    async def extract_user(self, request: Request) -> Optional[VerifiedUser]:
+    async def extract_user(
+        self, request: Request, cookie_name: str = ACCESS_TOKEN_COOKIE
+    ) -> Optional[VerifiedUser]:
         """Return the verified user for ``request`` or ``None``.
 
         Priority per Req 4.2.2:
           1. ``Authorization: Bearer <token>`` header
-          2. ``access_token`` cookie
+          2. the ``cookie_name`` session cookie, the shopper's
+             ``access_token`` by default. Only that one cookie is read.
         """
         token: Optional[str] = None
 
@@ -269,7 +273,7 @@ class CognitoAuthService:
             token = authorization.split(" ", 1)[1].strip()
 
         if not token:
-            cookie_token = request.cookies.get(ACCESS_TOKEN_COOKIE)
+            cookie_token = request.cookies.get(cookie_name)
             token = unquote(cookie_token) if cookie_token else None
 
         if not token:

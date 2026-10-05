@@ -1065,11 +1065,13 @@ async def chat_stream(
             # The client persists it and uses it to deep-link the exact
             # turn's evidence in Observatory.
             turn_id = new_turn_id()
-            from routes.auth import SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP
+            from routes.auth import SIGN_IN_METHOD_WORKSHOP
+            from services.auth import SHOPPER_SURFACE, session_cookie_names
             from services.turn_identity import turn_principal
 
             workshop_session = (
-                http_request.cookies.get(SIGN_IN_METHOD_COOKIE) == SIGN_IN_METHOD_WORKSHOP
+                http_request.cookies.get(session_cookie_names(SHOPPER_SURFACE).sign_in_method)
+                == SIGN_IN_METHOD_WORKSHOP
             )
 
             yield (

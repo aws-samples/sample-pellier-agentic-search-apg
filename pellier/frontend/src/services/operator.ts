@@ -5,8 +5,13 @@
  * the desk renders rather than errors to swallow. Every field comes from
  * PostgreSQL/Aurora: there is no committed frontend copy of the clients,
  * because UI state is not evidence.
+ *
+ * The desk runs on the staff session. A 401 refreshes that session once and
+ * replays the call; the shopper session the same browser holds on the
+ * storefront is never read or refreshed here.
  */
 import { apiFetch } from './apiBase'
+import { refreshAuthTokens } from './authRefresh'
 import type { TurnStep } from '../components/turn/turnTypes'
 
 export interface OperatorClient {
@@ -293,6 +298,20 @@ export class OperatorApiError extends Error {
 export const OPERATOR_REQUEST_TIMEOUT_MS = 8_000
 export const OPERATOR_REVIEW_TIMEOUT_MS = 30_000
 
+/** Fetch with the staff session, refreshing it once when the access token has expired. */
+async function staffFetch(path: string, init: RequestInit): Promise<Response> {
+  const response = await apiFetch(path, init)
+  if (response.status !== 401) return response
+  let refreshed: boolean
+  try {
+    refreshed = await refreshAuthTokens('staff')
+  } catch {
+    // The provider is unavailable; it has not rejected the staff session.
+    throw new OperatorApiError('operator_unavailable', 503)
+  }
+  return refreshed ? apiFetch(path, init) : response
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -301,7 +320,7 @@ async function request<T>(
   const controller = new AbortController()
   const timeout = globalThis.setTimeout(() => controller.abort(), timeoutMs)
   try {
-    const response = await apiFetch(path, {
+    const response = await staffFetch(path, {
       ...init,
       credentials: 'include',
       headers: { 'Content-Type': 'application/json', ...init.headers },
@@ -364,7 +383,7 @@ export async function streamInvestigation(
   const deadline = globalThis.setTimeout(cancel, 300_000)
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
   try {
-    const response = await apiFetch(
+    const response = await staffFetch(
       `/api/operator/clients/${encodeURIComponent(customerId)}/investigate`,
       {
         method: 'POST',

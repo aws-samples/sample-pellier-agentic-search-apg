@@ -7,13 +7,17 @@
  * bar carries the two sections and the signed-in staff member, Nadia, who
  * signs in with her password; there is no one-click staff sign-in.
  *
+ * The desk reads the staff session through its own `AuthProvider`, so a
+ * shopper signed in on the storefront in another tab of the same browser never
+ * replaces Nadia here, and signing either one out leaves the other.
+ *
  * Mounted on `.operator-root`, in direction A's tokens, so both themes apply
  * with nothing to restyle.
  */
 import React, { createContext, useContext, useEffect } from 'react'
 import { LogOut, User } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
+import { AuthProvider, useAuth } from '../../contexts/AuthContext'
 import { ClientBookContext, useClientBookResource } from '../hooks/useClientBook'
 import { ReviewQueueContext, useQueueResource, useReviewQueue } from '../hooks/useReviewQueue'
 import { redirectToSignIn } from '../../utils/auth'
@@ -73,7 +77,7 @@ const StaffIdentity: React.FC = () => {
   )
 }
 
-const OperatorFrame: React.FC = () => {
+const OperatorDesk: React.FC = () => {
   const { pathname } = useLocation()
   const reviews = pathname.startsWith('/operator/reviews')
   const queue = useQueueResource()
@@ -116,5 +120,12 @@ const OperatorFrame: React.FC = () => {
     </ClientBookContext.Provider>
   )
 }
+
+/** The desk, on the staff session. */
+const OperatorFrame: React.FC = () => (
+  <AuthProvider surface="staff">
+    <OperatorDesk />
+  </AuthProvider>
+)
 
 export default OperatorFrame

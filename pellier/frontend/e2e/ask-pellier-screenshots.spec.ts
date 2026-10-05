@@ -88,7 +88,7 @@ test.beforeEach(async ({ page }) => {
     sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
     localStorage.setItem('pellier-session-id', 'session-shots')
-    localStorage.setItem('pellier-auth-session', '1')
+    localStorage.setItem('pellier-auth-session:shopper', '1')
     localStorage.removeItem('pellier-drawer-storefront')
     localStorage.removeItem('pellier-builder-view')
   }, ANNA)

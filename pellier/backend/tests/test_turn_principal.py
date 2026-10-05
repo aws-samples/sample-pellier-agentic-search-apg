@@ -17,7 +17,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
-from routes.auth import SIGN_IN_METHOD_COOKIE, SIGN_IN_METHOD_WORKSHOP
+from routes.auth import SIGN_IN_METHOD_WORKSHOP
+from services.auth import session_cookie_names
+
+SIGN_IN_METHOD_COOKIE = session_cookie_names("shopper").sign_in_method
 
 
 def _turn_start(body: str) -> Dict[str, Any]:

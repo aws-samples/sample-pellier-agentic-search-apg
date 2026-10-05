@@ -61,7 +61,9 @@ class _Service:
     def __init__(self, mode: str = "valid") -> None:
         self.mode = mode
 
-    async def extract_user(self, request: Any) -> Optional[_VerifiedUser]:
+    async def extract_user(
+        self, request: Any, cookie_name: str = cognito_module.ACCESS_TOKEN_COOKIE
+    ) -> Optional[_VerifiedUser]:
         if self.mode == "valid":
             return _VerifiedUser()
         if self.mode == "no_subject":
@@ -163,14 +165,28 @@ def test_verified_operator_reaches_the_handler(
 def test_cookie_credentials_are_recognised(
     app_with_operator_route: FastAPI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The code-flow httpOnly cookie is a credential, not an absence."""
+    """The staff session's httpOnly cookie is a credential, not an absence."""
     _set_mode(monkeypatch, "valid")
     client = TestClient(app_with_operator_route)
-    client.cookies.set(cognito_module.ACCESS_TOKEN_COOKIE, "cookie-token")
+    client.cookies.set(auth_module.session_cookie_names("staff").access, "cookie-token")
 
     response = client.post("/protected")
 
     assert response.status_code == 200
+
+
+def test_the_shopper_cookie_alone_is_no_operator_credential(
+    app_with_operator_route: FastAPI, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The desk reads the staff session only, never the storefront's."""
+    _set_mode(monkeypatch, "valid")
+    client = TestClient(app_with_operator_route)
+    client.cookies.set(auth_module.session_cookie_names("shopper").access, "cookie-token")
+
+    response = client.post("/protected")
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "authentication_required"
 
 
 def test_bearer_prefix_with_empty_token_counts_as_missing(
@@ -203,7 +219,7 @@ def test_an_authenticated_caller_outside_the_group_is_403(
     original = cognito_module.get_cognito_auth_service
 
     class _ShopperService:
-        async def extract_user(self, request):  # noqa: ANN001
+        async def extract_user(self, request, cookie_name=None):  # noqa: ANN001
             return _VerifiedUser(user_id="sub-marco", groups=())
 
     cognito_module.get_cognito_auth_service = lambda: _ShopperService()

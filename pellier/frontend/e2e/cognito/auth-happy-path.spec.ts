@@ -5,7 +5,8 @@ test('password sign-in verifies Cognito identity and protects browser tokens', a
   await signIn(page, '/operator')
   await expect(page.getByText('Validated access token', { exact: true })).toBeVisible()
   const cookies = await context.cookies()
-  for (const name of ['access_token', 'refresh_token']) {
+  // Signed in from the Operator: the staff session's cookies.
+  for (const name of ['staff_access_token', 'staff_refresh_token']) {
     const cookie = cookies.find(item => item.name === name)
     expect(cookie).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Lax' })
   }
@@ -13,8 +14,8 @@ test('password sign-in verifies Cognito identity and protects browser tokens', a
     cookies: document.cookie.split(';').map(item => item.split('=')[0].trim()),
     keys: Object.keys(localStorage),
   }))
-  expect(readable.cookies).not.toContain('access_token')
-  expect(readable.cookies).not.toContain('refresh_token')
+  expect(readable.cookies).not.toContain('staff_access_token')
+  expect(readable.cookies).not.toContain('staff_refresh_token')
   expect(readable.keys).not.toContain('access_token')
   expect(readable.keys).not.toContain('refresh_token')
 })
