@@ -296,8 +296,8 @@
  * The collection. Every count of cards across divides twelve, so the home's
  * twelve pieces and a result's first twelve always fill whole rows: two on a
  * phone, three on a tablet, three beside the docked Ask Pellier panel (291px
- * cards at 1440, 237px at 1280), four with the panel closed from 1024px, six
- * from 1800px. A card is at most `--pellier-card-max` wide; past that the
+ * cards at 1440, 237px at 1280) and four beside it from 1600px, four with the
+ * panel closed from 1024px, six from 1800px. A card is at most `--pellier-card-max` wide; past that the
  * row keeps its count and leaves the rest of the column empty.
  * ----------------------------------------------------------------------- */
 /* The home grid follows the hero's suggestion row on the first screen. A
@@ -371,6 +371,12 @@
 /* Docked beside the page (chat-drawer.css), the column holds three. */
 @media (min-width: 1080px) {
   html[data-ask-docked='true'] .pellier-product-grid { --pellier-columns: 3; }
+}
+
+/* A wide screen gives the docked column room for four, so a 1920 capture has
+   no empty band to the right of the third card. */
+@media (min-width: 1600px) {
+  html[data-ask-docked='true'] .pellier-product-grid { --pellier-columns: 4; }
 }
 
 /* -----------------------------------------------------------------------
