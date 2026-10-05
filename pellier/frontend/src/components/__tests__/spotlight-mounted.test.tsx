@@ -3,10 +3,11 @@
  * welcome at most once per session.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import PellierSpotlight from '../PellierSpotlight';
+import { UIProvider, useUI } from '../../contexts/UIContext';
 
 const SRC = resolve(__dirname, '../..');
 
@@ -125,6 +126,44 @@ describe('first-visit orientation', () => {
     } finally {
       opener.remove();
     }
+  });
+});
+
+function DockProbe() {
+  const { activeModal } = useUI();
+  return <span data-testid="dock">{activeModal ?? 'none'}</span>;
+}
+
+describe('Escape on the welcome tour', () => {
+  const width = window.innerWidth;
+
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    // A laptop width, where the store opens with Ask Pellier docked.
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1440 });
+  });
+
+  afterEach(() => {
+    Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: width });
+  });
+
+  it('closes the tour and leaves Ask Pellier docked', () => {
+    render(
+      <UIProvider>
+        <DockProbe />
+        <PellierSpotlight />
+      </UIProvider>,
+    );
+    expect(screen.getByTestId('dock')).toHaveTextContent('drawer');
+
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByTestId('dock')).toHaveTextContent('drawer');
+
+    // With the tour gone, Escape belongs to the store again.
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(screen.getByTestId('dock')).toHaveTextContent('none');
   });
 });
 

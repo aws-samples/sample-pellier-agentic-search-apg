@@ -191,7 +191,11 @@ export default function PellierSpotlight() {
         return
       }
       if (event.key === 'Escape') {
+        // Escape closes the tour only. Caught on the way down and stopped
+        // here, it never reaches the store's own Escape handler, which would
+        // also close the docked Ask Pellier panel and remember that.
         event.preventDefault()
+        event.stopPropagation()
         dismiss()
       }
       if (event.key === 'ArrowRight') {
@@ -203,8 +207,8 @@ export default function PellierSpotlight() {
         previous()
       }
     }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
   }, [dismiss, next, previous, visible])
 
   if (!visible) return null
