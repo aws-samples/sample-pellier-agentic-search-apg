@@ -2165,14 +2165,41 @@ def test_a_deploy_allows_the_starter_and_a_correct_rule(tmp_path, which, state) 
     assert provisioner._lab4_rule_gate(repo) == state
 
 
-def test_a_deploy_warns_when_the_cedar_check_cannot_run(tmp_path, monkeypatch, capsys) -> None:
-    provisioner = _load_provisioner()
-    lab4 = _lab4_check()
-
+def _cedar_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     def broken(*_args: Any) -> Any:
         raise ImportError("cedarpy is not installed")
 
-    monkeypatch.setattr(lab4, "local_check", broken)
-    repo = _lab4_repo(tmp_path, "anything")
+    monkeypatch.setattr(_lab4_check(), "local_check", broken)
+
+
+def test_a_deploy_warns_and_deploys_the_starter_when_the_cedar_check_cannot_run(
+    tmp_path, monkeypatch, capsys
+) -> None:
+    """Bootstrap and Lab 3 deploy the untouched starter; a missing checker must not stop them."""
+    provisioner = _load_provisioner()
+    _cedar_unavailable(monkeypatch)
+    repo = _lab4_repo(tmp_path, LAB4_STARTER.read_text(encoding="utf-8"))
     assert provisioner._lab4_rule_gate(repo) == "UNCHECKED"
     assert "was not checked before this deploy: ImportError" in capsys.readouterr().err
+
+
+def test_a_deploy_refuses_an_edited_rule_the_cedar_check_cannot_run_on(
+    tmp_path, monkeypatch
+) -> None:
+    """Under IGNORE_ALL_FINDINGS nothing else would assess the edit before the Gateway."""
+    provisioner = _load_provisioner()
+    _cedar_unavailable(monkeypatch)
+    repo = _lab4_repo(tmp_path, LAB4_SOLUTION.read_text(encoding="utf-8"))
+    with pytest.raises(RuntimeError, match="differs from its starter, and the Cedar check could"):
+        provisioner._lab4_rule_gate(repo)
+
+
+def test_a_deploy_refuses_an_edited_rule_the_check_could_not_decide(tmp_path, monkeypatch) -> None:
+    provisioner = _load_provisioner()
+    lab4 = _lab4_check()
+    undecided = types.SimpleNamespace(
+        finding=types.SimpleNamespace(state="UNCHECKED", observed="unsound"))
+    monkeypatch.setattr(lab4, "local_check", lambda *_args: undecided)
+    repo = _lab4_repo(tmp_path, LAB4_SOLUTION.read_text(encoding="utf-8"))
+    with pytest.raises(RuntimeError, match=r"could not run \(unsound\)"):
+        provisioner._lab4_rule_gate(repo)

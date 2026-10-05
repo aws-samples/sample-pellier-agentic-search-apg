@@ -188,6 +188,7 @@ npm audit --omit=dev --audit-level=high
 # Repository
 git diff --check
 find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+pipx run ruff==0.16.10 check --select F821 scripts/
 ```
 
 Use focused tests during iteration. Run the full backend and frontend gates

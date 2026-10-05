@@ -603,8 +603,14 @@ elif [[ $? -ne 10 ]]; then
 fi
 
 if [[ "$policy_changed" == true ]]; then
-  _agentcore validate --json >>/tmp/pellier-governed-reset-policy.log
-  _agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log
+  _agentcore validate --json >>/tmp/pellier-governed-reset-policy.log || {
+    fail "Lab 4 starter policy did not validate; see /tmp/pellier-governed-reset-policy.log"
+    exit 1
+  }
+  _agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log || {
+    fail "Lab 4 starter policy did not deploy; see /tmp/pellier-governed-reset-policy.log"
+    exit 1
+  }
   pass "Lab 4 policy $policy_name restored to its starter through AgentCore CLI"
 else
   pass "Lab 4 policy $policy_name already declares its starter"

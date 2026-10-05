@@ -44,6 +44,9 @@ class TestTheBuild:
         finding = lab3.judge_build(BUILD_ROW, "c" * 64)
         assert finding.state == check.CONTRADICTED
         assert "--mode participant" in finding.next_step
+        # Choosing the shopper already signed in starts nothing; signing out
+        # first gives the retry a new Runtime session.
+        assert "Sign out, choose Theo, and send it again." in finding.next_step
 
     def test_no_turn_is_not_yet_and_an_unstamped_row_is_unchecked(self) -> None:
         assert lab3.judge_build(None, BUILD).state == check.NOT_YET

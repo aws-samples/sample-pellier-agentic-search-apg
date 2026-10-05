@@ -16,7 +16,7 @@ const EXPECTED = {
   anna: [
     'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
     'A gift with a watch, under $100, in stock, no candles.',
-    'Which one should I choose? Compare the two options using their current prices and availability.',
+    'Wrap-ready gifts with no extra effort',
   ],
   theo: [
     'Hand-thrown ceramics for a slower morning routine',

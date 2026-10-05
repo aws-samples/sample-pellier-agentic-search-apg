@@ -208,3 +208,11 @@ Memory extraction readiness, the Lab 3 and Lab 4 deploys, one Operator
 investigation and the cleanup. Test the recovery paths in a separate run. If
 a lab exceeds its budget, cut required work or change the schedule
 explicitly, and keep the failed measurement.
+
+Give every dry run its own fresh provision. Do not reuse a box after the
+Summary's reset: `scripts/reset-governed-workshop.sh` rebuilds the database,
+restores the exercise files and restores Lab 4's starter policy, but it does
+not undo Lab 3's deploy. The Gateway still publishes `get_tickets` with its
+owner-only permit, and the Runtime still runs the last participant's build, so
+Lab 3's Spot step no longer fails and its build check compares the restored
+starter with that build.

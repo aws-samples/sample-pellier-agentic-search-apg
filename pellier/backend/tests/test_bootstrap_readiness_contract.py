@@ -1294,15 +1294,20 @@ def test_source_control_is_hidden_from_the_editor() -> None:
 
 def test_explorer_hides_repo_meta_but_keeps_the_lab_folders() -> None:
     """Lab 4 opens policies/, the documented fallback lane opens solutions/,
-    and the runtime skills live in skills/ - hiding any of them strands a
-    participant step. Repo meta stays on disk for Claude Code and the
-    terminal but out of the Explorer and editor search."""
+    the runtime skills live in skills/, and Lab 3A opens
+    scripts/deploy/gateway_tool_schemas.py - hiding any of them strands a
+    participant step, because Quick Open and search inherit files.exclude.
+    Repo meta stays on disk for Claude Code and the terminal but out of the
+    Explorer and editor search."""
     user_settings, _workspace = _settings_blocks()
     excludes = user_settings["files.exclude"]
     for hidden in (".claude", ".gitignore", "LICENSE", "NOTICE", "VOICE.md", "data"):
         assert excludes.get(hidden) is True, f"{hidden} should be hidden from the Explorer"
     for visible in ("policies", "skills", "solutions", "pellier", "pellier/frontend"):
         assert visible not in excludes, f"{visible} must stay visible in the Explorer"
+    for pattern, hidden in excludes.items():
+        if hidden and pattern.rstrip("/").split("/")[-1] == "scripts":
+            raise AssertionError(f"{pattern} hides scripts/, where Lab 3A's marked region lives")
 
 
 def test_the_workspace_is_detached_from_git_on_every_path() -> None:

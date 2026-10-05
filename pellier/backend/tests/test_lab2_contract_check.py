@@ -124,3 +124,23 @@ def test_the_check_runs_the_participants_tool_body_not_the_logic_directly() -> N
     source = (SCRIPTS / "lab2_contract_check.py").read_text()
     assert "return agent_tools.check_stock" in source
     assert "store_tools" not in source
+
+
+def _finding(state: str) -> object:
+    return check.check.Finding("2A", "title", state, "expected", "observed", ["row"])
+
+
+@pytest.mark.parametrize("recorded", ["NOT YET", "CONTRADICTED"])
+def test_a_pass_the_running_backend_has_not_recorded_names_the_restart(recorded) -> None:
+    """The guide's check runs the checkout; Ask Pellier and the export read Marco's turns."""
+    finding = check.with_restart_hint(_finding("PROVED"), _finding(recorded))
+    assert finding.state == "PROVED"
+    assert finding.evidence[0] == "row"
+    assert "Restart the backend" in finding.evidence[-1]
+    assert check.MARCO_CAPE_QUESTION in finding.evidence[-1]
+
+
+@pytest.mark.parametrize("guide, recorded", [("PROVED", "PROVED"), ("CONTRADICTED", "NOT YET")])
+def test_no_restart_line_when_the_turns_agree_or_the_check_fails(guide, recorded) -> None:
+    finding = check.with_restart_hint(_finding(guide), _finding(recorded))
+    assert finding.evidence == ["row"]

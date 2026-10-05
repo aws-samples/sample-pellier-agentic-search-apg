@@ -716,7 +716,6 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "**/.git": true,
         "**/.github": true,
         "**/.vscode": true,
-        "**/scripts": true,
         "**/.venv": true,
         "**/__pycache__": true,
         "**/.pytest_cache": true,

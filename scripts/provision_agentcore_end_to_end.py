@@ -1311,7 +1311,7 @@ def _deploy_lambdas(
 
 
 def _lab4_rule_gate(repo: Path) -> str:
-    """Refuse to deploy a Lab 4 rule the local Cedar check contradicts.
+    """Refuse to deploy a Lab 4 rule the local Cedar check contradicts or could not check.
 
     Lab 4's policy deploys with ``IGNORE_ALL_FINDINGS`` (the starter's
     forbid-all is overly restrictive on purpose), so AWS's semantic analysis
@@ -1320,27 +1320,32 @@ def _lab4_rule_gate(repo: Path) -> str:
     second; a rule it marks CONTRADICTED would cost a redeploy and could deny
     every shopper tool, so it is refused here, before any AWS change. NOT YET
     (the starter, a reset) and PROVED deploy. UNCHECKED, a check that could
-    not run, deploys with a warning.
+    not run (``cedarpy`` missing, say), deploys the byte-identical starter with
+    a warning, so bootstrap and Lab 3 are unaffected, and refuses an edited
+    rule, which nothing else would assess before it reached the Gateway.
 
     Returns:
         The check's state.
 
     Raises:
-        RuntimeError: the check marks the rule CONTRADICTED.
+        RuntimeError: the check marks the rule CONTRADICTED, or could not
+            check a rule that differs from the starter.
     """
     scripts = Path(__file__).resolve().parent
     if str(scripts) not in sys.path:
         sys.path.insert(0, str(scripts))
+    rule = starter = None
     try:
+        rule = (repo / CREDIT_LIMIT_SOURCE).read_text(encoding="utf-8")
+        starter = (repo / CREDIT_LIMIT_STARTER).read_text(encoding="utf-8")
         import lab4_policy_check
 
-        finding = lab4_policy_check.local_check(
-            (repo / CREDIT_LIMIT_SOURCE).read_text(encoding="utf-8"),
-            (repo / CREDIT_LIMIT_STARTER).read_text(encoding="utf-8"),
-        ).finding
-    except Exception as exc:  # noqa: BLE001 - an unrun check warns, it never passes silently
-        print(f"WARNING: Lab 4's rule was not checked before this deploy: "
-              f"{type(exc).__name__}: {str(exc)[:160]}", file=sys.stderr)
+        finding = lab4_policy_check.local_check(rule, starter).finding
+    except Exception as exc:  # noqa: BLE001 - an unrun check refuses an edit, never passes it
+        reason = f"{type(exc).__name__}: {str(exc)[:160]}"
+        _refuse_an_unchecked_edit(rule, starter, reason)
+        print(f"WARNING: Lab 4's rule was not checked before this deploy: {reason}",
+              file=sys.stderr)
         return "UNCHECKED"
     if finding.state == "CONTRADICTED":
         print(lab4_policy_check.check.render(finding), file=sys.stderr)
@@ -1350,9 +1355,25 @@ def _lab4_rule_gate(repo: Path) -> str:
             "block, then deploy again."
         )
     if finding.state == "UNCHECKED":
+        _refuse_an_unchecked_edit(rule, starter, finding.observed)
         print(f"WARNING: Lab 4's Cedar check could not decide: {finding.observed}",
               file=sys.stderr)
     return finding.state
+
+
+def _refuse_an_unchecked_edit(rule: str | None, starter: str | None, reason: str) -> None:
+    """Raise when the Cedar check could not run on a rule other than the starter.
+
+    A rule that could not be read is left to the deploy itself, which reads
+    the same file and fails with its own error.
+    """
+    if rule is None or rule == starter:
+        return
+    raise RuntimeError(
+        f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} differs from its starter, and the Cedar "
+        f"check could not run ({reason}), so it was not deployed. Run python3 "
+        "scripts/lab4_policy_check.py to see why, then deploy again."
+    )
 
 
 def _verify_local_schema() -> dict[str, Any]:

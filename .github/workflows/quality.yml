@@ -49,6 +49,11 @@ jobs:
       - name: Validate shell scripts
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
+      # Deploy and lab-check scripts run on a provisioned box, not under the test
+      # suite, so an unbound name there surfaces only during a deploy.
+      - name: Check scripts for undefined names
+        run: pipx run ruff==0.16.10 check --select F821 scripts/
+
   frontend:
     name: Frontend tests, build, and dependency audit
     runs-on: ubuntu-latest

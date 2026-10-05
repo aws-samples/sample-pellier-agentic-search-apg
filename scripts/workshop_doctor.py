@@ -390,7 +390,7 @@ def _managed_build(evidence: Evidence) -> Check:
     build = str(row.get("deployed_fingerprint") or "")
     if not build:
         return Check(name, False, f"turn {row.get('turn_id')} carries no build; deploy your "
-                                  "Task 3A change and run Theo's turn again")
+                                  "Task 3A change. Sign out, choose Theo, and send it again")
     return Check(name, True, f"turn {row.get('turn_id')} ran build {build[:12]}")
 
 

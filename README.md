@@ -143,6 +143,7 @@ npm audit --omit=dev --audit-level=high
 # Repository, from the root
 git diff --check
 find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+pipx run ruff==0.16.10 check --select F821 scripts/
 ```
 
 These checks run without AWS. Runtime, Gateway, Cedar and Lambda behavior can only be proven in a provisioned account.

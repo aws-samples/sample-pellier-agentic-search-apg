@@ -39,6 +39,7 @@ import json
 import os
 import pathlib
 import sys
+from dataclasses import replace
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -323,6 +324,22 @@ def judge_recorded_2a(conn: Any) -> check.Finding:
     return check.Finding("2A", title, check.PROVED, EXPECTED_2A_RECORDED, observed, evidence)
 
 
+def with_restart_hint(guide: check.Finding, recorded: check.Finding) -> check.Finding:
+    """The guide's 2A finding, with a restart line when Marco's recorded turns disagree.
+
+    The guide's check runs the checkout's ``check_stock`` in its own process, so
+    it can pass while the running backend still answers with the code it started
+    with. Ask Pellier and the evidence export read Marco's recorded turns, so
+    they show the change only after a restart and his question asked again.
+    """
+    if guide.state != check.PROVED or recorded.state == check.PROVED:
+        return guide
+    hint = ("this ran your check_stock in this process; Marco's recorded turns do not show it "
+            f"yet. Restart the backend and ask \"{MARCO_CAPE_QUESTION}\" as Marco again "
+            "before you export the evidence.")
+    return replace(guide, evidence=[*guide.evidence, hint])
+
+
 # ---------------------------------------------------------------------------
 # Task 2B: the grant the answering Stock agent held, and what it was told
 # ---------------------------------------------------------------------------
@@ -502,7 +519,8 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
             conn.autocommit = True
             if task == "2B":
                 return judge_2b(conn), []
-            return judge_2a(conn, participant_tool(conn, cfg), inputs)
+            finding, rows = judge_2a(conn, participant_tool(conn, cfg), inputs)
+            return with_restart_hint(finding, judge_recorded_2a(conn)), rows
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
         return check.Finding(task, title, check.UNCHECKED, "a reachable database",
                              "the check could not look",

@@ -164,14 +164,15 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
     if not deployed or not local:
         return check.Finding("3B", _BUILD_TITLE, check.UNCHECKED, BUILD_EXPECTED,
                              "a build could not be compared", evidence,
-                             "deploy with --mode participant, then run Theo's turn again.")
+                             "deploy with --mode participant. Sign out, choose Theo, and send "
+                             "it again.")
     if deployed == local:
         return check.Finding("3B", _BUILD_TITLE, check.PROVED, BUILD_EXPECTED,
                              "the two builds match", evidence)
     return check.Finding("3B", _BUILD_TITLE, check.CONTRADICTED, BUILD_EXPECTED,
                          "another build answered", evidence,
-                         "deploy your Task 3A change with --mode participant, then run "
-                         "Theo's turn again.")
+                         "deploy your Task 3A change with --mode participant. Sign out, "
+                         "choose Theo, and send it again.")
 
 
 _TICKETS_TITLE = "every executed ticket read was Theo's own"
