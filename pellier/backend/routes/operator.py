@@ -517,6 +517,9 @@ def _review_payload(
         "requesterKind": str(row.get("requester_kind") or "unverified"),
         "requestedAt": _iso(row.get("requested_at")),
         "decidedAt": _iso(row.get("decided_at")),
+        # The Lab 4 policy check's probe: opened and confirmed by the check,
+        # so the desk never presents it as a person's request or approval.
+        "policyCheckProbe": rv.is_policy_check_probe(row),
     }
 
 

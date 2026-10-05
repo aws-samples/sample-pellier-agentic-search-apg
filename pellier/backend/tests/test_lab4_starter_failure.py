@@ -76,7 +76,8 @@ def _run(conn: Any):
 def _nadia(rule_path: Path, cents: int) -> str:
     rule = lab4.render_rule(rule_path.read_text())
     policies = lab4.baseline_set() + [(lab4.CREDIT_LIMIT_POLICY, rule)]
-    return lab4.decide(policies, lab4.gateway_cedar_schema(), lab4.NADIA, cents).decision
+    return lab4.decide(policies, lab4.gateway_cedar_schema(), lab4.NADIA,
+                       lab4.GIVE_STORE_CREDIT_ACTION, lab4.credit_input(cents)).decision
 
 
 def test_jessicas_seeded_case_is_exactly_the_limit(conn: Any) -> None:
@@ -98,7 +99,7 @@ def test_the_solution_lets_it_through_and_denies_one_cent_more() -> None:
     assert _nadia(SOLUTION_RULE, 10001) == lab4.DENY
     result = lab4.local_check(SOLUTION_RULE.read_text(), STARTER_RULE.read_text())
     assert result.finding.state == lab4.check.PROVED
-    assert [row[-1] for row in result.table] == ["matches"] * 7
+    assert [row[-1] for row in result.table] == ["matches"] * 10
 
 
 # ---------------------------------------------------------------------------
@@ -184,11 +185,16 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
 
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", row_factory=dict_row) as probe_conn:
-        review = lab4.ensure_probe_review(probe_conn, staff_sub="sub-nadia", staff_name="nadia")
-        again = lab4.ensure_probe_review(probe_conn, staff_sub="sub-nadia", staff_name="nadia")
+        review = lab4.ensure_probe_review(probe_conn, staff_sub="sub-nadia")
+        again = lab4.ensure_probe_review(probe_conn, staff_sub="sub-nadia")
     assert again["id"] == review["id"], "a second run reuses the same review and key"
     assert (review["status"], review["order_ids"], review["args"]["amount_cents"]) == (
         "approved", [], 10001)
+    # The check confirmed its own probe; no staff member is recorded as approving it.
+    decided = conn.execute("SELECT decided_by, decided_by_name, requested_by_sub "
+                           "FROM pellier.approvals WHERE id = %s", (review["id"],)).fetchone()
+    assert decided == {"decided_by": "lab4-policy-check", "decided_by_name": "lab4-policy-check",
+                       "requested_by_sub": "sub-nadia"}
 
     no_credit = _psql(fresh_db, ABSENCE)
     assert "none yet: Jessica has no store credit" in no_credit.stdout

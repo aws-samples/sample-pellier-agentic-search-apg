@@ -51,6 +51,9 @@ export function presentIdentity(value: string | undefined | null): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
+/** The Lab 4 policy check's over-limit probe, as the desk names it. */
+export const POLICY_CHECK_PROBE_LINE = 'Opened and confirmed by the Lab 4 policy check (probe data, covers no order)'
+
 interface Check {
   key: 'approval' | 'policy' | 'recorded'
   label: string
@@ -61,6 +64,12 @@ interface Check {
 }
 
 function approvalCheck(review: OperatorReview, decider: string): Check {
+  if (review.policyCheckProbe) {
+    return {
+      key: 'approval', label: 'Approval', tone: 'pending', tag: 'No person approved it',
+      detail: `${POLICY_CHECK_PROBE_LINE}. It exists to send one over-limit credit to Cedar.`,
+    }
+  }
   if (review.humanState === 'confirmed') {
     return {
       key: 'approval', label: 'Approval', tone: 'good', tag: `Approved by ${decider}`,
@@ -163,10 +172,12 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
     recordedCheck(record, attempted, policy),
   ]
   const pending = review.humanState === 'confirmation_required'
-  const approved = review.humanState === 'confirmed'
+  // The Lab 4 check's probe is probe data: the desk never executes it.
+  const approved = review.humanState === 'confirmed' && !review.policyCheckProbe
   const executed = Boolean(record && record.readable && record.creditRows === 1)
   const named = items ?? review.recommendation.items ?? []
-  const deciderPortrait = (review.decidedByName || '').toLowerCase() === STAFF_PORTRAIT ? STAFF_PORTRAIT : null
+  const deciderPortrait = !review.policyCheckProbe && (review.decidedByName || '').toLowerCase() === STAFF_PORTRAIT
+    ? STAFF_PORTRAIT : null
 
   return (
     <section className="op-credit" data-state={review.humanState} data-testid="operator-proposed-credit">

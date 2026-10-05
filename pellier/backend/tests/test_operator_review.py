@@ -415,3 +415,18 @@ def test_the_review_payload_reads_arguments_stored_as_text() -> None:
     assert payload["amountCents"] == 10000 and payload["reason"] == "Two items went back."
     assert payload["orderIds"] == [301]
     assert payload["humanState"] == "confirmed"
+    assert payload["policyCheckProbe"] is False
+
+
+def test_the_lab4_probe_review_is_flagged_so_the_desk_names_its_real_origin() -> None:
+    """The Lab 4 check opens and confirms its own over-limit review: no person asked or approved."""
+    from services import operator_review as rv
+
+    payload = operator_module._review_payload({
+        "review_id": 6, "customer_id": "CUST-JESSICA", "action": "give_store_credit",
+        "args": json.dumps(JESSICA), "status": "approved", "action_hash": JESSICA_HASH,
+        "issue": rv.POLICY_CHECK_PROBE_ISSUE, "order_ids": "{}", "requester_kind": "operator",
+        "decided_by": rv.POLICY_CHECK_DECIDER, "decided_by_name": rv.POLICY_CHECK_DECIDER,
+    })
+    assert payload["policyCheckProbe"] is True
+    assert payload["decidedByName"] == "lab4-policy-check"

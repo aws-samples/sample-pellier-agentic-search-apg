@@ -70,6 +70,19 @@ MATERIAL_PARAMETERS: Dict[str, tuple[str, ...]] = {
     "give_store_credit": ("customer_id", "amount_cents", "reason"),
 }
 
+# The Lab 4 policy check's over-limit review (scripts/lab4_policy_check.py):
+# probe data on Jessica's account that covers no order. The check opens it and
+# confirms it itself, under its own name, to send one over-limit credit to
+# Cedar. No person asks for it or approves it, and the desk says so.
+POLICY_CHECK_PROBE_ISSUE = "Lab 4 over-limit probe: covers no order"
+POLICY_CHECK_DECIDER = "lab4-policy-check"
+
+
+def is_policy_check_probe(review: Mapping[str, Any]) -> bool:
+    """True for the Lab 4 policy check's own over-limit review."""
+    return str(review.get("issue") or "") == POLICY_CHECK_PROBE_ISSUE
+
+
 # Who asked. `shopper` is a verified token, `operator` is the desk's Planner,
 # `unverified` is a session whose customer could not be tied to a subject.
 REQUESTER_SHOPPER = "shopper"

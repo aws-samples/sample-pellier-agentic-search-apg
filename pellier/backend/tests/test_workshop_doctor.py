@@ -333,7 +333,7 @@ class TestLab4:
             tmp_path, "context.input has amount_cents &&\n  context.input.amount_cents <= 10000")
         checks = _by_name(doctor.lab4_checks(FakeEvidence(), repo=repo))
         assert checks[self.NAME].passed is True
-        assert "7 of 7 decisions match" in checks[self.NAME].detail
+        assert "10 of 10 decisions match" in checks[self.NAME].detail
 
     def test_an_exclusive_limit_fails_and_says_why(self, tmp_path: Path) -> None:
         repo = self._repo_with_rule(

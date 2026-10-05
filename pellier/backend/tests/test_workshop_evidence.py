@@ -316,7 +316,7 @@ def test_lab_4b_runs_the_rls_worksheet_and_the_absence_check(
     assert waiting.state == NOT_YET, waiting
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", autocommit=True, row_factory=dict_row) as conn:
-        review = lab4.ensure_probe_review(conn, staff_sub="sub-nadia", staff_name="nadia")
+        review = lab4.ensure_probe_review(conn, staff_sub="sub-nadia")
         lab4.record_probe_attempt(conn, review["id"], lab4.attempt_for(
             {"outcome": "deny", "cedar_denial": True, "error": "not allowed due to policy"},
             review["idempotency_key"], {}))

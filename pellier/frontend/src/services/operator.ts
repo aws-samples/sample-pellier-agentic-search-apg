@@ -236,6 +236,11 @@ export interface OperatorReview {
   requesterKind: 'shopper' | 'operator' | 'unverified'
   requestedAt: string | null
   decidedAt: string | null
+  /**
+   * The Lab 4 policy check's own over-limit probe, which covers no order. The
+   * check opened and confirmed it: no person asked for it or approved it.
+   */
+  policyCheckProbe: boolean
 }
 
 export interface OperatorReviewQueue {

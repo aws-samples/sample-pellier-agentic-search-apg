@@ -12,10 +12,18 @@ import { StatusTag } from '../../components/turn'
 import ClientAvatar from '../components/ClientAvatar'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
-import ProposedCreditCard from '../components/ProposedCreditCard'
+import ProposedCreditCard, { POLICY_CHECK_PROBE_LINE } from '../components/ProposedCreditCard'
+import type { OperatorReview } from '../../services/operator'
 import { useReview } from '../hooks/useReview'
 import { shortDate } from './ClientBook'
 import { reviewOutcome } from './ReviewQueue'
+
+/** Who asked for the credit, from the review row. The Lab 4 check's probe is its own. */
+function requesterLine(review: OperatorReview): string {
+  if (review.policyCheckProbe) return POLICY_CHECK_PROBE_LINE
+  if (review.requesterKind === 'operator') return 'the Planner, on the desk'
+  return review.requesterKind === 'shopper' ? 'the signed-in shopper' : 'an unverified request'
+}
 
 const ReviewRecordPage: React.FC = () => {
   const { reviewId } = useParams<{ reviewId: string }>()
@@ -93,9 +101,9 @@ const ReviewRecordPage: React.FC = () => {
             <p className="op-note">{items.length > 0 ? items.join(' and ') : 'No order was named for this credit.'}</p>
           )}
           <dl className="op-key">
-            <div>
+            <div data-testid="operator-review-requester">
               <dt>Asked for by</dt>
-              <dd>{review.requesterKind === 'operator' ? 'the Planner, on the desk' : review.requesterKind === 'shopper' ? 'the signed-in shopper' : 'an unverified request'}</dd>
+              <dd>{requesterLine(review)}</dd>
             </div>
             {review.requestedAt ? <div><dt>Proposed</dt><dd>{shortDate(review.requestedAt)}</dd></div> : null}
             {review.decidedAt ? <div><dt>Decided</dt><dd>{shortDate(review.decidedAt)}</dd></div> : null}

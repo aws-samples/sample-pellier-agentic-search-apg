@@ -92,7 +92,7 @@ export const PENDING_REVIEW: OperatorReview = {
   orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
   recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
   actionHash: ACTION_HASH, decidedBy: null, decidedByName: null, requestedBySub: 'sub-nadia', requesterKind: 'operator',
-  requestedAt: '2026-10-04T15:00:00Z', decidedAt: null,
+  requestedAt: '2026-10-04T15:00:00Z', decidedAt: null, policyCheckProbe: false,
 }
 
 export const APPROVED_REVIEW: OperatorReview = {
@@ -147,6 +147,19 @@ export const UNWRITTEN_REVIEW: OperatorReview = {
     notes: { policy: 'No answer from the Gateway is stored for this attempt. The tool_audit and store_credits rows for this key are all the record there is.' },
     lastAttempt: null,
   },
+}
+
+/**
+ * The Lab 4 policy check's over-limit review, re-read after the check sent it:
+ * probe data that covers no order, confirmed by the check itself, denied.
+ */
+export const PROBE_REVIEW: OperatorReview = {
+  ...DENIED_ON_RELOAD, reviewId: 57, amountCents: 10001, amount: '100.01',
+  parameters: { customer_id: 'CUST-JESSICA', amount_cents: 10001, reason: 'Over-limit probe for the Lab 4 policy check' },
+  reason: 'Over-limit probe for the Lab 4 policy check', orderIds: [], sourceTurnId: null,
+  issue: 'Lab 4 over-limit probe: covers no order',
+  recommendation: { primaryAction: 'give_store_credit', rationale: 'Lab 4 over-limit probe: covers no order' },
+  decidedBy: 'lab4-policy-check', decidedByName: 'lab4-policy-check', policyCheckProbe: true,
 }
 
 export const DETAIL_ORDERS = RECORD.orders.slice(0, 2)

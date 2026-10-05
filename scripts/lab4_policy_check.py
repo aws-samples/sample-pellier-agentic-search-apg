@@ -8,22 +8,28 @@ Part 1 runs here and deploys nothing. It evaluates your
 ``cedarpy`` package), beside the baseline the provisioner renders, against
 the Gateway's Cedar schema rendered from the published tool schemas:
 
+* everything before the final ``unless`` block must be the starter's: the
+  principal, the ``give_store_credit`` action and the Gateway are not yours to
+  change;
 * every policy must parse, validate against the schema and evaluate without
   an error (an erroring forbid is skipped, which would read as an ALLOW);
 * the decision matrix: a shopper at $100, and Nadia at 9999, 10000 and 10001
-  cents, plus an ordinary amount and a second staff member;
-* five wrong rules (``false``, ``true``, staff-only, ``< 10000`` and
-  ``<= 100``) put in place of your ``unless`` block, each of which the matrix
-  must catch;
+  cents, plus an ordinary amount and a second staff member; then three tools
+  the rule does not govern, which must stay allowed: a shopper's return
+  policy, a shopper's own orders and a staff stock check;
+* six wrong rules, five put in place of your ``unless`` block (``false``,
+  ``true``, staff-only, ``< 10000`` and ``<= 100``) and one that widens your
+  rule to every action, each of which the matrix must catch;
 * the matrix with your rule left out: Nadia's 10001-cent request must then be
   allowed, so the denial is your rule's.
 
 Part 2 runs on the workshop box. It reads the deployed ``workshop_credit_limit``
 statement, which must be your file, then sends one over-limit credit through
 the Gateway with Nadia's own token. The credit has its own review: 10001
-cents on Jessica's account, covering no order, approved under Nadia's
-identity. Cedar must deny it, and its key must leave no ``tool_audit`` row and
-no ``store_credits`` row. Nothing here deploys a policy.
+cents on Jessica's account, covering no order, opened and confirmed by this
+check (no person asks for it or approves it, and the Operator says so). Cedar
+must deny it, and its key must leave no ``tool_audit`` row and no
+``store_credits`` row. Nothing here deploys a policy.
 """
 
 from __future__ import annotations
@@ -52,7 +58,12 @@ from render_agentcore_project import (  # noqa: E402
     CREDIT_LIMIT_STARTER,
     GATEWAY_ARN_PLACEHOLDER,
     GIVE_STORE_CREDIT_ACTION,
+    STORE_TARGET,
     baseline_policies,
+)
+from services.operator_review import (  # noqa: E402
+    POLICY_CHECK_DECIDER,
+    POLICY_CHECK_PROBE_ISSUE as PROBE_ISSUE,
 )
 
 POLICY_FILE = REPO / CREDIT_LIMIT_SOURCE
@@ -66,7 +77,6 @@ LIMIT_CENTS, PROBE_CENTS = 10000, 10001
 # found again by its issue: the absence check reads its key from it.
 PROBE_CUSTOMER = "CUST-JESSICA"
 PROBE_REASON = "Over-limit probe for the Lab 4 policy check"
-PROBE_ISSUE = "Lab 4 over-limit probe: covers no order"
 
 
 @dataclass(frozen=True)
@@ -84,19 +94,65 @@ NADIA = Caller("Nadia", "nadia", {"username": "nadia", "custom:staff_scope": "re
 OTHER_STAFF = Caller("Another staff member", "staff-two",
                      {"username": "staff-two", "custom:staff_scope": "returns"})
 
+
+@dataclass(frozen=True)
+class Request:
+    """One authorization the matrix asks Cedar for, and the decision it must get."""
+
+    label: str
+    caller: Caller
+    tool: str
+    tool_input: Dict[str, Any]
+    want: str
+
+    @property
+    def action(self) -> str:
+        return f"{STORE_TARGET}___{self.tool}"
+
+    @property
+    def cents(self) -> Optional[int]:
+        return self.tool_input.get("amount_cents") if self.tool == "give_store_credit" else None
+
+
+def dollars(cents: int) -> str:
+    return f"${cents // 100}.{cents % 100:02d}"
+
+
+def credit_input(cents: int) -> Dict[str, Any]:
+    """A schema-valid give_store_credit input for ``cents``."""
+    return {"customer_id": PROBE_CUSTOMER, "amount_cents": cents,
+            "reason": "Lab 4 policy check", "idempotency_key": "lab4-local-check"}
+
+
+def credit(caller: Caller, cents: int, want: str) -> Request:
+    return Request(f"{caller.label}, {dollars(cents)} ({cents} cents)", caller,
+                   "give_store_credit", credit_input(cents), want)
+
+
 # The four rows the guide predicts, then three that catch a hardcoded amount
 # or a hardcoded person.
-MATRIX: Tuple[Tuple[Caller, int, str], ...] = (
-    (SHOPPER, 10000, DENY),
-    (NADIA, 9999, ALLOW),
-    (NADIA, 10000, ALLOW),
-    (NADIA, 10001, DENY),
+MATRIX: Tuple[Request, ...] = (
+    credit(SHOPPER, 10000, DENY),
+    credit(NADIA, 9999, ALLOW),
+    credit(NADIA, 10000, ALLOW),
+    credit(NADIA, 10001, DENY),
 )
-MORE: Tuple[Tuple[Caller, int, str], ...] = (
-    (NADIA, 5000, ALLOW),
-    (OTHER_STAFF, 10000, ALLOW),
-    (OTHER_STAFF, 10001, DENY),
+MORE: Tuple[Request, ...] = (
+    credit(NADIA, 5000, ALLOW),
+    credit(OTHER_STAFF, 10000, ALLOW),
+    credit(OTHER_STAFF, 10001, DENY),
 )
+# Tools the rule does not govern. A rule that reaches them is wrong however it
+# treats credits: widened to every action, it would deny every shopper tool.
+READS: Tuple[Request, ...] = (
+    Request("A shopper (Jessica) reads the return policy", SHOPPER, "get_return_policy", {},
+            ALLOW),
+    Request("A shopper (Jessica) reads her own orders", SHOPPER, "get_orders",
+            {"customer_id": "CUST-JESSICA"}, ALLOW),
+    Request("Nadia checks stock", NADIA, "check_stock", {"product_query": "Wabi-Sabi Bowl"},
+            ALLOW),
+)
+REQUESTS: Tuple[Request, ...] = MATRIX + MORE + READS
 
 # Wrong rules put in place of the participant's unless block. Each must fail
 # the matrix, or the matrix could not tell a right rule from a wrong one.
@@ -110,14 +166,9 @@ MUTATIONS: Tuple[Tuple[str, str], ...] = (
     ("dollars, not cents, <= 100",
      "context.input has amount_cents && context.input.amount_cents <= 100"),
 )
-
-
-def dollars(cents: int) -> str:
-    return f"${cents // 100}.{cents % 100:02d}"
-
-
-def row_label(caller: Caller, cents: int) -> str:
-    return f"{caller.label}, {dollars(cents)} ({cents} cents)"
+# The one wrong rule that changes the head: your unless block over every action.
+WIDENED = "your unless block over every action, not only give_store_credit"
+_CREDIT_ACTION_CLAUSE = f'action == AgentCore::Action::"{GIVE_STORE_CREDIT_ACTION}"'
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +282,30 @@ def _policy_text(policies: Sequence[Tuple[str, str]]) -> str:
     return "\n".join(f'@id("{name}")\n{statement}' for name, statement in policies)
 
 
+def policy_head(text: str) -> Optional[str]:
+    """Everything before the final ``unless`` block, comments and spacing aside.
+
+    ``None`` when the policy has no final ``unless`` block.
+    """
+    try:
+        head, _tail = _split_unless(text)
+    except ValueError:
+        return None
+    return " ".join(head.split())
+
+
+def widen_action(rule: str) -> str:
+    """``rule`` with its action scope removed, so the forbid covers every action."""
+    head, tail = _split_unless(rule)
+    return head.replace(_CREDIT_ACTION_CLAUSE, "action") + tail
+
+
+def mutants(rule: str) -> List[Tuple[str, str]]:
+    """The wrong rules, each built from yours: five unless blocks and one widened head."""
+    built = [(label, with_unless(rule, body)) for label, body in MUTATIONS]
+    return built + [(WIDENED, widen_action(rule))]
+
+
 # ---------------------------------------------------------------------------
 # Evaluation
 # ---------------------------------------------------------------------------
@@ -244,17 +319,16 @@ class Decision:
 
 
 def decide(policies: Sequence[Tuple[str, str]], schema: Dict[str, Any], caller: Caller,
-           cents: int, gateway_arn: str = LOCAL_GATEWAY_ARN) -> Decision:
-    """One Cedar authorization of a schema-valid give_store_credit request."""
+           action: str, tool_input: Dict[str, Any],
+           gateway_arn: str = LOCAL_GATEWAY_ARN) -> Decision:
+    """One Cedar authorization of ``caller`` calling ``action`` with ``tool_input``."""
     import cedarpy
 
     request = {
         "principal": {"type": "AgentCore::OAuthUser", "id": caller.principal_id},
-        "action": {"type": "AgentCore::Action", "id": GIVE_STORE_CREDIT_ACTION},
+        "action": {"type": "AgentCore::Action", "id": action},
         "resource": {"type": "AgentCore::Gateway", "id": gateway_arn},
-        "context": {"input": {"customer_id": "CUST-JESSICA", "amount_cents": cents,
-                              "reason": "Lab 4 policy check",
-                              "idempotency_key": "lab4-local-check"}},
+        "context": {"input": dict(tool_input)},
     }
     entities = [
         {"uid": {"type": "AgentCore::OAuthUser", "id": caller.principal_id},
@@ -286,15 +360,19 @@ class Assessment:
     """The matrix, plus whatever stopped Cedar from deciding it."""
 
     errors: List[str]
-    rows: List[Tuple[Caller, int, str, Decision]]
+    rows: List[Tuple[Request, Decision]]
 
     @property
-    def wrong(self) -> List[Tuple[Caller, int, str, Decision]]:
-        return [row for row in self.rows if row[3].decision != row[2] or row[3].errors]
+    def wrong(self) -> List[Tuple[Request, Decision]]:
+        return [row for row in self.rows if row[1].decision != row[0].want or row[1].errors]
 
     @property
     def passed(self) -> bool:
         return not self.errors and not self.wrong
+
+    def decision_for(self, caller: Caller, cents: int) -> Optional[Decision]:
+        """The decision on ``caller``'s credit of ``cents``, if the matrix has one."""
+        return next((d for r, d in self.rows if r.caller is caller and r.cents == cents), None)
 
 
 def assess(rule: Optional[str], schema: Dict[str, Any],
@@ -304,8 +382,9 @@ def assess(rule: Optional[str], schema: Dict[str, Any],
     errors = validation_errors(policies, schema)
     if errors:
         return Assessment(errors, [])
-    rows = [(caller, cents, want, decide(policies, schema, caller, cents))
-            for caller, cents, want in MATRIX + MORE]
+    rows = [(request, decide(policies, schema, request.caller, request.action,
+                             request.tool_input))
+            for request in REQUESTS]
     return Assessment([], rows)
 
 
@@ -318,89 +397,142 @@ class LocalResult:
 def _first_wrong(assessment: Assessment) -> str:
     if assessment.errors:
         return "Cedar rejects it: " + assessment.errors[0][:120]
-    caller, cents, want, got = assessment.wrong[0]
-    return f"{row_label(caller, cents)} reads {got.decision}, expected {want}"
+    request, got = assessment.wrong[0]
+    return f"{request.label} reads {got.decision}, expected {request.want}"
 
 
 def _next_step(assessment: Assessment) -> str:
     if assessment.errors:
         return "fix the syntax or the attribute name: Cedar must accept the rule before it decides."
-    wrong = {(c.label, cents) for c, cents, _w, _d in assessment.wrong}
-    if ("Nadia", 10001) in wrong or ("Another staff member", 10001) in wrong:
+    wrong = assessment.wrong
+    if any(request.tool != "give_store_credit" for request, _d in wrong):
+        return ("your rule reaches tools it does not govern: keep the action "
+                "give_store_credit and edit only the unless block.")
+    missed = {(request.caller.label, request.cents) for request, _d in wrong}
+    if ("Nadia", PROBE_CENTS) in missed or ("Another staff member", PROBE_CENTS) in missed:
         return ("your rule lets an over-limit credit through: true, staff-only, or the wrong unit "
                 "lets 10001 cents pass.")
-    if ("Nadia", 10000) in wrong and ("Nadia", 9999) not in wrong:
+    if ("Nadia", LIMIT_CENTS) in missed and ("Nadia", 9999) not in missed:
         return "your comparison excludes the limit: 10000 cents must pass."
     return "your rule denies an in-limit credit: compare amount_cents, in cents, with 10000."
 
 
-def local_check(rule_text: str, starter_text: str) -> LocalResult:
-    """Part 1: the matrix, the five wrong rules and the counterfactual."""
-    schema = gateway_cedar_schema()
-    baseline = baseline_set()
-    rule = render_rule(rule_text)
-    yours = assess(rule, schema, baseline)
-    starter = assess(render_rule(starter_text), schema, baseline)
-    alone = assess(None, schema, baseline)
-    caught = [(label, assess(with_unless(rule, body), schema, baseline))
-              for label, body in MUTATIONS]
-    escaped = [label for label, mutant in caught if mutant.passed]
+def _cell(assessment: Assessment, index: int) -> str:
+    if assessment.errors:
+        return "error"
+    decision = assessment.rows[index][1]
+    return decision.decision + (" (error)" if decision.errors else "")
 
-    def cell(assessment: Assessment, index: int) -> str:
-        if assessment.errors:
-            return "error"
-        decision = assessment.rows[index][3]
-        return decision.decision + (" (error)" if decision.errors else "")
 
-    table = [[row_label(caller, cents), cell(alone, i), cell(starter, i), cell(yours, i), want,
-              "matches" if not yours.errors and yours.rows[i][3].decision == want
-              and not yours.rows[i][3].errors else "differs"]
-             for i, (caller, cents, want) in enumerate(MATRIX + MORE)]
+def _table(alone: Assessment, starter: Assessment, yours: Assessment) -> List[List[str]]:
+    rows = []
+    for i, request in enumerate(REQUESTS):
+        matches = (not yours.errors and yours.rows[i][1].decision == request.want
+                   and not yours.rows[i][1].errors)
+        rows.append([request.label, _cell(alone, i), _cell(starter, i), _cell(yours, i),
+                     request.want, "matches" if matches else "differs"])
+    return rows
 
-    over_limit_alone = next((d for c, cents, _w, d in alone.rows
-                             if c is NADIA and cents == PROBE_CENTS), None)
-    counterfactual_holds = over_limit_alone is not None and over_limit_alone.decision == ALLOW
+
+def _decided(decision: Optional[Decision]) -> str:
+    if decision is None:
+        return "not evaluated"
+    by = ", ".join(decision.decided_by) or "no policy (default deny)"
+    return f"{decision.decision}, decided by {by}"
+
+
+_LOCAL_TITLE = "your rule limits one credit to $100"
+_LOCAL_EXPECTED = ("Cedar accepts the rule and the lines before its unless block are the "
+                   "starter's; shopper $100 DENY, Nadia 9999 and 10000 ALLOW, 10001 DENY, the "
+                   "same for a second staff member; a shopper's return policy and own orders, "
+                   "and a staff stock check, stay ALLOW; the six wrong rules are caught; "
+                   "without your rule Nadia's 10001 cents is allowed")
+
+
+def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, yours: Assessment,
+                    caught: Sequence[Tuple[str, Assessment]], alone: Assessment,
+                    baseline: Sequence[Tuple[str, str]], tools: int) -> List[str]:
     digest = hashlib.sha256(rule.encode("utf-8")).hexdigest()
     evidence = [
         f"{CREDIT_LIMIT_SOURCE} sha256:{digest[:16]}, unless {{ {unless_body(rule_text)} }}",
+        "policy head: " + ("the starter's, unchanged" if head_kept
+                           else "differs from the starter's (principal, action or resource)"),
         f"evaluated with Cedar beside {len(baseline)} baseline policies "
         f"({', '.join(name for name, _ in baseline)}) and the Gateway schema for "
-        f"{len(schema['AgentCore']['actions']) - 2} published tools",
+        f"{tools} published tools",
     ]
     if not yours.errors:
-        decided = next((d for c, cents, _w, d in yours.rows if c is NADIA and cents == PROBE_CENTS))
-        evidence.append(f"Nadia at {PROBE_CENTS} cents: {decided.decision}, decided by "
-                        f"{', '.join(decided.decided_by) or 'no policy (default deny)'}")
+        evidence.append(f"Nadia at {PROBE_CENTS} cents: "
+                        f"{_decided(yours.decision_for(NADIA, PROBE_CENTS))}")
     evidence += [f"wrong rule {label}: {'caught' if not m.passed else 'NOT caught'}, "
                  f"{_first_wrong(m) if not m.passed else 'the matrix passed it'}"
                  for label, m in caught]
+    alone_over = alone.decision_for(NADIA, PROBE_CENTS)
     evidence.append("without your rule, Nadia at 10001 cents: "
-                    + (over_limit_alone.decision if over_limit_alone else "not evaluated")
-                    + (f", decided by {', '.join(over_limit_alone.decided_by)}"
-                       if over_limit_alone and over_limit_alone.decided_by else ""))
+                    + (_decided(alone_over) if alone_over and alone_over.decided_by
+                       else alone_over.decision if alone_over else "not evaluated"))
+    return evidence
 
-    title = "your rule limits one credit to $100"
-    expected = ("Cedar accepts the rule; shopper $100 DENY, Nadia 9999 and 10000 ALLOW, 10001 "
-                "DENY, the same for a second staff member; the five wrong rules are caught; "
-                "without your rule Nadia's 10001 cents is allowed")
+
+def _local_state(*, unchanged: bool, head_kept: bool, yours: Assessment, escaped: List[str],
+                 counterfactual_holds: bool) -> Tuple[str, str]:
+    """The verdict and the next step, in the order the check reads them."""
+    if unchanged:
+        return check.NOT_YET, "edit the final unless block, then run this again."
+    if not head_kept:
+        return check.CONTRADICTED, ("edit only the final unless block: the lines before it (the "
+                                    "principal, the give_store_credit action and the Gateway) "
+                                    "stay as the starter wrote them.")
+    if yours.passed and not escaped and counterfactual_holds:
+        return check.PROVED, ""
+    if escaped or not counterfactual_holds:
+        return check.UNCHECKED, ("the check itself is not sound here: a wrong rule passed or the "
+                                 "baseline alone denies 10001 cents. Report it; do not change "
+                                 "your rule for it.")
+    return check.CONTRADICTED, _next_step(yours)
+
+
+def _no_unless_block(rule_text: str) -> LocalResult:
+    finding = check.Finding("4A", _LOCAL_TITLE, check.CONTRADICTED, _LOCAL_EXPECTED,
+                            "the policy has no final unless block",
+                            [f"{CREDIT_LIMIT_SOURCE} sha256:"
+                             f"{hashlib.sha256(rule_text.encode('utf-8')).hexdigest()[:16]}"],
+                            "restore the starter (workshop/starters/workshop_credit_limit.cedar) "
+                            "and edit only its final unless block.")
+    return LocalResult(finding, [])
+
+
+def local_check(rule_text: str, starter_text: str) -> LocalResult:
+    """Part 1: the head, the matrix, the six wrong rules and the counterfactual."""
+    if policy_head(rule_text) is None:
+        return _no_unless_block(rule_text)
+    schema, baseline = gateway_cedar_schema(), baseline_set()
+    rule = render_rule(rule_text)
+    yours = assess(rule, schema, baseline)
+    alone = assess(None, schema, baseline)
+    caught = [(label, assess(mutant, schema, baseline)) for label, mutant in mutants(rule)]
+    escaped = [label for label, mutant in caught if mutant.passed]
+    head_kept = policy_head(rule_text) == policy_head(starter_text)
+    table = _table(alone, assess(render_rule(starter_text), schema, baseline), yours)
+    over_limit_alone = alone.decision_for(NADIA, PROBE_CENTS)
+    counterfactual_holds = over_limit_alone is not None and over_limit_alone.decision == ALLOW
+
     observed = (f"{sum(1 for row in table if row[-1] == 'matches')} of {len(table)} decisions "
                 f"match; {len(caught) - len(escaped)} of {len(caught)} wrong rules caught; "
-                f"without your rule Nadia's 10001 cents is "
+                "without your rule Nadia's 10001 cents is "
                 f"{over_limit_alone.decision if over_limit_alone else 'not evaluated'}")
     if yours.errors:
         observed = f"Cedar rejects your rule: {yours.errors[0][:160]}"
-    if rule_text == starter_text:
-        state, next_step = check.NOT_YET, "edit the final unless block, then run this again."
-    elif yours.passed and not escaped and counterfactual_holds:
-        state, next_step = check.PROVED, ""
-    elif escaped or not counterfactual_holds:
-        state = check.UNCHECKED
-        next_step = ("the check itself is not sound here: a wrong rule passed or the baseline "
-                     "alone denies 10001 cents. Report it; do not change your rule for it.")
-    else:
-        state, next_step = check.CONTRADICTED, _next_step(yours)
-    return LocalResult(check.Finding("4A", title, state, expected, observed, evidence, next_step),
-                       table)
+    if not head_kept:
+        observed = f"your edit changes the lines before the unless block; {observed}"
+    state, next_step = _local_state(
+        unchanged=rule_text == starter_text, head_kept=head_kept, yours=yours,
+        escaped=escaped, counterfactual_holds=counterfactual_holds)
+    evidence = _local_evidence(
+        rule_text, rule=rule, head_kept=head_kept, yours=yours, caught=caught, alone=alone,
+        baseline=baseline, tools=len(schema["AgentCore"]["actions"]) - 2)
+    return LocalResult(check.Finding("4A", _LOCAL_TITLE, state, _LOCAL_EXPECTED, observed,
+                                     evidence, next_step), table)
 
 
 # ---------------------------------------------------------------------------
@@ -414,7 +546,9 @@ SELECT (SELECT count(*) FROM pellier.tool_audit
          WHERE idempotency_key = %(key)s) AS credit_rows;
 """
 
-_APPROVE_PROBE_SQL = """
+# The check confirms its own probe. No person approves it, so the decision is
+# recorded under the check's name, never a staff member's.
+_CONFIRM_PROBE_SQL = """
 UPDATE pellier.approvals
    SET status = 'approved', decided_by = %s, decided_by_name = %s, decided_at = now()
  WHERE id = %s AND status = 'pending'
@@ -427,9 +561,9 @@ SELECT id, status, action_hash, args, order_ids, decided_by_name
 """
 
 _MANAGED_TITLE = "the Gateway enforces your rule on an over-limit credit"
-MANAGED_EXPECTED = ("the deployed workshop_credit_limit is your file; Nadia's approved 10001-cent "
-                    "credit is a Cedar denial, and its key leaves 0 tool_audit and 0 "
-                    "store_credits rows")
+MANAGED_EXPECTED = ("the deployed workshop_credit_limit is your file; the check's 10001-cent "
+                    "credit, sent with Nadia's token, is a Cedar denial, and its key leaves 0 "
+                    "tool_audit and 0 store_credits rows")
 
 
 def _runner(conn: Any) -> Any:
@@ -440,9 +574,12 @@ def _runner(conn: Any) -> Any:
     return run
 
 
-def ensure_probe_review(conn: Any, *, staff_sub: str, staff_name: str) -> Dict[str, Any]:
-    """The isolated over-limit review, opened once and approved under the staff identity.
+def ensure_probe_review(conn: Any, *, staff_sub: str) -> Dict[str, Any]:
+    """The isolated over-limit review, opened once and confirmed by this check.
 
+    ``staff_sub`` is the verified subject of the token the call is sent with
+    (Nadia's); it is recorded as who the request ran as. The confirmation is
+    the check's own, under ``POLICY_CHECK_DECIDER``: no person approved it.
     Returns its row with the write key it admits. Running the check again
     resolves to the same live review and so the same key.
     """
@@ -457,7 +594,7 @@ def ensure_probe_review(conn: Any, *, staff_sub: str, staff_name: str) -> Dict[s
     if review is None:
         raise RuntimeError("the over-limit review could not be opened")
     with conn.cursor() as cur:
-        cur.execute(_APPROVE_PROBE_SQL, (staff_sub, staff_name, review.id))
+        cur.execute(_CONFIRM_PROBE_SQL, (POLICY_CHECK_DECIDER, POLICY_CHECK_DECIDER, review.id))
         cur.execute(_PROBE_ROW_SQL, (review.id,))
         row = dict(cur.fetchone())
     conn.commit()
@@ -552,87 +689,109 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
                          "the Gateway denied it and its key left no row", evidence)
 
 
+def _managed_finding(state: str, observed: str, evidence: List[str],
+                     next_step: str = "") -> check.Finding:
+    return check.Finding("4A", _MANAGED_TITLE, state, MANAGED_EXPECTED, observed, evidence,
+                         next_step)
+
+
+def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: bool,
+                       evidence: List[str]) -> Optional[check.Finding]:
+    """Why no over-limit call may count yet, or ``None`` when the deployed rule is yours."""
+    if deployed is None:
+        return _managed_finding(check.CONTRADICTED,
+                                f"{CREDIT_LIMIT_POLICY} is not on the policy engine", evidence,
+                                "provisioning deploys the starter; ask for the environment to "
+                                "be reprovisioned.")
+    if not same_rule(deployed, local_rule):
+        return _managed_finding(check.NOT_YET, "the deployed rule is not your file yet", evidence,
+                                'deploy it: python3 scripts/provision_agentcore_end_to_end.py '
+                                '--repo-path "$PWD" --mode participant')
+    if not local_proved:
+        return _managed_finding(check.NOT_YET, "your rule is deployed but did not pass Part 1",
+                                evidence, "fix the rule until Part 1 passes, then deploy it again.")
+    return None
+
+
+def _call_outcome(payload: Dict[str, Any], rows: Dict[str, int],
+                  evidence: List[str]) -> check.Finding:
+    """The verdict on one over-limit call from the Gateway's answer and the rows its key left."""
+    if payload.get("outcome") == "allow" or rows["credit_rows"] or rows["audit_rows"]:
+        return _managed_finding(check.CONTRADICTED, "the over-limit credit got past Cedar",
+                                evidence, "Part 1 and the deployed rule disagree with the Gateway; "
+                                          "read the deployed statement and the enforcement mode "
+                                          "(scripts/policy_mode.py).")
+    if payload.get("outcome") != "deny" or not payload.get("cedar_denial"):
+        return _managed_finding(check.UNCHECKED,
+                                "the call failed for another reason, so it says nothing about "
+                                "Cedar", evidence,
+                                "a 401, a validation failure or a transport error is not a policy "
+                                "decision; read the Gateway's words above.")
+    # The starter denies 10001 cents too, so a DENY read while the update is
+    # still propagating cannot tell the two apart on its own.
+    evidence.append("the starter denies 10001 cents too, so this DENY alone cannot tell your rule "
+                    "from a starter still propagating; Jessica's $100.00 credit, which only your "
+                    "rule allows, is the other half (python3 scripts/workshop_evidence.py, 4A)")
+    return _managed_finding(check.PROVED, "Cedar denied the over-limit credit before the tool "
+                                          "ran; its key left no row", evidence)
+
+
 def judge_managed(*, deployed: Optional[str], local_rule: str, local_proved: bool,
                   payload: Optional[Dict[str, Any]], rows: Optional[Dict[str, int]],
-                  review: Optional[Dict[str, Any]], engine: Dict[str, Any]) -> check.Finding:
+                  review: Optional[Dict[str, Any]], engine: Dict[str, Any],
+                  failure: str = "") -> check.Finding:
     """Part 2's verdict from what the control plane, the Gateway and the tables said."""
     policy_id = (engine.get("policy_ids") or {}).get(CREDIT_LIMIT_POLICY, "unknown")
     evidence = [f"policy {CREDIT_LIMIT_POLICY} {policy_id}, policy set "
                 f"{str(engine.get('policy_digest') or 'unread')[:23]}, read just before the call"]
-    if deployed is None:
-        return check.Finding("4A", _MANAGED_TITLE, check.CONTRADICTED, MANAGED_EXPECTED,
-                             f"{CREDIT_LIMIT_POLICY} is not on the policy engine", evidence,
-                             "provisioning deploys the starter; ask for the environment to be "
-                             "reprovisioned.")
-    if not same_rule(deployed, local_rule):
-        return check.Finding("4A", _MANAGED_TITLE, check.NOT_YET, MANAGED_EXPECTED,
-                             "the deployed rule is not your file yet", evidence,
-                             'deploy it: python3 scripts/provision_agentcore_end_to_end.py '
-                             '--repo-path "$PWD" --mode participant')
-    if not local_proved:
-        return check.Finding("4A", _MANAGED_TITLE, check.NOT_YET, MANAGED_EXPECTED,
-                             "your rule is deployed but did not pass Part 1", evidence,
-                             "fix the rule until Part 1 passes, then deploy it again.")
+    gap = _deployed_rule_gap(deployed, local_rule, local_proved, evidence)
+    if gap is not None:
+        return gap
     if payload is None or review is None or rows is None:
-        return check.Finding("4A", _MANAGED_TITLE, check.UNCHECKED, MANAGED_EXPECTED,
-                             "the over-limit call could not be made", evidence)
+        return _managed_finding(check.UNCHECKED, "the over-limit call could not be made",
+                                evidence + ([failure] if failure else []),
+                                "run this again on the workshop box; the reason is above.")
     evidence += [
         f"review {review['id']} for {PROBE_CUSTOMER}, {PROBE_CENTS} cents, covers no order, "
-        f"{review['status']} by {review.get('decided_by_name') or 'staff'}",
+        "opened and confirmed by the Lab 4 policy check (probe data)",
         f"idempotency key {review['idempotency_key']}",
         f"the Gateway said: {str(payload.get('error') or payload.get('result') or '')[:160]}",
         f"tool_audit rows {rows['audit_rows']}, store_credits rows {rows['credit_rows']} "
         "for that key",
     ]
-    if payload.get("outcome") == "allow" or rows["credit_rows"] or rows["audit_rows"]:
-        return check.Finding("4A", _MANAGED_TITLE, check.CONTRADICTED, MANAGED_EXPECTED,
-                             "the over-limit credit got past Cedar", evidence,
-                             "Part 1 and the deployed rule disagree with the Gateway; read the "
-                             "deployed statement and the enforcement mode "
-                             "(scripts/policy_mode.py).")
-    if payload.get("outcome") != "deny" or not payload.get("cedar_denial"):
-        return check.Finding("4A", _MANAGED_TITLE, check.UNCHECKED, MANAGED_EXPECTED,
-                             "the call failed for another reason, so it says nothing about Cedar",
-                             evidence, "a 401, a validation failure or a transport error is not "
-                                       "a policy decision; read the Gateway's words above.")
-    return check.Finding("4A", _MANAGED_TITLE, check.PROVED, MANAGED_EXPECTED,
-                         "Cedar denied the over-limit credit before the tool ran; its key left "
-                         "no row", evidence)
+    return _call_outcome(payload, rows, evidence)
 
 
-def managed_check(
-    local: LocalResult, rule_text: str, cfg: Optional[Dict[str, str]],
-) -> check.Finding:
-    """Part 2 on the workshop box; UNCHECKED where no Gateway is provisioned."""
-    try:
-        import anyio
-        from gateway_client import _load_env, _require, _token_from_cognito, _verified_identity
-        from gateway_policy_probe import _call_tool, classify_call
+def _managed_environment() -> Tuple[str, str, Dict[str, Any]]:
+    """The Gateway URL and ARN, and the policy engine's state for the credit action."""
+    import anyio
+    from gateway_client import _load_env, _require
 
-        _load_env()
-        gateway_url = _require("AGENTCORE_GATEWAY_URL")
-        gateway_arn = _require("AGENTCORE_GATEWAY_ARN")
-        from services import managed_policy
+    _load_env()
+    gateway_url = _require("AGENTCORE_GATEWAY_URL")
+    gateway_arn = _require("AGENTCORE_GATEWAY_ARN")
+    from services import managed_policy
 
-        engine = anyio.run(managed_policy.engine_state_for_action, GIVE_STORE_CREDIT_ACTION)
-        if engine is None:
-            raise RuntimeError("AGENTCORE_POLICY_ENGINE_ID is not set")
-    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as UNCHECKED
-        return check.Finding("4A", _MANAGED_TITLE, check.UNCHECKED, MANAGED_EXPECTED,
-                             "the managed environment is not configured here",
-                             [f"{type(exc).__name__}: {str(exc)[:160]}"],
-                             "run this on the workshop box, where the Gateway is provisioned.")
-    deployed = (engine.get("statements") or {}).get(CREDIT_LIMIT_POLICY)
-    common = {"deployed": deployed, "local_rule": render_rule(rule_text, gateway_arn),
-              "local_proved": local.finding.state == check.PROVED, "engine": engine}
-    if deployed is None or not same_rule(deployed, common["local_rule"]) \
-            or not common["local_proved"] or cfg is None:
-        return judge_managed(payload=None, rows=None, review=None, **common)
+    engine = anyio.run(managed_policy.engine_state_for_action, GIVE_STORE_CREDIT_ACTION)
+    if engine is None:
+        raise RuntimeError("AGENTCORE_POLICY_ENGINE_ID is not set")
+    return gateway_url, gateway_arn, engine
+
+
+def send_probe(cfg: Dict[str, str], gateway_url: str,
+               engine: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any], Dict[str, int]]:
+    """Open the over-limit review, send its credit with Nadia's token, store the answer.
+
+    Returns the review, the classified Gateway answer and the rows its key left.
+    """
+    import anyio
+    from gateway_client import _token_from_cognito, _verified_identity
+    from gateway_policy_probe import _call_tool, classify_call
+
     token = _token_from_cognito("nadia")
     identity = _verified_identity(token)
     with check.connect(cfg) as conn:
-        review = ensure_probe_review(conn, staff_sub=identity["verified_subject"],
-                                     staff_name=identity["verified_username"])
+        review = ensure_probe_review(conn, staff_sub=identity["verified_subject"])
     key = review["idempotency_key"]
     arguments = {"customer_id": PROBE_CUSTOMER, "amount_cents": PROBE_CENTS,
                  "reason": PROBE_REASON, "idempotency_key": key}
@@ -647,6 +806,35 @@ def managed_check(
         with conn.cursor() as cur:
             cur.execute(PROBE_ROWS_SQL, {"key": key})
             rows = {k: int(v) for k, v in dict(cur.fetchone()).items()}
+    return review, payload, rows
+
+
+def managed_check(
+    local: LocalResult, rule_text: str, cfg: Optional[Dict[str, str]],
+) -> check.Finding:
+    """Part 2 on the workshop box; UNCHECKED where no Gateway is provisioned."""
+    try:
+        gateway_url, gateway_arn, engine = _managed_environment()
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as UNCHECKED
+        return _managed_finding(check.UNCHECKED, "the managed environment is not configured here",
+                                [f"{type(exc).__name__}: {str(exc)[:160]}"],
+                                "run this on the workshop box, where the Gateway is provisioned.")
+    common: Dict[str, Any] = {
+        "deployed": (engine.get("statements") or {}).get(CREDIT_LIMIT_POLICY),
+        "local_rule": render_rule(rule_text, gateway_arn),
+        "local_proved": local.finding.state == check.PROVED, "engine": engine,
+    }
+    if common["deployed"] is None or not same_rule(common["deployed"], common["local_rule"]) \
+            or not common["local_proved"]:
+        return judge_managed(payload=None, rows=None, review=None, **common)
+    if cfg is None:
+        return judge_managed(payload=None, rows=None, review=None,
+                             failure=check.missing_settings_reason(), **common)
+    try:
+        review, payload, rows = send_probe(cfg, gateway_url, engine)
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - the reason is the finding
+        return judge_managed(payload=None, rows=None, review=None,
+                             failure=f"{type(exc).__name__}: {str(exc)[:160]}", **common)
     return judge_managed(payload=payload, rows=rows, review=review, **common)
 
 
@@ -664,7 +852,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     rule_text = POLICY_FILE.read_text(encoding="utf-8")
     local = local_check(rule_text, STARTER_FILE.read_text(encoding="utf-8"))
     print("Lab 4A, part 1: your rule, evaluated with Cedar beside the baseline (nothing deployed)")
-    print_table(local.table)
+    if local.table:
+        print_table(local.table)
     print(check.render(local.finding))
     print("")
     print("Lab 4A, part 2: the deployed rule and one over-limit credit through the Gateway")

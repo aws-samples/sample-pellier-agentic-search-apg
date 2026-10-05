@@ -9,7 +9,8 @@ import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer, OperatorReview } from '../services/operator'
 import {
   ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, DENIED_ON_RELOAD, EXECUTED_REVIEW, NOTHING_WRITTEN,
-  OPEN_REQUEST, PENDING_REVIEW, QUEUE, RECORD, RECORDED_ONCE, UNWRITTEN_REVIEW, STEPS, WRITE_KEY, detail,
+  OPEN_REQUEST, PENDING_REVIEW, PROBE_REVIEW, QUEUE, RECORD, RECORDED_ONCE, UNWRITTEN_REVIEW, STEPS, WRITE_KEY,
+  detail,
 } from './fixtures'
 
 const api = vi.hoisted(() => ({
@@ -248,6 +249,23 @@ describe('the review record', () => {
     } finally {
       auth.user = reader
     }
+  })
+
+  it('names the Lab 4 policy check as the probe review\'s origin, not the Planner or Nadia', async () => {
+    api.fetchReview.mockResolvedValue({ ...detail(PROBE_REVIEW, NOTHING_WRITTEN), orders: [] })
+    renderAt('/operator/reviews/57', <ReviewRecord />)
+    const line = 'Opened and confirmed by the Lab 4 policy check (probe data, covers no order)'
+    expect(await screen.findByTestId('operator-review-requester')).toHaveTextContent(line)
+    expect(screen.queryByText('the Planner, on the desk')).toBeNull()
+    const approval = screen.getByTestId('operator-credit-checks').querySelector('[data-check="approval"]')
+    expect(approval).toHaveTextContent('No person approved it')
+    expect(approval).toHaveTextContent(line)
+    expect(approval?.querySelector('img')).toBeNull()
+    expect(screen.queryByText(/Approved by/)).toBeNull()
+    // The stored answer still reads as the Gateway gave it; the desk never executes probe data.
+    expect(screen.getByTestId('operator-review-last-attempt')).toHaveTextContent('The Gateway answered: denied')
+    expect(screen.queryByTestId('operator-review-execute')).toBeNull()
+    expect(screen.queryByTestId('operator-review-retry')).toBeNull()
   })
 
   it('declines without a fingerprint and submits nothing', async () => {

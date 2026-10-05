@@ -72,6 +72,7 @@ const BASE_REVIEW = {
   sourceTurnId: 'turn-investigation-1', orderIds: [301, 302], issue: 'Two items went back, no credit recorded.',
   recommendation: { primaryAction: 'give_store_credit', rationale: 'Two items went back, no credit recorded.', items: ['Waffle Bath Robe, Sage', 'Reed Diffuser'] },
   actionHash: ACTION_HASH, requestedBySub: 'sub-nadia', requesterKind: 'operator', requestedAt: '2026-10-04T15:00:00Z',
+  policyCheckProbe: false,
 }
 
 export const PENDING_REVIEW = {
