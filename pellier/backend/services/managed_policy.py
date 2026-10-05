@@ -317,6 +317,9 @@ def _read_engine_state(
         "matching": matching,
         "policy_engine_id": engine_id,
         "policy_digest": policy_digest(statements),
+        # Each attached policy's Cedar, by name: Lab 4's check compares its own
+        # rule with the deployed statement.
+        "statements": statements,
         # Not a decision. See `engine_state_for_action`: only the Gateway's
         # answer to a call may produce ALLOW or DENY.
         "inferred": True,

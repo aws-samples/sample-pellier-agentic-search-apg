@@ -64,13 +64,12 @@ REGIONS: Dict[str, tuple] = {
     "3A-binding": (BACKEND / "services" / "agentcore_gateway.py",
                    "Managed catalogue - support reconcile",
                    STARTERS / "lab-3" / "support-reconcile.pyfrag"),
-    "4B-rls": (REPO / "workshop" / "lab-4-rls.sql", "Row ownership - predicate",
-               STARTERS / "lab-4-rls.sql"),
-    "4B-absence": (REPO / "workshop" / "lab-4-absence.sql", "Keyed absence - deny proof",
-                   STARTERS / "lab-4-absence.sql"),
+    "4B": (REPO / "workshop" / "lab-4-rls.sql", "Row ownership - predicate",
+           STARTERS / "lab-4-rls.sql"),
 }
-CEDAR_POLICY = REPO / "policies" / "workshop_identity_match_forbid.cedar"
-CEDAR_STARTER = STARTERS / "workshop_identity_match_forbid.cedar"
+CEDAR_POLICY = REPO / "policies" / "workshop_credit_limit.cedar"
+CEDAR_STARTER = STARTERS / "workshop_credit_limit.cedar"
+ABSENCE_WORKSHEET = REPO / "workshop" / "lab-4-absence.sql"
 
 TITLES = {
     "1": "Lab 1: Build and Measure PostgreSQL Hybrid Retrieval",
@@ -235,28 +234,17 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str) -> check.Finding:
                              ["Task 3B deploys the Task 3A edits"], "complete Task 3A first.")
     if rows is None:
         return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
-    parts = [lab3_check.judge_build(rows.get("build"), local_build),
-             lab3_check.judge_tickets(rows.get("tickets") or [])]
-    states = [part.state for part in parts]
-    if CONTRADICTED in states:
-        state = CONTRADICTED
-    elif all(s == PROVED for s in states):
-        state = PROVED
-    elif UNCHECKED in states:
-        state = UNCHECKED
-    else:
-        state = NOT_YET
-    return check.Finding("3B", title, state, expected,
-                         "; ".join(part.observed for part in parts),
-                         [line for part in parts for line in part.evidence],
-                         next((part.next_step for part in parts if part.state != PROVED), ""))
+    return _combine("3B", title, expected, [
+        lab3_check.judge_build(rows.get("build"), local_build),
+        lab3_check.judge_tickets(rows.get("tickets") or []),
+    ])
 
 
 # ---------------------------------------------------------------------------
 # Lab 4
 # ---------------------------------------------------------------------------
 
-# Lab 4: an approved credit executed once. The write key is the approved review's
+# Jessica's approved credit executed once. The write key is the approved review's
 # own, so the credit and its tool_audit row are found by that key and by nothing
 # else; a retry must leave both counts at one.
 LAB4_SQL = """
@@ -270,6 +258,7 @@ SELECT sc.credit_id, sc.approval_id, sc.customer_id, sc.amount_cents,
            AND args->>'idempotency_key' = sc.idempotency_key) AS audit_rows
   FROM pellier.store_credits sc
   JOIN pellier.approvals a ON a.id = sc.approval_id
+ WHERE sc.customer_id = 'CUST-JESSICA'
  ORDER BY sc.credit_id DESC
  LIMIT 1;
 """
@@ -285,47 +274,109 @@ def credit_findings(row: Optional[Dict[str, Any]]) -> Dict[str, str]:
     return {"once": PROVED if once else CONTRADICTED, "amount": PROVED if amount else CONTRADICTED}
 
 
-def task_4a() -> check.Finding:
-    title = "the Cedar credit rule is authored"
-    expected = "policies/workshop_identity_match_forbid.cedar differs from its starter"
-    try:
-        same = CEDAR_POLICY.read_bytes() == CEDAR_STARTER.read_bytes()
-    except OSError as exc:
-        return check.Finding("4A", title, UNCHECKED, expected, f"unreadable: {exc}")
-    return check.Finding("4A", title, NOT_YET if same else PROVED, expected,
-                         "unchanged from the starter" if same else "authored",
-                         [str(CEDAR_POLICY.relative_to(REPO))], "complete the unless block.")
-
-
-def task_4b(row: Optional[Dict[str, Any]], available: bool) -> check.Finding:
-    title = "RLS authored and one approved credit recorded once"
-    expected = "both Lab 4B regions edited; one credit and one audit row for the approved key"
-    states = {key: source_state(key) for key in ("4B-rls", "4B-absence")}
-    observed = ", ".join(f"{key.split('-')[1]} {state}" for key, state in states.items())
-    if any(state == check.STARTER for state in states.values()):
-        return check.Finding("4B", title, NOT_YET, expected, observed,
-                             ["workshop/lab-4-rls.sql, workshop/lab-4-absence.sql"],
-                             "complete both Task 4B blocks.")
-    if not available:
-        return check.Finding("4B", title, UNCHECKED, expected,
-                             observed + "; the database could not be read")
-    credit = credit_findings(row)
-    evidence = []
-    if row:
-        evidence.append(f"pellier.store_credits credit {row.get('credit_id')}, key "
-                        f"{row.get('idempotency_key')}: {row.get('credit_rows')} credit row(s), "
-                        f"{row.get('audit_rows')} audit row(s), {row.get('amount_cents')} of "
-                        f"{row.get('approved_cents')} cents approved")
-    if CONTRADICTED in credit.values():
+def _combine(task: str, title: str, expected: str,
+             parts: Sequence[check.Finding]) -> check.Finding:
+    """One task line from several verdicts: any contradiction wins, then any gap."""
+    states = [part.state for part in parts]
+    if CONTRADICTED in states:
         state = CONTRADICTED
-    elif all(s == check.EDITED for s in states.values()) and credit["once"] == PROVED:
+    elif all(s == PROVED for s in states):
         state = PROVED
+    elif UNCHECKED in states:
+        state = UNCHECKED
     else:
         state = NOT_YET
-    return check.Finding("4B", title, state, expected,
-                         observed + f"; credit recorded once {credit['once']}", evidence,
-                         "complete both Task 4B blocks, then approve and execute Jessica's "
-                         "review as Nadia.")
+    return check.Finding(task, title, state, expected,
+                         "; ".join(part.observed for part in parts),
+                         [line for part in parts for line in part.evidence],
+                         next((part.next_step for part in parts if part.state != PROVED), ""))
+
+
+def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
+    """Jessica's approved credit, executed once for the approved amount."""
+    title = "Jessica's approved credit was recorded once"
+    expected = "one store_credits row and one tool_audit row for the approved review's key"
+    found = credit_findings(row)
+    if not row:
+        return check.Finding("4A", title, NOT_YET, expected, "no store credit yet", [],
+                             "approve and execute Jessica's review as Nadia in the Operator.")
+    evidence = [f"pellier.store_credits credit {row.get('credit_id')}, key "
+                f"{row.get('idempotency_key')}: {row.get('credit_rows')} credit row(s), "
+                f"{row.get('audit_rows')} audit row(s), {row.get('amount_cents')} of "
+                f"{row.get('approved_cents')} cents approved"]
+    state = PROVED if set(found.values()) == {PROVED} else CONTRADICTED
+    return check.Finding("4A", title, state, expected,
+                         f"recorded once {found['once']}, approved amount {found['amount']}",
+                         evidence, "read the rows for that key; a retry must add nothing.")
+
+
+def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
+    """Lab 4A: the rule passes Cedar here, the Gateway denied the over-limit
+    credit with no row left, and Jessica's in-limit credit ran once."""
+    import lab4_policy_check as lab4
+
+    title = "the $100 credit limit holds, in Cedar and on the Gateway"
+    expected = ("your rule passes the Cedar matrix; the over-limit credit was denied and left "
+                "no row; Jessica's approved credit was recorded once")
+    try:
+        rule = CEDAR_POLICY.read_text(encoding="utf-8")
+        starter = CEDAR_STARTER.read_text(encoding="utf-8")
+    except OSError as exc:
+        return check.Finding("4A", title, UNCHECKED, expected, f"unreadable: {exc}")
+    if rule == starter:
+        return _starter_finding("4A", title, expected, "policies/workshop_credit_limit.cedar")
+    try:
+        local = lab4.local_check(rule, starter).finding
+    except Exception as exc:  # noqa: BLE001 - the reason is the finding
+        local = check.Finding("4A", title, UNCHECKED, expected, "the Cedar check could not run",
+                              [f"{type(exc).__name__}: {str(exc)[:160]}"])
+    if rows is None:
+        return _combine("4A", title, expected, [local, check.Finding(
+            "4A", title, UNCHECKED, expected, "the database could not be read")])
+    return _combine("4A", title, expected, [
+        local, lab4.judge_recorded_probe(rows.get("probe")), credit_finding(rows.get("credit"))])
+
+
+def _psql_verdict(cfg: Config, path: pathlib.Path, passed: str, task: str, title: str,
+                  expected: str) -> check.Finding:
+    """Run one supplied worksheet and read its own verdict line."""
+    if cfg is None:
+        return check.Finding(task, title, UNCHECKED, expected, "the check could not look",
+                             [check.missing_settings_reason()])
+    psql = shutil.which("psql")
+    if psql is None:
+        return check.Finding(task, title, UNCHECKED, expected, "the check could not look",
+                             ["psql is not on PATH"])
+    done = subprocess.run([psql, "-X", "-P", "pager=off", "-f", str(path)],
+                          env=check.psql_environment(cfg), capture_output=True, text=True,
+                          timeout=60)
+    observed = next((line[len("Observed"):].strip() for line in done.stdout.splitlines()
+                     if line.startswith("Observed")), "the worksheet did not finish")
+    if passed in done.stdout:
+        return check.Finding(task, title, PROVED, expected, observed,
+                             [f"{path.relative_to(REPO)}: {passed}"])
+    reason = (done.stderr.strip().splitlines() or [""])[-1]
+    state = CONTRADICTED if "check failed" in done.stdout else UNCHECKED
+    if "none yet" in done.stdout:
+        state = NOT_YET
+    return check.Finding(task, title, state, expected, observed,
+                         [f"{path.relative_to(REPO)}: {reason or 'no verdict'}"],
+                         f"run psql -X -P pager=off -f {path.relative_to(REPO)} and read it.")
+
+
+def task_4b(cfg: Config) -> check.Finding:
+    """Lab 4B: the RLS worksheet's own verdict, then the supplied absence check."""
+    title = "row-level security holds, and the denied credit moved nothing"
+    expected = ("Theo's own rows visible, Jessica's 0, a write in her name 42501, staff reads "
+                "intact, rolled back; the denied key 0 and 0, the allowed key 1")
+    if source_state("4B") == check.STARTER:
+        return _starter_finding("4B", title, expected, "workshop/lab-4-rls.sql")
+    path = REGIONS["4B"][0]
+    return _combine("4B", title, expected, [
+        _psql_verdict(cfg, path, "Lab 4B check passed", "4B", title, expected),
+        _psql_verdict(cfg, ABSENCE_WORKSHEET, "Lab 4 absence check passed", "4B", title,
+                      expected),
+    ])
 
 
 # ---------------------------------------------------------------------------
@@ -354,10 +405,14 @@ def _rows(cfg: Config, connect: Connect) -> Dict[str, Any]:
     if cfg is None:
         return {"available": False}
     try:
+        import lab4_policy_check
+
         out: Dict[str, Any] = {"available": True, "lab3": lab3_check.read_rows(cfg, connect)}
         with connect(cfg) as conn, conn.cursor() as cur:
             cur.execute(LAB4_SQL)
-            out["lab4"] = cur.fetchone()
+            credit = cur.fetchone()
+            cur.execute(lab4_policy_check.PROBE_SQL)
+            out["lab4"] = {"credit": credit, "probe": cur.fetchone()}
         return out
     except Exception:  # noqa: BLE001 - reported as UNCHECKED on the lines that need it
         return {"available": False}
@@ -380,8 +435,8 @@ def collect(
         task_2b(cfg, connect),
         task_3a(),
         task_3b(rows.get("lab3") if available else None, lab3_check.local_fingerprint()),
-        task_4a(),
-        task_4b(rows.get("lab4"), available),
+        task_4a(rows.get("lab4") if available else None),
+        task_4b(cfg),
     ]
 
 

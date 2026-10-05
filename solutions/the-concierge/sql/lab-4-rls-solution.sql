@@ -32,7 +32,9 @@ SET LOCAL statement_timeout = '15s';
 -- Your build: the one ownership expression.
 -- === WORKSHOP - Row ownership - predicate: START ===
 SELECT $predicate$
-  false
+  customer_id = (SELECT c.id
+                   FROM pellier.customers c
+                  WHERE c.cognito_username = current_setting('pellier.principal_username', true))
 $predicate$ AS ownership_predicate
 \gset
 -- === WORKSHOP - Row ownership - predicate: END ===

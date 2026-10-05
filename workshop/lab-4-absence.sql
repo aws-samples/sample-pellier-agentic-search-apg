@@ -1,98 +1,102 @@
 \set ON_ERROR_STOP on
--- Lab 4 build artifact (Build 4b): PROVE A DENIED ACTION LEFT NOTHING BEHIND.
---
--- A Cedar DENY receipt records that the Gateway refused a call. It cannot
--- prove that nothing ran: a receipt is not its own alibi. The proof is a keyed
--- search of every table an executed give_store_credit writes, for the exact
--- idempotency key the denied call carried, beside the same search for the key
--- an allowed call carried. Empty for the denied key alone means nothing.
--- Empty for the denied key AND exactly one finalized write for the allowed
--- key means the search looks in the right place and the absence is real. One
--- finalized write, not two, is also the replay proof: the second allowed
--- invocation reused the key and added no effect.
---
--- Complete the query between the markers. This script never writes.
---
--- Run with the keys Lab 4's proof driver recorded:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off \
---     -v deny_key="$DENY_KEY" -v allow_key="$ALLOW_KEY" \
---     -f workshop/lab-4-absence.sql
-\if :{?deny_key}
-\else
-  \echo 'Lab 4 absence build needs -v deny_key=... (the denied call''s idempotency key)'
-  DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
-\endif
-\if :{?allow_key}
-\else
-  \echo 'Lab 4 absence build needs -v allow_key=... (the allowed call''s idempotency key)'
-  DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
-\endif
+\set QUIET on
+\set VERBOSITY terse
+\pset footer off
 
--- === WORKSHOP - Keyed absence - deny proof: START ===
--- WORKSHOP_EXERCISE_STUB
+-- Lab 4: prove the denied credit moved nothing, beside the one that did.
 --
--- Replace the five NULL placeholders with counts read from the tables an
--- executed give_store_credit writes, for the exact keys passed in:
+-- A Cedar DENY says the Gateway refused a call. It cannot prove nothing ran.
+-- The proof is a search, by idempotency key, of the two tables an executed
+-- give_store_credit writes: pellier.tool_audit (the tool ran) and
+-- pellier.store_credits (money moved). For the denied key both counts must be
+-- 0. For the key Nadia's approved credit carried, store_credits must hold
+-- exactly 1: that positive control is what makes the two zeros an absence
+-- rather than a search that looked in the wrong place.
 --
---   pellier.tool_audit        args->>'idempotency_key' = :'deny_key'   an execution row
---   pellier.write_operations  idempotency_key = :'deny_key'            a claimed write
---   pellier.write_operations  ... AND completed_at IS NOT NULL
---                                 AND result->>'status' = 'success'    a finalized write
---   pellier.inventory_ledger  idempotency_key = :'deny_key'            a stock movement
+-- This check is supplied; you write nothing here. Predict the three counts
+-- first, then run:
+--   psql -X -P pager=off -f workshop/lab-4-absence.sql
 --
--- and, as the positive control, the finalized writes for :'allow_key'. That
--- last count is what makes the four zeros above mean something: the same
--- search finds the one write the allowed call made, so an empty result for
--- the denied key is an absence, not a query that looked in the wrong place.
--- Read every count from the tables. Nothing here may come from a receipt.
-SELECT
-    NULL::bigint AS denied_execution_rows,
-    NULL::bigint AS denied_write_rows,
-    NULL::bigint AS denied_finalized_writes,
-    NULL::bigint AS denied_ledger_rows,
-    NULL::bigint AS allowed_finalized_writes
+-- It finds both keys itself and never writes:
+--   denied   the over-limit review scripts/lab4_policy_check.py sent through
+--            the Gateway (its issue names it), keyed the way every approved
+--            review is: operator-review:<review id>:<first 32 of its hash>
+--   allowed  the store credit Nadia's approval of Jessica's case wrote
+
+SET client_min_messages TO warning;
+
+SELECT coalesce((SELECT 'operator-review:' || a.id || ':' || left(a.action_hash, 32)
+                   FROM pellier.approvals a
+                  WHERE a.tool = 'give_store_credit'
+                    AND a.status = 'approved'
+                    AND a.issue = 'Lab 4 over-limit probe: covers no order'
+                  ORDER BY a.id DESC
+                  LIMIT 1), '') AS deny_key,
+       coalesce((SELECT c.idempotency_key
+                   FROM pellier.store_credits c
+                  WHERE c.customer_id = 'CUST-JESSICA'
+                  ORDER BY c.credit_id DESC
+                  LIMIT 1), '') AS allow_key
 \gset lab_4_
--- === WORKSHOP - Keyed absence - deny proof: END ===
 
--- A NULL placeholder leaves its variable unset, so an unauthored region
--- fails here rather than reading as four reassuring zeros.
-SELECT (
-    :{?lab_4_denied_execution_rows}
-    AND :{?lab_4_denied_write_rows}
-    AND :{?lab_4_denied_finalized_writes}
-    AND :{?lab_4_denied_ledger_rows}
-    AND :{?lab_4_allowed_finalized_writes}
-) AS lab_4_authored
-\gset
-\if :lab_4_authored
+SELECT (SELECT count(*) FROM pellier.tool_audit
+         WHERE args->>'idempotency_key' = :'lab_4_deny_key') AS denied_audit_rows,
+       (SELECT count(*) FROM pellier.store_credits
+         WHERE idempotency_key = :'lab_4_deny_key') AS denied_credit_rows,
+       (SELECT count(*) FROM pellier.store_credits
+         WHERE idempotency_key = :'lab_4_allow_key') AS allowed_credit_rows,
+       (SELECT count(*) FROM pellier.tool_audit
+         WHERE args->>'idempotency_key' = :'lab_4_allow_key') AS allowed_audit_rows,
+       :'lab_4_deny_key' <> '' AS has_deny_key,
+       :'lab_4_allow_key' <> '' AS has_allow_key
+\gset lab_4_
+SELECT format('%s, %s and %s (the allowed key also has %s tool_audit row)',
+              :lab_4_denied_audit_rows, :lab_4_denied_credit_rows,
+              :lab_4_allowed_credit_rows, :lab_4_allowed_audit_rows) AS observed
+\gset lab_4_
+
+\echo 'Lab 4: the denied credit moved nothing, beside the one that did'
+\if :lab_4_has_deny_key
 \else
-  \echo 'Lab 4 absence build failed: the counts between the markers are still NULL placeholders'
-  DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
+  \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
+  \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
+  \echo 'Next      run python3 scripts/lab4_policy_check.py after deploying your rule, then run this again.'
+  \echo 'Lab 4 absence check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
+\endif
+\if :lab_4_has_allow_key
+\else
+  \echo 'Expected  the store credit Nadia''s approval of Jessica''s case wrote'
+  \echo 'Observed  none yet: Jessica has no store credit'
+  \echo 'Next      in the Operator, approve and execute Jessica''s review as Nadia, then run this again.'
+  \echo 'Lab 4 absence check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif
 
-\echo 'Lab 4 absence for denied key' :'deny_key'
-\echo '  execution rows (tool_audit):          ' :lab_4_denied_execution_rows
-\echo '  claimed writes (write_operations):    ' :lab_4_denied_write_rows
-\echo '  finalized writes (write_operations):  ' :lab_4_denied_finalized_writes
-\echo '  stock movements (inventory_ledger):   ' :lab_4_denied_ledger_rows
-\echo 'Positive control for allowed key' :'allow_key'
-\echo '  finalized writes (write_operations):  ' :lab_4_allowed_finalized_writes
+\echo 'Evidence  denied key  ' :lab_4_deny_key
+\echo '          allowed key ' :lab_4_allow_key
+\echo ''
+SELECT * FROM (VALUES
+    ('tool_audit rows for the denied key', '0', :'lab_4_denied_audit_rows'),
+    ('store_credits rows for the denied key', '0', :'lab_4_denied_credit_rows'),
+    ('store_credits rows for the allowed key', '1', :'lab_4_allowed_credit_rows')
+) AS counts(count, expected, observed);
 
-SELECT
-    (:lab_4_denied_execution_rows = 0
-     AND :lab_4_denied_write_rows = 0
-     AND :lab_4_denied_finalized_writes = 0
-     AND :lab_4_denied_ledger_rows = 0)              AS lab_4_absence_holds,
-    (:lab_4_allowed_finalized_writes = 1)            AS lab_4_control_holds
+\echo 'Expected  0, 0 and 1: nothing ran or moved for the denied key, and the same search finds the one allowed credit'
+\echo 'Observed ' :lab_4_observed
+SELECT :lab_4_allowed_credit_rows = 1 AS lab_4_control_holds,
+       :lab_4_denied_audit_rows = 0 AND :lab_4_denied_credit_rows = 0 AS lab_4_absence_holds
 \gset
 \if :lab_4_control_holds
 \else
-  \echo 'Lab 4 absence build failed: the allowed key did not finalize exactly one write, so this search cannot vouch for an absence'
-  DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
+  \echo 'Next      the allowed key does not find exactly one credit, so this search cannot vouch for an absence.'
+  \echo 'Lab 4 absence check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif
 \if :lab_4_absence_holds
-  \echo 'Lab 4 absence build passed: the denied key left no execution, write, or ledger row, and the allowed key finalized exactly one'
+  \echo 'Lab 4 absence check passed'
 \else
-  \echo 'Lab 4 absence build failed: the denied key left rows behind'
-  DO $fail$ BEGIN RAISE EXCEPTION 'lab worksheet failed; see the line above'; END $fail$;
+  \echo 'Next      the denied key left rows behind: read them by that key; a denied call must never run.'
+  \echo 'Lab 4 absence check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif

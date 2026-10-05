@@ -364,6 +364,64 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
     return policies
 
 
+# Lab 4's rule: the participant's amount limit on give_store_credit, authored as
+# the final `unless` block of a forbid. Provisioning deploys the starter
+# (`unless { false }`, which forbids every credit), so Nadia's first Execute is
+# a live DENY before any edit; the participant's step updates this one policy;
+# the reset declares the starter again.
+CREDIT_LIMIT_POLICY = "workshop_credit_limit"
+CREDIT_LIMIT_SOURCE = Path("policies") / "workshop_credit_limit.cedar"
+CREDIT_LIMIT_STARTER = Path("workshop") / "starters" / "workshop_credit_limit.cedar"
+GATEWAY_ARN_PLACEHOLDER = "${PELLIER_GATEWAY_ARN}"
+
+
+def credit_limit_policy(*, gateway_arn: str, source: Path) -> dict[str, Any]:
+    """Lab 4's policy, rendered from ``source`` for the deployed Gateway.
+
+    Schema checks always run on a policy. Semantic findings are ignored for
+    this one: the starter forbids every credit, which the analyzer reports as
+    overly restrictive, and the participant's rule is assessed by
+    ``scripts/lab4_policy_check.py`` with real Cedar before it is deployed.
+    """
+    _gateway_resource(gateway_arn)
+    statement = source.read_text(encoding="utf-8").replace(GATEWAY_ARN_PLACEHOLDER, gateway_arn)
+    return {
+        "name": CREDIT_LIMIT_POLICY,
+        "description": (
+            "Lab 4: staff may give at most 10000 cents of store credit per approved review"
+        ),
+        "statement": statement,
+        "validationMode": "IGNORE_ALL_FINDINGS",
+        "enforcementMode": "ACTIVE",
+    }
+
+
+def declared_gateway_arn(engine: dict[str, Any]) -> str:
+    """The Gateway ARN the declared baseline permits name."""
+    for policy in engine.get("policies") or []:
+        match = re.search(r'AgentCore::Gateway::"(arn:[^"]+)"', str(policy.get("statement") or ""))
+        if match:
+            return match.group(1)
+    raise SystemExit("no declared policy names the deployed Gateway ARN")
+
+
+def declare_credit_limit(config_path: Path, *, engine_name: str, source: Path) -> bool:
+    """Declare Lab 4's policy from ``source`` in a rendered project; True when it changed.
+
+    The reset uses it to declare the starter again, then deploys.
+    """
+    config = json.loads(config_path.read_text())
+    engine = next(e for e in config["policyEngines"] if e["name"] == engine_name)
+    policy = credit_limit_policy(gateway_arn=declared_gateway_arn(engine), source=source)
+    declared = engine.get("policies") or []
+    others = [p for p in declared if p.get("name") != CREDIT_LIMIT_POLICY]
+    if [p for p in declared if p.get("name") == CREDIT_LIMIT_POLICY] == [policy]:
+        return False
+    engine["policies"] = others + [policy]
+    _write_json(config_path, config)
+    return True
+
+
 def render_project(
     *,
     repo: Path,
@@ -527,6 +585,8 @@ def render_project(
                 "policies": (
                     baseline_policies(gateway_arn=gateway_arn)
                     + [output_guardrail_policy(gateway_arn)]
+                    + [credit_limit_policy(gateway_arn=gateway_arn,
+                                           source=repo / CREDIT_LIMIT_SOURCE)]
                     if include_policies
                     else []
                 ),

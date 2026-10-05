@@ -20,13 +20,13 @@ STORE_LAMBDA = DEPLOY / "pellier_store_tools.py"
 PROVISIONER = REPO_ROOT / "scripts" / "provision_agentcore_end_to_end.py"
 DEPLOY_ALL = DEPLOY / "deploy_all.sh"
 RESET_GOVERNED = REPO_ROOT / "scripts" / "reset-governed-workshop.sh"
-STARTER_CEDAR = REPO_ROOT / "policies" / "workshop_identity_match_forbid.cedar"
+STARTER_CEDAR = REPO_ROOT / "policies" / "workshop_credit_limit.cedar"
 SOLUTION_CEDAR = (
     REPO_ROOT
     / "solutions"
     / "the-concierge"
     / "policies"
-    / "identity_match_forbid.cedar"
+    / "workshop_credit_limit.cedar"
 )
 
 if str(DEPLOY) not in sys.path:
@@ -113,12 +113,12 @@ def test_renderer_owns_baseline_cedar_and_enforce_attachment() -> None:
 
 
 def test_participant_cedar_files_need_only_the_gateway_arn_substituted() -> None:
-    """The starter and the solution are CLI sources once the Gateway ARN is filled in.
+    """The starter and the solution are policy statements once the Gateway ARN is filled in.
 
     The live analyzer rejects `resource is AgentCore::Gateway` for a pinned action, and
     a tracked file cannot carry an account's ARN, so both files name the Gateway with
-    the ``${PELLIER_GATEWAY_ARN}`` placeholder the lab guide substitutes before
-    ``agentcore add policy --source``. Nothing else is templated.
+    the ``${PELLIER_GATEWAY_ARN}`` placeholder the renderer fills in
+    (``render_agentcore_project.credit_limit_policy``). Nothing else is templated.
     """
     expected_action = f'AgentCore::Action::"{renderer.GIVE_STORE_CREDIT_ACTION}"'
     assert renderer.GIVE_STORE_CREDIT_ACTION == "pellier-store-tools___give_store_credit"
@@ -145,15 +145,17 @@ def test_participant_cedar_files_need_only_the_gateway_arn_substituted() -> None
     assert "amount_cents" not in starter_code, "the starter must not contain the answer"
 
 
-def test_reset_removes_and_redeploys_participant_policy_through_cli() -> None:
+def test_reset_restores_the_starter_policy_through_cli() -> None:
+    """The reset declares Lab 4's starter again; it never removes the policy."""
     source = RESET_GOVERNED.read_text()
 
     assert "@aws/agentcore@0.29.0" in source
-    assert "remove policy" in source
-    assert "--engine \"$POLICY_ENGINE_NAME\"" in source
+    assert "remove policy" not in source
+    assert "declare_credit_limit" in source
+    assert "workshop/starters/workshop_credit_limit.cedar" in source
     assert "_agentcore validate --json" in source
     assert "_agentcore deploy --yes --json" in source
-    assert "workshop_identity_match_forbid" in source
+    assert "policy_name=workshop_credit_limit" in source
     assert "policyEngineConfiguration.mode" in source
     assert "ENFORCE" in source
     assert "workshop_policy_rule.py" not in source

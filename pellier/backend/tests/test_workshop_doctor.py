@@ -309,30 +309,38 @@ class TestLab3ManagedBuild:
 
 
 class TestLab4:
-    def test_this_checkout_has_the_pair_but_the_rule_is_unauthored(self) -> None:
+    NAME = "credit limit passes the Cedar check"
+
+    def test_this_checkout_has_the_policy_but_the_rule_is_unauthored(self) -> None:
         checks = _by_name(doctor.lab4_checks(FakeEvidence()))
         assert checks["Cedar policy present in policies/"].passed is True
-        assert checks["identity rule authored"].passed is False
-        assert "starter" in checks["identity rule authored"].detail
+        assert checks[self.NAME].passed is False
+        assert "starter" in checks[self.NAME].detail
 
-    def test_an_authored_rule_passes(self, tmp_path: Path) -> None:
+    def _repo_with_rule(self, tmp_path: Path, body: str) -> Path:
         repo = tmp_path / "repo"
         for relative in doctor.POLICY_FILES + (doctor.CEDAR_STARTER,):
-            source = REPO / relative
             target = repo / relative
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(source, target)
+            shutil.copyfile(REPO / relative, target)
         policy = repo / doctor.CEDAR_POLICY
-        policy.write_text(
-            policy.read_text(encoding="utf-8").replace(
-                "unless {\n  false\n};",
-                "unless {\n  context.input has amount_cents &&\n"
-                "  context.input.amount_cents <= 10000\n};",
-            ),
-            encoding="utf-8",
-        )
+        policy.write_text(policy.read_text(encoding="utf-8").replace(
+            "unless {\n  false\n};", f"unless {{\n  {body}\n}};"), encoding="utf-8")
+        return repo
+
+    def test_a_rule_that_passes_the_matrix_passes(self, tmp_path: Path) -> None:
+        repo = self._repo_with_rule(
+            tmp_path, "context.input has amount_cents &&\n  context.input.amount_cents <= 10000")
         checks = _by_name(doctor.lab4_checks(FakeEvidence(), repo=repo))
-        assert checks["identity rule authored"].passed is True
+        assert checks[self.NAME].passed is True
+        assert "7 of 7 decisions match" in checks[self.NAME].detail
+
+    def test_an_exclusive_limit_fails_and_says_why(self, tmp_path: Path) -> None:
+        repo = self._repo_with_rule(
+            tmp_path, "context.input has amount_cents && context.input.amount_cents < 10000")
+        check = _by_name(doctor.lab4_checks(FakeEvidence(), repo=repo))[self.NAME]
+        assert check.passed is False
+        assert "excludes the limit" in check.detail
 
     def test_row_level_security_on_orders_and_tickets(self) -> None:
         name = "row-level security on orders and support tickets"

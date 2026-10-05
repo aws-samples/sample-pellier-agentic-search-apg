@@ -1,4 +1,6 @@
-"""``scripts/lab3_check.py``: Task 3B's three findings, each never blurring "did not happen" with "could not look".
+"""``scripts/lab3_check.py``: Task 3B's three findings.
+
+Each never blurs "did not happen" with "could not look".
 
 The build is one query on ``tool_audit.build_fingerprint`` beside this
 checkout's digest; the reads are every executed Gateway ``get_tickets`` row;

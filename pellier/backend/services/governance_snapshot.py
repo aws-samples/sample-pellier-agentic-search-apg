@@ -14,7 +14,7 @@ from typing import Any
 
 from services import managed_policy
 
-LAB_POLICY_NAME = "workshop_identity_match_forbid"
+LAB_POLICY_NAME = "workshop_credit_limit"
 
 
 def observed_at() -> str:

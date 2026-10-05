@@ -18,7 +18,7 @@ import importlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any, Dict, List
+from typing import Any, List
 
 import pytest
 
@@ -83,7 +83,8 @@ class _FakeAgent:
         before = SimpleNamespace(tool_use=tool_use, cancel_tool=None)
         self.hooks[0](before)
         assert before.cancel_tool is None
-        result = {"status": "success", "content": [{"text": '{"status": "success", "tickets": []}'}]}
+        text = '{"status": "success", "tickets": []}'
+        result = {"status": "success", "content": [{"text": text}]}
         self.hooks[1](SimpleNamespace(tool_use=tool_use, result=result, exception=None))
         self.last_bound_input = dict(tool_use["input"])
         return "I can only look up the signed-in account."

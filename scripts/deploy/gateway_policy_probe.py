@@ -8,9 +8,13 @@ runs it twice as the live policy proof (a shopper read that must be ALLOWed
 with its audit row, and a shopper store credit that must be a Cedar DENY with
 no rows); it also answers by hand when a deployment needs checking.
 
-Outcome classification is the one the Lab 3 and Lab 4 probes use
-(``gateway_client.is_policy_denial_text``): a 401, a validation failure or a
-transport error is ``error``, never a policy decision.
+The lab checks call the same two functions, ``_call_tool`` and
+``classify_call``: ``scripts/lab3_check.py`` sends Theo's token for Jessica's
+tickets (the owner-only permit must deny it), and
+``scripts/lab4_policy_check.py`` sends Nadia's token for a 10001-cent credit
+of its own approved review (``workshop_credit_limit`` must deny it).
+Classification (``gateway_client.is_policy_denial_text``) is shared: a 401, a
+validation failure or a transport error is ``error``, never a policy decision.
 
 Evidence is keyed by what the call carried. A ``--turn-id`` keys the audit
 row the Lambda writes for a correlated read. An ``idempotency_key`` argument
@@ -22,6 +26,10 @@ Usage::
     python3 scripts/deploy/gateway_policy_probe.py --user theo \\
         --tool get_return_policy --arguments '{"department": "Home"}' \\
         --turn-id turn-readiness-check --expect allow
+
+    python3 scripts/deploy/gateway_policy_probe.py --user theo \\
+        --tool get_tickets --arguments '{"customer_id": "CUST-JESSICA"}' \\
+        --turn-id turn-lab3-household --expect deny
 
     python3 scripts/deploy/gateway_policy_probe.py --user theo \\
         --tool give_store_credit --arguments '{"customer_id": "CUST-READINESS-PROBE",

@@ -257,3 +257,56 @@ def test_lab_one_and_two_lines_read_the_real_schema(
     for task, finding in findings.items():
         assert finding.state == PROVED, (task, finding)
     assert "2 of 2 scores match" in findings["1A"].observed
+
+
+# ---------------------------------------------------------------------------
+# Lab 4 on the real schema: the rule, the stored denial, the credit, RLS, absence
+# ---------------------------------------------------------------------------
+
+SOLVED_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
+SOLVED_RLS = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-rls-solution.sql"
+
+
+def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import json as _json
+
+    monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
+    probe = {"id": 9, "idempotency_key": "operator-review:9:" + "b" * 32, "audit_rows": 0,
+             "credit_rows": 0, "last_attempt": _json.dumps({"outcome": "denied", "policy": "DENY"})}
+    assert evidence.task_4a({"probe": probe, "credit": dict(CREDIT)}).state == PROVED
+    assert evidence.task_4a({"probe": None, "credit": dict(CREDIT)}).state == NOT_YET
+    assert evidence.task_4a({"probe": probe, "credit": {**CREDIT, "credit_rows": 2}}).state == (
+        CONTRADICTED)
+    assert evidence.task_4a(None).state == UNCHECKED
+
+
+def test_lab_4b_runs_the_rls_worksheet_and_the_absence_check(
+    fresh_db: Any, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
+) -> None:
+    from tests.test_lab4_starter_failure import _jessicas_credit
+
+    lab4 = importlib.import_module("lab4_policy_check")
+    regions = dict(evidence.REGIONS)
+    regions["4B"] = (SOLVED_RLS, regions["4B"][1], regions["4B"][2])
+    monkeypatch.setattr(evidence, "REGIONS", regions)
+    monkeypatch.setenv("PATH", f"{fresh_db.bin}:{os.environ['PATH']}")
+    cfg = _cfg(fresh_db)
+
+    waiting = evidence.task_4b(cfg)
+    assert waiting.state == NOT_YET, waiting
+    with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
+                         dbname="postgres", autocommit=True, row_factory=dict_row) as conn:
+        review = lab4.ensure_probe_review(conn, staff_sub="sub-nadia", staff_name="nadia")
+        lab4.record_probe_attempt(conn, review["id"], lab4.attempt_for(
+            {"outcome": "deny", "cedar_denial": True, "error": "not allowed due to policy"},
+            review["idempotency_key"], {}))
+        _jessicas_credit(conn)
+    done = evidence.task_4b(cfg)
+    assert done.state == PROVED, done
+    assert "10 of 10 probes match" in done.observed and "0, 0 and 1" in done.observed
+
+    monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
+    rows = evidence._rows(cfg, check.connect)
+    assert evidence.task_4a(rows["lab4"]).state == PROVED

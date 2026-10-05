@@ -37,8 +37,12 @@ fingerprint, which is how the participant proves their own build answered.
 
 **Lab 4 - Build Governed Agent Actions with Cedar.** A starter Cedar file that must NOT contain
 the answer, a reference rule that must (an amount rule on ``give_store_credit``, not an
-identity-pair match), and a keyed absence worksheet whose counts start as NULL placeholders.
-The OpenTelemetry trace contract is a provided check the guide runs, not a build.
+identity-pair match), and an RLS worksheet whose one ownership expression starts as
+``false``. The keyed absence check is supplied, with no region to author, and so is the
+OpenTelemetry trace contract.
+
+Eight marked regions in all: two per lab. ``tests/test_lab3_starter_failure.py`` and
+``tests/test_lab4_starter_failure.py`` hold Labs 3 and 4 to their Spot steps.
 """
 
 from __future__ import annotations
@@ -126,24 +130,17 @@ LAB3_STAFF_ONLY_TOOL = "give_store_credit"
 # contract.
 # ---------------------------------------------------------------------------
 
-LAB4_ABSENCE_STARTER = "workshop/lab-4-absence.sql"
-LAB4_ABSENCE_REFERENCE = "solutions/the-ledger/observability/lab-4-absence-solution.sql"
-LAB4_ABSENCE_MARKER = "WORKSHOP - Keyed absence - deny proof"
-LAB4_ABSENCE_PLACEHOLDERS = (
-    "NULL::bigint AS denied_execution_rows",
-    "NULL::bigint AS denied_write_rows",
-    "NULL::bigint AS denied_finalized_writes",
-    "NULL::bigint AS denied_ledger_rows",
-    "NULL::bigint AS allowed_finalized_writes",
-)
+LAB4_ABSENCE_CHECK = "workshop/lab-4-absence.sql"
 LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
-LAB4_STARTER = "policies/workshop_identity_match_forbid.cedar"
-LAB4_REFERENCE = "solutions/the-concierge/policies/identity_match_forbid.cedar"
+LAB4_STARTER = "policies/workshop_credit_limit.cedar"
+LAB4_REFERENCE = "solutions/the-concierge/policies/workshop_credit_limit.cedar"
 LAB4_RLS_PROOF = "workshop/lab-4-rls.sql"
+LAB4_RLS_REFERENCE = "solutions/the-concierge/sql/lab-4-rls-solution.sql"
+LAB4_RLS_MARKER = "WORKSHOP - Row ownership - predicate"
 
-# The policy name passed to `agentcore add policy --name`.
-LAB4_POLICY_NAME = "workshop_identity_match_forbid"
+# The policy provisioning deploys and the participant's step updates.
+LAB4_POLICY_NAME = "workshop_credit_limit"
 
 # The target-qualified action Gateway generates: the one target `pellier-store-tools`
 # plus the tool name. The guide shows it inside the starter, and the rule is inert
@@ -182,12 +179,8 @@ PARTICIPANT_STARTERS = {
         "pellier/backend/services/agentcore_gateway.py",
     ),
     "lab-4-rls": ("workshop/starters/lab-4-rls.sql", "workshop/lab-4-rls.sql"),
-    "lab-4-absence": (
-        "workshop/starters/lab-4-absence.sql",
-        LAB4_ABSENCE_STARTER,
-    ),
     "lab-4-cedar": (
-        "workshop/starters/workshop_identity_match_forbid.cedar",
+        "workshop/starters/workshop_credit_limit.cedar",
         LAB4_STARTER,
     ),
 }
@@ -296,10 +289,10 @@ def test_lab2_fallback_copy_keeps_the_markers(source: str, destination: str) -> 
     "starter,reference,label",
     (
         (LAB1_STARTER, LAB1_REFERENCE, LAB1_MARKER),
-        (LAB4_ABSENCE_STARTER, LAB4_ABSENCE_REFERENCE, LAB4_ABSENCE_MARKER),
+        (LAB4_RLS_PROOF, LAB4_RLS_REFERENCE, LAB4_RLS_MARKER),
     ),
 )
-def test_labs_2_and_3_have_matching_build_markers(
+def test_the_sql_worksheets_have_matching_build_markers(
     starter: str,
     reference: str,
     label: str,
@@ -329,29 +322,25 @@ def test_lab1_worksheet_finds_annas_receipt_and_fails_until_the_expression_is_ri
             assert line in text
 
 
-def test_lab4_starter_fails_until_the_absence_query_is_authored() -> None:
-    """The starter's counts are NULL, which the worksheet refuses; the twin reads the tables."""
-    starter = _read(LAB4_ABSENCE_STARTER)
-    reference = _read(LAB4_ABSENCE_REFERENCE)
-    for placeholder in LAB4_ABSENCE_PLACEHOLDERS:
-        assert placeholder in starter
-        assert placeholder not in reference
-    assert "\\if :lab_4_authored" in starter and "\\quit 1" not in starter
-    assert "RAISE EXCEPTION" in starter
-    for required in (
-        "pellier.tool_audit",
-        "args->>'idempotency_key' = :'deny_key'",
-        "pellier.write_operations",
-        "completed_at IS NOT NULL",
-        "result->>'status' = 'success'",
-        "pellier.inventory_ledger",
-        ":'allow_key'",
+def test_the_absence_check_is_supplied_and_finds_both_keys_itself() -> None:
+    """No region to author, no keys to paste: it reads the probe review and Jessica's credit."""
+    text = _read(LAB4_ABSENCE_CHECK)
+    assert "WORKSHOP -" not in text, "the absence check is supplied; it carries no build markers"
+    assert ":{?deny_key}" not in text and "-v deny_key" not in text
+    sys.path.insert(0, str(REPO / "scripts"))
+    import lab4_policy_check
+
+    assert f"a.issue = '{lab4_policy_check.PROBE_ISSUE}'" in text
+    for fragment in (
+        "args->>'idempotency_key' = :'lab_4_deny_key'",
+        "WHERE idempotency_key = :'lab_4_deny_key'",
+        "WHERE idempotency_key = :'lab_4_allow_key'",
+        "c.customer_id = 'CUST-JESSICA'",
+        ":lab_4_allowed_credit_rows = 1 AS lab_4_control_holds",
+        "Expected  ", "Observed ", "Evidence  ", "Next      ",
     ):
-        assert required in reference, f"reference absence query lacks {required}"
-    region = reference.split(f"{LAB4_ABSENCE_MARKER}: START ===")[1].split(f"{LAB4_ABSENCE_MARKER}: END ===")[0]
-    assert region.count(":'deny_key'") == 4 and region.count(":'allow_key'") == 1
-    # The worksheet's own verdict: absence AND positive control, never absence alone.
-    assert ":lab_4_allowed_finalized_writes = 1" in starter
+        assert fragment in text, fragment
+    assert "INSERT" not in text and "UPDATE" not in text and "DELETE" not in text
 
 
 def test_the_trace_contract_is_a_provided_check_not_a_build() -> None:
@@ -570,52 +559,50 @@ def test_lab4_reference_rule_is_the_starter_plus_the_condition() -> None:
     assert head(starter) == head(reference)
 
 
-def test_lab4_policy_name_matches_the_cli_source() -> None:
-    """The starter filename is the policy name passed by the guide's CLI step."""
-    assert Path(LAB4_STARTER).stem == LAB4_POLICY_NAME, (
-        "the starter filename is what the guide's --source points at; it must match "
-        "the policy name"
-    )
+def test_lab4_policy_name_matches_the_deployed_policy() -> None:
+    """The file's name is the deployed policy's name, and the renderer reads that file."""
+    sys.path.insert(0, str(REPO / "scripts" / "deploy"))
+    import render_agentcore_project as renderer
+
+    assert Path(LAB4_STARTER).stem == LAB4_POLICY_NAME == renderer.CREDIT_LIMIT_POLICY
+    assert renderer.CREDIT_LIMIT_SOURCE.as_posix() == LAB4_STARTER
+    assert renderer.CREDIT_LIMIT_STARTER.as_posix() == PARTICIPANT_STARTERS["lab-4-cedar"][0]
 
 
 def test_lab4_rls_proof_covers_read_write_and_rolls_everything_back() -> None:
-    """The required psql proof must exercise both RLS clauses without durable writes."""
-    text = _read(LAB4_RLS_PROOF)
-    for fragment in (
-        r"\set ON_ERROR_STOP on",
-        "SET LOCAL ROLE pellier_query",
-        "SET LOCAL ROLE pellier_agent",
-        "current_setting('pellier.principal_sub', true)",
-        "CUST-MARCO",
-        "CUST-JESSICA",
-        "RLS_READ_MARCO_JESSICA_ROWS:",
-        "RLS_READ_JESSICA_JESSICA_ROWS:",
-        "RLS_PROBE_ROLE_OK",
-        "RLS_PROBE_MARCO_SQLSTATE:42501",
-        "RLS_PROBE_JESSICA_SQLSTATE:00000",
-        "ROLLBACK",
-    ):
-        assert fragment in text, f"{LAB4_RLS_PROOF} lost {fragment!r}"
+    """One expression for USING and WITH CHECK on both tables, probed, then rolled back."""
+    for rel in (LAB4_RLS_PROOF, LAB4_RLS_REFERENCE):
+        text = _read(rel)
+        for fragment in (
+            "\\set ON_ERROR_STOP on",
+            "ALTER POLICY orders_owner ON pellier.orders\n"
+            "    USING (:ownership_predicate) WITH CHECK (:ownership_predicate);",
+            "ALTER POLICY support_tickets_owner ON pellier.support_tickets\n"
+            "    USING (:ownership_predicate) WITH CHECK (:ownership_predicate);",
+            "SET LOCAL ROLE pellier_agent",
+            "set_config('pellier.principal_username', 'theo', true)",
+            "set_config('pellier.principal_username', 'jessica', true)",
+            "WHEN insufficient_privilege",
+            "'42501'",
+            "The Operator desk reads every order",
+            "Lab 4B check passed",
+            "Expected  ", "Observed ", "Evidence  ", "Next      ",
+        ):
+            assert fragment in text, f"{rel} lost {fragment!r}"
+        assert "principal_customers" not in text and "pellier_query" not in text
+        assert "COMMIT" not in text
+        assert len(re.findall(r"^BEGIN;", text, re.MULTILINE)) == 1
+        assert len(re.findall(r"^ROLLBACK;", text, re.MULTILINE)) == 1
+        assert text.index("BEGIN;") < text.index("ALTER POLICY") < text.index("ROLLBACK;")
+        assert text.index("ROLLBACK;") < text.index("Lab 4B check passed")
 
-    assert "COMMIT" not in text
-    assert len(re.findall(r"^BEGIN;", text, re.MULTILINE)) == 1
-    assert len(re.findall(r"^ROLLBACK;", text, re.MULTILINE)) == 1
-    assert text.index("BEGIN;") < text.index("ALTER POLICY")
-    assert text.rindex("ROLLBACK;") > text.index("RLS_PROBE_JESSICA_SQLSTATE:00000")
 
-
-def test_lab4_rls_proof_fails_when_the_positive_controls_do_not_hold() -> None:
-    """A deny-everyone database must not look like a successful RLS proof."""
-    text = _read(LAB4_RLS_PROOF)
-    for condition in (
-        "mapped_shoppers <> 4",
-        ":'marco_jessica_rows'::INTEGER <> 0",
-        ":'jessica_jessica_rows'::INTEGER = 0",
-        "RLS_PROBE_MARCO_SQLSTATE:00000",
-    ):
-        assert condition in text, (
-            f"{LAB4_RLS_PROOF} must fail closed when {condition!r} is observed"
-        )
+def test_lab4_rls_starter_is_false_and_the_reference_names_the_bound_customer() -> None:
+    starter = _read(PARTICIPANT_STARTERS["lab-4-rls"][0])
+    reference = _read(LAB4_RLS_REFERENCE)
+    assert "SELECT $predicate$\n  false\n$predicate$ AS ownership_predicate" in starter
+    assert "current_setting('pellier.principal_username', true)" in reference
+    assert "cognito_username" in reference
 
 
 def test_no_lab_anchor_is_a_broken_path() -> None:
@@ -629,11 +616,11 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
         LAB1_PLAN_REFERENCE,
         LAB1_PLAN_REGION[0],
         LAB3_TRACE_CONTRACT,
-        LAB4_ABSENCE_STARTER,
-        LAB4_ABSENCE_REFERENCE,
+        LAB4_ABSENCE_CHECK,
         LAB4_STARTER,
         LAB4_REFERENCE,
         LAB4_RLS_PROOF,
+        LAB4_RLS_REFERENCE,
     ]
     absent = sorted({rel for rel in anchors if not (REPO / rel).is_file()})
     assert not absent, f"lab anchors missing from the repository: {absent}"
@@ -651,7 +638,7 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     stock_agent = _read(PARTICIPANT_STARTERS["lab-2-stock-agent"][0])
     stock_tool = _read(PARTICIPANT_STARTERS["lab-2-check-stock"][0])
     lab1 = _read(PARTICIPANT_STARTERS["lab-1-rrf"][0])
-    absence = _read(PARTICIPANT_STARTERS["lab-4-absence"][0])
+    rls = _read(PARTICIPANT_STARTERS["lab-4-rls"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
 
     lab1_plan = _read(PARTICIPANT_STARTERS["lab-1-preserve-requirements"][0])
@@ -667,8 +654,7 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     for starter in (stock_agent, stock_tool, lab1_plan):
         assert "WORKSHOP_EXERCISE_STUB" not in starter
         assert "raise" not in starter
-    assert all(placeholder in absence for placeholder in LAB4_ABSENCE_PLACEHOLDERS)
-    assert "FROM pellier.tool_audit" not in absence
+    assert "SELECT $predicate$\n  false\n$predicate$" in rls
     assert re.search(r"unless\s*\{\s*false\s*\}", lab4)
     assert "CUST-JESSICA" not in lab4
 
@@ -799,8 +785,19 @@ REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
 ) + (
     (LAB1_PLAN_REFERENCE, LAB1_PLAN_REGION[0], _PY_MARKER_BLOCK),
     (LAB1_REFERENCE, LAB1_STARTER, _SQL_MARKER_BLOCK),
-    (LAB4_ABSENCE_REFERENCE, "workshop/lab-4-absence.sql", _SQL_MARKER_BLOCK),
+    (LAB4_RLS_REFERENCE, LAB4_RLS_PROOF, _SQL_MARKER_BLOCK),
 )
+
+
+def test_the_participant_path_is_eight_marked_regions() -> None:
+    """Two per lab: six marker regions in source, the RLS worksheet's, and the Cedar block."""
+    marked = list(LAB2_REGIONS) + list(LAB3_REGIONS) + [LAB1_PLAN_REGION,
+                                                       (LAB1_STARTER, LAB1_MARKER),
+                                                       (LAB4_RLS_PROOF, LAB4_RLS_MARKER)]
+    for rel, label in marked:
+        assert _read(rel).count(f"{label}: START ===") == 1, rel
+    assert len(marked) + 1 == 8, "seven marker regions and the Cedar unless block"
+    assert len(PARTICIPANT_STARTERS) == 8
 
 
 @pytest.mark.parametrize(("source", "destination", "block"), REFERENCE_TWINS)

@@ -16,7 +16,7 @@ a symptom.
            the service environment carries the two settings resolve_rail
            reads (USE_AGENTCORE_RUNTIME, AGENTCORE_RUNTIME_ENDPOINT); a managed
            tool call left its tool_audit row with the build that made it.
-    Lab 4  The Cedar policy is present and its rule has been authored;
+    Lab 4  The Cedar policy is present and its rule passes Lab 4A's Cedar check;
            row-level security guards orders and support tickets; an approved
            store credit was recorded exactly once.
 
@@ -60,8 +60,8 @@ STARTERS = REPO / "workshop" / "starters"
 TOOL_REGION = "Stock agent - check_stock"
 AGENT_REGION = "Stock agent - definition"
 
-CEDAR_POLICY = "policies/workshop_identity_match_forbid.cedar"
-CEDAR_STARTER = "workshop/starters/workshop_identity_match_forbid.cedar"
+CEDAR_POLICY = "policies/workshop_credit_limit.cedar"
+CEDAR_STARTER = "workshop/starters/workshop_credit_limit.cedar"
 POLICY_FILES = (CEDAR_POLICY,)
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
@@ -341,22 +341,31 @@ def _managed_build(evidence: Evidence) -> Check:
 
 
 def _cedar_checks(repo: pathlib.Path) -> List[Check]:
+    """The policy file is present, and its rule passes Lab 4A's Cedar check here."""
+    import lab4_policy_check
+
     missing = [rel for rel in POLICY_FILES if not (repo / rel).is_file()]
     pair = Check(
         "Cedar policy present in policies/",
         not missing,
         "missing: " + ", ".join(missing) if missing else ", ".join(POLICY_FILES),
     )
-    name = "identity rule authored"
+    name = "credit limit passes the Cedar check"
     try:
-        policy = (repo / CEDAR_POLICY).read_bytes()
-        starter = (repo / CEDAR_STARTER).read_bytes()
+        policy = (repo / CEDAR_POLICY).read_text(encoding="utf-8")
+        starter = (repo / CEDAR_STARTER).read_text(encoding="utf-8")
     except OSError as exc:
         return [pair, Check(name, False, f"unreadable: {exc}")]
     if policy == starter:
-        return [pair, Check(name, False, f"{CEDAR_POLICY} is byte-identical to the starter; "
+        return [pair, Check(name, False, f"{CEDAR_POLICY} still holds its starter; "
                                           "complete the unless block")]
-    return [pair, Check(name, True, f"{CEDAR_POLICY} differs from the starter")]
+    try:
+        finding = lab4_policy_check.local_check(policy, starter).finding
+    except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
+        return [pair, Check(name, False, f"the Cedar check could not run: {exc}")]
+    if finding.state == workshop_check.PROVED:
+        return [pair, Check(name, True, finding.observed)]
+    return [pair, Check(name, False, f"{finding.observed}: {finding.next_step}")]
 
 
 def _rls_check(evidence: Evidence) -> Check:

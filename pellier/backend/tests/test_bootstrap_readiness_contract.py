@@ -1533,6 +1533,7 @@ case "$1" in
   *resolve_agentcore_identity.py) shift; exec '{sys.executable}' '{REPO / "scripts/deploy/resolve_agentcore_identity.py"}' "$@" ;;
   *reset_memory_runtime.py) exit {memory_exit} ;;
   *policy_mode.py) exit {policy_exit} ;;
+  -) printf '%s\\n' "$*" >> '{repo / "cli-config-inspection.log"}'; exit 10 ;;
 esac
 exit 0
 """,
@@ -1602,8 +1603,11 @@ def test_reset_resolves_isolated_project_and_policy_engine(tmp_path: Path) -> No
     assert proc.returncode == 0, proc.stdout + proc.stderr
     assert not quarantine_file.exists()
     inspected = (tmp_path / "repo/cli-config-inspection.log").read_text()
-    assert "--arg engine pellier_rehearsal_policy_engine" in inspected
+    # Lab 4's starter is declared in the isolated project, for its own engine.
+    assert "pellier_rehearsal_policy_engine" in inspected
+    assert "workshop/starters/workshop_credit_limit.cedar" in inspected
     assert "/.agentcore-project/pellierrehearsal/agentcore/agentcore.json" in inspected
+    assert "Lab 4 policy workshop_credit_limit already declares its starter" in proc.stdout
 
 
 def test_a_reset_that_leaves_a_stray_review_is_not_ready(tmp_path: Path) -> None:

@@ -42,6 +42,9 @@ requests>=2.31.0
 # Security floor for Requests and the AWS SDK's shared HTTP transport.
 urllib3>=2.8.0
 bedrock-agentcore>=1.4.3
+# Lab 4's policy check (scripts/lab4_policy_check.py) evaluates the
+# participant's Cedar with the real Cedar engine, never a Python copy of it.
+cedarpy>=4.12.1
 
 # Caching — Valkey (ElastiCache)
 valkey>=6.0.0

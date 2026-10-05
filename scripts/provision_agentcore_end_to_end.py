@@ -47,6 +47,7 @@ from gateway_tool_schemas import (  # noqa: E402
 )
 from runtime_log_delivery import ensure_runtime_log_delivery  # noqa: E402
 from render_agentcore_project import (  # noqa: E402
+    CREDIT_LIMIT_POLICY,
     DeploymentIdentity,
     deployment_identity,
     DEPLOYMENT_SUFFIX,
@@ -1193,6 +1194,23 @@ def _deploy_cli_project(
         gateway_arn=str(gateway_state["gatewayArn"]),
         runtime_arns=runtime_arns,
     )
+    # The baseline lands before Lab 4's starter forbid. A permit validated
+    # beside a forbid that blocks every credit could read as ineffective, so the
+    # starter is added in a deploy of its own once the baseline is active.
+    config_path = root / "agentcore" / "agentcore.json"
+    desired = json.loads(config_path.read_text())
+    baseline_first = json.loads(json.dumps(desired))
+    for engine in baseline_first["policyEngines"]:
+        engine["policies"] = [
+            policy for policy in engine["policies"] if policy["name"] != CREDIT_LIMIT_POLICY
+        ]
+    try:
+        config_path.write_text(json.dumps(baseline_first, indent=2) + "\n")
+        _agentcore(root, "validate", env=env)
+        _agentcore(root, "deploy", "--yes", "--json", env=env)
+    finally:
+        config_path.write_text(json.dumps(desired, indent=2) + "\n")
+    print("Adding the Lab 4 starter policy (forbids every credit until Lab 4)", flush=True)
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
     return root, _read_deployed_state(root)
@@ -2411,7 +2429,12 @@ def _participant_update(
     result: dict[str, Any],
     checkpoint: Callable[[], None],
 ) -> int:
-    """Deploy a participant's Lab 3 edits and prove only what the lab asks.
+    """Deploy a participant's Lab 3 and Lab 4 edits and prove only what the lab asks.
+
+    Lab 3's edits change the Gateway schemas and the Runtime package; Lab 4's
+    changes the declared ``workshop_credit_limit`` statement, which this
+    render reads from ``policies/workshop_credit_limit.cedar``. Either way it
+    is one update of the deployed project.
 
     Environment preparation belongs to the facilitator's full provision. Lambda
     packages, trace and Runtime log groups, Transaction Search activation, the

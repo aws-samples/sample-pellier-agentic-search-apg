@@ -578,27 +578,36 @@ _agentcore() {
   )
 }
 
+# Lab 4's policy goes back to its starter, not away: provisioning deployed the
+# starter forbid (`unless { false }`), and the next participant's Lab 4 opens
+# with its live DENY. The participant files were restored above, so the
+# starter is declared from workshop/starters and the CLI converges it.
 policy_changed=false
-policy_name=workshop_identity_match_forbid
-  if jq -e \
-      --arg engine "$POLICY_ENGINE_NAME" \
-      --arg policy "$policy_name" \
-      '.policyEngines[] | select(.name == $engine) | .policies[]? | select(.name == $policy)' \
-      "$AGENTCORE_CONFIG" >/dev/null; then
-    _agentcore remove policy \
-      --name "$policy_name" \
-      --engine "$POLICY_ENGINE_NAME" \
-      --yes \
-      --json >>/tmp/pellier-governed-reset-policy.log
-    policy_changed=true
-  fi
+policy_name=workshop_credit_limit
+if "$PYTHON" - "$AGENTCORE_CONFIG" "$POLICY_ENGINE_NAME" \
+    "$REPO/workshop/starters/workshop_credit_limit.cedar" "$REPO/scripts/deploy" <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[4])
+from render_agentcore_project import declare_credit_limit
+
+changed = declare_credit_limit(Path(sys.argv[1]), engine_name=sys.argv[2], source=Path(sys.argv[3]))
+raise SystemExit(0 if changed else 10)
+PY
+then
+  policy_changed=true
+elif [[ $? -ne 10 ]]; then
+  fail "Could not declare the Lab 4 starter policy ($policy_name) in $AGENTCORE_CONFIG"
+  exit 1
+fi
 
 if [[ "$policy_changed" == true ]]; then
   _agentcore validate --json >>/tmp/pellier-governed-reset-policy.log
   _agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log
-  pass "Participant Cedar rule removed through AgentCore CLI"
+  pass "Lab 4 policy $policy_name restored to its starter through AgentCore CLI"
 else
-  pass "Participant Cedar rule absent; shipped CLI project already restored"
+  pass "Lab 4 policy $policy_name already declares its starter"
 fi
 
 if [[ "$(jq -r \

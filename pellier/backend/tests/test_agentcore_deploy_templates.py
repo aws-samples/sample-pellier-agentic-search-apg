@@ -66,8 +66,8 @@ def _seed_runtime_sources(repo: Path) -> None:
         destination = backend / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, destination)
-    # The checked-in skills sit beside pellier/ at the repository root.
-    for relative in renderer.RUNTIME_SKILL_FILES:
+    # The checked-in skills and Lab 4's policy sit beside pellier/ at the repository root.
+    for relative in (*renderer.RUNTIME_SKILL_FILES, renderer.CREDIT_LIMIT_SOURCE):
         destination = repo / relative
         destination.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REPO_ROOT / relative, destination)
@@ -358,16 +358,26 @@ def test_second_phase_attaches_the_baseline_cedar_set(tmp_path: Path) -> None:
     policies = project["policyEngines"][0]["policies"]
     baseline = renderer.baseline_policies(gateway_arn=TEST_GATEWAY_ARN)
     output = renderer.output_guardrail_policy(TEST_GATEWAY_ARN)
-    expected = baseline + [output]
+    credit_limit = renderer.credit_limit_policy(
+        gateway_arn=TEST_GATEWAY_ARN, source=REPO_ROOT / renderer.CREDIT_LIMIT_SOURCE)
+    expected = baseline + [output, credit_limit]
 
     assert [policy["name"] for policy in policies] == [p["name"] for p in expected]
     assert all(policy["enforcementMode"] == "ACTIVE" for policy in policies)
     assert all(
-        policy["validationMode"] == "FAIL_ON_ANY_FINDINGS" for policy in policies[:-1]
+        policy["validationMode"] == "FAIL_ON_ANY_FINDINGS" for policy in policies[:-2]
     )
-    assert policies[-1] == output
+    assert policies[-2] == output
     assert output["statement"].startswith("suppressOutput")
     assert output["validationMode"] == "IGNORE_ALL_FINDINGS"
+    # Lab 4's starter is deployed at provisioning, so the live DENY comes
+    # before any edit. It forbids every credit, which semantic validation
+    # reports as overly restrictive, so only schema checks run on it.
+    assert policies[-1] == credit_limit
+    assert credit_limit["name"] == "workshop_credit_limit"
+    assert credit_limit["validationMode"] == "IGNORE_ALL_FINDINGS"
+    assert "unless {\n  false\n};" in credit_limit["statement"]
+    assert "${PELLIER_GATEWAY_ARN}" not in credit_limit["statement"]
     statements = "\n".join(policy["statement"] for policy in policies)
     assert renderer.GIVE_STORE_CREDIT_ACTION in statements
     assert renderer.STORE_TARGET == "pellier-store-tools"
@@ -1417,16 +1427,27 @@ def test_deploy_sequence_validates_both_cli_phases(
     monkeypatch.setattr(
         provisioner, "_scaffold_cli_project", lambda **_: root
     )
+    config_path = root / "agentcore" / "agentcore.json"
+    deployed_policies: list[list[str]] = []
+
     def render(**kwargs):
         render_phases.append(kwargs["include_policies"])
         rendered_runtime_arns.append(kwargs.get("runtime_arns"))
+        names = ["baseline_permit_workshop_tools", renderer.CREDIT_LIMIT_POLICY]
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({"policyEngines": [{
+            "name": "engine",
+            "policies": [{"name": n} for n in names] if kwargs["include_policies"] else [],
+        }]}))
+
+    def agentcore(_root, *args, **_):
+        calls.append(args)
+        if args[0] == "deploy":
+            config = json.loads(config_path.read_text())
+            deployed_policies.append([p["name"] for p in config["policyEngines"][0]["policies"]])
 
     monkeypatch.setattr(provisioner, "render_project", render)
-    monkeypatch.setattr(
-        provisioner,
-        "_agentcore",
-        lambda _root, *args, **_: calls.append(args),
-    )
+    monkeypatch.setattr(provisioner, "_agentcore", agentcore)
     monkeypatch.setattr(provisioner, "_read_deployed_state", lambda _root: state)
 
     returned_root, returned_state = provisioner._deploy_cli_project(
@@ -1454,6 +1475,14 @@ def test_deploy_sequence_validates_both_cli_phases(
         ("deploy", "--yes", "--json"),
         ("validate",),
         ("deploy", "--yes", "--json"),
+        ("validate",),
+        ("deploy", "--yes", "--json"),
+    ]
+    # The baseline lands first; Lab 4's starter forbid follows in a deploy of its own.
+    assert deployed_policies == [
+        [],
+        ["baseline_permit_workshop_tools"],
+        ["baseline_permit_workshop_tools", renderer.CREDIT_LIMIT_POLICY],
     ]
 
 
@@ -2006,9 +2035,9 @@ def test_participant_update_refuses_to_remove_an_active_policy(monkeypatch, tmp_
     monkeypatch.setattr(provisioner, "project_root", lambda *_a, **_k: root)
     monkeypatch.setattr(provisioner, "render_project", lambda **_k: None)
     monkeypatch.setattr(provisioner, "_read_deployed_state", lambda _r: _participant_state(identity))
-    monkeypatch.setattr(provisioner, "_active_policy_names", lambda **_k: {"workshop_identity_match_forbid"})
+    monkeypatch.setattr(provisioner, "_active_policy_names", lambda **_k: {"a_policy_added_by_hand"})
     monkeypatch.setattr(provisioner, "_agentcore", lambda *_a, **_k: pytest.fail("must not deploy"))
-    with pytest.raises(RuntimeError, match="would remove active policies: workshop_identity_match_forbid"):
+    with pytest.raises(RuntimeError, match="would remove active policies: a_policy_added_by_hand"):
         provisioner._redeploy_participant_edits(
             repo=tmp_path, account_id="123456789012", region="us-east-1",
             cognito_pool="pool", cognito_client="client", lambda_arns=_lambda_arns(),

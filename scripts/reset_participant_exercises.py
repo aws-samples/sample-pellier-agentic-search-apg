@@ -70,14 +70,9 @@ FILE_EXERCISES = (
         destination="workshop/lab-1-rrf.sql",
     ),
     FileExercise(
-        exercise_id="lab-4-absence",
-        starter="workshop/starters/lab-4-absence.sql",
-        destination="workshop/lab-4-absence.sql",
-    ),
-    FileExercise(
         exercise_id="lab-4-cedar",
-        starter="workshop/starters/workshop_identity_match_forbid.cedar",
-        destination="policies/workshop_identity_match_forbid.cedar",
+        starter="workshop/starters/workshop_credit_limit.cedar",
+        destination="policies/workshop_credit_limit.cedar",
     ),
 )
 

@@ -519,10 +519,10 @@ def test_a_future_published_tool_is_denied_by_default() -> None:
 # Lab 4: before and after the participant's own Policy work
 # ---------------------------------------------------------------------------
 
-CHALLENGE = pathlib.Path("../../policies/workshop_identity_match_forbid.cedar")
-STARTER = pathlib.Path("../../workshop/starters/workshop_identity_match_forbid.cedar")
+CHALLENGE = pathlib.Path("../../policies/workshop_credit_limit.cedar")
+STARTER = pathlib.Path("../../workshop/starters/workshop_credit_limit.cedar")
 SOLUTION = pathlib.Path(
-    "../../solutions/the-concierge/policies/identity_match_forbid.cedar")
+    "../../solutions/the-concierge/policies/workshop_credit_limit.cedar")
 OVER_LIMIT = {"customer_id": "CUST-MARCO", "amount_cents": 25000}
 WITHIN_LIMIT = {"customer_id": "CUST-MARCO", "amount_cents": 10000}
 
