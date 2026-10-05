@@ -322,6 +322,9 @@ class _Case:
     emit: Emit
     proposal: Optional[Proposal] = None
     proposal_result: Dict[str, Any] = field(default_factory=dict)
+    # The status the Planner's last propose_store_credit call returned, or
+    # None when it never called the tool.
+    planner_outcome: Optional[str] = None
 
     @property
     def first_name(self) -> str:
@@ -645,12 +648,29 @@ def _resolve_proposal(case: _Case, row: Dict[str, Any], rationale: str) -> Dict[
     )
 
 
+def reached_a_finding(case: _Case, *, brief: bool) -> bool:
+    """Whether this investigation ended in a finding that answers a request.
+
+    It does when the Planner proposed a credit (or resolved to the review that
+    already covers it), when the records show nothing went back, or when the
+    Planner read a brief and deliberately proposed nothing. A proposal that
+    failed (an error, or an amount over the ceiling) or a missing brief is no
+    finding: the request stays open for the next investigation.
+    """
+    if case.proposal is not None:
+        return True
+    if case.planner_outcome is None:
+        return brief
+    return case.planner_outcome == "nothing_returned"
+
+
 def answer_open_requests(case: _Case) -> List[int]:
     """Answer the client's open credit requests with this investigation.
 
     A request is answered by the review the investigation opened or resolved
-    to, or by no review when the records supported none. A failed write leaves
-    the request open for the next investigation, and says so in the log.
+    to, or by no review when the records supported none. The caller answers
+    only after :func:`reached_a_finding`. A failed write leaves the request
+    open for the next investigation, and says so in the log.
     """
     review_id = case.proposal.review_id if case.proposal else None
     try:
@@ -677,7 +697,9 @@ def _planner_tools(case: _Case) -> list:
             order_ids: The ids of the orders the records mark as returned.
             reason: One sentence a staff member would recognize, on why.
         """
-        return _reply(propose_credit(case, order_ids=order_ids, reason=reason))
+        result = propose_credit(case, order_ids=order_ids, reason=reason)
+        case.planner_outcome = str(result.get("status") or "")
+        return _reply(result)
 
     return [propose_store_credit]
 
@@ -907,8 +929,9 @@ def run_investigation(
         )
 
     duration = int((time.perf_counter() - started) * 1000)
-    answer_open_requests(case)
     facts, missing = _brief_from(_node_text(result, INVESTIGATOR_NODE))
+    if reached_a_finding(case, brief=bool(facts)):
+        answer_open_requests(case)
     planner_text = _node_text(result, PLANNER_NODE)
     nodes = _node_metadata(result)
     by_node = {node["nodeId"]: node for node in nodes}

@@ -6,9 +6,12 @@
  * the final route table. The two product surfaces are the storefront
  * PellierPage (`/`) and Pellier Operator (`/operator/*`).
  *
- * Selecting a persona presents a scenario but does not authenticate (see
- * PRODUCT.md). Pellier Operator is the one authenticated boundary; `OperatorFrame` reads `useAuth` directly and
- * renders its own sign-in state rather than a shared route wrapper.
+ * Choosing a shopper is a sign-in with that shopper's demo account, and the
+ * signed token, not the choice, is what every governed check reads. One
+ * browser holds two sessions: the root `AuthProvider` reads the shopper
+ * session for the storefront tree, and `OperatorFrame` mounts its own staff
+ * session, reads it with `useAuth` and renders its own sign-in state rather
+ * than a shared route wrapper.
  */
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'

@@ -102,9 +102,10 @@ export default function PersonaConcierge() {
           {error ? <button type="button" className="pellier-retry" onClick={() => setRetryVersion(v => v + 1)}>Try again</button> : null}
         </div>
       ) : null}
+      {/* A plain sentence. The machine code goes to the console. */}
       {signInError ? (
         <div className="pellier-recovery" role="alert" data-testid="persona-sign-in-error">
-          <p>{HERO_CONCIERGE.FAILED} <code>{signInError}</code></p>
+          <p>{HERO_CONCIERGE.FAILED}</p>
         </div>
       ) : null}
 

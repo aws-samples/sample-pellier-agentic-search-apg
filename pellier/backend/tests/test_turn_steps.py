@@ -207,9 +207,11 @@ def test_prose_results_parse_to_text() -> None:
 def test_layer_tags_follow_the_tool_and_the_outcome() -> None:
     assert layer_tags("get_tickets", {}) == ["Aurora", "Identity"]
     assert layer_tags("search_products", {}) == ["Aurora"]
-    assert layer_tags("ask_a_person", {"credit_request_status": "request_opened"}) == ["Identity", "Approval"]
+    # A shopper's credit ask is a request, never an approval.
+    opened = {"credit_request_status": "request_opened"}
+    assert layer_tags("ask_a_person", opened) == ["Identity", "Request"]
     standing = {"credit_request_status": "already_requested"}
-    assert layer_tags("ask_a_person", standing) == ["Identity", "Approval"]
+    assert layer_tags("ask_a_person", standing) == ["Identity", "Request"]
     assert layer_tags("ask_a_person", {"credit_request_status": "sign_in_required"}) == ["Identity"]
     assert layer_tags(SKILL_LOAD_TOOL, {}) == ["Skills"]
 

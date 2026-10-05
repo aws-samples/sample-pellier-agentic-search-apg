@@ -180,3 +180,50 @@ async def test_latest_handoff_must_match_the_requested_customer() -> None:
         await HANDOFF.resolve_latest_for_customer(
             _Db(row), customer_id="CUST-ANNA"
         )
+
+
+def _request_row() -> dict[str, Any]:
+    """Jessica's chat ask for a store credit: no amount and no fingerprint."""
+    return {"review_id": 40, "customer_id": "CUST-JESSICA", "action": "store_credit_request",
+            "action_hash": None}
+
+
+@pytest.mark.asyncio
+async def test_a_credit_ask_is_recorded_as_a_request_never_an_approval() -> None:
+    result = await HANDOFF.build_handoff_context(
+        _Db(_request_row()),
+        turn_id="turn-" + ("c" * 32),
+        session_id="session-jessica",
+        customer_id="CUST-JESSICA",
+        shopper_request="I sent two things back. Can I have a store credit?",
+        conversation_history=[],
+        assistant_response="A person on the team will look at it.",
+        specialist_route="customer_support",
+        tool_calls=["ask_a_person"],
+    )
+
+    assert result["request"] == {"requestId": 40, "action": "store_credit_request"}
+    assert "proposal" not in result
+    assert result["evidenceRefs"] == [
+        {"kind": "governed_turn_receipt", "id": "turn-" + ("c" * 32)},
+        {"kind": "credit_request", "id": 40},
+    ]
+    assert "approval" not in str(result).lower()
+
+
+@pytest.mark.asyncio
+async def test_a_recorded_request_resolves_and_a_tampered_one_is_refused() -> None:
+    context = await HANDOFF.build_handoff_context(
+        _Db(_request_row()), turn_id="turn-" + ("c" * 32), session_id="s",
+        customer_id="CUST-JESSICA", shopper_request="Credit, please.", conversation_history=[],
+        assistant_response="", specialist_route="customer_support", tool_calls=[],
+    )
+    row = {**_request_row(), "source_turn_id": "turn-" + ("c" * 32), "session_id": "s",
+           "handoff_context": context}
+
+    resolved = await HANDOFF.resolve_for_review(_Db(row), review_id=40)
+    assert resolved is not None and resolved["request"]["requestId"] == 40
+
+    forged = {**context, "request": {"requestId": 41, "action": "store_credit_request"}}
+    with pytest.raises(HANDOFF.HandoffIntegrityError):
+        await HANDOFF.resolve_for_review(_Db({**row, "handoff_context": forged}), review_id=40)

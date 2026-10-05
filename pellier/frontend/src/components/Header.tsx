@@ -10,6 +10,11 @@
  * to switch shopper or sign out. Choosing a shopper is a real sign-in with
  * their demo account.
  *
+ * The pill names only the shopper session that answered `/api/auth/me`, never
+ * the edit on screen, and never the staff session the same browser may hold
+ * on the Operator. When the edit and the session disagree (a sign-in that
+ * succeeded while opening the edit failed), the pill names the session.
+ *
  * Copy comes from `copy.ts`. Every color is a token. The row's ground,
  * hairline and stacking are `.pellier-storefront-header` in
  * surface-navigation.css, so the sticky row never depends on a utility.
@@ -25,6 +30,7 @@ import { Avatar } from '../design/primitives'
 import { getPersonaPhoto } from '../data/personaPhotos'
 import { IconButton } from '../design/primitives'
 import PersonaModal from './PersonaModal'
+import { useSignedInShopper } from '../hooks/useShopperSignIn'
 import {
   ShoppingBag,
   User as UserIcon,
@@ -125,11 +131,17 @@ function SignedOutPersonaTrigger({
   )
 }
 
-function AuthenticatedPersonaTrigger() {
+/** "jessica" to "Jessica", for a session whose edit has not opened. */
+function shopperName(id: string): string {
+  return id.charAt(0).toUpperCase() + id.slice(1)
+}
+
+function AuthenticatedPersonaTrigger({ shopper }: { shopper: string }) {
   const { persona } = usePersona()
   const [open, setOpen] = useState(false)
-
-  if (!persona) return null
+  // The edit describes the session only when it is the same shopper's.
+  const edit = persona?.id === shopper ? persona : null
+  const name = edit?.display_name ?? shopperName(shopper)
 
   return (
     <>
@@ -142,13 +154,13 @@ function AuthenticatedPersonaTrigger() {
         aria-haspopup="dialog"
       >
         <Avatar
-          initial={persona.avatar_initial}
-          bgColor={persona.avatar_color}
-          photoUrl={getPersonaPhoto(persona.id)}
+          initial={edit?.avatar_initial ?? name}
+          bgColor={edit?.avatar_color}
+          photoUrl={getPersonaPhoto(shopper)}
           size="sm"
         />
         <span className="max-w-[118px] truncate text-[13px] font-medium">
-          {persona.display_name}
+          {name}
         </span>
         <ChevronDown size={14} className="opacity-60" aria-hidden />
       </button>
@@ -164,9 +176,9 @@ function PersonaAccountControl({
   chooserOpen: boolean
   onOpenChooser: () => void
 }) {
-  const { persona } = usePersona()
-  return persona ? (
-    <AuthenticatedPersonaTrigger />
+  const shopper = useSignedInShopper()
+  return shopper ? (
+    <AuthenticatedPersonaTrigger shopper={shopper} />
   ) : (
     <SignedOutPersonaTrigger open={chooserOpen} onOpen={onOpenChooser} />
   )
@@ -182,7 +194,7 @@ export default function Header({
 }: HeaderProps) {
   const { items: cartItems, setCartOpen } = useCart()
   const { openModal } = useUI()
-  const { persona } = usePersona()
+  const signedInAs = useSignedInShopper()
   const headerRef = useRef<HTMLElement>(null)
   const menuToggleRef = useRef<HTMLButtonElement>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -353,7 +365,7 @@ export default function Header({
           ) : null}
         </AnimatePresence>
       </nav>
-      {!persona ? (
+      {!signedInAs ? (
         <PersonaModal open={chooserOpen} onClose={() => setChooserOpen(false)} />
       ) : null}
     </header>

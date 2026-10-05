@@ -169,6 +169,11 @@ function mapProduct(p: any): ChatProduct {
  * What the conversation keeps in the browser. The identity binding on a
  * step and the turn's verified principal are Builder evidence for the turn
  * that ran them, not conversation state, so they never land in localStorage.
+ *
+ * By design, then, a turn restored after a reload carries no principal and
+ * shows no identity line: the principal is shown only for turns that ran in
+ * this page, from that turn's own `turn_start`. Restoring one from storage
+ * would present a browser value as the server's verified identity.
  */
 function forStorage(messages: AgentChatMessage[]): AgentChatMessage[] {
   return messages.map(message => {

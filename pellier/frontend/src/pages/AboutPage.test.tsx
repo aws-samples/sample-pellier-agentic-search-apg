@@ -21,6 +21,8 @@ vi.mock('../contexts/AuthContext', () => ({
     preferences: null,
     prefsVersion: 0,
   }),
+  // The header names the shopper session; these pages render signed out.
+  useOptionalAuth: () => null,
 }))
 
 vi.mock('../contexts/CartContext', () => ({

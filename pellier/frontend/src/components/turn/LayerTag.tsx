@@ -1,6 +1,7 @@
 /**
  * The Builder view's layer chip: Router, Aurora, Memory, Identity, Approval,
- * Policy, Skills. Mono, copper-tinted, never a status.
+ * Request, Policy, Skills. Mono, copper-tinted, never a status. A shopper's
+ * credit ask is a Request; only a credit a person approves is an Approval.
  */
 import type { ReactNode } from 'react'
 

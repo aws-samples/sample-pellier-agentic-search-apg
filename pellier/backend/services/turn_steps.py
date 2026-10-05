@@ -362,11 +362,15 @@ def skill_load_refused(result_text: Any) -> Optional[str]:
 
 
 def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
-    """The layers that applied to this step, for the Builder view."""
+    """The layers that applied to this step, for the Builder view.
+
+    A shopper's credit ask is a request, never an approval: it names no
+    amount, and nobody approves it. A person answers it by investigating.
+    """
     tags = list(LAYER_TAGS.get(tool, ()))
     credit = parsed.get("credit_request_status")
     if tool == "ask_a_person" and credit in ("request_opened", "already_requested"):
-        tags.append("Approval")
+        tags.append("Request")
     return tags
 
 

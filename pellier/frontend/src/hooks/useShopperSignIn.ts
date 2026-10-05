@@ -9,7 +9,12 @@
  * never the other way round: Pellier trusts the signed token, not the choice.
  *
  * A workshop convenience, not a production pattern. Nadia, the staff member,
- * is never offered here: she signs in with her password on the Operator desk.
+ * is never offered here: she signs in with her password on the Operator desk,
+ * into the staff session, which choosing or switching a shopper never touches.
+ *
+ * Who is signed in is read only from the shopper session that answered
+ * `/api/auth/me`, never from the edit on screen: if the sign-in succeeds and
+ * opening the edit fails, the header names the new shopper, not the last one.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useOptionalAuth } from '../contexts/AuthContext'
@@ -46,8 +51,16 @@ export interface ShopperSignIn {
   signedInAs: WorkshopShopper | null
 }
 
+/** The demo shopper the shopper session belongs to, from `/api/auth/me`. */
+export function useSignedInShopper(): WorkshopShopper | null {
+  const auth = useOptionalAuth()
+  const username = auth?.isAuthenticated ? (auth.user?.username ?? '').toLowerCase() : ''
+  return isWorkshopShopper(username) ? username : null
+}
+
 export function useShopperSignIn(): ShopperSignIn {
   const auth = useOptionalAuth()
+  const signedInAs = useSignedInShopper()
   const { switchPersona, signOut: clearShopper } = usePersona()
   const [busy, setBusy] = useState<WorkshopShopper | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -68,7 +81,10 @@ export function useShopperSignIn(): ShopperSignIn {
       return await switchPersona(id)
     } catch (reason) {
       if (abort.signal.aborted) return false
-      setError(reason instanceof PasswordAuthError ? reason.message : 'auth_unavailable')
+      const code = reason instanceof PasswordAuthError ? reason.message : 'auth_unavailable'
+      // The code is for the builder; the page shows a plain sentence.
+      console.warn('Shopper sign-in did not complete:', code)
+      setError(code)
       return false
     } finally {
       if (!abort.signal.aborted) setBusy(null)
@@ -80,14 +96,7 @@ export function useShopperSignIn(): ShopperSignIn {
     auth?.logout()
   }, [auth, clearShopper])
 
-  const username = auth?.isAuthenticated ? (auth.user?.username ?? '').toLowerCase() : ''
-  return {
-    choose,
-    signOut,
-    busy,
-    error,
-    signedInAs: isWorkshopShopper(username) ? username : null,
-  }
+  return { choose, signOut, busy, error, signedInAs }
 }
 
 /**

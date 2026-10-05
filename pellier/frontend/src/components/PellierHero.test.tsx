@@ -180,9 +180,16 @@ describe('PellierHero', () => {
     workshopSignIn.mockRejectedValueOnce(new PasswordAuthError('workshop_sign_in_unavailable'))
     render(<PellierHero />)
 
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     fireEvent.click(await screen.findByTestId('hero-profile-theo'))
-    expect(await screen.findByTestId('persona-sign-in-error')).toHaveTextContent('workshop_sign_in_unavailable')
+    const error = await screen.findByTestId('persona-sign-in-error')
+    // A plain sentence for the shopper; the machine code stays in the console.
+    expect(error).toHaveTextContent('That sign-in did not complete. Try again, or use the sign-in page.')
+    expect(error).not.toHaveTextContent('workshop_sign_in_unavailable')
+    expect(error.querySelector('code')).toBeNull()
+    expect(warn).toHaveBeenCalledWith('Shopper sign-in did not complete:', 'workshop_sign_in_unavailable')
     expect(switchPersona).not.toHaveBeenCalled()
+    warn.mockRestore()
   })
 
   it('says under the chooser that the choice is a sign-in and the token is what counts', async () => {

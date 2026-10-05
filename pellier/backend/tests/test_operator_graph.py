@@ -467,6 +467,40 @@ def test_an_investigation_with_no_proposal_answers_them_with_no_review(graph_run
     assert run.answered == [("turn-" + "a" * 32, None, "CUST-JESSICA")]
 
 
+def test_a_planner_that_reads_the_brief_and_proposes_nothing_answers_them(graph_runtime) -> None:
+    """A deliberate no-credit outcome is a finding: "call nothing and say why"."""
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    run = _Run()
+    result = _investigate(run, [])
+    assert result.proposal is None
+    assert run.answered == [("turn-" + "a" * 32, None, "CUST-JESSICA")]
+
+
+@pytest.mark.parametrize("order_ids", [[9999], [399]], ids=["refused", "over-ceiling"])
+def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) -> None:
+    orders = JESSICA_ORDERS + [{
+        "order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
+        "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
+        "placed_at": None, "return_status": "refunded",
+    }]
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit", {"order_ids": order_ids, "reason": "Credit these."}),
+    ]
+    run = _Run(orders if order_ids == [399] else None)
+    result = _investigate(run, [])
+    assert result.status == "complete" and result.proposal is None
+    assert run.answered == [], "no proposal and no finding: the request stays open"
+
+
+def test_an_investigation_with_no_brief_leaves_the_requests_open(graph_runtime) -> None:
+    _FakeAgent.outputs[GRAPH.INVESTIGATOR_NODE] = "I could not read the records."
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    run = _Run()
+    result = _investigate(run, [])
+    assert result.facts == [] and result.proposal is None
+    assert run.answered == []
+
+
 def test_the_graph_stops_after_one_proposal(graph_runtime) -> None:
     _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
         ("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back."}),

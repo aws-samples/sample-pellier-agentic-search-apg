@@ -4,6 +4,10 @@ The handoff is context, never authority. It preserves what the shopper asked,
 which specialist and tools ran, and the exact prepared-action fingerprint.
 Current customer, order, inventory, policy, and execution state are always read
 again from the tables that own them.
+
+A shopper's store credit ask is recorded as a ``request``, never as an approval
+``proposal``: it names no amount, carries no fingerprint, and nobody approves
+it. A person answers it by investigating the case.
 """
 
 from __future__ import annotations
@@ -12,6 +16,8 @@ import copy
 import json
 import logging
 from typing import Any, Dict, Iterable, List, Mapping, Optional
+
+from services.store_tools import CREDIT_REQUEST
 
 logger = logging.getLogger(__name__)
 
@@ -135,7 +141,7 @@ async def build_handoff_context(
     specialist_route: str,
     tool_calls: Iterable[Any],
 ) -> Dict[str, Any]:
-    """Build the original immutable envelope when this turn opened a review."""
+    """Build the original immutable envelope when this turn opened a review or a request."""
     customer = str(customer_id or "").strip()
     if db is None or not customer:
         return {}
@@ -161,6 +167,14 @@ async def build_handoff_context(
     review_id = int(review.get("review_id") or 0)
     action = str(review.get("action") or "")
     action_hash = str(review.get("action_hash") or "")
+    if action == CREDIT_REQUEST:
+        reference: Dict[str, Any] = {"request": {"requestId": review_id, "action": action}}
+        evidence = {"kind": "credit_request", "id": review_id}
+    else:
+        reference = {
+            "proposal": {"reviewId": review_id, "action": action, "actionHash": action_hash},
+        }
+        evidence = {"kind": "approval", "id": review_id}
     return {
         "schemaVersion": SCHEMA_VERSION,
         "trust": TRUST_LABEL,
@@ -177,14 +191,10 @@ async def build_handoff_context(
             "specialist": str(specialist_route or ""),
             "tools": tool_names(tool_calls),
         },
-        "proposal": {
-            "reviewId": review_id,
-            "action": action,
-            "actionHash": action_hash,
-        },
+        **reference,
         "evidenceRefs": [
             {"kind": "governed_turn_receipt", "id": turn_id},
-            {"kind": "approval", "id": review_id},
+            evidence,
         ],
     }
 
@@ -220,13 +230,19 @@ def _validated_handoff(
     row_customer = str(row.get("customer_id") or "")
     context_customer = str(context.get("customerId") or "")
     expected = str(expected_customer_id or row_customer)
-    proposal = _decode(context.get("proposal"))
+    if str(row.get("action") or "") == CREDIT_REQUEST:
+        request = _decode(context.get("request"))
+        reference = (request.get("requestId"), request.get("action"), "")
+    else:
+        proposal = _decode(context.get("proposal"))
+        reference = (proposal.get("reviewId"), proposal.get("action"), proposal.get("actionHash"))
+    referenced_id, referenced_action, referenced_hash = reference
     mismatches = (
         context_customer != row_customer
         or row_customer != expected
-        or int(proposal.get("reviewId") or 0) != int(row.get("review_id") or 0)
-        or str(proposal.get("action") or "") != str(row.get("action") or "")
-        or str(proposal.get("actionHash") or "") != str(row.get("action_hash") or "")
+        or int(referenced_id or 0) != int(row.get("review_id") or 0)
+        or str(referenced_action or "") != str(row.get("action") or "")
+        or str(referenced_hash or "") != str(row.get("action_hash") or "")
         or str((_decode(context.get("source"))).get("turnId") or "")
         != str(row.get("source_turn_id") or "")
     )

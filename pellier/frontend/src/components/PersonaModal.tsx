@@ -6,6 +6,8 @@ import { apiFetch } from '../services/apiBase'
  * shopper, and choosing one signs in with that shopper's demo account and
  * opens their edit (`useShopperSignIn`). Choosing another shopper signs the
  * current one out first; Sign out returns to the neutral, signed-out store.
+ * The shopper marked as current is the one the shopper session names, so a
+ * sign-in whose edit failed to open can be chosen again to finish opening it.
  * Styling lives in src/styles/persona-modal.css.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -74,10 +76,10 @@ function ShopperChooser({ onClose }: { onClose: () => void }) {
 
   const handleSelect = useCallback(
     async (id: string) => {
-      if (!isWorkshopShopper(id) || id === persona?.id) return
+      if (!isWorkshopShopper(id) || (id === signedInAs && id === persona?.id)) return
       if (await choose(id)) onClose()
     },
-    [choose, onClose, persona?.id],
+    [choose, onClose, persona?.id, signedInAs],
   )
 
   const handleSignOut = useCallback(() => {
@@ -157,11 +159,11 @@ function ShopperChooser({ onClose }: { onClose: () => void }) {
           ) : null}
           {signInError ? (
             <div className="pellier-recovery" role="alert" data-testid="persona-modal-sign-in-error">
-              <p>{HERO_CONCIERGE.FAILED} <code>{signInError}</code></p>
+              <p>{HERO_CONCIERGE.FAILED}</p>
             </div>
           ) : null}
           {personas.map((p) => {
-            const isActive = persona?.id === p.id
+            const isActive = signedInAs === p.id
             const photoUrl = getPersonaModalPortrait(p.id)
             return (
               <button

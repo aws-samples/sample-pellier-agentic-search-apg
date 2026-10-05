@@ -11,9 +11,10 @@
  *  - bag icon with live count badge
  *  - sticky with backdrop-filter blur
  *
- * The CartContext and PersonaContext are mocked at the module level so the
- * test stays focused on the Header's behavior without pulling in the full
- * workshop chrome.
+ * The CartContext, PersonaContext and AuthContext are mocked at the module
+ * level so the test stays focused on the Header's behavior without pulling in
+ * the full workshop chrome. `mockSignedInAs` is the shopper session's
+ * username, as `/api/auth/me` reports it.
  *
  * Header renders route links, so every render wraps in a `<MemoryRouter>`.
  */
@@ -54,6 +55,17 @@ vi.mock('../contexts/PersonaContext', () => ({
     switchPersona: mockSwitchPersona,
     signOut: mockSignOut,
     switching: false,
+  }),
+}))
+
+// The shopper session: the pill names it, never the edit on screen.
+let mockSignedInAs: string | null = null
+vi.mock('../contexts/AuthContext', () => ({
+  useOptionalAuth: () => ({
+    isAuthenticated: Boolean(mockSignedInAs),
+    user: mockSignedInAs ? { sub: `sub-${mockSignedInAs}`, email: '', username: mockSignedInAs } : null,
+    refresh: vi.fn(),
+    logout: vi.fn(),
   }),
 }))
 
@@ -103,6 +115,7 @@ function renderHeader(ui: ReactElement = <Header />) {
 
 beforeEach(() => {
   mockPersona = null
+  mockSignedInAs = null
   mockCartItems = []
   setCartOpen.mockClear()
   mockSwitchPersona.mockClear()
@@ -223,11 +236,44 @@ describe('Header — persona account control', () => {
       role_tag: 'Returning',
       stats: { visits: 11, orders: 7, last_seen_days: 21 },
     }
+    mockSignedInAs = 'marco'
     renderHeader()
     const pill = screen.getByTestId('persona-pill')
     expect(pill).toHaveTextContent('Marco')
     // The Avatar primitive renders the initial
     expect(pill.textContent).toContain('M')
+  })
+
+  it('names the signed-in session, never an edit left from the previous shopper', () => {
+    // Theo signed in, and opening his edit failed: Marco's edit is still on screen.
+    mockPersona = {
+      id: 'marco',
+      display_name: 'Marco',
+      avatar_initial: 'M',
+      avatar_color: '#5a3528',
+      customer_id: 'CUST-MARCO',
+      role_tag: 'Returning',
+      stats: { visits: 11, orders: 7, last_seen_days: 21 },
+    }
+    mockSignedInAs = 'theo'
+    renderHeader()
+    const pill = screen.getByTestId('persona-pill')
+    expect(pill).toHaveTextContent('Theo')
+    expect(pill).not.toHaveTextContent('Marco')
+  })
+
+  it('shows the chooser, not a leftover edit, when the shopper session is signed out', () => {
+    mockPersona = {
+      id: 'marco',
+      display_name: 'Marco',
+      avatar_initial: 'M',
+      avatar_color: '#5a3528',
+      customer_id: 'CUST-MARCO',
+      role_tag: 'Returning',
+      stats: { visits: 11, orders: 7, last_seen_days: 21 },
+    }
+    renderHeader()
+    expect(screen.getByTestId('persona-pill')).toHaveTextContent('Choose a shopper')
   })
 
   it('opens the shared portrait selector when signed in', async () => {
@@ -240,6 +286,7 @@ describe('Header — persona account control', () => {
       role_tag: 'Returning',
       stats: { visits: 11, orders: 7, last_seen_days: 21 },
     }
+    mockSignedInAs = 'marco'
     renderHeader()
     fireEvent.click(screen.getByTestId('persona-pill'))
 
@@ -263,6 +310,7 @@ describe('Header — persona account control', () => {
       role_tag: 'Home + slow craft',
       stats: { visits: 8, orders: 4, last_seen_days: 14 },
     }
+    mockSignedInAs = 'theo'
     renderHeader()
     fireEvent.click(screen.getByTestId('persona-pill'))
     expect(screen.getByTestId('persona-modal')).toBeInTheDocument()
