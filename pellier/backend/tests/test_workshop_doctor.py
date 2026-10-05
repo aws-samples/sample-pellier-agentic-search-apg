@@ -74,6 +74,7 @@ def _by_name(checks: list) -> Dict[str, Any]:
 
 
 STARTERS = REPO / "workshop" / "starters" / "lab-2"
+GRANT = "Stock agent granted check_stock alone"
 TOOL_MARKER = "    # === WORKSHOP - Stock agent - check_stock: {} ===\n"
 AGENT_MARKER = "# === WORKSHOP - Stock agent - definition: {} ===\n"
 
@@ -109,17 +110,53 @@ class TestLab2:
         assert checks["database reachable"].passed is True
         assert checks["check_stock written"].passed is False
         assert "still holds its starter" in checks["check_stock written"].detail
-        assert checks["Stock agent granted its tool"].passed is False
+        grant = checks[GRANT]
+        assert grant.passed is False
+        assert grant.detail == ("stock_agent.py grants search_products, browse_department, "
+                                "compare_products, check_stock; Task 2B grants check_stock alone")
 
-    def test_edited_blocks_pass(self, tmp_path: Path) -> None:
+    @pytest.mark.parametrize("body", [
+        "_STOCK_TOOLS = [agent_tools.check_stock]\n",
+        "_STOCK_TOOLS = [check_stock]\n",
+    ])
+    def test_edited_blocks_pass(self, tmp_path: Path, body: str) -> None:
         backend = _scratch_backend(
             tmp_path,
             tool_body="    return _reply(store_tools.check_stock(_run_sql, product_query=q))\n",
-            agent_body="_STOCK_TOOLS = [agent_tools.check_stock]\n")
+            agent_body=body)
         evidence = FakeEvidence({"SELECT 1": {"ok": 1}})
         checks = _by_name(doctor.lab2_checks(evidence, backend=backend))
         assert checks["check_stock written"].passed is True
-        assert checks["Stock agent granted its tool"].passed is True
+        assert checks[GRANT].passed is True
+        assert checks[GRANT].detail == "stock_agent.py grants check_stock alone"
+
+    @pytest.mark.parametrize("body", [
+        "_STOCK_TOOLS = [agent_tools.check_stock, agent_tools.search_products]\n",
+        "_STOCK_TOOLS = []\n",
+        "pass\n",
+    ])
+    def test_an_edit_that_is_not_check_stock_alone_fails_and_names_the_grant(
+        self, tmp_path: Path, body: str,
+    ) -> None:
+        backend = _scratch_backend(tmp_path, tool_body="    pass\n", agent_body=body)
+        check = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))[GRANT]
+        assert check.passed is False
+        assert check.detail.startswith("stock_agent.py grants ")
+        assert check.detail.endswith("Task 2B grants check_stock alone")
+
+    def test_an_edit_the_running_agent_has_not_loaded_says_restart(self, tmp_path: Path) -> None:
+        backend = _scratch_backend(tmp_path, tool_body="    pass\n",
+                                   agent_body="_STOCK_TOOLS = [agent_tools.check_stock]\n")
+        evidence = FakeEvidence({"args->>'agent' = 'stock'": {
+            "audit_id": 41, "grant": ["search_products", "browse_department",
+                                      "compare_products", "check_stock"]}})
+        check = _by_name(doctor.lab2_checks(evidence, backend=backend))[GRANT]
+        assert check.passed is False
+        assert "(audit 41) held search_products" in check.detail
+        assert check.detail.endswith("restart the backend, then ask again")
+        loaded = FakeEvidence({"args->>'agent' = 'stock'": {"audit_id": 42,
+                                                            "grant": ["check_stock"]}})
+        assert _by_name(doctor.lab2_checks(loaded, backend=backend))[GRANT].passed is True
 
     def test_missing_markers_fail_rather_than_pass(self, tmp_path: Path) -> None:
         backend = _scratch_backend(tmp_path, tool_body="", agent_body="")
@@ -127,6 +164,9 @@ class TestLab2:
         checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
         assert checks["check_stock written"].passed is False
         assert "markers are missing" in checks["check_stock written"].detail
+        (backend / "agents" / "stock_agent.py").write_text("x = 1\n", encoding="utf-8")
+        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
+        assert "markers are missing" in checks[GRANT].detail
 
 
 class TestLab1:
@@ -171,7 +211,8 @@ class TestLab3:
         env_file = tmp_path / ".env"
         env_file.write_text(f"AGENTCORE_RUNTIME_ENDPOINT={RUNTIME_ARN}\n", encoding="utf-8")
         evidence = FakeEvidence(
-            {"caller = 'gateway'": {"turn_id": "turn-theo-ceramics", "deployed_fingerprint": "a" * 64}}
+            {"caller = 'gateway'": {"turn_id": "turn-theo-ceramics",
+                                    "deployed_fingerprint": "a" * 64}}
         )
         checks = _by_name(
             doctor.lab3_checks(

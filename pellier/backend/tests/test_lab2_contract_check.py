@@ -91,14 +91,33 @@ def test_blank_choices_use_the_defaults_and_say_so() -> None:
     assert inputs["in_stock"] == ("Hadley Linen Shirt", "fixed")
 
 
-def test_the_grant_is_read_from_the_definition(tmp_path: Path) -> None:
-    source = tmp_path / "stock_agent.py"
-    source.write_text("_STOCK_TOOLS = [agent_tools.search_products, agent_tools.check_stock]\n")
-    assert check.granted_tools(source) == ["search_products", "check_stock"]
-    source.write_text("_STOCK_TOOLS = [check_stock]\n")
-    assert check.granted_tools(source) == ["check_stock"]
-    source.write_text("nothing here\n")
-    assert check.granted_tools(source) is None
+@pytest.mark.parametrize("grant, state", [
+    (["check_stock"], None),
+    (["search_products", "browse_department", "compare_products", "check_stock"], "NOT YET"),
+    (["check_stock", "compare_products", "browse_department", "search_products"], "NOT YET"),
+    (None, "NOT YET"),
+    (["search_products", "check_stock"], "CONTRADICTED"),
+    ([], "CONTRADICTED"),
+])
+def test_the_recorded_grant_decides_before_the_calls(grant, state) -> None:
+    """The starter's grant is a lab not done yet (or not reloaded); any other is wrong."""
+    verdict, observed = check._grant_verdict(grant)
+    assert verdict == state
+    assert bool(observed) is (state is not None)
+
+
+def test_the_recorded_grant_is_read_from_the_turns_first_row() -> None:
+    rows = [{"args": {"grant": ["check_stock"], "turn_id": "t"}}, {"args": {"grant": ["x"]}}]
+    assert check.recorded_grant(rows) == ["check_stock"]
+    assert check.recorded_grant([{"args": '{"turn_id": "t"}'}]) is None
+    assert check.recorded_grant([]) is None
+
+
+def test_the_check_reads_no_source() -> None:
+    """2B is judged from the turn record, so an edit without a restart cannot pass."""
+    source = (SCRIPTS / "lab2_contract_check.py").read_text()
+    assert "import ast" not in source and "stock_agent.py\")" not in source
+    assert "args->>'agent' = %s" in source
 
 
 def test_the_check_runs_the_participants_tool_body_not_the_logic_directly() -> None:

@@ -62,6 +62,9 @@ class ScriptedAgent:
     """Replays tool calls and text through the hooks ``chat_stream`` attaches."""
 
     trace_attributes: Dict[str, Any] = {}
+    # A built Strands agent names its registry; the Router step reports it.
+    name = "shopping"
+    tool_names = ["search_products", "browse_department", "compare_products"]
 
     def __init__(
         self,
@@ -439,6 +442,33 @@ def test_chat_collects_the_stable_code(service, monkeypatch) -> None:
     result = asyncio.run(service.chat(message="a linen shirt"))
     assert result["success"] is False
     assert result["error"] == "service_unavailable"
+
+
+def test_the_router_step_names_what_the_built_agent_may_call(service, monkeypatch) -> None:
+    """Read from the running agent's registry, beside the Stock agent's prompt rule.
+
+    The skill loader reads the repository and is not a store tool, so it is not
+    part of the grant a participant narrows in Lab 2B.
+    """
+    from agents.stock_agent import STOCK_PROMPT_RULE
+
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "stock")
+    agent = ScriptedAgent([], "Brooklyn is sold out.")
+    agent.tool_names = ["search_products", "browse_department", "compare_products",
+                        "check_stock", "skills"]
+    events = _run(service, agent, monkeypatch, message="Is the Velvet Opera Cape in stock?")
+    routes = [step for step in _of(events, "step") if step["id"] == "route"]
+    assert routes[0]["builder"]["grant"] == {
+        "tools": ["search_products", "browse_department", "compare_products", "check_stock"],
+        "rule": STOCK_PROMPT_RULE,
+    }
+    assert routes[-1]["builder"]["grant"] == routes[0]["builder"]["grant"]
+    assert STOCK_PROMPT_RULE == "Every stock answer starts from check_stock"
+
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
+    shopping = _of(_run(service, ScriptedAgent([], "Try the mugs."), monkeypatch), "step")[0]
+    assert shopping["builder"]["grant"] == {
+        "tools": ["search_products", "browse_department", "compare_products"], "rule": None}
 
 
 def test_the_greeting_is_answered_by_the_router_in_the_same_contract(service, monkeypatch) -> None:

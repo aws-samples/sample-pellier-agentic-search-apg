@@ -6,8 +6,10 @@ the Velvet Opera Cape, which Pellier does not carry, and the Builder view says
 
 Task 2B. The starter Stock agent is granted the shopping tools beside
 ``check_stock``, so it can answer a stock question from a product listing
-instead of the warehouse rows. The solution grants ``check_stock`` alone.
-``scripts/lab2_contract_check.py --task 2B`` judges a turn by both.
+instead of the warehouse rows. The solution grants ``check_stock`` alone. The
+built agent's own registry is what the audit row records and the Builder view
+shows; ``scripts/lab2_contract_check.py --task 2B`` judges Marco's latest
+Stock-agent turn by that recorded grant, its calls and its counts.
 
 The tool bodies run on the real schema and seed; the Stock agent is built by
 its real factory.
@@ -19,7 +21,8 @@ import importlib
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from types import SimpleNamespace
+from typing import Any, Dict, Optional, Sequence
 
 import psycopg
 import pytest
@@ -137,35 +140,91 @@ def test_the_factory_builds_the_agent_with_exactly_that_grant(monkeypatch, varia
     monkeypatch.setattr(stock_agent, "_STOCK_TOOLS", grant)
     agent = stock_agent.build_stock_agent()
     assert set(agent.tool_names) == set(_names(grant))
+    # The rule the Builder view prints beside the grant is the prompt's own words.
+    assert stock_agent.STOCK_PROMPT_RULE in agent.system_prompt
 
 
-def _audit(conn: Any, turn: str, tool: str, args: Dict[str, Any], result: Dict[str, Any]) -> None:
+@pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
+def test_the_audit_row_records_the_agent_and_the_grant_it_was_built_with(
+    monkeypatch, variant,
+) -> None:
+    """The hook reads the running agent's registry, never the definition's source."""
+    from agents import stock_agent
+    from services import chat as chat_module
+    from services import tool_audit_writer
+
+    grant = lab_variants.stock_grant(variant)
+    monkeypatch.setattr(stock_agent, "_STOCK_TOOLS", grant)
+    agent = stock_agent.build_stock_agent()
+    rows: list = []
+    monkeypatch.setattr(tool_audit_writer, "record_allow", lambda **kw: rows.append(kw))
+    before, _after = chat_module.make_tool_audit_hooks(session_id="persona-marco-x",
+                                                       turn_id="turn-x")
+    before(SimpleNamespace(agent=agent, tool_use={
+        "name": "check_stock", "toolUseId": "tu-1", "input": {"product_query": "Hadley"}}))
+    assert rows[0]["args"]["agent"] == "stock"
+    assert rows[0]["args"]["grant"] == _names(grant)
+
+
+def _audit(conn: Any, turn: str, tool: str, args: Dict[str, Any], result: Dict[str, Any], *,
+           agent: Optional[str] = "stock", grant: Optional[Sequence[str]] = ("check_stock",),
+           session: str = "persona-marco-") -> None:
+    recorded = {**args, "turn_id": turn}
+    if agent is not None:
+        recorded["agent"] = agent
+    if grant is not None:
+        recorded["grant"] = list(grant)
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms) "
             "VALUES (%s, %s, 'agent', %s::jsonb, %s::jsonb, 10)",
-            (f"persona-marco-{turn}", tool, json.dumps({**args, "turn_id": turn}),
-             json.dumps(result)))
+            (f"{session}{turn}", tool, json.dumps(recorded), json.dumps(result)))
 
 
-def test_the_2b_check_fails_a_turn_that_read_the_catalog(conn) -> None:
+STARTER_GRANT = ("search_products", "browse_department", "compare_products", "check_stock")
+
+
+def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
+    """Also what a definition edited without a restart leaves: the running agent's grant."""
     _audit(conn, "turn-guess", "search_products", {"query": "Hadley Linen Shirt Brooklyn"},
-           {"status": "success", "count": 1, "products": [{"productId": "2"}]})
-    starter_grant = _names(lab_variants.stock_grant(lab_variants.STARTER))
-    finding = lab2.judge_2b(conn, starter_grant)
+           {"status": "success", "count": 1, "products": [{"productId": "2"}]},
+           grant=STARTER_GRANT)
+    finding = lab2.judge_2b(conn)
+    assert finding.state == "NOT YET", finding
+    assert "still held the starter's grant: search_products" in finding.observed
+    assert "restart the backend" in finding.next_step
+    assert lab2.STARTER_GRANT == tuple(_names(lab_variants.stock_grant(lab_variants.STARTER)))
+
+
+def test_a_wider_grant_than_check_stock_is_contradicted(conn) -> None:
+    _audit(conn, "turn-wide", "check_stock", {"product_query": "Hadley Linen Shirt"},
+           {"status": "success"}, grant=("search_products", "check_stock"))
+    finding = lab2.judge_2b(conn)
     assert finding.state == "CONTRADICTED"
-    assert "the turn called search_products" in finding.observed
-    assert "the turn never called check_stock" in finding.observed
-    assert "granted search_products" in finding.observed
+    assert "was granted search_products, check_stock" in finding.observed
 
 
 def test_the_2b_check_passes_one_grounded_turn(conn, tool_db) -> None:
     envelope = _ask(lab_variants.SOLUTION, "Hadley Linen Shirt")
     _audit(conn, "turn-grounded", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
-    finding = lab2.judge_2b(conn, ["check_stock"])
+    finding = lab2.judge_2b(conn)
     assert finding.state == "PROVED", finding
+    assert any("the Stock agent that answered held check_stock" in line
+               for line in finding.evidence)
     assert any("warehouse_inventory for 2: ATX-02 6, BK-01 0, PDX-01 14" in line
                for line in finding.evidence)
+
+
+def test_a_shopping_turn_by_marco_does_not_change_the_verdict(conn, tool_db) -> None:
+    """Marco's own Goa question goes to the Shopping agent; 2B judges his stock turns only."""
+    envelope = _ask(lab_variants.SOLUTION, "Hadley Linen Shirt")
+    _audit(conn, "turn-stock", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
+    _audit(conn, "turn-goa", "search_products", {"query": "linen for Goa"},
+           {"status": "success", "count": 1, "products": [{"productId": "11"}]},
+           agent="shopping", grant=("search_products", "browse_department", "compare_products"))
+    finding = lab2.judge_2b(conn)
+    assert finding.state == "PROVED", finding
+    assert "turn-stock" in finding.evidence[0]
 
 
 def test_the_2b_check_fails_a_count_the_warehouse_rows_do_not_hold(conn) -> None:
@@ -174,7 +233,7 @@ def test_the_2b_check_fails_a_count_the_warehouse_rows_do_not_hold(conn) -> None
                                                  {"warehouse_code": "ATX-02", "quantity": 6},
                                                  {"warehouse_code": "PDX-01", "quantity": 7}]}
     _audit(conn, "turn-wrong", "check_stock", {"product_query": "Hadley Linen Shirt"}, guessed)
-    finding = lab2.judge_2b(conn, ["check_stock"])
+    finding = lab2.judge_2b(conn)
     assert finding.state == "CONTRADICTED"
     assert "does not match the catalog" in finding.observed
 
@@ -182,6 +241,48 @@ def test_the_2b_check_fails_a_count_the_warehouse_rows_do_not_hold(conn) -> None
 def test_the_2b_check_fails_the_starters_folded_answer(conn, tool_db) -> None:
     envelope = _ask(lab_variants.STARTER, NOT_CARRIED)
     _audit(conn, "turn-folded", "check_stock", {"product_query": NOT_CARRIED}, envelope)
-    finding = lab2.judge_2b(conn, ["check_stock"])
+    finding = lab2.judge_2b(conn)
     assert finding.state == "CONTRADICTED"
     assert any("no catalog product carries that name" in line for line in finding.evidence)
+
+
+def test_no_stock_agent_turn_is_not_yet(conn, monkeypatch) -> None:
+    monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
+    finding = lab2.judge_2b(conn)
+    assert finding.state == "NOT YET"
+    assert lab2.MARCO_STOCK_QUESTION in finding.next_step
+
+
+# ---------------------------------------------------------------------------
+# Task 2A as the export reads it: Marco's recorded check_stock calls
+# ---------------------------------------------------------------------------
+
+
+def test_the_recorded_2a_line_follows_marcos_latest_not_carried_question(conn, tool_db) -> None:
+    _audit(conn, "turn-cape-starter", "check_stock", {"product_query": NOT_CARRIED},
+           _ask(lab_variants.STARTER, NOT_CARRIED), grant=STARTER_GRANT)
+    folded = lab2.judge_recorded_2a(conn)
+    assert folded.state == "CONTRADICTED", folded
+    assert f'not carried: "{NOT_CARRIED}" recorded success, 0 units' in folded.observed
+
+    # Each case is judged by its latest call: the wrong Hadley count recorded above
+    # contradicts until a later Hadley call reads the rows.
+    _audit(conn, "turn-cape-solution", "check_stock", {"product_query": NOT_CARRIED},
+           _ask(lab_variants.SOLUTION, NOT_CARRIED))
+    assert "in stock: \"Hadley Linen Shirt\" recorded success, 21 units" in (
+        lab2.judge_recorded_2a(conn).observed)
+    _audit(conn, "turn-hadley", "check_stock", {"product_query": "Hadley Linen Shirt"},
+           _ask(lab_variants.SOLUTION, "Hadley Linen Shirt"))
+    fixed = lab2.judge_recorded_2a(conn)
+    assert fixed.state == "PROVED", fixed
+    assert fixed.observed.startswith(
+        "2 of 2 recorded cases match (not asked yet: several, sold out)")
+    assert any(f'check_stock("{NOT_CARRIED}") recorded not_found' in line
+               for line in fixed.evidence)
+
+
+def test_the_recorded_2a_line_waits_for_a_not_carried_question(conn, monkeypatch) -> None:
+    monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
+    finding = lab2.judge_recorded_2a(conn)
+    assert finding.state == "NOT YET"
+    assert lab2.MARCO_CAPE_QUESTION in finding.next_step

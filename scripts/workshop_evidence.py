@@ -14,12 +14,14 @@ YET: "this did not happen" and "I could not look" are different findings.
 
 Each line runs the same verdict the guide's check prints
 (``workshop/lab-1-rrf.sql``, ``scripts/lab1_compare.py``,
-``scripts/lab2_contract_check.py``, ``scripts/lab3_check.py``), so the export
-and the lab never disagree. Lab 3B's direct Cedar probe calls the Gateway, so
-it stays in ``lab3_check.py``; the export reads only the systems of record:
-the database, the source and, for Theo's remembered taste, AgentCore Memory.
-A task whose marked region still holds its starter is NOT YET, whatever the
-rows say.
+``scripts/lab2_contract_check.py``, ``scripts/lab3_check.py``), except Lab 2A:
+the guide's 2A check runs your edited ``check_stock`` directly, while the export
+reads only what Marco's turns recorded (``lab2_contract_check.judge_recorded_2a``),
+so it needs the restart and the question asked again. Lab 2 reads no source:
+2A and 2B are judged from ``pellier.tool_audit`` alone, 2B by the grant the
+answering Stock agent held. Lab 3B's direct Cedar probe calls the Gateway, so
+it stays in ``lab3_check.py``. For the other tasks, a task whose marked region
+still holds its starter is NOT YET, whatever the rows say.
 
     python3 scripts/workshop_evidence.py
     python3 scripts/workshop_evidence.py --save /tmp/pellier-evidence/workshop-evidence.txt
@@ -55,10 +57,6 @@ REGIONS: Dict[str, tuple] = {
            STARTERS / "lab-1-rrf.sql"),
     "1B": (BACKEND / "services" / "search_plan.py", "Search plan - preserve requirements",
            STARTERS / "lab-1" / "preserve-requirements.pyfrag"),
-    "2A": (BACKEND / "services" / "agent_tools.py", "Stock agent - check_stock",
-           STARTERS / "lab-2" / "check-stock-tool.pyfrag"),
-    "2B": (BACKEND / "agents" / "stock_agent.py", "Stock agent - definition",
-           STARTERS / "lab-2" / "stock-agent-definition.pyfrag"),
     "3A-catalogue": (REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
                      "Gateway catalogue - published tools",
                      STARTERS / "lab-3" / "gateway-published-tools.pyfrag"),
@@ -165,31 +163,20 @@ def task_1b(cfg: Config, connect: Connect) -> check.Finding:
 
 
 def task_2a(cfg: Config, connect: Connect) -> check.Finding:
+    """Lab 2A from Marco's recorded check_stock calls; the checkout's code is never run."""
     import lab2_contract_check as lab2
 
     title = "check_stock keeps not carried, several and sold out apart"
-    expected = lab2.EXPECTED_2A
-    if source_state("2A") == check.STARTER:
-        return _starter_finding("2A", title, expected, "services/agent_tools.py")
-    inputs = {case: (lab2.DEFAULT_INPUTS[case], "default") for case in lab2.CASES}
-
-    def judge(conn: Any) -> check.Finding:
-        conn.autocommit = True
-        return lab2.judge_2a(conn, lab2.participant_tool(conn, cfg or {}), inputs)[0]
-
-    return _with_connection("2A", title, expected, cfg, connect, judge)
+    return _with_connection("2A", title, lab2.EXPECTED_2A_RECORDED, cfg, connect,
+                            lab2.judge_recorded_2a)
 
 
 def task_2b(cfg: Config, connect: Connect) -> check.Finding:
+    """Lab 2B from Marco's latest Stock-agent turn, with the grant that agent held."""
     import lab2_contract_check as lab2
 
     title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
-    expected = ("the Stock agent is granted check_stock only, and its counts equal "
-                "warehouse_inventory")
-    if source_state("2B") == check.STARTER:
-        return _starter_finding("2B", title, expected, "agents/stock_agent.py")
-    return _with_connection("2B", title, expected, cfg, connect,
-                            lambda conn: lab2.judge_2b(conn, lab2.granted_tools()))
+    return _with_connection("2B", title, lab2.EXPECTED_2B, cfg, connect, lab2.judge_2b)
 
 
 # ---------------------------------------------------------------------------

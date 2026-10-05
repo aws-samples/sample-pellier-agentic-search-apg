@@ -10,16 +10,25 @@ from strands import Agent
 from strands.models import BedrockModel
 from config import settings
 from services import agent_tools
-from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
+# Named so the Lab 2B grant may list the tool by its bare name as well.
+from services.agent_tools import check_stock  # noqa: F401
+from skills import (
+    SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for,
+)
 from services.persona_context import inject_persona_preamble
 
+
+# The prompt's one rule for where a stock answer comes from. The Builder view
+# prints it beside the tools the running agent may call (Lab 2B).
+STOCK_PROMPT_RULE = "Every stock answer starts from check_stock"
 
 _STOCK_SYSTEM_PROMPT = (
     "You report stock for Pellier. "
     "Three warehouses ship the catalog: BK-01 (Brooklyn), ATX-02 (Austin), "
     "PDX-01 (Portland). "
     "<critical-rule>"
-    "Every stock answer starts from check_stock, called with the product "
+    + STOCK_PROMPT_RULE
+    + ", called with the product "
     "name the customer used as product_query. Examples:\n"
     "  Customer: 'How many Hadley Linen Shirts are available at the Brooklyn "
     "warehouse, and what ship window is recorded?'\n"

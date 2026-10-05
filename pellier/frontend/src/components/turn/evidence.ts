@@ -39,6 +39,17 @@ export function rememberedSentence(records: string[]): string {
   return `Remembered: AgentCore Memory ${noun} ${records.join(', ')} (user preference)`
 }
 
+/**
+ * "Stock agent may call: check_stock; prompt rule: "Every stock answer starts
+ * from check_stock"": the tools the running agent was built with, beside the
+ * prompt's rule that keeps it on the right one.
+ */
+export function grantSentence(agent: string | undefined, grant: { tools: string[]; rule?: string | null }): string {
+  const tools = grant.tools.length ? grant.tools.join(', ') : 'no store tools'
+  const head = `${agent || 'The agent'} may call: ${tools}`
+  return grant.rule ? `${head}; prompt rule: "${grant.rule}"` : head
+}
+
 export function evidenceLine(step: TurnStep): string {
   const builder = step.builder
   if (!builder) return ''
@@ -46,6 +57,7 @@ export function evidenceLine(step: TurnStep): string {
   if (builder.tool === null) {
     if (builder.intent) parts.push(`intent ${builder.intent}`)
     if (builder.model_id) parts.push(`model ${builder.model_id}`)
+    if (builder.grant) parts.push(grantSentence(builder.agent, builder.grant))
     if (builder.memory) parts.push(`${builder.memory.facts} facts, ${builder.memory.orders} orders from ${builder.memory.source}`)
     if (builder.remembered?.records.length) parts.push(rememberedSentence(builder.remembered.records))
     if (builder.skills && builder.skills.length > 0) {

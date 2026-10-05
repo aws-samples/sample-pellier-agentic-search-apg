@@ -399,6 +399,25 @@ def remembered_receipt(record_ids: Sequence[str]) -> Optional[Dict[str, Any]]:
     return {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "records": records}
 
 
+def granted_tools(tool_names: Sequence[str]) -> List[str]:
+    """The store tools in a built agent's registry (``agent.tool_names``), in order.
+
+    The skill loader is left out: it reads the repository, writes no audit row
+    and is not a store tool.
+    """
+    return [str(name) for name in tool_names if name and name != SKILL_LOAD_TOOL]
+
+
+def grant_receipt(tool_names: Sequence[str], rule: Optional[str] = None) -> Dict[str, Any]:
+    """The Router step's evidence for what the built agent may call.
+
+    ``tool_names`` is the running agent's own registry, never a reading of its
+    source. ``rule`` is the agent prompt's rule for where an answer comes from,
+    when it has one.
+    """
+    return {"tools": granted_tools(tool_names), "rule": rule}
+
+
 @dataclass
 class TurnSteps:
     """Allocate one step id per tool use.
@@ -529,6 +548,7 @@ class TurnSteps:
         skill_mode: str,
         memory: Optional[Dict[str, Any]] = None,
         remembered: Optional[Dict[str, Any]] = None,
+        grant: Optional[Dict[str, Any]] = None,
         rail: str = "in-process",
         note: Optional[str] = None,
         stop_reason: Optional[str] = None,
@@ -545,7 +565,8 @@ class TurnSteps:
         ``memory`` is the Aurora customer record the prompt carried (facts and
         orders); ``remembered`` names the AgentCore Memory records whose
         preferences it carried (:func:`remembered_receipt`). Each is present
-        only when the agent was actually given it.
+        only when the agent was actually given it. ``grant`` is what the built
+        agent may call (:func:`grant_receipt`), on the in-process rail.
         """
         tags = list(LAYER_TAGS[ROUTE_STEP_ID])
         if memory or remembered:
@@ -572,6 +593,7 @@ class TurnSteps:
                 "skill_mode": skill_mode,
                 "memory": memory,
                 "remembered": remembered,
+                "grant": grant,
                 "note": note,
                 "stop_reason": stop_reason,
             },

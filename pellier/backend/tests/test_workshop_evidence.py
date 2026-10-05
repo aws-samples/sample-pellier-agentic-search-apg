@@ -2,9 +2,11 @@
 
 A line that reports an unreachable database as NOT YET tells a participant they
 failed a task they may have passed. These tests pin that separation, the
-starter rule (a region still holding its starter is never proved), and the
-Lab 1 and Lab 2 lines on the real schema with the solutions in place, through
-the same checks the guide runs.
+starter rule for the lines whose proof runs the participant's source (a region
+still holding its starter is never proved), and the Lab 1 and Lab 2 lines on
+the real schema with the solutions in place. The source each test reads is the
+starter or the solution twin, never the live checkout, so a box with the
+solutions applied runs the same tests.
 """
 
 from __future__ import annotations
@@ -51,13 +53,35 @@ def _no_settings(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(key, raising=False)
 
 
+# The lines a durable row proves read no source: with no database they cannot look.
+ROW_TASKS = {"2A", "2B"}
+
+
+@pytest.fixture()
+def starters(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every source the export reads holds its starter, whatever the live checkout holds."""
+    regions = {}
+    for key, (_live, label, starter) in evidence.REGIONS.items():
+        text = starter.read_text(encoding="utf-8")
+        if check.region_body(text, label) is None:
+            marker = f"# === WORKSHOP - {label}: {{}} ==="
+            text = f"{marker.format('START')}\n{text}{marker.format('END')}\n"
+        copy = tmp_path / f"starter-{key}{starter.suffix}"
+        copy.write_text(text, encoding="utf-8")
+        regions[key] = (copy, label, starter)
+    monkeypatch.setattr(evidence, "REGIONS", regions)
+    monkeypatch.setattr(evidence, "CEDAR_POLICY", evidence.CEDAR_STARTER)
+
+
 class TestTheEightLines:
-    def test_a_fresh_checkout_reports_every_task_not_yet(self, tmp_path: Path) -> None:
-        """Every region holds its starter, so no row can prove a task."""
+    def test_starters_are_not_yet_and_row_lines_without_a_database_are_unchecked(
+        self, tmp_path: Path, starters: None,
+    ) -> None:
         findings = evidence.collect(tmp_path / "absent.env", connect=_no_database)
         assert [finding.task for finding in findings] == TASKS
         for finding in findings:
-            assert finding.state == NOT_YET, finding
+            expected = UNCHECKED if finding.task in ROW_TASKS else NOT_YET
+            assert finding.state == expected, finding
 
     def test_no_settings_is_unchecked_once_the_regions_are_edited(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
@@ -69,7 +93,7 @@ class TestTheEightLines:
             assert findings[task].state == UNCHECKED, findings[task]
             assert "no database settings" in findings[task].evidence[0]
 
-    def test_the_report_prints_three_things_per_line(self, tmp_path: Path) -> None:
+    def test_the_report_prints_three_things_per_line(self, tmp_path: Path, starters: None) -> None:
         report = evidence.render_report(evidence.collect(tmp_path / "absent.env",
                                                          connect=_no_database))
         assert report.count("\nTask ") == 8
@@ -209,12 +233,10 @@ class TestLabsThreeAndFour:
 
 @pytest.fixture()
 def solved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A copy of each Lab 1 and Lab 2 file with the solution's region, read by the export."""
+    """A copy of each Lab 1 file with the solution's region, read by the export."""
     copies = {
         "1A": lab_variants.LAB1_RRF["solution"],
         "1B": REPO / "solutions/the-quiet-search/retrieval/search_plan_solution.py",
-        "2A": REPO / "solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py",
-        "2B": REPO / "solutions/waking-the-stock-keeper/agents/stock_agent_solution.py",
     }
     regions = dict(evidence.REGIONS)
     for task, source in copies.items():
@@ -234,16 +256,7 @@ def _cfg(cluster: Any) -> Dict[str, str]:
 def test_lab_one_and_two_lines_read_the_real_schema(
     fresh_db: Any, solved: Path, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
 ) -> None:
-    from agents import stock_agent
-    from services import agent_tools, search_plan
-
-    monkeypatch.setattr(search_plan.SearchPlan, "_with_relaxations",
-                        lab_variants.plan_fallback("solution"))
-    monkeypatch.setattr(agent_tools, "check_stock", lab_variants.check_stock_body("solution"))
-    monkeypatch.setattr(agent_tools, "_main_loop", None)
-    monkeypatch.setattr(stock_agent, "_STOCK_TOOLS", lab_variants.stock_grant("solution"))
-    lab2 = importlib.import_module("lab2_contract_check")
-    monkeypatch.setattr(lab2, "STOCK_AGENT", solved / "2B.py")
+    """Labs 1 and 2 from the rows a solved run leaves. Lab 2 runs no checkout code at all."""
     monkeypatch.setenv("PATH", f"{fresh_db.bin}:{os.environ['PATH']}")
     cfg = _cfg(fresh_db)
     for key, value in cfg.items():  # the check sets missing DB_* defaults; undo them after
@@ -263,7 +276,8 @@ def test_lab_one_and_two_lines_read_the_real_schema(
         conn.execute("""
             INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)
             VALUES ('persona-marco-export', 'check_stock', 'agent',
-                    '{"product_query": "Velvet Opera Cape", "turn_id": "turn-export"}',
+                    '{"product_query": "Velvet Opera Cape", "turn_id": "turn-export",
+                      "agent": "stock", "grant": ["check_stock"]}',
                     '{"status": "not_found"}', 9)""")
 
     findings = {

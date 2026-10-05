@@ -139,6 +139,26 @@ describe('evidenceLine', () => {
     const none = { ...route, builder: { tool: null, intent: 'shopping', remembered: null } }
     expect(evidenceLine(none)).toBe('intent shopping')
   })
+
+  it('names the tools the running Stock agent may call beside its prompt rule', () => {
+    const route = (tools: string[]) => ({
+      id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router'],
+      builder: {
+        tool: null, intent: 'stock', agent: 'Stock agent', model_id: 'global.anthropic.claude-sonnet-5',
+        grant: { tools, rule: 'Every stock answer starts from check_stock' },
+      },
+    })
+    expect(evidenceLine(route(['search_products', 'browse_department', 'compare_products', 'check_stock']))).toBe(
+      'intent stock; model global.anthropic.claude-sonnet-5; '
+      + 'Stock agent may call: search_products, browse_department, compare_products, check_stock; '
+      + 'prompt rule: "Every stock answer starts from check_stock"',
+    )
+    expect(evidenceLine(route(['check_stock']))).toContain(
+      'Stock agent may call: check_stock; prompt rule: "Every stock answer starts from check_stock"',
+    )
+    const shopping = { ...route([]), builder: { tool: null, agent: 'Shopping agent', grant: { tools: ['search_products'], rule: null } } }
+    expect(evidenceLine(shopping)).toBe('Shopping agent may call: search_products')
+  })
 })
 
 describe('parseProse', () => {

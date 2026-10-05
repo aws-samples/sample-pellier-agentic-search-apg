@@ -22,6 +22,8 @@ from services.turn_steps import (
     STATUS_UNDERSTANDING,
     STATUS_WRITING,
     TurnSteps,
+    grant_receipt,
+    granted_tools,
     remembered_receipt,
     status_event,
 )
@@ -248,6 +250,20 @@ def _build_dispatcher_specialist(
     from agents.shopping_agent import build_shopping_agent
 
     return build_shopping_agent(allow_handoff=allow_handoff, skill_mode=skill_mode)
+
+
+def _agent_grant(intent: str, agent: Any) -> Dict[str, Any]:
+    """What the built agent may call, beside its prompt's rule for where answers come from.
+
+    Read from the running agent's registry, so a grant edited in source but not
+    yet loaded by a restart still shows what this turn's agent actually held.
+    """
+    rule = None
+    if intent == "stock":
+        from agents.stock_agent import STOCK_PROMPT_RULE
+
+        rule = STOCK_PROMPT_RULE
+    return grant_receipt(agent.tool_names, rule)
 
 
 def _route_finding(agent: str, triage_bucket: Optional[str] = None) -> str:
@@ -689,6 +705,13 @@ def make_tool_audit_hooks(
                 audit_args["customer_id"] = customer_id
             if principal_sub:
                 audit_args["principal_sub"] = principal_sub
+            # The agent that called the tool, and every store tool it held
+            # for this turn, from its own registry: Lab 2B's check reads the
+            # grant the answering agent actually had from this row.
+            agent = getattr(event, "agent", None)
+            if agent is not None:
+                audit_args["agent"] = str(agent.name)
+                audit_args["grant"] = granted_tools(agent.tool_names)
             tool_audit_writer.record_allow(
                 tool_use_id=tool_use_id,
                 tool_name=tool_name,
@@ -1718,7 +1741,6 @@ class EnhancedChatService:
                 else None
             ),
         }
-        yield steps.route(**route_facts)
 
         # --- Queue-based streaming bridge ---
         loop = asyncio.get_running_loop()
@@ -1881,6 +1903,10 @@ class EnhancedChatService:
         orchestrator = _build_dispatcher_specialist(intent, allow_handoff, skill_mode)
         orchestrator.trace_attributes = trace_attributes
         _attach_streaming_and_hooks(orchestrator)
+        # The Router step goes out once the agent exists, so it names the
+        # tools this turn's agent was actually built with.
+        route_facts["grant"] = _agent_grant(intent, orchestrator)
+        yield steps.route(**route_facts)
         logger.info(f"🎯 Router | {specialist_name} (intent={intent}, skills={skill_mode})")
 
         async def run_orchestrator():

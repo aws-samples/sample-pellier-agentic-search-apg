@@ -9,8 +9,10 @@ a symptom.
 
     Lab 1  retrieval_receipts records citation snapshots; Anna's session has a
            search receipt.
-    Lab 2  Aurora reachable; the check_stock block and the Stock agent
-           definition no longer hold their starters.
+    Lab 2  Aurora reachable; the check_stock block no longer holds its starter;
+           the Stock agent definition grants check_stock alone, and the Stock
+           agent that answered Marco's latest stock turn held that grant too
+           (a definition edited without a restart is named as such).
     Lab 3  The Gateway publishes every tool the Support agent asks for and
            get_tickets is bound to the signed-in caller ("9 tools published");
            the service environment carries the two settings resolve_rail
@@ -36,6 +38,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import pathlib
 import sys
@@ -65,6 +68,16 @@ CEDAR_STARTER = "workshop/starters/workshop_credit_limit.cedar"
 POLICY_FILES = (CEDAR_POLICY,)
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
+# The grant the Stock agent held on Marco's latest turn it answered, as its
+# in-process audit row recorded it.
+_RUNNING_STOCK_GRANT = """
+SELECT audit_id, args->'grant' AS grant
+  FROM pellier.tool_audit
+ WHERE session_id LIKE 'persona-marco-%'
+   AND args->>'agent' = 'stock'
+ ORDER BY audit_id DESC
+ LIMIT 1;
+"""
 # Anna's newest search receipt: the session choosing Anna on the home page starts.
 _ANNA_RECEIPT = """
 SELECT receipt_id
@@ -195,13 +208,59 @@ def _region_built(name: str, path: pathlib.Path, region: str, starter: pathlib.P
     return Check(name, True, f"the {region} block in {path.name} is edited")
 
 
+def source_grant(path: pathlib.Path) -> Optional[List[str]]:
+    """The tool names ``_STOCK_TOOLS`` lists in the definition's source, or None."""
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+    except (OSError, SyntaxError):
+        return None
+    for node in tree.body:
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1
+                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "_STOCK_TOOLS"
+                and isinstance(node.value, (ast.List, ast.Tuple))):
+            return [item.attr if isinstance(item, ast.Attribute) else getattr(item, "id", "?")
+                    for item in node.value.elts]
+    return None
+
+
+def _running_stock_grant(evidence: Evidence) -> Optional[Dict[str, Any]]:
+    if not evidence.available:
+        return None
+    try:
+        return evidence.one(_RUNNING_STOCK_GRANT)
+    except Exception:  # noqa: BLE001 - the source check still stands on its own
+        return None
+
+
+def _grant_check(evidence: Evidence, path: pathlib.Path) -> Check:
+    """The definition grants check_stock alone, and the running agent loaded it."""
+    name = "Stock agent granted check_stock alone"
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError:
+        text = ""
+    if workshop_check.region_body(text, AGENT_REGION) is None:
+        return Check(name, False, f"the {AGENT_REGION} markers are missing from {path.name}")
+    grant = source_grant(path)
+    if grant != ["check_stock"]:
+        listed = ", ".join(grant) if grant else "no readable _STOCK_TOOLS list"
+        return Check(name, False, f"{path.name} grants {listed}; Task 2B grants check_stock alone")
+    running = _running_stock_grant(evidence)
+    held = (running or {}).get("grant")
+    if isinstance(held, list) and held != ["check_stock"]:
+        return Check(name, False, (
+            f"{path.name} grants check_stock alone, but the Stock agent that answered Marco's "
+            f"latest stock turn (audit {running.get('audit_id')}) held {', '.join(held)}: "
+            "restart the backend, then ask again"))
+    return Check(name, True, f"{path.name} grants check_stock alone")
+
+
 def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[Check]:
     return [
         _db_reachable(evidence),
         _region_built("check_stock written", backend / "services" / "agent_tools.py",
                       TOOL_REGION, STARTERS / "lab-2" / "check-stock-tool.pyfrag"),
-        _region_built("Stock agent granted its tool", backend / "agents" / "stock_agent.py",
-                      AGENT_REGION, STARTERS / "lab-2" / "stock-agent-definition.pyfrag"),
+        _grant_check(evidence, backend / "agents" / "stock_agent.py"),
     ]
 
 
@@ -403,7 +462,8 @@ def _credit_recorded_once(evidence: Evidence) -> Check:
                                   "as Nadia in the Operator")
     return Check(name, False, f"key {row.get('idempotency_key')}: {row.get('credit_rows')} credit "
                               f"row(s), {row.get('audit_rows')} audit row(s), "
-                              f"{row.get('amount_cents')} cents of {row.get('approved_cents')} approved")
+                              f"{row.get('amount_cents')} cents of "
+                              f"{row.get('approved_cents')} approved")
 
 
 def lab4_checks(
@@ -436,7 +496,8 @@ def run_lab(
     if lab == 2:
         return lab2_checks(evidence)
     if lab == 3:
-        return lab3_checks(evidence, run_env=run_env, env_path=env_path, include_proof=phase == "proof")
+        return lab3_checks(evidence, run_env=run_env, env_path=env_path,
+                           include_proof=phase == "proof")
     return lab4_checks(evidence, include_proof=phase == "proof")
 
 

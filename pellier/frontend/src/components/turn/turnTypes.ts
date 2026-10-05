@@ -137,6 +137,8 @@ export interface StepBuilder {
   memory?: { facts: number; orders: number; source: string } | null
   /** The AgentCore Memory records whose preferences the prompt carried, on the Router step. */
   remembered?: { source: string; strategy: string; records: string[] } | null
+  /** What the built agent may call, beside its prompt's rule, on the in-process Router step. */
+  grant?: { tools: string[]; rule?: string | null } | null
   note?: string | null
   /** How the agent's turn ended (`end_turn`, `max_tokens`, ...), on the Router step once known. */
   stop_reason?: string | null

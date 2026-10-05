@@ -14,10 +14,18 @@ You choose the first three queries; a query that is not what it claims to be
 fails as a test input, so a weak test cannot pass. A blank choice uses the
 default and the report says so.
 
-Task 2B reads Marco's latest turn from ``pellier.tool_audit`` (his session is
-the one choosing Marco on the home page starts, ``persona-marco-...``) and the
-Stock agent's grant from ``agents/stock_agent.py``. The agent may call only
-``check_stock``, and every count it was given must equal the warehouse rows.
+Task 2B reads Marco's latest Stock-agent turn from ``pellier.tool_audit`` (his
+session is the one choosing Marco on the home page starts, ``persona-marco-...``).
+Each in-process audit row records the agent that called the tool and the store
+tools that running agent held (``args->>'agent'``, ``args->'grant'``), so the
+check reads the grant the answering Stock agent actually had, never the source:
+a definition edited without a restart stays NOT YET. That agent may hold only
+``check_stock``, the turn may call nothing else, and every count it was given
+must equal the warehouse rows. A Shopping-agent turn of Marco's is not judged.
+
+The evidence export judges 2A from the same rows (:func:`judge_recorded_2a`):
+Marco's latest ``check_stock`` call for each case, as recorded, against the
+catalog. It never runs the checkout's code.
 
     python3 scripts/lab2_contract_check.py
     python3 scripts/lab2_contract_check.py --unknown "..." --ambiguous "..." --sold-out "..."
@@ -27,7 +35,6 @@ Stock agent's grant from ``agents/stock_agent.py``. The agent may call only
 from __future__ import annotations
 
 import argparse
-import ast
 import json
 import os
 import pathlib
@@ -39,8 +46,15 @@ import workshop_check as check  # noqa: E402  (sibling module)
 
 REPO = check.REPO
 BACKEND = REPO / "pellier" / "backend"
-STOCK_AGENT = BACKEND / "agents" / "stock_agent.py"
 MARCO_SESSION_PREFIX = "persona-marco-"
+# The Stock agent's name on the audit rows it leaves (``args->>'agent'``).
+STOCK_AGENT_NAME = "stock"
+# What the Stock agent - definition starter grants; a turn answered with it is
+# a lab not done yet, not a wrong answer.
+STARTER_GRANT = ("search_products", "browse_department", "compare_products", "check_stock")
+MARCO_STOCK_QUESTION = ("How many Hadley Linen Shirts are available at the Brooklyn "
+                        "warehouse, and what ship window is recorded?")
+MARCO_CAPE_QUESTION = "Is the Velvet Opera Cape in stock?"
 
 CASES = ("unknown", "several", "sold_out", "in_stock")
 CHOSEN = ("unknown", "several", "sold_out")
@@ -73,10 +87,10 @@ _STOCK_SQL = """
      WHERE product_id = %s
      ORDER BY warehouse_code
 """
-_LATEST_TURN = """
+_LATEST_STOCK_TURN = """
 SELECT args->>'turn_id' AS turn_id
   FROM pellier.tool_audit
- WHERE session_id LIKE %s
+ WHERE session_id LIKE %s AND args->>'agent' = %s
  ORDER BY audit_id DESC
  LIMIT 1
 """
@@ -85,6 +99,12 @@ SELECT audit_id, tool, args, result
   FROM pellier.tool_audit
  WHERE session_id LIKE %s AND args->>'turn_id' = %s
  ORDER BY audit_id
+"""
+_MARCO_STOCK_CALLS = """
+SELECT audit_id, args, result
+  FROM pellier.tool_audit
+ WHERE session_id LIKE %s AND tool = 'check_stock' AND result IS NOT NULL
+ ORDER BY audit_id DESC
 """
 
 
@@ -232,23 +252,17 @@ def _catalog_evidence(query: str, catalog: Dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Task 2B
+# Task 2A, as recorded: what Marco's turns were told
 # ---------------------------------------------------------------------------
 
-
-def granted_tools(path: Optional[pathlib.Path] = None) -> Optional[List[str]]:
-    """The tool names ``_STOCK_TOOLS`` grants, read from the source, or None."""
-    try:
-        tree = ast.parse((path or STOCK_AGENT).read_text(encoding="utf-8"))
-    except (OSError, SyntaxError):
-        return None
-    for node in tree.body:
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name) and node.targets[0].id == "_STOCK_TOOLS"
-                and isinstance(node.value, (ast.List, ast.Tuple))):
-            return [item.attr if isinstance(item, ast.Attribute) else getattr(item, "id", "?")
-                    for item in node.value.elts]
-    return None
+EXPECTED_2A_RECORDED = (
+    "Marco's latest check_stock call about a piece the catalog does not carry recorded "
+    "not_found with no count, and his latest call of every other case recorded the "
+    "catalog's answer")
+_NEXT_2A_RECORDED = (
+    "open the Stock agent - check_stock block in pellier/backend/services/agent_tools.py: it "
+    "must return the shared implementation's answer unchanged. Restart the backend, ask "
+    f"Marco's question again (\"{MARCO_CAPE_QUESTION}\"), then rerun this.")
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -258,6 +272,108 @@ def _as_dict(value: Any) -> Dict[str, Any]:
         except ValueError:
             return {}
     return value if isinstance(value, dict) else {}
+
+
+def recorded_cases(conn: Any) -> Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Marco's latest recorded check_stock call for each case, with the catalog's answer."""
+    with conn.cursor() as cur:
+        cur.execute(_MARCO_STOCK_CALLS, (MARCO_SESSION_PREFIX + "%",))
+        rows = [dict(row) for row in cur.fetchall()]
+    found: Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]] = {}
+    for row in rows:
+        catalog = catalog_answer(conn, str(_as_dict(row["args"]).get("product_query") or ""))
+        case = classify(catalog)
+        if case in CASES and case not in found:
+            found[case] = (row, catalog)
+        if len(found) == len(CASES):
+            break
+    return found
+
+
+def judge_recorded_2a(conn: Any) -> check.Finding:
+    """Task 2A from the rows Marco's turns left: the not-carried case decides."""
+    title = "check_stock keeps not carried, several and sold out apart"
+    found = recorded_cases(conn)
+    if "unknown" not in found:
+        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A_RECORDED,
+                             "no check_stock call of Marco's asked about a piece Pellier does "
+                             "not carry", ["pellier.tool_audit: no such row in a persona-marco- "
+                                           "session"],
+                             f"choose Marco on the home page and ask \"{MARCO_CAPE_QUESTION}\", "
+                             "then rerun this.")
+    evidence: List[str] = []
+    differs: List[str] = []
+    for case in CASES:
+        if case not in found:
+            continue
+        row, catalog = found[case]
+        envelope = _as_dict(row["result"])
+        query = str(_as_dict(row["args"]).get("product_query") or "")
+        evidence.append(f"audit {row['audit_id']}: check_stock(\"{query}\") recorded "
+                        f"{describe_envelope(envelope)}; the catalog: {describe_catalog(catalog)}")
+        if not keeps_contract(case, envelope, catalog):
+            differs.append(f"{_CASE_LABEL[case]}: \"{query}\" recorded "
+                           f"{describe_envelope(envelope)}")
+    unasked = [_CASE_LABEL[case] for case in CASES if case not in found]
+    observed = f"{len(found) - len(differs)} of {len(found)} recorded cases match" + (
+        f" (not asked yet: {', '.join(unasked)})" if unasked else "")
+    if differs:
+        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A_RECORDED,
+                             observed + "; " + "; ".join(differs), evidence, _NEXT_2A_RECORDED)
+    return check.Finding("2A", title, check.PROVED, EXPECTED_2A_RECORDED, observed, evidence)
+
+
+# ---------------------------------------------------------------------------
+# Task 2B: the grant the answering Stock agent held, and what it was told
+# ---------------------------------------------------------------------------
+
+EXPECTED_2B = ("the Stock agent that answered Marco's latest stock question held check_stock "
+               "alone and called only check_stock; every count equals warehouse_inventory")
+_NEXT_2B_GRANT = ("grant the Stock agent check_stock alone in the Stock agent - definition "
+                  "block of agents/stock_agent.py, restart the backend so the running agent "
+                  "loads it, ask Marco's stock question again, then rerun this check.")
+
+
+def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
+    """Every audit row of Marco's latest turn the Stock agent answered, in call order."""
+    pattern = MARCO_SESSION_PREFIX + "%"
+    with conn.cursor() as cur:
+        cur.execute(_LATEST_STOCK_TURN, (pattern, STOCK_AGENT_NAME))
+        latest = cur.fetchone()
+        if not latest or not latest.get("turn_id"):
+            return []
+        cur.execute(_TURN_ROWS, (pattern, latest["turn_id"]))
+        return [dict(row) for row in cur.fetchall()]
+
+
+def recorded_grant(rows: Sequence[Dict[str, Any]]) -> Optional[List[str]]:
+    """The store tools the answering agent held, as its first audit row recorded them."""
+    grant = _as_dict(rows[0].get("args")).get("grant") if rows else None
+    return [str(name) for name in grant] if isinstance(grant, list) else None
+
+
+def _grant_verdict(grant: Optional[List[str]]) -> Tuple[Optional[str], str]:
+    """(state, observed) for the recorded grant; ``(None, "")`` when it is check_stock alone."""
+    if grant == ["check_stock"]:
+        return None, ""
+    if grant is None:
+        return check.NOT_YET, "the turn's audit rows record no grant"
+    text = ", ".join(grant) or "no store tools"
+    if sorted(grant) == sorted(STARTER_GRANT):
+        return check.NOT_YET, ("the Stock agent that answered still held the starter's grant: "
+                               + text)
+    return check.CONTRADICTED, f"the Stock agent that answered was granted {text}"
+
+
+def _call_problems(rows: Sequence[Dict[str, Any]]) -> List[str]:
+    problems: List[str] = []
+    others = sorted({row["tool"] for row in rows if row["tool"] != "check_stock"})
+    if others:
+        problems.append("the turn called " + ", ".join(others)
+                        + ", which read the catalog, not warehouse_inventory")
+    if not any(row["tool"] == "check_stock" for row in rows):
+        problems.append("the turn never called check_stock")
+    return problems
 
 
 def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[bool, str]:
@@ -288,56 +404,51 @@ def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[bool, str]:
                    else "no catalog product carries that name"))
 
 
-def judge_2b(conn: Any, grant: Optional[List[str]]) -> check.Finding:
-    """Marco's latest turn: only check_stock ran, and its counts equal the warehouse rows."""
-    title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
-    expected = ("the Stock agent is granted check_stock only; Marco's latest turn called "
-                "check_stock and nothing else; every count equals warehouse_inventory")
-    grant_text = ", ".join(grant) if grant is not None else "unreadable"
-    evidence = [f"agents/stock_agent.py grants: {grant_text}"]
-    pattern = MARCO_SESSION_PREFIX + "%"
-    with conn.cursor() as cur:
-        cur.execute(_LATEST_TURN, (pattern,))
-        latest = cur.fetchone()
-        rows = []
-        if latest and latest.get("turn_id"):
-            cur.execute(_TURN_ROWS, (pattern, latest["turn_id"]))
-            rows = [dict(row) for row in cur.fetchall()]
-    if not rows:
-        return check.Finding("2B", title, check.NOT_YET, expected,
-                             "no tool call in a session of Marco's yet", evidence,
-                             "choose Marco on the home page, ask his stock question, then "
-                             "rerun this check.")
-    evidence.append(f"pellier.tool_audit turn {check.short(latest['turn_id'], 20)}: "
-                    + ", ".join(f"{row['tool']} (audit {row['audit_id']})" for row in rows))
-    grant_problems: List[str] = []
-    if grant != ["check_stock"]:
-        grant_problems.append(f"the agent is granted {grant_text}")
-    others = sorted({row["tool"] for row in rows if row["tool"] != "check_stock"})
-    if others:
-        grant_problems.append("the turn called " + ", ".join(others)
-                              + ", which read the catalog, not warehouse_inventory")
-    stock_rows = [row for row in rows if row["tool"] == "check_stock"]
-    if not stock_rows:
-        grant_problems.append("the turn never called check_stock")
-    count_problems: List[str] = []
-    for row in stock_rows:
+def _count_problems(conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[str]) -> List[str]:
+    problems: List[str] = []
+    for row in rows:
+        if row["tool"] != "check_stock":
+            continue
         ok, line = _judge_stock_row(conn, row)
         evidence.append(line)
         if not ok:
-            count_problems.append(f"audit {row['audit_id']} does not match the catalog")
-    if grant_problems:
-        return check.Finding("2B", title, check.CONTRADICTED, expected,
-                             "; ".join(grant_problems + count_problems), evidence,
-                             "grant the Stock agent check_stock alone in the Stock agent - "
-                             "definition block of agents/stock_agent.py; restart, ask Marco's "
-                             "question again, then rerun this check.")
-    if count_problems:
-        return check.Finding("2B", title, check.CONTRADICTED, expected, "; ".join(count_problems),
+            problems.append(f"audit {row['audit_id']} does not match the catalog")
+    return problems
+
+
+def judge_2b(conn: Any) -> check.Finding:
+    """Marco's latest Stock-agent turn: its recorded grant, its calls and its counts."""
+    title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
+    rows = latest_stock_turn(conn)
+    if not rows:
+        return check.Finding("2B", title, check.NOT_YET, EXPECTED_2B,
+                             "no turn of Marco's answered by the Stock agent recorded yet",
+                             ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
+                              "session"],
+                             f"choose Marco on the home page, ask \"{MARCO_STOCK_QUESTION}\", "
+                             "then rerun this check.")
+    grant = recorded_grant(rows)
+    evidence = [
+        f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "
+        + ", ".join(f"{row['tool']} (audit {row['audit_id']})" for row in rows),
+        f"audit {rows[0]['audit_id']}: the Stock agent that answered held "
+        + (", ".join(grant) if grant is not None else "no recorded grant"),
+    ]
+    state, observed = _grant_verdict(grant)
+    if state is not None:
+        return check.Finding("2B", title, state, EXPECTED_2B, observed, evidence, _NEXT_2B_GRANT)
+    problems = _call_problems(rows)
+    counts = _count_problems(conn, rows, evidence)
+    if problems:
+        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B,
+                             "; ".join(problems + counts), evidence, _NEXT_2B_GRANT)
+    if counts:
+        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B, "; ".join(counts),
                              evidence, "check_stock reported something warehouse_inventory does "
                              "not hold: finish Task 2A, restart, ask again, then rerun this check.")
-    return check.Finding("2B", title, check.PROVED, expected,
-                         f"{len(stock_rows)} check_stock call(s), every count matches", evidence)
+    calls = sum(1 for row in rows if row["tool"] == "check_stock")
+    observed = f"held check_stock alone; {calls} check_stock call(s), every count matches"
+    return check.Finding("2B", title, check.PROVED, EXPECTED_2B, observed, evidence)
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +501,7 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
         with check.connect(cfg) as conn:
             conn.autocommit = True
             if task == "2B":
-                return judge_2b(conn, granted_tools()), []
+                return judge_2b(conn), []
             return judge_2a(conn, participant_tool(conn, cfg), inputs)
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
         return check.Finding(task, title, check.UNCHECKED, "a reachable database",
@@ -413,7 +524,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(check.table(("case", "query", "chosen by", "expected (catalog)",
                                "observed (your check_stock)", "verdict"), rows))
     else:
-        print("Lab 2B: Marco's latest answer comes from warehouse_inventory alone")
+        print("Lab 2B: Marco's latest stock answer comes from warehouse_inventory alone")
     print(check.render(finding))
     passed = finding.state == check.PROVED
     print(f"Lab {args.task} check {'passed' if passed else 'failed'}")

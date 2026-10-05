@@ -190,6 +190,7 @@ def test_chat_stream_honours_the_persist_memory_argument(
 
     class _Specialist:
         trace_attributes: Dict[str, Any] = {}
+        tool_names = ["search_products"]
 
         def add_hook(self, hook: Any) -> None:
             return None
