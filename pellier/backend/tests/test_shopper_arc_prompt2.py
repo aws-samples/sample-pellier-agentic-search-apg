@@ -16,8 +16,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import pytest
-
 REPO = Path(__file__).resolve().parents[3]
 BACKEND = REPO / "pellier" / "backend"
 if str(BACKEND) not in sys.path:
@@ -67,38 +65,6 @@ def test_marco_quantity_is_never_hard_coded_in_the_prompt() -> None:
     # no single value can read as the real one.
     assert "20 of the Hadley" not in prompt
     assert "quantity" in prompt  # it reads the field instead
-
-
-# ---------------------------------------------------------------------------
-# ANNA — RETRIEVE. Four strategies, and honest filter ownership.
-# ---------------------------------------------------------------------------
-
-def test_anna_four_strategies_are_all_present() -> None:
-    app = (BACKEND / "app.py").read_text()
-    for strategy in ("vector", "hybrid", "rerank", "agentic"):
-        assert f'"{strategy}"' in app or f"'{strategy}'" in app, strategy
-
-
-def test_anna_agentic_row_extracts_both_hard_constraints() -> None:
-    """The hard filters are the whole point of the fourth row."""
-    app = (BACKEND / "app.py").read_text()
-    assert '"priceMaxUsd"' in app
-    assert '"inStockOnly"' in app
-    assert '"softSignal"' in app
-
-
-def test_anna_uses_modeled_cost_field_not_cost_model() -> None:
-    """`costModel` never existed; asserting it would encode a false claim."""
-    app = (BACKEND / "app.py").read_text()
-    assert '"modeledCostPerThousandUsd"' in app
-    assert '"costModel"' not in app
-
-
-def test_anna_observed_ms_is_presented_as_an_observation() -> None:
-    """One run is not a benchmark, and the endpoint says so."""
-    app = (BACKEND / "app.py").read_text()
-    assert '"observedMs"' in app
-    assert "durations are observations" in app
 
 
 # ---------------------------------------------------------------------------

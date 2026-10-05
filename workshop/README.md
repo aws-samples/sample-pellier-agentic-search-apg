@@ -50,26 +50,15 @@ implementations and evidence boundaries.
   → Cedar on the Gateway → `apply_store_credit`. One approval is worth one
   credit; a retry under the same key returns the same credit.
 
-## Revisit Lab 1 without more model calls
-
-The required guide saves one comparison. For an optional pool experiment, first save two same-query comparisons as `lab-1-before.json` and `lab-1-comparison.json`, changing only the candidate budget. Then score the saved returned IDs against the supplied Anna relevance labels:
-
-```bash
-python3 scripts/eval_retrieval_harness.py --compare-saved \
-  /tmp/pellier-evidence/lab-1-before.json \
-  /tmp/pellier-evidence/lab-1-comparison.json
-```
-
-This mode makes no service calls. Candidate coverage, Recall@5, MRR@5, and Hit@1 answer different
-questions. Unchanged and worse results are valid observations, not reasons to
-relabel the products. A changed executed plan makes the captures incomparable as
-a pool-only experiment. SQL still establishes eligibility and receipt identity.
+## Revisit Lab 1 with the retrieval harness
 
 For an advanced follow-up, author a new `GoldenQuery` in
 `scripts/eval_retrieval_harness.py`: label products and exclusions before running,
-include a paraphrase and a no-eligible-result case, then use the existing live
-harness. Its normal mode requires a deployed environment and incurs service use;
-saved scoring does not reconstruct an expired sandbox.
+include a paraphrase and a no-eligible-result case, then run the harness. It needs a
+deployed environment and incurs service use. Candidate coverage, Recall@5, MRR@5,
+and Hit@1 answer different questions. Unchanged and worse results are valid
+observations, not reasons to relabel the products. SQL still establishes
+eligibility.
 
 ## Keep a useful continuation checkpoint
 

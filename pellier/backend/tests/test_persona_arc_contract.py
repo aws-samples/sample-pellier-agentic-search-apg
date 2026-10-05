@@ -54,7 +54,6 @@ ARC = {
         "price_max_usd": 100,
         "in_stock_only": True,
         "tools": ("search_products",),
-        "strategy_endpoint": "/api/search/compare",
     },
     "theo": {
         "persona_id": "theo",
@@ -154,21 +153,6 @@ def test_anna_query_has_a_real_mixed_constraint_pool() -> None:
         f"only {len(affordable)} curated products are within "
         f"${ARC['anna']['price_max_usd']}; the four strategies would not diverge"
     )
-
-
-def test_anna_strategy_endpoint_exposes_the_four_strategies() -> None:
-    app = (BACKEND / "app.py").read_text()
-    assert ARC["anna"]["strategy_endpoint"] in app
-
-    # The exact response keys the participant compares. `costModel` was the
-    # name in an earlier draft of the arc and does not exist.
-    for key in ("observedMs", "modeledCostPerThousandUsd", "extractedFilters"):
-        assert f'"{key}"' in app, f"strategy response is missing {key}"
-    assert '"costModel"' not in app
-
-    # Agentic extraction keys, camelCase at the API boundary.
-    for key in ("priceMaxUsd", "inStockOnly", "softSignal"):
-        assert f'"{key}"' in app, f"extractedFilters is missing {key}"
 
 
 def test_anna_rerank_model_is_cohere_3_5() -> None:

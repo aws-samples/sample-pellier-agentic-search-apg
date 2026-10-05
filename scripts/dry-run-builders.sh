@@ -224,32 +224,6 @@ else
   info "First 300 chars: ${reply:0:300}"
 fi
 
-# --- 4a. Lab 1 retrieval comparison ----------------------------------------
-echo "[4a/6] Lab 1 — GET /api/search/compare"
-QUERY='A milestone gift for a new homeowner'
-retrieval=""
-if retrieval="$(curl --fail --silent --show-error --max-time 75 \
-    --get --data-urlencode "query=${QUERY}" \
-    "${BASE}/api/search/compare" 2>/tmp/dryrun-retrieval.err)"; then
-  printf '%s\n' "$retrieval" > /tmp/retrieval-comparison.json
-  if printf '%s' "$retrieval" | jq -e '
-      (.strategies | length) == 5
-      and all(.strategies[];
-        (.observedMs | type) == "number"
-        and (.modeledCostPerThousandUsd | type) == "number"
-        and (.products | type) == "array")
-      and (.strategies[-1].extractedFilters | type) == "object"
-      and (.measurementAssumptions.latency | contains("not a percentile"))
-    ' >/dev/null 2>&1; then
-    pass "Five retrieval rows returned with observed latency and modeled cost"
-  else
-    fail "Retrieval comparison response contract is incomplete"
-    info "First 300 chars: ${retrieval:0:300}"
-  fi
-else
-  fail "Lab 1 comparison failed — see /tmp/dryrun-retrieval.err"
-fi
-
 # Mint one real Cognito token for the managed Runtime and Gateway checks.
 POLICY_TOKEN=""
 TOKEN_HELPER="/home/${CODE_EDITOR_USER:-participant}/pellier-token.sh"

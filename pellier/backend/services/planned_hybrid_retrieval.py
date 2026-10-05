@@ -40,8 +40,7 @@ from services.store_tools import (  # noqa: F401 - the measurement surface re-ex
     run_search_plan,
 )
 
-# The canonical Lab 1 query. The eval harness pins the same entry;
-# ``tests/test_search_micro_eval.py`` keeps the two aligned.
+# The canonical Lab 1 query. The eval harness reads the same entry.
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
 # Provided labels support the optional diagnostic comparison; participants do not
@@ -148,26 +147,6 @@ def score_held_out_case(case: dict, execution: SearchExecution, *, limit: int) -
         "returned": len(returned_ids),
         "passed": len(returned_ids) == 0,
     }
-
-# The micro-eval repeats each pool-size variant to measure the warm path, and
-# the endpoint reports cold and warm apart rather than blending them. Every
-# repetition sends an identical rerank request, and `services/rerank.py` caches
-# on (query, documents, top_n, model_id), so with the cache enabled the first
-# pass pays Bedrock and passes 2..N are cache hits. A single p50 over both
-# describes neither, and moves with the repetition count rather than with
-# anything about the system. Repetitions buy nothing else: over a fixed pool
-# the quality metrics are deterministic, so they are scored once from the first
-# pass. Every extra repetition is still two SQL round trips -- and one more
-# Bedrock Rerank call when the cache is off -- which is why the ceiling is low
-# and the default is lower.
-MICRO_EVAL_REPETITIONS_DEFAULT = 3
-MICRO_EVAL_REPETITIONS_MAX = 5
-
-# The same amplification argument bounds the other axis. Distinct pool sizes
-# multiply with repetitions, so an uncapped list of sizes would let one URL
-# buy an unbounded number of Bedrock Rerank calls. Four is generous for a
-# teaching surface whose default compares two.
-MICRO_EVAL_POOL_SIZES_MAX = 4
 
 EmbedFn = Callable[[str], Sequence[float]]
 RerankFn = Callable[..., List[Dict[str, Any]]]

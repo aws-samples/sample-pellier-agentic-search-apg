@@ -22,10 +22,9 @@ logger = logging.getLogger(__name__)
 
 # Embedding spend estimate for the Context & Cost dashboard. Token-based:
 # Bedrock reports billed input tokens on every invoke_model response
-# (x-amzn-bedrock-input-token-count header), multiplied by the same Cohere
-# Embed v4 rate the /api/search/compare cost model uses. Update the rate and
-# review date together after checking the pricing source for the event
-# region. A display estimate, not a billing measurement.
+# (x-amzn-bedrock-input-token-count header), multiplied by the Cohere Embed v4
+# rate. Update the rate and review date together after checking the pricing
+# source for the event region. A display estimate, not a billing measurement.
 _EMBEDDING_USD_PER_MILLION_INPUT_TOKENS = 0.12
 _EMBEDDING_PRICING_REVIEWED_ON = "2026-08-16"  # https://aws.amazon.com/bedrock/pricing/
 _TOTAL_EMBEDDING_INPUT_TOKENS = 0
