@@ -342,38 +342,6 @@ describe('chat service auth transport', () => {
     expect(updates).toHaveLength(2)
   })
 
-  it('surfaces an expected workshop build state as a distinct failure', async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(
-        [
-          'data: {"type":"build_required","code":"workshop_build_required","message":"Stock agent is intentionally unbuilt."}',
-          'data: {"type":"complete","response":{"response":"Stock agent is intentionally unbuilt.","products":[],"suggestions":[],"success":false}}',
-          '',
-        ].join('\n\n'),
-        { status: 200 },
-      ),
-    )
-
-    const { sendChatMessageStreaming } = await import('./chat')
-    const updates: Array<{ type?: string }> = []
-
-    // The storefront never shows the participant wording to a shopper. The
-    // build state surfaces as its own quiet failure card, keyed by the
-    // backend's code so the Observatory and lab guide can name it.
-    await expect(
-      sendChatMessageStreaming(
-        'Is the Hadley shirt in stock?',
-        [],
-        event => updates.push(event),
-      ),
-    ).rejects.toMatchObject({
-      code: 'workshop_build_required',
-      retryable: false,
-      referenceId: 'workshop_build_required',
-    })
-    expect(updates.map(event => event.type)).toContain('build_required')
-  })
-
   it('rejects a stream that closes before a complete event', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response('data: {"type":"content_delta","delta":"Partial answer"}\n\n', {

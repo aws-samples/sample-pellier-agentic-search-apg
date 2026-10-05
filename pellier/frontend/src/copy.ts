@@ -529,16 +529,6 @@ export const CHAT_FAILURES = {
     title: "Pellier could not complete that request.",
     body: "Try again, or adjust the wording while keeping the rest of the conversation.",
   },
-  /** An expected build state, not an error: the capability this request
-   * needs is left unbuilt on purpose until a lab step lands. The card stays
-   * quiet and in the shopper's voice; the reference code beneath it is the
-   * participant's pointer to the build step, and nothing here claims a tool
-   * ran. */
-  workshop_build_required: {
-    eyebrow: "Still being set up",
-    title: "Pellier cannot answer this one yet.",
-    body: "The part of the boutique that checks this is not finished. Nothing was changed, and a stylist can confirm it for you in the meantime.",
-  },
   TRY_AGAIN: "Try again",
   EDIT_REQUEST: "Edit request",
   SIGN_IN_AGAIN: "Sign in again",

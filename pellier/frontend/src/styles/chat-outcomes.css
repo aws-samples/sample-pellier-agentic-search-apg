@@ -32,12 +32,6 @@
   background: var(--dl-paper-2);
 }
 
-/* A build state is expected, not a fault: neutral, no alarm tint. */
-.chat-failure--workshop_build_required {
-  border-color: var(--dl-line-strong);
-  background: var(--dl-paper-2);
-}
-
 .chat-failure__icon {
   width: 32px;
   height: 32px;
@@ -49,7 +43,6 @@
   color: var(--dl-ink-2);
 }
 
-.chat-failure--workshop_build_required .chat-failure__icon,
 .chat-failure--policy_denied .chat-failure__icon {
   background: var(--dl-bg);
   color: var(--dl-ok);
