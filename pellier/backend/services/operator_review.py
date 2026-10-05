@@ -142,9 +142,9 @@ _REVIEW_COLUMNS = """
         a.args           AS args,
         a.status         AS status,
         a.source_turn_id AS source_turn_id,
-        -- Claimed when execution BEGINS. last_attempt is what the Gateway
-        -- answered the desk that time; tool_audit and store_credits hold
-        -- what actually ran and what was paid.
+        -- Claimed when execution BEGINS. last_attempt is the desk's record of
+        -- its last execute attempt and who answered it; tool_audit and
+        -- store_credits hold what actually ran and what was paid.
         a.execution_turn_id AS execution_turn_id,
         a.last_attempt   AS last_attempt,
         a.order_ids      AS order_ids,

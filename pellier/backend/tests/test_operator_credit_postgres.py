@@ -625,9 +625,11 @@ def _insert_credit(conn: psycopg.Connection, key: str, amount: int, reason: str)
 
 
 def test_the_owner_cannot_write_a_credit_no_approved_review_names(fresh_db, monkeypatch) -> None:
-    """The money rules hold for the table owner too, not only for the function's callers.
+    """The money rules hold for any insert, the table owner's too, not only the function's callers.
 
-    Each direct insert below names a real approvals row, so only the trigger
+    The ``BEFORE INSERT`` trigger covers how a credit row is written; nothing in
+    Pellier updates or deletes one. Each direct insert below names a real
+    approvals row, so only the trigger
     stands between it and a paid credit: a shopper's request, a pending
     review, an approved review with other terms, and one under a minted key.
     """
@@ -798,7 +800,9 @@ async def test_a_denied_attempt_is_stored_and_read_back_after_a_reload(fresh_db,
         assert stored["outcome"] == "denied" and stored["idempotencyKey"] == key
         assert stored["matchingForbids"] == ["credit_limit_forbid"]
         assert stored["policyDigest"] == "sha256:" + "d" * 64 and stored["detail"] == denial
-        assert "What the Gateway answered the desk" in reloaded["review"]["execution"]["notes"]["policy"]
+        assert stored["label"] == "The Gateway answered: denied"
+        assert reloaded["review"]["execution"]["notes"]["policy"].startswith(
+            "The Gateway answered: denied")
         assert _credits(conn, key) == 0
         assert _count(conn, "SELECT count(*) FROM pellier.tool_audit") == 0
 

@@ -163,6 +163,9 @@ def test_authenticated_request_yields_user_namespace(
     assert ctx.session_id == "session-xyz"
     assert ctx.namespace == "user-verified-abc-session-session-xyz"
     assert ctx.customer_id == "CUST-MARCO"
+    # The token's sign-in name, normalized: what the in-process turn binds for
+    # row-level security, so the customer's own reads see rows.
+    assert ctx.principal_username == "marco"
 
 
 def test_user_id_equals_request_state_user_user_id(
@@ -234,6 +237,7 @@ def test_unauthenticated_request_yields_anon_namespace(
 
     assert ctx.user_id is None
     assert ctx.customer_id is None
+    assert ctx.principal_username is None
     assert ctx.session_id == "anon-sess-1"
     assert ctx.namespace == "anon-anon-sess-1"
 

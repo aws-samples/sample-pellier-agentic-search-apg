@@ -249,6 +249,7 @@ def agent_calls(monkeypatch: pytest.MonkeyPatch) -> List[Dict[str, Any]]:
         auth_token: Optional[str] = None,
         history: Optional[List[Dict[str, Any]]] = None,
         customer_id: Optional[str] = None,
+        principal_username: Optional[str] = None,
     ) -> str:
         calls.append(
             {
@@ -258,6 +259,7 @@ def agent_calls(monkeypatch: pytest.MonkeyPatch) -> List[Dict[str, Any]]:
                 "auth_token": auth_token,
                 "history": history,
                 "customer_id": customer_id,
+                "principal_username": principal_username,
             }
         )
         return f"stubbed response for '{message}' in {session_id}"
@@ -348,6 +350,9 @@ def test_chat_emits_session_then_chunk_then_done_events(
             "auth_token": token,
             "history": [],
             "customer_id": "CUST-MARCO",
+            # The token's sign-in name: in process, row-level security binds
+            # it, so the customer's own reads see rows.
+            "principal_username": "marco",
         }
     ]
 
@@ -368,6 +373,7 @@ def test_chat_done_event_surfaces_runtime_gateway_receipt(
         auth_token: Optional[str] = None,
         history: Optional[List[Dict[str, Any]]] = None,
         customer_id: Optional[str] = None,
+        principal_username: Optional[str] = None,
     ) -> str:
         assert user_id == "user-gateway"
         assert auth_token == token
@@ -437,6 +443,7 @@ def test_chat_anonymous_request_uses_anon_namespace(
     # Orchestrator was called with ``user_id=None`` so ``run_agent_on_runtime``
     # can fall back to the "anonymous" tag itself (runtime contract).
     assert agent_calls[0]["user_id"] is None
+    assert agent_calls[0]["principal_username"] is None
 
     # The turn pair was written under the anon namespace, not any
     # ``user:`` namespace.
@@ -559,6 +566,7 @@ def test_mid_stream_token_expiry_does_not_abort_the_stream(
         auth_token: Optional[str] = None,
         history: Optional[List[Dict[str, Any]]] = None,
         customer_id: Optional[str] = None,
+        principal_username: Optional[str] = None,
     ) -> str:
         agent_calls.append(
             {

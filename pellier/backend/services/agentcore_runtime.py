@@ -357,13 +357,16 @@ async def _run_orchestrator_inprocess(
     *,
     turn_id: Optional[str] = None,
     customer_id: Optional[str] = None,
+    principal_username: Optional[str] = None,
 ) -> str:
     """Run the local Router in-process: the same dispatcher the storefront uses.
 
     ``customer_id`` is the server-resolved customer of the verified ``user_id``,
-    never a request-body value. The two travel into chat as one verified
-    ``TurnIdentity``, so chat does not re-resolve a bare subject into no scope.
-    The route owns this turn's Memory write, so chat is told not to mirror it.
+    never a request-body value, and ``principal_username`` is that token's
+    sign-in name, which the customer's own reads name for row-level security.
+    They travel into chat as one verified ``TurnIdentity``, so chat does not
+    re-resolve a bare subject into no scope. The route owns this turn's Memory
+    write, so chat is told not to mirror it.
 
     Raises:
         AgentTurnError: The chat service is not running, or the turn failed.
@@ -381,6 +384,7 @@ async def _run_orchestrator_inprocess(
         principal_sub=user_id or None,
         shopper_customer_id=customer_id if user_id and customer_id else None,
         authenticated=bool(user_id),
+        principal_username=principal_username if user_id else None,
     )
     result = await service.chat(
         message=message,
@@ -635,6 +639,7 @@ async def run_agent(
     history: Optional[List[Dict[str, Any]]] = None,
     turn_id: Optional[str] = None,
     customer_id: Optional[str] = None,
+    principal_username: Optional[str] = None,
 ) -> str:
     """Route a chat request through either the local Router or the
     AgentCore Runtime, based on
@@ -683,5 +688,6 @@ async def run_agent(
             runtime_kwargs["customer_id"] = customer_id
         return await run_agent_on_runtime(**runtime_kwargs)
     return await _run_orchestrator_inprocess(
-        message, session_id, user_id, history, turn_id=turn_id, customer_id=customer_id
+        message, session_id, user_id, history, turn_id=turn_id, customer_id=customer_id,
+        principal_username=principal_username,
     )

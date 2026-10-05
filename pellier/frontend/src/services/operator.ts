@@ -129,9 +129,8 @@ export interface OperatorClientRecord {
 export interface ActionAssurance {
   human: 'CONFIRMATION_REQUIRED' | 'CONFIRMED' | 'DECLINED'
   /**
-   * After a reload, read from the review's stored last attempt (what the
-   * Gateway answered the desk). `NOT_RECORDED`: an execution began and no
-   * answer is stored for it.
+   * After a reload, read from the review's stored last attempt. `NOT_RECORDED`:
+   * an execution began and no answer is stored for it.
    */
   policy: 'PENDING' | 'NOT_EVALUATED' | 'ALLOW' | 'DENY' | 'EVALUATION_INCOMPLETE' | 'NOT_RECORDED'
   aurora: 'NOT_EVALUATED' | 'NOT_REACHED' | 'PERMITTED' | 'DENIED' | 'OUTCOME_UNKNOWN'
@@ -166,9 +165,11 @@ export interface OperatorExecutionResult {
 }
 
 /**
- * What the Gateway answered the desk the last time a person ran the credit,
- * stored on the review. A record of the answer, not proof that anything ran:
- * `tool_audit` and `store_credits` are that evidence.
+ * The desk's record of the last time a person ran the credit, stored on the
+ * review. `label` names who answered: the Gateway (allowed or denied), the
+ * desk's own refusal, a failed call, or an in-process run. A record of the
+ * answer, not proof that anything ran: `tool_audit` and `store_credits` are
+ * that evidence.
  */
 export interface LastAttempt {
   outcome: 'allowed' | 'denied' | 'refused' | 'failed'
@@ -181,6 +182,7 @@ export interface LastAttempt {
   policyEngineId: string | null
   policyDigest: string | null
   detail: string | null
+  label: string
 }
 
 /**

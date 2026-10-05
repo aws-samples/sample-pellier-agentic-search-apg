@@ -199,8 +199,9 @@ CREATE INDEX support_tickets_customer ON pellier.support_tickets (customer_id, o
 -- review that investigation opened, and that review's execution_turn_id the
 -- run that wrote the credit.
 --
--- last_attempt is what the Gateway answered the desk the last time a person
--- ran the approved credit, overwritten on each attempt:
+-- last_attempt is the desk's record of the last time a person ran the
+-- approved credit, overwritten on each attempt. Only an allowed or denied
+-- attempt on the Gateway rail is an answer from the Gateway:
 --   outcome          allowed, denied, refused (the desk sent nothing) or failed
 --   at               when the answer came back
 --   idempotency_key  the review's write key
@@ -231,7 +232,7 @@ CREATE TABLE pellier.approvals (
     decided_by_name   text,                  -- and their username, for the record
     decided_at        timestamptz,
     execution_turn_id text,                  -- set once, when the approved credit first runs
-    last_attempt      jsonb,                 -- what the Gateway answered the desk, last time
+    last_attempt      jsonb,                 -- the desk's last execute attempt and its answer
     answered_turn_id  text,
     answered_by_review_id bigint REFERENCES pellier.approvals (id),
 
@@ -419,11 +420,13 @@ BEGIN
          WHERE c.credit_id = v_credit);
 END $$;
 
--- The same rules hold for any other writer, the owner included. A credit row
+-- The same rules hold for any other insert, the owner's included. A credit row
 -- belongs to an approved credit review with exactly its terms, carries that
 -- review's own key, and covers received returns that no other credit covers.
 -- apply_store_credit checks all of this first so it can answer with a
--- readable status; this trigger refuses anything that gets past it.
+-- readable status; this trigger refuses any insert that gets past it. It is a
+-- BEFORE INSERT trigger: it covers how a credit row is written, not a later
+-- UPDATE or DELETE of one, which nothing in Pellier issues.
 CREATE FUNCTION pellier.store_credits_require_approval() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE

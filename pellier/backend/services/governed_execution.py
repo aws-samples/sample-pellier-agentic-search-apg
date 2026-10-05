@@ -317,7 +317,7 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# approvals.last_attempt: what the Gateway answered the desk, last time
+# approvals.last_attempt: the desk's record of its last execute attempt
 # ---------------------------------------------------------------------------
 
 ATTEMPT_ALLOWED = "allowed"  # the call got past authorization and the tool ran
@@ -346,8 +346,8 @@ def last_attempt(
 ) -> Dict[str, Any]:
     """One execute attempt's answer, in the shape ``approvals.last_attempt`` stores.
 
-    The engine fields are the attribution the control plane gave for this
-    action at the time: its mode, the forbid policies naming the action, and
+    The engine fields are what the control plane reported for this action
+    just before the call: its mode, the forbid policies naming the action, and
     a digest of the policy set. ``detail`` is the Gateway's words for a
     denial, the error for a failure, or what was missing for a refusal.
     """
@@ -381,14 +381,31 @@ async def record_last_attempt(db: Any, review_id: int, attempt: Mapping[str, Any
         logger.warning("last attempt not stored for review %s: %s", review_id, exc)
 
 
-# A stored answer, read back after a reload, in the desk's words. Each sentence
-# is labeled as what the Gateway answered, never as proof that anything ran.
+# A stored answer, read back after a reload, in the desk's words. The label
+# names who answered: only an allowed or denied call on the Gateway rail is an
+# answer from the Gateway. The desk's own refusal, a call that never completed
+# and an in-process run each say so, and none is proof that anything ran.
 _ATTEMPT_SENTENCES = {
-    ATTEMPT_ALLOWED: "the call went through and the tool ran",
+    ATTEMPT_ALLOWED: "The call went through and the tool ran",
     ATTEMPT_DENIED: "AgentCore Policy denied it before the tool ran",
-    ATTEMPT_REFUSED: "the desk sent nothing, because the governed rail was not ready",
-    ATTEMPT_FAILED: "the call did not complete, so no verdict came back",
+    ATTEMPT_REFUSED: "The desk sent nothing to the Gateway",
+    ATTEMPT_FAILED: "No verdict came back",
 }
+
+
+def attempt_label(attempt: Mapping[str, Any]) -> str:
+    """Who answered a stored attempt, chosen by its rail and outcome."""
+    outcome = str(attempt.get("outcome") or "")
+    detail = str(attempt.get("detail") or "").strip()
+    if outcome == ATTEMPT_REFUSED:
+        return f"Refused by the desk: {detail or 'the governed rail was not ready'}"
+    if outcome == ATTEMPT_FAILED:
+        return f"The call failed: {detail or 'no answer came back'}"
+    if attempt.get("rail") == RAIL_IN_PROCESS:
+        return "Ran in process"
+    if attempt.get("rail") == RAIL_GATEWAY and outcome in (ATTEMPT_ALLOWED, ATTEMPT_DENIED):
+        return f"The Gateway answered: {outcome}"
+    return f"Unrecognized attempt: {outcome or 'no outcome'}"
 
 
 def attempt_note(attempt: Mapping[str, Any]) -> str:
@@ -396,24 +413,33 @@ def attempt_note(attempt: Mapping[str, Any]) -> str:
     at = str(attempt.get("at") or "")
     when = f"{at[:10]} {at[11:16]} UTC" if at else "an earlier attempt"
     evidence = "tool_audit and store_credits show what ran and what was paid."
-    if attempt.get("rail") == RAIL_IN_PROCESS:
-        return (f"Stored from the last attempt, {when}: it ran in process, so no policy "
-                f"engine was asked. {evidence}")
-    said = _ATTEMPT_SENTENCES.get(str(attempt.get("outcome")), "an unrecognized answer")
-    return f"What the Gateway answered the desk, {when}: {said}{_attribution(attempt)}. {evidence}"
+    outcome = str(attempt.get("outcome"))
+    if attempt.get("rail") == RAIL_IN_PROCESS and outcome == ATTEMPT_ALLOWED:
+        said = "No policy engine was asked"
+    else:
+        said = _ATTEMPT_SENTENCES.get(outcome, "The desk does not recognize this answer")
+    return f"{attempt_label(attempt)}, {when}. {said}{_attribution(attempt)}. {evidence}"
 
 
 def _attribution(attempt: Mapping[str, Any]) -> str:
-    """The engine's part of a stored answer: its mode, or the forbids naming the action."""
+    """The engine's part of a Gateway answer, as the control plane reported it just before the call.
+
+    The mode, the forbids and the digest come from one control-plane read the
+    route makes before it calls the Gateway, not from the Gateway's evaluation,
+    so a policy edited after that read is not reflected here.
+    """
     outcome = attempt.get("outcome")
+    if attempt.get("rail") != RAIL_GATEWAY:
+        return ""
     if outcome == ATTEMPT_ALLOWED:
         if attempt.get("policy") == POLICY_ALLOW:
-            return ", under ENFORCE, so AgentCore Policy permitted it"
+            return (", and the engine read just before the call was under ENFORCE, so "
+                    "AgentCore Policy permitted it")
         mode = attempt.get("engine_mode") or "unreadable"
-        return f", but the attachment was {mode}, so that is not a decision"
+        return f", but the attachment read just before the call was {mode}, so that is not a decision"
     forbids = ", ".join(attempt.get("matching_forbids") or [])
     if outcome == ATTEMPT_DENIED and forbids:
-        return f" (forbid policies naming this action: {forbids})"
+        return f" (forbid policies naming this action just before the call: {forbids})"
     return ""
 
 
@@ -432,6 +458,7 @@ def attempt_payload(attempt: Optional[Mapping[str, Any]]) -> Optional[Dict[str, 
         "policyEngineId": attempt.get("policy_engine_id"),
         "policyDigest": attempt.get("policy_digest"),
         "detail": attempt.get("detail"),
+        "label": attempt_label(attempt),
     }
 
 
@@ -998,7 +1025,7 @@ async def execute_confirmed_review(
         )
         await record_last_attempt(db, review_id, attempt(
             ATTEMPT_REFUSED, policy=POLICY_NOT_EVALUATED,
-            detail="Missing: " + ", ".join(selection.missing),
+            detail="missing " + ", ".join(selection.missing),
         ))
         raise GovernedRailUnavailable(selection.missing, reason=selection.refusal_reason)
 

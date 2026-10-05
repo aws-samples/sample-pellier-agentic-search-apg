@@ -199,6 +199,7 @@ async def _stream_agent_response(
             auth_token=context.access_token,
             history=history,
             customer_id=context.customer_id,
+            principal_username=context.principal_username,
         )
     except (ManagedRuntimeError, AgentTurnError) as exc:
         # A failed turn is a failed turn: no Memory write, no chunk, no done.
@@ -361,6 +362,7 @@ async def chat(
             ),
             access_token=context.access_token,
             customer_id=context.customer_id,
+            principal_username=context.principal_username,
         )
 
     return StreamingResponse(

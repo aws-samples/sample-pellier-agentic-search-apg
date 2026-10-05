@@ -113,9 +113,9 @@ const ReviewRecordPage: React.FC = () => {
               <div><dt>Write key</dt><dd>{review.execution.idempotencyKey}</dd></div>
               {review.execution.lastAttempt ? (
                 <div data-testid="operator-review-last-attempt">
-                  <dt>Gateway answered the desk</dt>
+                  <dt>Last attempt</dt>
                   <dd>
-                    {review.execution.lastAttempt.outcome}, {shortDate(review.execution.lastAttempt.at)} (stored)
+                    {review.execution.lastAttempt.label}, {shortDate(review.execution.lastAttempt.at)} (stored)
                   </dd>
                 </div>
               ) : null}

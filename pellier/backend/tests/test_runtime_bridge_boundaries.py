@@ -128,17 +128,20 @@ def test_the_bridge_hands_chat_a_verified_turn_identity(service: EnhancedChatSer
     service.chat_stream = record
     asyncio.run(rt.run_agent(
         message="what did I buy", session_id="s-1", user_id="review-sub", customer_id="CUST-THEO",
+        principal_username="theo",
     ))
     identity = seen["turn_identity"]
     assert isinstance(identity, TurnIdentity)
     assert identity.principal_sub == "review-sub"
     assert identity.shopper_customer_id == "CUST-THEO"
+    # The name row-level security binds, so the customer's own reads see rows.
+    assert identity.principal_username == "theo"
     assert identity.authenticated is True and identity.persona_is_simulated is False
     assert seen["user"] == {"sub": "review-sub"}
 
     seen.clear()
-    asyncio.run(rt.run_agent(message="hello", session_id="s-2"))
-    assert seen["turn_identity"] == TurnIdentity()
+    asyncio.run(rt.run_agent(message="hello", session_id="s-2", principal_username="theo"))
+    assert seen["turn_identity"] == TurnIdentity(), "a name with no verified subject binds nothing"
     assert seen["user"] is None
 
 

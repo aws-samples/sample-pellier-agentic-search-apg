@@ -1,7 +1,10 @@
 """Row-level security guards the agent's own customer reads, on real PostgreSQL.
 
-``get_orders`` and ``get_tickets`` read as ``pellier_agent`` with the signed-in
-person named, on both rails:
+``get_orders`` and ``get_tickets`` read as ``pellier_agent`` with one customer
+named. In process, that customer comes from the signed token. On the Gateway,
+it is the customer Cedar's owner-only permit admitted. Either way Aurora returns
+only that customer's rows, even if the tool's own SQL asks for someone else's.
+The two binding places:
 
 * in process, through ``DatabaseService.principal_session`` (the one place
   ``services/database.py`` binds it), reached by ``agent_tools``' customer runner;
@@ -275,6 +278,7 @@ async def ask_pellier(live_db, monkeypatch):
         ]
         return events, list(prompts)
 
+    post.prompts = prompts
     return post
 
 
@@ -313,6 +317,27 @@ async def test_a_signed_in_turn_reads_its_own_orders_as_pellier_agent(ask_pellie
     assert prompts[0].startswith("PERSONA CONTEXT: Theo")
     assert "Wabi-Sabi Bowl" in prompts[0]
     assert _owned_cards(events) == ["Wabi-Sabi Bowl"]
+
+
+@pytest.mark.asyncio
+async def test_agent_chat_in_process_reads_the_signed_in_customers_own_orders(ask_pellier):
+    """``/api/agent/chat`` in process binds the token's name, so Theo's own orders are read.
+
+    Before cut 6b the route passed no name, so a signed-in customer's reads
+    there returned nothing. Without the name the read still fails closed.
+    """
+    from services import agentcore_runtime as rt
+
+    async def ask(username: Any) -> str:
+        ask_pellier.prompts.clear()
+        await rt.run_agent(
+            message="What did I order last time?", session_id="sess-agent-chat",
+            user_id="sub-theo", customer_id="CUST-THEO", principal_username=username,
+        )
+        return ask_pellier.prompts[0]
+
+    assert "Wabi-Sabi Bowl" in await ask("theo")
+    assert "Wabi-Sabi Bowl" not in await ask(None), "no name, no rows"
 
 
 @pytest.mark.asyncio

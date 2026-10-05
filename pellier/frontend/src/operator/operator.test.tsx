@@ -6,7 +6,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TurnStep } from '../components/turn/turnTypes'
-import type { InvestigationAnswer } from '../services/operator'
+import type { InvestigationAnswer, OperatorReview } from '../services/operator'
 import {
   ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, DENIED_ON_RELOAD, EXECUTED_REVIEW, NOTHING_WRITTEN,
   OPEN_REQUEST, PENDING_REVIEW, QUEUE, RECORD, RECORDED_ONCE, UNWRITTEN_REVIEW, STEPS, WRITE_KEY, detail,
@@ -303,16 +303,41 @@ describe('the review record', () => {
     expect(screen.queryByTestId('operator-review-last-attempt')).not.toBeInTheDocument()
   })
 
-  it('after a reload, shows the stored denial as what the Gateway answered the desk', async () => {
+  it('after a reload, shows the stored denial as the Gateway answer', async () => {
     api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, NOTHING_WRITTEN))
     renderAt('/operator/reviews/41', <ReviewRecord />)
     const checks = await screen.findByTestId('operator-credit-checks')
     expect(within(checks).getByText('DENY')).toBeInTheDocument()
-    expect(checks).toHaveTextContent('What the Gateway answered the desk')
+    expect(checks).toHaveTextContent('The Gateway answered: denied')
     expect(checks).toHaveTextContent('credit_limit_forbid')
     expect(within(checks).getByText('Not written')).toBeInTheDocument()
-    expect(screen.getByTestId('operator-review-last-attempt')).toHaveTextContent('denied')
-    expect(screen.getByTestId('operator-review-last-attempt')).toHaveTextContent('(stored)')
+    const attempt = screen.getByTestId('operator-review-last-attempt')
+    expect(attempt).toHaveTextContent('Last attempt')
+    expect(attempt).toHaveTextContent('The Gateway answered: denied')
+    expect(attempt).toHaveTextContent('(stored)')
+  })
+
+  it('after a reload, names a refusal as the desk, never as the Gateway', async () => {
+    const refused: OperatorReview = {
+      ...DENIED_ON_RELOAD,
+      assurance: { human: 'CONFIRMED', policy: 'NOT_EVALUATED', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' },
+      execution: {
+        ...DENIED_ON_RELOAD.execution!,
+        notes: { policy: 'Refused by the desk: missing AGENTCORE_GATEWAY_URL, 2026-10-04 15:04 UTC. The desk sent nothing to the Gateway. tool_audit and store_credits show what ran and what was paid.' },
+        lastAttempt: {
+          ...DENIED_ON_RELOAD.execution!.lastAttempt!,
+          outcome: 'refused', rail: 'refused', policy: 'NOT_EVALUATED', engineMode: null, matchingForbids: [],
+          policyEngineId: null, policyDigest: null, detail: 'missing AGENTCORE_GATEWAY_URL',
+          label: 'Refused by the desk: missing AGENTCORE_GATEWAY_URL',
+        },
+      },
+    }
+    api.fetchReview.mockResolvedValue(detail(refused, NOTHING_WRITTEN))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const attempt = await screen.findByTestId('operator-review-last-attempt')
+    expect(attempt).toHaveTextContent('Refused by the desk: missing AGENTCORE_GATEWAY_URL')
+    expect(attempt).not.toHaveTextContent('Gateway answered')
+    expect(screen.getByTestId('operator-credit-checks')).not.toHaveTextContent('Gateway answered')
   })
 
   it('surfaces a governed refusal with what is missing', async () => {

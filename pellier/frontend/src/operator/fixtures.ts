@@ -106,11 +106,12 @@ export const EXECUTED_REVIEW: OperatorReview = {
   assurance: { human: 'CONFIRMED', policy: 'ALLOW', aurora: 'PERMITTED', evidence: 'RECEIPTED' },
   execution: {
     executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
-    notes: { policy: 'What the Gateway answered the desk, 2026-10-04 15:04 UTC: the call went through and the tool ran, under ENFORCE, so AgentCore Policy permitted it. tool_audit and store_credits show what ran and what was paid.' },
+    notes: { policy: 'The Gateway answered: allowed, 2026-10-04 15:04 UTC. The call went through and the tool ran, and the engine read just before the call was under ENFORCE, so AgentCore Policy permitted it. tool_audit and store_credits show what ran and what was paid.' },
     lastAttempt: {
       outcome: 'allowed', at: '2026-10-04T15:04:00+00:00', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
       policy: 'ALLOW', engineMode: 'ENFORCE', matchingForbids: ['credit_limit_forbid'], policyEngineId: 'engine-1',
       policyDigest: `sha256:${'d'.repeat(64)}`, detail: null,
+      label: 'The Gateway answered: allowed',
     },
   },
 }
@@ -124,11 +125,12 @@ export const DENIED_ON_RELOAD: OperatorReview = {
   assurance: { human: 'CONFIRMED', policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'NO_EXECUTION' },
   execution: {
     executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY, rail: null,
-    notes: { policy: 'What the Gateway answered the desk, 2026-10-04 15:04 UTC: AgentCore Policy denied it before the tool ran (forbid policies naming this action: credit_limit_forbid). tool_audit and store_credits show what ran and what was paid.' },
+    notes: { policy: 'The Gateway answered: denied, 2026-10-04 15:04 UTC. AgentCore Policy denied it before the tool ran (forbid policies naming this action just before the call: credit_limit_forbid). tool_audit and store_credits show what ran and what was paid.' },
     lastAttempt: {
       outcome: 'denied', at: '2026-10-04T15:04:00+00:00', idempotencyKey: WRITE_KEY, rail: 'gateway-mcp',
       policy: 'DENY', engineMode: 'ENFORCE', matchingForbids: ['credit_limit_forbid'], policyEngineId: 'engine-1',
       policyDigest: `sha256:${'d'.repeat(64)}`, detail: 'Tool call not allowed due to policy enforcement',
+      label: 'The Gateway answered: denied',
     },
   },
 }

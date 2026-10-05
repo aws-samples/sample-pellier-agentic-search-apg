@@ -57,7 +57,7 @@ from services.cognito_auth import (
     CognitoAuthService,
     get_cognito_auth_service,
 )
-from services.turn_identity import customer_id_for_verified_username
+from services.turn_identity import customer_id_for_verified_username, normalize_username
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +100,9 @@ class UserContext:
     namespace: str
     access_token: Optional[str] = None
     customer_id: Optional[str] = None
+    # The verified token's sign-in name, normalized. A customer's own reads
+    # name it for row-level security; ``None`` when anonymous.
+    principal_username: Optional[str] = None
 
 
 class AgentCoreIdentityService:
@@ -206,15 +209,15 @@ class AgentCoreIdentityService:
         session_id = self._resolve_session_id(request)
         user_id = user.user_id if user is not None else None
         namespace = self.build_namespace(user_id, session_id)
+        username = normalize_username(getattr(user, "username", None)) if user_id else None
 
         return UserContext(
             user_id=user_id,
             session_id=session_id,
             namespace=namespace,
             access_token=getattr(user, "access_token", None),
-            customer_id=customer_id_for_verified_username(
-                getattr(user, "username", None)
-            ),
+            customer_id=customer_id_for_verified_username(username),
+            principal_username=username,
         )
 
 

@@ -1188,7 +1188,7 @@ async def test_a_refused_or_failed_attempt_is_stored_too(monkeypatch: pytest.Mon
         await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT,
                                           access_token="jwt", engine_state=ENFORCED)
     assert db.last_attempts[-1]["outcome"] == "refused"
-    assert "AGENTCORE_GATEWAY_URL" in db.last_attempts[-1]["detail"]
+    assert db.last_attempts[-1]["detail"].startswith("missing AGENTCORE_GATEWAY_URL")
 
     _governed(monkeypatch)
 
@@ -1265,7 +1265,55 @@ def test_a_reloaded_denial_reads_deny_and_the_tables_say_nothing_ran() -> None:
     payload = OP._review_payload(_executed_row(attempt), empty)
     assert payload["assurance"] == {"human": "CONFIRMED", "policy": "DENY",
                                     "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
-    assert payload["execution"]["notes"]["policy"].startswith("What the Gateway answered the desk")
+    assert payload["execution"]["notes"]["policy"].startswith("The Gateway answered: denied")
+    assert payload["execution"]["lastAttempt"]["label"] == "The Gateway answered: denied"
+
+
+# The label names who answered. Only an allowed or denied call on the Gateway
+# rail is an answer from the Gateway; the desk's own refusal, a call that never
+# completed and an in-process run each say so.
+
+
+def _attempt(outcome: str, rail: str, **extra: Any) -> Dict[str, Any]:
+    policy = {"allowed": "ALLOW", "denied": "DENY"}.get(outcome, "NOT_EVALUATED")
+    if rail == "in-process":
+        policy = "NOT_EVALUATED"
+    return ge.last_attempt(outcome, idempotency_key="k", rail=rail, policy=policy,
+                           engine_state=ENFORCED if rail == "gateway-mcp" else None, **extra)
+
+
+def test_a_gateway_allow_or_deny_is_labelled_as_the_gateway_answer() -> None:
+    allowed = _attempt("allowed", "gateway-mcp")
+    denied = _attempt("denied", "gateway-mcp", detail="not allowed due to policy")
+    assert ge.attempt_label(allowed) == "The Gateway answered: allowed"
+    assert ge.attempt_label(denied) == "The Gateway answered: denied"
+    assert ge.attempt_note(allowed).startswith("The Gateway answered: allowed, ")
+    assert "just before the call" in ge.attempt_note(allowed)
+
+
+def test_a_desk_refusal_is_labelled_as_the_desk_never_as_the_gateway() -> None:
+    refused = _attempt("refused", "refused", detail="missing AGENTCORE_GATEWAY_URL")
+    assert ge.attempt_label(refused) == "Refused by the desk: missing AGENTCORE_GATEWAY_URL"
+    note = ge.attempt_note(refused)
+    assert note.startswith("Refused by the desk: missing AGENTCORE_GATEWAY_URL, ")
+    assert "Gateway answered" not in note
+
+
+def test_a_failed_call_is_labelled_as_a_failure_with_its_reason() -> None:
+    failed = _attempt("failed", "gateway-mcp", detail="gateway_unavailable:ConnectError")
+    assert ge.attempt_label(failed) == "The call failed: gateway_unavailable:ConnectError"
+    assert "Gateway answered" not in ge.attempt_note(failed)
+    lost_locally = _attempt("failed", "in-process", detail="RuntimeError")
+    assert ge.attempt_label(lost_locally) == "The call failed: RuntimeError"
+
+
+def test_an_in_process_run_is_labelled_as_in_process() -> None:
+    ran = _attempt("allowed", "in-process")
+    assert ge.attempt_label(ran) == "Ran in process"
+    note = ge.attempt_note(ran)
+    assert note.startswith("Ran in process, ") and "No policy engine was asked" in note
+    assert "ENFORCE" not in note and "attachment" not in note
+    assert ge.attempt_payload(ran)["label"] == "Ran in process"
 
 
 def test_the_policy_digest_names_the_authored_policy_set() -> None:

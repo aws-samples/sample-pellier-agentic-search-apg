@@ -879,9 +879,10 @@ async def _execution_record(ge: Any, row: Dict[str, Any], db: Any = None) -> Opt
     return await ge.evidence_for_key(db, _write_key(row))
 
 
-# After a reload the policy axis is read from the review's last_attempt: what
-# the Gateway answered the desk the last time a person ran it. It is a record
-# of that answer, never inferred from which caller wrote an audit row. The
+# After a reload the policy axis is read from the review's last_attempt: the
+# desk's record of the last time a person ran it, and who answered (the
+# Gateway, the desk's own refusal, a failed call, or an in-process run). It is
+# a record of that answer, never inferred from which caller wrote an audit row. The
 # other two axes are read from the tables, which hold what ran and what was
 # paid.
 _POLICY_NOT_RECORDED_NOTE = (

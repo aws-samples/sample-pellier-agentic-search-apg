@@ -326,8 +326,11 @@ def _read_engine_state(
 def policy_digest(statements: Dict[str, str]) -> str:
     """One SHA-256 over every attached policy's name and Cedar, in name order.
 
-    It names the authored policy set an answer came from: editing, adding or
-    removing a policy changes it; the same policies under new ids do not.
+    It names the policy set the control plane reported just before a call, as
+    read with the engine mode and the forbids naming the action. It is not read
+    from the Gateway's evaluation, so a policy edited between that read and the
+    call is not reflected. Editing, adding or removing a policy changes it; the
+    same policies under new ids do not.
     """
     digest = hashlib.sha256()
     for name in sorted(statements):
