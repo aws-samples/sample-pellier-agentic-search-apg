@@ -34,6 +34,8 @@ export function reviewOutcome(review: OperatorReview): ReviewOutcome {
   // no answer stored. The list says what the tables say.
   if (evidence === 'NO_EXECUTION') return { tone: 'blocked', word: 'Not written', pulse: false }
   if (review.execution || review.executionTurnId) return { tone: 'pending', word: 'Outcome unverified', pulse: false }
+  // The Lab 4 check confirms its own probe; no person approved it.
+  if (review.policyCheckProbe) return { tone: 'pending', word: 'Lab 4 probe', pulse: false }
   return { tone: 'good', word: 'Approved', pulse: false }
 }
 

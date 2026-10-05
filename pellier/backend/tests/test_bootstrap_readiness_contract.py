@@ -145,7 +145,7 @@ def test_governed_bootstrap_restores_all_participant_starters() -> None:
     command = "python3.14 scripts/reset_participant_exercises.py --repo \"$REPO_PATH\""
     assert command in bootstrap
     governed_branch = bootstrap.index(
-        'log "Governed format: preserving the Stock agent and check_stock scaffolds'
+        'log "Governed format: restoring every participant exercise to its starter'
     )
     managed_provision = bootstrap.index(
         'log "Provisioning full AgentCore managed path'

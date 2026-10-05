@@ -387,16 +387,24 @@ def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
     return tags
 
 
-def remembered_receipt(record_ids: Sequence[str]) -> Optional[Dict[str, Any]]:
+def remembered_receipt(
+    record_ids: Sequence[str], error: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
     """The Router step's evidence for preferences remembered in AgentCore Memory.
 
     Names each user-preference record whose preference went ahead of the
-    prompt, so the Builder view can print the id. ``None`` when none did.
+    prompt, so the Builder view can print the id. ``error`` is the stable code
+    of a Memory read that failed: the turn went on with no remembered
+    preference, and the step says so rather than looking like an empty read.
+    ``None`` when no record was given and nothing failed.
     """
+    receipt = {"source": "agentcore-memory", "strategy": "USER_PREFERENCE"}
+    if error:
+        return {**receipt, "records": [], "error": error}
     records = [str(record_id) for record_id in record_ids if str(record_id).strip()]
     if not records:
         return None
-    return {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "records": records}
+    return {**receipt, "records": records}
 
 
 def granted_tools(tool_names: Sequence[str]) -> List[str]:

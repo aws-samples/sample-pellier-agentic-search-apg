@@ -28,9 +28,7 @@ from services.memory_contract import EVENT_EXPIRY_DAYS, strategy_configurations
 from gateway_tool_schemas import (
     OWNER_SCOPED_GATEWAY_TOOLS,
     TOOL_SCHEMAS,
-    WORKSHOP_DEFERRED_TOOLS,
     schema_for,
-    workshop_published_tools,
     workshop_target_tools,
 )
 
@@ -380,8 +378,10 @@ def credit_limit_policy(*, gateway_arn: str, source: Path) -> dict[str, Any]:
 
     Schema checks always run on a policy. Semantic findings are ignored for
     this one: the starter forbids every credit, which the analyzer reports as
-    overly restrictive, and the participant's rule is assessed by
-    ``scripts/lab4_policy_check.py`` with real Cedar before it is deployed.
+    overly restrictive. The provisioner assesses the rule with
+    ``scripts/lab4_policy_check.py`` and real Cedar before it deploys, and
+    refuses one that check marks CONTRADICTED
+    (``provision_agentcore_end_to_end._lab4_rule_gate``).
     """
     _gateway_resource(gateway_arn)
     statement = source.read_text(encoding="utf-8").replace(GATEWAY_ARN_PLACEHOLDER, gateway_arn)

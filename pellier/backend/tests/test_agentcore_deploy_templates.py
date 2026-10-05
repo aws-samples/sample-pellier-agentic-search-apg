@@ -2120,3 +2120,57 @@ def test_participant_mode_never_overwrites_the_full_managed_receipt() -> None:
     assert '"/tmp/pellier-agentcore-managed.json"' in selection
     assert '"/tmp/pellier-agentcore-participant.json"' in selection
     assert 'args.mode == "full"' in selection
+
+
+def _lab4_check() -> Any:
+    scripts = str(REPO_ROOT / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    return importlib.import_module("lab4_policy_check")
+
+
+LAB4_SOLUTION = REPO_ROOT / "solutions/the-concierge/policies/workshop_credit_limit.cedar"
+LAB4_STARTER = REPO_ROOT / "workshop" / "starters" / "workshop_credit_limit.cedar"
+
+
+def _lab4_repo(tmp_path: Path, rule: str) -> Path:
+    """A scratch checkout holding ``rule`` as Lab 4's policy beside the real starter."""
+    starter = LAB4_STARTER
+    (tmp_path / "policies").mkdir()
+    (tmp_path / "workshop" / "starters").mkdir(parents=True)
+    (tmp_path / "workshop" / "starters" / "workshop_credit_limit.cedar").write_text(
+        starter.read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "policies" / "workshop_credit_limit.cedar").write_text(rule, encoding="utf-8")
+    return tmp_path
+
+
+def test_a_deploy_refuses_a_lab_4_rule_the_cedar_check_contradicts(tmp_path, capsys) -> None:
+    """The policy deploys under IGNORE_ALL_FINDINGS, so the local Cedar check is its gate."""
+    provisioner = _load_provisioner()
+    lab4 = _lab4_check()
+    solution = LAB4_SOLUTION.read_text(encoding="utf-8")
+    widened = _lab4_repo(tmp_path, lab4.widen_action(solution))
+    with pytest.raises(RuntimeError, match="fails the Cedar check, so it was not deployed"):
+        provisioner._lab4_rule_gate(widened)
+    assert "Task 4A  CONTRADICTED" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("which, state", [("starter", "NOT YET"), ("solution", "PROVED")])
+def test_a_deploy_allows_the_starter_and_a_correct_rule(tmp_path, which, state) -> None:
+    provisioner = _load_provisioner()
+    source = {"starter": LAB4_STARTER, "solution": LAB4_SOLUTION}
+    repo = _lab4_repo(tmp_path, source[which].read_text(encoding="utf-8"))
+    assert provisioner._lab4_rule_gate(repo) == state
+
+
+def test_a_deploy_warns_when_the_cedar_check_cannot_run(tmp_path, monkeypatch, capsys) -> None:
+    provisioner = _load_provisioner()
+    lab4 = _lab4_check()
+
+    def broken(*_args: Any) -> Any:
+        raise ImportError("cedarpy is not installed")
+
+    monkeypatch.setattr(lab4, "local_check", broken)
+    repo = _lab4_repo(tmp_path, "anything")
+    assert provisioner._lab4_rule_gate(repo) == "UNCHECKED"
+    assert "was not checked before this deploy: ImportError" in capsys.readouterr().err

@@ -52,8 +52,10 @@ class _TheoMemory:
 
     reads: List[str] = []
     strict_flags: List[bool] = []
+    read_strict: List[bool] = []
 
     def __init__(self, *, strict: bool = False) -> None:
+        self.strict = strict
         self.strict_flags.append(strict)
 
     async def get_session_history(self, namespace: str) -> list:
@@ -61,6 +63,7 @@ class _TheoMemory:
 
     async def get_semantic_memories(self, customer_id: str) -> List[Dict[str, str]]:
         self.reads.append(customer_id)
+        self.read_strict.append(self.strict)
         return [dict(THEO_RECORD)] if customer_id == "CUST-THEO" else []
 
     async def append_session_turns(self, namespace: str, turns: list) -> None:
@@ -72,9 +75,18 @@ class _TheoMemory:
 
 @pytest.fixture
 def theo_memory(monkeypatch: pytest.MonkeyPatch) -> type:
-    _TheoMemory.reads, _TheoMemory.strict_flags = [], []
+    _TheoMemory.reads, _TheoMemory.strict_flags, _TheoMemory.read_strict = [], [], []
     monkeypatch.setattr(memory_module, "AgentCoreMemory", _TheoMemory)
+    monkeypatch.setattr(memory_module.settings, "AGENTCORE_MEMORY_ID", "mem-test", raising=False)
     return _TheoMemory
+
+
+async def _read_fails(self: Any, customer_id: str) -> list:
+    raise memory_module.ManagedMemoryError("AgentCore semantic memory read failed")
+
+
+MEMORY_FAILED = {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "records": [],
+                 "error": "managed_memory_unavailable"}
 
 
 # ---------------------------------------------------------------------------
@@ -165,12 +177,28 @@ def test_a_runtime_that_reports_no_record_gets_no_memory_line(managed_theo) -> N
     assert "Memory" not in route["tags"]
 
 
-def test_a_failed_strict_memory_read_ends_the_turn(managed_theo, monkeypatch) -> None:
-    """The managed rail never reads a failed Memory read as "nothing remembered"."""
-    async def _fails(self: Any, customer_id: str) -> list:
-        raise memory_module.ManagedMemoryError("AgentCore semantic memory read failed")
+def test_a_failed_preference_read_continues_the_turn_and_says_so(managed_theo,
+                                                                 monkeypatch) -> None:
+    """Memory is context, never permission: the turn goes on without it, and the
+    Router step says the read failed rather than looking like nothing remembered."""
+    monkeypatch.setattr(_TheoMemory, "get_semantic_memories", _read_fails)
+    events = managed_theo()
 
-    monkeypatch.setattr(_TheoMemory, "get_semantic_memories", _fails)
+    (call,) = managed_theo.sent
+    assert call["preferences"] == []
+    assert not any(e.get("type") == "error" for e in events)
+    route = _route(events)
+    assert route["builder"]["remembered"] == MEMORY_FAILED
+    assert "Memory" in route["tags"]
+
+
+def test_a_failed_history_read_still_ends_the_managed_turn(managed_theo, monkeypatch) -> None:
+    """The conversation itself is not optional: an answer without it can act on the
+    wrong thread, so that read still fails closed."""
+    async def _history_fails(self: Any, namespace: str) -> list:
+        raise memory_module.ManagedMemoryError("AgentCore session history read failed")
+
+    monkeypatch.setattr(_TheoMemory, "get_session_history", _history_fails)
     events = managed_theo()
 
     assert managed_theo.sent == []
@@ -292,8 +320,8 @@ def test_in_process_the_memory_line_sits_apart_from_the_aurora_line(in_process,
     assert lines[0] == "PERSONA CONTEXT: Theo (CUST-THEO)"
     assert lines[1] == f"Known about them: {THEO_KNOWN}"
     assert lines[2] == LABELLED
-    # Read once, without the strict flag (the turn's Memory write is another client).
-    assert theo_memory.reads == ["CUST-THEO"] and not any(theo_memory.strict_flags)
+    # Read once, strictly, so a failed read is told apart from an empty one.
+    assert theo_memory.reads == ["CUST-THEO"] and theo_memory.read_strict == [True]
     route = next(e for e in events if e.get("type") == "step" and e["id"] == "route")
     assert route["builder"]["remembered"]["records"] == ["mem-theo-1"]
     assert route["builder"]["memory"]["facts"] == 1
@@ -313,3 +341,27 @@ def test_a_signed_out_turn_reads_no_one_from_memory(in_process, theo_memory) -> 
 
     assert theo_memory.reads == []
     assert "AgentCore Memory" not in _prompt(events)
+
+
+def test_in_process_a_failed_read_continues_and_the_router_step_says_so(
+    in_process, monkeypatch,
+) -> None:
+    monkeypatch.setattr(_TheoMemory, "get_semantic_memories", _read_fails)
+    events = in_process(THEO_USER, db=_SeededTheo())
+
+    assert "AgentCore Memory" not in _prompt(events)
+    assert f"Known about them: {THEO_KNOWN}" in _prompt(events)
+    route = next(e for e in events if e.get("type") == "step" and e["id"] == "route")
+    assert route["builder"]["remembered"] == MEMORY_FAILED
+    assert any(e.get("type") == "complete" for e in events)
+
+
+def test_in_process_with_no_memory_configured_reads_nothing_and_reports_nothing(
+    in_process, theo_memory, monkeypatch,
+) -> None:
+    monkeypatch.setattr(memory_module.settings, "AGENTCORE_MEMORY_ID", None, raising=False)
+    events = in_process(THEO_USER, db=_SeededTheo())
+
+    assert theo_memory.reads == []
+    route = next(e for e in events if e.get("type") == "step" and e["id"] == "route")
+    assert route["builder"]["remembered"] is None

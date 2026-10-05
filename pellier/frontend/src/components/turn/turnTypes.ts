@@ -136,7 +136,7 @@ export interface StepBuilder {
   /** The Aurora customer record the prompt carried, on the in-process Router step. */
   memory?: { facts: number; orders: number; source: string } | null
   /** The AgentCore Memory records whose preferences the prompt carried, on the Router step. */
-  remembered?: { source: string; strategy: string; records: string[] } | null
+  remembered?: { source: string; strategy: string; records: string[]; error?: string | null } | null
   /** What the built agent may call, beside its prompt's rule, on the in-process Router step. */
   grant?: { tools: string[]; rule?: string | null } | null
   note?: string | null

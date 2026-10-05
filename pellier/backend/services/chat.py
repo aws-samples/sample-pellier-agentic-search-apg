@@ -8,7 +8,7 @@ database service. Context Manager tracks tokens and manages conversation state.
 import json
 import logging
 import os
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import re
 
 from pellier_copy import CREDIT_REQUEST_PENDING
@@ -189,17 +189,32 @@ async def _append_pellier_stm_turn(
         logger.debug("STM append skipped: %s", exc)
 
 
-async def _remembered_preferences(customer_id: str) -> List[Dict[str, str]]:
+async def _remembered_preferences(
+    customer_id: str,
+) -> Tuple[List[Dict[str, str]], Optional[str]]:
     """The user-preference records AgentCore Memory holds for the signed-in customer.
 
     ``customer_id`` is the turn's server-resolved customer, never a request
-    value. Non-strict: with no Memory configured, or a failed read, the turn
-    carries no remembered preference rather than failing.
+    value. Returns the records and, when the read failed, its stable code. A
+    failed read carries no remembered preference and the turn goes on: Memory
+    is context, never permission, and nothing is substituted for it. A box
+    with no Memory configured reads nothing and reports no failure.
     """
-    from services.agentcore_memory import AgentCoreMemory
+    from config import settings
+    from services.agentcore_memory import AgentCoreMemory, ManagedMemoryError
     from services.conversation_context import remembered_preferences
 
-    return remembered_preferences(await AgentCoreMemory().get_semantic_memories(customer_id))
+    if not settings.AGENTCORE_MEMORY_ID:
+        return [], None
+    try:
+        records = await AgentCoreMemory(strict=True).get_semantic_memories(customer_id)
+    except ManagedMemoryError as exc:
+        logger.warning(
+            "Memory preference read failed for %s; the turn continues without a "
+            "remembered preference (%s)", customer_id, exc.code,
+        )
+        return [], exc.code
+    return remembered_preferences(records), None
 
 
 def _persona_preamble(
@@ -1680,10 +1695,10 @@ class EnhancedChatService:
                 persona_memory_source = "error"
                 logger.warning(f"Persona LTM read failed for {customer_id}: {e}")
 
-        remembered = (
+        remembered, remembered_error = (
             await _remembered_preferences(turn_identity.shopper_customer_id)
             if turn_identity.authenticated and turn_identity.shopper_customer_id
-            else []
+            else ([], None)
         )
         persona_preamble = _persona_preamble(
             persona_name, customer_id or turn_identity.shopper_customer_id,
@@ -1734,7 +1749,9 @@ class EnhancedChatService:
             "skills": skill_receipt(intent, skill_mode),
             "skill_mode": skill_mode,
             "memory": memory_receipt,
-            "remembered": remembered_receipt([item["record_id"] for item in remembered]),
+            "remembered": remembered_receipt(
+                [item["record_id"] for item in remembered], remembered_error
+            ),
             "note": (
                 "The agent sees its skills' names and opens the ones it needs"
                 if skill_mode == SKILL_MODE_ON_DEMAND

@@ -138,6 +138,16 @@ describe('evidenceLine', () => {
     expect(evidenceLine(managed)).toBe('Remembered: AgentCore Memory records mem-a, mem-b (user preference)')
     const none = { ...route, builder: { tool: null, intent: 'shopping', remembered: null } }
     expect(evidenceLine(none)).toBe('intent shopping')
+    const failed = {
+      ...route,
+      builder: {
+        tool: null, intent: 'shopping',
+        remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: [], error: 'managed_memory_unavailable' },
+      },
+    }
+    expect(evidenceLine(failed)).toBe(
+      'intent shopping; Remembered: AgentCore Memory read failed (managed_memory_unavailable); none given',
+    )
   })
 
   it('names the tools the running Stock agent may call beside its prompt rule', () => {

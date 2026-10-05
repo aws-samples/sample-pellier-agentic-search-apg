@@ -11,8 +11,10 @@
 #   2. Again after the Lab 3 deploy, when the build id must be theirs.
 #
 # The prompt is a catalog search on purpose. It routes to the Shopping agent,
-# which no lab changes, so the answer does not depend on how far a participant
-# has got; the Stock agent's grant is Lab 2's exercise.
+# not the Stock agent whose grant is Lab 2's exercise, so the Runtime answers
+# however far a participant has got. Lab 1B's fallback (search_plan.py, which
+# the Gateway Lambda packages) can change which pieces come back, never whether
+# the turn answers.
 #
 # Tool names come from the turn's own execution events, never from the model's
 # prose. An answer that names a warehouse is not evidence a tool ran.

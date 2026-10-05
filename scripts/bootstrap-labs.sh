@@ -1232,12 +1232,12 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     copy_solution "solutions/the-ledger/services/otel_trace_extractor.py" \
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
     else
-        log "Governed format: preserving the Stock agent and check_stock scaffolds for participant build"
+        log "Governed format: restoring every participant exercise to its starter"
         if (
             cd "$REPO_PATH"
             python3.14 scripts/reset_participant_exercises.py --repo "$REPO_PATH"
         ); then
-            log "✅ Governed format: all four participant exercises restored to starter state"
+            log "✅ Governed format: every participant exercise holds its starter"
         else
             fail "Governed participant exercise reset failed"
         fi

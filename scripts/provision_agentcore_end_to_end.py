@@ -48,6 +48,8 @@ from gateway_tool_schemas import (  # noqa: E402
 from runtime_log_delivery import ensure_runtime_log_delivery  # noqa: E402
 from render_agentcore_project import (  # noqa: E402
     CREDIT_LIMIT_POLICY,
+    CREDIT_LIMIT_SOURCE,
+    CREDIT_LIMIT_STARTER,
     DeploymentIdentity,
     deployment_identity,
     DEPLOYMENT_SUFFIX,
@@ -1306,6 +1308,51 @@ def _deploy_lambdas(
         response = lambda_client.get_function(FunctionName=function_name)
         arns[surface] = response["Configuration"]["FunctionArn"]
     return arns
+
+
+def _lab4_rule_gate(repo: Path) -> str:
+    """Refuse to deploy a Lab 4 rule the local Cedar check contradicts.
+
+    Lab 4's policy deploys with ``IGNORE_ALL_FINDINGS`` (the starter's
+    forbid-all is overly restrictive on purpose), so AWS's semantic analysis
+    does not assess the participant's rule. ``scripts/lab4_policy_check.py``
+    evaluates it with real Cedar beside the rendered baseline in about a
+    second; a rule it marks CONTRADICTED would cost a redeploy and could deny
+    every shopper tool, so it is refused here, before any AWS change. NOT YET
+    (the starter, a reset) and PROVED deploy. UNCHECKED, a check that could
+    not run, deploys with a warning.
+
+    Returns:
+        The check's state.
+
+    Raises:
+        RuntimeError: the check marks the rule CONTRADICTED.
+    """
+    scripts = Path(__file__).resolve().parent
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    try:
+        import lab4_policy_check
+
+        finding = lab4_policy_check.local_check(
+            (repo / CREDIT_LIMIT_SOURCE).read_text(encoding="utf-8"),
+            (repo / CREDIT_LIMIT_STARTER).read_text(encoding="utf-8"),
+        ).finding
+    except Exception as exc:  # noqa: BLE001 - an unrun check warns, it never passes silently
+        print(f"WARNING: Lab 4's rule was not checked before this deploy: "
+              f"{type(exc).__name__}: {str(exc)[:160]}", file=sys.stderr)
+        return "UNCHECKED"
+    if finding.state == "CONTRADICTED":
+        print(lab4_policy_check.check.render(finding), file=sys.stderr)
+        raise RuntimeError(
+            f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} fails the Cedar check, so it was not "
+            "deployed. Run python3 scripts/lab4_policy_check.py, fix the final unless "
+            "block, then deploy again."
+        )
+    if finding.state == "UNCHECKED":
+        print(f"WARNING: Lab 4's Cedar check could not decide: {finding.observed}",
+              file=sys.stderr)
+    return finding.state
 
 
 def _verify_local_schema() -> dict[str, Any]:
@@ -2718,6 +2765,7 @@ def main() -> int:
         partition = str(caller.get("Arn", "arn:aws:")).split(":", 2)[1]
         local_schema = _verify_local_schema()
         result["verification"]["local_tool_schema"] = local_schema
+        result["verification"]["lab4_rule_check"] = _lab4_rule_gate(repo)
 
         # A participant update creates no log group and activates no telemetry,
         # so the readiness that governs those resources is not its gate.
@@ -2857,7 +2905,7 @@ def main() -> int:
         result["observability"]["runtime_log_group"] = runtime_log_group
         checkpoint()
         encrypted, bounded = _log_protection_checks(
-            [runtime_log_group, operator_log_group],
+            [runtime_log_group],
             kms_key_arn=required["runtime_log_kms_key_arn"],
             retention_days=runtime_log_retention_days,
         )

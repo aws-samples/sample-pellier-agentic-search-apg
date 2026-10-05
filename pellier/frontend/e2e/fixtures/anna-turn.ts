@@ -229,7 +229,9 @@ function deltas(text: string): object[] {
 const ROUTE_BUILDER = {
   tool: null, rail: 'in-process', intent: 'shopping', agent: 'Shopping agent',
   model_id: 'global.anthropic.claude-opus-5', skills: SKILLS, skill_mode: 'fixed',
-  memory: { facts: 1, orders: 5, source: 'Aurora PostgreSQL' }, note: null,
+  memory: { facts: 1, orders: 5, source: 'Aurora PostgreSQL' },
+  grant: { tools: ['search_products', 'browse_department', 'compare_products'], rule: null },
+  note: null,
 }
 
 export const ANNA_TURN_EVENTS: object[] = [

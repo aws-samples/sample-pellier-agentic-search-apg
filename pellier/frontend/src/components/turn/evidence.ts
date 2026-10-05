@@ -39,6 +39,11 @@ export function rememberedSentence(records: string[]): string {
   return `Remembered: AgentCore Memory ${noun} ${records.join(', ')} (user preference)`
 }
 
+/** The read failed: the turn went on with no remembered preference, and says which failure. */
+export function rememberedFailedSentence(error: string): string {
+  return `Remembered: AgentCore Memory read failed (${error}); none given`
+}
+
 /**
  * "Stock agent may call: check_stock; prompt rule: "Every stock answer starts
  * from check_stock"": the tools the running agent was built with, beside the
@@ -59,7 +64,8 @@ export function evidenceLine(step: TurnStep): string {
     if (builder.model_id) parts.push(`model ${builder.model_id}`)
     if (builder.grant) parts.push(grantSentence(builder.agent, builder.grant))
     if (builder.memory) parts.push(`${builder.memory.facts} facts, ${builder.memory.orders} orders from ${builder.memory.source}`)
-    if (builder.remembered?.records.length) parts.push(rememberedSentence(builder.remembered.records))
+    if (builder.remembered?.error) parts.push(rememberedFailedSentence(builder.remembered.error))
+    else if (builder.remembered?.records.length) parts.push(rememberedSentence(builder.remembered.records))
     if (builder.skills && builder.skills.length > 0) {
       const mode = builder.skills[0].loaded
       parts.push(`skills ${builder.skills.map(skill => skill.name).join(', ')} (${mode})`)

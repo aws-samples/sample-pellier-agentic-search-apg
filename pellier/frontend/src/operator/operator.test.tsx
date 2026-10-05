@@ -401,6 +401,12 @@ describe('the reviews list', () => {
     expect(reviewOutcome({ ...UNWRITTEN_REVIEW, assurance: refused }).word).toBe('Not written')
     expect(reviewOutcome({ ...EXECUTED_REVIEW, assurance: { ...EXECUTED_REVIEW.assurance, policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' } }).word).toBe('DENY')
   })
+
+  it('never calls the Lab 4 probe approved, even before its answer is stored', () => {
+    const unanswered = { ...PROBE_REVIEW, assurance: APPROVED_REVIEW.assurance, execution: null, executionTurnId: null }
+    expect(reviewOutcome(unanswered).word).toBe('Lab 4 probe')
+    expect(reviewOutcome(PROBE_REVIEW).word).toBe('DENY')
+  })
 })
 
 describe('the desk shell', () => {
