@@ -36,6 +36,22 @@ for _var, _placeholder in (
 ):
     os.environ.setdefault(_var, _placeholder)
 
+# 3. Pin a fake AWS identity and turn off instance metadata. boto3 resolves
+#    credentials when a client is built (Strands' BedrockModel, the AgentCore
+#    clients). With no credentials, botocore asks the EC2 metadata service,
+#    which `_no_aws_network` refuses, so CI failed; with a developer's profile,
+#    the same tests passed locally. One fake identity makes both runs the same.
+for _var in ("AWS_PROFILE", "AWS_DEFAULT_PROFILE"):
+    os.environ.pop(_var, None)
+os.environ.update({
+    "AWS_ACCESS_KEY_ID": "testing",
+    "AWS_SECRET_ACCESS_KEY": "testing",
+    "AWS_SESSION_TOKEN": "testing",
+    "AWS_EC2_METADATA_DISABLED": "true",
+})
+os.environ.setdefault("AWS_REGION", "us-east-1")
+os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
+
 
 import pytest
 
