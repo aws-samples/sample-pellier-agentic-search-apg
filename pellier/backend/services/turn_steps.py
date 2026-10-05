@@ -470,7 +470,7 @@ class TurnSteps:
         }
         if tool == SKILL_LOAD_TOOL:
             builder["skills"] = list(self.loaded_skills)
-        return {
+        event: Dict[str, Any] = {
             "type": "step",
             "id": step_id,
             "label": self.labels.get(step_id) or step_label(tool, tool_input),
@@ -479,6 +479,7 @@ class TurnSteps:
             "tags": layer_tags(tool, parsed),
             "builder": builder,
         }
+        return _with_results(event, evidence.get("results"))
 
     def route(
         self,
@@ -557,7 +558,7 @@ class TurnSteps:
         step_id = self.step_id(tool)
         label = step_label(tool, tool_call.get("input") or {})
         self.labels[step_id] = label
-        return {
+        return _with_results({
             "type": "step",
             "id": step_id,
             "label": label,
@@ -574,7 +575,18 @@ class TurnSteps:
                 "ranking": tool_call.get("ranking"),
                 "requirements": None,
             },
-        }
+        }, tool_call.get("results"))
+
+
+def _with_results(event: Dict[str, Any], results: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Attach the page grid's result to a catalog step, when the tool reported one.
+
+    It travels beside ``builder`` because the shopper's page shows it with the
+    Builder view off too. Like ``builder``, it never reaches the model.
+    """
+    if results is not None and event["status"] != "failed":
+        event["results"] = results
+    return event
 
 
 def status_event(label: str) -> Dict[str, Any]:

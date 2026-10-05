@@ -77,6 +77,13 @@ TOOL_NAMES: Tuple[str, ...] = (
 # no tool hands a model an unbounded table.
 MAX_ROWS = 20
 
+# The most product ids a catalog tool reports for the storefront's results
+# grid, beside the result the model reads: the size of the fused pool.
+RESULT_IDS_MAX = 30
+
+# A sink for what the model must not read (see ``services.tool_evidence``).
+EvidenceSink = Callable[[Dict[str, Any]], None]
+
 # The goodwill ceiling. A CHECK constraint on pellier.store_credits enforces it
 # again in the database; this only returns a readable envelope first.
 MAX_CREDIT_CENTS = 50000
@@ -217,6 +224,11 @@ def _product(row: Dict[str, Any]) -> Dict[str, Any]:
 # browse_department
 # ---------------------------------------------------------------------------
 
+# The department a browse reads. The filter counts reuse it, so "N of 100
+# fit" counts exactly the rows this predicate and the plan's limits keep.
+BROWSE_DEPARTMENT_CLAUSE = "lower(category) LIKE %s ESCAPE '\\'"
+
+
 def _browse_sql(extra_clauses: Sequence[str] = ()) -> str:
     """The department read, with a plan's hard predicates applied.
 
@@ -227,7 +239,7 @@ def _browse_sql(extra_clauses: Sequence[str] = ()) -> str:
     SELECT "productId", name, brand, color, price, rating, reviews,
            category, "imgUrl", badge, tags
       FROM pellier.product_catalog
-     WHERE lower(category) LIKE %s ESCAPE '\\'
+     WHERE {BROWSE_DEPARTMENT_CLAUSE}
        AND "imgUrl" IS NOT NULL{_indent_clauses(extra_clauses)}
      ORDER BY rating DESC, reviews DESC, "productId"
      LIMIT %s
@@ -241,6 +253,7 @@ def browse_department(
     limit: int = 5,
     extracted: Optional[Dict[str, Any]] = None,
     max_price: Optional[float] = None,
+    evidence: Optional[EvidenceSink] = None,
 ) -> Dict[str, Any]:
     """The highest-rated products in one store department.
 
@@ -257,6 +270,10 @@ def browse_department(
         limit: Number of products to return.
         extracted: The requirements reading, or ``None`` when none ran.
         max_price: An explicit ceiling, a hard SQL predicate.
+        evidence: A sink for the storefront grid: the plan, the department
+            predicate and up to ``RESULT_IDS_MAX`` ids in the same order. The
+            one read then fetches that many rows; the model still reads the
+            first ``limit``. ``None`` publishes nothing.
     """
     name = " ".join(str(department or "").split())
     if not name:
@@ -264,8 +281,17 @@ def browse_department(
     reading = {**extracted, "required_categories": []} if extracted is not None else None
     plan = build_plan(name, reading, price_max_usd=max_price, top_k=limit)
     clauses, params = plan.compile_predicates(include_soft=False)
-    rows = run(_browse_sql(clauses), (prepare_like_pattern(name), *params, _clamp(limit, 5)))
-    products = [_product(row) for row in rows]
+    shown = _clamp(limit, 5)
+    fetched = max(shown, RESULT_IDS_MAX) if evidence is not None else shown
+    pattern = prepare_like_pattern(name)
+    rows = run(_browse_sql(clauses), (pattern, *params, fetched))
+    products = [_product(row) for row in rows[:shown]]
+    if evidence is not None:
+        evidence({
+            "plan": plan,
+            "department_clause": (BROWSE_DEPARTMENT_CLAUSE, [pattern]),
+            "result_ids": [_product(row)["productId"] for row in rows][:RESULT_IDS_MAX],
+        })
     return {
         "status": "success",
         "department": name,
@@ -1606,6 +1632,41 @@ def select_shown_products(
     return rows, products
 
 
+def result_product_ids(
+    ordered: Sequence[Dict[str, Any]],
+    candidates: Sequence[Dict[str, Any]],
+    *,
+    plan: Any,
+    max_price: Optional[float],
+    min_rating: float,
+    cap: int = RESULT_IDS_MAX,
+) -> List[str]:
+    """The search's own result order for the storefront grid, at most ``cap`` ids.
+
+    The eligible rows in final order come first (reranked, then any
+    merchandising rule), then the rest of the fused pool in RRF order. The
+    same checks ``select_shown_products`` applies hold here, so the first ids
+    are exactly the products the model read, in the same order.
+    """
+    ids: List[str] = []
+    seen: set[str] = set()
+    tail = [row for row in candidates if not violates_hard_constraints(row, plan)]
+    for row in [*ordered, *tail]:
+        product = _search_product(row)
+        pid = product["productId"]
+        if not pid or pid in seen:
+            continue
+        if max_price and product["price"] > max_price:
+            continue
+        if min_rating and product["rating"] < min_rating:
+            continue
+        seen.add(pid)
+        ids.append(pid)
+        if len(ids) >= cap:
+            break
+    return ids
+
+
 def _write_search_receipt(
     run: Run,
     *,
@@ -1656,9 +1717,6 @@ def _write_search_receipt(
     return None
 
 
-EvidenceSink = Callable[[Dict[str, Any]], None]
-
-
 def search_products(
     run: Run,
     *,
@@ -1694,8 +1752,9 @@ def search_products(
             ``session_id``, ``principal_sub``, ``rail``, model ids), or
             ``None`` to write none.
         evidence: A sink for what the model must not read: the execution
-            with its per-arm ranks, the rows in final order and the receipt
-            id. ``None`` publishes nothing.
+            with its per-arm ranks, the rows in final order, the receipt id
+            and the result ids for the storefront grid. ``None`` publishes
+            nothing.
 
     Returns:
         The payload the agent reads. ``constraint_notice`` and
@@ -1769,5 +1828,12 @@ def search_products(
             "final_rows": ordered,
             "receipt_id": receipt_id,
             "rrf_k": int(knobs.get("rrf_k") or DEFAULT_RETRIEVAL_CONFIG["rrf_k"]),
+            "result_ids": result_product_ids(
+                ordered,
+                execution.candidates,
+                plan=execution.plan,
+                max_price=max_price,
+                min_rating=min_rating,
+            ),
         })
     return payload

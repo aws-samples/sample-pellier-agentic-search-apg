@@ -4,6 +4,8 @@ Implements Requirements 3.3.1–3.3.5 and 3.5.1–3.5.2 of the
 pellier-storefront spec:
 
   * ``GET /api/products``              editorial or personalized product list
+  * ``GET /api/products?ids=31,36,22``  the cards for one search result, in
+                                       that order (at most 30 ids, one read)
   * ``GET /api/products/{id}``         one product with catalog copy and
                                        live stock (404 on unknown id)
   * ``GET /api/inventory``             live status-strip signal
@@ -96,6 +98,7 @@ from services.agentcore_identity import (
 )
 from services.agentcore_memory import AgentCoreMemory
 from services.personalization import sort_personalized
+from services.ranking_evidence import RESULT_IDS_MAX
 from routes.user import get_agentcore_memory
 
 logger = logging.getLogger(__name__)
@@ -314,6 +317,40 @@ async def _fetch_editorial_catalog(
     return products
 
 
+def parse_product_ids(raw: str) -> List[str]:
+    """Read ``ids=31,36,22`` into catalog keys, in order, once each.
+
+    Raises:
+        HTTPException: 422 when an id is not a positive whole number or more
+            than ``RESULT_IDS_MAX`` are asked for. The bound is the page
+            grid's own: one search result, never the table.
+    """
+    ids: List[str] = []
+    for part in raw.split(","):
+        value = part.strip()
+        if not value:
+            continue
+        if not value.isdigit() or len(value) > 6 or int(value) < 1:
+            raise HTTPException(status_code=422, detail="ids must be positive whole numbers")
+        key = str(int(value))
+        if key not in ids:
+            ids.append(key)
+    if len(ids) > RESULT_IDS_MAX:
+        raise HTTPException(status_code=422, detail=f"ids takes at most {RESULT_IDS_MAX} products")
+    return ids
+
+
+async def _fetch_products_by_ids(db: Any, ids: List[str]) -> List[StorefrontProduct]:
+    """The cards for ``ids`` in that order, from one read; an unknown id is skipped."""
+    if not ids:
+        return []
+    rows = await db.fetch_all(_PRODUCT_SELECT + ' WHERE "productId" = ANY(%s)', ids)
+    by_id = {str(dict(row)["id"]): _row_to_storefront_product(dict(row)) for row in rows}
+    products = [by_id[key] for key in ids if key in by_id]
+    await _attach_warehouse_stock(db, products)
+    return products
+
+
 def _prefs_empty(prefs: Optional[Preferences]) -> bool:
     """Return True when ``prefs`` is null or has nothing to match on.
 
@@ -337,6 +374,7 @@ async def list_storefront_products(
     personalized: bool = Query(default=False),
     category: Optional[str] = Query(default=None),
     persona: Optional[str] = Query(default=None, min_length=1, max_length=64),
+    ids: Optional[str] = Query(default=None, max_length=256),
     db: Any = Depends(get_db_service),
     identity: AgentCoreIdentityService = Depends(get_agentcore_identity_service),
     memory: AgentCoreMemory = Depends(get_agentcore_memory),
@@ -345,7 +383,18 @@ async def list_storefront_products(
 
     Branches on ``personalized`` AND the presence of a verified user
     AND saved preferences. See Req 3.3.1–3.3.4.
+
+    With ``ids``, return exactly those cards in that order and nothing else:
+    the storefront grid draws the agent's own search result from the ids the
+    turn's evidence carried, so the page never runs a search of its own.
     """
+    if ids is not None:
+        cards = await _fetch_products_by_ids(db, parse_product_ids(ids))
+        return JSONResponse(
+            status_code=200,
+            content=[p.model_dump(mode="json", by_alias=True) for p in cards],
+        )
+
     products = await _fetch_editorial_catalog(
         db,
         category=category,

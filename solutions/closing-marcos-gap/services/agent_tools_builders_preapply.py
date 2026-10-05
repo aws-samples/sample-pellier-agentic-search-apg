@@ -24,7 +24,13 @@ from typing import Any, Sequence
 
 from config import settings
 from services import active_requirements, store_tools, tool_evidence
-from services.ranking_evidence import filter_counts, ranking_from_execution, ranking_unavailable
+from services.ranking_evidence import (
+    filter_counts,
+    ranking_from_execution,
+    ranking_unavailable,
+    result_limits,
+    results_payload,
+)
 
 # Global service references
 _db_service = None
@@ -294,17 +300,38 @@ def _verified_read_customer_scope(
     return authorized_customer, None
 
 
-def _search_evidence(payload: dict) -> None:
-    """Shape what ``store_tools.search_products`` published for the Builder view.
+def _page_limits(plan: Any, extracted: dict | None, carried: Sequence[str]) -> list[dict]:
+    """The plan's limits as the page's tags, each placed as stated, carried or the agent's."""
+    return result_limits(
+        plan.to_dict(),
+        carried=list(carried),
+        carried_exclusions=active_requirements.carried_exclusions(),
+        shopper_price=(extracted or {}).get("price_max_usd"),
+    )
+
+
+def _search_evidence(
+    payload: dict, *, extracted: dict | None = None, carried: Sequence[str] = ()
+) -> None:
+    """Shape what ``store_tools.search_products`` published for the Builder view and the page.
 
     Runs the filter-count statement here, on the in-process rail only, and
-    carries the ranking beside the result the model reads. Nothing runs when
-    no turn is collecting evidence, and nothing here can fail the search: a
-    broken count or ranking is reported as unavailable, not raised.
+    carries the ranking and the page grid's result beside the result the
+    model reads. Nothing runs when no turn is collecting evidence, and nothing
+    here can fail the search: a broken count or ranking is reported as
+    unavailable, not raised.
+
+    Args:
+        payload: What the search published: the execution, the rows in final
+            order, the receipt id and the result ids.
+        extracted: This turn's reading of the shopper's words, laid over the
+            limits kept from earlier.
+        carried: The limit kinds kept from earlier.
     """
     if not tool_evidence.is_open():
         return
     execution = payload.get("execution")
+    counts = None
     try:
         counts = filter_counts(_run_sql, execution.plan)
         ranking = ranking_from_execution(
@@ -316,9 +343,39 @@ def _search_evidence(payload: dict) -> None:
     except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
         logger.warning("search ranking evidence skipped: %s", exc)
         ranking = ranking_unavailable("in-process", "The ranking detail could not be computed")
-    tool_evidence.publish("search_products", {
-        "ranking": ranking,
-        "receipt_id": payload.get("receipt_id"),
+    evidence: dict = {"ranking": ranking, "receipt_id": payload.get("receipt_id")}
+    if execution is not None:
+        evidence["results"] = results_payload(
+            product_ids=payload.get("result_ids") or [],
+            limits=_page_limits(execution.plan, extracted, carried),
+            filters=counts,
+        )
+    tool_evidence.publish("search_products", evidence)
+
+
+def _browse_evidence(
+    payload: dict, *, extracted: dict | None = None, carried: Sequence[str] = ()
+) -> None:
+    """The page grid's result for a department browse: its rows in order, its limits and counts.
+
+    Same rules as ``_search_evidence``: in-process only, and a failed count
+    is reported as missing, never raised.
+    """
+    if not tool_evidence.is_open():
+        return
+    plan = payload["plan"]
+    clause, params = payload["department_clause"]
+    try:
+        counts = filter_counts(_run_sql, plan, extra=[("department", clause, list(params))])
+    except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
+        logger.warning("browse filter counts skipped: %s", exc)
+        counts = None
+    tool_evidence.publish("browse_department", {
+        "results": results_payload(
+            product_ids=payload.get("result_ids") or [],
+            limits=_page_limits(plan, extracted, carried),
+            filters=counts,
+        ),
     })
 
 
@@ -396,7 +453,9 @@ def search_products(
             limit=limit,
             config=_retrieval_config(),
             receipt=_receipt_context(),
-            evidence=_search_evidence,
+            evidence=lambda published: _search_evidence(
+                published, extracted=extracted, carried=carried
+            ),
         )
         _apply_plan("search_products", payload, carried)
         return _reply(payload)
@@ -422,7 +481,15 @@ def browse_department(department: str, limit: int = 5) -> str:
             _turn_requirements("") if active_requirements.current_turn() else (None, [])
         )
         payload = store_tools.browse_department(
-            _run_sql, department=department, limit=limit, extracted=extracted
+            _run_sql,
+            department=department,
+            limit=limit,
+            extracted=extracted,
+            evidence=(
+                (lambda published: _browse_evidence(published, extracted=extracted, carried=carried))
+                if tool_evidence.is_open()
+                else None
+            ),
         )
         _apply_plan("browse_department", payload, carried)
         return _reply(payload)

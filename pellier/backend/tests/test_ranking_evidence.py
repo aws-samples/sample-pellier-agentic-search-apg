@@ -91,27 +91,72 @@ def test_filter_count_sql_follows_the_plans_own_predicates() -> None:
     )
     sql, params, reasons = filter_count_sql(plan)
 
-    assert reasons == ["budget", "stock", "exclusions"]
-    assert "count(*) FILTER (WHERE NOT (price <= %s)) AS removed_budget" in sql
-    assert "count(*) FILTER (WHERE (price <= %s) AND NOT (quantity > 0)) AS removed_stock" in sql
-    assert "AS removed_exclusions" in sql and "AS kept" in sql
+    assert reasons == ["budget", "stock", "exclusions:candle"]
+    assert "count(*) FILTER (WHERE NOT (price <= %s)) AS removed_0" in sql
+    assert "count(*) FILTER (WHERE (price <= %s) AND NOT (quantity > 0)) AS removed_1" in sql
+    assert "AS removed_2" in sql and "AS kept" in sql
     # Budget: price. Stock: price prefix. Exclusions: price prefix, then the two arrays.
     # Kept: price, then the two arrays.
     assert params == [100.0, 100.0, 100.0, ["candle"], ["candle"], 100.0, ["candle"], ["candle"]]
     assert sql.count("%s") == len(params)
 
 
+def test_each_excluded_value_is_counted_on_its_own_in_the_plans_order() -> None:
+    """"No candles or watches": the candles removed, then the watches among the rest."""
+    plan = build_plan("a gift", {"exclusions": ["candle", "watch"]}, top_k=5)
+    sql, params, reasons = filter_count_sql(plan)
+
+    assert reasons == ["exclusions:candle", "exclusions:watch"]
+    assert "NOT (NOT (tags ?| %s OR materials ?| %s))) AS removed_0" in sql
+    assert (
+        "(NOT (tags ?| %s OR materials ?| %s)) AND NOT (NOT (tags ?| %s OR materials ?| %s))) AS removed_1"
+        in sql
+    )
+    assert params[:2] == [["candle"], ["candle"]]
+    assert params[2:6] == [["candle"], ["candle"], ["watch"], ["watch"]]
+    assert sql.count("%s") == len(params)
+
+
 def test_filter_counts_shape_from_one_aggregate_row() -> None:
-    plan = build_plan("a gift", {"price_max_usd": 100, "in_stock_only": True}, top_k=5)
+    plan = build_plan(
+        "a gift", {"price_max_usd": 100, "in_stock_only": True, "exclusions": ["candle", "watch"]}, top_k=5,
+    )
     seen: List[str] = []
 
     def run(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
         seen.append(sql)
-        return [{"total": 100, "removed_budget": 61, "removed_stock": 9, "kept": 30}]
+        return [{"total": 100, "removed_0": 31, "removed_1": 1, "removed_2": 4, "removed_3": 1, "kept": 63}]
 
     counts = filter_counts(run, plan)
-    assert counts == {"kept": 30, "of": 100, "removed": {"budget": 61, "stock": 9}}
+    assert counts == {
+        "kept": 63,
+        "of": 100,
+        "removed": {"budget": 31, "stock": 1, "exclusions": 5},
+        "excluded": [
+            {"value": "candle", "count": 4, "noun": "candles"},
+            {"value": "watch", "count": 1, "noun": "watch"},
+        ],
+    }
     assert len(seen) == 1, "one aggregate statement, never a second search"
+
+
+def test_a_browse_counts_its_department_after_the_limits() -> None:
+    plan = build_plan("Home", {"price_max_usd": 100}, top_k=5)
+    extra = [("department", store_tools.BROWSE_DEPARTMENT_CLAUSE, ["%home%"])]
+    sql, params, reasons = filter_count_sql(plan, extra)
+
+    assert reasons == ["budget", "department"]
+    assert "(price <= %s) AND NOT (lower(category) LIKE %s ESCAPE '\\')) AS removed_1" in sql
+    assert params[:3] == [100.0, 100.0, "%home%"]
+    assert sql.count("%s") == len(params)
+
+
+def test_plural_nouns_read_as_the_shopper_would_say_them() -> None:
+    from services.ranking_evidence import plural
+
+    assert [plural(word) for word in ("candle", "watch", "wool", "leather", "accessories")] == [
+        "candles", "watches", "wool", "leather", "accessories",
+    ]
 
 
 def test_the_panel_note_says_kept_counts_hard_limits_only() -> None:

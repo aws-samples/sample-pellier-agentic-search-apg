@@ -325,11 +325,16 @@ def test_browse_department_applies_the_active_limits(follow_up_turn) -> None:
 
     sql, params = run.calls[0]
     assert "price <= %s" in sql and "quantity > 0" in sql and "NOT (tags ?| %s OR materials ?| %s)" in sql
-    assert params == ("%kitchen and table%", 100.0, ["candle"], ["candle"], 5)
+    # In a turn the one read fetches the page grid's rows too; the model still reads five.
+    assert params == ("%kitchen and table%", 100.0, ["candle"], ["candle"], 30)
     assert parsed["count"] == 1
     assert parsed["search_plan"]["hard_constraints"]["in_stock_only"] is True
     assert parsed["search_plan"]["exclusions"] == ["candle"]
-    assert evidence == {"requirements": {"carried": ["budget", "stock", "exclusions"]}}
+    assert evidence["requirements"] == {"carried": ["budget", "stock", "exclusions"]}
+    assert evidence["results"]["product_ids"] == ["31"]
+    assert [(tag["label"], tag["origin"]) for tag in evidence["results"]["limits"]] == [
+        ("Under $100", "carried"), ("In stock", "carried"), ("No candles", "carried"),
+    ]
     assert len(readings) == 1
 
 

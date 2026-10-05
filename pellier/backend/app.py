@@ -774,7 +774,9 @@ async def _persist_terminal_turn_receipt(
 # What a managed tool event carries for the Builder step alone. The step event
 # is the one place these travel in the stream; the tool_call event and the
 # execution envelope keep the execution facts.
-_BUILDER_STEP_FIELDS = frozenset({"requested_customer", "bound_customer", "finding", "ranking"})
+_BUILDER_STEP_FIELDS = frozenset(
+    {"requested_customer", "bound_customer", "finding", "ranking", "results"}
+)
 
 
 def _execution_tool_call(tool_call: Dict[str, Any]) -> Dict[str, Any]:
@@ -799,24 +801,38 @@ def _managed_skill_note(skills: List[Dict[str, Any]], skill_mode: str) -> Option
     return "; ".join(notes) or None
 
 
-async def _managed_search_ranking(turn_id: str) -> Dict[str, Any]:
-    """The Builder view's ranking for a managed search, from the turn's receipt.
+async def _managed_search_evidence(turn_id: str) -> Dict[str, Any]:
+    """The Builder view's ranking and the page grid's result for a managed search.
 
     The Lambda writes a retrieval receipt keyed by the route-minted turn id.
     When that row is readable here, its per-arm ranks and scores become the
-    payload; otherwise the payload says the detail is unavailable on this
-    rail rather than inventing it.
+    ranking and its result order and plan become the page's result; otherwise
+    both say the detail is unavailable on this rail rather than inventing it.
+
+    Returns:
+        ``{"ranking": ..., "results": ...}``.
     """
-    from services.ranking_evidence import ranking_from_receipt, ranking_unavailable
+    from services.ranking_evidence import (
+        ranking_from_receipt,
+        ranking_unavailable,
+        results_from_receipt,
+        results_unavailable,
+    )
+
+    def unavailable(reason: str) -> Dict[str, Any]:
+        return {
+            "ranking": ranking_unavailable("gateway-mcp", reason),
+            "results": results_unavailable("gateway-mcp", reason),
+        }
 
     if db_service is None:
-        return ranking_unavailable("gateway-mcp", "No database connection to read the receipt")
+        return unavailable("No database connection to read the receipt")
     try:
         receipt = await db_service.fetch_one(
             """
             SELECT receipt_id, retrieval_config, candidate_product_ids, vector_ranks,
                    lexical_ranks, rrf_scores, rerank_scores, citation_ids,
-                   citation_snapshots
+                   citation_snapshots, search_plan
               FROM pellier.retrieval_receipts
              WHERE turn_id = %s
              ORDER BY receipt_id DESC
@@ -826,9 +842,9 @@ async def _managed_search_ranking(turn_id: str) -> Dict[str, Any]:
         )
     except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
         logger.warning("managed ranking receipt read failed: %s", exc)
-        return ranking_unavailable("gateway-mcp", "The retrieval receipt could not be read")
+        return unavailable("The retrieval receipt could not be read")
     if not receipt:
-        return ranking_unavailable("gateway-mcp", "No retrieval receipt was written for this turn")
+        return unavailable("No retrieval receipt was written for this turn")
     names: Dict[str, str] = {}
     try:
         ids = receipt.get("candidate_product_ids") or []
@@ -841,7 +857,30 @@ async def _managed_search_ranking(turn_id: str) -> Dict[str, Any]:
         names = {str(row["productId"]): str(row["name"]) for row in rows or []}
     except Exception as exc:  # noqa: BLE001 - names are a convenience
         logger.debug("managed ranking names skipped: %s", exc)
-    return ranking_from_receipt(dict(receipt), names=names)
+    return {
+        "ranking": ranking_from_receipt(dict(receipt), names=names),
+        "results": results_from_receipt(dict(receipt)),
+    }
+
+
+# A managed browse writes no receipt; the Runtime reports the ids it returned.
+MANAGED_BROWSE_NOTE = (
+    "The managed rail reports the pieces the browse returned, with no limits or filter counts"
+)
+
+
+def _managed_browse_results(tool_call: Dict[str, Any]) -> Dict[str, Any]:
+    """The page grid's result for a managed browse: the product ids the tool returned, in order."""
+    from services.ranking_evidence import results_payload
+
+    summary = tool_call.get("result") or {}
+    return results_payload(
+        product_ids=summary.get("product_ids") or [],
+        limits=[],
+        filters=None,
+        rail="gateway-mcp",
+        note=MANAGED_BROWSE_NOTE,
+    )
 
 
 async def _aurora_profile_receipt(customer_id: Optional[str]) -> Dict[str, Any]:
@@ -1305,10 +1344,9 @@ async def chat_stream(
                 ]
                 for tool_call in managed_result.tool_calls:
                     if tool_call.get("tool") == "search_products":
-                        tool_call = {
-                            **tool_call,
-                            "ranking": await _managed_search_ranking(turn_id),
-                        }
+                        tool_call = {**tool_call, **await _managed_search_evidence(turn_id)}
+                    elif tool_call.get("tool") == "browse_department":
+                        tool_call = {**tool_call, "results": _managed_browse_results(tool_call)}
                     yield (
                         "data: "
                         + json.dumps(

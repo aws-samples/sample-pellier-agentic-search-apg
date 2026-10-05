@@ -141,6 +141,7 @@ class TurnScope:
     principal: Optional[str] = None
     reading: Optional[Dict[str, Any]] = None
     carried: List[str] = field(default_factory=list)
+    carried_exclusions: List[str] = field(default_factory=list)
 
 
 _turn: contextvars.ContextVar[Optional[TurnScope]] = contextvars.ContextVar(
@@ -334,14 +335,25 @@ def turn_requirements(read: Any) -> Tuple[Optional[Dict[str, Any]], List[str]]:
     if scope is None:
         return read(), []
     if scope.reading is None:
-        merged, carried = merge(
-            read() or {},
-            before=active(scope.session_id, scope.principal),
-            message=scope.message,
-        )
+        before = active(scope.session_id, scope.principal)
+        reading = read() or {}
+        merged, carried = merge(reading, before=before, message=scope.message)
+        stated = {
+            str(value).lower() for value in (reading.get("exclusions") or []) if isinstance(value, str)
+        }
         scope.reading = merged
         scope.carried = carried
+        scope.carried_exclusions = [
+            value for value in before.exclusions
+            if value in merged["exclusions"] and value not in stated
+        ]
     return dict(scope.reading), list(scope.carried)
+
+
+def carried_exclusions() -> List[str]:
+    """The excluded values this turn kept from earlier, each one, not just the kind."""
+    scope = _turn.get()
+    return list(scope.carried_exclusions) if scope is not None else []
 
 
 def remember_turn() -> None:

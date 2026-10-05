@@ -36,6 +36,14 @@ SEARCH_RESULT = json.dumps({
     },
 })
 RANKING = {"available": True, "rail": "in-process", "rows": [{"product_id": "65", "after": 1}]}
+# What the storefront grid draws from: the search's own order, limits and counts.
+RESULTS = {
+    "available": True,
+    "rail": "in-process",
+    "product_ids": ["65", "22", "31"],
+    "limits": [{"kind": "budget", "label": "Under $100", "origin": "stated"}],
+    "filters": {"kept": 64, "of": 100, "removed": {"budget": 31}, "excluded": []},
+}
 
 
 class _Answer:
@@ -147,7 +155,7 @@ def _anna_agent() -> ScriptedAgent:
                 "tool": "search_products",
                 "input": {"query": "housewarming gift"},
                 "result": SEARCH_RESULT,
-                "publish": [{"ranking": RANKING, "receipt_id": 412}],
+                "publish": [{"ranking": RANKING, "receipt_id": 412, "results": RESULTS}],
             }
         ],
         "Start with the Stoneware Mugs, Set of 2 at $38. The Linen Napkins, Set of 4 at $44 pair well.",
@@ -180,6 +188,9 @@ def test_status_and_steps_come_from_real_events_in_order(service, monkeypatch) -
     }
     assert done["builder"]["receipt_id"] == 412
     assert done["builder"]["audit_id"] is None
+    # The page grid's result rides the done step beside builder, never in it.
+    assert done["results"] == RESULTS and "results" not in done["builder"]
+    assert "results" not in running
 
     # The writing status precedes the first delta, and the delta stream still flows.
     first_delta = kinds.index("content_delta")

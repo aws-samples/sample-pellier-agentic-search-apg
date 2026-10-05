@@ -291,3 +291,88 @@ def test_a_managed_search_without_a_readable_receipt_says_ranking_is_unavailable
         "rail": "gateway-mcp",
         "reason": "No database connection to read the receipt",
     }
+    assert search["results"] == {
+        "available": False,
+        "rail": "gateway-mcp",
+        "reason": "No database connection to read the receipt",
+    }
+
+
+def _managed_catalog_turn(tool: str, result: Dict[str, Any]):
+    async def _managed(**kwargs: Any) -> ManagedRuntimeResult:
+        return ManagedRuntimeResult(
+            response="Start with the Stoneware Mugs, Set of 2.",
+            products=[{"productId": "65", "name": "Stoneware Mugs, Set of 2", "price": 38}],
+            rail="gateway-mcp",
+            intent="shopping",
+            specialist="shopping",
+            model="global.anthropic.claude-opus-5",
+            tool_calls=[{
+                "id": "tool-1", "tool": tool, "status": "success", "duration_ms": 300,
+                "input": {}, "result": result, "finding": "3 found",
+            }],
+        )
+
+    return _managed
+
+
+class _ReceiptDB:
+    """The turn's retrieval receipt, as the Lambda wrote it, and the names it cites."""
+
+    async def fetch_one(self, sql: str, *params: Any) -> Dict[str, Any]:
+        assert "search_plan" in sql
+        return {
+            "receipt_id": 51,
+            "retrieval_config": json.dumps({"search_method": "hybrid+rerank", "rrf_k": 60}),
+            "candidate_product_ids": json.dumps(["22", "65", "31"]),
+            "vector_ranks": json.dumps({"65": 1, "22": 2}),
+            "lexical_ranks": json.dumps({"22": 1}),
+            "rrf_scores": json.dumps({"22": 0.032, "65": 0.016, "31": 0.015}),
+            "rerank_scores": json.dumps({"65": 0.9, "22": 0.7}),
+            "citation_ids": json.dumps(["65"]),
+            "citation_snapshots": json.dumps([]),
+            "search_plan": json.dumps(
+                {"hard_constraints": {"price_max_usd": 100.0, "in_stock_only": True}, "exclusions": []}
+            ),
+        }
+
+    async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
+        return []
+
+
+def test_a_managed_search_fills_the_grid_from_its_receipt(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _managed_catalog_turn(
+        "search_products", {"product_count": 1, "product_ids": ["65"], "status": "success"},
+    ))
+    monkeypatch.setattr(app_module, "db_service", _ReceiptDB())
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "stoneware mugs", "conversation_history": [], "session_id": "sess-anna"},
+    ).text
+    events = _events(body)
+    search = [event for event in events if event.get("type") == "step"][1]
+    results = search["results"]
+    # The cited row first, then the pool by rerank score, then RRF order.
+    assert results["product_ids"] == ["65", "22", "31"]
+    assert [tag["label"] for tag in results["limits"]] == ["Under $100", "In stock"]
+    assert results["filters"] is None and "no filter counts" in results["note"]
+    tool_call = [event for event in events if event.get("type") == "tool_call"][0]
+    assert "results" not in tool_call and "ranking" not in tool_call
+
+
+def test_a_managed_browse_shows_the_ids_it_returned_and_says_what_it_lacks(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _managed_catalog_turn(
+        "browse_department", {"product_count": 3, "product_ids": ["31", "36", "22"], "status": "success"},
+    ))
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "what is in Home?", "conversation_history": [], "session_id": "sess-anna"},
+    ).text
+    browse = [event for event in _events(body) if event.get("type") == "step"][1]
+    assert browse["results"]["product_ids"] == ["31", "36", "22"]
+    assert browse["results"]["limits"] == [] and browse["results"]["filters"] is None
+    assert browse["results"]["note"] == app_module.MANAGED_BROWSE_NOTE
