@@ -122,8 +122,8 @@ def test_requirement_phrases_list_what_applied_and_what_was_kept() -> None:
         "exclusions": ["candle", "wool"],
     }
     assert turn_steps.requirement_phrases(plan, ["budget", "exclusions"]) == {
-        "applied": ["under $100", "in stock", "no candles or wools", "Home only"],
-        "carried": ["under $100", "no candles or wools"],
+        "applied": ["under $100", "in stock", "no candles or wool", "Home only"],
+        "carried": ["under $100", "no candles or wool"],
     }
     assert turn_steps.requirement_phrases({"hard_constraints": {}, "exclusions": []}) is None
 
@@ -233,13 +233,40 @@ def test_steps_never_exceed_the_budget() -> None:
     assert steps.step_id("get_orders") == steps.order[-1]
 
 
-def test_a_repeated_tool_reuses_its_step() -> None:
+def test_each_tool_use_gets_its_own_step() -> None:
+    """Two searches at once are two steps; a call's start and end share its step."""
     steps = TurnSteps()
-    first = steps.running("search_products")
-    second = steps.running("search_products")
-    assert first["id"] == second["id"] == "step-1"
-    assert steps.order == ["route", "step-1"]
+    first = steps.running("search_products", call_id="use-a")
+    second = steps.running("search_products", call_id="use-b")
+    assert (first["id"], second["id"]) == ("step-1", "step-2")
+    second_done = steps.finished("search_products", json.dumps(_search(1)), call_id="use-b")
+    first_done = steps.finished("search_products", json.dumps(_search(2)), call_id="use-a")
+    assert (first_done["id"], second_done["id"]) == ("step-1", "step-2")
+    assert steps.order == ["route", "step-1", "step-2"]
     assert second["builder"] == {"tool": "search_products"}
+
+
+def test_a_call_without_an_id_keys_by_its_tool() -> None:
+    steps = TurnSteps()
+    first, second = steps.running("search_products"), steps.running("search_products")
+    assert first["id"] == second["id"] == "step-1"
+
+
+def test_a_managed_call_keys_by_the_id_the_runtime_reported() -> None:
+    steps = TurnSteps()
+    ids = [
+        steps.managed({"id": call_id, "tool": "search_products", "status": "success"})["id"]
+        for call_id in ("tool-1", "tool-2")
+    ]
+    assert ids == ["step-1", "step-2"]
+
+
+def test_findings_and_tags_share_one_pluralizer() -> None:
+    """A material stays a mass noun in the dock as on the page: "no wool"."""
+    plan = {"hard_constraints": {}, "exclusions": ["wool", "watch"]}
+    assert turn_steps.limit_phrases(plan)["exclusions"] == "no wool or watches"
+    parsed = {"status": "success", "count": 2, "search_plan": plan}
+    assert finding_for("search_products", parsed) == "2 found, wool and watches left out"
 
 
 def test_skill_loads_fold_into_one_step_with_one_finding() -> None:

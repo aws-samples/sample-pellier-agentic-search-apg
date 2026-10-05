@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 from routes.products import get_db_service, router as products_router
 from routes.user import get_agentcore_memory
 from services.agentcore_identity import get_agentcore_identity_service
-from services.ranking_evidence import RESULT_IDS_MAX
+from services.store_tools import RESULT_IDS_MAX
 
 
 def _row(pid: int, name: str) -> Dict[str, Any]:
@@ -105,7 +105,9 @@ def test_more_ids_than_one_result_holds_is_refused(client: TestClient, db: _Fake
     assert client.get("/api/products", params={"ids": exactly}).status_code == 200
 
 
-@pytest.mark.parametrize("raw", ["31,abc", "-4", "31;DROP", "0", "1234567"])
+# Only ASCII digits are ids. "²" passes str.isdigit() and int() refuses it,
+# which was a 500; "٣" is a digit int() reads as 3. Both are a 422.
+@pytest.mark.parametrize("raw", ["31,abc", "-4", "31;DROP", "0", "1234567", "²", "31,٣"])
 def test_a_malformed_id_is_refused_before_any_read(client: TestClient, db: _FakeDB, raw: str) -> None:
     assert client.get("/api/products", params={"ids": raw}).status_code == 422
     assert db.calls == []

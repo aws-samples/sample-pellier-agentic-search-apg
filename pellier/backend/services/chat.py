@@ -1816,6 +1816,12 @@ class EnhancedChatService:
                     tool_use = getattr(event, "tool_use", None) or {}
                     tool_name = tool_use.get("name", "") if isinstance(tool_use, dict) else ""
                     tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
+                    tool_use_id = tool_use.get("toolUseId") if isinstance(tool_use, dict) else None
+                    # Strands runs this hook inside the tool use's own task,
+                    # and the tool body copies that context: whatever the tool
+                    # publishes is kept under this call, so two calls of one
+                    # tool at once never share evidence.
+                    tool_evidence.bind_call(tool_use_id)
                     # Audit INSERT happens before the SSE event, matching
                     # the ledger-then-surface ordering the proofs rely on.
                     audit_before(event)
@@ -1824,6 +1830,7 @@ class EnhancedChatService:
                             asyncio.run_coroutine_threadsafe(
                                 queue.put({
                                     "_tool_start": tool_name,
+                                    "_call_id": tool_use_id,
                                     "_input": dict(tool_input) if isinstance(tool_input, dict) else {},
                                 }),
                                 loop,
@@ -1843,13 +1850,14 @@ class EnhancedChatService:
                     # before the UPDATE pops the pending mapping.
                     audit_id = tool_audit_writer.pending_audit_id(tool_use_id)
                     audit_after(event)
-                    # What the tool published beside its result: ranking,
+                    # What this call published beside its result: ranking,
                     # receipt id, identity binding. Never read by the model.
-                    evidence = tool_evidence.take(tool_name)
+                    evidence = tool_evidence.take(tool_name, tool_use_id)
                     try:
                         asyncio.run_coroutine_threadsafe(
                             queue.put({
                                 "_tool_done": tool_name,
+                                "_call_id": tool_use_id,
                                 "_result": result_str,
                                 "_input": dict(tool_input) if isinstance(tool_input, dict) else {},
                                 "_audit_id": audit_id,
@@ -1877,7 +1885,8 @@ class EnhancedChatService:
 
 
         # --- Per-turn telemetry bookkeeping ---
-        # tool_starts stashes wall-clock start of each active tool so the
+        # tool_starts stashes wall-clock start of each active tool use (by its
+        # id, so two calls of one tool at once keep their own clocks) so the
         # AfterToolCall log line can report latency without relying on the
         # Strands SDK's own cycle timers (which aren't always exposed).
         tool_starts: Dict[str, float] = {}
@@ -1973,9 +1982,10 @@ class EnhancedChatService:
             # Tool started (from BeforeToolCallEvent hook)
             if "_tool_start" in event:
                 tool_name = event["_tool_start"]
-                tool_starts[tool_name] = time.time()
+                call_id = event.get("_call_id")
+                tool_starts[call_id or tool_name] = time.time()
                 logger.info(f"🔧 tool_start | {tool_name}")
-                yield steps.running(tool_name, event.get("_input"))
+                yield steps.running(tool_name, event.get("_input"), call_id=call_id)
                 if tool_name not in AGENT_LOCAL_TOOLS and tool_name != current_tool:
                     current_tool = tool_name
                     yield {"type": "tool_call", "tool": tool_name, "status": "executing"}
@@ -1983,6 +1993,7 @@ class EnhancedChatService:
             # Tool completed (from AfterToolCallEvent hook) — buffer products for later
             elif "_tool_done" in event:
                 tool_name = event.get("_tool_done", "")
+                call_id = event.get("_call_id")
                 result_str = event.get("_result", "")
                 result_count = 0
                 # ask_a_person returns a structured handoff the chat surface
@@ -2005,7 +2016,7 @@ class EnhancedChatService:
                         )
                         products_buffered.extend(new_products)
                 tool_ms = int(
-                    (time.time() - tool_starts.pop(tool_name, time.time())) * 1000
+                    (time.time() - tool_starts.pop(call_id or tool_name, time.time())) * 1000
                 )
                 if tool_name not in AGENT_LOCAL_TOOLS:
                     tool_trace.append(
@@ -2018,6 +2029,7 @@ class EnhancedChatService:
                 yield steps.finished(
                     tool_name,
                     result_str,
+                    call_id=call_id,
                     tool_input=event.get("_input"),
                     duration_ms=tool_ms,
                     audit_id=event.get("_audit_id"),

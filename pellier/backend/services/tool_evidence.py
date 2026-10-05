@@ -11,6 +11,14 @@ the Strands worker, so the tool and the after-tool hook share the same list
 object and the hook can take what the tool published. Outside a turn the
 channel is closed and ``publish`` is a no-op, which is what the Gateway Lambda
 and the scripts see.
+
+Evidence is keyed by the tool use, not only the tool name: an agent can run
+the same tool twice at once, and each call's evidence belongs to its own
+step. Strands runs each tool use in its own asyncio task, calls the
+before-tool hook inside that task, and runs the tool body in a thread that
+copies the task's context. So the hook binds the tool-use id here
+(``bind_call``), every ``publish`` inside that call records it, and the
+after-tool hook takes exactly that call's evidence. No tool signature changes.
 """
 
 from __future__ import annotations
@@ -18,8 +26,14 @@ from __future__ import annotations
 import contextvars
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-_channel: contextvars.ContextVar[Optional[List[Tuple[str, Dict[str, Any]]]]] = (
-    contextvars.ContextVar("pellier_tool_evidence", default=None)
+# One published item: the tool, the tool use it ran in, and the payload.
+_Entry = Tuple[str, Optional[str], Dict[str, Any]]
+
+_channel: contextvars.ContextVar[Optional[List[_Entry]]] = contextvars.ContextVar(
+    "pellier_tool_evidence", default=None
+)
+_call: contextvars.ContextVar[Optional[str]] = contextvars.ContextVar(
+    "pellier_tool_evidence_call", default=None
 )
 
 
@@ -38,12 +52,21 @@ def is_open() -> bool:
     return _channel.get() is not None
 
 
+def bind_call(call_id: Optional[str]) -> None:
+    """Mark the current context as running tool use ``call_id``.
+
+    Called by the before-tool hook, inside the task Strands runs that one
+    tool use in, so the tool body's ``publish`` calls carry the id.
+    """
+    _call.set(call_id or None)
+
+
 def publish(tool: str, payload: Dict[str, Any]) -> None:
-    """Record evidence for ``tool``; silently ignored when no turn is open."""
+    """Record evidence for ``tool`` in the bound tool use; ignored when no turn is open."""
     channel = _channel.get()
     if channel is None:
         return
-    channel.append((tool, dict(payload)))
+    channel.append((tool, _call.get(), dict(payload)))
 
 
 def publisher(tool: str) -> Callable[[Dict[str, Any]], None]:
@@ -51,17 +74,23 @@ def publisher(tool: str) -> Callable[[Dict[str, Any]], None]:
     return lambda payload: publish(tool, payload)
 
 
-def take(tool: str) -> Dict[str, Any]:
-    """Remove and merge everything published for ``tool``, oldest first."""
+def take(tool: str, call_id: Optional[str] = None) -> Dict[str, Any]:
+    """Remove and merge what tool use ``call_id`` of ``tool`` published, oldest first.
+
+    Another call of the same tool keeps its own evidence. ``call_id`` is
+    ``None`` only where no hook bound one, such as a test that calls a tool
+    directly; it then matches only what was published unbound.
+    """
     channel = _channel.get()
     if not channel:
         return {}
+    wanted = call_id or None
     merged: Dict[str, Any] = {}
-    kept: List[Tuple[str, Dict[str, Any]]] = []
-    for name, payload in channel:
-        if name == tool:
+    kept: List[_Entry] = []
+    for name, call, payload in channel:
+        if name == tool and call == wanted:
             merged.update(payload)
         else:
-            kept.append((name, payload))
+            kept.append((name, call, payload))
     channel[:] = kept
     return merged

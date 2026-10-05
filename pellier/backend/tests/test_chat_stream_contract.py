@@ -8,9 +8,11 @@ network: the conftest guard makes any AWS call fail loudly.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import inspect
 import json
 import sys
+import threading
 import types
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
@@ -255,6 +257,83 @@ def test_a_follow_up_search_says_which_limits_it_kept_from_earlier(service, monk
         "2 found from 64 that fit. Kept your limits from earlier: under $100, in stock, no candles"
     )
     assert done["builder"]["requirements"]["carried"] == ["under $100", "in stock", "no candles"]
+
+
+class ParallelAgent(ScriptedAgent):
+    """Runs its calls the way Strands' concurrent executor does.
+
+    Each tool use gets its own context, as each runs in its own asyncio task:
+    the before-tool hook runs in it, the tool body runs in a thread that
+    copies it (``asyncio.to_thread``), and the after-tool hook runs in it
+    again. Both bodies publish before either hook takes, and the second call
+    finishes first.
+    """
+
+    def __call__(self, prompt: str) -> _Answer:
+        uses = [
+            (
+                {"name": call["tool"], "toolUseId": f"use-{index}", "input": call.get("input", {})},
+                call,
+            )
+            for index, call in enumerate(self.calls)
+        ]
+        contexts = [contextvars.copy_context() for _ in uses]
+        for context, (tool_use, _) in zip(contexts, uses):
+            before = SimpleNamespace(tool_use=tool_use, result=None)
+            context.run(self._fire, before, "BeforeToolCall")
+        published = threading.Barrier(len(uses))
+
+        def body(call: Dict[str, Any]) -> None:
+            for publish in call.get("publish", []):
+                tool_evidence.publish(call["tool"], publish)
+            published.wait(timeout=5)
+
+        threads = [
+            threading.Thread(target=context.copy().run, args=(body, call))
+            for context, (_, call) in zip(contexts, uses)
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=5)
+        for context, (tool_use, call) in reversed(list(zip(contexts, uses))):
+            result = {"status": "success", "content": [{"text": call["result"]}]}
+            after = SimpleNamespace(tool_use=tool_use, result=result)
+            context.run(self._fire, after, "AfterToolCall")
+        for piece in self.answer.split(" "):
+            self.callback_handler(data=piece + " ")
+        return _Answer(self.answer, self.stop_reason)
+
+
+def test_two_searches_at_once_are_two_steps_each_with_its_own_evidence(
+    service, monkeypatch
+) -> None:
+    """Evidence is keyed by tool use: neither search shows the other's ranking or result."""
+    ranking_b = {**RANKING, "rows": [{"product_id": "90", "after": 1}]}
+    results_b = {**RESULTS, "product_ids": ["90", "28"], "count": 2}
+    agent = ParallelAgent(
+        [
+            {"tool": "search_products", "input": {"query": "housewarming gift"},
+             "result": SEARCH_RESULT,
+             "publish": [{"ranking": RANKING, "receipt_id": 412, "results": RESULTS}]},
+            {"tool": "search_products", "input": {"query": "morning run"},
+             "result": SEARCH_RESULT,
+             "publish": [{"ranking": ranking_b, "receipt_id": 413, "results": results_b}]},
+        ],
+        "Start with the Stoneware Mugs, Set of 2 at $38.",
+    )
+    events = _run(service, agent, monkeypatch)
+    steps = [step for step in _of(events, "step") if step["id"] != "route"]
+    assert [(step["id"], step["status"]) for step in steps] == [
+        ("step-1", "running"), ("step-2", "running"), ("step-2", "done"), ("step-1", "done"),
+    ]
+    done = {step["id"]: step for step in steps if step["status"] == "done"}
+    assert done["step-1"]["builder"]["ranking"] == RANKING
+    assert done["step-1"]["builder"]["receipt_id"] == 412
+    assert done["step-1"]["results"] == RESULTS
+    assert done["step-2"]["builder"]["ranking"] == ranking_b
+    assert done["step-2"]["builder"]["receipt_id"] == 413
+    assert done["step-2"]["results"] == results_b
 
 
 def test_on_demand_loads_are_one_step_no_tool_call_and_in_the_receipt(service, monkeypatch) -> None:

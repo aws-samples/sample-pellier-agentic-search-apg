@@ -316,27 +316,38 @@ def _managed_catalog_turn(tool: str, result: Dict[str, Any]):
     return _managed
 
 
+def _receipt(receipt_id: int = 51) -> Dict[str, Any]:
+    return {
+        "receipt_id": receipt_id,
+        "retrieval_config": json.dumps({"search_method": "hybrid+rerank", "rrf_k": 60}),
+        "candidate_product_ids": json.dumps(["22", "65", "31"]),
+        "vector_ranks": json.dumps({"65": 1, "22": 2}),
+        "lexical_ranks": json.dumps({"22": 1}),
+        "rrf_scores": json.dumps({"22": 0.032, "65": 0.016, "31": 0.015}),
+        "rerank_scores": json.dumps({"65": 0.9, "22": 0.7}),
+        "citation_ids": json.dumps(["65"]),
+        "citation_snapshots": json.dumps([]),
+        "search_plan": json.dumps(
+            {"hard_constraints": {"price_max_usd": 100.0, "in_stock_only": True}, "exclusions": []}
+        ),
+    }
+
+
 class _ReceiptDB:
-    """The turn's retrieval receipt, as the Lambda wrote it, and the names it cites."""
+    """The turn's retrieval receipts, as the Lambda wrote them; no names are cited."""
+
+    def __init__(self, receipts: int = 1) -> None:
+        self.receipts = [_receipt(51 + index) for index in range(receipts)]
+        self.receipt_reads = 0
 
     async def fetch_one(self, sql: str, *params: Any) -> Dict[str, Any]:
-        assert "search_plan" in sql
-        return {
-            "receipt_id": 51,
-            "retrieval_config": json.dumps({"search_method": "hybrid+rerank", "rrf_k": 60}),
-            "candidate_product_ids": json.dumps(["22", "65", "31"]),
-            "vector_ranks": json.dumps({"65": 1, "22": 2}),
-            "lexical_ranks": json.dumps({"22": 1}),
-            "rrf_scores": json.dumps({"22": 0.032, "65": 0.016, "31": 0.015}),
-            "rerank_scores": json.dumps({"65": 0.9, "22": 0.7}),
-            "citation_ids": json.dumps(["65"]),
-            "citation_snapshots": json.dumps([]),
-            "search_plan": json.dumps(
-                {"hard_constraints": {"price_max_usd": 100.0, "in_stock_only": True}, "exclusions": []}
-            ),
-        }
+        raise AssertionError(f"unexpected single-row read: {sql[:60]}")
 
     async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
+        if "pellier.retrieval_receipts" in sql:
+            self.receipt_reads += 1
+            assert "search_plan" in sql and "LIMIT 2" in sql
+            return list(reversed(self.receipts))
         return []
 
 
@@ -358,8 +369,73 @@ def test_a_managed_search_fills_the_grid_from_its_receipt(
     assert results["product_ids"] == ["65", "22", "31"]
     assert [tag["label"] for tag in results["limits"]] == ["Under $100", "In stock"]
     assert results["filters"] is None and "no filter counts" in results["note"]
+    assert results["count"] == 3
+    assert search["builder"]["ranking"]["receipt_id"] == 51
     tool_call = [event for event in events if event.get("type") == "tool_call"][0]
     assert "results" not in tool_call and "ranking" not in tool_call
+
+
+def _two_managed_searches():
+    async def _managed(**kwargs: Any) -> ManagedRuntimeResult:
+        return ManagedRuntimeResult(
+            response="Start with the Stoneware Mugs, Set of 2.",
+            products=[{"productId": "65", "name": "Stoneware Mugs, Set of 2", "price": 38}],
+            rail="gateway-mcp",
+            intent="shopping",
+            specialist="shopping",
+            model="global.anthropic.claude-opus-5",
+            tool_calls=[
+                {"id": f"tool-{index}", "tool": "search_products", "status": "success",
+                 "duration_ms": 300, "input": {"query": query},
+                 "result": {"product_count": 1, "status": "success"}, "finding": "1 found"}
+                for index, query in enumerate(("stoneware mugs", "linen napkins"), start=1)
+            ],
+        )
+
+    return _managed
+
+
+def test_two_managed_searches_in_one_turn_never_share_a_receipt(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A receipt is keyed by the turn, so neither search can claim it: both say so."""
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _two_managed_searches())
+    db = _ReceiptDB(receipts=2)
+    monkeypatch.setattr(app_module, "db_service", db)
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "mugs and napkins", "conversation_history": [], "session_id": "sess-anna"},
+    ).text
+    searches = [event for event in _events(body) if event.get("type") == "step"][1:]
+    assert [step["id"] for step in searches] == ["step-1", "step-2"]
+    for step in searches:
+        assert step["builder"]["ranking"] == {
+            "available": False, "rail": "gateway-mcp", "reason": app_module.MANAGED_MANY_SEARCHES,
+        }
+        assert step["results"] == {
+            "available": False, "rail": "gateway-mcp", "reason": app_module.MANAGED_MANY_SEARCHES,
+        }
+    assert db.receipt_reads == 0
+
+
+def test_one_managed_search_with_two_receipts_shows_neither(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Two receipts for a turn that reported one search: the latest is not assumed to be its own."""
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _managed_catalog_turn(
+        "search_products", {"product_count": 1, "product_ids": ["65"], "status": "success"},
+    ))
+    monkeypatch.setattr(app_module, "db_service", _ReceiptDB(receipts=2))
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "stoneware mugs", "conversation_history": [], "session_id": "sess-anna"},
+    ).text
+    search = [event for event in _events(body) if event.get("type") == "step"][1]
+    assert search["builder"]["ranking"]["available"] is False
+    assert search["builder"]["ranking"]["reason"] == app_module.MANAGED_MANY_RECEIPTS
+    assert search["results"] == {
+        "available": False, "rail": "gateway-mcp", "reason": app_module.MANAGED_MANY_RECEIPTS,
+    }
 
 
 def test_a_managed_browse_shows_the_ids_it_returned_and_says_what_it_lacks(

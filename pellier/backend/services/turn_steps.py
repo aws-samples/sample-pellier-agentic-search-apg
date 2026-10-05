@@ -5,14 +5,18 @@ shopper sees. Every finding is computed from the actual tool result by a
 fixed template; nothing here is model-written. The Runtime bundle carries
 this module too, so the managed rail's tool events describe themselves in
 the same words. It imports no settings and no registry: a skill's display
-name and path are passed in.
+name and path are passed in. Its one import from the backend, the catalog
+vocabulary, ships in the bundle beside it.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
+
+from services.catalog_vocabulary import KNOWN_MATERIALS
 
 STATUS_UNDERSTANDING = "Understanding your request"
 STATUS_WRITING = "Writing your answer"
@@ -117,12 +121,21 @@ def result_failed(tool: str, parsed: Dict[str, Any]) -> bool:
     return False
 
 
-def _plural(word: str) -> str:
+# A material is a mass noun: "no wool", never "no wools".
+_MASS_NOUNS = frozenset(material.lower() for material in KNOWN_MATERIALS)
+
+
+def plural(word: str) -> str:
+    """A shopper's word for more than one: "candles", "watches"; a material stays "wool".
+
+    The one pluralizer for every limit Pellier names: the step findings, the
+    page's tags and the ranking panel's chips.
+    """
     word = str(word or "").strip()
-    if not word:
-        return ""
-    if word.endswith("s"):
+    if not word or word.lower() in _MASS_NOUNS or word.endswith("s"):
         return word
+    if re.search(r"(ch|sh|x|z)$", word):
+        return word + "es"
     return word + "s"
 
 
@@ -151,7 +164,7 @@ def limit_phrases(plan: Optional[Dict[str, Any]]) -> Dict[str, str]:
         phrases["budget"] = f"under {_money(price)}"
     if hard.get("in_stock_only"):
         phrases["stock"] = "in stock"
-    exclusions = [_plural(value) for value in (plan.get("exclusions") or []) if value]
+    exclusions = [plural(value) for value in (plan.get("exclusions") or []) if value]
     if exclusions:
         phrases["exclusions"] = "no " + " or ".join(exclusions)
     categories = [str(value) for value in (hard.get("categories") or []) if value]
@@ -179,7 +192,7 @@ def _limits_said_now(plan: Dict[str, Any], carried: Sequence[str]) -> tuple[List
     stated = [phrases[kind] for kind in ("budget", "stock") if kind in phrases and kind not in carried]
     left_out = ""
     if "exclusions" in phrases and "exclusions" not in carried:
-        exclusions = [_plural(value) for value in (plan.get("exclusions") or []) if value]
+        exclusions = [plural(value) for value in (plan.get("exclusions") or []) if value]
         left_out = ", " + " and ".join(exclusions) + " left out"
     return stated, left_out
 
@@ -376,12 +389,13 @@ def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
 
 @dataclass
 class TurnSteps:
-    """Allocate step ids inside the budget and fold repeated or extra work.
+    """Allocate step ids inside the budget and fold extra work.
 
-    A repeated call of the same tool reuses its step, so a Shopping turn that
-    searches twice shows one search step with the latest finding. Skill loads
-    share one step. A fourth distinct tool folds into the last step rather
-    than growing the list.
+    Each tool use gets its own step, keyed by its tool-use id, so a Shopping
+    turn that searches twice, even two at once, shows two search steps, each
+    with its own finding, ranking and result. A call with no id keys by its
+    tool. Skill loads share one step. A fourth tool step folds into the last
+    step rather than growing the list.
 
     Args:
         skill_names: Skill name to display name, for the loader's labels.
@@ -395,9 +409,9 @@ class TurnSteps:
     loaded_skills: List[Dict[str, str]] = field(default_factory=list)
     labels: Dict[str, str] = field(default_factory=dict)
 
-    def step_id(self, tool: str) -> str:
-        """An opaque id per step. The tool name lives only under ``builder``."""
-        key = SKILL_STEP_ID if tool == SKILL_LOAD_TOOL else tool
+    def step_id(self, tool: str, call_id: Optional[str] = None) -> str:
+        """An opaque id per tool use. The tool name lives only under ``builder``."""
+        key = SKILL_STEP_ID if tool == SKILL_LOAD_TOOL else (call_id or tool)
         if key in self.ids:
             return self.ids[key]
         if len(self.order) >= MAX_STEPS:
@@ -407,13 +421,19 @@ class TurnSteps:
         self.order.append(step_id)
         return step_id
 
-    def running(self, tool: str, tool_input: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """The ``step`` event for a tool start."""
+    def running(
+        self,
+        tool: str,
+        tool_input: Optional[Dict[str, Any]] = None,
+        *,
+        call_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """The ``step`` event for a tool start; ``call_id`` is its tool-use id."""
         tool_input = dict(tool_input or {})
         if tool == SKILL_LOAD_TOOL:
             name = str(tool_input.get("skill_name") or "")
             tool_input["skill_name"] = self.skill_names.get(name, name)
-        step_id = self.step_id(tool)
+        step_id = self.step_id(tool, call_id)
         label = step_label(tool, tool_input)
         self.labels[step_id] = label
         return {
@@ -430,16 +450,20 @@ class TurnSteps:
         tool: str,
         result_text: Any,
         *,
+        call_id: Optional[str] = None,
         tool_input: Optional[Dict[str, Any]] = None,
         duration_ms: Optional[int] = None,
         audit_id: Optional[int] = None,
         evidence: Optional[Dict[str, Any]] = None,
         rail: str = "in-process",
     ) -> Dict[str, Any]:
-        """The ``step`` event for a tool end, with its finding and Builder data."""
+        """The ``step`` event for a tool end, with its finding and Builder data.
+
+        ``evidence`` is what this one tool use published, taken by its id.
+        """
         tool_input = tool_input or {}
         evidence = evidence or {}
-        step_id = self.step_id(tool)
+        step_id = self.step_id(tool, call_id)
         parsed = parse_result(result_text)
         carried = [str(kind) for kind in (evidence.get("requirements") or {}).get("carried") or []]
         if tool == SKILL_LOAD_TOOL:
@@ -555,7 +579,7 @@ class TurnSteps:
         finding = tool_call.get("finding")
         if not finding:
             finding = ERROR_FINDINGS.get(tool, _GENERIC_ERROR_FINDING) if failed else "Done"
-        step_id = self.step_id(tool)
+        step_id = self.step_id(tool, str(tool_call.get("id") or "") or None)
         label = step_label(tool, tool_call.get("input") or {})
         self.labels[step_id] = label
         return _with_results({

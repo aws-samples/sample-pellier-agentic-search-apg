@@ -98,7 +98,7 @@ from services.agentcore_identity import (
 )
 from services.agentcore_memory import AgentCoreMemory
 from services.personalization import sort_personalized
-from services.ranking_evidence import RESULT_IDS_MAX
+from services.store_tools import RESULT_IDS_MAX
 from routes.user import get_agentcore_memory
 
 logger = logging.getLogger(__name__)
@@ -330,7 +330,8 @@ def parse_product_ids(raw: str) -> List[str]:
         value = part.strip()
         if not value:
             continue
-        if not value.isdigit() or len(value) > 6 or int(value) < 1:
+        # ASCII digits only: "²".isdigit() is true, and int() refuses it.
+        if not (value.isascii() and value.isdigit()) or len(value) > 6 or int(value) < 1:
             raise HTTPException(status_code=422, detail="ids must be positive whole numbers")
         key = str(int(value))
         if key not in ids:

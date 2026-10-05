@@ -83,6 +83,16 @@ def test_before_and_after_positions_are_rrf_order_then_final_order() -> None:
     # The fake reranker reverses the pool, so at least one row moved.
     assert any(row["before"] != row["after"] for row in ranking["rows"])
     assert all(row["rerank_score"] is not None for row in ranking["rows"])
+    # The panel shows how far each row moved; the backend says it, the browser does not compute it.
+    for row in ranking["rows"]:
+        assert row["moved"] == row["before"] - row["after"]
+
+
+def test_a_row_with_no_fused_rank_has_no_movement() -> None:
+    execution = _fixture_execution()
+    stranger = {"product_id": 99, "name": "Not in the pool", "rerank_score": 0.5}
+    ranking = ranking_from_execution(execution, final_rows=[stranger], counts=None)
+    assert ranking["rows"][0]["before"] is None and ranking["rows"][0]["moved"] is None
 
 
 def test_filter_count_sql_follows_the_plans_own_predicates() -> None:
@@ -114,6 +124,29 @@ def test_each_excluded_value_is_counted_on_its_own_in_the_plans_order() -> None:
     )
     assert params[:2] == [["candle"], ["candle"]]
     assert params[2:6] == [["candle"], ["candle"], ["watch"], ["watch"]]
+    assert sql.count("%s") == len(params)
+
+
+def test_the_per_value_count_follows_an_edited_plan_clause(monkeypatch) -> None:
+    """The count statement binds the plan's own exclusion clause, not a copy of it.
+
+    An edit to the plan's predicate must reach the counts, or they would no
+    longer describe the SQL the search ran.
+    """
+    plan = build_plan("a gift", {"exclusions": ["candle", "watch"]}, top_k=5)
+    edited = "NOT (tags ?| %s OR materials ?| %s OR category = ANY(%s))"
+    original = type(plan).compile_predicates
+
+    def compile_predicates(self, include_soft: bool = True):
+        clauses, params = original(self, include_soft=include_soft)
+        return [edited], [list(self.exclusions)] * 3
+
+    monkeypatch.setattr(type(plan), "compile_predicates", compile_predicates)
+    sql, params, reasons = filter_count_sql(plan)
+    assert reasons == ["exclusions:candle", "exclusions:watch"]
+    # removed_0 once, removed_1 and kept twice each.
+    assert sql.count("category = ANY(%s)") == 5
+    assert params[:3] == [["candle"]] * 3
     assert sql.count("%s") == len(params)
 
 
@@ -152,11 +185,14 @@ def test_a_browse_counts_its_department_after_the_limits() -> None:
 
 
 def test_plural_nouns_read_as_the_shopper_would_say_them() -> None:
-    from services.ranking_evidence import plural
+    from services import ranking_evidence, turn_steps
 
+    plural = turn_steps.plural
     assert [plural(word) for word in ("candle", "watch", "wool", "leather", "accessories")] == [
         "candles", "watches", "wool", "leather", "accessories",
     ]
+    # One pluralizer: the page's tags, the panel's chips and the step findings share it.
+    assert ranking_evidence.plural is turn_steps.plural
 
 
 def test_the_panel_note_says_kept_counts_hard_limits_only() -> None:
@@ -166,7 +202,9 @@ def test_the_panel_note_says_kept_counts_hard_limits_only() -> None:
     counts = {"kept": 64, "of": 100, "removed": {"budget": 31}}
     with_counts = ranking_from_execution(execution, final_rows=execution.ordered, counts=counts)
     assert with_counts["note"] == KEPT_NOTE
-    assert "hard limits only" in KEPT_NOTE
+    assert "only the hard limits" in KEPT_NOTE
+    # One short sentence.
+    assert KEPT_NOTE.endswith(".") and KEPT_NOTE.count(".") == 1 and ";" not in KEPT_NOTE
     without = ranking_from_execution(execution, final_rows=execution.ordered, counts=None)
     assert "note" not in without
 
@@ -195,6 +233,7 @@ def test_ranking_from_receipt_reads_ranks_and_says_what_it_lacks() -> None:
     assert ranking["rows"][0]["name"] == "Ceramic Bud Vase"
     assert ranking["rows"][1]["name"] == "Brass Photo Frame"
     assert ranking["rows"][0]["before"] == 3 and ranking["rows"][0]["after"] == 1
+    assert [row["moved"] for row in ranking["rows"]] == [2, 0, -2, 0]
     assert ranking["rows"][1]["fts_rank"] == 1 and ranking["rows"][1]["vec_rank"] == 3
     assert all(row["similarity"] is None for row in ranking["rows"])
     assert ranking["filters"] is None and "no vector similarity" in ranking["note"]

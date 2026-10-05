@@ -16,30 +16,26 @@ ranks and scores but not vector similarity or filter counts, and the payload
 says so.
 
 The same run also fills the storefront's results grid. ``results_payload``
-carries the tool's own result order (at most ``RESULT_IDS_MAX`` product ids),
-the limits it applied as the page's tags, and the filter counts, so the page
-shows the agent's result and never runs a second search of its own.
+carries the tool's own result order (at most ``RESULT_IDS_MAX`` product ids)
+and its size, the limits it applied as the page's tags, and the filter
+counts, so the page shows the agent's result and never runs a second search
+of its own.
 """
 
 from __future__ import annotations
 
 import json
-import re
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from services.catalog_vocabulary import KNOWN_MATERIALS
+from services.store_tools import RESULT_IDS_MAX
+from services.turn_steps import plural
 
 TOP_ROWS = 8
-# The most product ids a results payload carries: the size of the fused pool.
-RESULT_IDS_MAX = 30
 RRF_K_DEFAULT = 60
 
 # What "Kept" counts: the hard limits alone. The strict first pass also asks
 # for the soft preferences the shopper implied, so the pool can be smaller.
-KEPT_NOTE = (
-    "Kept counts the hard limits only; the first pass also asks for the "
-    "preferences the shopper implied, so the fused pool can be smaller"
-)
+KEPT_NOTE = "Kept counts only the hard limits, so the fused pool can be smaller."
 
 # The brief's order for "how many each limit removed".
 _REASON_ORDER = ("budget", "stock", "exclusions", "department")
@@ -47,8 +43,6 @@ _REASON_ORDER = ("budget", "stock", "exclusions", "department")
 Run = Callable[[str, Sequence[Any]], List[Dict[str, Any]]]
 
 
-# One excluded value, so each value's removals are counted on their own.
-_EXCLUSION_CLAUSE = "NOT (tags ?| %s OR materials ?| %s)"
 EXCLUSION_REASON = "exclusions"
 
 # A count clause: its reason, its SQL, its parameters.
@@ -76,9 +70,9 @@ def _count_clauses(plan: Any, extra: Iterable[CountClause]) -> List[CountClause]
     """The plan's hard limits as count clauses, one per excluded value, in the brief's order.
 
     An exclusion clause fails a row that carries any excluded value, so the
-    clauses for each value, taken together, keep exactly the rows the plan's
-    one clause keeps. Counting them one after another says how many each
-    value removed, the way the shopper named them.
+    plan's own clause, bound to one value at a time, keeps exactly the rows
+    the clause bound to every value keeps. Counting them one after another
+    says how many each value removed, the way the shopper named them.
     """
     clauses, params = plan.compile_predicates(include_soft=False)
     per_clause: List[CountClause] = []
@@ -92,7 +86,7 @@ def _count_clauses(plan: Any, extra: Iterable[CountClause]) -> List[CountClause]
             per_clause.append((reason, clause, clause_params))
             continue
         for value in clause_params[0]:
-            per_clause.append((f"{EXCLUSION_REASON}:{value}", _EXCLUSION_CLAUSE, [[value], [value]]))
+            per_clause.append((f"{EXCLUSION_REASON}:{value}", clause, [[value]] * width))
     per_clause.extend(extra)
     return sorted(
         per_clause,
@@ -149,21 +143,6 @@ def filter_count_sql(
     return sql, bound, reasons
 
 
-# A material is a mass noun: "No wool", never "No wools".
-_MASS_NOUNS = frozenset(material.lower() for material in KNOWN_MATERIALS)
-
-
-def plural(word: str) -> str:
-    """A shopper's word for more than one: "candles", "watches"; a material stays "wool"."""
-    word = str(word or "").strip()
-    if not word or word.lower() in _MASS_NOUNS or word.endswith("s"):
-        return word
-    if re.search(r"(ch|sh|x|z)$", word):
-        return word + "es"
-    return word + "s"
-
-
-
 def filter_counts(
     run: Run, plan: Any, extra: Iterable[CountClause] = ()
 ) -> Optional[Dict[str, Any]]:
@@ -215,6 +194,11 @@ def _int(value: Any) -> Optional[int]:
         return None
 
 
+def _moved(before: Optional[int], after: int) -> Optional[int]:
+    """How many places rerank moved a row: up is positive; unknown without a fused rank."""
+    return None if before is None else before - after
+
+
 def ranking_from_execution(
     execution: Any,
     *,
@@ -249,6 +233,7 @@ def ranking_from_execution(
             "rerank_score": _float(row.get("rerank_score")),
             "before": before.get(pid),
             "after": index + 1,
+            "moved": _moved(before.get(pid), index + 1),
         })
     payload: Dict[str, Any] = {
         "available": True,
@@ -320,6 +305,7 @@ def ranking_from_receipt(
             "rerank_score": _float(rerank_scores.get(pid)),
             "before": before.get(pid),
             "after": index + 1,
+            "moved": _moved(before.get(pid), index + 1),
         })
     config = _jsonb(receipt.get("retrieval_config"), {})
     return {
@@ -447,7 +433,8 @@ def results_payload(
     """What the page grid shows for one catalog tool call, beside the result the model reads.
 
     It names no tool: it travels in the shopper's view of the step, and the
-    tool is Builder evidence (``builder.tool``).
+    tool is Builder evidence (``builder.tool``). ``count`` is the size of the
+    result the grid shows, so the page's count describes the grid below it.
 
     Args:
         product_ids: The tool's own result order; at most ``RESULT_IDS_MAX``
@@ -455,12 +442,15 @@ def results_payload(
         limits: ``result_limits`` for the plan that ran.
         filters: ``filter_counts`` for that plan, or ``None`` when not taken.
         rail: Which rail ran the tool.
-        note: What this payload cannot say, in plain words.
+        note: What this payload cannot say, in plain words; the Builder view
+            shows it, never the shopper's page.
     """
+    ids = [str(pid) for pid in product_ids][:RESULT_IDS_MAX]
     payload: Dict[str, Any] = {
         "available": True,
         "rail": rail,
-        "product_ids": [str(pid) for pid in product_ids][:RESULT_IDS_MAX],
+        "product_ids": ids,
+        "count": len(ids),
         "limits": limits,
         "filters": filters,
     }

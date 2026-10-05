@@ -801,13 +801,32 @@ def _managed_skill_note(skills: List[Dict[str, Any]], skill_mode: str) -> Option
     return "; ".join(notes) or None
 
 
-async def _managed_search_evidence(turn_id: str) -> Dict[str, Any]:
+# A receipt is keyed by the turn, not the tool call, so it can be matched to
+# a search only when the turn ran exactly one search and wrote one receipt.
+MANAGED_MANY_SEARCHES = (
+    "This turn ran more than one search, and a retrieval receipt does not say "
+    "which search wrote it"
+)
+MANAGED_MANY_RECEIPTS = (
+    "This turn wrote more than one retrieval receipt, and a receipt does not say "
+    "which search wrote it"
+)
+
+
+async def _managed_search_evidence(turn_id: str, *, searches: int = 1) -> Dict[str, Any]:
     """The Builder view's ranking and the page grid's result for a managed search.
 
     The Lambda writes a retrieval receipt keyed by the route-minted turn id.
-    When that row is readable here, its per-arm ranks and scores become the
-    ranking and its result order and plan become the page's result; otherwise
-    both say the detail is unavailable on this rail rather than inventing it.
+    When the turn ran one search and that one row is readable here, its
+    per-arm ranks and scores become the ranking and its result order and plan
+    become the page's result. Otherwise both say the detail is unavailable on
+    this rail rather than inventing it: with two searches or two receipts in
+    one turn, giving each search the latest receipt would show one search's
+    result under the other.
+
+    Args:
+        turn_id: The route-minted turn id the receipt is keyed by.
+        searches: How many ``search_products`` calls the Runtime reported.
 
     Returns:
         ``{"ranking": ..., "results": ...}``.
@@ -825,10 +844,12 @@ async def _managed_search_evidence(turn_id: str) -> Dict[str, Any]:
             "results": results_unavailable("gateway-mcp", reason),
         }
 
+    if searches > 1:
+        return unavailable(MANAGED_MANY_SEARCHES)
     if db_service is None:
         return unavailable("No database connection to read the receipt")
     try:
-        receipt = await db_service.fetch_one(
+        receipts = await db_service.fetch_all(
             """
             SELECT receipt_id, retrieval_config, candidate_product_ids, vector_ranks,
                    lexical_ranks, rrf_scores, rerank_scores, citation_ids,
@@ -836,15 +857,18 @@ async def _managed_search_evidence(turn_id: str) -> Dict[str, Any]:
               FROM pellier.retrieval_receipts
              WHERE turn_id = %s
              ORDER BY receipt_id DESC
-             LIMIT 1
+             LIMIT 2
             """,
             turn_id,
         )
     except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
         logger.warning("managed ranking receipt read failed: %s", exc)
         return unavailable("The retrieval receipt could not be read")
-    if not receipt:
+    if not receipts:
         return unavailable("No retrieval receipt was written for this turn")
+    if len(receipts) > 1:
+        return unavailable(MANAGED_MANY_RECEIPTS)
+    receipt = receipts[0]
     names: Dict[str, str] = {}
     try:
         ids = receipt.get("candidate_product_ids") or []
@@ -1342,9 +1366,16 @@ async def chat_stream(
                 execution_tool_calls = [
                     _execution_tool_call(tool_call) for tool_call in managed_result.tool_calls
                 ]
+                managed_searches = sum(
+                    1 for tool_call in managed_result.tool_calls
+                    if tool_call.get("tool") == "search_products"
+                )
                 for tool_call in managed_result.tool_calls:
                     if tool_call.get("tool") == "search_products":
-                        tool_call = {**tool_call, **await _managed_search_evidence(turn_id)}
+                        tool_call = {
+                            **tool_call,
+                            **await _managed_search_evidence(turn_id, searches=managed_searches),
+                        }
                     elif tool_call.get("tool") == "browse_department":
                         tool_call = {**tool_call, "results": _managed_browse_results(tool_call)}
                     yield (

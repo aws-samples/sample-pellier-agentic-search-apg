@@ -119,6 +119,8 @@ def test_the_ids_are_the_models_products_first_then_the_pool_in_rrf_order(db: _F
     assert ids[:pool_k] == list(reversed(rrf[:pool_k]))
     assert ids[pool_k:] == rrf[pool_k:]
     assert len(ids) == len(set(ids)) == len(rrf) <= RESULT_IDS_MAX
+    # The page's count describes the grid: the size of this result, from the backend.
+    assert results["count"] == len(ids)
 
 
 def test_the_results_carry_limits_and_the_filter_counts(db: _FakeDB) -> None:
@@ -190,6 +192,7 @@ def test_a_browse_in_a_turn_fills_the_grid_and_the_model_reads_five(monkeypatch)
     assert [p["productId"] for p in parsed["products"]] == ["40", "41", "42", "43", "44"]
     results = evidence["results"]
     assert results["product_ids"] == [str(pid) for pid in range(40, 54)]
+    assert results["count"] == 14
     assert results["filters"]["kept"] == 14 and results["filters"]["removed"] == {"department": 86}
     assert "LIKE %s" in run.calls[1][0], "the counts reuse the browse's own department predicate"
 
@@ -304,7 +307,7 @@ def test_results_from_a_receipt_keep_its_order_and_say_what_it_lacks() -> None:
         ),
     }
     results = results_from_receipt(receipt)
-    assert results["product_ids"] == ["2", "3", "1", "4"]
+    assert results["product_ids"] == ["2", "3", "1", "4"] and results["count"] == 4
     assert [tag["label"] for tag in results["limits"]] == ["Under $100", "In stock", "No candles"]
     assert {tag["origin"] for tag in results["limits"]} == {None}
     assert results["filters"] is None and results["note"] == RECEIPT_RESULTS_NOTE
