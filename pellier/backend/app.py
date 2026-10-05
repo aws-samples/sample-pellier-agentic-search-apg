@@ -1692,71 +1692,6 @@ def _rerank_disclosure(execution: Any, fallback_order: str) -> Dict[str, Any]:
     }
 
 
-# Recorded on each comparison receipt alongside its unique comparison ID.
-# Lab 1's SQL requires both when selecting the turn to read. The storefront's own retrieval writer
-# (services/agent_tools.py::_retrieval_config) sets no ``source``, so a
-# shopper turn taken after the participant captured the high-water mark cannot
-# be mistaken for the comparison. Changing this value breaks
-# workshop/lab-1-rrf.sql and its two sibling copies.
-OBSERVATORY_COMPARE_RECEIPT_SOURCE = "observatory-compare"
-
-
-async def _persist_comparison_receipt(
-    db: Any, *, query: str, execution: Any, original_plan: Any = None,
-    plan_source: str = "model-extracted",
-    scenario_input: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    """Write the agentic strategy's retrieval receipt for Lab 1 to read back.
-
-    The receipt comes from the execution that produced the row, so the ranks,
-    the rerank scores, and the cited rows are the ones the surface showed. It
-    is stamped with ``OBSERVATORY_COMPARE_RECEIPT_SOURCE`` so the lab selects
-    this turn rather than whichever retrieval receipt happens to be newest.
-    """
-    from services.retrieval_receipt import build_receipt, persist_receipt
-
-    comparison_id = f"compare-{uuid.uuid4().hex}"
-    receipt = build_receipt(
-        query=query,
-        turn_id=comparison_id,
-        plan=execution.plan,
-        candidates=execution.candidates,
-        ordered=execution.ordered,
-        citation_rows=execution.returned,
-        embedding_model=settings.BEDROCK_EMBEDDING_MODEL,
-        rerank_model=settings.BEDROCK_RERANK_MODEL,
-        retrieval_config={
-            "source": OBSERVATORY_COMPARE_RECEIPT_SOURCE,
-            "plan_source": plan_source,
-            # Keep the non-text input contract and observed pass counts. Do not
-            # duplicate the shopper's free text in retrieval configuration.
-            "original_contract": ({
-                key: original_plan.to_dict()[key]
-                for key in ("hard_constraints", "exclusions")
-            } if original_plan is not None else {}),
-            "original_preference_tags": list(original_plan.soft.tags) if original_plan else [],
-            # The participant's input to a controlled case, recorded as supplied.
-            **({"scenario_input": dict(scenario_input)} if scenario_input else {}),
-            "attempt_stages": [
-                {"name": stage.name, "count": stage.count}
-                for stage in execution.stages
-            ],
-            "k_vector": settings.HYBRID_VECTOR_K,
-            "k_fts": settings.HYBRID_FTS_K,
-            "rrf_k": settings.HYBRID_RRF_K,
-            "top_n": settings.HYBRID_TOP_N,
-            "rerank_pool_k": execution.rerank_pool_k,
-            "search_method": execution.search_method,
-            "relaxation_steps": execution.relaxation_steps,
-            "attempts": execution.attempts,
-        },
-        latency_breakdown=execution.latency_breakdown(),
-        rail="in-process",
-    )
-    persisted = await persist_receipt(db, receipt)
-    return {"comparisonId": comparison_id, "persisted": persisted}
-
-
 SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS = {
     "latency": (
         "One wall-clock observation per strategy for this request; "
@@ -1926,7 +1861,7 @@ async def compare_search_strategies(
     4. hybrid + rerank: the shared executor on an unconstrained plan.
     5. agentic: Sonnet proposes constraints, the planner compiles the hard
        ones into both branches before RRF, and the storefront's executor
-       reranks that pool. Its receipt is persisted for Lab 1 to read back.
+       reranks that pool.
 
     The bounded anna-fallback scenario supplies fixed constraints instead of
     model extraction, then runs the same live executor and fallback code. Its
@@ -2025,13 +1960,6 @@ async def compare_search_strategies(
         config={},
     )
     agentic_ms = int((time.perf_counter() - t0) * 1000)
-    receipt = await _persist_comparison_receipt(
-        db, query=q, execution=agentic, original_plan=original_plan,
-        plan_source=plan_source,
-        scenario_input=(
-            {"scenario": scenario, "preference": preference} if scenario else None
-        ),
-    )
     strategies.append(
         _agentic_strategy_entry(
             agentic,
@@ -2050,7 +1978,6 @@ async def compare_search_strategies(
         "query": q,
         "planSource": plan_source,
         **({"scenarioPreference": preference} if scenario else {}),
-        "receipt": receipt,
         "sharedQueryEmbeddingObservedMs": shared_embedding_ms,
         "measurementAssumptions": SEARCH_STRATEGY_MEASUREMENT_ASSUMPTIONS,
         "strategies": strategies,

@@ -1023,17 +1023,12 @@ def compare_saved_runs(before: dict[str, Any], after: dict[str, Any]) -> dict[st
 
     Use the same relevance functions and labels as the live harness. Refuse
     incomparable captures rather than manufacture a before/after improvement.
-    Database eligibility and receipt correlation remain separate lab checks.
+    Database eligibility remains a separate check.
     """
     rows = []
     for capture in (before, after):
         if not isinstance(capture, dict) or capture.get("query") != _ANNA_QUERY:
             raise ValueError("Both captures must contain the fixed Anna query.")
-        receipt = capture.get("receipt", {})
-        if (not isinstance(receipt, dict) or receipt.get("persisted") is not True
-                or not isinstance(receipt.get("comparisonId"), str)
-                or not receipt["comparisonId"].strip()):
-            raise ValueError("Each capture needs a persisted comparison ID; keep the SQL proof separately.")
         strategies = capture.get("strategies", [])
         if not isinstance(strategies, list):
             raise ValueError("Capture strategies must be a list.")
@@ -1061,8 +1056,6 @@ def compare_saved_runs(before: dict[str, Any], after: dict[str, Any]) -> dict[st
         if not isinstance(row.get("searchPlan"), dict) or not row["searchPlan"]:
             raise ValueError("The executed search plan is missing.")
         rows.append(row)
-    if before["receipt"]["comparisonId"] == after["receipt"]["comparisonId"]:
-        raise ValueError("Before and after must be different comparisons.")
     plans = [row["searchPlan"] for row in rows]
     for plan in plans:
         hard = plan.get("hard_constraints")
@@ -1080,7 +1073,6 @@ def compare_saved_runs(before: dict[str, Any], after: dict[str, Any]) -> dict[st
     def score(capture: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
         ids = [product["productId"] for product in row["products"]]
         return {
-            "comparison_id": capture["receipt"]["comparisonId"],
             "returned_ids": ids,
             "pool_k": row["rerank"].get("poolK"),
             "rerank_model": row["rerank"]["model"],

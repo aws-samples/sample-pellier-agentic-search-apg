@@ -45,10 +45,9 @@ def harness() -> Any:
     return _load_harness()
 
 
-def _saved_comparison(harness: Any, comparison_id: str, candidates: list[str], products: list[str]) -> dict[str, Any]:
+def _saved_comparison(harness: Any, candidates: list[str], products: list[str]) -> dict[str, Any]:
     return {
         "query": harness._ANNA_QUERY,
-        "receipt": {"persisted": True, "comparisonId": comparison_id},
         "strategies": [{
             "shares_storefront_executor": True,
             "searchPlan": {"hard_constraints": {"price_max_usd": 100, "in_stock_only": True}},
@@ -61,8 +60,8 @@ def _saved_comparison(harness: Any, comparison_id: str, candidates: list[str], p
 
 def test_saved_quality_can_decline_while_candidate_coverage_improves(harness: Any) -> None:
     first, second = harness._ANNA_EXPECTED[:2]
-    before = _saved_comparison(harness, "before", [first, "unlabelled"], [first])
-    after = _saved_comparison(harness, "after", [first, second, "unlabelled"], ["unlabelled"])
+    before = _saved_comparison(harness, [first, "unlabelled"], [first])
+    after = _saved_comparison(harness, [first, second, "unlabelled"], ["unlabelled"])
     report = harness.compare_saved_runs(before, after)
     assert report["delta"]["candidate_coverage"] > 0
     assert report["delta"]["recall_at_5"] < 0
@@ -73,8 +72,8 @@ def test_saved_quality_can_decline_while_candidate_coverage_improves(harness: An
 
 def test_saved_quality_preserves_an_unchanged_recommendation(harness: Any) -> None:
     first, second = harness._ANNA_EXPECTED[:2]
-    before = _saved_comparison(harness, "before", [first], [first])
-    after = _saved_comparison(harness, "after", [first, second], [first])
+    before = _saved_comparison(harness, [first], [first])
+    after = _saved_comparison(harness, [first, second], [first])
     report = harness.compare_saved_runs(before, after)
     assert report["quality_change"] == "unchanged"
     assert report["delta"]["candidate_coverage"] > 0
@@ -83,8 +82,8 @@ def test_saved_quality_preserves_an_unchanged_recommendation(harness: Any) -> No
 
 def test_soft_relaxation_changes_retain_scores_but_qualify_the_comparison(harness: Any) -> None:
     first, second = harness._ANNA_EXPECTED[:2]
-    before = _saved_comparison(harness, "before", [first], [first])
-    after = _saved_comparison(harness, "after", [first, second], [first, second])
+    before = _saved_comparison(harness, [first], [first])
+    after = _saved_comparison(harness, [first, second], [first, second])
     before["strategies"][0]["searchPlan"]["relaxations"] = [{"step": "drop_tags"}]
     after["strategies"][0]["searchPlan"]["relaxations"] = []
     report = harness.compare_saved_runs(before, after)
@@ -94,18 +93,16 @@ def test_soft_relaxation_changes_retain_scores_but_qualify_the_comparison(harnes
 
 
 @pytest.mark.parametrize("defect", [
-    "same_receipt", "unpersisted", "different_query", "changed_plan", "fallback",
+    "different_query", "changed_plan", "fallback",
     "duplicate_id", "missing_id", "outside_pool", "missing_plan", "missing_products",
     "ambiguous_executor", "malformed_capture", "changed_model", "missing_model",
 ])
 def test_saved_quality_refuses_missing_or_incomparable_evidence(harness: Any, defect: str) -> None:
     first = harness._ANNA_EXPECTED[0]
-    before = _saved_comparison(harness, "before", [first], [first])
-    after = _saved_comparison(harness, "after", [first], [first])
+    before = _saved_comparison(harness, [first], [first])
+    after = _saved_comparison(harness, [first], [first])
     row = after["strategies"][0]
-    if defect == "same_receipt": after["receipt"]["comparisonId"] = "before"
-    elif defect == "unpersisted": after["receipt"]["persisted"] = False
-    elif defect == "different_query": after["query"] = "different request"
+    if defect == "different_query": after["query"] = "different request"
     elif defect == "changed_plan": row["searchPlan"]["hard_constraints"]["price_max_usd"] = 70
     elif defect == "fallback": row["rerank"]["status"] = "fallback"
     elif defect == "duplicate_id": row["products"].append({"productId": first})
@@ -127,7 +124,7 @@ def test_saved_mode_does_not_load_credentials_or_call_services(harness: Any, tmp
     first = harness._ANNA_EXPECTED[0]
     paths = [tmp_path / "before.json", tmp_path / "after.json"]
     for path in paths:
-        path.write_text(json.dumps(_saved_comparison(harness, path.stem, [first], [first])))
+        path.write_text(json.dumps(_saved_comparison(harness, [first], [first])))
     def forbidden():
         pytest.fail("Saved scoring must not initialize the live backend or credentials")
     monkeypatch.setattr(harness, "_load_env", forbidden)

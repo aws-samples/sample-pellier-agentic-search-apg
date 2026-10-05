@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -17,21 +15,10 @@ import services.embeddings as embeddings_module
 import services.hybrid_search as hybrid_module
 import services.planned_hybrid_retrieval as retrieval_module
 import services.rerank as rerank_module
-import services.retrieval_receipt as receipt_module
 import services.structured_extract as extract_module
 import services.store_tools as store_tools_module
 import services.vector_search as vector_module
 
-REPO = Path(__file__).resolve().parents[3]
-LAB_1_SQL = REPO / "workshop" / "lab-1-rrf.sql"
-LAB_1_STARTER_SQL = REPO / "workshop" / "starters" / "lab-1-rrf.sql"
-LAB_1_SOLUTION_SQL = (
-    REPO / "solutions" / "the-quiet-search" / "sql" / "lab-1-rrf-solution.sql"
-)
-LAB_1_MARKERS = (
-    "-- === WORKSHOP - PostgreSQL RRF - fusion expression: START ===",
-    "-- === WORKSHOP - PostgreSQL RRF - fusion expression: END ===",
-)
 
 
 class _Embedding:
@@ -180,19 +167,6 @@ def _stub_services(monkeypatch: pytest.MonkeyPatch, planned_db: _PlannedDB) -> N
     )
 
 
-@pytest.fixture
-def receipt_writes(monkeypatch: pytest.MonkeyPatch) -> list[Any]:
-    """Record every retrieval receipt the comparison persists."""
-    written: list[Any] = []
-
-    async def _persist(db: Any, receipt: Any) -> bool:
-        written.append(receipt)
-        return True
-
-    monkeypatch.setattr(receipt_module, "persist_receipt", _persist)
-    return written
-
-
 def test_comparison_labels_single_run_latency_and_modeled_cost_honestly() -> None:
     body = asyncio.run(
         app_module.compare_search_strategies(
@@ -295,60 +269,6 @@ def test_hybrid_rerank_strategy_runs_an_unconstrained_plan_without_widening() ->
     assert hybrid_rerank["rerank"]["candidates"] == 6
     assert "extractedFilters" not in hybrid_rerank
     assert "relaxations" not in hybrid_rerank
-
-
-def test_agentic_strategy_persists_one_receipt_citing_its_returned_rows(
-    receipt_writes: list[Any],
-) -> None:
-    """Lab 1's SQL reads this receipt; it must describe the rows the row shows."""
-    body = asyncio.run(
-        app_module.compare_search_strategies(
-            query="A housewarming gift under $100 that is currently in stock."
-        )
-    )
-
-    assert len(receipt_writes) == 1
-    row = receipt_writes[0].to_row()
-    agentic = body["strategies"][4]
-    shown = [str(product["productId"]) for product in agentic["products"]]
-    assert row["citation_ids"] == shown
-    assert [s["entity_id"] for s in row["citation_snapshots"]] == shown
-    assert row["query_preview"] == (
-        "A housewarming gift under $100 that is currently in stock."
-    )
-    assert row["hard_constraints"]["price_max_usd"] == 100.0
-    assert set(row["candidate_product_ids"]) >= set(shown)
-    assert row["rerank_scores"]
-    assert row["rail"] == "in-process"
-    assert row["retrieval_config"]["source"] == "observatory-compare"
-    assert row["latency_breakdown"]
-    assert body["receipt"]["persisted"] is True
-    assert body["receipt"]["comparisonId"] == row["turn_id"]
-    assert row["turn_id"].startswith("compare-")
-
-
-def test_comparison_identifies_each_request_even_when_the_query_is_unchanged(
-    receipt_writes: list[Any],
-) -> None:
-    first = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
-    second = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
-    assert first["receipt"]["comparisonId"] != second["receipt"]["comparisonId"]
-    assert [r.turn_id for r in receipt_writes] == [
-        first["receipt"]["comparisonId"], second["receipt"]["comparisonId"]
-    ]
-
-
-def test_comparison_discloses_missing_durable_evidence_without_failing_search(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    async def unavailable(db: Any, receipt: Any) -> bool:
-        return False
-
-    monkeypatch.setattr(receipt_module, "persist_receipt", unavailable)
-    body = asyncio.run(app_module.compare_search_strategies(query="A gift under $100"))
-    assert body["strategies"][-1]["products"]
-    assert body["receipt"]["persisted"] is False
-    assert body["receipt"]["comparisonId"].startswith("compare-")
 
 
 def test_comparison_discloses_rerank_fallback_instead_of_reusing_the_label(
@@ -498,155 +418,8 @@ def test_the_comparison_runs_both_planned_strategies_through_the_shared_executor
     assert [product["name"] for product in body["strategies"][4]["products"]]
 
 
-def _lab_1_receipt_cte() -> str:
-    """The ``receipt`` CTE from the Lab 1 build artifact, as shipped."""
-    text = LAB_1_SQL.read_text(encoding="utf-8")
-    start = text.index("WITH receipt AS (")
-    end = text.index(")", text.index("LIMIT 1", start)) + 1
-    return text[start:end]
-
-
-def test_lab_1_selects_the_comparison_surface_and_names_the_turn_it_read() -> None:
-    """Bind the worksheet to the captured request without depending on query copy."""
-    text = LAB_1_SQL.read_text(encoding="utf-8")
-    cte = _lab_1_receipt_cte()
-
-    predicates = [
-        line.strip()
-        for line in cte.splitlines()
-        if line.strip().startswith(("WHERE ", "AND "))
-    ]
-    assert predicates == [
-        "WHERE receipt_id > :'receipt_high_water'::bigint",
-        "AND turn_id = :'comparison_id'",
-        "AND retrieval_config->>'source' = "
-        f"'{app_module.OBSERVATORY_COMPARE_RECEIPT_SOURCE}'",
-    ]
-    assert "query_preview =" not in text
-    assert "ORDER BY receipt_id DESC" in cte
-    assert "LIMIT 1" in cte
-    # The participant can see which turn the fusion table came from.
-    assert "r.query_preview," in text
-    assert "\\echo 'Lab 1 fusion source query:' :lab_1_query" in text
-    for marker in LAB_1_MARKERS:
-        assert text.count(marker) == 1
-
-
-def test_every_shipped_copy_of_lab_1_carries_the_same_receipt_selection() -> None:
-    """Starter and solution differ by the fusion expression, never by the source."""
-    predicate = (
-        "AND retrieval_config->>'source' = "
-        f"'{app_module.OBSERVATORY_COMPARE_RECEIPT_SOURCE}'"
-    )
-    for path in (LAB_1_SQL, LAB_1_STARTER_SQL, LAB_1_SOLUTION_SQL):
-        assert predicate in path.read_text(encoding="utf-8"), path
-        assert "AND turn_id = :'comparison_id'" in path.read_text(encoding="utf-8"), path
-        assert "AND recomputed_rrf IS NOT NULL" in path.read_text(encoding="utf-8"), path
-
-
-def _storefront_retrieval_config() -> dict[str, Any]:
-    """The ``retrieval_config`` a real storefront ``search_products`` call persists."""
-    from services.retrieval_receipt import INSERT_SQL, _COLUMN_ORDER
-
-    written: list[Any] = []
-
-    def run(sql: str, params: Any) -> list[dict[str, Any]]:
-        if sql == INSERT_SQL:
-            written.append(params)
-            return [{"receipt_id": 1}]
-        return [{"product_id": "1", "name": "Linen shirt", "price": 10, "category": "Home"}]
-
-    store_tools_module.search_products(
-        run,
-        query="linen shirt",
-        embed=lambda _query: [0.1],
-        rerank=lambda **_kwargs: [],
-        receipt={"turn_id": "turn-abc123", "rail": "in-process"},
-    )
-    assert len(written) == 1
-    return json.loads(written[0][_COLUMN_ORDER.index("retrieval_config")])
-
-
-def test_the_storefront_writer_leaves_the_comparison_source_unset() -> None:
-    """The discriminator only discriminates while only one surface sets it."""
-    config = _storefront_retrieval_config()
-    assert config["search_method"]
-    assert "source" not in config
-
-
-def test_lab_1_would_select_exactly_the_receipt_the_comparison_just_wrote(
-    receipt_writes: list[Any],
-) -> None:
-    """The one coupling that matters: endpoint writes it, Lab 1 reads it.
-
-    The simulated table starts with three older receipts, including one
-    carrying the retired literal the SQL used to pin, so a selection that
-    still matched on query text would pick the wrong row. A storefront
-    retrieval receipt then lands *after* the comparison's, which is what any
-    ordinary shopper turn does while the participant reads the page: a
-    selection that took the newest row above the mark would read that turn.
-    A later comparison must not replace the requested comparison either.
-    """
-    retired = "Keep the gift under $100 and show me the strongest two options."
-    storefront_config = _storefront_retrieval_config()
-    table: list[dict[str, Any]] = [
-        {"receipt_id": 1, "query_preview": retired, "retrieval_config": {}},
-        {
-            "receipt_id": 2,
-            "query_preview": "Marco's Brooklyn warehouse turn",
-            "retrieval_config": storefront_config,
-        },
-        {"receipt_id": 3, "query_preview": retired, "retrieval_config": {}},
-    ]
-    high_water = max(row["receipt_id"] for row in table)
-    query = "Something quietly celebratory for a first flat"
-
-    asyncio.run(app_module.compare_search_strategies(query=query))
-
-    assert len(receipt_writes) == 1
-    written = receipt_writes[0].to_row()
-    table.append(
-        {
-            "receipt_id": high_water + 1,
-            "turn_id": written["turn_id"],
-            "query_preview": written["query_preview"],
-            "retrieval_config": written["retrieval_config"],
-        }
-    )
-    table.append(
-        {
-            "receipt_id": high_water + 2,
-            "query_preview": "linen for a resort",
-            "retrieval_config": storefront_config,
-        }
-    )
-
-    table.append({
-        "receipt_id": high_water + 3,
-        "turn_id": "another-comparison",
-        "query_preview": "a later unrelated comparison",
-        "retrieval_config": written["retrieval_config"],
-    })
-
-    # The shipped predicate selects the exact comparison ID above the high-water
-    # mark and verifies its source. Neither query text nor recency proves identity.
-    candidates = [
-        row
-        for row in table
-        if row["receipt_id"] > high_water
-        and row.get("turn_id") == written["turn_id"]
-        and row["retrieval_config"].get("source")
-        == app_module.OBSERVATORY_COMPARE_RECEIPT_SOURCE
-    ]
-    selected = sorted(candidates, key=lambda row: row["receipt_id"], reverse=True)[0]
-
-    assert selected["receipt_id"] == high_water + 1
-    assert selected["query_preview"] == query
-    assert selected["query_preview"] != retired
-
-
-def test_controlled_fallback_executes_authored_plan_and_records_both_passes(
-    monkeypatch, planned_db, receipt_writes, completed_search_plan,
+def test_controlled_fallback_executes_authored_plan_and_reports_both_passes(
+    monkeypatch, planned_db, completed_search_plan,
 ):
     # The live seed has no eligible watch below $100. Both branches return no
     # rows for that preference; widened branches return rows.
@@ -656,15 +429,13 @@ def test_controlled_fallback_executes_authored_plan_and_records_both_passes(
     body = asyncio.run(app_module.compare_search_strategies(
         app_module.ANNA_FALLBACK_QUERY, scenario='anna-fallback'))
     assert body['planSource'] == 'workshop-controlled'
-    assert 'Sonnet' not in body['strategies'][-1]['strategy']
-    row = receipt_writes[0].to_row()
-    config = row['retrieval_config']
-    assert config['original_preference_tags'] == ['watch']
-    assert config['relaxation_steps'] == ['drop_tags']
-    assert row['exclusions'] == ['candle']
-    assert row['hard_constraints'] == config['original_contract']['hard_constraints']
-    counts = [stage['count'] for stage in config['attempt_stages'] if stage['name'] == 'eligibility']
-    assert len(counts) == 2 and counts[0] == 0 and counts[1] > 0
+    agentic = body['strategies'][-1]
+    assert 'Sonnet' not in agentic['strategy']
+    assert [r['step'] for r in agentic['relaxations']] == ['drop_tags']
+    assert agentic['relaxations'][0]['dropped'] == ['watch']
+    assert agentic['searchPlan']['exclusions'] == ['candle']
+    assert agentic['searchPlan']['hard_constraints']['price_max_usd'] == 100
+    assert agentic['products']
 
 
 @pytest.mark.parametrize('query, scenario', [
@@ -676,8 +447,8 @@ def test_controlled_fallback_rejects_unknown_or_mislabelled_scenarios(query, sce
     assert exc.value.status_code == 400
 
 
-def test_controlled_fallback_records_the_participants_chosen_preference(
-    monkeypatch, planned_db, receipt_writes, completed_search_plan,
+def test_controlled_fallback_reports_the_participants_chosen_preference(
+    monkeypatch, planned_db, completed_search_plan,
 ):
     planned_db.empty_when = lambda _sql, params: ['leather'] in params
     monkeypatch.setattr(extract_module, 'get_structured_extractor',
@@ -689,16 +460,12 @@ def test_controlled_fallback_records_the_participants_chosen_preference(
         scenario='anna-fallback', prefer='Leather'))
     assert body['query'] == query
     assert body['scenarioPreference'] == 'leather'
-    row = receipt_writes[0].to_row()
-    config = row['retrieval_config']
-    assert config['scenario_input'] == {'scenario': 'anna-fallback', 'preference': 'leather'}
-    assert config['original_preference_tags'] == ['leather']
+    plan = body['strategies'][-1]['searchPlan']
+    assert body['strategies'][-1]['relaxations'][0]['dropped'] == ['leather']
     # Only the preference varies; the requirements are the scenario's own.
-    assert row['exclusions'] == ['candle']
-    assert row['hard_constraints'] == config['original_contract']['hard_constraints']
-    assert row['hard_constraints']['price_max_usd'] == 100
-    assert row['hard_constraints']['in_stock_only'] is True
-    assert row['query_preview'] == query
+    assert plan['exclusions'] == ['candle']
+    assert plan['hard_constraints']['price_max_usd'] == 100
+    assert plan['hard_constraints']['in_stock_only'] is True
 
 
 def test_the_canonical_watch_case_is_unchanged():
