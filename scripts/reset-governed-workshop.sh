@@ -559,6 +559,7 @@ IDENTITY_HELPER="$REPO/scripts/deploy/resolve_agentcore_identity.py"
 AGENTCORE_PROJECT="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field project-root)" || exit 1
 AGENTCORE_CONFIG="$AGENTCORE_PROJECT/agentcore/agentcore.json"
 POLICY_ENGINE_NAME="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field policy-engine-name)" || exit 1
+GATEWAY_NAME="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field gateway-name)" || exit 1
 
 if [[ ! -f "$AGENTCORE_CONFIG" ]]; then
   fail "AgentCore CLI project missing: $AGENTCORE_CONFIG"
@@ -617,7 +618,7 @@ else
 fi
 
 if [[ "$(jq -r \
-    --arg name pellier-gateway \
+    --arg name "$GATEWAY_NAME" \
     '.agentCoreGateways[] | select(.name == $name) | .policyEngineConfiguration.mode' \
     "$AGENTCORE_CONFIG")" != "ENFORCE" ]]; then
   fail "AgentCore project no longer pins Gateway Policy mode to ENFORCE"

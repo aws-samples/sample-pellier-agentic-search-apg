@@ -10,7 +10,7 @@ from pathlib import Path
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, required=True)
-    parser.add_argument("--field", choices=("project-root", "runtime-name", "policy-engine-name"), required=True)
+    parser.add_argument("--field", choices=("project-root", "runtime-name", "policy-engine-name", "gateway-name"), required=True)
     args = parser.parse_args()
     repo = args.repo.resolve()
     from render_agentcore_project import deployment_identity_from_repo, project_root
@@ -20,6 +20,7 @@ def main() -> int:
         "project-root": str(project_root(repo, identity.suffix)),
         "runtime-name": identity.runtime_name,
         "policy-engine-name": identity.policy_engine_name,
+        "gateway-name": identity.gateway_name,
     }[args.field])
     return 0
 

@@ -57,6 +57,7 @@ def test_identity_resolver_uses_renderer_names_and_saved_configuration(tmp_path,
         "project-root": str(tmp_path / ".agentcore-project" / f"pellier{suffix}"),
         "runtime-name": f"pellier{'_' + suffix if suffix else ''}_orchestrator",
         "policy-engine-name": f"pellier{'_' + suffix if suffix else ''}_policy_engine",
+        "gateway-name": f"pellier{'-' + suffix if suffix else ''}-gateway",
     }
     for field, expected in names.items():
         result = subprocess.run([sys.executable, str(RESOLVER), "--repo", str(tmp_path), "--field", field], env=env, check=True, capture_output=True, text=True)
@@ -256,3 +257,12 @@ def test_direct_renderer_cli_reads_saved_suffix_and_writes_consistent_names(tmp_
     assert config["memories"][0]["name"] == identity.memory_name
     assert config["agentCoreGateways"][0]["name"] == identity.gateway_name
     assert config["policyEngines"][0]["name"] == identity.policy_engine_name
+
+
+def test_reset_checks_the_enforce_pin_on_the_deployment_s_own_gateway():
+    """A suffixed deployment's Gateway is pellier-<suffix>-gateway; a literal name
+    made the reset fail its ENFORCE check on every isolated deployment."""
+    source = (REPO / "scripts/reset-governed-workshop.sh").read_text()
+    assert "--arg name pellier-gateway" not in source
+    assert '--field gateway-name' in source
+    assert '--arg name "$GATEWAY_NAME"' in source
