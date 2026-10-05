@@ -538,7 +538,7 @@ export default function ProductDetailPage() {
         {siblings.length > 0 ? (
           <section
             aria-labelledby="product-more-heading"
-            className="border-t border-line bg-paper"
+            className="border-t border-line bg-page"
           >
             <div className="mx-auto max-w-[1280px] px-container-x py-16">
               <h2

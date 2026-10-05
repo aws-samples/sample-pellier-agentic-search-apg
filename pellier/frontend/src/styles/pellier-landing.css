@@ -625,12 +625,14 @@
 }
 
 /* -----------------------------------------------------------------------
- * The Pellier approach: the bridge from the storefront into the labs.
+ * The Pellier approach: the bridge from the storefront into the labs. A band
+ * on the page ground (black in dark), set apart by its hairlines; the dock
+ * token belongs to the Ask Pellier panel.
  * ----------------------------------------------------------------------- */
 .pellier-approach {
   width: 100%;
   padding-block: var(--pellier-band-y);
-  background: var(--dl-dock);
+  background: var(--dl-bg);
   border-block: 1px solid var(--dl-line);
 }
 

@@ -20,8 +20,8 @@
  *   action    at most one. Two actions in an empty state means the surface
  *             does not know what it wants the reader to do.
  *
- * The headline is a real heading, in the same face as every other heading on
- * the Observatory and the Operator desk. Fraunces belongs to the storefront.
+ * The headline is a real heading, in Instrument Sans like every other heading
+ * in the app. Fraunces belongs to the wordmark alone.
  *
  * It matters because the desk's signed-out state is a whole page whose only
  * sentence is this one: rendered as a paragraph, `/operator` reached a reader

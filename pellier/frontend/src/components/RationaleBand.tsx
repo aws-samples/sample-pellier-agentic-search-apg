@@ -1,7 +1,6 @@
 /**
- * RationaleBand — italic Fraunces pull-quote that explains the agent's
- * curation strategy for the grid below it. Sits between the curated
- * section eyebrow + headline and the product grid.
+ * RationaleBand — one Instrument Sans line that explains how the grid below
+ * it was chosen. Sits between the grid's headline and the product grid.
  *
  * The text describes the deterministic tag-ranking rule used for the
  * selected workshop profile. It does not imply live browsing or inventory

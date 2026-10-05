@@ -34,7 +34,7 @@
  */
 import type { ReasoningChip as ReasoningChipModel } from '../services/types'
 import { cssVar as c } from '../design/cssVars'
-import PellierMark from './PellierMark'
+import { PellierMark } from './Wordmark'
 
 // --- Design tokens (storefront.md) ---------------------------------------
 

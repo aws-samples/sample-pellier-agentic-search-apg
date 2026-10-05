@@ -7,7 +7,7 @@
  *   - Always renders exactly 3 cards (Req 1.9.1). "Never 1" is the
  *     explicit done-when from task 4.8.
  *   - Each card renders the image, category badge, volume number,
- *     theme, italic Fraunces title, excerpt, and terracotta
+ *     theme, Instrument Sans title, excerpt, and terracotta
  *     `Read the note \u203a` link (Req 1.9.2, 1.9.4).
  *   - Hovering a card scales its image `transform` to `scale(1.05)`
  *     (Req 1.9.3).
@@ -89,13 +89,12 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     })
   })
 
-  it('renders titles in italic Fraunces', () => {
+  it('renders titles in the Instrument Sans heading face, upright', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
     for (let i = 0; i < STORYBOARD_TEASERS.length; i += 1) {
       const title = screen.getByTestId(`storyboard-card-title-${i}`)
-      const style = title.getAttribute('style') ?? ''
-      expect(style).toMatch(/font-style:\s*italic/)
-      expect(style).toMatch(/Fraunces/)
+      expect(title.style.fontFamily).toBe('var(--dl-font-heading)')
+      expect(title.style.fontStyle).toBe('')
     }
   })
 

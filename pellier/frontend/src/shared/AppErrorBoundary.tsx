@@ -68,13 +68,15 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
             minHeight: '60vh',
             padding: '48px 24px',
             textAlign: 'center',
-            fontFamily: 'var(--sans, "Instrument Sans", system-ui, sans-serif)',
+            fontFamily: 'var(--dl-font-sans)',
           }}
         >
           <h1
             style={{
-              fontFamily: 'var(--display, "Fraunces Variable", Georgia, serif)',
+              fontFamily: 'var(--dl-font-heading)',
               fontSize: 'clamp(24px, 3vw, 32px)',
+              fontWeight: 500,
+              letterSpacing: 'var(--dl-track-tight)',
               margin: '0 0 16px',
               color: 'var(--dl-ink)',
             }}

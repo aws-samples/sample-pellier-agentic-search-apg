@@ -3,17 +3,12 @@ import ReactDOM from 'react-dom/client'
 
 // Self-hosted typefaces (@fontsource). Bundled into dist/assets at
 // build time so the workshop runs on corporate networks that block
-// fonts.gstatic.com. Four families: Instrument Sans (UI), Instrument
-// Serif + Fraunces variable (editorial / display, incl. Fraunces italic),
-// JetBrains Mono (code, SQL, IDs, and telemetry). Ordered so the most visible
-// weights load first.
-import '@fontsource-variable/fraunces'
-import '@fontsource-variable/fraunces/full-italic.css'
+// fonts.gstatic.com. Instrument Sans sets every heading and all prose;
+// JetBrains Mono sets code, SQL, IDs and telemetry. The wordmark's face is
+// imported by components/Wordmark.tsx, the one file that uses it.
 import '@fontsource/instrument-sans/400.css'
 import '@fontsource/instrument-sans/500.css'
 import '@fontsource/instrument-sans/600.css'
-import '@fontsource/instrument-serif/400.css'
-import '@fontsource/instrument-serif/400-italic.css'
 import '@fontsource-variable/jetbrains-mono'
 
 import App from './App.tsx'

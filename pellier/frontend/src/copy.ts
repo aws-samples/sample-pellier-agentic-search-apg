@@ -108,9 +108,9 @@ export const HERO_CONCIERGE = {
 } as const;
 
 /**
- * Editorial hero statement. One accent word per line is rendered in the
- * burgundy italic; `ACCENT` must appear verbatim inside `HEADLINE` or the
- * headline renders unaccented rather than mis-split.
+ * Editorial hero statement. One accent word per line is split out as an
+ * `<em>`; `ACCENT` must appear verbatim inside `HEADLINE` or the headline
+ * renders unaccented rather than mis-split.
  *
  * Persona headlines reuse the approved `curatedHeadline` vocabulary from
  * `data/personaCurations.ts` so the storefront speaks one voice.
@@ -308,7 +308,7 @@ export const REASONING = {
 // Storyboard teaser cards (Requirement 1.9.4)
 //
 // Each card composes to the eyebrow line
-//   `{badge} {volume}: {theme}` above the italic Fraunces title,
+//   `{badge} {volume}: {theme}` above the Instrument Sans title,
 // followed by a 2-3 sentence excerpt and the terracotta `link`. See
 // StoryboardTeaser.tsx for the rendering contract.
 export interface StoryboardTeaser {
@@ -357,16 +357,6 @@ export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
     imageAlt: "A freshly thrown charcoal stoneware bowl on a potter's wheel against a white plaster wall",
   },
 ];
-
-// Minimal Storyboard and Discover routes (Requirement 1.13)
-export const STORYBOARD_PAGE_COMING_SOON =
-  "Coming soon - the full editorial hub arrives with the next Edit.";
-export const DISCOVER_PAGE_SIGNED_OUT =
-  "Discover is tailored to you. Sign in and watch the storefront tune itself.";
-export const DISCOVER_PAGE_COMING_SOON = STORYBOARD_PAGE_COMING_SOON;
-export const DISCOVER_PAGE_CATALOG_LOADING = "Loading the current edit.";
-export const DISCOVER_PAGE_CATALOG_UNAVAILABLE =
-  "The current edit is unavailable. Try again shortly.";
 
 export const ABOUT_BRIEF = {
   EYEBROW: "About",

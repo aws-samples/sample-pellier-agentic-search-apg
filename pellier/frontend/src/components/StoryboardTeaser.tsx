@@ -1,6 +1,7 @@
 /**
  * Three editorial introductions to the corresponding FieldNotes essays.
- * Each title, excerpt and named link describes the note it opens.
+ * Each title, excerpt and named link describes the note it opens. Titles are
+ * Instrument Sans like every heading; the section sits on the page ground.
  */
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -10,7 +11,7 @@ import ResponsiveImage from './ResponsiveImage'
 import { cssVar as c } from '../design/cssVars'
 
 // --- Design tokens (storefront.md) ---------------------------------------
-const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
+const HEADING = 'var(--dl-font-heading)'
 
 // --- Public component ----------------------------------------------------
 
@@ -21,7 +22,7 @@ export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 
       data-testid="storyboard-teaser"
       aria-labelledby="storyboard-teaser-heading"
       style={{
-        background: c.paper,
+        background: c.bg,
         color: c.ink,
         padding: '96px 24px',
         fontFamily: 'var(--sans)',
@@ -44,11 +45,11 @@ export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 
           <Heading
             id="storyboard-teaser-heading"
             style={{
-              fontFamily: FRAUNCES_STACK,
-              fontStyle: 'italic',
-              fontWeight: 400,
-              fontSize: 36,
+              fontFamily: HEADING,
+              fontWeight: 500,
+              fontSize: 'clamp(28px, 3.5vw, 44px)',
               lineHeight: 1.1,
+              letterSpacing: 'var(--dl-track-tight)',
               color: c.ink,
               margin: '12px 0 0',
             }}
@@ -97,10 +98,12 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
       onFocus={() => setHovered(true)}
       onBlur={() => setHovered(false)}
       style={{
+        // No card ground: the image well and the text sit straight on the
+        // section, as they read in light. A panel fill here drew a
+        // padding-less gray box behind the text in the dark theme.
         display: 'flex',
         flexDirection: 'column',
         gap: 16,
-        background: c.paper,
       }}
     >
       {/* --- Image panel ---------------------------------------------- */}
@@ -152,11 +155,11 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
         <h3
           data-testid={`storyboard-card-title-${index}`}
           style={{
-            fontFamily: FRAUNCES_STACK,
-            fontStyle: 'italic',
-            fontWeight: 400,
-            fontSize: 24,
-            lineHeight: 1.2,
+            fontFamily: HEADING,
+            fontWeight: 500,
+            fontSize: 'var(--text-card)',
+            lineHeight: 1.25,
+            letterSpacing: 'var(--dl-track-tight)',
             color: c.ink,
             margin: 0,
           }}

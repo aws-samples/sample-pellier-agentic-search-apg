@@ -8,9 +8,7 @@
  *     current-page state (Req 1.13.4).
  *   - The 3-card Storyboard grid renders verbatim from copy.ts
  *     (Req 1.13.1 / reuse of Req 1.9).
- *   - The `Coming soon - the full editorial hub arrives with the
- *     next Edit.` editorial line renders in italic Fraunces
- *     (Req 1.13.1).
+ *   - The four FieldNotes essays replace the old coming-soon line.
  *   - Footer renders and the floating CommandPill does not, matching About
  *     page (Req 1.13.1).
  *
@@ -167,7 +165,7 @@ describe('StoryboardPage - Field Notes essay surface', () => {
 
   it('no longer renders the old coming-soon placeholder line', () => {
     renderStoryboard()
-    // The ComingSoonLine placeholder has been replaced by FieldNotes.
+    // The old coming-soon placeholder has been replaced by FieldNotes.
     expect(screen.queryByTestId('storyboard-coming-soon')).not.toBeInTheDocument()
   })
 })

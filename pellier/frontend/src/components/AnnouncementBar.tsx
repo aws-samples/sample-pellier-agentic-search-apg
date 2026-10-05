@@ -20,10 +20,12 @@ import { cssVar as c } from '../design/cssVars'
 
 const MONO_STACK = 'var(--mono)'
 
-/* The strip is espresso, so it takes the burgundy raised for dark grounds.
-   `--accent` here measured 1.61:1 against the bar and neither the label nor
-   the presence dot could be read. */
+/* The strip is ink-filled: black in light, ivory in dark. The label takes
+   the on-ink color. The pulse dot is copper in both themes: the copper that
+   reads on an ink fill (`--dl-accent-on-ink`), the dark theme's copper on the
+   black bar and the light theme's on the ivory one. */
 const ON_DARK_ACCENT = 'var(--pellier-accent-on-dark)'
+const COPPER_ON_INK = 'var(--dl-accent-on-ink)'
 
 const CYCLE_MS = 5000
 
@@ -93,7 +95,7 @@ export default function AnnouncementBar() {
                 width: 8,
                 height: 8,
                 borderRadius: 999,
-                background: ON_DARK_ACCENT,
+                background: COPPER_ON_INK,
                 flexShrink: 0,
               }}
             >
@@ -103,7 +105,7 @@ export default function AnnouncementBar() {
                   inset: -6,
                   borderRadius: 999,
                   background:
-                    'color-mix(in srgb, var(--pellier-accent-on-dark) 35%, transparent)',
+                    'color-mix(in srgb, var(--dl-accent-on-ink) 35%, transparent)',
                   animation: reduceMotion
                     ? 'none'
                     : 'pelliers-floor-pulse 1.8s ease-out infinite',

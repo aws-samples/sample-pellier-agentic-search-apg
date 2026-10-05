@@ -29,14 +29,14 @@
   font-family: var(--dl-font-sans);
 }
 
-/* ---- The wordmark (signature element 1) ---- */
+/* ---- The wordmark (signature element 1) ----
+   Its face, Fraunces, is set in components/Wordmark.tsx and nowhere else. */
 .pellier-brand {
   display: inline-flex;
   min-height: 44px;
   min-width: 44px;
   align-items: baseline;
   color: var(--dl-ink);
-  font-family: var(--dl-font-display);
   font-size: 31px;
   font-weight: 400;
   line-height: 1.2;
@@ -72,7 +72,6 @@
   border-radius: 25%;
   background: var(--dl-ink);
   color: var(--dl-on-ink);
-  font-family: var(--dl-font-display);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.04em;

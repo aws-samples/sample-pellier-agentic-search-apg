@@ -43,7 +43,7 @@ import {
   type AgentChatMessage,
 } from '../hooks/useAgentChat'
 import PellierChatBody from './PellierChatBody'
-import PellierMark from './PellierMark'
+import { PellierMark } from './Wordmark'
 import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
 import { BuilderViewSwitch, useBuilderView, useSkillMode } from './turn'

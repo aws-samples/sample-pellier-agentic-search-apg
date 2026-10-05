@@ -11,6 +11,15 @@
  * scanned: they hold literals on purpose, to prove what the guard catches.
  *
  * A file that genuinely needs a literal goes in EXEMPT with its reason.
+ *
+ * The second guard below keeps type to the owner's rule: Fraunces sets the
+ * wordmark and nothing else, and every heading and title is Instrument Sans.
+ *
+ * Known limits of a regex guard, accepted: a named color held in a constant
+ * (`const ACCENT = 'white'`), a capitalized named color (`'White'`, which is
+ * how product data writes a colorway), `WebkitTextFillColor`, Tailwind variant
+ * prefixes such as `[&>svg]:text-white`, and a `}` inside a template value all
+ * pass; an order number such as `'Order #301'` reads as a hex color.
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, extname, join, relative, resolve } from 'node:path'
@@ -132,15 +141,55 @@ const PATTERNS = [
   FIXED_TAILWIND, ARBITRARY_COLOR,
 ]
 
-/* Comments may name a color; blanking them keeps line numbers. */
-function stripComments(source: string): string {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, (comment) => comment.replace(/[^\n]/g, ' '))
-    .replace(/^(\s*)\/\/.*$/gm, '$1')
+// Comments may name a color or a typeface; blanking them keeps line numbers.
+// The walk is string-aware, so a glob string or `accept="image/*"` does not
+// open a comment that swallows the code after it. A `//` starts a comment
+// only in TypeScript and only after whitespace or punctuation, so a URL in
+// JSX text or a regex ending in an escaped slash is left alone. Strings end
+// at a newline, so a stray apostrophe in JSX text costs one line at most.
+function stripComments(source: string, css = false): string {
+  const out = source.split('')
+  const blank = (from: number, to: number) => {
+    for (let k = from; k < to; k += 1) if (out[k] !== '\n') out[k] = ' '
+  }
+  const LINE_COMMENT_AFTER = /[\s;,{}()[\]]/
+  const templates: number[] = []
+  let quote: string | null = null
+  let i = 0
+  while (i < source.length) {
+    const ch = source[i]
+    const next = source[i + 1]
+    if (quote) {
+      if (ch === '\\') i += 2
+      else if (quote === '`' && ch === '$' && next === '{') { templates.push(0); quote = null; i += 2 }
+      else { if (ch === quote || (ch === '\n' && quote !== '`')) quote = null; i += 1 }
+    } else if (ch === '/' && next === '*') {
+      const end = source.indexOf('*/', i + 2)
+      const stop = end < 0 ? source.length : end + 2
+      blank(i, stop)
+      i = stop
+    } else if (!css && ch === '/' && next === '/' && (i === 0 || LINE_COMMENT_AFTER.test(source[i - 1]))) {
+      const end = source.indexOf('\n', i)
+      const stop = end < 0 ? source.length : end
+      blank(i, stop)
+      i = stop
+    } else if (ch === '"' || ch === "'" || (!css && ch === '`')) {
+      quote = ch
+      i += 1
+    } else {
+      if (templates.length && ch === '{') templates[templates.length - 1] += 1
+      else if (templates.length && ch === '}') {
+        if (templates[templates.length - 1] === 0) { templates.pop(); quote = '`' }
+        else templates[templates.length - 1] -= 1
+      }
+      i += 1
+    }
+  }
+  return out.join('')
 }
 
 function findings(file: string, source: string): string[] {
-  const text = stripComments(source)
+  const text = stripComments(source, file.endsWith('.css'))
   const found: string[] = []
   for (const pattern of PATTERNS) {
     pattern.lastIndex = 0
@@ -182,7 +231,7 @@ describe('token guard (every file under src/)', () => {
 
   it('draws monochrome icons inline so they follow the theme', () => {
     const imgIcons = SCANNED.flatMap((file) => {
-      const source = stripComments(readFileSync(resolve(SRC, file), 'utf8'))
+      const source = stripComments(readFileSync(resolve(SRC, file), 'utf8'), file.endsWith('.css'))
       return Array.from(source.matchAll(ICON_FILE), (match) => match[1])
         .filter((icon) => ![...BRAND_ICON_SETS.keys()].some((set) => icon.startsWith(set)))
         .map((icon) => `${file}: /assets/icons/${icon}`)
@@ -226,6 +275,9 @@ describe('token guard (every file under src/)', () => {
       'className="accent-blue-500 caret-black"',
       'className="text-[white] bg-[hsl(0,0%,0%)]"',
       'className="hover:bg-[rgba(168,66,58,0.08)] accent-[#1f1410]"',
+      "const glob = '**/*.tsx'; const c = '#abc'; /* end */",
+      'accept="image/*" style={{ color: \'#abc\' }} /* end */',
+      "const t = `/* ${'#abc'} */`",
     ]
     for (const line of bad) expect(caught(line), line).toBe(true)
     const fine = [
@@ -241,7 +293,77 @@ describe('token guard (every file under src/)', () => {
       '--link-color: var(--dl-accent);',
       'interface Props { tone?: string; label: string }',
       "const step = done ? 'Delivered' : 'In transit'",
+      'color: var(--dl-ink); // was white',
+      '/* border: 1px solid white; */ color: var(--dl-ink);',
+      "const url = 'https://example.com' // fill: white",
     ]
     for (const line of fine) expect(caught(line), line).toBe(false)
+  })
+})
+
+/* Fraunces is the wordmark's face and nothing else's (owner, 2026-10-04:
+   "just the logo though"). Every heading and title is Instrument Sans, so no
+   other file names Fraunces, the display token or its alias, or a serif
+   family. Comments are blanked first, so a file may still explain the rule. */
+const TYPE_ALLOWED = new Map<string, string>([
+  ['components/Wordmark.tsx', 'the wordmark and its square p. mark, the one place Fraunces is set'],
+  ['styles/daylight-tokens.css', 'the token file: --dl-font-display is defined here'],
+])
+const SERIF_PATTERNS = [
+  /fraunces/gi,
+  /--(?:dl-font-|obs-)?display\b/g,
+  /--(?:dl-font-|obs-)?serif\b/g,
+  /(?<![\w-])serif\b/gi,
+  /\bfont-serif\b/g,
+  /\bgeorgia\b/gi,
+  /times new roman/gi,
+]
+
+function serifFindings(file: string, source: string): string[] {
+  const text = stripComments(source, file.endsWith('.css'))
+  return SERIF_PATTERNS.flatMap((pattern) =>
+    Array.from(text.matchAll(pattern), (match) => {
+      const line = text.slice(0, match.index).split('\n').length
+      return `${file}:${line}: ${match[0]}`
+    }),
+  )
+}
+
+const TYPE_SCANNED = walk(SRC).filter((file) => !isTest(file) && !TYPE_ALLOWED.has(file))
+
+describe('type guard (Fraunces only in the wordmark)', () => {
+  it('scans the files it claims to scan', () => {
+    expect(TYPE_SCANNED.length).toBeGreaterThan(100)
+    for (const file of ['main.tsx', 'components/FieldNotes.tsx', 'styles/surface-navigation.css']) {
+      expect(TYPE_SCANNED, file).toContain(file)
+    }
+    for (const file of TYPE_ALLOWED.keys()) expect(walk(SRC), file).toContain(file)
+  })
+
+  it('sets no heading, title or prose in Fraunces or a serif', () => {
+    const all = TYPE_SCANNED.flatMap((file) => serifFindings(file, readFileSync(resolve(SRC, file), 'utf8')))
+    expect(all).toEqual([])
+  })
+
+  it('catches the forms the guard is for', () => {
+    const bad = [
+      "fontFamily: 'Fraunces, Georgia, serif'",
+      "import '@fontsource-variable/fraunces'",
+      'font: 400 31px/1.2 var(--dl-font-display);',
+      "fontFamily: 'var(--display, serif)'",
+      'font-family: var(--serif);',
+      '--obs-serif: var(--x);',
+      'className="font-serif italic"',
+      "fontFamily: '\"Instrument Serif\", Times New Roman'",
+    ]
+    for (const line of bad) expect(serifFindings('sample.tsx', line), line).not.toEqual([])
+    const fine = [
+      'font-family: var(--dl-font-heading);',
+      "fontFamily: 'Instrument Sans, system-ui, sans-serif'",
+      'font-size: var(--dl-fs-display); letter-spacing: var(--dl-track-display);',
+      'font-size: min(var(--text-display), 7.4vh);',
+      '/* Fraunces belongs to the wordmark. */ color: var(--dl-ink);',
+    ]
+    for (const line of fine) expect(serifFindings('sample.css', line), line).toEqual([])
   })
 })

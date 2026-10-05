@@ -4,11 +4,33 @@
  * header, 36px in the footer. Ink with a copper dot in light, ivory with the
  * dark theme's copper on black; both come from `--pellier-copper`.
  *
+ * This file is the only place that sets Fraunces. Every heading and title
+ * is Instrument Sans; `token_guard.test.ts` fails on a Fraunces, display or
+ * serif reference anywhere else in src/. The wordmark's letters and the
+ * square p. mark below both take their face from `BRAND_FACE`.
+ *
  * The header shows the wordmark alone. The square p. mark is the favicon and
- * Ask Pellier's avatar (see PellierMark), never the header.
+ * Ask Pellier's avatar, never the header.
  */
 import { Link } from 'react-router-dom'
+import '@fontsource-variable/fraunces'
 import '../styles/surface-navigation.css'
+
+const BRAND_FACE = { fontFamily: 'var(--dl-font-display)' } as const
+
+/**
+ * The wordmark's letters alone, for a lockup that is not the home link: the
+ * sign-in page's own link and photograph, and the sign-in dialog. The size
+ * and tracking come from the caller's class (`.pellier-brand`).
+ */
+export function WordmarkLetters() {
+  return (
+    <>
+      <span aria-hidden="true" style={BRAND_FACE}>pellier</span>
+      <span className="pellier-brand-dot" aria-hidden="true" style={BRAND_FACE}>.</span>
+    </>
+  )
+}
 
 interface WordmarkProps {
   /** Header at 31px, footer at 36px. */
@@ -27,8 +49,34 @@ export default function Wordmark({ size = 'header', ariaLabel = 'Pellier home', 
       aria-label={ariaLabel}
       data-testid="pellier-wordmark"
     >
-      <span aria-hidden="true">pellier</span>
-      <span className="pellier-brand-dot" aria-hidden="true">.</span>
+      <WordmarkLetters />
     </Link>
+  )
+}
+
+/**
+ * The square p. mark: Ask Pellier's avatar, drawn from tokens so it follows
+ * the theme (an ink square with an on-ink p in light, ivory with a black p in
+ * dark; the dot is always copper). `public/favicon.svg` draws the same p. in
+ * ink on a white tile.
+ */
+export function PellierMark({
+  size = 20,
+  className,
+  'data-testid': testId,
+}: {
+  size?: number
+  className?: string
+  'data-testid'?: string
+}) {
+  return (
+    <span
+      className={['pellier-mark', className ?? ''].filter(Boolean).join(' ')}
+      aria-hidden="true"
+      data-testid={testId}
+      style={{ ...BRAND_FACE, width: size, height: size, fontSize: Math.round(size * 0.68) }}
+    >
+      p<span className="pellier-brand-dot">.</span>
+    </span>
   )
 }

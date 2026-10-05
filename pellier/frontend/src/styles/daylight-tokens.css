@@ -23,7 +23,7 @@
 :root {
   color-scheme: light;
 
-  /* ---------- Color · surfaces ---------- */
+  /* ---------- Color: surfaces ---------- */
   --dl-bg:           #ffffff;
   --dl-dock:         #fafaf8;
   --dl-paper:        #ffffff;
@@ -31,14 +31,14 @@
   --dl-line:         #e9e9e5;
   --dl-line-strong:  #d6d6d1;
 
-  /* ---------- Color · ink ---------- */
+  /* ---------- Color: ink ---------- */
   --dl-ink:          #111110;
   --dl-ink-2:        #3b3a37;
   --dl-muted:        #6c6a65;
   --dl-faint:        #75726c;
   --dl-on-ink:       #fbf8f2;
 
-  /* ---------- Color · accent (copper) ---------- */
+  /* ---------- Color: accent (copper) ---------- */
   --dl-accent:       #9a4d20;
   --dl-accent-soft:  #f6ece3;
   --dl-accent-ink:   #9a4d20;
@@ -53,7 +53,7 @@
      ground, so they sit on a light chip in both themes. */
   --dl-mark-ground:     #ffffff;
 
-  /* ---------- Color · semantic ---------- */
+  /* ---------- Color: semantic ---------- */
   --dl-ok:           #3f6212;
   --dl-ok-soft:      #e8efdc;
   --dl-warn:         #9a5b0b;
@@ -77,13 +77,12 @@
   --dl-scrim:    rgb(17 17 16 / 60%);
 
   /* ---------- Type ---------- */
-  /* Fraunces is the wordmark's face and nothing else's. Headings and prose
-     are Instrument Sans; JetBrains Mono carries code, SQL, identifiers and
+  /* Fraunces is the wordmark's face and nothing else's: only
+     components/Wordmark.tsx reads --dl-font-display. Headings and prose are
+     Instrument Sans; JetBrains Mono carries code, SQL, identifiers and
      numeric telemetry. */
   --dl-font-display: "Fraunces Variable","Fraunces",Georgia,"Times New Roman",serif;
   --dl-font-heading: "Instrument Sans",system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
-  /* Read by the shared primitives the Operator composes; cut 3 decides its fate. */
-  --dl-font-serif:   "Instrument Serif","Fraunces Variable","Fraunces",Georgia,"Times New Roman",serif;
   --dl-font-sans:    "Instrument Sans",system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
   --dl-font-mono:    "JetBrains Mono",ui-monospace,"SF Mono",Menlo,Monaco,Consolas,monospace;
 

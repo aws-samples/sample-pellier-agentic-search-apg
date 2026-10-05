@@ -34,10 +34,10 @@ Read the repository `CLAUDE.md` and `VOICE.md` before editing.
 - Each lab states its `lesson` (the transferable idea, two sentences) first: on the
   Workbench under the lab title and on its Lab Collection card. Keep it aligned with
   `workshop/story-arc.json` and the lab guide's "You will learn" line.
-- Typography: Instrument Sans for every heading and title on the Observatory and the
-  Operator desk. Fraunces is the storefront's voice; `observatory/styles/base.css` remaps
-  the display tokens inside `.observatory-root` so an inline `var(--display)` cannot
-  bring it back.
+- Typography: Instrument Sans for every heading and title on every surface. Fraunces sets
+  the pellier. wordmark and its square p. mark in `components/Wordmark.tsx` and nowhere
+  else; `src/__tests__/token_guard.test.ts` fails on a Fraunces, display-token or serif
+  reference in any other file.
 - Observatory connects Storefront conversations, Operator decisions, and system
   evidence. Do not label the whole surface optional or invent completion from
   visiting it. Individual extension exercises can be optional in the lab guide.

@@ -18,7 +18,7 @@
 import { useEffect, useState } from 'react'
 
 import { COMMAND_PILL } from '../copy'
-import PellierMark from './PellierMark'
+import { PellierMark } from './Wordmark'
 import { usePersona } from '../contexts/PersonaContext'
 import { useUI } from '../contexts/UIContext'
 

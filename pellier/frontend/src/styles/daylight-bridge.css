@@ -47,10 +47,9 @@
   --amber-soft: color-mix(in srgb, var(--dl-warn) 12%, transparent);
 
   /* ---- Type stacks --------------------------------------------- */
-  /* `--display` is the wordmark's face. Nothing else sets it. */
-  --display: var(--dl-font-display);
+  /* Headings and prose are Instrument Sans. The wordmark's face is set
+     in components/Wordmark.tsx and has no alias here. */
   --heading: var(--dl-font-heading);
-  --serif:   var(--dl-font-serif);
   --sans:    var(--dl-font-sans);
   --mono:    var(--dl-font-mono);
 
@@ -75,9 +74,7 @@
   --obs-amber-1:    var(--dl-warn);
   --obs-accent-2:   var(--pellier-accent-soft);
   --obs-shipped:    var(--dl-ok);
-  --obs-display: var(--dl-font-display);
   --obs-heading: var(--dl-font-heading);
-  --obs-serif:   var(--dl-font-serif);
   --obs-sans:    var(--dl-font-sans);
   --obs-mono:    var(--dl-font-mono);
 

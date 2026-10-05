@@ -251,7 +251,6 @@ export function sweepContrast(): ContrastFinding[] {
       const beneath = own && own.a > 0 ? over(own, outside.color) : outside.color
       const opacity = fade(el, outside.owner)
       report('border', el, over({ ...color, a: color.a * opacity }, beneath), outside.color, `border-${side.toLowerCase()}`)
-      break
     }
 
     // Rules drawn as a background: one or two pixels thick, no content.
@@ -264,4 +263,109 @@ export function sweepContrast(): ContrastFinding[] {
     }
   }
   return findings
+}
+
+export interface GroundReport {
+  /** How many bands were measured; a sweep that matches nothing proves nothing. */
+  checked: number
+  findings: Array<{ ground: string; path: string }>
+}
+
+/**
+ * The page ground under a route's main bands, run in the dark theme, where it
+ * must be true black (#000000). A band is the page itself, the shared header,
+ * and every visible, in-flow `main`, `section`, `header` or `footer`, or
+ * direct child of `main`, that spans the routed page's full width. Panels and
+ * cards are narrower than the page, so they are not bands and may sit on the
+ * panel token (`--dl-paper`).
+ *
+ * A band's ground is its own background composited over its ancestors', not
+ * what `elementsFromPoint` finds on top: a dialog or scrim over the page is
+ * not the page's ground. So a section painted with the panel token reads as
+ * #0f0f0f here even though, in light, panel and page are both white and the
+ * misuse cannot be seen. A band over a photograph is skipped. INK_BANDS are
+ * filled with the ink by design, black in light and ivory in dark.
+ */
+export function sweepGrounds(): GroundReport {
+  type RGBA = { r: number; g: number; b: number; a: number }
+  const INK_BANDS = '[data-testid="announcement-bar"]'
+  const WANT = '#000000'
+
+  const parse = (value: string): RGBA | null => {
+    const rgb = value.match(/rgba?\(([^)]+)\)/)
+    if (rgb) {
+      const v = rgb[1].split(/[\s,/]+/).filter(Boolean).map(Number)
+      return { r: v[0], g: v[1], b: v[2], a: v[3] ?? 1 }
+    }
+    const srgb = value.match(/color\(srgb\s+([^)]+)\)/)
+    if (srgb) {
+      const v = srgb[1].split(/[\s/]+/).filter(Boolean).map(Number)
+      return { r: v[0] * 255, g: v[1] * 255, b: v[2] * 255, a: v[3] ?? 1 }
+    }
+    return null
+  }
+  const over = (top: RGBA, under: RGBA): RGBA => ({
+    r: top.r * top.a + under.r * (1 - top.a),
+    g: top.g * top.a + under.g * (1 - top.a),
+    b: top.b * top.a + under.b * (1 - top.a),
+    a: 1,
+  })
+  const hex = ({ r, g, b }: RGBA) =>
+    '#' + [r, g, b].map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')
+  const gradientMean = (image: string): RGBA | null => {
+    const stops = Array.from(image.matchAll(/rgba?\([^)]+\)|color\(srgb[^)]+\)/g), (m) => parse(m[0]))
+      .filter((c): c is RGBA => c !== null)
+    if (stops.length === 0) return null
+    const sum = stops.reduce((acc, c) => ({ r: acc.r + c.r, g: acc.g + c.g, b: acc.b + c.b, a: acc.a + c.a }),
+      { r: 0, g: 0, b: 0, a: 0 })
+    return { r: sum.r / stops.length, g: sum.g / stops.length, b: sum.b / stops.length, a: sum.a / stops.length }
+  }
+  const path = (el: Element) => {
+    const parts: string[] = []
+    for (let e: Element | null = el; e && e !== document.body && parts.length < 4; e = e.parentElement) {
+      const id = e.getAttribute('data-testid')
+      const cls = typeof e.className === 'string' ? e.className.trim().split(/\s+/).slice(0, 2).join('.') : ''
+      parts.unshift(e.tagName.toLowerCase() + (id ? `[${id}]` : cls ? `.${cls}` : ''))
+    }
+    return parts.join(' > ')
+  }
+
+  /** The element's own background over every ancestor's, from the root down; null over a photo. */
+  const groundOf = (el: Element): RGBA | null => {
+    const chain: Element[] = []
+    for (let e: Element | null = el; e; e = e.parentElement) chain.unshift(e)
+    let ground: RGBA = { r: 255, g: 255, b: 255, a: 1 }
+    for (const e of chain) {
+      const style = getComputedStyle(e)
+      if (/url\(/.test(style.backgroundImage)) return null
+      const opacity = Number(style.opacity)
+      const color = parse(style.backgroundColor)
+      if (color && color.a > 0) ground = over({ ...color, a: color.a * opacity }, ground)
+      const wash = style.backgroundImage !== 'none' ? gradientMean(style.backgroundImage) : null
+      if (wash && wash.a > 0) ground = over({ ...wash, a: wash.a * opacity }, ground)
+    }
+    return ground
+  }
+
+  const stage = document.querySelector('.pellier-stage') ?? document.body
+  const stageStyle = getComputedStyle(stage)
+  const pageWidth = stage.getBoundingClientRect().width
+    - parseFloat(stageStyle.paddingLeft) - parseFloat(stageStyle.paddingRight)
+  const bands = new Set<Element>([document.body, ...Array.from(document.querySelectorAll('.pellier-surface-bar'))])
+  for (const el of Array.from(stage.querySelectorAll('main, main > *, section, header, footer'))) {
+    const rect = el.getBoundingClientRect()
+    const style = getComputedStyle(el)
+    if (rect.width < pageWidth - 2 || rect.height < 24) continue
+    if (style.display === 'none' || style.visibility !== 'visible') continue
+    if (el.closest('[role="dialog"], [aria-modal="true"]') || el.closest(INK_BANDS)) continue
+    if (['fixed', 'absolute'].includes(style.position)) continue
+    bands.add(el)
+  }
+
+  const findings: GroundReport['findings'] = []
+  for (const el of bands) {
+    const ground = groundOf(el)
+    if (ground && hex(ground) !== WANT) findings.push({ ground: hex(ground), path: path(el) || el.tagName.toLowerCase() })
+  }
+  return { checked: bands.size, findings }
 }

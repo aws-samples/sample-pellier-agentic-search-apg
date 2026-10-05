@@ -6,7 +6,7 @@
  *
  * Contract (per storefront.md):
  *   - Centered cream rounded-3xl card over a glass backdrop-blur overlay.
- *   - Header row: Pellier mark + "Welcome to Pellier" + subheader
+ *   - Header row: the pellier. wordmark + "Welcome to Pellier" + subheader
  *     "Sign in for a storefront built for you".
  *   - Body: account eyebrow + Instrument Sans headline
  *     "Let the storefront find you.".
@@ -32,7 +32,7 @@ import { useUI } from '../contexts/UIContext'
 import { redirectToSignIn, type SignInProvider } from '../utils/auth'
 import { cssVar as c } from '../design/cssVars'
 import { useFocusTrap } from '../shared/useFocusTrap'
-import PellierMark from './PellierMark'
+import { WordmarkLetters } from './Wordmark'
 
 // === REFERENCE: START ===
 // --- Design tokens (storefront.md) ---------------------------------------
@@ -149,7 +149,8 @@ export default function AuthModal() {
         style={{
           width: '100%',
           maxWidth: 440,
-          background: c.bg,
+          background: c.paper,
+          border: `1px solid ${c.line}`,
           borderRadius: 24,
           padding: '32px 32px 20px 32px',
           boxShadow: 'var(--dl-sh-deep)',
@@ -157,9 +158,14 @@ export default function AuthModal() {
           color: c.ink,
         }}
       >
-        {/* Header: Pellier mark + title + subtitle */}
+        {/* Header: the wordmark + title + subtitle. The square p. mark is
+            reserved for the favicon and Ask Pellier's avatar. The modal
+            mounts outside the router, so it shows the letters, not the
+            home link. */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-          <PellierMark size={44} data-testid="auth-modal-mark" />
+          <span className="pellier-brand" data-testid="auth-modal-wordmark">
+            <WordmarkLetters />
+          </span>
           <h2
             id="auth-modal-title"
             data-testid="auth-modal-header"
@@ -244,7 +250,7 @@ export default function AuthModal() {
           style={{
             marginTop: 18,
             paddingTop: 14,
-            borderTop: `1px solid ${c.paper}`,
+            borderTop: `1px solid ${c.line}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

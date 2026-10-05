@@ -168,13 +168,12 @@ export default function PersonaTransitionOverlay() {
                 &nbsp;&nbsp;<span aria-hidden>●</span>
               </div>
 
-              {/* Sans greeting — matches .sf-greeting on PellierWelcome
-                  (readable; avoid heavy italic Fraunces on cream). */}
+              {/* The greeting, in the heading face at 500 like .sf-greeting
+                  on PellierWelcome. */}
               <h2
                 style={{
-                  fontFamily: 'var(--sans)',
-                  fontStyle: 'normal',
-                  fontWeight: 400,
+                  fontFamily: 'var(--dl-font-heading)',
+                  fontWeight: 500,
                   fontSize: lastTransition.kind === 'sign-in' ? 34 : 25,
                   lineHeight: 1.15,
                   letterSpacing: '-0.015em',
@@ -200,7 +199,6 @@ export default function PersonaTransitionOverlay() {
                 <p
                   style={{
                     fontFamily: 'var(--sans)',
-                    fontStyle: 'normal',
                     fontWeight: 400,
                     fontSize: 15,
                     lineHeight: 1.6,

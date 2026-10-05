@@ -3,7 +3,7 @@
  *
  * Matches the `.artifact` element in docs/pellier-chat-experience.html.
  * Cream-elev background, 12px radius, "PULLED FOR YOU" eyebrow,
- * 160px image area, italic-serif name, espresso "Add to bag" pill,
+ * 160px image area, Instrument Sans name, ink "Add to bag" pill,
  * outlined heart button. Mounts with artifact-mount keyframe (380ms).
  *
  * Used exclusively in PellierChat. The observatory branch continues

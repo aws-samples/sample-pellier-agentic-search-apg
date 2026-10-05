@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import Wordmark from './Wordmark'
+import Wordmark, { PellierMark } from './Wordmark'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const tokens = readFileSync(resolve(here, '../styles/daylight-tokens.css'), 'utf8')
@@ -54,14 +54,27 @@ describe('Wordmark', () => {
     expect(dark).toMatch(/--dl-ink:\s*#f3ebe2/)
   })
 
-  it('is the only element set in Fraunces, at the original sizes', () => {
+  it('sets its letters in Fraunces, at the original sizes', () => {
     const brand = block(nav, '.pellier-brand {')
-    expect(brand).toContain('font-family: var(--dl-font-display)')
     expect(brand).toContain('font-size: 31px')
     expect(brand).toContain('font-weight: 400')
     expect(brand).toContain('letter-spacing: -1.8px')
+    expect(brand).not.toContain('font-family')
     expect(block(nav, '.pellier-brand-footer')).toContain('font-size: 36px')
     render(<MemoryRouter><Wordmark size="footer" /></MemoryRouter>)
-    expect(screen.getByRole('link', { name: 'Pellier home' })).toHaveClass('pellier-brand-footer')
+    const mark = screen.getByRole('link', { name: 'Pellier home' })
+    expect(mark).toHaveClass('pellier-brand-footer')
+    const letters = Array.from(mark.querySelectorAll('span'))
+    expect(letters.map((span) => span.textContent)).toEqual(['pellier', '.'])
+    for (const span of letters) expect(span.style.fontFamily).toBe('var(--dl-font-display)')
+  })
+
+  it('gives the square p. mark the same face', () => {
+    render(<PellierMark size={28} data-testid="mark" />)
+    const mark = screen.getByTestId('mark')
+    expect(mark).toHaveClass('pellier-mark')
+    expect(mark).toHaveTextContent('p.')
+    expect(mark.style.fontFamily).toBe('var(--dl-font-display)')
+    expect(block(nav, '.pellier-mark {')).not.toContain('font-family')
   })
 })

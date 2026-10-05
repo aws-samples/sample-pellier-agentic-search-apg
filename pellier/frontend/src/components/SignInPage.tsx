@@ -2,6 +2,7 @@ import { apiUrl } from '../services/apiBase'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
+import { WordmarkLetters } from './Wordmark'
 import { asset } from '../utils/assetPath'
 import { passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
 import '../styles/surface-navigation.css'
@@ -104,8 +105,7 @@ export default function SignInPage() {
       <div className="pellier-signin-shell">
         <div className="pellier-signin-form-panel">
           <a href={asset('/')} className="pellier-brand pellier-signin-wordmark" aria-label="Pellier home">
-            <span aria-hidden="true">pellier</span>
-            <span className="pellier-brand-dot" aria-hidden="true">.</span>
+            <WordmarkLetters />
           </a>
           <div className="pellier-signin-content">
             <h1 ref={heading} tabIndex={-1}>{title}</h1>
@@ -132,7 +132,7 @@ export default function SignInPage() {
           </div>
           <a href={asset('/')} className="pellier-signin-home">Back to Pellier</a>
         </div>
-        <div className="pellier-signin-portrait" aria-hidden="true"><ResponsiveImage src="/products/hero-fresh-2.png" widths={[960, 1600]} sizes="(min-width: 900px) 50vw, 1px" alt="" /><div><span className="pellier-signin-image-wordmark">pellier<span>.</span></span><p>Considered pieces.<br />Personal attention.</p></div></div>
+        <div className="pellier-signin-portrait" aria-hidden="true"><ResponsiveImage src="/products/hero-fresh-2.png" widths={[960, 1600]} sizes="(min-width: 900px) 50vw, 1px" alt="" /><div><span className="pellier-signin-image-wordmark"><WordmarkLetters /></span><p>Considered pieces.<br />Personal attention.</p></div></div>
       </div>
     </main>
   )

@@ -4,7 +4,9 @@
  * each, and in the dark theme the contrast sweep (`fixtures/contrast-sweep.ts`),
  * which fails on visible text below 4.5:1, an icon below 3:1, or a border or
  * rule below 1.25:1 against what is painted behind it. The sweep scrolls the
- * page and every scrolling panel so nothing below the fold escapes it.
+ * page and every scrolling panel so nothing below the fold escapes it. The
+ * same dark run checks that the page ground under every main band of the
+ * route is true black (#000000), not the panel token.
  *
  *   npx vite --port 5199 &
  *   E2E_BASE_URL=http://localhost:5199 THEME_SHOTS=/path/to/dir \
@@ -13,7 +15,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
-import { sweepContrast, type ContrastFinding } from './fixtures/contrast-sweep'
+import { sweepContrast, sweepGrounds, type ContrastFinding } from './fixtures/contrast-sweep'
 import { SURFACES } from './fixtures/surfaces'
 
 const SHOTS = process.env.THEME_SHOTS ?? 'test-results/theme-surfaces'
@@ -93,8 +95,13 @@ for (const theme of ['light', 'dark'] as const) {
           fullPage: surface.fullPage,
         })
         if (theme === 'dark') {
+          const grounds = await page.evaluate(sweepGrounds)
+          expect(grounds.checked, `${surface.name}: bands measured for the page ground`).toBeGreaterThan(1)
           const findings = await sweepPage(page)
-          const lines = findings.map((f) => `${f.kind} ${f.ratio}:1 < ${f.min} fg ${f.fg} on ${f.bg} "${f.text}" at ${f.path}`)
+          const lines = [
+            ...grounds.findings.map((g) => `ground ${g.ground}, not #000000, at ${g.path}`),
+            ...findings.map((f) => `${f.kind} ${f.ratio}:1 < ${f.min} fg ${f.fg} on ${f.bg} "${f.text}" at ${f.path}`),
+          ]
           expect(lines, `${surface.name} at ${viewport.width}px in the dark theme`).toEqual([])
         }
       })

@@ -84,7 +84,6 @@ const SPEC_FILES: string[] = [
   'components/ProductAvailabilityPanel.tsx',
   'pages/ProductDetailPage.tsx',
   'pages/StoryboardPage.tsx',
-  'pages/ComingSoonLine.tsx',
 ]
 
 // Strings that are already present in legacy JSX / return positions

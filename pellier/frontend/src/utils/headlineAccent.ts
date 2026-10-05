@@ -13,7 +13,7 @@ export function splitHeadlineAtRe(headline: string): {
 
 /**
  * Split an editorial statement around a single accent word so the accent can
- * be set in the burgundy italic of the same family.
+ * be set apart as an `<em>` in the same face.
  *
  * Returns the whole statement as `before` when `accent` is absent, so a copy
  * edit that drops the accent word degrades to an unaccented headline rather

@@ -14,6 +14,12 @@ describe('AnnouncementBar', () => {
     expect(screen.getByTestId('announcement-bar')).not.toHaveAttribute('aria-live')
   })
 
+  it('draws its pulse dot in the copper that reads on the ink bar in both themes', () => {
+    render(<AnnouncementBar />)
+    const dot = screen.getByTestId('announcement-pulse')
+    expect(dot.style.background).toBe('var(--dl-accent-on-ink)')
+  })
+
   it('stays on the first message when reduced motion is requested', () => {
     vi.useFakeTimers()
     vi.spyOn(window, 'matchMedia').mockImplementation((query) => ({

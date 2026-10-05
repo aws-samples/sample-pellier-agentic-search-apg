@@ -4,16 +4,16 @@ import { cssVar as c } from '../design/cssVars'
  *
  * Four notes total: one for each returning persona (Marco, Anna,
  * Theo) and one editorial note written in the Pellier voice. Each
- * note is a tight italic Fraunces dek + a prose body in Instrument Sans, 15px/
- * 1.7, matching the Observatory AssistantText register so the page reads
- * as "the storefront wrote this, not a marketing page."
+ * note is a short Instrument Sans title over a prose body at 15px/1.7, so
+ * the page reads as "the storefront wrote this, not a marketing page." The
+ * section sits on the page ground, black in the dark theme.
  *
  * The footer tagline "Field notes from a slower kind of shopping" is
  * the section's single editorial anchor — carried over from the old
  * footer newsletter column so the phrase earns a home instead of
  * being decoration beneath a dead subscribe form.
  */
-const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
+const HEADING = 'var(--dl-font-heading)'
 
 interface Note {
   id: string
@@ -68,7 +68,7 @@ export default function FieldNotes() {
       data-testid="field-notes"
       aria-labelledby="field-notes-heading"
       style={{
-        background: c.paper,
+        background: c.bg,
         padding: '72px 24px 96px',
       }}
     >
@@ -104,12 +104,11 @@ export default function FieldNotes() {
             id="field-notes-heading"
             style={{
               scrollMarginTop: 96,
-              fontFamily: FRAUNCES_STACK,
-              fontStyle: 'italic',
-              fontWeight: 400,
-              fontSize: 44,
+              fontFamily: HEADING,
+              fontWeight: 500,
+              fontSize: 'var(--text-section)',
               lineHeight: 1.1,
-              letterSpacing: '-0.01em',
+              letterSpacing: 'var(--dl-track-tight)',
               color: c.ink,
               margin: '16px 0 0',
             }}
@@ -119,8 +118,7 @@ export default function FieldNotes() {
           </h2>
           <p
             style={{
-              fontFamily: FRAUNCES_STACK,
-              fontStyle: 'italic',
+              fontFamily: 'var(--sans)',
               fontSize: 17,
               lineHeight: 1.6,
               color: c.ink2,
@@ -161,14 +159,13 @@ export default function FieldNotes() {
               <h3
                 id={`${note.id}-heading`}
                 style={{
-                  fontFamily: FRAUNCES_STACK,
-                  fontStyle: 'italic',
-                  fontWeight: 400,
-                  fontSize: 28,
-                  lineHeight: 1.2,
-                  letterSpacing: '-0.005em',
+                  fontFamily: HEADING,
+                  fontWeight: 500,
+                  fontSize: 'var(--text-sub)',
+                  lineHeight: 1.25,
+                  letterSpacing: 'var(--dl-track-tight)',
                   color: c.ink,
-                  margin: '10px 0 18px',
+                  margin: '10px 0 14px',
                 }}
               >
                 {note.title}
@@ -190,12 +187,12 @@ export default function FieldNotes() {
               ))}
               <p
                 style={{
-                  fontFamily: FRAUNCES_STACK,
-                  fontStyle: 'italic',
-                  fontWeight: 400,
-                  fontSize: 14,
-                  color: c.ink2,
-                  margin: '18px 0 0',
+                  fontFamily: 'var(--sans)',
+                  fontWeight: 500,
+                  fontSize: 13,
+                  letterSpacing: '0.01em',
+                  color: c.muted,
+                  margin: '16px 0 0',
                 }}
               >
                 {note.signature}
@@ -214,10 +211,8 @@ export default function FieldNotes() {
         >
           <p
             style={{
-              fontFamily: FRAUNCES_STACK,
-              fontStyle: 'italic',
-              fontWeight: 400,
-              fontSize: 15,
+              fontFamily: 'var(--sans)',
+              fontSize: 14,
               lineHeight: 1.6,
               color: c.ink2,
               textAlign: 'center',

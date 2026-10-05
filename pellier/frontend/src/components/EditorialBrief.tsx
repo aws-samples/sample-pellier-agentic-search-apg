@@ -7,8 +7,11 @@
  *      Pellier/Observatory label, two paragraphs, and stack chips right.
  *      Every string comes from `ABOUT_BRIEF` in copy.ts so the page and
  *      the copy file cannot drift apart.
- *   2. Colophon strip: a single centred italic line on a slightly darker
- *      warm ground, doubling as the visual page-end signal.
+ *   2. Colophon strip: a single centred line under a hairline, doubling as
+ *      the visual page-end signal.
+ *
+ * Both sit on the page ground (`--cream`, the page token): white in light and
+ * black in dark. The title is Instrument Sans like every heading.
  */
 import { Fragment } from 'react'
 import { ABOUT_BRIEF } from '../copy'
@@ -32,7 +35,7 @@ export default function EditorialBrief() {
         aria-label="About Pellier"
         className="w-full"
         style={{
-          background: 'linear-gradient(180deg, var(--cream) 0%, var(--cream-2) 100%)',
+          background: 'var(--cream)',
           scrollMarginTop: 84,
         }}
       >
@@ -76,12 +79,13 @@ export default function EditorialBrief() {
               </div>
 
               <h1
-                className="font-sans pellier-page-title italic text-ink"
+                className="text-ink"
                 style={{
+                  fontFamily: 'var(--dl-font-heading)',
                   fontSize: 'clamp(28px, 3.5vw, 44px)',
                   lineHeight: 1.1,
-                  letterSpacing: '-0.01em',
-                  fontWeight: 400,
+                  letterSpacing: 'var(--dl-track-tight)',
+                  fontWeight: 500,
                 }}
               >
                 {ABOUT_BRIEF.TITLE_LINES.map((line, index) => (
@@ -143,10 +147,14 @@ export default function EditorialBrief() {
 
       <div
         className="w-full text-center"
-        style={{ background: 'var(--cream-2)', padding: '28px 24px' }}
+        style={{
+          background: 'var(--cream)',
+          borderTop: '1px solid var(--rule-1)',
+          padding: '28px 24px',
+        }}
       >
         <p
-          className="font-sans pellier-page-title italic"
+          className="font-sans"
           style={{
             fontSize: '15px',
             lineHeight: 1.5,

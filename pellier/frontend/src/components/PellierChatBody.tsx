@@ -25,7 +25,7 @@ import { SHOPPER } from '../copy'
 import '../styles/pellier-chat.css'
 import '../styles/pellier-welcome.css'
 import '../styles/turn.css'
-import PellierMark from './PellierMark'
+import { PellierMark } from './Wordmark'
 
 // ---------------------------------------------------------------------------
 // Props

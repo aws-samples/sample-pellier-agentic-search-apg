@@ -3,8 +3,10 @@
 .pellier-signin-shell { width: min(1100px, 100%); display: grid; grid-template-columns: 1fr 0.94fr; min-height: min(680px, calc(100dvh - var(--pellier-surface-bar-height, 64px) - 64px)); background: var(--dl-paper); border: 1px solid var(--dl-line); border-radius: var(--pellier-image-radius-lg); overflow: clip; box-shadow: var(--dl-sh-lift); }
 .pellier-signin-form-panel { display: flex; flex-direction: column; padding: 32px 48px 28px; }
 .pellier-signin-wordmark { align-self: flex-start; padding-block: 4px; }
-.pellier-signin-image-wordmark { font: 400 31px/1.2 var(--dl-font-display); letter-spacing: -1.8px; }
-.pellier-signin-image-wordmark > span { color: var(--pellier-copper-on-dark); }
+/* The wordmark on the photograph. Its face comes from WordmarkLetters; it is ivory with the
+   dark theme's copper in both themes. */
+.pellier-signin-image-wordmark { font-size: 31px; font-weight: 400; line-height: 1.2; letter-spacing: -1.8px; }
+.pellier-signin-image-wordmark .pellier-brand-dot { color: var(--pellier-copper-on-dark); }
 .pellier-signin-content { width: 100%; margin-block: auto; padding-block: 34px; }
 .pellier-signin-content h1 { margin: 0; font: 500 clamp(28px, 3vw, 36px)/1.16 var(--dl-font-heading); letter-spacing: var(--dl-track-tight); text-wrap: balance; }
 .pellier-signin-content h1:focus { outline: none; }

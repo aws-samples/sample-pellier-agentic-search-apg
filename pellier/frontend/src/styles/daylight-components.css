@@ -10,7 +10,7 @@ html, body {
   margin: 0;
   background: var(--dl-bg);
   color: var(--dl-ink);
-  font-family: var(--dl-font-serif);
+  font-family: var(--dl-font-sans);
   font-size: var(--dl-fs-body);
   line-height: var(--dl-lh-body);
   -webkit-font-smoothing: antialiased;
