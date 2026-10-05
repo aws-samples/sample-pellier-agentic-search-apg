@@ -4,7 +4,8 @@ import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
 import { WordmarkLetters } from './Wordmark'
 import { asset } from '../utils/assetPath'
-import { passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
+import { hostedSignInAvailable, passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
+import { HOSTED_SIGN_IN } from '../copy'
 import '../styles/surface-navigation.css'
 import '../styles/pellier-signin.css'
 
@@ -22,6 +23,18 @@ const ERROR_COPY: Record<string, string> = {
 
 type Mode = 'sign-in' | 'forgot' | 'reset'
 
+/** Own keys only: an address naming `constructor` must not find Object's. */
+function own(record: Readonly<Record<string, string>>, key: string | null): string | null {
+  return key !== null && Object.prototype.hasOwnProperty.call(record, key) ? record[key] : null
+}
+
+/** Where no hosted sign-in is offered, a message that points at one says so instead. */
+function withoutHosted(message: string | null): string | null {
+  if (message === ERROR_COPY.verification_required) return HOSTED_SIGN_IN.VERIFICATION_UNAVAILABLE
+  if (message === ERROR_COPY.password_signin_unavailable) return HOSTED_SIGN_IN.PASSWORD_UNAVAILABLE
+  return message
+}
+
 export default function SignInPage() {
   const params = new URLSearchParams(window.location.search)
   const workspaceOperator = params.get('workspace') === 'operator'
@@ -32,8 +45,9 @@ export default function SignInPage() {
   // Operator or cross-principal data.
   const operator = workspaceOperator || /\/operator(?:\/|\?|$)/.test(returnTo)
   const surface = operator ? 'staff' : 'shopper'
-  // A Hosted UI staff sign-in refused on the storefront lands here with its reason.
-  const refused = params.get('error') === 'staff_use_operator' ? ERROR_COPY.staff_use_operator : null
+  // A hosted sign-in that stopped, or a staff sign-in refused on the storefront, lands here with its reason.
+  const returned = params.get('error')
+  const refused = returned === 'staff_use_operator' ? ERROR_COPY.staff_use_operator : own(HOSTED_SIGN_IN.RETURNED, returned)
   const [mode, setMode] = useState<Mode>('sign-in')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -43,11 +57,13 @@ export default function SignInPage() {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(refused)
   const [notice, setNotice] = useState<string | null>(null)
+  // Offer the hosted sign-in only once the server says this origin can finish it.
+  const [hosted, setHosted] = useState(false)
   const controller = useRef<AbortController | null>(null)
   const busy = useRef(false)
   const heading = useRef<HTMLHeadingElement | null>(null)
   const mounted = useRef(false)
-  const hosted = apiUrl(`/api/auth/signin?provider=email&returnTo=${encodeURIComponent(returnTo)}&surface=${surface}`)
+  const hostedUrl = apiUrl(`/api/auth/signin?provider=email&returnTo=${encodeURIComponent(returnTo)}&surface=${surface}`)
 
   useEffect(() => {
     const previous = document.title
@@ -56,6 +72,11 @@ export default function SignInPage() {
     return () => { mounted.current = false; controller.current?.abort(); document.title = previous }
   }, [operator])
   useEffect(() => { heading.current?.focus({ preventScroll: true }) }, [mode])
+  useEffect(() => {
+    const request = new AbortController()
+    void hostedSignInAvailable(request.signal).then((available) => { if (!request.signal.aborted) setHosted(available) })
+    return () => request.abort()
+  }, [])
 
   const changeMode = (next: Mode) => {
     if (busy.current) return
@@ -100,6 +121,7 @@ export default function SignInPage() {
       if (mounted.current) setWorking(false)
     }
   }
+  const shown = hosted ? error : withoutHosted(error)
   const title = mode === 'forgot' ? 'Reset your password.' : mode === 'reset' ? 'A fresh start.' : operator ? 'Welcome to the desk.' : 'Welcome to Pellier.'
   const description = mode === 'forgot' ? 'Enter your username to request a recovery code.' : mode === 'reset' ? 'Enter your recovery code and choose a new password.' : operator ? 'Sign in to your operator account to continue.' : 'Sign in for a more personal shopping experience.'
 
@@ -126,11 +148,11 @@ export default function SignInPage() {
                 </div>
               ) : null}
               {mode === 'reset' ? <div className="pellier-signin-field"><label htmlFor="pellier-password-confirmation">Confirm new password</label><input id="pellier-password-confirmation" name="passwordConfirmation" type={visible ? 'text' : 'password'} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" required maxLength={256} readOnly={working} /></div> : null}
-              {error ? <p className="pellier-signin-feedback" data-tone="error" role="alert">{error}</p> : null}
+              {shown ? <p className="pellier-signin-feedback" data-tone="error" role="alert">{shown}</p> : null}
               {notice ? <p className="pellier-signin-feedback" role="status">{notice}</p> : null}
               <button className="pellier-signin-submit" type="submit" disabled={working}>{working ? <><LoaderCircle size={18} className="spin" aria-hidden="true" />{mode === 'sign-in' ? 'Signing in…' : 'Please wait…'}</> : mode === 'sign-in' ? 'Sign in' : mode === 'forgot' ? 'Send recovery code' : 'Update password'}</button>
             </form>
-            {mode !== 'sign-in' ? <button type="button" className="pellier-signin-back" disabled={working} onClick={() => changeMode('sign-in')}>Back to sign in</button> : <a className="pellier-signin-alternative" href={hosted}>{error === ERROR_COPY.verification_required ? 'Continue secure verification' : 'Use another sign-in method'}</a>}
+            {mode !== 'sign-in' ? <button type="button" className="pellier-signin-back" disabled={working} onClick={() => changeMode('sign-in')}>Back to sign in</button> : hosted ? <a className="pellier-signin-alternative" href={hostedUrl}>{error === ERROR_COPY.verification_required ? 'Continue secure verification' : 'Use another sign-in method'}</a> : null}
             {mode === 'reset' ? <button type="button" className="pellier-signin-alternative" disabled={working} onClick={() => changeMode('forgot')}>Request a new code</button> : null}
           </div>
           <a href={asset('/')} className="pellier-signin-home">Back to Pellier</a>

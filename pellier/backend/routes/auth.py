@@ -12,6 +12,9 @@ Implements Requirements 3.1.1–3.1.5 and 4.1.3:
   * ``POST /api/auth/refresh``  rotate one session's tokens from its
                                 refresh cookie (used by the frontend
                                 interceptor in Task 3.7 on the frontend).
+  * ``GET  /api/auth/config``   say whether this origin can finish a
+                                Hosted UI sign-in, so the sign-in page
+                                links to it only when it works.
 
 ``me``, ``logout`` and ``refresh`` take ``surface=shopper|staff``, default
 ``shopper``: one browser holds a shopper session for the storefront and a
@@ -39,7 +42,10 @@ Design notes
 * **Error envelopes.** Per Req 3.1.5, Cognito errors return a
   non-leaking envelope ``{"error": "auth_failed"}`` (or
   ``"invalid_state"`` / ``"refresh_failed"``) with an appropriate
-  status. Token fragments are never logged (Req 5.3.3).
+  status. Token fragments are never logged (Req 5.3.3). A browser that
+  opened ``signin`` or ``callback`` as a page never lands on that JSON:
+  it returns to the SPA sign-in page with the same code as
+  ``?error=<code>``, plus ``workspace=operator`` for a staff sign-in.
 
 Routes are not participant-edit surfaces. They ship as reference runtime code.
 """
@@ -92,8 +98,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 SIGN_IN_METHOD_WORKSHOP = "workshop"
 # A staff account signing in on the storefront: refused, never a shopper session.
 STAFF_USE_OPERATOR = "staff_use_operator"
-# Where a Hosted UI staff refusal lands: the Operator's sign-in, saying why.
-STAFF_REFUSAL_PAGE = "signin?" + urlencode({"error": STAFF_USE_OPERATOR, "workspace": "operator"})
+# This origin cannot finish a Hosted UI sign-in: no domain, client, pool or callback here.
+AUTH_NOT_CONFIGURED = "auth_not_configured"
 
 
 @dataclass(frozen=True)
@@ -227,6 +233,26 @@ def _post_signin_redirect(
     return f"{origin}{path}/"
 
 
+def _sign_in_page_url(request: Request, surface: str, error: str) -> str:
+    """Return the SPA sign-in page of ``surface``, carrying why a sign-in stopped."""
+    params = {"error": error}
+    if surface == STAFF_SURFACE:
+        params["workspace"] = "operator"
+    return f"{_post_signin_redirect(request)}signin?{urlencode(params)}"
+
+
+def _is_navigation(request: Request) -> bool:
+    """Return True when a browser opened this URL as a page, not a script calling the API.
+
+    Browsers send ``Sec-Fetch-Mode: navigate`` on a top-level navigation. One
+    without Fetch Metadata still asks for HTML.
+    """
+    mode = request.headers.get("sec-fetch-mode")
+    if mode:
+        return mode == "navigate"
+    return "text/html" in request.headers.get("accept", "")
+
+
 def _canonical_loopback_signin_url(
     request: Request,
     *,
@@ -281,14 +307,39 @@ def _canonical_loopback_signin_url(
 
 def _cognito_domain() -> str:
     if not settings.COGNITO_DOMAIN:
-        raise HTTPException(status_code=503, detail="auth_not_configured")
+        raise HTTPException(status_code=503, detail=AUTH_NOT_CONFIGURED)
     return settings.COGNITO_DOMAIN.rstrip("/")
 
 
 def _client_id() -> str:
     if not settings.COGNITO_CLIENT_ID:
-        raise HTTPException(status_code=503, detail="auth_not_configured")
+        raise HTTPException(status_code=503, detail=AUTH_NOT_CONFIGURED)
     return settings.COGNITO_CLIENT_ID
+
+
+def _hosted_sign_in_ready(request: Request) -> bool:
+    """Return True when a Hosted UI sign-in started from this origin can finish.
+
+    It needs the Cognito domain and app client to start, the user pool to
+    verify the returned token, and a callback on this origin: the callback
+    reads back the state and PKCE cookies that ``signin`` sets here, so a
+    callback on another host could never complete. Loopback aliases count
+    as one origin because ``signin`` converges them before setting cookies.
+    """
+    if not (
+        settings.COGNITO_DOMAIN
+        and settings.COGNITO_CLIENT_ID
+        and settings.cognito_pool_id_resolved
+    ):
+        return False
+    try:
+        callback = urlsplit(_redirect_uri(request))
+        origin = urlsplit(_request_origin(request))
+    except (HTTPException, ValueError):
+        return False
+    if callback.hostname in _LOOPBACK_HOSTS and origin.hostname in _LOOPBACK_HOSTS:
+        return True
+    return (callback.scheme, callback.netloc.lower()) == (origin.scheme, origin.netloc.lower())
 
 
 def _authorize_url() -> str:
@@ -347,12 +398,11 @@ def _build_state(expiry: Optional[int] = None, surface: str = SHOPPER_SURFACE) -
     return f"{payload}.{_b64url_encode(signature)}"
 
 
-def _state_surface(state: str) -> Optional[str]:
-    """Return the surface a well-formed, unexpired, signed state names, else None.
+def _signed_state_fields(state: str) -> Optional[tuple[str, str]]:
+    """Return ``(expiry, surface)`` from a state whose signature verifies, else None.
 
-    Uses ``hmac.compare_digest`` to blunt timing attacks. Expiry is
-    checked after signature verification so a malformed state never
-    leaks information about the signing key.
+    Uses ``hmac.compare_digest`` to blunt timing attacks. Neither field is
+    checked here; the caller decides what an expired state may still mean.
     """
     try:
         nonce_b64, expiry_str, surface, signature_b64 = state.split(".")
@@ -370,7 +420,19 @@ def _state_surface(state: str) -> Optional[str]:
 
     if not hmac.compare_digest(expected, provided):
         return None
+    return expiry_str, surface
 
+
+def _state_surface(state: str) -> Optional[str]:
+    """Return the surface a well-formed, unexpired, signed state names, else None.
+
+    Expiry is checked after signature verification so a malformed state
+    never leaks information about the signing key.
+    """
+    fields = _signed_state_fields(state)
+    if fields is None:
+        return None
+    expiry_str, surface = fields
     try:
         expiry_ts = int(expiry_str)
     except ValueError:
@@ -379,6 +441,19 @@ def _state_surface(state: str) -> Optional[str]:
         return None
 
     return surface
+
+
+def _sign_in_page_surface(state: Optional[str]) -> str:
+    """Return whose sign-in page a failed callback goes back to.
+
+    The signed state's surface, even once it has expired, so a staff sign-in
+    that timed out returns to the Operator's page. It only picks the page:
+    no session is read or written from it. Anything unsigned means shopper.
+    """
+    fields = _signed_state_fields(state) if state else None
+    if fields is not None and fields[1] in SESSION_SURFACES:
+        return fields[1]
+    return SHOPPER_SURFACE
 
 
 def _verify_state(state: str) -> bool:
@@ -526,16 +601,34 @@ def _clear_oauth_cookies(response: Response, surface: str) -> None:
         )
 
 
-def _oauth_failure_response(
-    surface: str, status_code: int = 502, detail: str = "auth_failed"
-) -> JSONResponse:
-    """Return the non-leaking OAuth failure envelope and consume ``surface``'s state."""
-    response = JSONResponse(
-        status_code=status_code,
-        content={"detail": detail},
-        headers={"Cache-Control": "no-store"},
-    )
-    _clear_oauth_cookies(response, surface)
+def _callback_failure(
+    request: Request,
+    state: Optional[str],
+    status_code: int = 502,
+    error: str = "auth_failed",
+    *,
+    envelope: str = "detail",
+) -> Response:
+    """End a failed callback without leaking why Cognito refused it.
+
+    A browser goes back to the sign-in page of the surface its state named,
+    with ``error`` in the address. A script gets the JSON envelope. Either
+    way the transaction cookies of a valid state are consumed.
+    """
+    if _is_navigation(request):
+        response: Response = RedirectResponse(
+            url=_sign_in_page_url(request, _sign_in_page_surface(state), error),
+            status_code=302,
+        )
+    else:
+        response = JSONResponse(
+            status_code=status_code,
+            content={envelope: error},
+            headers={"Cache-Control": "no-store"},
+        )
+    surface = _state_surface(state) if state else None
+    if surface:
+        _clear_oauth_cookies(response, surface)
     return response
 
 
@@ -606,6 +699,20 @@ def _token_exchange(body: Dict[str, str]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
+@router.get("/config")
+async def sign_in_config(request: Request) -> JSONResponse:
+    """Say whether this origin can finish a Hosted UI sign-in.
+
+    The sign-in page shows "Use another sign-in method" only when it can,
+    so a box without the Hosted UI never offers a link that fails. Names no
+    domain, client or callback.
+    """
+    return JSONResponse(
+        {"hosted_sign_in": _hosted_sign_in_ready(request)},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @router.get("/signin")
 async def signin(
     request: Request,
@@ -621,7 +728,19 @@ async def signin(
     the transaction (CSRF protection and replay window) and carries, under
     its signature, the ``surface`` whose session the callback writes. The
     callback never reads the surface from anywhere else.
+
+    When this origin cannot finish a Hosted UI sign-in, a browser goes back
+    to the ``surface``'s sign-in page with ``error=auth_not_configured``; a
+    script gets 503 ``auth_not_configured``.
     """
+    if not _hosted_sign_in_ready(request):
+        if _is_navigation(request):
+            return RedirectResponse(
+                url=_sign_in_page_url(request, surface, AUTH_NOT_CONFIGURED),
+                status_code=302,
+            )
+        raise HTTPException(status_code=503, detail=AUTH_NOT_CONFIGURED)
+
     provider_key = provider.lower()
     canonical_signin_url = _canonical_loopback_signin_url(
         request,
@@ -677,7 +796,7 @@ def _finish_hosted_sign_in(
     if staff_on_shopper_surface(user, surface):
         logger.info("Hosted sign-in refused: a staff account opened the storefront sign-in")
         response = RedirectResponse(
-            url=f"{_post_signin_redirect(request)}{STAFF_REFUSAL_PAGE}", status_code=302,
+            url=_sign_in_page_url(request, STAFF_SURFACE, STAFF_USE_OPERATOR), status_code=302,
         )
         _clear_oauth_cookies(response, surface)
         return response
@@ -712,7 +831,8 @@ async def callback(
     ``/oauth2/token``, verifies the returned access token through the
     JWKS client, writes the session cookies of the surface the signed
     state names, and 302s back to the SPA. A staff account is refused
-    the shopper session.
+    the shopper session. Every failure goes through
+    :func:`_callback_failure`, so a browser lands on the sign-in page.
     """
     # Req 5.3.4: the surface comes from the signed state only, so a tampered
     # surface fails like any tampered or expired state. It also names the
@@ -723,16 +843,10 @@ async def callback(
     # We treat them the same as any other sign-in interruption per Req 3.1.5.
     if error:
         logger.info("Cognito returned OAuth error: %s", error)
-        response = JSONResponse(
-            status_code=400,
-            content={"error": "auth_failed"},
-        )
-        if surface:
-            _clear_oauth_cookies(response, surface)
-        return response
+        return _callback_failure(request, state, 400, "auth_failed", envelope="error")
 
     if surface is None:
-        return JSONResponse(status_code=400, content={"error": "invalid_state"})
+        return _callback_failure(request, state, 400, "invalid_state", envelope="error")
 
     names = oauth_cookie_names(surface)
     cookie_state = request.cookies.get(names.state, "")
@@ -744,12 +858,7 @@ async def callback(
         and hmac.compare_digest(state, cookie_state)
     )
     if not code or not state_matches or not verifier:
-        response = JSONResponse(
-            status_code=400,
-            content={"error": "invalid_state"},
-        )
-        _clear_oauth_cookies(response, surface)
-        return response
+        return _callback_failure(request, state, 400, "invalid_state", envelope="error")
 
     # Exchange the authorization code for tokens.
     try:
@@ -765,13 +874,13 @@ async def callback(
         )
     except HTTPException as exc:
         if exc.status_code == 503:
-            return _oauth_failure_response(surface, 503, "auth_unavailable")
-        return _oauth_failure_response(surface)
+            return _callback_failure(request, state, 503, "auth_unavailable")
+        return _callback_failure(request, state)
 
     access_token = token_response.get("access_token")
     if not access_token:
         logger.error("Cognito token response missing access_token")
-        return _oauth_failure_response(surface)
+        return _callback_failure(request, state)
 
     # Verify the access token against JWKS before trusting it. Any failure
     # here bubbles up as 401 from ``validate_jwt``; surface it as 502
@@ -781,8 +890,8 @@ async def callback(
     except HTTPException as exc:
         logger.error("Token validation after exchange failed: %s", exc.detail)
         if exc.status_code == 503:
-            return _oauth_failure_response(surface, 503, "auth_unavailable")
-        return _oauth_failure_response(surface)
+            return _callback_failure(request, state, 503, "auth_unavailable")
+        return _callback_failure(request, state)
 
     return _finish_hosted_sign_in(
         request,

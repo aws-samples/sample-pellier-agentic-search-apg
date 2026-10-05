@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { passwordAuth, safeSignInReturn } from './passwordAuth'
+import { hostedSignInAvailable, passwordAuth, safeSignInReturn } from './passwordAuth'
 
 afterEach(() => vi.unstubAllGlobals())
 describe('password authentication transport', () => {
@@ -14,5 +14,22 @@ describe('password authentication transport', () => {
   })
   it.each(['https://other.example', '//other.example', '/\\other.example', '/signin?returnTo=/signin'])('refuses unsafe or recursive destination %s', (value) => {
     expect(safeSignInReturn(value)).toBe('/')
+  })
+})
+describe('hosted sign-in availability', () => {
+  it('asks the server and believes only an explicit yes', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ hosted_sign_in: true })))
+    vi.stubGlobal('fetch', fetch)
+    await expect(hostedSignInAvailable()).resolves.toBe(true)
+    expect(fetch.mock.calls[0][0]).toBe('/api/auth/config')
+  })
+  it.each([
+    ['a no', () => Promise.resolve(new Response(JSON.stringify({ hosted_sign_in: false })))],
+    ['an unclear answer', () => Promise.resolve(new Response(JSON.stringify({ hosted_sign_in: 'yes' })))],
+    ['an error status', () => Promise.resolve(new Response('{}', { status: 503 }))],
+    ['no answer', () => Promise.reject(new TypeError('network'))],
+  ])('reads %s as not available', async (_label, reply) => {
+    vi.stubGlobal('fetch', vi.fn(reply))
+    await expect(hostedSignInAvailable()).resolves.toBe(false)
   })
 })

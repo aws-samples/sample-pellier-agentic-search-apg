@@ -517,6 +517,30 @@ export const AUTH_MODAL = {
   FOOTER: "Sign-in with Amazon Cognito",
 } as const;
 
+/**
+ * The dedicated sign-in page and the hosted sign-in it can link to. The link
+ * shows only where the server says a hosted sign-in can finish.
+ */
+export const HOSTED_SIGN_IN = {
+  /**
+   * Why a hosted sign-in came back to the sign-in page, keyed by the
+   * server's `?error=` code. A code not listed here shows nothing.
+   */
+  RETURNED: {
+    auth_not_configured:
+      "Another sign-in method is not set up here, so sign in with your username and password.",
+    invalid_state: "That sign-in expired before it finished, so start it again.",
+    auth_failed: "That sign-in did not finish, so try again or use your username and password.",
+    auth_unavailable: "Sign-in is not responding right now, so try again in a moment.",
+  } as Readonly<Record<string, string>>,
+  /** An account that needs the hosted verification step, where there is none. */
+  VERIFICATION_UNAVAILABLE:
+    "Your account needs an extra verification step that is not set up here, so you are not signed in.",
+  /** Password sign-in refused, where there is no other method to offer. */
+  PASSWORD_UNAVAILABLE:
+    "Password sign-in is not available for this account here, and no other method is set up.",
+} as const;
+
 // Error copy (design.md "Error Handling" table). Machine codes are colocated
 // for grep-ability; the scanner still treats them as regular string values.
 export const ERRORS = {

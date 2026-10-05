@@ -232,15 +232,16 @@ def token_post_recorder(monkeypatch: pytest.MonkeyPatch) -> Dict[str, Any]:
 
 
 def _begin_oauth(
-    client: TestClient, *, return_to: Optional[str] = None
+    client: TestClient, *, return_to: Optional[str] = None, surface: str = "shopper"
 ) -> tuple[str, str]:
-    params = {"returnTo": return_to} if return_to else None
+    params = {"returnTo": return_to} if return_to else {}
+    params["surface"] = surface
     response = client.get("/api/auth/signin", params=params)
     params = {
         key: values[0]
         for key, values in parse_qs(urlparse(response.headers["location"]).query).items()
     }
-    return params["state"], client.cookies[PKCE_VERIFIER_COOKIE]
+    return params["state"], client.cookies[oauth_cookie_names(surface).verifier]
 
 
 def test_signin_google_redirects_to_cognito(client: TestClient) -> None:
@@ -852,3 +853,224 @@ def test_refresh_cognito_rejection_clears_cookies(
         ID_TOKEN_COOKIE,
         REFRESH_TOKEN_COOKIE,
     }.issubset(cleared_names)
+
+
+# ---------------------------------------------------------------------------
+# Hosted UI availability, and the page a browser lands on when it fails
+# ---------------------------------------------------------------------------
+
+# What a browser sends when it opens the URL as a page, not as a fetch.
+NAVIGATE = {"sec-fetch-mode": "navigate", "accept": "text/html,application/xhtml+xml"}
+SIGN_IN_PAGE = f"{APP_BASE_URL}/signin"
+CLOUDFRONT = {"host": "d111111abcdef8.cloudfront.net", "x-forwarded-proto": "https"}
+
+
+def _forged_staff_state() -> str:
+    """A shopper state relabelled ``staff``: its signature no longer verifies."""
+    nonce, expiry, _surface, signature = _build_state().split(".")
+    return f"{nonce}.{expiry}.staff.{signature}"
+
+
+def test_config_offers_the_hosted_sign_in_when_this_origin_can_finish_it(
+    client: TestClient,
+) -> None:
+    response = client.get("/api/auth/config")
+    assert response.status_code == 200
+    assert response.json() == {"hosted_sign_in": True}
+    assert response.headers["cache-control"] == "no-store"
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"COGNITO_DOMAIN": None},
+        {"COGNITO_CLIENT_ID": None},
+        {"COGNITO_POOL_ID": None, "COGNITO_USER_POOL_ID": None},
+        {"OAUTH_REDIRECT_URI": "https://elsewhere.test/api/auth/callback"},
+    ],
+    ids=["no-domain", "no-client", "no-pool", "callback-on-another-origin"],
+)
+def test_config_withholds_a_hosted_sign_in_that_could_not_finish(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, overrides: Dict[str, Any]
+) -> None:
+    for name, value in overrides.items():
+        monkeypatch.setattr(settings, name, value, raising=False)
+    assert client.get("/api/auth/config").json() == {"hosted_sign_in": False}
+
+
+def test_config_counts_loopback_aliases_as_one_origin(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``signin`` converges 127.0.0.1 onto localhost before it sets any cookie."""
+    monkeypatch.setattr(settings, "APP_BASE_URL", None, raising=False)
+    monkeypatch.setattr(
+        settings, "OAUTH_REDIRECT_URI", "http://localhost:5173/api/auth/callback", raising=False,
+    )
+    response = client.get(
+        "/api/auth/config", headers={"host": "127.0.0.1:5173", "x-forwarded-proto": "http"},
+    )
+    assert response.json() == {"hosted_sign_in": True}
+
+
+@pytest.mark.parametrize(
+    "surface, return_to, page",
+    [
+        ("shopper", "/", f"{SIGN_IN_PAGE}?error=auth_not_configured"),
+        ("staff", "/operator", f"{SIGN_IN_PAGE}?error=auth_not_configured&workspace=operator"),
+    ],
+)
+def test_signin_without_a_hosted_ui_returns_a_browser_to_its_sign_in_page(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    surface: str,
+    return_to: str,
+    page: str,
+) -> None:
+    monkeypatch.setattr(settings, "COGNITO_DOMAIN", None, raising=False)
+    response = client.get(
+        "/api/auth/signin",
+        params={"provider": "email", "returnTo": return_to, "surface": surface},
+        headers=NAVIGATE,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == page
+    for names in (oauth_cookie_names("shopper"), oauth_cookie_names("staff")):
+        assert names.state not in client.cookies
+        assert names.verifier not in client.cookies
+
+
+@pytest.mark.parametrize(
+    "headers, navigates",
+    [
+        ({"sec-fetch-mode": "navigate"}, True),
+        ({"accept": "text/html,application/xhtml+xml"}, True),
+        ({"sec-fetch-mode": "cors", "accept": "text/html"}, False),
+        ({}, False),
+    ],
+    ids=["fetch-metadata-navigate", "html-without-fetch-metadata", "script-fetch", "api-client"],
+)
+def test_only_a_browser_navigation_is_redirected_and_a_script_still_gets_json(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    headers: Dict[str, str],
+    navigates: bool,
+) -> None:
+    monkeypatch.setattr(settings, "COGNITO_CLIENT_ID", None, raising=False)
+    response = client.get("/api/auth/signin", headers=headers)
+    if navigates:
+        assert response.status_code == 302
+        assert response.headers["location"] == f"{SIGN_IN_PAGE}?error=auth_not_configured"
+    else:
+        assert response.status_code == 503
+        assert response.json() == {"detail": "auth_not_configured"}
+
+
+@pytest.mark.parametrize("surface", ["shopper", "staff"])
+def test_a_configured_box_sends_each_surface_to_cognito_with_this_origins_callback(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, surface: str
+) -> None:
+    """The deployed shape. The stack registers this callback:
+
+    ``https://<distribution>/ports/8000/api/auth/callback``.
+    """
+    monkeypatch.setattr(settings, "APP_BASE_PATH", "/ports/8000", raising=False)
+    monkeypatch.setattr(settings, "APP_BASE_URL", None, raising=False)
+    monkeypatch.setattr(settings, "OAUTH_REDIRECT_URI", None, raising=False)
+    assert client.get("/api/auth/config", headers=CLOUDFRONT).json() == {"hosted_sign_in": True}
+
+    response = client.get(
+        "/api/auth/signin",
+        params={"provider": "email", "surface": surface},
+        headers={**CLOUDFRONT, **NAVIGATE},
+    )
+
+    assert response.status_code == 302
+    target = urlparse(response.headers["location"])
+    assert (target.scheme, target.netloc, target.path) == (
+        "https", COGNITO_DOMAIN, "/oauth2/authorize",
+    )
+    params = {key: values[0] for key, values in parse_qs(target.query).items()}
+    assert params["client_id"] == CLIENT_ID
+    assert params["redirect_uri"] == (
+        "https://d111111abcdef8.cloudfront.net/ports/8000/api/auth/callback"
+    )
+    assert auth_module._state_surface(params["state"]) == surface
+    assert client.cookies[oauth_cookie_names(surface).state] == params["state"]
+
+
+@pytest.mark.parametrize("surface, suffix", [("shopper", ""), ("staff", "&workspace=operator")])
+def test_a_rejected_code_returns_a_browser_to_the_sign_in_page_it_started_from(
+    client: TestClient,
+    token_post_recorder: Dict[str, Any],
+    surface: str,
+    suffix: str,
+) -> None:
+    state, _verifier = _begin_oauth(client, surface=surface)
+    token_post_recorder["responses"].append(
+        _FakeTokenResponse({"error": "invalid_grant"}, status_code=400)
+    )
+    response = client.get(
+        "/api/auth/callback", params={"code": "c", "state": state}, headers=NAVIGATE,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == f"{SIGN_IN_PAGE}?error=auth_failed{suffix}"
+    assert oauth_cookie_names(surface).state not in client.cookies
+    assert oauth_cookie_names(surface).verifier not in client.cookies
+
+
+def test_a_cognito_error_returns_a_browser_to_the_sign_in_page_it_started_from(
+    client: TestClient,
+) -> None:
+    state, _verifier = _begin_oauth(client, surface="staff")
+    response = client.get(
+        "/api/auth/callback",
+        params={"error": "access_denied", "error_description": "cancelled", "state": state},
+        headers=NAVIGATE,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == f"{SIGN_IN_PAGE}?error=auth_failed&workspace=operator"
+    assert oauth_cookie_names("staff").state not in client.cookies
+
+
+def test_a_provider_outage_returns_a_browser_to_the_sign_in_page(
+    client: TestClient, token_post_recorder: Dict[str, Any]
+) -> None:
+    state, _verifier = _begin_oauth(client)
+    token_post_recorder["responses"].append(
+        _FakeTokenResponse({"error": "temporarily_unavailable"}, status_code=503)
+    )
+    response = client.get(
+        "/api/auth/callback", params={"code": "c", "state": state}, headers=NAVIGATE,
+    )
+    assert response.status_code == 302
+    assert response.headers["location"] == f"{SIGN_IN_PAGE}?error=auth_unavailable"
+
+
+@pytest.mark.parametrize(
+    "make_state, page",
+    [
+        (lambda: None, f"{SIGN_IN_PAGE}?error=invalid_state"),
+        (
+            lambda: _build_state(expiry=int(time.time()) - 60, surface="staff"),
+            f"{SIGN_IN_PAGE}?error=invalid_state&workspace=operator",
+        ),
+        (
+            lambda: _build_state(surface="staff"),
+            f"{SIGN_IN_PAGE}?error=invalid_state&workspace=operator",
+        ),
+        (_forged_staff_state, f"{SIGN_IN_PAGE}?error=invalid_state"),
+    ],
+    ids=["missing", "expired-staff", "staff-without-its-cookie", "unsigned-surface"],
+)
+def test_a_bad_state_returns_a_browser_to_the_sign_in_page(
+    client: TestClient, make_state: Any, page: str
+) -> None:
+    """An expired staff state still picks the desk's page; an unsigned surface never does."""
+    state = make_state()
+    params = {"code": "c", **({"state": state} if state else {})}
+    response = client.get("/api/auth/callback", params=params, headers=NAVIGATE)
+    assert response.status_code == 302
+    assert response.headers["location"] == page
+    assert not response.headers.get_list("set-cookie") or all(
+        "max-age=0" in cookie.lower() for cookie in response.headers.get_list("set-cookie")
+    )

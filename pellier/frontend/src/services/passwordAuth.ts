@@ -44,6 +44,22 @@ export function workshopSignIn(username: WorkshopShopper, signal: AbortSignal): 
   return passwordAuth('workshop-sign-in', { username }, signal)
 }
 
+/**
+ * Whether this origin can finish a hosted sign-in, so the sign-in page offers
+ * one only when it works. An unreachable or unclear answer means no: a
+ * missing link is better than one that ends on an error.
+ */
+export async function hostedSignInAvailable(signal?: AbortSignal): Promise<boolean> {
+  try {
+    const response = await apiFetch('/api/auth/config', { signal })
+    if (!response.ok) return false
+    const body = await response.json() as { hosted_sign_in?: unknown }
+    return body.hosted_sign_in === true
+  } catch {
+    return false
+  }
+}
+
 /** Same-origin navigation, including deployments with a router base path. */
 export function safeSignInReturn(value: string | null, fallback = '/'): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || (value.includes('\\') || [...value].some((character) => character.charCodeAt(0) < 32))) return fallback
