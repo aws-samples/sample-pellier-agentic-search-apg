@@ -139,8 +139,8 @@ export const HERO_STATEMENT = {
  * by, named as the store names them in VOICE.md, until a shopper is signed in.
  */
 export const ASK_BAR = {
-  LABEL: "Search or ask Pellier",
-  PLACEHOLDER: "Search or ask Pellier…",
+  LABEL: "Search or ask Pellier", // copy-allow: search-as-verb
+  PLACEHOLDER: "Search or ask Pellier…", // copy-allow: search-as-verb
   SEND: "Send",
   TRY: "Try",
   promptsFor: (displayName: string): string => `Suggestions for ${displayName}`,
@@ -216,7 +216,7 @@ export const SERVICE_STRIP = {
  *
  * Every claim here is either structural chrome or a label over a value the
  * page actually read. The availability copy is deliberately split three
- * ways — reading / read / not read — because "not read" must never be
+ * ways (reading, read, not read) because "not read" must never be
  * rendered as "out of stock". `ON_HAND_LABEL` and `WAREHOUSE_CAPTION` name
  * their source column so a shopper-facing number stays traceable to Aurora.
  */

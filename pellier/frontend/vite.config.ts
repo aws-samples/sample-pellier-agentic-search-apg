@@ -20,9 +20,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
     css: false,
-    // The `.mjs` scanner in src/__tests__/copy.test.mjs is a standalone
-    // Node script, not a vitest suite. It's invoked directly via
-    // `node src/__tests__/copy.test.mjs` (see package.json / CI).
+    // The `.mjs` copy scanner in src/__tests__/copy.test.mjs is not a vitest
+    // suite. `copy_scanner.test.ts` imports it, so `npm test` runs it.
     //
     // e2e/ holds Playwright specs (different runner, different imports).
     exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.mjs', 'e2e/**'],

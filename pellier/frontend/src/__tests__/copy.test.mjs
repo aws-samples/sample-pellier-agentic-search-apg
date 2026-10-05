@@ -14,7 +14,13 @@
 // raw source because typographic glyphs must not appear anywhere in a file
 // that ships user-facing copy.
 //
-// Runs as:
+// Two narrow exemptions from the word rules, and only from them:
+//   - a URL, because a link names its target (the repository name contains
+//     "search") rather than speaking to the shopper;
+//   - each sentence in ALLOWED_SENTENCES, matched exactly and by name.
+//
+// `npm test` runs it through src/__tests__/copy_scanner.test.ts. It also runs
+// on its own:
 //   node pellier/frontend/src/__tests__/copy.test.mjs
 // Exits 0 when clean. Exits 1 with per-violation messages when not.
 
@@ -50,6 +56,31 @@ const FORBIDDEN_WORDS = [
 ];
 
 const SEARCH_SUPPRESS_MARKER = "copy-allow: search-as-verb";
+
+// Exact sentences the word rules may not flag, each with the reason it stays.
+// Add one only for a sentence that must say the word to be honest.
+export const ALLOWED_SENTENCES = [
+  {
+    name: "footer imagery disclosure",
+    reason: "an honest disclosure that the photographs are generated",
+    text: "AI-generated imagery is for illustrative purposes only.",
+  },
+];
+
+const URL_PATTERN = /https?:\/\/[^\s"'`]+/g;
+
+// Blank a match with spaces so columns in later messages stay accurate.
+function blank(text) {
+  return " ".repeat(text.length);
+}
+
+function exemptFromWordRules(line) {
+  let out = line.replace(URL_PATTERN, blank);
+  for (const { text } of ALLOWED_SENTENCES) {
+    out = out.split(text).join(blank(text));
+  }
+  return out;
+}
 
 // Strip //-line comments, /* */ block comments, and replace them with spaces
 // (preserving line and column positions so violation messages stay accurate).
@@ -147,7 +178,7 @@ function stripComments(source) {
   return out.join("");
 }
 
-function scan(source) {
+export function scan(source) {
   const violations = [];
   const rawLines = source.split("\n");
   const scrubbed = stripComments(source);
@@ -204,7 +235,7 @@ function scan(source) {
   const searchPattern = /(?<![A-Za-z0-9_])(search)(?![A-Za-z0-9_])/gi;
 
   for (let lineno = 0; lineno < scrubbedLines.length; lineno++) {
-    const line = scrubbedLines[lineno];
+    const line = exemptFromWordRules(scrubbedLines[lineno]);
     const rawLine = rawLines[lineno] ?? "";
     for (const { word, pattern } of wordPatterns) {
       pattern.lastIndex = 0;
@@ -240,7 +271,10 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Run only as a script; `copy_scanner.test.ts` imports `scan`.
+if (process.argv[1] && resolve(process.argv[1]) === __filename) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
