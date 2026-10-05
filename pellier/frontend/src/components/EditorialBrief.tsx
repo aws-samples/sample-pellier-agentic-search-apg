@@ -105,7 +105,7 @@ export default function EditorialBrief() {
                   fontWeight: 600,
                   letterSpacing: '0.2em',
                   textTransform: 'uppercase',
-                  color: 'rgba(31, 20, 16, 0.68)',
+                  color: 'var(--ink-quiet)',
                 }}
               >
                 {ABOUT_BRIEF.LABEL}
@@ -132,7 +132,7 @@ export default function EditorialBrief() {
                       letterSpacing: '0.06em',
                       padding: '4px 10px',
                       borderRadius: '6px',
-                      background: 'rgba(31, 20, 16, 0.06)',
+                      border: '1px solid var(--dl-line-strong)',
                       color: 'var(--ink-soft)',
                     }}
                   >
