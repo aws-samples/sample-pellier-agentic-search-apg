@@ -373,7 +373,7 @@
         {
           "id": "durable_evidence",
           "proof": "source_contract",
-          "teaches": "Policy receipt, tool_audit row, write_operations row, and execution receipt each answer a different question."
+          "teaches": "The policy decision, the tool_audit row and the store_credits row each answer a different question."
         },
         {
           "id": "customer_outcome",

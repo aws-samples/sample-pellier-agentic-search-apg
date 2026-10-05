@@ -5,9 +5,9 @@ Idempotent. Creates or updates:
 
 1. an execution role with basic Lambda logging only;
 2. the ``cognito_customer_claim`` function, whose ``CUSTOMER_CLAIM_MAP`` is
-   rendered from ``pellier.principal_customers`` over the RDS Data API, so
-   the token claim and the row-level-security mapping come from one table,
-   and whose staff claim is keyed to the operator Cognito group;
+   rendered from ``pellier.customers.cognito_username`` over the RDS Data API,
+   so the token claim and row-level security read one column, and whose staff
+   claim is keyed to the operator Cognito group;
 3. the invoke permission for this pool; and
 4. the pool's ``PreTokenGenerationConfig`` at ``LambdaVersion=V2_0``.
 
@@ -22,7 +22,7 @@ providing ``COGNITO_POOL_ID``, ``DB_CLUSTER_ARN`` and ``DB_SECRET_ARN``:
     pellier/backend/.venv/bin/python scripts/deploy/deploy_customer_claim_trigger.py
 
 ``--mapping-json`` bypasses the database read for a rehearsal without a
-reachable cluster; it must still be a subject-to-customer map.
+reachable cluster; it must still be a username-to-customer map.
 """
 
 from __future__ import annotations
@@ -85,29 +85,29 @@ def mapping_from_database(
     database: str = "",
     allow_empty: bool = False,
 ) -> Dict[str, str]:
-    """Read subject -> customer from the same table RLS keys off."""
+    """Read username -> customer from the column row-level security reads."""
     cluster_arn = cluster_arn or _require("DB_CLUSTER_ARN")
     secret_arn = secret_arn or os.environ.get("DB_SECRET_ARN") or os.environ.get("SECRET_ARN") or ""
     if not secret_arn:
-        raise SystemExit("DB_SECRET_ARN (or SECRET_ARN) is required to read principal_customers")
+        raise SystemExit("DB_SECRET_ARN (or SECRET_ARN) is required to read pellier.customers")
     database = database or os.environ.get("DB_NAME") or os.environ.get("DATABASE") or "postgres"
     rds = boto3.client("rds-data", region_name=region)
     response = rds.execute_statement(
         resourceArn=cluster_arn,
         secretArn=secret_arn,
         database=database,
-        sql="SELECT principal_sub, customer_id FROM pellier.principal_customers",
+        sql="SELECT cognito_username, id FROM pellier.customers",
     )
     mapping: Dict[str, str] = {}
     for record in response.get("records", []):
-        sub = record[0].get("stringValue", "")
+        username = record[0].get("stringValue", "")
         customer = record[1].get("stringValue", "")
-        if sub and customer:
-            mapping[sub] = customer
+        if username and customer:
+            mapping[username] = customer
     if not mapping and not allow_empty:
         raise SystemExit(
-            "pellier.principal_customers is empty; run scripts/seed_principal_mappings.py "
-            "before deploying the claim trigger, or no shopper will carry a claim"
+            "pellier.customers is empty; run scripts/setup/database-setup.sh before "
+            "deploying the claim trigger, or no shopper will carry a claim"
         )
     return mapping
 
@@ -143,7 +143,7 @@ def deploy_trigger(
         "role": role_arn,
         "poolId": pool_id,
         "lambdaConfig": lambda_config,
-        "mappedSubjects": len(mapping),
+        "mappedUsers": len(mapping),
         "customers": sorted(set(mapping.values())),
         "staffGroup": os.environ.get("PELLIER_OPERATOR_GROUP", "pellier-operators"),
         "staffScope": os.environ.get("PELLIER_STAFF_SCOPE", "returns"),
@@ -284,7 +284,7 @@ def attach_trigger(idp: Any, pool_id: str, function_arn: str) -> Dict[str, Any]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--mapping-json", default="", help="Subject->customer JSON instead of the database read")
+    parser.add_argument("--mapping-json", default="", help="Username->customer JSON instead of the database read")
     args = parser.parse_args()
     _load_env()
     region = _region()

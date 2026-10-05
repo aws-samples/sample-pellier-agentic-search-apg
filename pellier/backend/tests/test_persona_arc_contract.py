@@ -40,10 +40,9 @@ ARC = {
     "marco": {
         "persona_id": "marco",
         "customer_id": "CUST-MARCO",
-        "membership": "maison",
         "product_id": 2,
         "product_name": "Hadley Linen Shirt",
-        "warehouse_id": "BK-01",
+        "warehouse_code": "BK-01",
         "warehouse_city": "Brooklyn, NY",
         "tool": "check_stock",
         "question": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?",
@@ -51,7 +50,6 @@ ARC = {
     "anna": {
         "persona_id": "anna",
         "customer_id": "CUST-ANNA",
-        "membership": "circle",
         "query": "A housewarming gift under $100 that is in stock",
         "price_max_usd": 100,
         "in_stock_only": True,
@@ -60,10 +58,7 @@ ARC = {
     },
     "theo": {
         "persona_id": "theo",
-        # Both resolve in authoritative order history; the shopper prompt
-        # never supplies either value as an identity claim.
-        "customer_ids": ("CUST-THEO", "theo"),
-        "membership": "registered",
+        "customer_id": "CUST-THEO",
         "product_id": 37,
         "product_name": "Wabi-Sabi Bowl",
         "tools": ("get_orders", "get_tickets", "ask_a_person"),
@@ -123,9 +118,10 @@ def test_marco_warehouse_and_ship_window_exist_in_the_schema() -> None:
     That is only answerable because the warehouse dimension carries a ship
     window. If those columns go, Marco's turn silently degrades to "in stock".
     """
-    sql = (MIGRATIONS / "006_warehouse_inventory.sql").read_text()
-    assert "ship_window_min" in sql and "ship_window_max" in sql
-    assert ARC["marco"]["warehouse_id"] in sql, "BK-01 is not seeded"
+    schema = (MIGRATIONS / "001_schema.sql").read_text()
+    assert "ship_window_min" in schema and "ship_window_max" in schema
+    seed = (MIGRATIONS / "002_seed.sql").read_text()
+    assert f"'{ARC['marco']['warehouse_code']}',  'Brooklyn', 'Brooklyn, NY', 1, 2" in seed
 
     logic = (BACKEND / "services" / "store_tools.py").read_text()
     # check_stock must actually read the window, not just the quantity.
@@ -189,33 +185,17 @@ def test_theo_product_is_canonical() -> None:
     assert product.name == ARC["theo"]["product_name"]
 
 
-def test_theo_owns_the_bowl_under_both_customer_ids() -> None:
+def test_theo_owns_the_bowl_once_under_his_customer_id() -> None:
     """`get_orders` reads the bowl from the verified shopper's own order history.
 
-    The live prompt passes the bare id `theo`, so the order must exist under the
-    alias as well as the canonical id or the Support agent finds no purchase to
-    hand to a person.
+    One customer id, no alias: the server binds the verified shopper, so a model
+    that types "theo" cannot need, or reach, a second account.
     """
-    sql = (MIGRATIONS / "003_persona_seed.sql").read_text()
-    for customer_id in ARC["theo"]["customer_ids"]:
-        assert (
-            f"('{customer_id}', '{ARC['theo']['product_id']}'" in sql
-        ), f"{customer_id} has no seeded {ARC['theo']['product_name']} order"
-
-
-def test_theo_is_registered_and_that_is_intentional() -> None:
-    """Product design, not missing seed data.
-
-    A courtesy credit for a Maison client is a formality; the same credit for the
-    lowest rung is a judgment call, which is the decision the governance lesson
-    needs. Promoting Theo to make the scenario easier would remove the point.
-    """
-    sql = (MIGRATIONS / "018_client_book.sql").read_text()
-    assert (
-        "UPDATE pellier.customers SET membership = 'registered' WHERE id = 'CUST-THEO';"
-        in sql
-    )
-    assert "platinum" not in sql.lower(), "Pellier's ladder has no platinum rung"
+    sql = (MIGRATIONS / "002_seed.sql").read_text()
+    bowl = [line for line in sql.splitlines()
+            if f"'{ARC['theo']['product_id']}'" in line and "'CUST-THEO'" in line]
+    assert len(bowl) == 1, f"{ARC['theo']['product_name']} must be seeded once, for CUST-THEO"
+    assert "('theo'," not in sql
 
 
 def test_theo_damage_request_routes_to_the_support_agent() -> None:
@@ -340,17 +320,16 @@ def test_turn_id_is_the_only_correlation_identifier() -> None:
         assert name not in schemas, f"a second correlation identifier appeared: {name}"
 
 
-def test_membership_is_stored_on_the_customer_not_derived_per_request() -> None:
-    """Policy must read a stable, auditable value."""
-    sql = (MIGRATIONS / "018_client_book.sql").read_text()
-    assert "ADD COLUMN IF NOT EXISTS membership TEXT" in sql
-    assert "DROP COLUMN IF EXISTS spend_12mo" in sql
+def test_there_are_no_membership_tiers() -> None:
+    """No lab, tool, policy or test uses a tier (owner, 2026-10-04)."""
+    schema = (MIGRATIONS / "001_schema.sql").read_text()
+    assert "membership" not in schema and "spend_12mo" not in schema
 
 
 def test_the_arc_fixture_map_is_serialisable() -> None:
     """The map is the deliverable, so it must be machine-readable."""
     payload = json.loads(json.dumps(ARC, default=list))
     assert set(payload) == {"marco", "anna", "theo"}
-    assert payload["theo"]["membership"] == "registered"
-    assert payload["marco"]["warehouse_id"] == "BK-01"
+    assert payload["theo"]["customer_id"] == "CUST-THEO"
+    assert payload["marco"]["warehouse_code"] == "BK-01"
     assert payload["anna"]["price_max_usd"] == 100

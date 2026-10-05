@@ -193,10 +193,11 @@ TOOL_SCHEMAS = {
     },
 }
 
-# ``turn_id`` is a route-minted correlation value. It is optional in the
-# Gateway schema so direct invocations remain valid, but the managed Runtime
-# Router requires it on every shopper tool call and the Lambda preserves it in
-# ``tool_audit.args`` while stripping it before the tool runs.
+# ``turn_id`` and ``build_fingerprint`` are correlation values the managed
+# Runtime attaches to every tool call. They are optional in the Gateway schema
+# so direct invocations remain valid. The Lambda strips both before the tool
+# runs: it keeps ``turn_id`` in ``tool_audit.args`` and writes the fingerprint
+# to ``tool_audit.build_fingerprint``, the build Lab 3 checks.
 for _target in TOOL_SCHEMAS.values():
     for _tool in _target["tools"]:
         _tool["inputSchema"]["properties"].setdefault(
@@ -207,6 +208,13 @@ for _target in TOOL_SCHEMAS.values():
                     "Server-minted shopper-turn correlation ID for the "
                     "append-only governance receipt."
                 ),
+            },
+        )
+        _tool["inputSchema"]["properties"].setdefault(
+            "build_fingerprint",
+            {
+                "type": "string",
+                "description": "The Runtime build that made the call, set by the server.",
             },
         )
 

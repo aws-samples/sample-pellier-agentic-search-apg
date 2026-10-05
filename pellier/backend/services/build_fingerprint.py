@@ -56,6 +56,7 @@ __all__ = [
     "FINGERPRINT_ENV_VAR",
     "compute_fingerprint",
     "deployed_fingerprint",
+    "local_fingerprint",
     "short_fingerprint",
 ]
 
@@ -155,6 +156,25 @@ def deployed_fingerprint() -> str:
     than as a mismatch: absence of the variable is not evidence of stale code.
     """
     return os.environ.get(FINGERPRINT_ENV_VAR, "").strip()
+
+
+_local_cache: str | None = None
+
+
+def local_fingerprint() -> str:
+    """The fingerprint of this checkout's runtime sources, computed once per process.
+
+    The in-process rail stamps it on the ``tool_audit`` rows it writes, as the
+    Runtime stamps its deployed one. Empty when it cannot be computed: an
+    audit row must never fail over provenance.
+    """
+    global _local_cache
+    if _local_cache is None:
+        try:
+            _local_cache = compute_fingerprint(Path(__file__).resolve().parents[1])
+        except OSError:
+            _local_cache = ""
+    return _local_cache
 
 
 def short_fingerprint(value: str | None) -> str:

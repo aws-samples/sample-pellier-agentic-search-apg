@@ -20,9 +20,6 @@ STORE_LAMBDA = DEPLOY / "pellier_store_tools.py"
 PROVISIONER = REPO_ROOT / "scripts" / "provision_agentcore_end_to_end.py"
 DEPLOY_ALL = DEPLOY / "deploy_all.sh"
 RESET_GOVERNED = REPO_ROOT / "scripts" / "reset-governed-workshop.sh"
-GOVERNED_RECEIPTS_MIGRATION = (
-    REPO_ROOT / "scripts" / "migrations" / "010_governed_receipts.sql"
-)
 STARTER_CEDAR = REPO_ROOT / "policies" / "workshop_identity_match_forbid.cedar"
 SOLUTION_CEDAR = (
     REPO_ROOT
@@ -289,9 +286,8 @@ def test_gateway_receipt_identity_rejects_claim_mismatch(
         module._verified_identity(token)
 
 
-def test_governed_receipts_record_verified_identity_provenance() -> None:
+def test_the_gateway_client_records_verified_identity_provenance() -> None:
     helper = GATEWAY_CLIENT.read_text()
-    migration = GOVERNED_RECEIPTS_MIGRATION.read_text()
 
     assert "--principal-id" not in helper
     assert "--principal-label" not in helper
@@ -305,7 +301,6 @@ def test_governed_receipts_record_verified_identity_provenance() -> None:
         "identity_source",
     ):
         assert field in helper
-        assert field in migration
 
 
 def test_store_lambda_writes_gateway_tool_audit() -> None:
@@ -322,7 +317,8 @@ def test_store_lambda_writes_gateway_tool_audit() -> None:
         in source
     )
     assert "write_tool_audit_independently(" in source
-    assert "audit_read_call(tool_name, arguments, result, started)" in source
+    assert "audit_read_call(tool_name, audited_arguments, result, started," in source
+    assert "build_fingerprint=build" in source
     # Keyed on the real identity, which this tool's arguments carry.
     assert 'f"gateway-{execution_arguments.get(\'customer_id\') or \'unknown\'}"' in source
     assert "_write_tool_audit_in_transaction" not in source

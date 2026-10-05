@@ -2,14 +2,16 @@
 
 The Investigator reads the case with bounded reads, read-only and bound to
 one customer: ``get_orders``, ``get_tickets`` and ``get_return_policy`` from
-``services/store_tools.py``, and the client's store credits. It states what
-the records show and what is missing. The Planner proposes exactly one
+``services/store_tools.py``, and the client's store credits. The orders and
+tickets are read as ``pellier_agent`` with the client named, so row-level
+security holds the Investigator to that one client. It states what the records
+show and what is missing. The Planner proposes exactly one
 ``give_store_credit`` through its one tool, which computes the amount and
-writes the credit's reason from the client's orders with a received return in
-``pellier.returns`` that no live review already covers, whatever orders the
-Planner names. It opens one ``pellier.approvals`` row for those orders, or
-resolves to the review that already covers them, pending or approved. Then the
-graph stops, and the investigation answers the client's open credit requests.
+writes the credit's reason from the client's orders whose return was received
+and that no credit or live review already covers, whatever orders the Planner
+names. It opens one ``pellier.approvals`` row for those orders, or resolves to
+the review that already covers them, pending or approved. Then the graph
+stops, and the investigation answers the client's open credit requests.
 Nothing changes until a person approves, in a separate request, and nothing
 here can call the credit write.
 
@@ -100,7 +102,8 @@ show items that went back with no store credit recorded, call
 propose_store_credit exactly once with the order ids the records mark as
 returned and one sentence a staff member would recognize as the reason. The
 tool computes the amount and writes the credit's wording from the received
-returns that no review already covers; you never state an amount yourself.
+returns that no credit or review already covers; you never state an amount
+yourself.
 
 If no credit is warranted, call nothing and say why in one sentence.
 
@@ -264,6 +267,8 @@ def proposal_finding(parsed: Dict[str, Any]) -> str:
         return "One proposal per investigation; the first stands"
     if status == "nothing_returned":
         return "No received return on file, so no credit was proposed"
+    if status == "already_credited":
+        return "A store credit already covers every received return"
     if status == "over_ceiling":
         return f"{_money(parsed.get('amount_cents'))} is above the $500 safety ceiling"
     return str(parsed.get("message") or "No credit was proposed")
@@ -315,6 +320,9 @@ def _first_name(customer_name: str, customer_id: str) -> str:
 @dataclass
 class _Case:
     run: Run
+    # Reads one customer's orders and tickets as pellier_agent, with that
+    # customer named for row-level security.
+    run_customer: Run
     customer_id: str
     customer_name: str
     operator_sub: str
@@ -386,7 +394,8 @@ def _investigator_tools(case: _Case) -> list:
         Args:
             limit: Maximum orders to return.
         """
-        return _reply(store_tools.get_orders(case.run, customer_id=case.customer_id, limit=limit))
+        return _reply(store_tools.get_orders(
+            case.run_customer, customer_id=case.customer_id, limit=limit))
 
     @tool
     def get_tickets(limit: int = 5) -> str:
@@ -395,7 +404,8 @@ def _investigator_tools(case: _Case) -> list:
         Args:
             limit: Maximum tickets to return.
         """
-        return _reply(store_tools.get_tickets(case.run, customer_id=case.customer_id, limit=limit))
+        return _reply(store_tools.get_tickets(
+            case.run_customer, customer_id=case.customer_id, limit=limit))
 
     @tool
     def get_store_credits(limit: int = 5) -> str:
@@ -418,14 +428,15 @@ def _investigator_tools(case: _Case) -> list:
     return [get_orders, get_tickets, get_store_credits, get_return_policy]
 
 
-# This client's orders with a received return, through the same join the client
-# record and get_orders use, so "returned" means one thing on every surface.
-_RETURNED_ORDERS_SQL = f"""
-    SELECT o.id AS order_id, o.amount_paid_cents, o.quantity, p.name
+# This client's orders whose return was received. A refunded return was paid
+# back to the card and is never credited; ``store_credit_id`` says whether a
+# credit already covers the order.
+_RETURNED_ORDERS_SQL = """
+    SELECT o.id AS order_id, o.amount_paid_cents, o.quantity, o.store_credit_id, p.name
       FROM pellier.orders o
-      JOIN pellier.product_catalog p ON p."productId" = o.product_id{store_tools.RETURN_STATUS_JOIN}
+      JOIN pellier.product_catalog p ON p."productId" = o.product_id
      WHERE o.customer_id = %s
-       AND r.status = ANY(%s)
+       AND o.return_status = %s
      ORDER BY o.id
 """
 
@@ -501,7 +512,7 @@ def _amount_refusal(rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
 # and an executed review stays approved, so a returned order a live review
 # covers is never proposed again. A declined review releases its orders.
 _LIVE_REVIEWS_SQL = """
-    SELECT id, status, args, action_hash, order_id, recommendation
+    SELECT id, status, args, action_hash, order_ids, recommendation
       FROM pellier.approvals
      WHERE customer_id = %s
        AND tool = 'give_store_credit'
@@ -522,12 +533,12 @@ def _covering_reviews(case: _Case) -> Dict[int, Dict[str, Any]]:
 
 
 def propose_credit(case: _Case, *, order_ids: Sequence[Any], reason: str) -> Dict[str, Any]:
-    """Open one review for the received returns no review covers yet.
+    """Open one review for the received returns no credit or review covers yet.
 
-    The amount is the paid total of this client's orders with a received return
-    in ``pellier.returns`` that no live review already covers, and the credit's
-    reason is written from those same rows (:func:`credit_reason`); neither
-    comes from the model. The orders the Planner names only have to include one
+    The amount is the paid total of this client's orders whose return was
+    received and that no credit and no live review already covers, and the
+    credit's reason is written from those same rows (:func:`credit_reason`);
+    neither comes from the model. The orders the Planner names only have to include one
     that went back: naming a subset, or extra orders, still yields the credit
     the records support, so Jessica's case proposes 10000 cents whatever the
     model names. When a live review covers every received return, the
@@ -541,15 +552,21 @@ def propose_credit(case: _Case, *, order_ids: Sequence[Any], reason: str) -> Dic
     rationale = " ".join(str(reason or "").split())
     if not rationale:
         return {"status": "error", "message": "Say in one sentence why the credit is warranted."}
-    rows = case.run(_RETURNED_ORDERS_SQL, (case.customer_id, sorted(store_tools.RETURNED_STATUSES)))
+    rows = case.run(_RETURNED_ORDERS_SQL, (case.customer_id, store_tools.CREDITABLE_RETURN))
     refusal = _proposal_refusal(_order_ids(order_ids), rows)
     if refusal is not None:
         return refusal
     covering = _covering_reviews(case)
-    uncovered = [row for row in rows if int(row["order_id"]) not in covering]
+    uncovered = [
+        row for row in rows
+        if row.get("store_credit_id") is None and int(row["order_id"]) not in covering
+    ]
     if not uncovered:
-        newest = max((covering[int(row["order_id"])] for row in rows), key=lambda r: int(r["id"]))
-        return _resolve_proposal(case, newest, rationale)
+        reviews = [covering[int(row["order_id"])] for row in rows if int(row["order_id"]) in covering]
+        if not reviews:
+            return {"status": "already_credited",
+                    "message": "A store credit already covers every received return."}
+        return _resolve_proposal(case, max(reviews, key=lambda r: int(r["id"])), rationale)
     refusal = _amount_refusal(uncovered)
     if refusal is not None:
         return refusal
@@ -615,12 +632,11 @@ def _open_proposal(case: _Case, rows: Sequence[Dict[str, Any]], rationale: str) 
         source_turn_id=case.turn_id,
         requested_by_sub=case.operator_sub,
         requester_kind="operator",
-        order_id=returned[0],
+        order_ids=returned,
         issue=rationale,
         recommendation={
             "primaryAction": "give_store_credit",
             "rationale": rationale,
-            "orderIds": returned,
             "items": items,
             "graphId": GRAPH_ID,
             "investigationTurnId": case.turn_id,
@@ -652,7 +668,8 @@ def reached_a_finding(case: _Case, *, brief: bool) -> bool:
     """Whether this investigation ended in a finding that answers a request.
 
     It does when the Planner proposed a credit (or resolved to the review that
-    already covers it), when the records show nothing went back, or when the
+    already covers it), when the records show nothing went back or everything
+    that went back is already credited, or when the
     Planner read a brief and deliberately proposed nothing. A proposal that
     failed (an error, or an amount over the ceiling) or a missing brief is no
     finding: the request stays open for the next investigation.
@@ -661,7 +678,7 @@ def reached_a_finding(case: _Case, *, brief: bool) -> bool:
         return True
     if case.planner_outcome is None:
         return brief
-    return case.planner_outcome == "nothing_returned"
+    return case.planner_outcome in ("nothing_returned", "already_credited")
 
 
 def answer_open_requests(case: _Case) -> List[int]:
@@ -850,6 +867,7 @@ def _task(case: _Case) -> str:
 def run_investigation(
     *,
     run: Run,
+    run_customer: Run,
     customer_id: str,
     customer_name: str,
     operator_sub: str,
@@ -864,6 +882,9 @@ def run_investigation(
 
     Args:
         run: Statement runner bound to the request's database pool.
+        run_customer: Statement runner for the client's orders and tickets: it
+            runs as ``pellier_agent`` with the client named, so row-level
+            security shows this client's rows and no one else's.
         customer_id: The client under investigation.
         customer_name: For the step labels.
         operator_sub: The verified staff subject, recorded as the requester.
@@ -876,7 +897,8 @@ def run_investigation(
 
     from services.specialist_models import specialist_model
 
-    case = _Case(run=run, customer_id=customer_id, customer_name=customer_name,
+    case = _Case(run=run, run_customer=run_customer, customer_id=customer_id,
+                 customer_name=customer_name,
                  operator_sub=operator_sub, turn_id=turn_id, emit=emit)
     model_id, _configured_max = specialist_model("sonnet")
     investigator = Agent(

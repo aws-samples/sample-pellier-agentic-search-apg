@@ -4,8 +4,8 @@ Identity reaches Cedar as a claim, not as a list of shoppers
 ------------------------------------------------------------
 The baseline's owner-only permits compare the access token's
 ``custom:customer_id`` tag with the tool's ``customer_id`` input. The claim is
-stamped by the Cognito pre-token trigger from ``pellier.principal_customers``,
-which is also what row-level security keys off, so the policy, the token, and
+stamped by the Cognito pre-token trigger from ``pellier.customers.cognito_username``,
+which is also what row-level security reads, so the policy, the token, and
 the database share one mapping and no policy file has to enumerate shoppers.
 
 The Lab 4 file is a different rule: an amount limit on ``give_store_credit``.
@@ -19,7 +19,7 @@ What is checked
 * the reference is an amount rule that admits only a present amount up to $100;
 * both files target the same action and pin the Gateway by ARN placeholder;
 * neither file names a shopper, a customer id, or the ID-token claim;
-* the trigger's mapping source is the same table RLS uses.
+* the trigger's mapping source is the same column RLS reads.
 
 Nothing here writes to either file. A validator that repaired the starter would
 delete the exercise.
@@ -34,9 +34,11 @@ import sys
 
 import pytest
 
-from services.turn_identity import USERNAME_TO_CUSTOMER_ID
-
 _REPO = pathlib.Path(__file__).resolve().parents[3]
+# The four shoppers, as scripts/migrations/002_seed.sql seeds them.
+SHOPPERS = {
+    "marco": "CUST-MARCO", "anna": "CUST-ANNA", "theo": "CUST-THEO", "jessica": "CUST-JESSICA",
+}
 STARTER = _REPO / "policies" / "workshop_identity_match_forbid.cedar"
 TEMPLATE = _REPO / "workshop" / "starters" / "workshop_identity_match_forbid.cedar"
 REFERENCE = _REPO / "solutions" / "the-concierge" / "policies" / "identity_match_forbid.cedar"
@@ -92,7 +94,7 @@ def test_the_participant_starter_is_still_unsolved() -> None:
 def test_neither_file_names_a_shopper_or_a_customer() -> None:
     for path in (STARTER, REFERENCE):
         text = path.read_text()
-        for username, customer_id in USERNAME_TO_CUSTOMER_ID.items():
+        for username, customer_id in SHOPPERS.items():
             assert f'"{username}"' not in text, f"{path.name} names {username!r}"
             assert customer_id not in text, f"{path.name} names {customer_id!r}"
         assert 'getTag("username")' not in text, path.name
@@ -132,9 +134,18 @@ def test_the_claim_is_on_the_access_token_not_the_id_token() -> None:
         assert "cognito:username" not in path.read_text(), path.name
 
 
-def test_the_trigger_maps_subjects_from_the_row_level_security_table() -> None:
+def test_the_seed_names_exactly_these_shoppers() -> None:
+    seed = (_REPO / "scripts" / "migrations" / "002_seed.sql").read_text()
+    for username, customer_id in SHOPPERS.items():
+        assert re.search(rf"'{customer_id}', '[^']+', '{username}'", seed), customer_id
+
+
+def test_the_trigger_maps_users_from_the_row_level_security_column() -> None:
     deployer = DEPLOYER.read_text()
-    assert "FROM pellier.principal_customers" in deployer
+    assert "SELECT cognito_username, id FROM pellier.customers" in deployer
+    assert "current_setting('pellier.principal_username', true)" in (
+        _REPO / "scripts" / "migrations" / "001_schema.sql"
+    ).read_text()
     trigger = TRIGGER.read_text()
     assert "clientMetadata" not in trigger.split("def handler", 1)[1]
 

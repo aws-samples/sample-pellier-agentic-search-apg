@@ -97,25 +97,14 @@ def test_a_success_envelope_is_permitted_and_unchanged() -> None:
 # Identity is server-resolved
 # ---------------------------------------------------------------------------
 
-def test_the_customer_subject_is_resolved_from_configuration_not_a_caller() -> None:
-    source = inspect.getsource(GE.resolve_customer_subject)
-    assert "pellier.principal_customers" in inspect.getsource(GE)
-    assert "customer_id" in inspect.signature(GE.resolve_customer_subject).parameters
-    # No request/browser material reaches it.
-    for forbidden in ("request", "payload", "body", "args"):
-        assert forbidden not in inspect.signature(GE.resolve_customer_subject).parameters
-
-
-def test_an_unmapped_client_fails_closed_rather_than_widening() -> None:
-    source = inspect.getsource(GE.resolve_customer_subject)
-    assert "RLS will fail closed" in source
-
-
-def test_the_two_principals_are_never_collapsed() -> None:
+def test_the_executed_credit_comes_from_the_review_not_a_caller() -> None:
+    """The execute path takes the review and the verified actor, nothing a browser chose."""
     params = inspect.signature(GE.execute_confirmed_review).parameters
     assert "operator_sub" in params
+    for forbidden in ("customer_id", "amount_cents", "reason", "payload", "body"):
+        assert forbidden not in params
     outcome_fields = {f for f in GE.ExecutionOutcome.__dataclass_fields__}
-    assert {"operator_sub", "customer_subject"} <= outcome_fields
+    assert "operator_sub" in outcome_fields and "customer_subject" not in outcome_fields
 
 
 # ---------------------------------------------------------------------------

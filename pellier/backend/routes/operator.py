@@ -48,7 +48,7 @@ from pydantic import BaseModel, Field
 
 from services.auth import require_operator
 from services.data_source import database_source_label
-from services.store_tools import RETURN_STATUS_JOIN, is_returned
+from services.store_tools import is_returned
 
 logger = logging.getLogger(__name__)
 
@@ -122,15 +122,14 @@ _CLIENTS_SELECT = """
 """
 
 _CLIENT_SELECT = """
-    SELECT c.id AS customer_id, c.name AS name
+    SELECT c.id AS customer_id, c.name AS name, c.cognito_username
       FROM pellier.customers c
      WHERE c.id = %s
 """
 
-# An order's return state comes from pellier.returns, the authoritative record
-# of a return, through the one join store_tools shares with get_orders and the
-# Planner. The ticket may say two items went back; the rows make it a fact.
-_ORDERS_SELECT = f"""
+# An order carries its own return state and the credit that covers it. The
+# ticket may say two items went back; the order rows make it a fact.
+_ORDERS_SELECT = """
     SELECT
         o.id            AS order_id,
         o.product_id    AS product_id,
@@ -140,10 +139,10 @@ _ORDERS_SELECT = f"""
         p.brand         AS brand,
         o.amount_paid_cents AS amount_paid_cents,
         p."imgUrl"      AS image_url,
-        r.status        AS return_status
+        o.return_status AS return_status,
+        o.store_credit_id AS store_credit_id
       FROM pellier.orders o
-      JOIN pellier.product_catalog p
-             ON p."productId" = o.product_id{RETURN_STATUS_JOIN}
+      JOIN pellier.product_catalog p ON p."productId" = o.product_id
      WHERE o.customer_id = %s
      ORDER BY o.placed_at DESC, o.id DESC
 """
@@ -213,8 +212,10 @@ def _order_row(row: Dict[str, Any]) -> Dict[str, Any]:
         "placedAt": _iso(row.get("placed_at")),
         "imageUrl": row.get("image_url") or "",
         "returnStatus": return_status,
-        # Returned means received and accepted. A pending request is a claim.
+        # Returned means the item came back. A requested return is a claim.
         "returned": is_returned(return_status),
+        # The store credit that covers this return, if one does.
+        "creditId": int(row["store_credit_id"]) if row.get("store_credit_id") else None,
     }
 
 
@@ -399,9 +400,18 @@ async def investigate_client(
     queue: asyncio.Queue = asyncio.Queue()
     turn_id = new_turn_id()
     operator_sub = str(operator.get("sub") or "").strip()
+    client_username = str(client.get("cognito_username") or "")
 
     def run(sql: str, params: Any = ()) -> List[Dict[str, Any]]:
         future = asyncio.run_coroutine_threadsafe(db.fetch_all(sql, *params), loop)
+        return [dict(r) for r in future.result(timeout=30) or []]
+
+    def run_customer(sql: str, params: Any = ()) -> List[Dict[str, Any]]:
+        # The client's orders and tickets, as pellier_agent with the client
+        # named: row-level security shows this client's rows and no others.
+        future = asyncio.run_coroutine_threadsafe(
+            db.fetch_all_as(client_username, sql, *params), loop
+        )
         return [dict(r) for r in future.result(timeout=30) or []]
 
     def emit(event: Dict[str, Any]) -> None:
@@ -412,6 +422,7 @@ async def investigate_client(
             result = await asyncio.to_thread(
                 operator_graph.run_investigation,
                 run=run,
+                run_customer=run_customer,
                 customer_id=client_id,
                 customer_name=str(client.get("name") or ""),
                 operator_sub=operator_sub,
@@ -464,12 +475,12 @@ async def investigate_client(
 
 
 def _review_payload(
-    row: Dict[str, Any], receipt: Optional[Dict[str, Any]] = None
+    row: Dict[str, Any], record: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """Shape one review for the desk.
 
-    Workflow state, plus the verdicts of its latest execution attempt when one
-    exists. ``receipt`` is passed in so the queue can batch one round trip.
+    Workflow state, plus what its execution left in the tables when it has
+    run: ``record`` is ``governed_execution.evidence_for_key`` for its key.
     """
     from services import operator_review as rv
 
@@ -498,13 +509,10 @@ def _review_payload(
         "status": status,
         "humanState": human_state,
         # Resolved server-side so no surface can infer one axis from another.
-        "assurance": _assurance_from_receipt(human_state, receipt),
-        # What produced the verdicts. A surface can show ALLOW without it, but
-        # not defend it.
-        "execution": _receipt_payload(receipt),
+        "assurance": _assurance_from_record(human_state, row, record),
+        "execution": _execution_payload(row, record),
         "sourceTurnId": row.get("source_turn_id"),
         "executionTurnId": row.get("execution_turn_id"),
-        "orderId": int(row["order_id"]) if row.get("order_id") else None,
         "orderIds": rv.referenced_order_ids(row),
         "issue": row.get("issue") or "",
         "recommendation": recommendation,
@@ -529,11 +537,7 @@ def _request_payload(row: Dict[str, Any]) -> Dict[str, Any]:
     A request is open until an investigation answers it; the answer names the
     review the investigation opened or resolved to, if it proposed one.
     """
-    from services import operator_review as rv
-
-    recommendation = rv.parse_json(row.get("recommendation")) or {}
-    answered_turn = recommendation.get("investigationTurnId") or None
-    answered_by = recommendation.get("answeredByReviewId")
+    answered_by = row.get("answered_by_review_id")
     customer_id = str(row.get("customer_id") or "")
     return {
         "requestId": int(row.get("review_id") or 0),
@@ -541,10 +545,10 @@ def _request_payload(row: Dict[str, Any]) -> Dict[str, Any]:
         "customerName": row.get("customer_name") or customer_id,
         "slug": _client_slug(customer_id),
         "personaId": _PERSONA_CUSTOMER_IDS.get(customer_id),
-        "status": "answered" if answered_turn else "open",
+        "status": str(row.get("status") or "open"),
         "issue": row.get("issue") or "",
         "answeredByReviewId": int(answered_by) if answered_by else None,
-        "investigationTurnId": answered_turn,
+        "investigationTurnId": row.get("answered_turn_id") or None,
         "sourceTurnId": row.get("source_turn_id"),
         "requestedBySub": row.get("requested_by_sub") or None,
         "requesterKind": str(row.get("requester_kind") or "unverified"),
@@ -575,13 +579,8 @@ async def list_reviews(
             detail="review_queue_unavailable: could not read pellier.approvals.",
         ) from exc
 
-    receipts = await ge.latest_receipts(
-        db, [row.get("review_id") for row in rows if row.get("review_id")]
-    )
-    reviews = [
-        _review_payload(row, receipts.get(int(row.get("review_id") or 0)))
-        for row in rows
-    ]
+    records = await asyncio.gather(*(_execution_record(ge, row) for row in rows))
+    reviews = [_review_payload(row, record) for row, record in zip(rows, records)]
     requests = [_request_payload(row) for row in request_rows]
     return {
         "reviews": reviews,
@@ -630,15 +629,12 @@ async def get_review(
     if not row or rv.is_request(row):
         raise HTTPException(status_code=404, detail=f"Unknown review: {review_id}")
 
-    receipt = await ge.latest_receipt(db, review_id)
+    record = await _execution_record(ge, row, db)
     hydrated = await rv.hydrate_review(db, row)
     customer = hydrated.get("customer") or {}
     customer_id = str(row.get("customer_id") or "")
-    record = None
-    if receipt is not None:
-        record = await ge.evidence_for_key(db, str(receipt.get("idempotency_key") or ""))
     return {
-        "review": _review_payload(row, receipt),
+        "review": _review_payload(row, record),
         "client": {
             "customerId": customer.get("id") or customer_id,
             "name": customer.get("name") or "",
@@ -848,7 +844,7 @@ async def _policy_engine_state(row: Dict[str, Any]):
 # an authorization decision, which is the confusion this desk exists to dismantle.
 #
 # These are the PRE-EXECUTION readings. They are superseded the moment an
-# execution produces verdicts, in `_assurance_from_receipt`.
+# execution begins, in `_assurance_from_record`.
 _ASSURANCE_BY_HUMAN_STATE = {
     "confirmation_required": {
         "human": "CONFIRMATION_REQUIRED",
@@ -879,48 +875,72 @@ def _assurance(human_state: str) -> Dict[str, str]:
     )
 
 
-def _assurance_from_receipt(
-    human_state: str, receipt: Optional[Dict[str, Any]]
+def _write_key(row: Dict[str, Any]) -> str:
+    from services.store_tools import execution_idempotency_key
+
+    return execution_idempotency_key(row.get("review_id") or 0, str(row.get("action_hash") or ""))
+
+
+async def _execution_record(ge: Any, row: Dict[str, Any], db: Any = None) -> Optional[Dict[str, Any]]:
+    """What the tables hold for a review's write key, once its execution began."""
+    if not row.get("execution_turn_id"):
+        return None
+    if db is None:
+        db = await get_db_service()
+    return await ge.evidence_for_key(db, _write_key(row))
+
+
+# Pellier stores no copy of a policy decision. After a reload the axes are
+# read back from the two tables: a credit the Gateway wrote was permitted, an
+# in-process write consulted no engine, and an attempt that left no row at all
+# says nothing more than that.
+_POLICY_NOT_RECORDED_NOTE = (
+    "Pellier keeps no copy of a policy decision. No credit and no tool_audit row "
+    "exist for this key, so the tool did not run."
+)
+
+
+def _assurance_from_record(
+    human_state: str, row: Dict[str, Any], record: Optional[Dict[str, Any]]
 ) -> Dict[str, str]:
-    """The four axes once an execution has produced verdicts.
+    """The four axes, read from the tables once an execution has begun.
 
     The human axis stays the human axis: a confirmation is not revised by what
-    the governance layers went on to decide. The other three come from the
-    stored receipt and from nowhere else.
+    the governance layers went on to decide.
     """
-    if not receipt:
-        return _assurance(human_state)
     base = _assurance(human_state)
-    return {
-        "human": base["human"],
-        "policy": str(receipt.get("policy_outcome") or base["policy"]),
-        "aurora": str(receipt.get("aurora_outcome") or base["aurora"]),
-        "evidence": str(receipt.get("evidence_outcome") or base["evidence"]),
-    }
+    if not row.get("execution_turn_id") or record is None:
+        return base
+    if not record.get("readable"):
+        return {**base, "policy": "NOT_RECORDED", "aurora": "OUTCOME_UNKNOWN", "evidence": "PENDING"}
+    if not record.get("auditRows"):
+        return {**base, "policy": "NOT_RECORDED", "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
+    policy = "ALLOW" if record.get("auditCaller") == "gateway" else "NOT_EVALUATED"
+    if record.get("creditRows"):
+        return {**base, "policy": policy, "aurora": "PERMITTED", "evidence": "RECEIPTED"}
+    return {**base, "policy": policy, "aurora": "DENIED", "evidence": "ATTEMPT_RECEIPT"}
 
 
-def _receipt_payload(receipt: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """The execution receipt, for a surface that reconstructs what happened.
-
-    Carries the attribution the axes need: which rail ran, which engine
-    answered, in what mode, and under which two principals.
-    """
-    if not receipt:
+def _execution_payload(
+    row: Dict[str, Any], record: Optional[Dict[str, Any]]
+) -> Optional[Dict[str, Any]]:
+    """Which run wrote what, for a review whose execution began."""
+    if not row.get("execution_turn_id"):
         return None
-    from services import operator_review as rv
-
+    audited = bool(record and record.get("auditRows"))
+    rail = None
+    if audited:
+        rail = "gateway-mcp" if record.get("auditCaller") == "gateway" else "in-process"
+    notes: Dict[str, str] = {}
+    if record and record.get("readable") and not audited:
+        notes["policy"] = _POLICY_NOT_RECORDED_NOTE
+    elif rail == "gateway-mcp":
+        notes["policy"] = "The Gateway ran the tool, so AgentCore Policy permitted it."
+    elif rail == "in-process":
+        notes["policy"] = "This execution ran in process, so no policy engine was asked."
     return {
-        "receiptId": int(receipt.get("receipt_id") or 0),
-        "executionTurnId": receipt.get("execution_turn_id") or "",
-        "tool": receipt.get("tool") or "",
-        "gatewayActionId": receipt.get("gateway_action_id") or "",
-        "rail": receipt.get("rail") or "",
-        "actorPrincipal": receipt.get("actor_principal") or "",
-        "customerSubject": receipt.get("customer_subject"),
-        "policyEngineId": receipt.get("policy_engine_id") or "",
-        "gatewayMode": receipt.get("gateway_mode") or "",
-        "matchingForbids": list(receipt.get("matching_forbids") or []),
-        "idempotencyKey": receipt.get("idempotency_key") or "",
-        "notes": rv.parse_json(receipt.get("notes")) or {},
-        "recordedAt": _iso(receipt.get("created_at")),
+        "executionTurnId": row.get("execution_turn_id") or "",
+        "idempotencyKey": _write_key(row),
+        "rail": rail,
+        "notes": notes,
     }

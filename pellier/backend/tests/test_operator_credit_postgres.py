@@ -4,12 +4,12 @@ Her own chat request opens a credit request with no amount, which nobody can
 approve; the Planner's records-built review is the only approvable credit, and
 a live review keeps the returned orders it covers.
 
-Fakes cannot prove the parts the database decides: that migration 020's
-partial unique index keeps one live review per exact credit, that the
-``ON CONFLICT`` target infers it, that ``apply_store_credit`` replays a key,
-and that the receipt CHECKs admit what the service writes. This module runs
-the real migrations on a throwaway cluster (``tests/fresh_cluster.py``) and
-drives the real code against them.
+Fakes cannot prove the parts the database decides: that the partial unique
+index ``approvals_one_live_review`` keeps one live review per exact credit,
+that the ``ON CONFLICT`` target infers it, that ``apply_store_credit`` admits
+only the approved review's key, replays it, and never credits an order twice.
+This module builds the real schema and seed on a throwaway cluster
+(``tests/fresh_cluster.py``) and drives the real code against them.
 
 The two rails:
 
@@ -143,10 +143,29 @@ def _to_field(value: Any) -> Dict[str, Any]:
 
 
 class _DataApiOnPostgres:
-    """``rds_client.execute_statement`` with named ``:params``, run on the cluster."""
+    """``rds_client`` with named ``:params`` and transactions, run on the cluster.
+
+    The connection is autocommit, so a Data API transaction is an explicit
+    ``BEGIN`` ... ``COMMIT`` on it: statements carrying the ``transactionId``
+    share it, exactly as the service shares one server-side transaction.
+    """
 
     def __init__(self, conn: psycopg.Connection) -> None:
         self.conn = conn
+        self.transactions = 0
+
+    def begin_transaction(self, **_kwargs: Any) -> Dict[str, Any]:
+        self.transactions += 1
+        self.conn.execute("BEGIN")
+        return {"transactionId": f"tx-{self.transactions}"}
+
+    def commit_transaction(self, **_kwargs: Any) -> Dict[str, Any]:
+        self.conn.execute("COMMIT")
+        return {}
+
+    def rollback_transaction(self, **_kwargs: Any) -> Dict[str, Any]:
+        self.conn.execute("ROLLBACK")
+        return {}
 
     def execute_statement(self, **kwargs: Any) -> Dict[str, Any]:
         values = {p["name"]: _from_field(p["value"]) for p in kwargs.get("parameters") or []}
@@ -185,12 +204,34 @@ def _call_lambda(
 
 
 def _clean_case(conn: psycopg.Connection) -> None:
-    """Every review, credit, claim and audit row gone; the seeded case stays."""
+    """Every review, credit and audit row gone; the seeded orders and their returns stay.
+
+    ``orders.store_credit_id`` references ``store_credits``, so the credits are
+    deleted rather than truncated (a TRUNCATE would have to empty the orders
+    too), and ``tool_audit`` is truncated because its trigger refuses DELETE.
+    """
     with conn.cursor() as cur:
-        cur.execute(
-            "TRUNCATE pellier.approvals, pellier.store_credits, pellier.write_operations, "
-            "pellier.tool_audit CASCADE"
-        )
+        cur.execute("UPDATE pellier.orders SET store_credit_id = NULL")
+        cur.execute("DELETE FROM pellier.store_credits")
+        cur.execute("DELETE FROM pellier.approvals")
+        cur.execute("TRUNCATE pellier.tool_audit")
+        cur.execute("UPDATE pellier.orders SET return_status = NULL "
+                    "WHERE customer_id = %s AND product_id NOT IN ('42', '25')", (JESSICA,))
+
+
+def _customer_run(
+    conn: psycopg.Connection, username: str
+) -> Callable[[str, Any], List[Dict[str, Any]]]:
+    """A customer's read as the app runs it: pellier_agent, the name bound, one transaction."""
+    def run(sql: str, params: Any = ()) -> List[Dict[str, Any]]:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute("SET LOCAL ROLE pellier_agent")
+                cur.execute("SELECT set_config('pellier.principal_username', %s, true)", (username,))
+                cur.execute(sql, params)
+                return _rows(cur)
+
+    return run
 
 
 def _order_id(conn: psycopg.Connection, product_id: str) -> int:
@@ -206,7 +247,8 @@ def _investigate(conn: psycopg.Connection, order_ids: List[int], sentence: str) 
     Then what the graph does once it completes: answer the open credit requests.
     """
     case = operator_graph._Case(
-        run=_sync_run(conn), customer_id=JESSICA, customer_name="Jessica Nakamura",
+        run=_sync_run(conn), run_customer=_customer_run(conn, "jessica"),
+        customer_id=JESSICA, customer_name="Jessica Nakamura",
         operator_sub=NADIA_SUB, turn_id=new_turn_id(), emit=lambda _event: None,
     )
     result = operator_graph.propose_credit(case, order_ids=order_ids, reason=sentence)
@@ -231,7 +273,7 @@ def _ask_for_credit(conn: psycopg.Connection, rail: str, module: ModuleType) -> 
 
 
 def _requests(conn: psycopg.Connection) -> List[Dict[str, Any]]:
-    return _rows_of(conn, "SELECT id, args, action_hash, status, recommendation "
+    return _rows_of(conn, "SELECT id, args, action_hash, status, answered_turn_id, review_id "
                           "FROM pellier.approvals WHERE customer_id = %s "
                           "AND tool = 'store_credit_request' ORDER BY id", JESSICA)
 
@@ -330,12 +372,12 @@ async def test_jessicas_record_marks_only_received_returns(fresh_db) -> None:
 
         async with aconn.transaction(force_rollback=True):
             await db.fetch_all(
-                "INSERT INTO pellier.returns (customer_id, product_id, reason, status) "
-                "VALUES (%s, '31', 'changed_mind', 'pending')", JESSICA,
+                "UPDATE pellier.orders SET return_status = 'requested' "
+                "WHERE customer_id = %s AND product_id = '31' RETURNING id", JESSICA,
             )
             claimed = await OP.get_client(JESSICA, db=db)
         pour_over = next(o for o in claimed["orders"] if o["productId"] == "31")
-        assert pour_over["returnStatus"] == "pending" and pour_over["returned"] is False
+        assert pour_over["returnStatus"] == "requested" and pour_over["returned"] is False
         assert claimed["client"]["returnedCount"] == 2
 
 
@@ -401,9 +443,12 @@ async def test_one_approval_is_one_credit_on_either_rail(fresh_db, monkeypatch, 
             assert _scalar(conn, "SELECT sum(amount_cents) FROM pellier.store_credits "
                                  "WHERE customer_id = %s", JESSICA) == 10000
 
-            receipts = _count(conn, "SELECT count(*) FROM pellier.execution_receipts "
-                                    "WHERE review_id = %s", review_id)
-            assert receipts == 3, "one receipt per attempt"
+            # The credit records the two orders it covers, once each.
+            credit_id = executed.result["credit_id"]
+            covered = _rows_of(conn, "SELECT id FROM pellier.orders WHERE store_credit_id = %s "
+                                     "ORDER BY id", credit_id)
+            assert [row["id"] for row in covered] == sorted([robe, diffuser])
+            assert executed.result["order_ids"] == sorted([robe, diffuser])
 
 
 @pytest.mark.asyncio
@@ -425,7 +470,7 @@ async def test_jessicas_request_and_the_investigation_give_one_review_and_one_cr
         assert again["request_id"] == asked["request_id"]
         (request,) = _requests(conn)
         assert request["args"] == {} and request["action_hash"] is None
-        assert request["status"] == "pending" and _reviews(conn) == 0
+        assert request["status"] == "open" and _reviews(conn) == 0
 
         async with await psycopg.AsyncConnection.connect(**_conninfo(fresh_db)) as aconn:
             db = _PgDb(aconn)
@@ -442,8 +487,8 @@ async def test_jessicas_request_and_the_investigation_give_one_review_and_one_cr
             assert proposal["status"] == "review_opened" and proposal["amount_cents"] == 10000
             review_id = int(proposal["review_id"])
             (answered,) = _requests(conn)
-            assert answered["recommendation"]["answeredByReviewId"] == review_id
-            assert answered["status"] == "pending", "a request is answered, never decided"
+            assert answered["review_id"] == review_id and answered["answered_turn_id"]
+            assert answered["status"] == "answered", "a request is answered, never decided"
 
             review = await rv.get_review(db, review_id)
             await rv.decide_review(db, review_id=review_id, decision=rv.STATUS_CONFIRMED,
@@ -462,29 +507,93 @@ async def test_jessicas_request_and_the_investigation_give_one_review_and_one_cr
                              "WHERE customer_id = %s", JESSICA) == 10000
 
 
-@pytest.mark.asyncio
-async def test_a_request_forced_to_approved_still_admits_no_credit(fresh_db, monkeypatch) -> None:
-    """Even approved by hand in the table, a request fingerprints nothing and pays nothing."""
-    from services import store_tools
-
+def test_a_request_can_never_be_approved_in_the_table(fresh_db, monkeypatch) -> None:
+    """A request names no amount; the database refuses to give it a decision."""
     with psycopg.connect(**_conninfo(fresh_db)) as conn:
         _clean_case(conn)
         module = _lambda(monkeypatch, conn)
-        _set_rail(monkeypatch, "in-process", module)
         request_id = int(_ask_for_credit(conn, "in-process", module)["request_id"])
-        with conn.cursor() as cur:
-            cur.execute("UPDATE pellier.approvals SET status = 'approved', decided_at = now(), "
-                        "decided_by = 'forced' WHERE id = %s", (request_id,))
-        refused = store_tools.give_store_credit(
-            _sync_run(conn), customer_id=JESSICA, amount_cents=10000,
-            reason="Store credit for the returns.", idempotency_key=f"operator-review:{request_id}:x",
-        )
-        assert refused["status"] == "approval_required", refused
-        async with await psycopg.AsyncConnection.connect(**_conninfo(fresh_db)) as aconn:
-            db = _PgDb(aconn)
-            with pytest.raises(Exception):
-                await _execute(db, request_id)
+        with pytest.raises(psycopg.errors.CheckViolation):
+            with conn.cursor() as cur:
+                cur.execute("UPDATE pellier.approvals SET status = 'approved', decided_at = now(), "
+                            "decided_by = 'forced' WHERE id = %s", (request_id,))
         assert _credits(conn) == 0
+
+
+def _force_approved_review(conn: psycopg.Connection, order_ids: List[int], amount: int,
+                           reason: str) -> str:
+    """An approved credit review written straight into the table, and its write key."""
+    from services.store_tools import execution_idempotency_key, write_request_hash
+
+    args = {"customer_id": JESSICA, "amount_cents": amount, "reason": reason}
+    action_hash = write_request_hash("give_store_credit", **args)
+    review_id = int(_scalar(
+        conn,
+        "INSERT INTO pellier.approvals (customer_id, tool, status, args, action_hash, order_ids, "
+        "decided_by, decided_at) VALUES (%s, 'give_store_credit', 'approved', %s::jsonb, %s, "
+        "%s::bigint[], 'forced', now()) RETURNING id",
+        JESSICA, json.dumps(args), action_hash, order_ids,
+    ))
+    return execution_idempotency_key(review_id, action_hash)
+
+
+def test_the_database_never_credits_an_order_twice_whoever_asks(fresh_db) -> None:
+    """The backstop for one credit per case: no principal gets around the order rule.
+
+    Jessica's real credit is paid. Then an approved review written straight into
+    the table, with different terms, for the same returned orders: the function
+    refuses it, and a direct write to the orders cannot point one at two credits.
+    """
+    with psycopg.connect(**_conninfo(fresh_db)) as conn:
+        _clean_case(conn)
+        robe, diffuser = _order_id(conn, "42"), _order_id(conn, "25")
+        run = _sync_run(conn)
+        paid_key = _force_approved_review(conn, [robe, diffuser], 10000, "The two returns.")
+        paid = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+                   (paid_key, JESSICA, 10000, "The two returns."))[0]["result"]
+        assert paid["status"] == "success" and paid["order_ids"] == sorted([robe, diffuser])
+
+        again_key = _force_approved_review(conn, [robe], 6400, "The robe, again.")
+        again = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+                    (again_key, JESSICA, 6400, "The robe, again."))[0]["result"]
+        assert again["status"] == "not_creditable" and again["denied_by"] == "order_guard"
+
+        # A review that covers no order credits nothing either: the Lab 4 over-limit
+        # probe is such a review, so a policy that wrongly allowed it still pays nothing.
+        probe_key = _force_approved_review(conn, [], 10001, "Over-limit probe.")
+        probe = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+                    (probe_key, JESSICA, 10001, "Over-limit probe."))[0]["result"]
+        assert probe["status"] == "not_creditable"
+
+        assert _credits(conn) == 1
+        assert _count(conn, "SELECT count(*) FROM pellier.orders WHERE store_credit_id IS NOT NULL") == 2
+
+
+def test_a_credit_needs_its_approval_and_the_amount_ceiling_is_500(fresh_db) -> None:
+    """$100.01 is a valid credit to the database; only Lab 4's policy refuses it."""
+    with psycopg.connect(**_conninfo(fresh_db)) as conn:
+        _clean_case(conn)
+        robe, diffuser = _order_id(conn, "42"), _order_id(conn, "25")
+        run = _sync_run(conn)
+
+        def credit(key: str, amount: int, reason: str) -> Dict[str, Any]:
+            return run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+                       (key, JESSICA, amount, reason))[0]["result"]
+
+        assert credit("operator-review:1:none", 10000, "x")["status"] == "approval_required"
+        assert credit("operator-review:1:none", 10001, "Over the limit, valid here.")[
+            "status"] == "approval_required"
+        assert credit("k", 50001, "x")["status"] == "policy_blocked"
+        key = _force_approved_review(conn, [robe, diffuser], 10001, "Over the limit, valid here.")
+        assert credit(key, 10000, "Over the limit, valid here.")["status"] == "approval_mismatch"
+        minted = key.rsplit(":", 1)[0] + ":minted"
+        assert credit(minted, 10001, "Over the limit, valid here.")["status"] == (
+            "approval_key_mismatch")
+        assert credit(key, 10001, "Over the limit, valid here.")["status"] == "success"
+        with pytest.raises(psycopg.errors.CheckViolation):
+            run("INSERT INTO pellier.store_credits (approval_id, customer_id, amount_cents, reason, "
+                "idempotency_key) SELECT id, %s, 50001, 'x', 'too-much' FROM pellier.approvals "
+                "LIMIT 1 RETURNING credit_id", (JESSICA,))
 
 
 @pytest.mark.asyncio
@@ -506,9 +615,8 @@ async def test_a_third_returned_order_gets_its_own_credit_for_that_order_only(
             await _execute(db, first_id)
 
             with conn.cursor() as cur:
-                cur.execute("INSERT INTO pellier.returns (customer_id, product_id, reason, status) "
-                            "VALUES (%s, '31', 'changed_mind', 'approved') RETURNING id", (JESSICA,))
-                return_id = cur.fetchone()["id"]
+                cur.execute("UPDATE pellier.orders SET return_status = 'received' WHERE id = %s",
+                            (pour_over,))
             try:
                 third = _investigate(conn, [robe, pour_over], "The pour-over set came back too.")
                 assert third["status"] == "review_opened" and third["order_ids"] == [pour_over]
@@ -525,7 +633,8 @@ async def test_a_third_returned_order_gets_its_own_credit_for_that_order_only(
                 assert again["status"] == "already_approved" and _reviews(conn) == 2
             finally:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM pellier.returns WHERE id = %s", (return_id,))
+                    cur.execute("UPDATE pellier.orders SET store_credit_id = NULL, "
+                                "return_status = NULL WHERE id = %s", (pour_over,))
 
         amounts = [row["amount_cents"] for row in _rows_of(
             conn, "SELECT amount_cents FROM pellier.store_credits WHERE customer_id = %s "
@@ -549,33 +658,9 @@ async def test_a_declined_credit_can_be_proposed_again(fresh_db) -> None:
         assert second["review_id"] != first["review_id"] and _reviews(conn) == 2
 
 
-def test_reapplying_020_converges_a_pending_only_index(fresh_db) -> None:
-    """The reset re-applies 020; a cluster built before approvals joined the index converges."""
-    migration = DEPLOY.parent / "migrations" / "020_operator_review.sql"
-    with psycopg.connect(**_conninfo(fresh_db)) as conn:
-        _clean_case(conn)
-    fresh_db.psql(
-        "DROP INDEX pellier.approvals_open_per_action_idx; "
-        "CREATE UNIQUE INDEX approvals_open_per_action_idx ON pellier.approvals "
-        "(customer_id, tool, action_hash) WHERE status = 'pending';"
-    )
-    fresh_db.psql(migration.read_text())
-    definition = fresh_db.psql(
-        "SELECT indexdef FROM pg_indexes WHERE indexname = 'approvals_open_per_action_idx'"
-    )
-    assert "'pending'::text" in definition and "'approved'::text" in definition, definition
-
-
-# ---------------------------------------------------------------------------
-# Receipts the table used to refuse
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
-async def test_a_refused_execution_and_an_unknown_outcome_are_both_stored(
-    fresh_db, monkeypatch,
-) -> None:
-    """The refused rail and OUTCOME_UNKNOWN are values the effective CHECKs admit."""
+async def test_a_refused_execution_writes_nothing(fresh_db, monkeypatch) -> None:
+    """The governed format without its managed rail refuses before any write."""
     from config import settings
 
     monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
@@ -590,38 +675,13 @@ async def test_a_refused_execution_and_an_unknown_outcome_are_both_stored(
             review = await rv.get_review(db, review_id)
             await rv.decide_review(db, review_id=review_id, decision=rv.STATUS_CONFIRMED,
                                    decided_by=NADIA_SUB, action_hash=review["action_hash"])
-
-            with pytest.raises(ge.GovernedRailUnavailable) as refused:
+            with pytest.raises(ge.GovernedRailUnavailable):
                 await _execute(db, review_id)
-            assert refused.value.receipt_id is not None
-
-            unknown = ge.ExecutionOutcome(
-                rail=ge.RAIL_GATEWAY, execution_turn_id=new_turn_id(),
-                idempotency_key="operator-review:0:unknown", operator_sub=NADIA_SUB,
-                customer_subject=None, policy=ge.POLICY_EVALUATION_INCOMPLETE,
-                aurora=ge.AURORA_OUTCOME_UNKNOWN, evidence=ge.EVIDENCE_ATTEMPT_RECEIPT,
-                tool="give_store_credit",
-            )
-            assert await ge.record_receipt(db, unknown, review_id=review_id) is not None
-
-        stored = _rows_of(conn, "SELECT rail, policy_outcome, aurora_outcome "
-                                "FROM pellier.execution_receipts WHERE review_id = %s "
-                                "ORDER BY receipt_id", review_id)
-    assert stored == [
-        {"rail": "refused", "policy_outcome": "EVALUATION_INCOMPLETE",
-         "aurora_outcome": "NOT_REACHED"},
-        {"rail": "gateway-mcp", "policy_outcome": "EVALUATION_INCOMPLETE",
-         "aurora_outcome": "OUTCOME_UNKNOWN"},
-    ]
-    assert _credits_any(fresh_db) == 0, "a refused execution writes no credit"
+        assert _credits(conn) == 0
+        assert _count(conn, "SELECT count(*) FROM pellier.tool_audit") == 0
 
 
 def _rows_of(conn: psycopg.Connection, sql: str, *params: Any) -> List[Dict[str, Any]]:
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return _rows(cur)
-
-
-def _credits_any(cluster: Any) -> int:
-    with psycopg.connect(**_conninfo(cluster)) as conn:
-        return _credits(conn)

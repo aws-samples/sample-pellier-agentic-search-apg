@@ -36,7 +36,7 @@ _STOCK_SYSTEM_PROMPT = (
     "</critical-rule>"
     "<tools>"
     "- check_stock(product_query): returns {status, product, total_units, "
-    "warehouses: [{warehouse_id, warehouse_name, city, ship_window_min, "
+    "warehouses: [{warehouse_code, warehouse_name, city, ship_window_min, "
     "ship_window_max, quantity}]}. status is 'success', 'ambiguous' (with "
     "candidates) or 'not_found'."
     "</tools>"

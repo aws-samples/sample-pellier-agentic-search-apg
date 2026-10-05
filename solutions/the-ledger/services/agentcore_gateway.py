@@ -253,6 +253,7 @@ def _model_gateway_tools(tools: Sequence[Any]) -> list[Any]:
 _SAFE_TOOL_INPUT_FIELDS = frozenset(
     {
         "amount_cents",
+        "build_fingerprint",
         "category",
         "credit_request",
         "customer_id",
@@ -295,6 +296,12 @@ def _bind_server_tool_context(
 
     if turn_id:
         tool_input["turn_id"] = turn_id
+    # The build that makes the call, from the package's own fingerprint. The
+    # server sets it; a value the model supplied is never kept.
+    tool_input.pop("build_fingerprint", None)
+    build = os.environ.get("PELLIER_BUILD_FINGERPRINT", "").strip()
+    if build:
+        tool_input["build_fingerprint"] = build
     if logical_name in _CUSTOMER_SCOPED_TOOL_NAMES:
         if not customer_id:
             raise ValueError(

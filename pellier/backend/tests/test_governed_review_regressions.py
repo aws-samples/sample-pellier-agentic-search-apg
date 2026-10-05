@@ -2,20 +2,6 @@
 import sys
 from pathlib import Path
 
-from services.governed_turn_receipt import _trace_metadata
-
-
-def test_memory_receipt_survives_projection_without_content():
-    memory = {
-        "source": "agentcore-memory", "turns_loaded": 2, "turns_persisted": 2,
-        "read_status": "succeeded", "write_status": "succeeded",
-        "namespace_scope": "verified-principal", "conversation": "private content",
-    }
-    projected = _trace_metadata({"memory": memory})["memory"]
-    assert projected["turns_loaded"] == 2
-    assert projected["write_status"] == "succeeded"
-    assert "conversation" not in projected
-    assert "memory" not in _trace_metadata({"memory": None})
 
 
 def test_publishing_ticket_history_also_installs_ownership(monkeypatch):

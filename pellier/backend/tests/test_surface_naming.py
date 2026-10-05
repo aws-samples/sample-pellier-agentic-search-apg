@@ -24,7 +24,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Tuple
 
-import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 
@@ -82,23 +81,12 @@ ALLOWED: Dict[str, str] = {
     # can show that they do.
     "pellier/frontend/src/App.routes.test.tsx":
         "asserts that retired paths land on the storefront",
-    # A one-time converging rename so a cluster provisioned under the old name
-    # ends up with one table rather than two.
-    "scripts/migrations/002_workshop_telemetry.sql":
-        "ALTER TABLE converges an existing cluster to observatory_spans",
     # The invariant has to name what it retires to be actionable.
     "CLAUDE.md":
         "states the one-name rule by naming both retired names",
     # This file names what it forbids.
     "pellier/backend/tests/test_surface_naming.py":
         "the guard itself",
-    # The three files that RETIRE the database object.
-    #
-    # This guard scans repository FILES, so it could never have seen that the live
-    # cluster still carried `pellier.agent_trace_spans` — it did, for weeks, while every
-    # test here passed. Detecting and removing it necessarily names it.
-    "scripts/migrations/027_canonical_span_table.sql":
-        "converges a stale cluster onto observatory_spans and asserts the result",
 }
 
 
@@ -154,16 +142,3 @@ def test_every_allowance_is_still_needed() -> None:
             stale.append(f"{relative} (no retired name present; drop the allowance)")
 
     assert not stale, "stale allowances:\n" + "\n".join(f"  {s}" for s in stale)
-
-
-@pytest.mark.parametrize(
-    "path,needle",
-    [
-        ("scripts/migrations/002_workshop_telemetry.sql", "pellier.observatory_spans"),
-    ],
-)
-def test_the_current_name_is_the_one_in_use(path: str, needle: str) -> None:
-    """Absence of the old name is not presence of the new one."""
-    assert needle in (REPO / path).read_text(encoding="utf-8"), (
-        f"{path} does not carry {needle!r}"
-    )

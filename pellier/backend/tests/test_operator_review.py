@@ -51,9 +51,11 @@ class FakeReviewDb:
             "status": "pending",
             "source_turn_id": "turn-investigation-1",
             "execution_turn_id": None,
-            "order_id": 301,
+            "order_ids": [301, 302],
+            "answered_turn_id": None,
+            "answered_by_review_id": None,
             "issue": "Two items went back.",
-            "recommendation": {"primaryAction": "give_store_credit", "orderIds": [301, 302],
+            "recommendation": {"primaryAction": "give_store_credit",
                                "rationale": "Two items went back."},
             "action_hash": JESSICA_HASH,
             "decided_by": None,
@@ -97,7 +99,7 @@ class FakeReviewDb:
             rows = [dict(r) for r in self.rows if r["action"] == tool]
             if status:
                 rows = [r for r in rows if r["status"] == status]
-            rows.sort(key=lambda r: 0 if r["status"] == "pending" else 1)
+            rows.sort(key=lambda r: 0 if r["status"] in ("pending", "open") else 1)
             return rows
         if "FROM pellier.orders o" in query:
             wanted = set(int(v) for v in params[1])
@@ -191,8 +193,9 @@ def test_the_pending_review_appears_in_the_queue_first() -> None:
 def _request(db: FakeReviewDb, **overrides: Any) -> Dict[str, Any]:
     """Jessica's chat request for a store credit: no amount, no fingerprint."""
     fields: Dict[str, Any] = {
-        "action": "store_credit_request", "args": {}, "action_hash": None, "order_id": None,
-        "recommendation": None, "issue": "Jessica asks for a store credit for two returns.",
+        "action": "store_credit_request", "args": {}, "action_hash": None, "order_ids": [],
+        "status": "open", "recommendation": None,
+        "issue": "Jessica asks for a store credit for two returns.",
         "requested_by_sub": "sub-jessica", "requester_kind": "shopper",
     }
     return db.add_pending(**{**fields, **overrides})
@@ -213,7 +216,7 @@ def test_the_queue_lists_a_credit_request_beside_the_reviews_with_no_amount() ->
 
 def test_an_answered_request_names_the_review_that_answered_it() -> None:
     db = FakeReviewDb()
-    _request(db, recommendation={"investigationTurnId": "turn-" + "c" * 32, "answeredByReviewId": 7})
+    _request(db, status="answered", answered_turn_id="turn-" + "c" * 32, answered_by_review_id=7)
     body = build_client(db).get("/api/operator/reviews").json()
     assert body["openRequestCount"] == 0
     assert body["requests"][0]["status"] == "answered"
@@ -231,7 +234,7 @@ def test_a_credit_request_cannot_be_approved_declined_executed_or_opened_as_a_re
     response = client.post(f"/api/operator/reviews/{request_id}/execute", json={})
     assert response.status_code == 409 and response.json()["detail"] == "request_not_approvable"
     assert client.get(f"/api/operator/reviews/{request_id}").status_code == 404
-    assert db._find(request_id)["status"] == "pending"
+    assert db._find(request_id)["status"] == "open"
     assert not any(s.strip().startswith("UPDATE") for s in db.statements)
 
 
@@ -407,7 +410,7 @@ def test_the_review_payload_reads_arguments_stored_as_text() -> None:
     payload = operator_module._review_payload({
         "review_id": 5, "customer_id": "CUST-JESSICA", "action": "give_store_credit",
         "args": json.dumps(JESSICA), "status": "approved", "action_hash": JESSICA_HASH,
-        "recommendation": json.dumps({"orderIds": [301]}),
+        "recommendation": json.dumps({"rationale": "Went back."}), "order_ids": "{301}",
     })
     assert payload["amountCents"] == 10000 and payload["reason"] == "Two items went back."
     assert payload["orderIds"] == [301]

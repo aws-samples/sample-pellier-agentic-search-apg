@@ -30,7 +30,7 @@ _WAREHOUSES = ("BK-01", "ATX-02", "PDX-01")
 
 def _rows(quantity: int) -> list[dict[str, Any]]:
     return [
-        {"warehouse_id": w, "warehouse_name": w, "city": "c", "ship_window_min": 1,
+        {"warehouse_code": w, "warehouse_name": w, "city": "c", "ship_window_min": 1,
          "ship_window_max": 3, "quantity": quantity}
         for w in _WAREHOUSES
     ]
@@ -46,7 +46,7 @@ def test_a_sold_out_piece_is_a_success_with_zero_units() -> None:
     result = store_tools.check_stock(_Run([VEST], _rows(0)), product_query="Quilted Silk Vest")
     assert result["status"] == "success"
     assert result["total_units"] == 0
-    assert [w["warehouse_id"] for w in result["warehouses"]] == list(_WAREHOUSES)
+    assert [w["warehouse_code"] for w in result["warehouses"]] == list(_WAREHOUSES)
     assert result["product"]["name"] == "Quilted Silk Vest"
 
 

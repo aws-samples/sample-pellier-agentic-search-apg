@@ -176,35 +176,24 @@ _PRODUCT_DETAIL_SELECT = """
     FROM pellier.product_catalog
 """
 
-# Per-warehouse on-hand counts. Same join ``store_tools.check_stock`` uses, so
-# the product page and the Stock agent's tool read one source.
+# Per-warehouse on-hand counts. The same rows ``store_tools.check_stock``
+# reads, so the product page and the Stock agent's tool read one source.
 _WAREHOUSE_SELECT = """
-    SELECT w.id           AS warehouse_id,
-           w.display_name AS name,
-           w.city,
-           w.ship_window_min,
-           w.ship_window_max,
-           wi.quantity
-      FROM pellier.warehouse_inventory wi
-      JOIN pellier.warehouses w ON w.id = wi.warehouse_id
-     WHERE wi.product_id = %s
-     ORDER BY wi.quantity DESC, w.id ASC
+    SELECT warehouse_code AS warehouse_id, warehouse_name AS name, city,
+           ship_window_min, ship_window_max, quantity
+      FROM pellier.warehouse_inventory
+     WHERE product_id = %s
+     ORDER BY quantity DESC, warehouse_code ASC
 """
 
-# The same join for every product in a listing, in one read, so each card
+# The same rows for every product in a listing, in one read, so each card
 # can carry its stock line without a query per card.
 _WAREHOUSE_LIST_SELECT = """
-    SELECT wi.product_id,
-           w.id           AS warehouse_id,
-           w.display_name AS name,
-           w.city,
-           w.ship_window_min,
-           w.ship_window_max,
-           wi.quantity
-      FROM pellier.warehouse_inventory wi
-      JOIN pellier.warehouses w ON w.id = wi.warehouse_id
-     WHERE wi.product_id = ANY(%s)
-     ORDER BY wi.product_id, wi.quantity DESC, w.id ASC
+    SELECT product_id, warehouse_code AS warehouse_id, warehouse_name AS name, city,
+           ship_window_min, ship_window_max, quantity
+      FROM pellier.warehouse_inventory
+     WHERE product_id = ANY(%s)
+     ORDER BY product_id, quantity DESC, warehouse_code ASC
 """
 
 
@@ -289,10 +278,11 @@ async def _fetch_editorial_catalog(
 ) -> List[StorefrontProduct]:
     """Return Aurora catalog rows in the stored editorial order.
 
-    ``persona_id`` is an Aurora-owned editorial grouping installed by
-    migration 029. The storefront never substitutes a browser-owned edit:
-    if the migration or catalog is unavailable, this read fails and the
-    caller renders an explicit unavailable state.
+    ``persona_id`` is an Aurora-owned editorial grouping from the catalog, and
+    ``storefront_rank`` its order from scripts/migrations/002_seed.sql. The
+    storefront never substitutes a browser-owned edit: if the catalog is
+    unavailable, this read fails and the caller renders an explicit
+    unavailable state.
     """
     clauses: list[str] = []
     params: list[Any] = []

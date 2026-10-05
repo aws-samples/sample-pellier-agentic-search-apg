@@ -86,8 +86,7 @@ def test_every_product_like_name_in_a_skill_exists_in_the_catalog():
     assert offenders == [], "a skill may only name pieces the catalog carries"
 
 
-def test_migrations_join_orders_by_product_id():
-    for name in ("003_persona_seed.sql", "018_client_book.sql"):
-        sql = (REPO / "scripts" / "migrations" / name).read_text()
-        assert 'pc.name = os.product_name' not in sql, name
-        assert 'pc."productId" = os.product_id' in sql, name
+def test_the_seed_names_orders_by_product_id_not_by_product_name():
+    sql = (REPO / "scripts" / "migrations" / "002_seed.sql").read_text()
+    assert "product_name" not in sql
+    assert "(id, customer_id, product_id, amount_paid_cents, ship_to, placed_at, return_status)" in sql

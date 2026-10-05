@@ -527,13 +527,8 @@ def test_the_tools_read_the_shoppers_latest_message_only(service, monkeypatch) -
     assert seen["words"] == "which of those would you pick for a small kitchen?"
 
 
-# Anna, as ``scripts/migrations/003_persona_seed.sql`` seeds her.
-ANNA_FACTS = [
-    {"summary_text": "Past orders skew gift-shaped across varied price bands.", "ts_offset_days": -50},
-    {"summary_text": "Recent searches mention milestone occasions and ready-to-give packaging.",
-     "ts_offset_days": -20},
-    {"summary_text": "Responds well to pairings under a clear budget.", "ts_offset_days": -9},
-]
+# Anna, as ``scripts/migrations/002_seed.sql`` seeds her.
+ANNA_PREFERENCES = "Gift-giver. Buys for others, with milestone occasions and explicit budgets."
 ANNA_ORDERS = [
     {"productId": "7", "name": "Jute Placemats, Set of 4", "brand": "Pellier", "color": "Natural",
      "price": 40, "category": "Kitchen and table", "imgUrl": "/p.webp", "rating": 4.8, "reviews": 12,
@@ -545,17 +540,17 @@ ANNA_ORDERS = [
 
 
 class _SeededAnna:
-    """The three reads the preamble makes, answered from the seed."""
+    """The two reads the preamble makes, answered from the seed."""
 
     async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
-        if "customer_episodic_seed" in sql:
-            return list(ANNA_FACTS)
         if "pellier.orders" in sql:
             return list(ANNA_ORDERS)
         return []
 
     async def fetch_one(self, sql: str, *params: Any) -> Optional[Dict[str, Any]]:
-        return {"name": "Anna"} if "pellier.customers" in sql else None
+        if "pellier.customers" in sql:
+            return {"name": "Anna", "preferences_summary": ANNA_PREFERENCES}
+        return None
 
 
 def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_dot(
@@ -584,7 +579,7 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
     )
     preamble = seen["preamble"]
     assert preamble.startswith("PERSONA CONTEXT: Anna (CUST-ANNA)\n")
-    assert "  - Responds well to pairings under a clear budget." in preamble
+    assert f"Known about them: {ANNA_PREFERENCES}" in preamble
     assert "  - Jute Placemats, Set of 4 (paid $68, Kitchen and table)" in preamble
     assert seen["prompt"].startswith(preamble)
 

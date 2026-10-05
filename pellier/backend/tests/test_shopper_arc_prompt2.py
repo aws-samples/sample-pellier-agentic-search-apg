@@ -45,7 +45,7 @@ def test_marco_tool_reads_the_ship_window_from_aurora() -> None:
     logic = (BACKEND / "services" / "store_tools.py").read_text()
     # Per-warehouse breakdown must carry both the count and the window.
     assert "ship_window_min" in logic and "ship_window_max" in logic
-    assert "w.display_name" in logic and "wi.quantity" in logic
+    assert "warehouse_name" in logic and "FROM pellier.warehouse_inventory" in logic
 
 
 def test_marco_answer_rules_require_warehouse_count_and_ship_window() -> None:

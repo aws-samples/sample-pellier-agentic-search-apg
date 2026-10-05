@@ -9,24 +9,15 @@ old local ``BeforeToolCall`` hook + hand-rolled fake-Cedar engine (both removed)
 
 This module is the **read side** of that managed gate. It does NOT enforce
 anything (the Gateway does) — it just lets the Observatory Policy surface show, live,
-which Cedar policies are attached to the engine and what evidence the managed
-rail produced.
+which Cedar policies are attached to the engine and in what mode.
 
-Two reads:
+``list_managed_policies()`` — boto3 ``bedrock-agentcore-control``
+``list_policies(policyEngineId=...)`` + ``get_policy`` per id to pull the full
+Cedar ``definition``. Keyed on ``AGENTCORE_POLICY_ENGINE_ID`` (written to
+``.env`` by the deploy script). Returns the policy statements so the surface
+can render "this is the Cedar the Gateway enforces".
 
-  1. ``list_managed_policies()`` — boto3 ``bedrock-agentcore-control``
-     ``list_policies(policyEngineId=...)`` + ``get_policy`` per id to pull the
-     full Cedar ``definition``. Keyed on ``AGENTCORE_POLICY_ENGINE_ID`` (written
-     to ``.env`` by the deploy script). Returns the policy statements so the
-     surface can render "this is the Cedar the Gateway enforces".
-
-  2. ``recent_decisions()`` — reads the explicit, immutable
-     ``pellier.governed_receipts`` decision records. Tool audit rows prove only
-     execution, so treating every one as an inferred ALLOW hid DENY evidence and
-     exposed broad audit history. The receipt table preserves both outcomes and
-     associates each one with its verified principal.
-
-Both reads are best-effort: a missing engine id, missing boto3, or an
+Reads are best-effort: a missing engine id, missing boto3, or an
 unreachable control-plane returns an empty list with a ``source`` marker rather
 than raising, so the Observatory surface degrades to "(no policies)" instead of a
 500.
@@ -268,95 +259,6 @@ def list_managed_policies() -> Dict[str, Any]:
         return {"source": "error", "policy_engine_id": engine_id, "policies": [], "error": str(exc)}
 
 
-async def recent_decisions(
-    db_service: Any,
-    *,
-    principal_sub: str,
-    session_id: Optional[str] = None,
-    limit: int = 50,
-) -> Dict[str, Any]:
-    """Return explicit managed-policy receipts for one verified principal.
-
-    Shape:
-        {
-            "source": "governed-receipts",
-            "session_id": "<session or null>",
-            "decisions": [
-                {"receipt_id", "audit_id", "tool", "caller", "args",
-                 "policy_engine_id", "policy_name", "created_at",
-                 "decision": "ALLOW" | "DENY"},
-                ...
-            ],
-            "count": <int>,
-        }
-
-    ``principal_sub`` is mandatory. The API caller has already verified the
-    Cognito subject before it reaches this service, and the SQL scope keeps one
-    attendee from inspecting another attendee's policy history.
-    """
-    sid = session_id or None
-    if db_service is None or not principal_sub:
-        return {
-            "source": "governed-receipts",
-            "session_id": sid,
-            "decisions": [],
-            "count": 0,
-        }
-
-    limit = max(1, min(500, int(limit)))
-    if session_id:
-        sql = (
-            "SELECT receipt_id, audit_id, session_id, tool, caller, decision, "
-            "args, policy_engine_id, policy_name, created_at "
-            "FROM pellier.governed_receipts "
-            "WHERE principal_id = %s AND session_id = %s "
-            "ORDER BY created_at DESC LIMIT %s"
-        )
-        params = (principal_sub, session_id, limit)
-    else:
-        sql = (
-            "SELECT receipt_id, audit_id, session_id, tool, caller, decision, "
-            "args, policy_engine_id, policy_name, created_at "
-            "FROM pellier.governed_receipts "
-            "WHERE principal_id = %s ORDER BY created_at DESC LIMIT %s"
-        )
-        params = (principal_sub, limit)
-
-    try:
-        rows = await db_service.fetch_all(sql, *params)
-    except Exception as exc:
-        logger.warning("Managed decisions (governed_receipts) read failed: %s", exc)
-        return {
-            "source": "governed-receipts",
-            "session_id": sid,
-            "decisions": [],
-            "count": 0,
-            "error": str(exc),
-        }
-
-    decisions: List[Dict[str, Any]] = []
-    for r in rows or []:
-        created = r.get("created_at")
-        decisions.append({
-            "receipt_id": r.get("receipt_id"),
-            "audit_id": r.get("audit_id"),
-            "session_id": r.get("session_id"),
-            "tool": r.get("tool"),
-            "caller": r.get("caller"),
-            "args": r.get("args"),
-            "policy_engine_id": r.get("policy_engine_id"),
-            "policy_name": r.get("policy_name"),
-            "created_at": created.isoformat() if hasattr(created, "isoformat") else created,
-            "decision": r.get("decision"),
-        })
-    return {
-        "source": "governed-receipts",
-        "session_id": sid,
-        "decisions": decisions,
-        "count": len(decisions),
-    }
-
-
 def _read_engine_state(
     engine_id: str, action_id: str, gateway_arn: str
 ) -> Dict[str, Any]:
@@ -411,8 +313,8 @@ def _read_engine_state(
         "policy_ids": policy_ids,
         "matching": matching,
         "policy_engine_id": engine_id,
-        # Not a decision. See `engine_state_for_action`: only policy_decisions
-        # observations may produce ALLOW, DENY or WOULD_DENY.
+        # Not a decision. See `engine_state_for_action`: only the Gateway's
+        # answer to a call may produce ALLOW or DENY.
         "inferred": True,
     }
 
@@ -430,8 +332,7 @@ async def engine_state_for_action(action_id: str) -> Optional[Dict[str, Any]]:
     particular call: `process_return_damaged_only` forbids the action only when
     the reason is not `damaged`, and it therefore "matches" every ALLOW too. A
     reading derived from this may only ever be ``POLICY_INFERRED``. Real
-    decisions come from ``services.policy_decisions``, which reads the gateway's
-    policy-evaluation spans and the LOG_ONLY metrics.
+    decisions come from the Gateway's answer to a call.
 
     Enforcement is the conjunction of two scopes with different vocabularies,
     verified against the live service: a policy is ``ACTIVE`` or ``LOG_ONLY``; a

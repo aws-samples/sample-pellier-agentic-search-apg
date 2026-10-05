@@ -30,7 +30,6 @@ def test_chat_history_retains_bounded_rendered_product_identity() -> None:
                         "name": "Beeswax Pillar Candle",
                         "price": 38,
                         "category": "Home",
-                        "availability": "in_stock",
                     },
                     {
                         "id": 42,
@@ -176,13 +175,11 @@ def test_an_over_budget_followup_is_replaced_with_an_eligible_prior_option() -> 
                     "id": 41,
                     "name": "Beeswax Pillar Candle",
                     "price": 38,
-                    "availability": "in_stock",
                 },
                 {
                     "id": 42,
                     "name": "Ceramic Morning Vase",
                     "price": 103,
-                    "availability": "in_stock",
                 },
             ],
         },

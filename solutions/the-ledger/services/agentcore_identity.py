@@ -48,7 +48,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import Request
 
@@ -146,37 +146,6 @@ class AgentCoreIdentityService:
         if user_id:
             return f"user-{user_id}-session-{session_id}"
         return f"anon-{session_id}"
-
-    @staticmethod
-    async def latest_shopper_namespace(db: Any, user_id: str) -> Optional[str]:
-        """Resolve the writer's namespace from this principal's durable turns.
-
-        A managed read need not emit tool_audit rows. Turn receipts cover every
-        managed terminal outcome and also prevent a mixed-principal replay.
-        """
-        if not user_id:
-            return None
-        row = await db.fetch_one(
-            """
-            SELECT gtr.session_id
-              FROM pellier.governed_turn_receipts gtr
-             WHERE gtr.principal_sub = %s
-               AND gtr.principal_verified
-               AND gtr.session_id IS NOT NULL
-               AND NOT EXISTS (
-                   SELECT 1 FROM pellier.governed_turn_receipts other
-                    WHERE other.session_id = gtr.session_id
-                      AND other.principal_sub IS DISTINCT FROM %s
-               )
-             ORDER BY gtr.created_at DESC, gtr.turn_id DESC
-             LIMIT 1
-            """,
-            user_id, user_id,
-        )
-        return (
-            AgentCoreIdentityService.build_namespace(user_id, row["session_id"])
-            if row else None
-        )
 
     @staticmethod
     def _resolve_session_id(request: Request) -> str:

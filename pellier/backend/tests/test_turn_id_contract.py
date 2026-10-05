@@ -123,15 +123,13 @@ def test_complete_still_carries_the_rail(live_client: TestClient) -> None:
     assert complete["response"]["railDecision"]["available"] is True
 
 
-@pytest.mark.parametrize("success, build_required, status, code", [
-    (True, False, "complete", None),
-    (False, False, "failed", None),
-    (False, True, "failed", "workshop_build_required"),
+@pytest.mark.parametrize("success, build_required", [
+    (True, False), (False, False), (False, True),
 ])
-def test_transport_completion_records_the_actual_turn_outcome(
-    monkeypatch, success, build_required, status, code,
+def test_transport_completion_carries_the_actual_turn_outcome(
+    monkeypatch, success, build_required,
 ):
-    persisted = []
+    """The complete event reports what happened, and nothing is written about it."""
 
     class Service:
         async def chat_stream(self, **kwargs):
@@ -140,18 +138,13 @@ def test_transport_completion_records_the_actual_turn_outcome(
                 "agent_execution": {"build_required": build_required},
             }}
 
-    async def persist(**kwargs):
-        persisted.append(kwargs)
-        return None
-
     monkeypatch.setattr(app_module.settings, "USE_AGENTCORE_RUNTIME", False)
     monkeypatch.setattr(app_module, "chat_service", Service())
-    monkeypatch.setattr(app_module, "_persist_terminal_turn_receipt", persist)
     events = _post(TestClient(app_module.app))
-    assert _first(events, "complete")["response"]["success"] is success
-    assert len(persisted) == 1
-    assert persisted[0]["terminal_status"] == status
-    assert persisted[0]["terminal_error_code"] == code
+    response = _first(events, "complete")["response"]
+    assert response["success"] is success
+    assert response["agent_execution"]["build_required"] is build_required
+    assert "governed_receipt" not in response and "evidence_ledger" not in response
 
 
 @pytest.mark.parametrize(

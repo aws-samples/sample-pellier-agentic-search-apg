@@ -26,8 +26,9 @@ the prior confirmation no longer matches. ``give_store_credit`` compares its own
 fingerprint with the approved rows before it writes, and admits the write only
 under that review's own key (``store_tools.execution_idempotency_key``), so an
 approval for one credit never admits another and never admits the same one
-twice. Migration 020 keeps one live review (pending or approved) per exact
-credit, so there is one approved row and one key to bind to.
+twice. The ``approvals_one_live_review`` index keeps one live review (pending
+or approved) per exact credit, so there is one approved row and one key to
+bind to. ``pellier.apply_store_credit`` holds the write to the same rules.
 
 A decision records two things about the person: ``decided_by``, the verified
 token subject, which is the principal every other ledger carries; and
@@ -139,7 +140,9 @@ _REVIEW_COLUMNS = """
         -- Claimed when execution BEGINS. Present with no execution receipt means
         -- an attempt started and produced no verdict, which is its own fact.
         a.execution_turn_id AS execution_turn_id,
-        a.order_id       AS order_id,
+        a.order_ids      AS order_ids,
+        a.answered_turn_id AS answered_turn_id,
+        a.review_id      AS answered_by_review_id,
         a.issue          AS issue,
         a.recommendation AS recommendation,
         a.action_hash    AS action_hash,
@@ -153,14 +156,9 @@ _REVIEW_COLUMNS = """
       LEFT JOIN pellier.customers c ON c.id = a.customer_id
 """
 
-# What still needs a person first: a pending review, or a request no
-# investigation has answered yet. An answered request keeps its pending status,
-# because a request is never decided, so the order reads its answer as well.
+# What still needs a person first: a pending review, or an open request.
 _WAITING_FIRST = """
-        CASE WHEN a.status = 'pending'
-              AND (a.tool = 'give_store_credit'
-                   OR a.recommendation->>'investigationTurnId' IS NULL) THEN 0
-             ELSE 1 END"""
+        CASE WHEN a.status IN ('pending', 'open') THEN 0 ELSE 1 END"""
 
 _QUEUE_SELECT = _REVIEW_COLUMNS + f"""
      -- Explicit casts: Postgres cannot infer a type for a bare placeholder used
@@ -335,8 +333,8 @@ _CUSTOMER_SELECT = """
      WHERE c.id = %s
 """
 
-# The orders a proposal refers to: the one on the row, plus any the Planner
-# listed. Read now, from the order table, never copied onto the review.
+# The orders a proposal covers. Read now, from the order table, never copied
+# onto the review.
 _ORDERS_SELECT = """
     SELECT o.id AS order_id, o.product_id, o.quantity, o.placed_at,
            o.amount_paid_cents / 100.0 AS price_paid,
@@ -351,19 +349,11 @@ _ORDERS_SELECT = """
 
 
 def referenced_order_ids(review: Mapping[str, Any]) -> List[int]:
-    """The order ids a review refers to, from its row and its recommendation."""
-    ids: List[int] = []
-    if review.get("order_id"):
-        ids.append(int(review["order_id"]))
-    recommendation = parse_json(review.get("recommendation")) or {}
-    for value in recommendation.get("orderIds") or []:
-        try:
-            number = int(value)
-        except (TypeError, ValueError):
-            continue
-        if number not in ids:
-            ids.append(number)
-    return ids
+    """The order ids a review covers, from its ``order_ids`` column."""
+    values = review.get("order_ids") or []
+    if isinstance(values, str):
+        values = [part for part in values.strip("{}").split(",") if part]
+    return [int(value) for value in values]
 
 
 async def hydrate_review(db: Any, review: Mapping[str, Any]) -> Dict[str, Any]:

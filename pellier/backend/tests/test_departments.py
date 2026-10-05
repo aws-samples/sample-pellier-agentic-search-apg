@@ -14,7 +14,7 @@ def test_planner_knows_exactly_the_departments():
 
 
 def test_return_policies_cover_every_department():
-    sql = (REPO / "scripts" / "migrations" / "009_return_policies.sql").read_text()
+    sql = (REPO / "scripts" / "migrations" / "002_seed.sql").read_text()
     for department in DEPARTMENTS:
         assert f"'{department}'" in sql, department
 

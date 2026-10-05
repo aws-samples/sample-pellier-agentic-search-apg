@@ -256,23 +256,13 @@ def test_no_replaced_tool_name_survives_in_runtime_source() -> None:
     assert not findings, "replaced tool names in runtime source:\n" + "\n".join(findings)
 
 
-def test_protected_database_identifiers_are_not_renamed() -> None:
-    """Renaming these revokes EXECUTE on every deployed cluster.
+def test_the_one_write_function_keeps_its_name() -> None:
+    """``store_tools.give_store_credit`` calls the function by this literal name."""
+    schema = (REPO / "scripts" / "migrations" / "001_schema.sql").read_text()
+    assert "CREATE FUNCTION pellier.apply_store_credit(" in schema
+    for retired in ("process_return_idempotent", "restock_shelf_idempotent"):
+        assert retired not in schema
 
-    Migration 016 grants EXECUTE against the literal function names. No public
-    tool carries those names; the functions keep them on purpose, and that
-    mismatch must survive future tidying.
-    """
-    grants = (
-        REPO / "scripts" / "migrations" / "016_runtime_roles_rls.sql"
-    ).read_text()
-    for function in ("process_return_idempotent", "restock_shelf_idempotent"):
-        assert function in grants, (
-            f"pellier.{function} is missing from migration 016. If it was "
-            "renamed, the GRANT EXECUTE no longer matches and governed writes "
-            "will fail on already-deployed clusters."
-        )
-
-    # The unrelated model field keeps its name too.
+    # The unrelated model field keeps its name.
     product_model = (REPO / "pellier" / "backend" / "models" / "product.py").read_text()
     assert "running_low_count" in product_model

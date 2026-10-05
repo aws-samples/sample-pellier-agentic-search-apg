@@ -97,6 +97,19 @@ def _run_sql(sql: str, params: Sequence[Any] = ()) -> list[dict]:
     return [dict(row) for row in rows or []]
 
 
+def _run_customer_sql(sql: str, params: Sequence[Any] = ()) -> list[dict]:
+    """Run one statement as ``pellier_agent`` with the signed-in shopper named.
+
+    The customer-scoped tools read through this, so row-level security shows
+    them the signed-in shopper's rows and nobody else's, even if a bug above
+    passed another customer's id.
+    """
+    from services.turn_identity import current_principal_username
+
+    rows = _run_async(_db_service.fetch_all_as(current_principal_username(), sql, *params))
+    return [dict(row) for row in rows or []]
+
+
 def _json_default(value):
     """JSON fallback for timestamps, decimals, and driver-native values."""
     if hasattr(value, "isoformat"):
@@ -180,7 +193,6 @@ _PERSONA_CUSTOMER_IDS = {
     "anna": "CUST-ANNA",
     "theo": "CUST-THEO",
     "jessica": "CUST-JESSICA",
-    "fresh": "CUST-FRESH",
 }
 
 
@@ -585,7 +597,7 @@ def get_orders(customer_id: str = "", limit: int = 10) -> str:
     if scope_error:
         return json.dumps(scope_error)
     try:
-        return _reply(store_tools.get_orders(_run_sql, customer_id=customer, limit=limit))
+        return _reply(store_tools.get_orders(_run_customer_sql, customer_id=customer, limit=limit))
     except Exception as e:
         return json.dumps({"error": str(e)})
 
@@ -622,7 +634,7 @@ def get_tickets(customer_id: str = "", limit: int = 5) -> str:
     if scope_error:
         return json.dumps(scope_error)
     try:
-        return _reply(store_tools.get_tickets(_run_sql, customer_id=customer, limit=limit))
+        return _reply(store_tools.get_tickets(_run_customer_sql, customer_id=customer, limit=limit))
     except Exception as e:
         return json.dumps({"error": str(e)})
 

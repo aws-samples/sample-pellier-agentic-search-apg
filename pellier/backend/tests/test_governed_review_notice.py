@@ -12,7 +12,7 @@ said it had "prepared the request" and dropped the second sentence, and a
 shopper reading that reasonably concluded the action was done.
 
 So the handoff payload carries the request id and the chat surface emits the
-notice as its own ``review_pending`` event with the backend's sentence. The
+notice as its own ``credit_request_pending`` event with the backend's sentence. The
 request names no amount anywhere: not in the tool's arguments, the Gateway
 schema, the Lambda, the row it writes, or the sentence the shopper hears.
 """
@@ -82,10 +82,11 @@ def test_a_credit_request_opens_one_request_with_no_amount_and_no_hash() -> None
     )
     assert payload["credit_request_status"] == "request_opened" and payload["request_id"] == 44
     sql, params = run.calls[0]
-    assert "'store_credit_request', '{}'::jsonb, 'pending'" in sql
+    assert "VALUES (%s, 'store_credit_request', 'open'" in sql
+    assert "ON CONFLICT (customer_id) WHERE tool = 'store_credit_request' AND status = 'open'" in sql
     assert "action_hash" not in sql and "amount" not in sql
     assert params == ("CUST-JESSICA", "turn-" + "a" * 32, "Two items went back.", "sub-j",
-                      "shopper", "CUST-JESSICA")
+                      "shopper")
 
 
 def test_a_repeated_ask_resolves_to_the_open_request() -> None:
@@ -95,7 +96,7 @@ def test_a_repeated_ask_resolves_to_the_open_request() -> None:
     )
     assert payload["credit_request_status"] == "already_requested" and payload["request_id"] == 45
     assert len(run.calls) == 2
-    assert "recommendation->>'investigationTurnId' IS NULL" in run.calls[1][0]
+    assert "status = 'open'" in run.calls[1][0]
 
 
 def test_a_credit_request_without_a_known_customer_opens_nothing() -> None:
@@ -149,7 +150,9 @@ def test_the_gateway_publishes_no_amount_and_the_lambda_reads_none(
     schemas = _deploy_module("gateway_tool_schemas_amount_check", "gateway_tool_schemas.py")
     tools = {tool["name"]: tool for tool in schemas.TOOL_SCHEMAS["store"]["tools"]}
     properties = tools["ask_a_person"]["inputSchema"]["properties"]
-    assert set(properties) == {"reason", "customer_id", "credit_request", "turn_id"}
+    assert set(properties) == {
+        "reason", "customer_id", "credit_request", "turn_id", "build_fingerprint",
+    }
     assert properties["credit_request"] == {"type": "boolean"}
 
     server = _deploy_module("store_tools_lambda_amount_check", "pellier_store_tools.py")
@@ -202,8 +205,8 @@ def test_an_open_request_earns_the_notice(status: str) -> None:
         "customer_id": "CUST-JESSICA",
     })
     assert notice == {
-        "type": "review_pending",
-        "reviewPending": {
+        "type": "credit_request_pending",
+        "creditRequestPending": {
             "tool": "store_credit_request", "requestId": 44, "customerId": "CUST-JESSICA",
             "message": CREDIT_REQUEST_PENDING,
         },

@@ -355,16 +355,10 @@ _STOCK_PRODUCT_SQL = """
 """
 
 _STOCK_WAREHOUSE_SQL = """
-    SELECT w.id              AS warehouse_id,
-           w.display_name    AS warehouse_name,
-           w.city,
-           w.ship_window_min,
-           w.ship_window_max,
-           wi.quantity
-      FROM pellier.warehouse_inventory wi
-      JOIN pellier.warehouses w ON w.id = wi.warehouse_id
-     WHERE wi.product_id = %s
-     ORDER BY wi.quantity DESC, w.id ASC
+    SELECT warehouse_code, warehouse_name, city, ship_window_min, ship_window_max, quantity
+      FROM pellier.warehouse_inventory
+     WHERE product_id = %s
+     ORDER BY quantity DESC, warehouse_code ASC
 """
 
 
@@ -418,7 +412,7 @@ def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
     product_id = str(product.get("productId"))
     warehouses = [
         {
-            "warehouse_id": row.get("warehouse_id"),
+            "warehouse_code": row.get("warehouse_code"),
             "warehouse_name": row.get("warehouse_name"),
             "city": row.get("city"),
             "ship_window_min": _integer(row.get("ship_window_min")),
@@ -445,37 +439,23 @@ def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
 # get_orders
 # ---------------------------------------------------------------------------
 
-# An order's return state comes from pellier.returns, the authoritative record
-# of a return: the newest return row for the same customer and product. The
-# client record, the Support agent's read, the Investigator's read and the
-# Planner's proposal all use this one join (aliased ``r`` against ``o``), so
-# "Returned" means the same thing on every surface.
-RETURN_STATUS_JOIN = """
-      LEFT JOIN LATERAL (
-            SELECT status
-              FROM pellier.returns
-             WHERE customer_id = o.customer_id
-               AND product_id = o.product_id
-             ORDER BY requested_at DESC
-             LIMIT 1
-      ) r ON TRUE"""
-
-# A return that went back and was accepted reads as Returned. A request that
-# is still pending, or was rejected, does not: a return request is not
-# evidence of receipt.
-RETURNED_STATUSES = frozenset({"approved", "refunded"})
+# An order carries its own return state. ``received`` and ``refunded`` both
+# mean the item came back; only a ``received`` return no credit covers yet can
+# be credited, because a refunded one was already paid back to the card.
+RETURNED_STATUSES = frozenset({"received", "refunded"})
+CREDITABLE_RETURN = "received"
 
 
 def is_returned(return_status: Any) -> bool:
-    """True when a return row proves the item went back and was accepted."""
+    """True when the order's item came back to Pellier."""
     return str(return_status or "") in RETURNED_STATUSES
 
 
-_ORDERS_SQL = f"""
-    SELECT o.id AS order_id, o.product_id, p.name, p.brand, p.category,
-           o.quantity, o.amount_paid_cents, o.placed_at, r.status AS return_status
+_ORDERS_SQL = """
+    SELECT o.id AS order_id, o.product_id, p.name, p.brand, p.category, o.quantity,
+           o.amount_paid_cents, o.placed_at, o.return_status, o.store_credit_id
       FROM pellier.orders o
-      JOIN pellier.product_catalog p ON p."productId" = o.product_id{RETURN_STATUS_JOIN}
+      JOIN pellier.product_catalog p ON p."productId" = o.product_id
      WHERE o.customer_id = %s
      ORDER BY o.placed_at DESC, o.id DESC
      LIMIT %s
@@ -486,9 +466,9 @@ def get_orders(run: Run, *, customer_id: str, limit: int = 10) -> Dict[str, Any]
     """One customer's orders, newest first, with the amount paid and return state.
 
     The caller binds ``customer_id`` to the signed-in shopper; this function
-    never chooses whose orders to read. ``returned`` is read from
-    ``pellier.returns``, so an agent states what went back from the record,
-    not from a ticket's prose.
+    never chooses whose orders to read. ``returned`` and ``credited`` come from
+    the order row, so an agent states what went back, and whether a store
+    credit covers it, from the record rather than from a ticket's prose.
     """
     orders = [
         {
@@ -503,6 +483,7 @@ def get_orders(run: Run, *, customer_id: str, limit: int = 10) -> Dict[str, Any]
             "placed_at": _timestamp(row.get("placed_at")),
             "return_status": row.get("return_status") or None,
             "returned": is_returned(row.get("return_status")),
+            "credited": row.get("store_credit_id") is not None,
         }
         for row in run(_ORDERS_SQL, (str(customer_id), _clamp(limit, 10)))
     ]
@@ -594,76 +575,21 @@ def get_tickets(run: Run, *, customer_id: str, limit: int = 5) -> Dict[str, Any]
 # call, the Lambda ran, and no credit row was written).
 _CREDIT_SQL = (
     "SELECT pellier.apply_store_credit("
-    "%s::text, %s::text, %s::text, %s::integer, %s::text, %s::text) AS result"
+    "%s::text, %s::text, %s::integer, %s::text, %s::text) AS result"
 )
 
-# The approvals a person confirmed for this customer's credit. The write binds
-# to one of them by fingerprint AND by key: the approval for $100 never admits
-# a $150 write, no approval admits nothing, and the approved arguments under
-# any key other than that review's own are refused too. Without the key, one
-# approval would admit the same credit as many times as a caller could mint
-# fresh keys; with it, one approval is one key, and ``apply_store_credit``
-# turns every repeat of that key into a replay of the first credit.
-_APPROVED_CREDITS_SQL = """
-    SELECT id, action_hash
-      FROM pellier.approvals
-     WHERE customer_id = %s
-       AND tool = 'give_store_credit'
-       AND status = 'approved'
-"""
-
+# What ``pellier.apply_store_credit`` answers when it refuses. The approval
+# refusals keep apart a case nobody approved, an approval for different terms,
+# and the approved terms under a key that is not that review's own. The order
+# refusal names a review whose orders did not all come back, or that another
+# credit already covers.
 APPROVAL_REQUIRED = "approval_required"
 APPROVAL_MISMATCH = "approval_mismatch"
 APPROVAL_KEY_MISMATCH = "approval_key_mismatch"
+NOT_CREDITABLE = "not_creditable"
 APPROVAL_GUARD = "approval_guard"
-
-
-def _approval_refusal(
-    run: Run, customer_id: str, request_hash: str, idempotency_key: str
-) -> Optional[Dict[str, Any]]:
-    """The refusal when no confirmed approval admits this exact write, else None.
-
-    Both rails pass through here: the Operator's execute path and a staff token
-    calling the Gateway directly. Three distinct refusals, so a changed amount
-    is never mistaken for a case nobody reviewed, and a fresh key is never
-    mistaken for either: no approval, an approval for different arguments, and
-    an approval for these arguments whose own key this is not.
-    """
-    approved = [
-        (_integer(row.get("id")), str(row.get("action_hash") or ""))
-        for row in run(_APPROVED_CREDITS_SQL, (str(customer_id),))
-    ]
-    if not approved:
-        return {
-            "status": APPROVAL_REQUIRED,
-            "denied_by": APPROVAL_GUARD,
-            "message": (
-                f"No confirmed review approves a store credit for {customer_id}. "
-                "A person approves the exact credit before it is written."
-            ),
-        }
-    matching = [review_id for review_id, action_hash in approved if action_hash == request_hash]
-    if not matching:
-        return {
-            "status": APPROVAL_MISMATCH,
-            "denied_by": APPROVAL_GUARD,
-            "message": (
-                f"The confirmed review for {customer_id} approves different arguments. "
-                "Amount, reason and customer must match the approval exactly."
-            ),
-        }
-    admitted = {execution_idempotency_key(review_id, request_hash) for review_id in matching}
-    if idempotency_key not in admitted:
-        return {
-            "status": APPROVAL_KEY_MISMATCH,
-            "denied_by": APPROVAL_GUARD,
-            "message": (
-                f"The confirmed review for {customer_id} approves these arguments under its "
-                "own write key only. One approval admits one credit, and this key is not that "
-                "review's key."
-            ),
-        }
-    return None
+ORDER_GUARD = "order_guard"
+WRITE_GUARDS = frozenset({APPROVAL_GUARD, ORDER_GUARD})
 
 
 def give_store_credit(
@@ -677,12 +603,13 @@ def give_store_credit(
 ) -> Dict[str, Any]:
     """Write one store credit, exactly once per approved review.
 
-    Staff only, and only for a review a person approved: Cedar admits the
-    staff scope at the Gateway, and the write itself refuses unless a
-    confirmed ``pellier.approvals`` row fingerprints these exact arguments and
-    ``idempotency_key`` is that review's own key
-    (:func:`execution_idempotency_key`). A replay under that key returns the
-    first result instead of a second credit; any other key is refused.
+    Staff only, and only for a review a person approved. Cedar admits the
+    staff scope at the Gateway; ``pellier.apply_store_credit`` then refuses
+    unless a confirmed review approves these exact arguments, the key is that
+    review's own (:func:`execution_idempotency_key`), and every order it covers
+    came back with no credit on it yet. A retry under that key returns the
+    first credit instead of a second. The rules live in the database, so a
+    direct SQL caller is held to them too.
 
     Args:
         run: Statement runner for the calling rail.
@@ -703,18 +630,9 @@ def give_store_credit(
     if not clean_reason:
         return {"status": "error", "message": "A reason is required for a credit."}
 
-    request_hash = write_request_hash(
-        "give_store_credit",
-        customer_id=str(customer_id),
-        amount_cents=cents,
-        reason=clean_reason,
-    )
-    refusal = _approval_refusal(run, str(customer_id), request_hash, key)
-    if refusal is not None:
-        return refusal
     rows = run(
         _CREDIT_SQL,
-        (key, request_hash, str(customer_id), cents, clean_reason, str(issued_by or "") or None),
+        (key, str(customer_id), cents, clean_reason, str(issued_by or "") or None),
     )
     result = _as_object(rows[0].get("result")) if rows else None
     if not isinstance(result, dict):
@@ -731,16 +649,16 @@ def give_store_credit(
 # reason are computed from the client's received returns, so the same returned
 # items always fingerprint the same credit.
 #
-# The conflict target is migration 020's partial unique index: one LIVE review
-# per exact credit, where live means pending or approved. A pending twin would
+# The conflict target is the partial unique index ``approvals_one_live_review``:
+# one LIVE review per exact credit, where live means pending or approved. A pending twin would
 # be a second card for one decision; an approved twin would be a second review
 # id, so a second write key, so a second credit for one approval. A declined
 # review leaves the index, so the same credit may be proposed again after a no.
 _CREDIT_REVIEW_SQL = """
     INSERT INTO pellier.approvals
-        (customer_id, tool, args, status, source_turn_id, order_id, issue,
+        (customer_id, tool, args, status, source_turn_id, order_ids, issue,
          recommendation, action_hash, requested_by_sub, requester_kind)
-    VALUES (%s, 'give_store_credit', %s::jsonb, 'pending', %s, %s, %s,
+    VALUES (%s, 'give_store_credit', %s::jsonb, 'pending', %s, %s::bigint[], %s,
             %s::jsonb, %s, %s, %s)
     ON CONFLICT (customer_id, tool, action_hash) WHERE status IN ('pending', 'approved')
     DO NOTHING
@@ -783,7 +701,7 @@ def open_credit_review(
     source_turn_id: Optional[str],
     requested_by_sub: Optional[str],
     requester_kind: str,
-    order_id: Optional[int] = None,
+    order_ids: Sequence[int] = (),
     issue: Optional[str] = None,
     recommendation: Optional[Dict[str, Any]] = None,
 ) -> Optional[CreditReview]:
@@ -797,7 +715,8 @@ def open_credit_review(
         source_turn_id: The turn that asked, for the review's lineage.
         requested_by_sub: Verified subject that asked, when there is one.
         requester_kind: ``shopper``, ``operator`` or ``unverified``.
-        order_id: The order the credit refers to, when one is known.
+        order_ids: The returned orders the credit covers. The database credits
+            exactly these, once each.
         issue: What the case is about, shown on the review.
         recommendation: What was proposed and why, as the desk renders it.
 
@@ -815,7 +734,7 @@ def open_credit_review(
             customer_id,
             json.dumps(material, sort_keys=True),
             source_turn_id,
-            order_id,
+            [int(order_id) for order_id in order_ids],
             (issue or reason or "").strip() or None,
             json.dumps(proposed, sort_keys=True, default=str),
             action_hash,
@@ -840,45 +759,35 @@ def open_credit_review(
 # A shopper's credit request is an open request on the customer's case, not a
 # review. It is a pellier.approvals row of its own kind, with no amount and no
 # action hash, so it fingerprints nothing and no credit can bind to it: the
-# approval guard, the live-review index and the desk's decision all read
-# ``give_store_credit`` rows only. A person answers it by investigating the
-# case, and the Planner's records-built proposal is the credit they approve.
+# write and the desk's decision read ``give_store_credit`` rows only. A person
+# answers it by investigating the case, and the Planner's records-built
+# proposal is the credit they approve.
 #
-# A request stays open until an investigation of that customer answers it.
-# Answering records the investigation's turn, and the review it produced when
-# there was one, in the request's ``recommendation``: workflow state, never an
-# amount. A request is never decided, so its status stays ``pending``.
+# A request is ``open`` until an investigation of that customer answers it.
+# Answering sets it ``answered`` and records the investigation's turn and the
+# review it produced, when there was one.
 CREDIT_REQUEST = "store_credit_request"
 
-_OPEN_REQUEST_FILTER = """
-       customer_id = %s
-   AND tool = 'store_credit_request'
-   AND status = 'pending'
-   AND recommendation->>'investigationTurnId' IS NULL"""
-
-# One open request per customer: a repeated ask while one is open resolves to it.
-_OPEN_CREDIT_REQUEST_SQL = f"""
+# One open request per customer (``approvals_one_open_request``): a repeated
+# ask while one is open resolves to it.
+_OPEN_CREDIT_REQUEST_SQL = """
     INSERT INTO pellier.approvals
-        (customer_id, tool, args, status, source_turn_id, issue,
-         requested_by_sub, requester_kind)
-    SELECT %s, 'store_credit_request', '{{}}'::jsonb, 'pending', %s, %s, %s, %s
-     WHERE NOT EXISTS (SELECT 1 FROM pellier.approvals WHERE{_OPEN_REQUEST_FILTER})
+        (customer_id, tool, status, source_turn_id, issue, requested_by_sub, requester_kind)
+    VALUES (%s, 'store_credit_request', 'open', %s, %s, %s, %s)
+    ON CONFLICT (customer_id) WHERE tool = 'store_credit_request' AND status = 'open'
+    DO NOTHING
     RETURNING id
 """
 
-_STANDING_CREDIT_REQUEST_SQL = f"""
+_STANDING_CREDIT_REQUEST_SQL = """
     SELECT id FROM pellier.approvals
-     WHERE{_OPEN_REQUEST_FILTER}
-     ORDER BY id DESC
-     LIMIT 1
+     WHERE customer_id = %s AND tool = 'store_credit_request' AND status = 'open'
 """
 
-_ANSWER_CREDIT_REQUESTS_SQL = f"""
+_ANSWER_CREDIT_REQUESTS_SQL = """
     UPDATE pellier.approvals
-       SET recommendation = COALESCE(recommendation, '{{}}'::jsonb)
-           || jsonb_build_object('investigationTurnId', %s::text,
-                                 'answeredByReviewId', %s::bigint)
-     WHERE{_OPEN_REQUEST_FILTER}
+       SET status = 'answered', answered_turn_id = %s, review_id = %s
+     WHERE customer_id = %s AND tool = 'store_credit_request' AND status = 'open'
     RETURNING id
 """
 
@@ -925,8 +834,7 @@ def open_credit_request(
     kind = requester_kind if requester_kind in ("shopper", "unverified") else "unverified"
     rows = run(
         _OPEN_CREDIT_REQUEST_SQL,
-        (customer_id, source_turn_id, reason, (requested_by_sub or "").strip() or None, kind,
-         customer_id),
+        (customer_id, source_turn_id, reason, (requested_by_sub or "").strip() or None, kind),
     )
     if rows:
         return CreditRequest(id=_integer(rows[0].get("id")), status=REQUEST_OPENED)

@@ -57,7 +57,6 @@ class _DataApi:
         self.result = result
         self.fail_audit = fail_audit
         self.fail_protected = fail_protected
-        self.approved: list[tuple[int, str]] = [(APPROVED_REVIEW_ID, APPROVED_HASH)]
         self.statements: list[dict[str, Any]] = []
         self.commits: list[dict[str, Any]] = []
         self.rollbacks: list[dict[str, Any]] = []
@@ -78,16 +77,6 @@ class _DataApi:
             raise RuntimeError("new row violates row-level security policy")
         if "SET LOCAL ROLE" in sql or "set_config(" in sql:
             return {}
-        if "FROM pellier.approvals" in sql:
-            # The confirmed review that fingerprints the credit under test. The
-            # tool refuses without it, so every write path here supplies one.
-            return {
-                "columnMetadata": [{"name": "id"}, {"name": "action_hash"}],
-                "records": [
-                    [{"longValue": review_id}, {"stringValue": hash_}]
-                    for review_id, hash_ in self.approved
-                ],
-            }
         return {
             "columnMetadata": [{"name": "result"}],
             "records": [[{"stringValue": __import__("json").dumps(self.result)}]],
@@ -101,9 +90,7 @@ class _DataApi:
 
 
 # The fingerprint of the credit `_credit_event` carries, as a confirmed review
-# stores it, and the one key that review admits: the tool compares its own hash
-# with the approved rows, and its key with the approved review's, before it
-# writes.
+# stores it, and the one key that review admits.
 from services.store_tools import execution_idempotency_key, write_request_hash  # noqa: E402
 
 APPROVED_REVIEW_ID = 41
@@ -138,8 +125,8 @@ def test_give_store_credit_casts_every_argument_at_the_call_site(
     """A Data API integer arrives as bigint, and the function takes an integer.
 
     PostgreSQL does not narrow bigint to integer while resolving an overload, so
-    the unqualified call raised `function pellier.apply_store_credit(text, text,
-    text, bigint, text, unknown) does not exist` on the live Gateway (2026-09-10).
+    an unqualified call raised `function pellier.apply_store_credit(..., bigint,
+    ...) does not exist` on the live Gateway (2026-09-10).
     Cedar allowed the call, the Lambda ran, and no credit row was written: the
     kind of failure that looks like a working boundary until someone counts rows.
     """
@@ -152,18 +139,11 @@ def test_give_store_credit_casts_every_argument_at_the_call_site(
     credit_sql = next(
         call["sql"] for call in client.statements if "apply_store_credit" in call["sql"]
     )
-    for cast in (
-        ":p0::text",
-        ":p1::text",
-        ":p2::text",
-        ":p3::integer",
-        ":p4::text",
-        ":p5::text",
-    ):
+    for cast in (":p0::text", ":p1::text", ":p2::integer", ":p3::text", ":p4::text"):
         assert cast in credit_sql, credit_sql
     # An uncast bind is what broke it; none may come back.
-    assert ":p3," not in credit_sql
-    assert ":p5)" not in credit_sql
+    assert ":p2," not in credit_sql
+    assert ":p4)" not in credit_sql
 
 
 def test_the_credit_amount_travels_as_an_integer_and_the_issuer_is_not_wire_supplied(
@@ -178,9 +158,9 @@ def test_the_credit_amount_travels_as_an_integer_and_the_issuer_is_not_wire_supp
     credit = next(c for c in client.statements if "apply_store_credit" in c["sql"])
     values = {p["name"]: p["value"] for p in credit["parameters"]}
     assert values["p0"] == {"stringValue": APPROVED_KEY}
-    assert values["p2"] == {"stringValue": "CUST-THEO"}
-    assert values["p3"] == {"longValue": 2500}
-    assert values["p5"] == {"isNull": True}, "an attribution the caller supplied is worse than none"
+    assert values["p1"] == {"stringValue": "CUST-THEO"}
+    assert values["p2"] == {"longValue": 2500}
+    assert values["p4"] == {"isNull": True}, "an attribution the caller supplied is worse than none"
 
 
 def test_a_credit_runs_as_one_statement_and_writes_its_receipt_outside_a_transaction(
@@ -260,7 +240,7 @@ class _IdempotentDataApi(_DataApi):
     The first call under a key records a credit and answers with
     ``idempotent_replay: false``; every later call with the same key hands
     back that first result with ``idempotent_replay: true`` and records
-    nothing, exactly as migration 019 does.
+    nothing, exactly as ``pellier.apply_store_credit`` does.
     """
 
     def __init__(self) -> None:
@@ -328,63 +308,28 @@ def test_a_first_attempt_and_a_refusal_still_write_their_receipt(
         assert len(_audit_statements(client)) == 1, envelope
 
 
-def test_a_credit_nobody_approved_is_refused_before_the_write_and_still_audited(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("status, guard", [
+    ("approval_required", "approval_guard"),
+    ("approval_mismatch", "approval_guard"),
+    ("approval_key_mismatch", "approval_guard"),
+    ("not_creditable", "order_guard"),
+])
+def test_the_databases_refusal_reaches_the_caller_and_the_attempt_is_audited(
+    monkeypatch: pytest.MonkeyPatch, status: str, guard: str,
 ) -> None:
-    """The approval guard lives in the shared tool, so the Gateway rail has it too.
+    """The approval and order rules run inside ``pellier.apply_store_credit``.
 
-    A staff token calling the Gateway directly, with no confirmed review for
-    these exact arguments, enters the tool and is refused there: no
-    ``apply_store_credit`` statement, one attempt receipt.
+    A staff token calling the Gateway directly with terms no confirmed review
+    approves, or under a key that is not the review's own, enters the tool, and
+    the function refuses it. The Lambda reports the refusal unchanged and keeps
+    one attempt receipt. ``test_operator_credit_postgres.py`` runs the same
+    Lambda against the real function.
     """
-    module = _load_server("pellier_store_tools.py", "store_credit_unapproved")
-    client = _DataApi({"status": "success", "credit_id": 7})
-    client.approved = []
+    module = _load_server("pellier_store_tools.py", f"store_credit_{status}")
+    client = _DataApi({"status": status, "denied_by": guard, "message": "refused"})
     monkeypatch.setattr(_dataapi(), "rds_client", client)
 
     result = module.lambda_handler(_credit_event(), None)
 
-    assert '"status": "approval_required"' in result["text"]
-    assert not any("apply_store_credit" in c["sql"] for c in client.statements)
+    assert f'"status": "{status}"' in result["text"]
     assert len(_audit_statements(client)) == 1
-
-
-def test_an_approval_for_a_different_amount_does_not_admit_the_write(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    module = _load_server("pellier_store_tools.py", "store_credit_mismatch")
-    client = _DataApi({"status": "success", "credit_id": 7})
-    client.approved = [(APPROVED_REVIEW_ID, write_request_hash(
-        "give_store_credit", customer_id="CUST-THEO", amount_cents=2400, reason="damaged",
-    ))]
-    monkeypatch.setattr(_dataapi(), "rds_client", client)
-
-    result = module.lambda_handler(_credit_event(), None)
-
-    assert '"status": "approval_mismatch"' in result["text"]
-    assert not any("apply_store_credit" in c["sql"] for c in client.statements)
-
-
-def test_the_approved_credit_under_a_fresh_key_is_refused_with_no_write(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A staff token replaying the approved terms under its own key gets no credit.
-
-    Every material argument matches the approved review, which is visible on
-    the record; only the key is new. The guard refuses before
-    ``apply_store_credit``, so one approval stays one credit on this rail, and
-    the refused attempt is still on the ledger.
-    """
-    module = _load_server("pellier_store_tools.py", "store_credit_fresh_key")
-    client = _IdempotentDataApi()
-    monkeypatch.setattr(_dataapi(), "rds_client", client)
-
-    first = module.lambda_handler(_credit_event(), None)
-    fresh = module.lambda_handler(_credit_event(idempotency_key="credit-minted-by-caller"), None)
-    retry = module.lambda_handler(_credit_event(), None)
-
-    assert '"idempotent_replay": false' in first["text"]
-    assert '"status": "approval_key_mismatch"' in fresh["text"]
-    assert '"idempotent_replay": true' in retry["text"]
-    assert list(client.credits) == [APPROVED_KEY], "only the approval's own key was credited"
-    assert len(_audit_statements(client)) == 2, "the first write and the refused attempt"

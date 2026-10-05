@@ -14,8 +14,8 @@ transport error is ``error``, never a policy decision.
 
 Evidence is keyed by what the call carried. A ``--turn-id`` keys the audit
 row the Lambda writes for a correlated read. An ``idempotency_key`` argument
-keys the attempt receipt in ``pellier.tool_audit``, the claim in
-``pellier.write_operations`` and the credit in ``pellier.store_credits``.
+keys the attempt receipt in ``pellier.tool_audit`` and the credit in
+``pellier.store_credits``.
 
 Usage::
 
@@ -127,11 +127,6 @@ def gather_evidence(tool: str, *, turn_id: str, idempotency_key: str) -> dict[st
                     (tool, idempotency_key),
                 )
                 evidence["tool_audit_rows"] = int(cur.fetchone()[0])
-                cur.execute(
-                    "SELECT count(*) FROM pellier.write_operations WHERE idempotency_key = %s",
-                    (idempotency_key,),
-                )
-                evidence["write_operations_rows"] = int(cur.fetchone()[0])
                 cur.execute(
                     "SELECT count(*) FROM pellier.store_credits WHERE idempotency_key = %s",
                     (idempotency_key,),

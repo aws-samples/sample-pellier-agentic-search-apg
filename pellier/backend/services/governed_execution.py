@@ -3,27 +3,17 @@
 A person said yes. This module answers the next question, *is the system
 allowed to do it?*, and keeps the answers separate.
 
-Two principals, two boundaries
-------------------------------
-
-    ACTOR PRINCIPAL     the authenticated staff member (Nadia)
-                        -> what AgentCore Policy / Cedar authorizes
-                        -> "may this person attempt this operation?"
-
-    CUSTOMER SUBJECT    the client whose rows the action touches
-                        -> what Aurora Row-Level Security scopes
-                        -> "may this operation touch these rows?"
-
-The customer subject is resolved server-side from the approved review, never
-accepted from the caller: a client that could name its own RLS principal could
-reach any customer's rows while still passing every other check.
+The actor is the authenticated staff member (Nadia). Cedar decides whether
+that person may attempt the credit; the customer, amount and reason come from
+the approved review, never from the caller.
 
 Three independent controls
 --------------------------
 
     Cedar        may this principal attempt this action?
-    Approval     does a confirmed review fingerprint these exact arguments,
-                 and is this write under that review's own key?
+    Approval     does a confirmed review approve these exact arguments, is
+                 this write under that review's own key, and does every order
+                 it covers still lack a credit? (``pellier.apply_store_credit``)
     CHECK        is this mutation valid regardless of who asked?
 
 Each can fail while the others pass. The assurance axes this module returns are
@@ -37,15 +27,6 @@ in-process rail the policy axis says ``NOT_EVALUATED`` and carries the reason.
 A convenient ``ALLOW`` there would be the single most damaging lie this surface
 could tell.
 
-Seams for cut 4 (tables)
-------------------------
-
-``pellier.execution_receipts`` (the per-attempt verdict record),
-``pellier.principal_customers`` (the customer subject) and
-``pellier.write_operations`` (inside ``apply_store_credit``) are all tables cut
-4 deletes. ``record_receipt``, ``latest_receipt(s)`` and
-``resolve_customer_subject`` are the three functions that read or write them;
-``evidence_for_key`` reads only the two tables that stay.
 """
 
 from __future__ import annotations
@@ -58,11 +39,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional
 
-# The write key is derived in ``store_tools`` because the approval guard there
-# recomputes it: the tool admits a write only under the key of the review that
-# fingerprints it, on both rails. This module derives the same key for the
-# Operator's execute path.
-from services.store_tools import APPROVAL_GUARD, execution_idempotency_key
+# The write key is derived in ``store_tools``; ``pellier.apply_store_credit``
+# recomputes it and admits a write only under the key of the approved review.
+# This module derives the same key for the Operator's execute path.
+from services.store_tools import WRITE_GUARDS, execution_idempotency_key
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +53,8 @@ logger = logging.getLogger(__name__)
 RAIL_GATEWAY = "gateway-mcp"
 RAIL_IN_PROCESS = "in-process"
 # Not a rail that ran. The governed format requires the managed rail, so an
-# execution that cannot reach it is refused before anything runs, and the receipt
-# records the refusal rather than a quiet downgrade.
+# execution that cannot reach it is refused before anything runs, rather than
+# quietly downgraded to the in-process rail.
 RAIL_REFUSED = "refused"
 
 # Policy axis, four values and each from a different kind of source:
@@ -117,21 +97,13 @@ class ExecutionError(Exception):
 class GovernedRailUnavailable(ExecutionError):
     """The governed format requires the managed rail and it is not usable.
 
-    Carries the receipt this refusal already recorded, so the route reports a
-    refusal that is provable after the response is gone rather than a bare error.
+    Nothing ran, so nothing is written; the 409 names what is missing.
     """
 
-    def __init__(
-        self,
-        missing: tuple[str, ...],
-        *,
-        reason: str,
-        receipt_id: Optional[int] = None,
-    ) -> None:
+    def __init__(self, missing: tuple[str, ...], *, reason: str) -> None:
         super().__init__("governed_rail_unavailable", 409)
         self.missing = tuple(missing)
         self.reason = reason
-        self.receipt_id = receipt_id
 
     def as_detail(self) -> Dict[str, Any]:
         """The HTTP 409 body: the machine code plus what is missing."""
@@ -146,7 +118,6 @@ class ExecutionOutcome:
     execution_turn_id: str
     idempotency_key: str
     operator_sub: str
-    customer_subject: Optional[str]
     policy: str
     aurora: str
     evidence: str
@@ -163,7 +134,6 @@ class ExecutionOutcome:
             "executionTurnId": self.execution_turn_id,
             "idempotencyKey": self.idempotency_key,
             "actorPrincipal": self.operator_sub,
-            "customerSubject": self.customer_subject,
             "assurance": {
                 "human": "CONFIRMED",
                 "policy": self.policy,
@@ -175,44 +145,6 @@ class ExecutionOutcome:
             "result": self.result,
             "record": dict(self.record),
         }
-
-
-# ---------------------------------------------------------------------------
-# Trusted customer-subject resolution
-# ---------------------------------------------------------------------------
-
-_SUBJECT_SELECT = """
-    SELECT principal_sub
-      FROM pellier.principal_customers
-     WHERE customer_id = %s
-     ORDER BY principal_sub
-     LIMIT 1
-"""
-
-
-async def resolve_customer_subject(db: Any, customer_id: str) -> Optional[str]:
-    """The RLS subject for a customer, from the authorization mapping table.
-
-    Returning ``None`` when a customer has no mapping is deliberate and is not
-    an error: RLS then resolves no scope and denies, which is the correct
-    fail-closed outcome for a client whose identity was never linked.
-
-    This is the ONLY way an execution obtains an RLS subject. Nothing reads it
-    from a request body.
-    """
-    try:
-        row = await db.fetch_one(_SUBJECT_SELECT, str(customer_id))
-    except Exception as exc:  # noqa: BLE001
-        logger.error("customer-subject resolution failed for %s: %s", customer_id, exc)
-        return None
-    if not row:
-        logger.info(
-            "customer %s has no principal_customers mapping; RLS will fail closed",
-            customer_id,
-        )
-        return None
-    value = row["principal_sub"] if isinstance(row, Mapping) else row[0]
-    return str(value) if value else None
 
 
 # ---------------------------------------------------------------------------
@@ -319,164 +251,7 @@ async def claim_execution_turn(db: Any, review_id: int) -> str:
 
 
 # ---------------------------------------------------------------------------
-# The policy artifact
-# ---------------------------------------------------------------------------
-
-_RECORD_RECEIPT = """
-INSERT INTO pellier.execution_receipts
-    (execution_turn_id, review_id, tool, gateway_action_id, rail,
-     actor_principal, customer_subject, policy_outcome, aurora_outcome,
-     evidence_outcome, policy_engine_id, gateway_mode, matching_forbids,
-     idempotency_key, notes)
-VALUES
-    (%(execution_turn_id)s, %(review_id)s, %(tool)s, %(gateway_action_id)s,
-     %(rail)s, %(actor_principal)s, %(customer_subject)s, %(policy_outcome)s,
-     %(aurora_outcome)s, %(evidence_outcome)s, %(policy_engine_id)s,
-     %(gateway_mode)s, %(matching_forbids)s, %(idempotency_key)s, %(notes)s)
-RETURNING receipt_id
-"""
-
-
-async def record_receipt(
-    db: Any,
-    outcome: "ExecutionOutcome",
-    *,
-    review_id: int,
-    engine_state: Optional["PolicyEngineState"] = None,
-) -> Optional[int]:
-    """Persist the verdicts for one governed execution attempt.
-
-    A Cedar DENY produces no audit row by design, claims no idempotency key and
-    touches no domain table, so without this row a denial is provable only from
-    the HTTP response the operator happened to be looking at. Append-only, one
-    row per attempt.
-
-    An infrastructure failure is logged and swallowed: the receipt is evidence
-    ABOUT an execution that has already happened, and a lost connection must not
-    turn a successful governed write into an error the operator sees. A
-    constraint violation is different. It means the vocabulary this module
-    writes and the table's CHECK disagree, which is a defect, and swallowing it
-    once hid two receipt shapes that were never stored. It raises.
-
-    Raises:
-        ExecutionError: ``execution_receipt_rejected`` when the database refused
-            the receipt on a constraint (SQLSTATE class 23).
-    """
-    from services.managed_policy import policy_engine_id
-
-    params = {
-        "execution_turn_id": outcome.execution_turn_id,
-        "review_id": int(review_id),
-        "tool": outcome.tool,
-        "gateway_action_id": gateway_action_id(outcome.tool),
-        "rail": outcome.rail,
-        "actor_principal": outcome.operator_sub,
-        "customer_subject": outcome.customer_subject,
-        "policy_outcome": outcome.policy,
-        "aurora_outcome": outcome.aurora,
-        "evidence_outcome": outcome.evidence,
-        # Attribution for the verdict. Both are None on the in-process rail, which is
-        # correct: that rail consults no policy engine and its NOT_EVALUATED means
-        # something different from an unreadable engine on the Gateway rail.
-        "policy_engine_id": policy_engine_id() if outcome.rail == RAIL_GATEWAY else None,
-        "gateway_mode": getattr(engine_state, "gateway_mode", "") or None,
-        "matching_forbids": list(getattr(engine_state, "matching_forbids", ()) or ()),
-        "idempotency_key": outcome.idempotency_key,
-        "notes": json.dumps(outcome.notes or {}),
-    }
-    try:
-        # Cursor rather than `db.fetch_one`, which forwards `*params` as a tuple and so
-        # reports "15 placeholders but 1 parameters" for a named-placeholder statement.
-        async with db.get_connection() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(_RECORD_RECEIPT, params)
-                row = await cur.fetchone()
-    except Exception as exc:  # noqa: BLE001 - classified: a defect raises, an outage is logged
-        if _is_constraint_violation(exc):
-            logger.error(
-                "execution receipt REJECTED by a constraint for review %s turn %s "
-                "(policy=%s aurora=%s evidence=%s rail=%s): %s",
-                review_id, outcome.execution_turn_id, outcome.policy, outcome.aurora,
-                outcome.evidence, outcome.rail, exc,
-            )
-            raise ExecutionError("execution_receipt_rejected", 500) from exc
-        logger.warning(
-            "execution receipt not recorded for review %s turn %s: %s",
-            review_id, outcome.execution_turn_id, exc,
-        )
-        return None
-    if not row:
-        return None
-    value = row["receipt_id"] if isinstance(row, Mapping) else row[0]
-    return int(value) if value is not None else None
-
-
-def _is_constraint_violation(exc: BaseException) -> bool:
-    """SQLSTATE class 23: the statement ran and a CHECK, unique or FK refused it."""
-    import psycopg
-
-    sqlstate = str(getattr(exc, "sqlstate", "") or "")
-    return sqlstate.startswith("23") or isinstance(exc, psycopg.IntegrityError)
-
-
-_RECEIPT_COLUMNS = """
-SELECT receipt_id, execution_turn_id, review_id, tool, gateway_action_id, rail,
-       actor_principal, customer_subject, policy_outcome, aurora_outcome,
-       evidence_outcome, policy_engine_id, gateway_mode, matching_forbids,
-       idempotency_key, notes, created_at
-  FROM pellier.execution_receipts
-"""
-
-_LATEST_RECEIPT = _RECEIPT_COLUMNS + """
- WHERE review_id = %s
- ORDER BY receipt_id DESC
- LIMIT 1
-"""
-
-_LATEST_RECEIPTS_BATCH = """
-SELECT DISTINCT ON (review_id)
-       receipt_id, execution_turn_id, review_id, tool, gateway_action_id, rail,
-       actor_principal, customer_subject, policy_outcome, aurora_outcome,
-       evidence_outcome, policy_engine_id, gateway_mode, matching_forbids,
-       idempotency_key, notes, created_at
-  FROM pellier.execution_receipts
- WHERE review_id = ANY(%s)
- ORDER BY review_id, receipt_id DESC
-"""
-
-
-async def latest_receipts(db: Any, review_ids: Any) -> Dict[int, Dict[str, Any]]:
-    """The newest attempt per review, in one round trip, keyed by review id.
-
-    Never raises: an unreadable receipt table must leave the queue listable. An
-    empty mapping then reads as "no execution recorded".
-    """
-    ids = [int(r) for r in (review_ids or [])]
-    if not ids:
-        return {}
-    try:
-        rows = await db.fetch_all(_LATEST_RECEIPTS_BATCH, ids)
-    except Exception as exc:  # noqa: BLE001 - the queue must stay listable
-        logger.warning("execution receipt batch read failed: %s", exc)
-        return {}
-    return {int(row["review_id"]): dict(row) for row in (rows or [])}
-
-
-async def latest_receipt(db: Any, review_id: int) -> Optional[Dict[str, Any]]:
-    """The newest execution attempt for this review, or None if none was attempted.
-
-    None is a real answer, and the caller must render it as "not yet attempted"
-    rather than as any particular verdict. Never raises.
-    """
-    try:
-        return await db.fetch_one(_LATEST_RECEIPT, int(review_id))
-    except Exception as exc:  # noqa: BLE001 - a review must stay viewable
-        logger.warning("execution receipt read failed for review %s: %s", review_id, exc)
-        return None
-
-
-# ---------------------------------------------------------------------------
-# The durable record: what the two tables that outlive cut 4 hold for a key
+# The durable record: what store_credits and tool_audit hold for a key
 # ---------------------------------------------------------------------------
 
 # The Lambda records the ``idempotency_key`` it was called with inside the audit
@@ -516,6 +291,9 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
         "amountCents": None,
         "auditRows": 0,
         "auditIds": [],
+        # Who wrote the first audit row: 'gateway' for the Lambda, the staff
+        # member's subject for the in-process rail.
+        "auditCaller": None,
         "readable": True,
     }
     if not key:
@@ -533,6 +311,7 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
     record["amountCents"] = int(credits[0]["amount_cents"]) if credits else None
     record["auditRows"] = len(audits)
     record["auditIds"] = [int(a["audit_id"]) for a in audits if a.get("audit_id") is not None]
+    record["auditCaller"] = str(audits[0].get("caller") or "") or None if audits else None
     return record
 
 
@@ -728,8 +507,9 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     SQLSTATE class stays on the fallthrough: a syntax error or a cancelled query
     is a failure, not a governance verdict.
 
-    The tool's own approval guard is NOT_REACHED: it refuses before any
-    statement touches ``store_credits``, so the database decided nothing.
+    ``pellier.apply_store_credit``'s own refusals (no matching approval, not
+    this review's key, an order already credited) are DENIED: the call reached
+    the database and its function refused before touching ``store_credits``.
     """
     status = str(result.get("status") or "")
     denied_by = str(result.get("denied_by") or "")
@@ -739,11 +519,11 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
             "The Gateway withheld the tool response. This does not roll back a write. "
             "Reconcile the existing operation key in Aurora before retrying."
         )
-    if denied_by == APPROVAL_GUARD:
-        return AURORA_NOT_REACHED, (
-            "The tool refused before any statement reached the database: no "
-            "confirmed review fingerprints these exact arguments under this write "
-            "key. Nothing changed."
+    if denied_by in WRITE_GUARDS:
+        return AURORA_DENIED, (
+            "pellier.apply_store_credit refused the write: "
+            + (str(result.get("message") or "").strip() or "the approval does not admit it.")
+            + " Nothing changed."
         )
     if denied_by == "database_row_level_security":
         return AURORA_DENIED, (
@@ -786,10 +566,10 @@ def classify_evidence_for(policy: str, aurora: str, result: Mapping[str, Any]) -
     """The evidence axis names what artifact exists, never what we hoped for."""
     if policy == POLICY_DENY:
         # The tool was never entered, so there is no `tool_audit` row and no
-        # idempotency claim. The policy decision itself is the artifact, durable
-        # in `pellier.execution_receipts`.
+        # credit. The Gateway's decision is the artifact; Aurora holds only the
+        # absence of rows for the key.
         return EVIDENCE_POLICY_PROOF
-    if str(result.get("denied_by") or "") == APPROVAL_GUARD:
+    if str(result.get("denied_by") or "") in WRITE_GUARDS:
         # The tool WAS entered and refused, and both rails leave one attempt row
         # on the ledger for that (the Lambda's independent receipt, the
         # in-process writer's row). The artifact is the attempt, not an absence,
@@ -1051,26 +831,20 @@ async def execute_confirmed_review(
     The ordering is the contract:
 
       1. verify the confirmation against the persisted parameters;
-      2. resolve the customer subject server-side;
-      3. claim or reuse the execution turn;
-      4. derive the deterministic write key;
-      5. select the rail, and REFUSE when the governed format requires the
+      2. claim or reuse the execution turn;
+      3. derive the deterministic write key;
+      4. select the rail, and REFUSE when the governed format requires the
          managed rail and cannot have it;
-      6. invoke the governed rail;
-      7. classify policy, Aurora, and evidence from what actually happened;
-      8. read the durable record for the key, and store the verdicts.
+      5. invoke the governed rail;
+      6. classify policy, Aurora, and evidence from what actually happened;
+      7. read the durable record for the key.
 
-    Nothing in that sequence reads an action parameter from a caller. Step 8 is
-    best-effort ABOUT an execution that already happened when the database is
-    unreachable; a receipt the database refuses on a constraint is a defect
-    and raises (see :func:`record_receipt`). A retry is then a replay.
+    Nothing in that sequence reads an action parameter from a caller. A retry
+    is a replay: the same key returns the first credit.
 
     Raises:
         GovernedRailUnavailable: The governed format requires the managed rail and
-            an element of it is missing. Nothing was executed, and a refused
-            receipt records that.
-        ExecutionError: ``execution_receipt_rejected`` when the receipt table
-            refused the verdicts this module wrote.
+            an element of it is missing. Nothing was executed.
     """
     args = verify_confirmation(review)
     tool = str(review["action"])
@@ -1078,7 +852,6 @@ async def execute_confirmed_review(
     action_hash = str(review["action_hash"])
     customer_id = str(args["customer_id"])
 
-    customer_subject = await resolve_customer_subject(db, customer_id)
     execution_turn_id = await claim_execution_turn(db, review_id)
     idempotency_key = execution_idempotency_key(review_id, action_hash)
 
@@ -1086,16 +859,11 @@ async def execute_confirmed_review(
     rail = selection.rail
 
     if rail == RAIL_REFUSED:
-        raise await _refuse_governed_execution(
-            db,
-            review_id=review_id,
-            tool=tool,
-            selection=selection,
-            operator_sub=operator_sub,
-            customer_subject=customer_subject,
-            execution_turn_id=execution_turn_id,
-            idempotency_key=idempotency_key,
+        logger.warning(
+            "governed execution refused for review %s: missing %s",
+            review_id, ", ".join(selection.missing),
         )
+        raise GovernedRailUnavailable(selection.missing, reason=selection.refusal_reason)
 
     if rail == RAIL_GATEWAY:
         policy, result, notes = await _run_gateway_rail(
@@ -1112,12 +880,11 @@ async def execute_confirmed_review(
     notes["aurora"] = aurora_note
     evidence = classify_evidence_for(policy, aurora, result)
 
-    outcome = ExecutionOutcome(
+    return ExecutionOutcome(
         rail=rail,
         execution_turn_id=execution_turn_id,
         idempotency_key=idempotency_key,
         operator_sub=operator_sub,
-        customer_subject=customer_subject,
         policy=policy,
         aurora=aurora,
         evidence=evidence,
@@ -1126,39 +893,6 @@ async def execute_confirmed_review(
         notes=notes,
         record=await evidence_for_key(db, idempotency_key),
     )
-    return await _record(db, outcome, review_id=review_id, engine_state=engine_state)
-
-
-async def _record(
-    db: Any,
-    outcome: ExecutionOutcome,
-    *,
-    review_id: int,
-    engine_state: Optional["PolicyEngineState"],
-) -> ExecutionOutcome:
-    """Step 8, ABOUT an execution that already happened.
-
-    A Cedar DENY writes no tool_audit row, claims no idempotency key and touches
-    no domain table, so without the receipt the only proof of a refusal is the
-    response body. It is written after classification, so the stored receipt and
-    the returned payload carry the same axes. An unreachable receipt table is
-    reported in the outcome; a receipt the table refuses raises from
-    :func:`record_receipt`.
-    """
-    receipt_id = await record_receipt(
-        db, outcome, review_id=review_id, engine_state=engine_state
-    )
-    if receipt_id is None:
-        # The call returned but its durable classification does not exist. Keep the
-        # business result and report the evidence gap, rather than claiming
-        # RECEIPTED.
-        outcome.evidence = EVIDENCE_PENDING
-        outcome.notes["evidence"] = (
-            "The governed call returned, but its execution receipt could not be "
-            "recorded. Inspect the tool audit and the store credits before relying "
-            "on this attempt as durable proof."
-        )
-    return outcome
 
 
 async def _run_gateway_rail(
@@ -1250,63 +984,6 @@ async def _run_in_process_rail(
             "tool_audit row stays the one receipt for this key."
         )
     return POLICY_NOT_EVALUATED, dict(result), notes
-
-
-async def _refuse_governed_execution(
-    db: Any,
-    *,
-    review_id: int,
-    tool: str,
-    selection: RailSelection,
-    operator_sub: str,
-    customer_subject: Optional[str],
-    execution_turn_id: str,
-    idempotency_key: str,
-) -> "GovernedRailUnavailable":
-    """Record that the managed rail was required and unusable, and refuse.
-
-    A refusal is evidence in its own right: it is the moment the system declined
-    to write rather than writing without a verdict, and it must survive the HTTP
-    response like every other governance outcome.
-    """
-    outcome = ExecutionOutcome(
-        rail=RAIL_REFUSED,
-        execution_turn_id=execution_turn_id,
-        idempotency_key=idempotency_key,
-        operator_sub=operator_sub,
-        customer_subject=customer_subject,
-        policy=POLICY_EVALUATION_INCOMPLETE,
-        aurora=AURORA_NOT_REACHED,
-        evidence=EVIDENCE_NO_EXECUTION,
-        tool=tool,
-        result={
-            "status": "refused",
-            "message": selection.refusal_reason,
-            "missing": list(selection.missing),
-        },
-        notes={
-            "rail": "The managed rail was required and could not be used.",
-            "refusal_reason": selection.refusal_reason,
-            "policy": (
-                "No policy engine was consulted, because the call was never made. "
-                "That is not an ALLOW and not a NOT_EVALUATED: the governed rail "
-                "was required here and its verdict is missing."
-            ),
-            "aurora": "No statement reached the database.",
-            "evidence": (
-                "This refusal is the artifact. There is no tool audit row and no "
-                "idempotency claim, because nothing executed."
-            ),
-        },
-    )
-    receipt_id = await record_receipt(db, outcome, review_id=review_id)
-    logger.warning(
-        "governed execution refused for review %s: missing %s",
-        review_id, ", ".join(selection.missing),
-    )
-    return GovernedRailUnavailable(
-        selection.missing, reason=selection.refusal_reason, receipt_id=receipt_id
-    )
 
 
 def _classify_aurora_axis(policy: str, result: Mapping[str, Any]) -> tuple[str, str]:

@@ -1,7 +1,7 @@
 """Cognito pre-token-generation trigger (V2_0): stamp the shopper's customer claim.
 
 Adds ``custom:customer_id`` to the ACCESS token of an authenticated shopper,
-read from a server-controlled map keyed by the Cognito subject. The Gateway
+read from a server-controlled map keyed by the Cognito username. The Gateway
 validates the access token and AgentCore Policy exposes its claims as
 principal tags, so a Cedar rule can bind the verified identity to a tool's
 ``customer_id`` input without naming individual shoppers.
@@ -9,9 +9,9 @@ principal tags, so a Cedar rule can bind the verified identity to a tool's
 What this deliberately never does:
 
 * read ``clientMetadata`` or any attribute a shopper can write. The only input
-  is the subject Cognito already authenticated, looked up in a map that
-  deployment administration rendered from ``pellier.principal_customers``;
-* add a claim for a subject the map does not know. A staff account or an
+  is the username Cognito already authenticated, looked up in a map that
+  deployment administration rendered from ``pellier.customers.cognito_username``;
+* add a claim for a user the map does not know. A staff account or an
   unmapped user simply has no customer claim, and every claim-scoped Cedar
   rule fails closed on ``principal.hasTag``;
 * imply authority. The claim says which customer the principal *is*. Whether
@@ -58,9 +58,9 @@ def _mapping() -> Dict[str, str]:
         logger.error("%s is not JSON; issuing no customer claims", MAP_ENV)
         return {}
     return {
-        str(sub): str(customer)
-        for sub, customer in loaded.items()
-        if isinstance(sub, str) and isinstance(customer, str)
+        str(username).casefold(): str(customer)
+        for username, customer in loaded.items()
+        if isinstance(username, str) and isinstance(customer, str)
     }
 
 
@@ -81,15 +81,14 @@ def _staff_scope(request: Dict[str, Any]) -> str:
 
 def handler(event: Dict[str, Any], _context: Any) -> Dict[str, Any]:
     request = event.get("request") or {}
-    attributes = request.get("userAttributes") or {}
-    sub = str(attributes.get("sub") or "").strip()
+    username = str(event.get("userName") or "").strip().casefold()
     claims: Dict[str, str] = {}
 
-    customer_id = _mapping().get(sub, "") if sub else ""
+    customer_id = _mapping().get(username, "") if username else ""
     if customer_id and _CUSTOMER_ID.fullmatch(customer_id):
         claims[CLAIM_NAME] = customer_id
     elif customer_id:
-        logger.error("refusing malformed customer id for subject %s", sub[:8])
+        logger.error("refusing malformed customer id for user %s", username[:8])
 
     staff_scope = _staff_scope(request)
     if staff_scope:

@@ -39,6 +39,26 @@ for _var, _placeholder in (
 
 import pytest
 
+# The four sign-in names scripts/migrations/002_seed.sql writes to
+# pellier.customers.cognito_username. The app loads them from Aurora at startup;
+# tests start from the same map (test_fresh_setup_postgres.py checks the seed).
+SEED_CUSTOMER_USERNAMES = {
+    "anna": "CUST-ANNA",
+    "marco": "CUST-MARCO",
+    "theo": "CUST-THEO",
+    "jessica": "CUST-JESSICA",
+}
+
+
+@pytest.fixture(autouse=True)
+def _seeded_customer_usernames():
+    """Start every test with the seeded username-to-customer map loaded."""
+    from services.turn_identity import set_customer_usernames
+
+    set_customer_usernames(SEED_CUSTOMER_USERNAMES)
+    yield
+    set_customer_usernames(SEED_CUSTOMER_USERNAMES)
+
 
 class TestReachedAws(AssertionError):
     """A test tried to call AWS. Patch the boundary instead."""

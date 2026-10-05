@@ -353,7 +353,7 @@ class HybridSearch:
         the pool knob is ``k_fts``.
 
         The ``description_tsv @@ ts_query`` predicate is index-scanned
-        via the GIN index on ``description_tsv`` (migration 004).
+        via the GIN index on ``description_tsv`` (scripts/migrations/001_schema.sql).
 
         Args:
             query: Raw user query text.

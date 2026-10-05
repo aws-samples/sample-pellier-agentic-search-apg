@@ -1,4 +1,4 @@
-"""The customer claim comes from the subject map and nothing else.
+"""The customer claim comes from the username map and nothing else.
 
 ``scripts/deploy/cognito_customer_claim.py`` is the Cognito pre-token trigger
 that stamps ``custom:customer_id`` on shopper access tokens. Cedar binds that
@@ -40,16 +40,17 @@ def trigger(monkeypatch: pytest.MonkeyPatch):
     module = _load("cognito_customer_claim")
     monkeypatch.setenv(
         module.MAP_ENV,
-        json.dumps({"sub-marco": "CUST-MARCO", "sub-bad": "not a customer id"}),
+        json.dumps({"marco": "CUST-MARCO", "bad": "not a customer id"}),
     )
     return module
 
 
-def _event(sub: str, **extra: Any) -> Dict[str, Any]:
+def _event(username: str, **extra: Any) -> Dict[str, Any]:
     return {
         "triggerSource": "TokenGeneration_Authentication",
+        "userName": username,
         "request": {
-            "userAttributes": {"sub": sub, "custom:customer_id": "CUST-FORGED"},
+            "userAttributes": {"sub": f"sub-{username}", "custom:customer_id": "CUST-FORGED"},
             "clientMetadata": {"customer_id": "CUST-FORGED"},
             **extra,
         },
@@ -57,8 +58,8 @@ def _event(sub: str, **extra: Any) -> Dict[str, Any]:
     }
 
 
-def test_mapped_subject_gets_the_claim_on_the_access_token_only(trigger) -> None:
-    out = trigger.handler(_event("sub-marco"), None)
+def test_mapped_user_gets_the_claim_on_the_access_token_only(trigger) -> None:
+    out = trigger.handler(_event("marco"), None)
 
     details = out["response"]["claimsAndScopeOverrideDetails"]
     assert details == {
@@ -67,14 +68,20 @@ def test_mapped_subject_gets_the_claim_on_the_access_token_only(trigger) -> None
     assert "idTokenGeneration" not in details
 
 
-def test_unmapped_subject_gets_no_claim_even_when_the_request_names_one(trigger) -> None:
-    out = trigger.handler(_event("sub-unknown"), None)
+def test_the_username_matches_without_regard_to_case(trigger) -> None:
+    out = trigger.handler(_event("Marco"), None)
+    claims = out["response"]["claimsAndScopeOverrideDetails"]["accessTokenGeneration"]
+    assert claims["claimsToAddOrOverride"] == {"custom:customer_id": "CUST-MARCO"}
+
+
+def test_unmapped_user_gets_no_claim_even_when_the_request_names_one(trigger) -> None:
+    out = trigger.handler(_event("unknown"), None)
 
     assert "claimsAndScopeOverrideDetails" not in out["response"]
 
 
 def test_malformed_mapping_value_is_refused(trigger) -> None:
-    out = trigger.handler(_event("sub-bad"), None)
+    out = trigger.handler(_event("bad"), None)
 
     assert "claimsAndScopeOverrideDetails" not in out["response"]
 
@@ -82,21 +89,22 @@ def test_malformed_mapping_value_is_refused(trigger) -> None:
 def test_missing_or_invalid_map_issues_nothing(monkeypatch: pytest.MonkeyPatch) -> None:
     module = _load("cognito_customer_claim")
     monkeypatch.setenv(module.MAP_ENV, "{not json")
-    assert "claimsAndScopeOverrideDetails" not in module.handler(_event("sub-marco"), None)["response"]
+    assert "claimsAndScopeOverrideDetails" not in module.handler(_event("marco"), None)["response"]
     monkeypatch.delenv(module.MAP_ENV)
-    assert "claimsAndScopeOverrideDetails" not in module.handler(_event("sub-marco"), None)["response"]
+    assert "claimsAndScopeOverrideDetails" not in module.handler(_event("marco"), None)["response"]
 
 
 def test_handler_never_reads_client_metadata_or_user_attributes_for_the_value() -> None:
     source = (DEPLOY / "cognito_customer_claim.py").read_text(encoding="utf-8")
     assert "clientMetadata" not in source.split('"""', 2)[2], "clientMetadata must not reach the handler"
     body = source.split("def handler", 1)[1]
-    assert 'attributes.get("sub")' in body
+    assert 'event.get("userName")' in body
+    assert "userAttributes" not in body
     assert "custom:customer_id" not in body.replace("CLAIM_NAME", "")
 
 
-def _staff_event(sub: str, groups: list[str]) -> Dict[str, Any]:
-    event = _event(sub)
+def _staff_event(username: str, groups: list[str]) -> Dict[str, Any]:
+    event = _event(username)
     event["request"]["groupConfiguration"] = {"groupsToOverride": groups}
     return event
 
@@ -107,7 +115,7 @@ def test_operator_group_member_gets_the_staff_scope_and_no_customer(
     monkeypatch.setenv(trigger.STAFF_GROUP_ENV, "pellier-operators")
     monkeypatch.setenv(trigger.STAFF_SCOPE_ENV, "returns")
 
-    out = trigger.handler(_staff_event("sub-operator", ["pellier-operators"]), None)
+    out = trigger.handler(_staff_event("nadia", ["pellier-operators"]), None)
 
     claims = out["response"]["claimsAndScopeOverrideDetails"]["accessTokenGeneration"]["claimsToAddOrOverride"]
     assert claims == {"custom:staff_scope": "returns"}
@@ -117,7 +125,7 @@ def test_shopper_outside_the_group_gets_no_staff_scope(trigger, monkeypatch: pyt
     monkeypatch.setenv(trigger.STAFF_GROUP_ENV, "pellier-operators")
     monkeypatch.setenv(trigger.STAFF_SCOPE_ENV, "returns")
 
-    out = trigger.handler(_staff_event("sub-marco", ["shoppers"]), None)
+    out = trigger.handler(_staff_event("marco", ["shoppers"]), None)
 
     claims = out["response"]["claimsAndScopeOverrideDetails"]["accessTokenGeneration"]["claimsToAddOrOverride"]
     assert claims == {"custom:customer_id": "CUST-MARCO"}
@@ -127,13 +135,13 @@ def test_staff_scope_needs_both_group_and_scope_configured(trigger, monkeypatch:
     monkeypatch.delenv(trigger.STAFF_GROUP_ENV, raising=False)
     monkeypatch.setenv(trigger.STAFF_SCOPE_ENV, "returns")
     assert "claimsAndScopeOverrideDetails" not in trigger.handler(
-        _staff_event("sub-operator", ["pellier-operators"]), None
+        _staff_event("nadia", ["pellier-operators"]), None
     )["response"]
 
     monkeypatch.setenv(trigger.STAFF_GROUP_ENV, "pellier-operators")
     monkeypatch.setenv(trigger.STAFF_SCOPE_ENV, "Not A Scope!")
     assert "claimsAndScopeOverrideDetails" not in trigger.handler(
-        _staff_event("sub-operator", ["pellier-operators"]), None
+        _staff_event("nadia", ["pellier-operators"]), None
     )["response"]
 
 
@@ -257,7 +265,7 @@ def test_deploy_trigger_updates_the_function_and_attaches_the_v2_trigger(
     receipt = deploy.deploy_trigger(
         region="us-east-1",
         pool_id="us-east-1_test",
-        mapping={"sub-marco": "CUST-MARCO"},
+        mapping={"marco": "CUST-MARCO"},
         staff_group="pellier-operators",
         staff_scope="returns",
     )
@@ -266,9 +274,9 @@ def test_deploy_trigger_updates_the_function_and_attaches_the_v2_trigger(
     assert "update_function_code" in names and "update_function_configuration" in names
     assert "add_permission" in names
     env = next(kw for name, kw in recorder.calls if name == "update_function_configuration")["Environment"]["Variables"]
-    assert json.loads(env["CUSTOMER_CLAIM_MAP"]) == {"sub-marco": "CUST-MARCO"}
+    assert json.loads(env["CUSTOMER_CLAIM_MAP"]) == {"marco": "CUST-MARCO"}
     assert env["STAFF_GROUP"] == "pellier-operators" and env["STAFF_SCOPE"] == "returns"
-    assert receipt["mappedSubjects"] == 1 and receipt["customers"] == ["CUST-MARCO"]
+    assert receipt["mappedUsers"] == 1 and receipt["customers"] == ["CUST-MARCO"]
     assert receipt["lambdaConfig"]["PreTokenGenerationConfig"]["LambdaVersion"] == "V2_0"
 
 
@@ -310,7 +318,7 @@ def test_trigger_every_resource_call_uses_the_deployment_identity(monkeypatch, s
     monkeypatch.setattr(deploy.boto3, "client", lambda *_args, **_kwargs: Provider())
     monkeypatch.setattr(deploy.time, "sleep", lambda *_args: None)
     monkeypatch.setattr(deploy, "attach_trigger", lambda _idp, _pool, arn: {"PreTokenGenerationConfig": {"LambdaArn": arn}})
-    receipt = deploy.deploy_trigger(region="us-east-1", pool_id="us-east-1_test", mapping={"new-sub": "CUST-THEO"})
+    receipt = deploy.deploy_trigger(region="us-east-1", pool_id="us-east-1_test", mapping={"theo": "CUST-THEO"})
     assert receipt["function"] == function_arn
     assert receipt["role"] == role_arn
     assert all(kwargs["FunctionName"] == function for _, kwargs in calls if "FunctionName" in kwargs)
@@ -318,4 +326,21 @@ def test_trigger_every_resource_call_uses_the_deployment_identity(monkeypatch, s
     permissions = [kwargs for name, kwargs in calls if name == "add_permission"]
     assert permissions[0]["SourceArn"] == _pool()["Arn"]
     configured = next(kwargs for name, kwargs in calls if name in ("create_function", "update_function_configuration"))
-    assert json.loads(configured["Environment"]["Variables"]["CUSTOMER_CLAIM_MAP"]) == {"new-sub": "CUST-THEO"}
+    assert json.loads(configured["Environment"]["Variables"]["CUSTOMER_CLAIM_MAP"]) == {"theo": "CUST-THEO"}
+
+
+def test_the_map_is_read_from_the_column_row_level_security_reads(monkeypatch) -> None:
+    deploy = _load("deploy_customer_claim_trigger")
+    seen: Dict[str, Any] = {}
+
+    class RdsData:
+        def execute_statement(self, **kwargs: Any) -> Dict[str, Any]:
+            seen.update(kwargs)
+            return {"records": [[{"stringValue": "theo"}, {"stringValue": "CUST-THEO"}]]}
+
+    monkeypatch.setattr(deploy.boto3, "client", lambda *_a, **_k: RdsData())
+    mapping = deploy.mapping_from_database(
+        "us-east-1", cluster_arn="cluster", secret_arn="secret", database="postgres"
+    )
+    assert seen["sql"] == "SELECT cognito_username, id FROM pellier.customers"
+    assert mapping == {"theo": "CUST-THEO"}

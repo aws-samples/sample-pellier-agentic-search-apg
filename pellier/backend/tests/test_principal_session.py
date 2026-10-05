@@ -1,40 +1,38 @@
-"""`DatabaseService.principal_session` — the same-transaction guarantee.
+"""`DatabaseService.principal_session`: the same-transaction guarantee.
 
-Row-Level Security on `pellier.orders` and `pellier.returns` binds the
-*effective* role and reads `pellier.principal_sub`. Both must hold on one
+Row-level security on `pellier.orders` and `pellier.support_tickets` binds the
+*effective* role and reads `pellier.principal_username`. Both must hold on one
 physical connection inside one transaction, which the ordinary accessors
-cannot provide: `fetch_all`, `fetch_one`, and `execute_query` each take their
+cannot provide: `fetch_all`, `fetch_one` and `execute_query` each take their
 own pooled connection and release it.
 
-That failure mode is quiet and dangerous. A `SET LOCAL` issued through
-`execute_query` is invisible to the next call, so the protected statement runs
-with no principal — which fails closed and reads as "no such row" rather than
-"not authorized". Nothing errors. So these tests assert the mechanics rather
-than the outcome:
+That failure mode is quiet. A `SET LOCAL` issued through `execute_query` is
+invisible to the next call, so the protected statement runs with no name,
+which fails closed and reads as "no such row" rather than "not authorized".
+So these tests assert the mechanics:
 
-  1. Role and principal are set on the *same* connection as the caller's
+  1. Role and name are set on the *same* connection as the caller's
      statements, and inside a transaction.
-  2. The principal is bound with `set_config`, parameterized — never
-     interpolated into SQL.
-  3. The role is whitelisted, because `SET ROLE` cannot be parameterized.
-  4. The owner role can never be assumed through this API, which would make
-     a governed session silently ungoverned.
+  2. The name is bound with `set_config`, parameterized, never interpolated.
+  3. The role is the one application role, a constant, never the owner.
 
-The live enforcement proof (owner bypasses, mapped principal sees one row,
-unmapped sees none, cross-customer write is rejected) is an integration
-concern against a real cluster and is not asserted here.
+The enforcement proof itself (another customer's rows are hidden) runs on real
+PostgreSQL in `test_rls_customer_reads_postgres.py`.
 """
 
 from __future__ import annotations
 
-from typing import Any, List, Optional, Tuple
+from typing import Any, List, Tuple
 
 import pytest
 
-from services.database import DatabaseService, _RUNTIME_ROLES
+from services.database import CUSTOMER_ROLE, PRINCIPAL_SETTING, DatabaseService
 
 
 class _Cursor:
+    # No result set: the bound read under test returns no rows.
+    description = None
+
     def __init__(self, calls: List[Tuple[str, Any]]) -> None:
         self._calls = calls
 
@@ -99,13 +97,14 @@ def service(monkeypatch) -> Tuple[DatabaseService, _Connection]:
 async def test_role_and_principal_are_bound_before_caller_statements(service):
     db, conn = service
 
-    async with db.principal_session("sub-marco") as session:
+    async with db.principal_session("marco") as session:
         async with session.cursor() as cur:
             await cur.execute("SELECT 1 FROM pellier.orders", None)
 
     statements = [sql for sql, _params in conn.calls]
     assert statements[0] == "SET LOCAL ROLE pellier_agent"
-    assert "set_config('pellier.principal_sub', %s, true)" in statements[1]
+    assert statements[1] == "SELECT set_config(%s, %s, true)"
+    assert conn.calls[1][1] == ("pellier.principal_username", "marco")
     # The caller's statement runs last, on the same connection.
     assert statements[2] == "SELECT 1 FROM pellier.orders"
 
@@ -119,7 +118,7 @@ async def test_binding_happens_inside_a_transaction(service):
     """
     db, conn = service
 
-    async with db.principal_session("sub-marco"):
+    async with db.principal_session("marco"):
         pass
 
     assert conn.events == ["begin", "end"]
@@ -130,7 +129,7 @@ async def test_caller_statements_share_the_bound_connection(service):
     """One connection for the whole block, or RLS sees no principal."""
     db, conn = service
 
-    async with db.principal_session("sub-marco") as session:
+    async with db.principal_session("marco") as session:
         assert session is conn
 
 
@@ -150,7 +149,7 @@ async def test_principal_is_parameterized_not_interpolated(service):
     set_config = next(
         (sql, params) for sql, params in conn.calls if "set_config" in sql
     )
-    assert set_config[1] == (hostile,)
+    assert set_config[1] == (PRINCIPAL_SETTING, hostile)
     assert "DROP TABLE" not in set_config[0]
 
 
@@ -159,7 +158,7 @@ async def test_anonymous_binds_an_empty_principal_explicitly(service):
     """Absent must be bound, not skipped.
 
     Binding it makes the intent legible in the transaction, and the policies
-    resolve an empty principal to no customer scope — denied, not widened.
+    match an empty name to no customer: denied, not widened.
     """
     db, conn = service
 
@@ -167,7 +166,7 @@ async def test_anonymous_binds_an_empty_principal_explicitly(service):
         pass
 
     set_config = next(params for sql, params in conn.calls if "set_config" in sql)
-    assert set_config == ("",)
+    assert set_config == (PRINCIPAL_SETTING, "")
 
 
 @pytest.mark.asyncio
@@ -181,7 +180,7 @@ async def test_local_scope_is_used_so_pool_reuse_cannot_leak(service):
     """
     db, conn = service
 
-    async with db.principal_session("sub-marco"):
+    async with db.principal_session("marco"):
         pass
 
     set_config_sql = next(sql for sql, _p in conn.calls if "set_config" in sql)
@@ -190,52 +189,27 @@ async def test_local_scope_is_used_so_pool_reuse_cannot_leak(service):
 
 
 # ---------------------------------------------------------------------------
-# Role whitelist
+# One role, never the owner
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_unknown_role_is_refused(service):
-    db, _conn = service
-
-    with pytest.raises(ValueError, match="Unknown runtime role"):
-        async with db.principal_session("sub-marco", role="postgres"):
-            pass
+def test_the_role_is_the_application_role_not_the_owner():
+    """Assuming the owner would bypass row-level security."""
+    assert CUSTOMER_ROLE == "pellier_agent"
+    assert PRINCIPAL_SETTING == "pellier.principal_username"
 
 
 @pytest.mark.asyncio
-async def test_owner_cannot_be_assumed_through_this_api(service):
-    """Assuming the owner would bypass RLS and ungovern the session."""
-    db, _conn = service
-
-    for owner_like in ("postgres", "rds_superuser", "pellier_owner"):
-        with pytest.raises(ValueError):
-            async with db.principal_session("sub-marco", role=owner_like):
-                pass
-
-
-@pytest.mark.asyncio
-async def test_query_role_is_available_for_generated_sql(service):
+async def test_fetch_all_as_runs_inside_the_bound_session(service):
     db, conn = service
 
-    async with db.principal_session("sub-marco", role="pellier_query"):
-        pass
+    rows = await db.fetch_all_as(
+        "theo", "SELECT 1 FROM pellier.orders WHERE customer_id = %s", "CUST-THEO"
+    )
 
-    assert conn.calls[0][0] == "SET LOCAL ROLE pellier_query"
-
-
-def test_runtime_roles_exclude_the_owner():
-    assert _RUNTIME_ROLES == {"pellier_agent", "pellier_query"}
-    assert "postgres" not in _RUNTIME_ROLES
-
-
-@pytest.mark.asyncio
-async def test_role_name_cannot_carry_injection(service):
-    """`SET ROLE` takes no parameters, so the whitelist is the only defense."""
-    db, _conn = service
-
-    with pytest.raises(ValueError):
-        async with db.principal_session(
-            "sub-marco", role="pellier_agent; DROP TABLE pellier.orders"
-        ):
-            pass
+    assert rows == []
+    assert [sql for sql, _ in conn.calls][:2] == [
+        "SET LOCAL ROLE pellier_agent", "SELECT set_config(%s, %s, true)",
+    ]
+    assert conn.calls[2] == ("SELECT 1 FROM pellier.orders WHERE customer_id = %s", ("CUST-THEO",))
+    assert conn.events == ["begin", "end"]

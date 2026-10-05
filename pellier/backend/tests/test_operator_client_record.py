@@ -3,9 +3,9 @@
 Two promises are kept here, on fakes; ``test_operator_credit_postgres.py``
 proves the same reads against the real schema.
 
-* Returned means received. ``pellier.returns`` is the authority, and only an
-  approved or refunded return marks an order Returned. A return request that
-  is still pending, or was rejected, is a claim, not evidence of receipt.
+* Returned means the item came back. The order row carries its own return
+  state: ``received`` or ``refunded`` marks it Returned; a ``requested`` return
+  is a claim, not evidence of receipt.
 * A partial record is not a record. If any of the concurrent reads fails, the
   route answers 503 instead of rendering a failed read as "nothing on file".
 """
@@ -22,24 +22,31 @@ from services import store_tools
 
 @pytest.mark.parametrize(
     ("status", "returned"),
-    [("approved", True), ("refunded", True), ("pending", False), ("rejected", False),
-     (None, False), ("", False)],
+    [("received", True), ("refunded", True), ("requested", False), (None, False), ("", False)],
 )
 def test_only_a_received_return_marks_an_order_returned(status: Any, returned: bool) -> None:
     assert store_tools.is_returned(status) is returned
     row = {"order_id": 301, "product_id": "42", "product_name": "Waffle Bath Robe, Sage",
-           "amount_paid_cents": 6400, "quantity": 1, "return_status": status}
+           "amount_paid_cents": 6400, "quantity": 1, "return_status": status,
+           "store_credit_id": None}
     order = OP._order_row(row)
     assert order["returned"] is returned
     assert order["returnStatus"] == (status or None)
+    assert order["creditId"] is None
 
 
-def test_every_surface_reads_return_state_through_one_join() -> None:
+def test_an_order_names_the_credit_that_covers_it() -> None:
+    order = OP._order_row({"order_id": 20, "product_id": "42", "return_status": "received",
+                           "store_credit_id": 3, "amount_paid_cents": 6400})
+    assert order["returned"] is True and order["creditId"] == 3
+
+
+def test_every_surface_reads_return_state_from_the_order_row() -> None:
     """The record, get_orders and the Planner cannot disagree about "returned"."""
     from services import operator_graph
 
     for sql in (OP._ORDERS_SELECT, store_tools._ORDERS_SQL, operator_graph._RETURNED_ORDERS_SQL):
-        assert store_tools.RETURN_STATUS_JOIN in sql
+        assert "o.return_status" in sql and "pellier.returns" not in sql
 
 
 def test_a_client_row_carries_open_requests_and_the_last_order() -> None:

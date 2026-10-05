@@ -20,8 +20,14 @@ Evidence contract:
   applied nothing, and the first row stays the one receipt for that key.
 * A read writes an audit row only when the Runtime passed a ``turn_id``, so an
   uncorrelated probe cannot pose as a shopper turn.
+* Every audit row records the ``build_fingerprint`` the Runtime passed: the
+  build that made the call, which Lab 3 compares with the participant's checkout.
 * A Cedar DENY never invokes this function, so the absence of a row is the
   proof that the tool was not entered.
+
+``get_orders`` and ``get_tickets`` read as ``pellier_agent`` with the customer
+named (``common.dataapi.run_as_customer``), so row-level security holds here as
+it does in process.
 """
 from __future__ import annotations
 
@@ -36,6 +42,7 @@ from common.dataapi import (
     RERANK_MODEL_ID,
     query_embedding,
     rerank_documents,
+    run_as_customer,
     run_store_sql,
     write_tool_audit_independently,
 )
@@ -51,6 +58,11 @@ RAIL = "gateway-mcp"
 
 # A route-minted turn id. Anything else is not a shopper turn and gets no receipt.
 _TURN_ID = re.compile(r"^turn-[A-Za-z0-9_-]{6,}$")
+# A build fingerprint: the SHA-256 the Runtime package carries.
+_BUILD = re.compile(r"^[0-9a-f]{64}$")
+# Correlation the Runtime attaches beside the tool's own arguments. The audit
+# row keeps them; the tool never sees them.
+_CORRELATION_ARGUMENTS = ("turn_id", "build_fingerprint")
 
 ToolFn = Callable[[Dict[str, Any], Optional[str]], Dict[str, Any]]
 
@@ -154,11 +166,10 @@ def _check_stock(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]
 
 
 def _get_orders(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
-    return store_tools.get_orders(
-        run_store_sql,
-        customer_id=str(args.get("customer_id") or ""),
-        limit=_int(args.get("limit"), 10),
-    )
+    customer_id = str(args.get("customer_id") or "")
+    return run_as_customer(customer_id, lambda run: store_tools.get_orders(
+        run, customer_id=customer_id, limit=_int(args.get("limit"), 10),
+    ))
 
 
 def _get_return_policy(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
@@ -168,11 +179,10 @@ def _get_return_policy(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str
 
 
 def _get_tickets(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
-    return store_tools.get_tickets(
-        run_store_sql,
-        customer_id=str(args.get("customer_id") or ""),
-        limit=_int(args.get("limit"), 5),
-    )
+    customer_id = str(args.get("customer_id") or "")
+    return run_as_customer(customer_id, lambda run: store_tools.get_tickets(
+        run, customer_id=customer_id, limit=_int(args.get("limit"), 5),
+    ))
 
 
 def _give_store_credit(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
@@ -245,9 +255,12 @@ def lambda_handler(event: dict, context: Any) -> dict:
 
     started = time.monotonic()
     turn_id = _turn_id(arguments)
-    # ``turn_id`` is correlation metadata the Runtime attaches, not a tool
-    # parameter; the audit row keeps it, the tool never sees it.
-    execution_arguments = {key: value for key, value in arguments.items() if key != "turn_id"}
+    build = arguments.get("build_fingerprint")
+    build = build if isinstance(build, str) and _BUILD.fullmatch(build) else None
+    execution_arguments = {
+        key: value for key, value in arguments.items() if key not in _CORRELATION_ARGUMENTS
+    }
+    audited_arguments = {key: value for key, value in arguments.items() if key != "build_fingerprint"}
     failed = False
     try:
         result = TOOLS[tool_name](execution_arguments, turn_id)
@@ -264,13 +277,14 @@ def lambda_handler(event: dict, context: Any) -> dict:
         # unchanged request keeps one credit and one audit row.
         write_tool_audit_independently(
             tool=tool_name,
-            args=dict(arguments),
+            args=audited_arguments,
             result=result,
             latency_ms=int((time.monotonic() - started) * 1000),
             session_id=f"gateway-{execution_arguments.get('customer_id') or 'unknown'}",
+            build_fingerprint=build,
         )
     elif tool_name != "give_store_credit" and not failed:
-        audit_read_call(tool_name, arguments, result, started)
+        audit_read_call(tool_name, audited_arguments, result, started, build_fingerprint=build)
     return _envelope(result, is_error=failed)
 
 

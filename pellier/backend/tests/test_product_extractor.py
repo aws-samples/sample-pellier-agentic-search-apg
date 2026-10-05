@@ -4,7 +4,6 @@ import json
 
 import pytest
 
-from services import inventory_evidence
 from services.chat import (
     EnhancedChatService,
     ProductExtractor,
@@ -288,28 +287,29 @@ async def test_continuity_cards_rehydrate_catalog_media_without_overwriting_live
 
 
 @pytest.mark.asyncio
-async def test_product_cards_receive_reconciled_inventory_not_catalog_cache(
-    monkeypatch: pytest.MonkeyPatch,
-):
+async def test_product_cards_receive_warehouse_units_not_catalog_cache():
+    """A card's stock is the sum of its warehouse rows, read once for the set."""
+    reads = []
+
+    class _Db:
+        async def fetch_all(self, sql, *params):
+            reads.append((sql, params))
+            return [{"product_id": "7", "units": 14}, {"product_id": "8", "units": 0}]
+
     service = EnhancedChatService.__new__(EnhancedChatService)
-    service.db_service = object()
-    products = [{"id": 7, "quantity": 50, "inStock": True}]
+    service.db_service = _Db()
+    products = [
+        {"id": 7, "quantity": 50, "inStock": True},
+        {"id": 8, "quantity": 3, "inStock": True},
+        {"id": 9, "quantity": 2, "inStock": True},
+    ]
 
-    async def resolve(_db, product_ids):
-        assert product_ids == ["7"]
-        return {
-            "7": inventory_evidence.InventoryEvidence(
-                product_id="7",
-                status=inventory_evidence.RECONCILED_IN_STOCK,
-                available_quantity=14,
-            )
-        }
+    await service._attach_stock(products)
 
-    monkeypatch.setattr(inventory_evidence, "resolve_inventory_many", resolve)
-
-    await service._attach_inventory_evidence(products)
-
-    assert products[0]["quantity"] == 14
-    assert products[0]["inStock"] is True
-    assert products[0]["availability"]["status"] == "reconciled_in_stock"
-    assert products[0]["availability"]["availableQuantity"] == 14
+    assert len(reads) == 1 and "pellier.warehouse_inventory" in reads[0][0]
+    assert reads[0][1] == (["7", "8", "9"],)
+    assert products[0]["quantity"] == 14 and products[0]["inStock"] is True
+    assert products[1]["quantity"] == 0 and products[1]["inStock"] is False
+    # A card the read did not reach keeps what it had; no availability is invented.
+    assert products[2]["quantity"] == 2
+    assert "availability" not in products[0]

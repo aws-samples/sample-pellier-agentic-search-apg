@@ -38,16 +38,37 @@ def _parameter_value(parameters: list[dict[str, Any]], name: str) -> Any:
 
 
 def _capture(monkeypatch: pytest.MonkeyPatch, rows: list[dict[str, Any]] | None = None):
-    """Replace the Data API statement executor and record every call."""
+    """Replace the Data API executors and record every business statement.
+
+    A customer's own read runs in a transaction whose first two statements
+    switch to ``pellier_agent`` and name the customer; those are recorded in
+    ``calls.binding`` and the read itself in the returned list.
+    """
     import common.dataapi as dataapi
 
-    calls: list[tuple[str, list[dict[str, Any]]]] = []
+    class Calls(list):
+        binding: list[tuple[str, str, list[dict[str, Any]]]] = []
+        transactions: list[str] = []
+
+    calls = Calls()
+    calls.binding = []
+    calls.transactions = []
 
     def _execute(sql: str, parameters: list[dict[str, Any]] | None = None) -> list[dict[str, Any]]:
         calls.append((sql, parameters or []))
         return list(rows or [])
 
+    def _in_transaction(tx: str, sql: str, parameters: list[dict[str, Any]] | None = None):
+        if "SET LOCAL ROLE" in sql or "set_config(" in sql:
+            calls.binding.append((tx, sql, parameters or []))
+            return []
+        return _execute(sql, parameters)
+
     monkeypatch.setattr(dataapi, "execute_sql", _execute)
+    monkeypatch.setattr(dataapi, "execute_in_transaction", _in_transaction)
+    monkeypatch.setattr(dataapi, "begin_transaction", lambda: "tx-1")
+    monkeypatch.setattr(dataapi, "commit_transaction", lambda tx: calls.transactions.append(f"commit {tx}"))
+    monkeypatch.setattr(dataapi, "rollback_transaction", lambda tx: calls.transactions.append(f"rollback {tx}"))
     return calls
 
 
@@ -93,6 +114,12 @@ def test_get_orders_scopes_the_aurora_query_to_the_bound_customer(
     assert _parameter_value(parameters, "p0") == "CUST-MARCO"
     assert _parameter_value(parameters, "p1") == 20, "the row bound is part of the contract"
     assert '"amount_paid": 64.0' in result["text"]
+    # Row-level security: the read ran as pellier_agent with Marco named, then committed.
+    (_, role_sql, _), (_, name_sql, name_params) = calls.binding
+    assert role_sql == "SET LOCAL ROLE pellier_agent;"
+    assert "pellier.principal_username" in name_sql and "cognito_username" in name_sql
+    assert _parameter_value(name_params, "customer") == "CUST-MARCO"
+    assert calls.transactions == ["commit tx-1"]
 
 
 def test_get_tickets_scopes_the_aurora_query_to_the_bound_customer(
@@ -112,6 +139,8 @@ def test_get_tickets_scopes_the_aurora_query_to_the_bound_customer(
     assert _parameter_value(parameters, "p0") == "CUST-THEO"
     assert _parameter_value(parameters, "p1") == 3
     assert '"count": 0' in result["text"]
+    assert [sql for _, sql, _ in calls.binding][0] == "SET LOCAL ROLE pellier_agent;"
+    assert _parameter_value(calls.binding[1][2], "customer") == "CUST-THEO"
 
 
 def test_a_missing_customer_id_binds_an_empty_customer_not_every_customer(

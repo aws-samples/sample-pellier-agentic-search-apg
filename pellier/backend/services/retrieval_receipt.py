@@ -4,7 +4,7 @@
 product won: which constraints were hard, which preferences were widened,
 how each branch ranked the candidates, or which merchandising rule
 reordered the final list. This module writes the other half of that
-evidence into ``pellier.retrieval_receipts`` (migration 012).
+evidence into ``pellier.retrieval_receipts``.
 
 The receipt exists so an attendee can ask one question and get a complete
 answer from SQL:

@@ -121,11 +121,23 @@ def test_each_lambda_tool_dispatches_to_store_tools_with_the_data_api_runner(
         return {"status": "success", "tool": tool_name}
 
     monkeypatch.setattr(store_tools, tool_name, spy)
+    scoped_run = object()
+    bound: list[str] = []
 
-    result = lambda_tools.TOOLS[tool_name]({}, None)
+    def as_customer(customer_id: str, work: Any) -> Any:
+        bound.append(customer_id)
+        return work(scoped_run)
+
+    monkeypatch.setattr(lambda_tools, "run_as_customer", as_customer)
+
+    result = lambda_tools.TOOLS[tool_name]({"customer_id": "CUST-THEO"}, None)
 
     assert result == {"status": "success", "tool": tool_name}
-    assert seen["run"] is dataapi.run_store_sql
+    if tool_name in ("get_orders", "get_tickets"):
+        # A customer's own read runs as pellier_agent with that customer named.
+        assert seen["run"] is scoped_run and bound == ["CUST-THEO"]
+    else:
+        assert seen["run"] is dataapi.run_store_sql and bound == []
 
 
 def test_search_products_hands_store_tools_the_gateway_pipeline_pieces(

@@ -13,6 +13,7 @@ import uuid
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Depends, Request, Response
@@ -47,7 +48,6 @@ from routes import (
     products_router,
     search_router,
     storefront_router,
-    commerce_router,
     user_router,
     operator_router,
 )
@@ -270,6 +270,14 @@ async def lifespan(app: FastAPI):
         db_service = DatabaseService()
         await db_service.connect()
         logger.info("✅ Database service initialized")
+        # Which customer each sign-in name belongs to, from pellier.customers.
+        from services.turn_identity import load_customer_usernames
+
+        try:
+            mapped = await load_customer_usernames(db_service)
+            logger.info(f"✅ {mapped} customer sign-in names loaded")
+        except Exception as exc:  # noqa: BLE001 - shoppers get no customer scope until it loads
+            logger.error(f"Customer sign-in names could not be read: {exc}")
         
         embedding_service = EmbeddingService()
         logger.info("✅ Embedding service initialized (Cohere Embed v4)")
@@ -394,7 +402,6 @@ app.include_router(search_router)
 # the homepage.
 app.include_router(storefront_router)
 app.include_router(operator_router)
-app.include_router(commerce_router)
 
 
 # Dependency injection
@@ -673,104 +680,6 @@ def _annotate_rail(
     return {**event, "response": annotated}
 
 
-async def _persist_terminal_turn_receipt(
-    *,
-    turn_id: str,
-    session_id: Optional[str],
-    user: Optional[Dict[str, Any]],
-    rail: str,
-    terminal_status: str,
-    started_at: float,
-    trace: Optional[Dict[str, Any]] = None,
-    terminal_error_code: Optional[str] = None,
-    shopper_request: str = "",
-    customer_id: Optional[str] = None,
-    conversation_history: Optional[List[Dict[str, Any]]] = None,
-    assistant_response: str = "",
-    specialist_route: str = "",
-    tool_calls: Optional[List[Any]] = None,
-    skip_handoff_lookup: bool = False,
-    agent_execution: Optional[Dict[str, Any]] = None,
-    model_id: Optional[str] = None,
-    model_source: str = "otel",
-) -> Optional[Dict[str, Any]]:
-    """Write and project terminal evidence after a shopper turn terminates.
-
-    Evidence is not a prerequisite for serving an answer or an error. A failed
-    write returns ``None`` so callers never claim that an unpersisted receipt
-    or projection exists.
-    """
-    try:
-        from services.model_invocation_receipt import (
-            persist_model_invocation_receipts,
-        )
-        from services.governed_turn_receipt import persist_turn_receipt
-        from services.shopper_handoff import build_handoff_context
-
-        principal_sub = (user or {}).get("sub")
-        handoff_context = {}
-        if not skip_handoff_lookup:
-            handoff_context = await build_handoff_context(
-                db_service,
-                turn_id=turn_id,
-                session_id=session_id,
-                customer_id=customer_id,
-                shopper_request=shopper_request,
-                conversation_history=conversation_history or [],
-                assistant_response=assistant_response,
-                specialist_route=specialist_route,
-                tool_calls=tool_calls or [],
-            )
-
-        receipt = await persist_turn_receipt(
-            db_service,
-            turn_id=turn_id,
-            session_id=session_id,
-            principal_sub=principal_sub,
-            rail=rail,
-            terminal_status=terminal_status,
-            latency_ms=int((time.perf_counter() - started_at) * 1000),
-            trace=trace,
-            terminal_error_code=terminal_error_code,
-            handoff_context=handoff_context,
-            answer_text=assistant_response,
-            agent_execution=agent_execution,
-            specialist_route=specialist_route,
-            managed_model_id=(
-                model_id if model_source == "agentcore-service-telemetry" else None
-            ),
-        )
-        if receipt is None:
-            return None
-
-        model_rows = await persist_model_invocation_receipts(
-            db_service,
-            turn_id=turn_id,
-            session_id=session_id,
-            principal_sub=principal_sub,
-            agent_execution=agent_execution,
-            default_model_id=model_id,
-            source=model_source,
-        )
-        ledger = None
-        if principal_sub:
-            from services.evidence_ledger import project_turn_ledger
-
-            ledger = await project_turn_ledger(
-                db_service,
-                turn_id=turn_id,
-                principal_sub=str(principal_sub),
-            )
-        return {
-            "governed_receipt": receipt,
-            "evidence_ledger": ledger,
-            "model_invocation_count": len(model_rows),
-        }
-    except Exception as exc:  # pragma: no cover - persistence service is defensive
-        logger.warning("governed turn receipt write skipped: %s", exc)
-        return None
-
-
 # What a managed tool event carries for the Builder step alone. The step event
 # is the one place these travel in the stream; the tool_call event and the
 # execution envelope keep the execution facts.
@@ -935,8 +844,8 @@ async def _aurora_profile_receipt(customer_id: Optional[str]) -> Dict[str, Any]:
                 SELECT 1 FROM pellier.customers WHERE id = %s
               ) AS customer_exists,
               (
-                SELECT count(*) FROM pellier.customer_episodic_seed
-                 WHERE customer_id = %s
+                SELECT count(*) FROM pellier.customers
+                 WHERE id = %s AND preferences_summary IS NOT NULL
               ) AS facts_available,
               (
                 SELECT count(*) FROM pellier.orders WHERE customer_id = %s
@@ -986,51 +895,8 @@ async def chat_stream(
 
     async def event_generator():
         turn_id: Optional[str] = None
-        receipt_attempted = False
         effective_user: Dict[str, Any] = {}
         history: List[Dict[str, Any]] = []
-        shopper_customer_id: Optional[str] = None
-        turn_started = time.perf_counter()
-
-        async def persist_terminal(
-            *,
-            rail: str,
-            terminal_status: str,
-            trace: Optional[Dict[str, Any]] = None,
-            terminal_error_code: Optional[str] = None,
-            assistant_response: str = "",
-            specialist_route: str = "",
-            tool_calls: Optional[List[Any]] = None,
-            skip_handoff_lookup: bool = False,
-            agent_execution: Optional[Dict[str, Any]] = None,
-            model_id: Optional[str] = None,
-            model_source: str = "otel",
-        ) -> Optional[Dict[str, Any]]:
-            """Persist exactly once, even if a stream then raises."""
-            nonlocal receipt_attempted
-            if receipt_attempted or not turn_id:
-                return None
-            receipt_attempted = True
-            return await _persist_terminal_turn_receipt(
-                turn_id=turn_id,
-                session_id=request.session_id,
-                user=effective_user or None,
-                rail=rail,
-                terminal_status=terminal_status,
-                started_at=turn_started,
-                trace=trace,
-                terminal_error_code=terminal_error_code,
-                shopper_request=request.message,
-                customer_id=shopper_customer_id,
-                conversation_history=history,
-                assistant_response=assistant_response,
-                specialist_route=specialist_route,
-                tool_calls=tool_calls,
-                skip_handoff_lookup=skip_handoff_lookup,
-                agent_execution=agent_execution,
-                model_id=model_id,
-                model_source=model_source,
-            )
 
         try:
             history = [
@@ -1048,7 +914,6 @@ async def chat_stream(
                 user=effective_user,
                 requested_customer_id=request.customer_id,
             )
-            shopper_customer_id = turn_identity.shopper_customer_id
 
             # Per-turn guardrail INPUT check — records a decision in
             # services/guardrails_log so the Observatory Grounding page's
@@ -1164,11 +1029,6 @@ async def chat_stream(
             if rail_decision.managed_requested:
                 if not rail_decision.available:
                     error = classify_chat_error(rail_decision.reason)
-                    await persist_terminal(
-                        rail=rail_decision.rail,
-                        terminal_status="failed",
-                        terminal_error_code=error["code"],
-                    )
                     yield (
                         "data: "
                         + json.dumps(error, ensure_ascii=False)
@@ -1178,11 +1038,6 @@ async def chat_stream(
 
                 if not turn_identity.shopper_customer_id:
                     error = classify_chat_error("customer_identity_unmapped")
-                    await persist_terminal(
-                        rail=rail_decision.rail,
-                        terminal_status="failed",
-                        terminal_error_code=error["code"],
-                    )
                     yield (
                         "data: "
                         + json.dumps(error, ensure_ascii=False)
@@ -1226,11 +1081,6 @@ async def chat_stream(
                     )
                 except ManagedMemoryError as exc:
                     error = classify_chat_error(exc.code)
-                    await persist_terminal(
-                        rail=rail_decision.rail,
-                        terminal_status="failed",
-                        terminal_error_code=error["code"],
-                    )
                     yield f"data: {json.dumps(error, ensure_ascii=False)}\n\n"
                     return
 
@@ -1259,15 +1109,6 @@ async def chat_stream(
                     )
                 except ManagedRuntimeError as exc:
                     error = classify_chat_error(exc.code)
-                    await persist_terminal(
-                        rail=rail_decision.rail,
-                        terminal_status=(
-                            "denied-before-execution"
-                            if error["code"] == "policy_denied"
-                            else "failed"
-                        ),
-                        terminal_error_code=error["code"],
-                    )
                     yield (
                         "data: "
                         + json.dumps(error, ensure_ascii=False)
@@ -1470,25 +1311,6 @@ async def chat_stream(
                         },
                     },
                 }
-                terminal_evidence = await persist_terminal(
-                    rail=actual_rail or rail_decision.rail,
-                    terminal_status="complete",
-                    trace=managed_trace,
-                    assistant_response=managed_result.response,
-                    specialist_route=managed_result.specialist,
-                    tool_calls=managed_result.tool_calls,
-                    agent_execution=event["response"]["agent_execution"],
-                    model_id=managed_result.model,
-                    model_source="agentcore-service-telemetry",
-                )
-                if terminal_evidence:
-                    event["response"]["governed_receipt"] = terminal_evidence[
-                        "governed_receipt"
-                    ]
-                    if terminal_evidence.get("evidence_ledger"):
-                        event["response"]["evidence_ledger"] = terminal_evidence[
-                            "evidence_ledger"
-                        ]
                 event = _annotate_rail(
                     event,
                     rail_decision,
@@ -1546,94 +1368,7 @@ async def chat_stream(
                             event = classify_chat_error(
                                 event.get("error") or event.get("message")
                             )
-                        await persist_terminal(
-                            rail=rail_decision.rail,
-                            terminal_status=(
-                                "denied-before-execution"
-                                if event["code"] == "policy_denied"
-                                else "failed"
-                            ),
-                            terminal_error_code=event["code"],
-                        )
                     elif event.get("type") == "complete":
-                        response = event.get("response")
-                        execution = (
-                            response.get("agent_execution")
-                            if isinstance(response, dict)
-                            else None
-                        )
-                        trace = (
-                            execution.get("managed_trace")
-                            if isinstance(execution, dict)
-                            and isinstance(execution.get("managed_trace"), dict)
-                            else None
-                        )
-                        if (
-                            trace is None
-                            and isinstance(execution, dict)
-                            and execution.get("trace_id")
-                        ):
-                            trace = {
-                                "traceKind": "in-process-otel",
-                                "runtime": "in-process",
-                                "rail": rail_decision.rail,
-                                "evidenceProvenance": "otel",
-                                "traceId": execution.get("trace_id"),
-                                "sessionId": request.session_id,
-                            }
-                        terminal_evidence = await persist_terminal(
-                            rail=rail_decision.rail,
-                            terminal_status=(
-                                "failed" if isinstance(response, dict)
-                                and response.get("success") is False else "complete"
-                            ),
-                            terminal_error_code=(
-                                "workshop_build_required" if isinstance(execution, dict)
-                                and execution.get("build_required") else None
-                            ),
-                            trace=trace,
-                            assistant_response=(
-                                str(response.get("response") or "")
-                                if isinstance(response, dict)
-                                else ""
-                            ),
-                            specialist_route=(
-                                str(
-                                    ((response.get("orchestration") or {}).get("route"))
-                                    or execution.get("specialistRoute")
-                                    or ""
-                                )
-                                if isinstance(response, dict)
-                                and isinstance(execution, dict)
-                                else ""
-                            ),
-                            tool_calls=(
-                                list(execution.get("tool_calls") or [])
-                                if isinstance(execution, dict)
-                                else []
-                            ),
-                            skip_handoff_lookup=bool(
-                                isinstance(execution, dict)
-                                and execution.get("fallthrough")
-                            ),
-                            agent_execution=(
-                                execution if isinstance(execution, dict) else None
-                            ),
-                            model_id=(
-                                str(response.get("model") or "")
-                                if isinstance(response, dict)
-                                else None
-                            ),
-                            model_source="otel",
-                        )
-                        if terminal_evidence and isinstance(response, dict):
-                            response["governed_receipt"] = terminal_evidence[
-                                "governed_receipt"
-                            ]
-                            if terminal_evidence.get("evidence_ledger"):
-                                response["evidence_ledger"] = terminal_evidence[
-                                    "evidence_ledger"
-                                ]
                         event = _annotate_rail(
                             event,
                             rail_decision,
@@ -1647,19 +1382,6 @@ async def chat_stream(
         except Exception as e:
             logger.error(f"Streaming chat failed: {e}")
             error = classify_chat_error(e)
-            await persist_terminal(
-                rail=(
-                    rail_decision.rail
-                    if "rail_decision" in locals()
-                    else "in-process"
-                ),
-                terminal_status=(
-                    "denied-before-execution"
-                    if error["code"] == "policy_denied"
-                    else "failed"
-                ),
-                terminal_error_code=error["code"],
-            )
             yield (
                 "data: "
                 f"{json.dumps(error, ensure_ascii=False)}\n\n"
@@ -2429,124 +2151,95 @@ def _micro_eval_generalizes(
 
 
 # ---------------------------------------------------------------------------
-# Persona endpoints — Aurora is the only source of shopper identity data.
+# Persona endpoints. The profiles and their guided prompts are files in data/;
+# the order counts are read from Aurora.
 # ---------------------------------------------------------------------------
 
+_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
+# The two lines a persona file carries that the storefront does not show.
+_PRIVATE_PERSONA_FIELDS = ("customer_id", "shares_home_with")
 
-async def _persona_rows(*, persona_id: str | None = None) -> list[dict[str, Any]]:
-    """Load profile presentation plus current customer facts from Aurora."""
+
+@lru_cache(maxsize=1)
+def _persona_profiles() -> tuple[dict[str, Any], ...]:
+    return tuple(json.loads((_DATA_DIR / "personas.json").read_text()))
+
+
+@lru_cache(maxsize=1)
+def _guided_prompts() -> tuple[dict[str, Any], ...]:
+    return tuple(json.loads((_DATA_DIR / "scenarios.json").read_text()))
+
+
+def _persona_profile(persona_id: str) -> Optional[dict[str, Any]]:
+    return next((p for p in _persona_profiles() if p["id"] == persona_id), None)
+
+
+async def _order_counts() -> dict[str, int]:
+    """Orders per customer, from Aurora."""
     db = await get_db_service()
-    where = ""
-    params: tuple[Any, ...] = ()
-    if persona_id:
-        where = "WHERE pp.persona_id = %s"
-        params = (persona_id,)
     rows = await db.fetch_all(
-        f"""
-        SELECT
-            pp.persona_id AS id,
-            pp.customer_id,
-            pp.display_name,
-            pp.role_tag,
-            pp.blurb,
-            pp.avatar_color,
-            pp.avatar_initial,
-            c.membership,
-            pp.hero_image,
-            pp.hero_alt,
-            pp.hero_subheadline,
-            pp.visit_count AS visits,
-            count(o.id)::integer AS orders,
-            CASE
-              WHEN pp.last_seen_at IS NULL THEN NULL
-              ELSE floor(extract(epoch FROM now() - pp.last_seen_at) / 86400)::integer
-            END AS last_seen_days
-          FROM pellier.persona_profiles pp
-          JOIN pellier.customers c
-            ON c.id = pp.customer_id
-          LEFT JOIN pellier.orders o ON o.customer_id = pp.customer_id
-          {where}
-         GROUP BY
-            pp.persona_id, pp.customer_id, pp.display_name, pp.role_tag,
-            pp.blurb, pp.avatar_color, pp.avatar_initial, c.membership,
-            pp.hero_image, pp.hero_alt, pp.hero_subheadline, pp.visit_count,
-            pp.last_seen_at
-         ORDER BY CASE pp.persona_id
-             WHEN 'fresh' THEN 0
-             WHEN 'marco' THEN 1
-             WHEN 'anna' THEN 2
-             WHEN 'theo' THEN 3
-             WHEN 'jessica' THEN 4
-             ELSE 99
-         END
-        """,
-        *params,
+        "SELECT customer_id, count(*)::int AS orders FROM pellier.orders GROUP BY customer_id"
     )
-    return [dict(row) for row in rows]
+    return {str(row["customer_id"]): int(row["orders"]) for row in rows}
 
 
-def _persona_payload(row: dict[str, Any], *, include_customer_id: bool) -> dict[str, Any]:
-    """Project an Aurora profile onto the persona API contract."""
+def _persona_payload(
+    profile: dict[str, Any], orders: dict[str, int], *, include_customer_id: bool
+) -> dict[str, Any]:
+    """Project a persona file entry onto the persona API contract."""
     payload = {
-        "id": row["id"],
-        "display_name": row["display_name"],
-        "role_tag": row["role_tag"],
-        "blurb": row["blurb"],
-        "avatar_color": row["avatar_color"],
-        "avatar_initial": row["avatar_initial"],
-        "membership": row["membership"],
-        "hero_image": row["hero_image"],
-        "hero_alt": row["hero_alt"],
-        "hero_subheadline": row["hero_subheadline"],
-        "stats": {
-            "visits": int(row.get("visits") or 0),
-            "orders": int(row.get("orders") or 0),
-            "last_seen_days": row.get("last_seen_days"),
-        },
+        key: value for key, value in profile.items()
+        if key not in _PRIVATE_PERSONA_FIELDS + ("visits", "last_seen_days")
+    }
+    payload["stats"] = {
+        "visits": int(profile.get("visits") or 0),
+        "orders": orders.get(str(profile.get("customer_id") or ""), 0),
+        "last_seen_days": profile.get("last_seen_days"),
     }
     if include_customer_id:
-        payload["customer_id"] = row["customer_id"]
+        payload["customer_id"] = profile.get("customer_id")
     return payload
 
 
 @app.get("/api/personas")
 async def list_personas():
-    """Return selectable shopper profiles from Aurora."""
+    """Return the selectable shopper profiles."""
+    orders = await _order_counts()
     return [
-        _persona_payload(row, include_customer_id=False)
-        for row in await _persona_rows()
+        _persona_payload(profile, orders, include_customer_id=False)
+        for profile in _persona_profiles()
     ]
 
 
 @app.get("/api/scenarios")
 async def list_scenarios(persona: str = Query(default="fresh", min_length=1, max_length=64)):
     """Return a persona's guided shopper requests with their preview images."""
-    db = await get_db_service()
-    rows = await db.fetch_all(
-        """
-        SELECT ws.scenario_id AS id, ws.ordinal, ws.prompt, ws.journey_role,
-               ws.journey_stage, pc.name AS product_name, pc."imgUrl" AS image_url
-          FROM pellier.workshop_scenarios ws
-          LEFT JOIN pellier.product_catalog pc ON pc."productId" = ws.preview_product_id
-         WHERE ws.persona_id = %s
-         ORDER BY ws.ordinal ASC
-        """,
-        persona,
+    prompts = sorted(
+        (p for p in _guided_prompts() if p["persona"] == persona), key=lambda p: p["ordinal"]
     )
+    previews: dict[str, dict[str, Any]] = {}
+    preview_ids = [p["preview_product_id"] for p in prompts if p.get("preview_product_id")]
+    if preview_ids:
+        db = await get_db_service()
+        rows = await db.fetch_all(
+            'SELECT "productId", name, "imgUrl" FROM pellier.product_catalog '
+            'WHERE "productId" = ANY(%s)',
+            preview_ids,
+        )
+        previews = {str(row["productId"]): dict(row) for row in rows}
     return {
         "persona": persona,
         "scenarios": [
             {
-                "id": int(row["id"]),
-                "ordinal": int(row["ordinal"]),
-                "prompt": row["prompt"],
-                "journeyRole": row.get("journey_role")
-                or ("required" if int(row["ordinal"]) <= 3 else "explore"),
-                "journeyStage": row.get("journey_stage"),
-                "productName": row.get("product_name"),
-                "imageUrl": row.get("image_url"),
+                "id": int(prompt["id"]),
+                "ordinal": int(prompt["ordinal"]),
+                "prompt": prompt["prompt"],
+                "journeyRole": prompt["journey_role"],
+                "journeyStage": prompt.get("journey_stage"),
+                "productName": previews.get(str(prompt.get("preview_product_id")), {}).get("name"),
+                "imageUrl": previews.get(str(prompt.get("preview_product_id")), {}).get("imgUrl"),
             }
-            for row in (dict(raw) for raw in rows)
+            for prompt in prompts
         ],
     }
 
@@ -2559,66 +2252,31 @@ class PersonaSwitchRequest(_BaseModel):
     current_session_id: Optional[str] = None
 
 
+# A persona session id names its persona: persona-<id>-<32 hex>. AgentCore
+# Memory requires session ids of 33 characters or more.
+_PERSONA_SESSION = re.compile(r"^persona-([a-z]+)-[0-9a-f]{32}$")
+
+
 @app.post("/api/persona/switch")
 async def switch_persona(req: PersonaSwitchRequest):
-    """End the prior session and persist one new Aurora-backed persona session."""
-    rows = await _persona_rows(persona_id=req.persona_id)
-    if not rows:
+    """Start a new persona session. The session id carries the persona."""
+    profile = _persona_profile(req.persona_id)
+    if profile is None:
         raise HTTPException(status_code=404, detail=f"Unknown persona: {req.persona_id}")
-    persona = rows[0]
-
-    import uuid
-    # AgentCore Memory requires session IDs ≥33 chars. Use the full
-    # uuid4 hex (32 chars) plus the prefix to guarantee compliance.
-    new_session_id = f"persona-{req.persona_id}-{uuid.uuid4().hex}"
-
-    db = await get_db_service()
-    if req.current_session_id:
-        await db.execute_query(
-            """
-            UPDATE pellier.shopper_sessions
-               SET ended_at = COALESCE(ended_at, now())
-             WHERE session_id = %s
-            """,
-            req.current_session_id,
-        )
-    await db.execute_query(
-        """
-        INSERT INTO pellier.shopper_sessions (session_id, persona_id, customer_id)
-        VALUES (%s, %s, %s)
-        """,
-        new_session_id,
-        persona["id"],
-        persona["customer_id"],
-    )
-
     return {
-        "session_id": new_session_id,
-        "persona": _persona_payload(persona, include_customer_id=True),
+        "session_id": f"persona-{req.persona_id}-{uuid.uuid4().hex}",
+        "persona": _persona_payload(profile, await _order_counts(), include_customer_id=True),
     }
 
 
 @app.get("/api/persona/current")
 async def get_current_persona(session_id: Optional[str] = Query(default=None)):
-    """Return the active persona for a session, or null."""
-    if not session_id:
+    """Return the persona a session id names, or null."""
+    match = _PERSONA_SESSION.fullmatch(str(session_id or ""))
+    profile = _persona_profile(match.group(1)) if match else None
+    if profile is None:
         return {"persona": None}
-    db = await get_db_service()
-    session = await db.fetch_one(
-        """
-        SELECT persona_id
-          FROM pellier.shopper_sessions
-         WHERE session_id = %s
-           AND ended_at IS NULL
-        """,
-        session_id,
-    )
-    if not session:
-        return {"persona": None}
-    rows = await _persona_rows(persona_id=str(dict(session)["persona_id"]))
-    if not rows:
-        return {"persona": None}
-    return {"persona": _persona_payload(rows[0], include_customer_id=True)}
+    return {"persona": _persona_payload(profile, await _order_counts(), include_customer_id=True)}
 
 
 # ============================================================================
@@ -2840,48 +2498,6 @@ async def list_policies(operator: Dict[str, Any] = Depends(require_operator)):
 # so there is nothing for a runtime check endpoint to call.
 
 
-async def memory_ltm(customer_id: str = ""):
-    """Return LTM facts for a persona, ranked by recency.
-
-    Reads the ``pellier.customer_episodic_seed`` fixture table via
-    ``services/episodic_memory.fetch_episodic_seed`` — the same source
-    chat.py consults when building the persona preamble. The
-    MemoryArchPage uses this to replace its hard-coded STUB_LTM_FACTS
-    so attendees see persona-tailored history (Marco's linen notes,
-    Anna's gift cues, Theo's slow-craft signals) the moment they pick
-    a persona.
-
-    Returns ``{customer_id, facts: [{text, ts_offset_days, relative}]}``.
-    Anonymous or unknown customers return an empty facts list — the
-    frontend falls back to the stub in that case so the page stays
-    populated for fresh visitors.
-    """
-    if not customer_id or customer_id == "anonymous":
-        return {"customer_id": customer_id or "", "facts": [], "source": "anonymous"}
-    try:
-        from services.episodic_memory import fetch_episodic_seed, _format_relative
-        if db_service is None:
-            return {"customer_id": customer_id, "facts": [], "source": "db-unavailable"}
-        rows = await fetch_episodic_seed(db_service, customer_id, limit=10)
-        facts = [
-            {
-                "text": r["summary_text"],
-                "ts_offset_days": r["ts_offset_days"],
-                "relative": _format_relative(r["ts_offset_days"]),
-            }
-            for r in rows
-        ]
-        return {"customer_id": customer_id, "facts": facts, "source": "aurora"}
-    except Exception as e:
-        logger.warning(f"Memory LTM fetch failed for {customer_id}: {e}")
-        return {
-            "customer_id": customer_id,
-            "facts": [],
-            "source": "error",
-            "error": "memory_unavailable",
-        }
-
-
 @app.get("/api/agentcore/memory/status")
 async def memory_status():
     """Return whether an ACTIVE AgentCore Memory is backing the SDK path.
@@ -2937,56 +2553,6 @@ async def gateway_status():
             "source": "in-process-imports",
             "error": "gateway_status_unavailable",
         }
-
-
-async def policy_decisions(
-    session_id: str = "",
-    limit: int = 50,
-    operator: Dict[str, Any] = Depends(require_operator),
-):
-    """Return recent managed-rail policy decisions for a session.
-
-    The gate is now the managed AgentCore Policy engine at the Gateway,
-    which emits ALLOW/DENY decisions to CloudWatch rather than a
-    queryable API. Instead of fabricating a decisions store, we surface
-    immutable ``pellier.governed_receipts`` rows. Unlike execution audits,
-    those receipts contain both explicit ALLOW and DENY outcomes and are
-    scoped to the verified caller. See ``services/managed_policy.recent_decisions``."""
-    try:
-        from services.managed_policy import recent_decisions
-        return await recent_decisions(
-            db_service,
-            principal_sub=operator["sub"],
-            session_id=session_id or None,
-            limit=limit,
-        )
-    except Exception as e:
-        logger.warning(f"Policy decisions fetch failed: {e}")
-        return {
-            "session_id": session_id,
-            "decisions": [],
-            "count": 0,
-            "error": "policy_history_unavailable",
-        }
-
-
-@app.get("/api/governed-receipts/{turn_id}")
-async def governed_turn_receipt(
-    turn_id: str,
-    user: Optional[Dict[str, Any]] = Depends(get_current_user),
-):
-    """Read one durable turn receipt only when it belongs to its shopper."""
-    principal_sub = str((user or {}).get("sub") or "")
-    if not principal_sub:
-        raise HTTPException(status_code=401, detail="authentication_required")
-    from services.governed_turn_receipt import get_turn_receipt
-
-    receipt = await get_turn_receipt(
-        db_service, turn_id=turn_id, principal_sub=principal_sub
-    )
-    if receipt is None:
-        raise HTTPException(status_code=404, detail="receipt_not_found")
-    return receipt
 
 
 # ============================================================================

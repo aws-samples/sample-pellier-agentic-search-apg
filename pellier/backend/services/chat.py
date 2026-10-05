@@ -470,21 +470,9 @@ def _reconcile_continuity_followup(
         chosen = eligible[0]
         name = str(chosen.get("name") or "The first option")
         price = _safe_float(chosen.get("price"), 0)
-        availability = chosen.get("availability")
-        status = (
-            availability.get("status")
-            if isinstance(availability, dict)
-            else str(availability or "")
-        )
-        stock_clause = (
-            " and its latest card is marked in stock"
-            if status.casefold() == "in_stock"
-            else ""
-        )
         return (
             f"Keeping the ${price_limit:g} ceiling, {name} is the highest-ranked "
-            f"eligible option from the previous shortlist at ${price:.2f}"
-            f"{stock_clause}.",
+            f"eligible option from the previous shortlist at ${price:.2f}.",
             [chosen],
             True,
         )
@@ -509,7 +497,7 @@ def _scan_for_escalation(result_str: str) -> Optional[Dict[str, Any]]:
 
 
 def credit_request_notice(escalation: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """The ``review_pending`` event for a store credit request a person will review.
+    """The ``credit_request_pending`` event for a store credit request a person will review.
 
     Its own event carries the backend's sentence rather than the model's, so
     the shopper is told a person reviews the credit even when the prose forgets
@@ -525,8 +513,8 @@ def credit_request_notice(escalation: Dict[str, Any]) -> Optional[Dict[str, Any]
     if not request_id or not customer_id:
         return None
     return {
-        "type": "review_pending",
-        "reviewPending": {
+        "type": "credit_request_pending",
+        "creditRequestPending": {
             "tool": store_tools.CREDIT_REQUEST,
             "requestId": int(request_id),
             "customerId": str(customer_id),
@@ -1147,16 +1135,15 @@ class EnhancedChatService:
             if not product.get("tags") and catalog.get("tags"):
                 product["tags"] = list(catalog["tags"])
 
-    async def _attach_inventory_evidence(self, products: List[Dict]) -> None:
-        """Attach one reconciled availability fact to every emitted product card.
+    async def _attach_stock(self, products: List[Dict]) -> None:
+        """Give every emitted product card its units across the three warehouses.
 
-        Catalog ``quantity`` is an aggregate cache. The storefront may only make an
-        availability claim from the batched inventory-evidence result, which compares
-        warehouse rows with the ledger in one read for the whole card set.
+        One read for the whole card set, from ``pellier.warehouse_inventory``,
+        the same rows ``check_stock`` reports. A card the read did not reach
+        keeps no stock claim.
         """
         if not products or not self.db_service:
             return
-
         product_ids = [
             str(product.get("id") or product.get("productId"))
             for product in products
@@ -1164,29 +1151,23 @@ class EnhancedChatService:
         ]
         if not product_ids:
             return
-
-        from services.inventory_evidence import (
-            RECONCILED_IN_STOCK,
-            RECONCILED_OUT_OF_STOCK,
-            resolve_inventory_many,
-        )
-
-        evidence_by_id = await resolve_inventory_many(self.db_service, product_ids)
+        try:
+            rows = await self.db_service.fetch_all(
+                "SELECT product_id, sum(quantity)::int AS units "
+                "FROM pellier.warehouse_inventory WHERE product_id = ANY(%s) "
+                "GROUP BY product_id",
+                product_ids,
+            )
+        except Exception as exc:  # noqa: BLE001 - a card without stock is still a card
+            logger.warning("stock read for product cards failed: %s", exc)
+            return
+        units = {str(row["product_id"]): int(row["units"]) for row in rows or []}
         for product in products:
-            product_id = product.get("id") or product.get("productId")
-            evidence = evidence_by_id.get(str(product_id))
-            if evidence is None:
-                continue
+            product_id = str(product.get("id") or product.get("productId") or "")
+            if product_id in units:
+                product["quantity"] = units[product_id]
+                product["inStock"] = units[product_id] > 0
 
-            product["availability"] = evidence.to_payload()
-            product["quantity"] = evidence.available_quantity
-            if evidence.status == RECONCILED_IN_STOCK:
-                product["inStock"] = True
-            elif evidence.status == RECONCILED_OUT_OF_STOCK:
-                product["inStock"] = False
-            else:
-                product["inStock"] = None
-    
     def _generate_contextual_suggestions(self, query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> List[str]:
         """Generate action-oriented follow-up suggestions that feel agentic."""
         query_lower = query.lower()
@@ -1389,6 +1370,7 @@ class EnhancedChatService:
         from services.turn_identity import (
             authorized_customer_id_var,
             principal_sub_var,
+            principal_username_var,
             resolve_turn_identity,
             shopper_words_var,
             turn_id_var,
@@ -1413,6 +1395,7 @@ class EnhancedChatService:
         # previous turn resolved, and "no principal" is a decision the
         # governed write path acts on rather than a missing value.
         principal_sub_var.set(turn_identity.principal_sub)
+        principal_username_var.set(turn_identity.principal_username)
         authorized_customer_id_var.set(
             turn_identity.shopper_customer_id if turn_identity.authenticated else None
         )
@@ -1595,9 +1578,6 @@ class EnhancedChatService:
                         category = card.get("category")
                         if category:
                             details.append(str(category))
-                        availability = card.get("availability")
-                        if availability:
-                            details.append(str(availability))
                         if card.get("ownership") == "owned":
                             details.append("previously purchased")
                         card_lines.append(f"- {name} ({', '.join(details)})")
@@ -1630,11 +1610,11 @@ class EnhancedChatService:
                 f"CURRENT REQUEST: {message}"
             )
 
-        # --- Persona LTM preamble -----------------------------------------
-        # When a persona is active (customer_id is set), read their LTM
-        # facts + order history from Aurora and prepend them to the
+        # --- Persona preamble ----------------------------------------------
+        # When a persona is active (customer_id is set), read their recorded
+        # preferences and order history from Aurora and prepend them to the
         # orchestrator message so specialists ground their reply in the
-        # persona's actual history. Skipped for anonymous sessions —
+        # persona's actual history. Skipped for anonymous sessions:
         # they get the editorial fallback.
         persona_preamble = ""
         persona_orders_for_cards: list = []  # hydrated product rows for past-order cards
@@ -1644,13 +1624,6 @@ class EnhancedChatService:
         persona_profile_available = False
         if customer_id and self.db_service:
             try:
-                facts_rows = await self.db_service.fetch_all(
-                    "SELECT summary_text, ts_offset_days "
-                    "FROM pellier.customer_episodic_seed "
-                    "WHERE customer_id = %s "
-                    "ORDER BY ts_offset_days DESC LIMIT 8",
-                    customer_id,
-                )
                 orders_rows = await self.db_service.fetch_all(
                     'SELECT pc."productId", pc.name, pc.brand, pc.color, '
                     'pc.price, pc.category, pc."imgUrl", pc.rating, pc.reviews, '
@@ -1662,17 +1635,16 @@ class EnhancedChatService:
                     customer_id,
                 )
                 customer_row = await self.db_service.fetch_one(
-                    "SELECT name FROM pellier.customers WHERE id = %s",
+                    "SELECT name, preferences_summary FROM pellier.customers WHERE id = %s",
                     customer_id,
                 )
                 persona_profile_available = bool(customer_row)
                 name = customer_row["name"] if customer_row else "the shopper"
-                if facts_rows or orders_rows:
+                preferences = (customer_row or {}).get("preferences_summary") or ""
+                if preferences or orders_rows:
                     lines = [f"PERSONA CONTEXT: {name} ({customer_id})"]
-                    if facts_rows:
-                        lines.append("Known about them (LTM):")
-                        for f in facts_rows:
-                            lines.append(f"  - {f['summary_text']}")
+                    if preferences:
+                        lines.append(f"Known about them: {preferences}")
                     if orders_rows:
                         lines.append("Past orders:")
                         for o in orders_rows:
@@ -1707,10 +1679,10 @@ class EnhancedChatService:
                     })
 
                 logger.info(
-                    f"👤 Persona LTM | {customer_id} | "
-                    f"facts={len(facts_rows)} orders={len(orders_rows)}"
+                    f"👤 Persona | {customer_id} | "
+                    f"preferences={bool(preferences)} orders={len(orders_rows)}"
                 )
-                persona_fact_count = len(facts_rows)
+                persona_fact_count = 1 if preferences else 0
                 persona_order_count = len(orders_rows)
                 from services.data_source import database_source_label
 
@@ -2188,7 +2160,7 @@ class EnhancedChatService:
 
         # Now send buffered products (collected from tool hooks during execution)
         if products_buffered:
-            await self._attach_inventory_evidence(products_buffered)
+            await self._attach_stock(products_buffered)
             for i, product in enumerate(products_buffered):
                 yield {
                     "type": "product",
@@ -2199,7 +2171,7 @@ class EnhancedChatService:
             products_sent = products_buffered
         elif parsed["products"]:
             # Fallback: send products extracted from response text
-            await self._attach_inventory_evidence(parsed["products"])
+            await self._attach_stock(parsed["products"])
             for i, product in enumerate(parsed["products"]):
                 yield {
                     "type": "product",
@@ -2245,7 +2217,7 @@ class EnhancedChatService:
                 if len(matched) >= 3:
                     break
             if matched:
-                await self._attach_inventory_evidence(matched)
+                await self._attach_stock(matched)
                 for i, product in enumerate(matched):
                     yield {
                         "type": "product",

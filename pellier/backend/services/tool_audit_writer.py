@@ -56,6 +56,13 @@ _pending_lock = threading.Lock()
 _pending_audits: Dict[str, int] = {}
 
 
+def _build() -> Optional[str]:
+    """The build fingerprint this process stamps on its audit rows, or None."""
+    from services.build_fingerprint import local_fingerprint
+
+    return local_fingerprint() or None
+
+
 def set_db_service(db: Any) -> None:
     """App startup hook — wire the writer to the live DB pool."""
     global _db_service
@@ -120,8 +127,8 @@ def record_allow(
 
     sql = (
         "INSERT INTO pellier.tool_audit "
-        "(session_id, tool, caller, args, result, latency_ms) "
-        "VALUES (%s, %s, %s, %s::jsonb, NULL, NULL) "
+        "(session_id, tool, caller, args, result, latency_ms, build_fingerprint) "
+        "VALUES (%s, %s, %s, %s::jsonb, NULL, NULL, %s) "
         "RETURNING audit_id"
     )
     try:
@@ -132,6 +139,7 @@ def record_allow(
                 tool_name,
                 caller or "agent",
                 json.dumps(args, default=str),
+                _build(),
             )
         )
     except Exception as exc:
@@ -170,8 +178,8 @@ def pending_audit_id(tool_use_id: Optional[str]) -> Optional[int]:
 
 _EXECUTED_CREDIT_SQL = (
     "INSERT INTO pellier.tool_audit "
-    "(session_id, tool, caller, args, result, latency_ms) "
-    "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s) "
+    "(session_id, tool, caller, args, result, latency_ms, build_fingerprint) "
+    "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s, %s) "
     "RETURNING audit_id"
 )
 
@@ -207,6 +215,7 @@ async def record_executed_credit(
             json.dumps(args, default=str),
             json.dumps(result, default=str),
             int(latency_ms),
+            _build(),
         )
     except Exception as exc:  # noqa: BLE001 - evidence must not fail the write
         logger.warning("tool_audit INSERT for the executed credit failed: %s", exc)
@@ -256,7 +265,7 @@ def record_after(
             "_head": result_str[:8000],
         })
 
-    # Fill-once, matching the trigger migration 047 installs: a row may be
+    # Fill-once, matching the trigger 001_schema.sql installs: a row may be
     # completed while `result` and `latency_ms` are still NULL, and never again.
     # The predicate is here as well as in the database so a duplicate After event
     # updates zero rows instead of raising from inside the trigger, which would

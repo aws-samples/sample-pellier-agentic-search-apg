@@ -2,7 +2,9 @@
 
 ``get_orders`` and ``get_tickets`` read one customer's rows. The customer is the
 verified shopper bound for the turn; a ``customer_id`` in model tool input is only
-a consistency check and never chooses whose records to read.
+a consistency check and never chooses whose records to read. Both reads run as
+``pellier_agent`` with the verified username named (``fetch_all_as``), so
+row-level security holds them to that shopper too.
 """
 
 from __future__ import annotations
@@ -26,6 +28,11 @@ class FakeDB:
         self.orders = orders or []
         self.tickets = tickets or []
         self.calls: list[tuple[str, tuple[Any, ...]]] = []
+        self.bound_as: list[str | None] = []
+
+    async def fetch_all_as(self, username: str | None, query: str, *params: Any) -> list[dict[str, Any]]:
+        self.bound_as.append(username)
+        return await self.fetch_all(query, *params)
 
     async def fetch_all(self, query: str, *params: Any) -> list[dict[str, Any]]:
         self.calls.append((query, params))
@@ -42,20 +49,26 @@ def _call(tool_obj, *args: Any, **kwargs: Any) -> dict[str, Any]:
 
 
 def _bind_verified_scope(customer_id: str, principal_sub: str):
-    from services.turn_identity import authorized_customer_id_var, principal_sub_var
+    from services.turn_identity import (
+        authorized_customer_id_var, principal_sub_var, principal_username_var,
+    )
 
     return (
         authorized_customer_id_var.set(customer_id),
         principal_sub_var.set(principal_sub),
+        principal_username_var.set(customer_id.replace("CUST-", "").lower()),
     )
 
 
 def _reset_verified_scope(tokens) -> None:
-    from services.turn_identity import authorized_customer_id_var, principal_sub_var
+    from services.turn_identity import (
+        authorized_customer_id_var, principal_sub_var, principal_username_var,
+    )
 
-    customer_token, principal_token = tokens
+    customer_token, principal_token, username_token = tokens
     authorized_customer_id_var.reset(customer_token)
     principal_sub_var.reset(principal_token)
+    principal_username_var.reset(username_token)
 
 
 _ORDER_ROW = {
@@ -94,6 +107,7 @@ def test_get_orders_reads_the_verified_shoppers_orders() -> None:
     assert payload["orders"][0]["name"] == "Italian Linen Camp Shirt"
     assert payload["orders"][0]["amount_paid"] == 228.0
     assert db.calls[-1][1][0] == "CUST-MARCO"
+    assert db.bound_as == ["marco"], "the read runs as pellier_agent with marco named"
 
 
 def test_get_tickets_reads_the_verified_shoppers_tickets() -> None:
@@ -111,6 +125,7 @@ def test_get_tickets_reads_the_verified_shoppers_tickets() -> None:
     assert payload["open_count"] == 1
     assert payload["tickets"][0]["subject"] == "Chipped mug"
     assert db.calls[-1][1][0] == "CUST-THEO"
+    assert db.bound_as == ["theo"], "the read runs as pellier_agent with theo named"
 
 
 @pytest.mark.parametrize("tool_name", ["get_orders", "get_tickets"])

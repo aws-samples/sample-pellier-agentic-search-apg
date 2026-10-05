@@ -1,12 +1,14 @@
-"""Guard the live-data contract for the participant-facing surfaces.
+"""Guard the data contract for the participant-facing surfaces.
 
-The storefront and Observatory may display an explicit unavailable/empty
-state, but they must never replace a failed Aurora/API read with browser
-fixtures or locally fabricated persona data.
+The shopper profiles and their guided prompts are checked-in files under
+``data/``, served by ``/api/personas`` and ``/api/scenarios``; the business
+facts (orders, stock, tickets) are read from Aurora. The storefront may show
+an explicit unavailable state, but never invents persona data.
 """
 
 from __future__ import annotations
 
+import json
 import pathlib
 
 
@@ -15,182 +17,154 @@ FRONTEND = ROOT / "pellier" / "frontend" / "src"
 BACKEND = ROOT / "pellier" / "backend"
 
 
-def test_persona_runtime_has_no_file_or_process_memory_fallback() -> None:
+DATA = ROOT / "data"
+SCHEMA = ROOT / "scripts" / "migrations" / "001_schema.sql"
+SEED = ROOT / "scripts" / "migrations" / "002_seed.sql"
+
+
+def _personas() -> dict[str, dict]:
+    return {p["id"]: p for p in json.loads((DATA / "personas.json").read_text())}
+
+
+def _prompts() -> list[dict]:
+    return json.loads((DATA / "scenarios.json").read_text())
+
+
+def test_personas_and_prompts_are_checked_in_files_and_orders_come_from_aurora() -> None:
     body = (BACKEND / "app.py").read_text()
 
     assert "personas-config.json" not in body
     assert "/api/observatory/personas/reload" not in body
-    assert "_session_persona" not in body
-    assert "pellier.persona_profiles" in body
-    assert "pellier.shopper_sessions" in body
+    assert '"personas.json"' in body and '"scenarios.json"' in body
+    # The order counts on the persona cards are read, not written into the file.
+    assert "FROM pellier.orders GROUP BY customer_id" in body
+    for profile in _personas().values():
+        assert "orders" not in profile and "membership" not in profile
 
 
-def test_persona_membership_comes_from_the_customer_record() -> None:
-    """Profile presentation is seeded; membership is a current customer fact."""
-    source = (BACKEND / "app.py").read_text()
-    persona_query = source[
-        source.index("async def _persona_rows") : source.index("def _persona_payload")
-    ]
-
-    assert "JOIN pellier.customers c" in persona_query
-    assert "c.membership" in persona_query
-    assert "pp.membership," not in persona_query
-
-
-def test_live_surface_migration_provisions_profiles_sessions_and_scenarios() -> None:
-    body = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-
-    for relation in (
-        "pellier.persona_profiles",
-        "pellier.shopper_sessions",
-        "pellier.workshop_scenarios",
-    ):
-        assert relation in body
-    assert "regexp_replace(\"imgUrl\", '\\.png$', '.webp')" in body
-    assert "journey_role" in body
-    assert "journey_stage" in body
-    for stage in ("establish", "exercise", "prove"):
-        assert f"'{stage}'" in body
-    assert "'required'" in body
-    assert "'explore'" in body
+def test_every_shopper_profile_names_its_customer_and_its_edit() -> None:
+    personas = _personas()
+    assert list(personas) == ["fresh", "marco", "anna", "theo", "jessica"]
+    assert personas["fresh"]["customer_id"] is None
+    assert {p["customer_id"] for p in personas.values() if p["customer_id"]} == {
+        "CUST-MARCO", "CUST-ANNA", "CUST-THEO", "CUST-JESSICA",
+    }
+    assert {p["id"]: p["edit"] for p in personas.values()} == {
+        "fresh": "fresh", "marco": "marco", "anna": "anna", "theo": "theo", "jessica": "house",
+    }
 
 
-def test_historical_theo_seed_retains_its_recorded_return_conversation() -> None:
-    seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-    repair = (
-        ROOT / "scripts" / "migrations" / "040_resequence_theo_governed_turn.sql"
-    ).read_text()
-    setup = (ROOT / "scripts" / "setup" / "database-setup.sh").read_text()
-    reset = (ROOT / "scripts" / "setup" / "database-reset.sh").read_text()
-
-    required_turn = (
-        "('theo', 3, 'My Wabi-Sabi Bowl arrived chipped. Please help me return it.', "
-        "'required', 'prove', '37')"
-    )
-    optional_turn = (
-        "('theo', 4, 'Without asking me to repeat the ritual or material, "
-        "which pairing should I choose and why?', 'explore', NULL, '34')"
-    )
-    assert required_turn in seed
-    assert optional_turn in seed
-    assert "WHERE persona_id = 'theo'" in repair
-    assert "AND ordinal = 2" in repair
-    assert "AND ordinal = 3" in repair
-    assert "040_resequence_theo_governed_turn.sql" in setup
-    assert "041_align_theo_pairing_preview.sql" in setup
-    assert "040_resequence_theo_governed_turn.sql" in reset
-    assert "041_align_theo_pairing_preview.sql" in reset
+def test_theo_and_jessica_share_a_home_in_the_files_and_in_the_seed() -> None:
+    personas = _personas()
+    assert personas["theo"]["shares_home_with"] == "jessica"
+    assert personas["jessica"]["shares_home_with"] == "theo"
+    seed = SEED.read_text()
+    shared = "'22 Alder Street, Portland, OR 97214'"
+    theo_rows = [line for line in seed.splitlines() if "'CUST-THEO'" in line and shared in line]
+    jessica_rows = [line for line in seed.splitlines() if "'CUST-JESSICA'" in line and shared in line]
+    assert len(theo_rows) == 4 and len(jessica_rows) == 5
 
 
-def test_storefront_persona_edits_are_durable_aurora_merchandising() -> None:
-    migration = (
-        ROOT / "scripts" / "migrations" / "030_storefront_editorial_order.sql"
-    ).read_text()
-    expansion = (
-        ROOT / "scripts" / "migrations" / "035_expand_persona_discovery_grids.sql"
-    ).read_text()
+def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
+    required: dict[str, list[str]] = {}
+    for prompt in _prompts():
+        if prompt["journey_role"] == "required":
+            required.setdefault(prompt["persona"], []).append(prompt["prompt"])
+    assert required == {
+        "anna": ["A housewarming gift for someone who loves slow morning rituals."],
+        "marco": [
+            "How many Hadley Linen Shirts are available at the Brooklyn warehouse, "
+            "and what ship window is recorded?"
+        ],
+        "theo": [
+            "Hand-thrown ceramics for a slower morning routine",
+            "My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?",
+            "Jessica and I share an address. She sent two things back last week and "
+            "hasn't heard anything. Can you check her ticket too?",
+        ],
+        "jessica": [
+            "Please ask a person to look at a store credit for the two items I returned."
+        ],
+    }
+    goa = next(p for p in _prompts() if "Goa" in p["prompt"])
+    assert goa["persona"] == "marco" and goa["journey_role"] == "explore"
+    assert all(p["journey_role"] in ("required", "explore") for p in _prompts())
+    assert {p["journey_stage"] for p in _prompts()} <= {None, "establish", "exercise", "prove"}
+
+
+def test_storefront_persona_edits_are_ranked_in_the_seed() -> None:
+    seed = SEED.read_text()
     products_route = (BACKEND / "routes" / "products.py").read_text()
 
-    assert "storefront_rank" in migration
-    for ranked_product in (
-        "('marco', '20', 10)",
-        "('anna', '30', 10)",
-        "('theo', '40', 10)",
-    ):
-        assert ranked_product in migration
-        assert ranked_product in expansion
-    assert "count(*) <> 10" in expansion
-    assert "fresh_count <> 9" in expansion
+    assert "storefront_rank" in seed
+    for last_of_edit in ("('20', 10)", "('30', 10)", "('40', 10)", "('47', 10)", "('9', 9)"):
+        assert last_of_edit in seed
+    assert "('10', 9)" not in seed, "the signed-out edit ends on the Everyday Runner"
+    assert "Expected a ten-piece Home comforts edit" in seed
     assert "storefront_rank IS NOT NULL" in products_route
     assert "ORDER BY {order}" in products_route
+    carry_all = next(p for p in _prompts() if p["prompt"] == "A considered carry-all for a long weekend.")
+    assert carry_all["persona"] == "fresh" and carry_all["preview_product_id"] == "10"
 
 
-def test_unsigned_edit_restores_the_reference_runner_merchandising() -> None:
-    """The forward migration restores the Everyday Runner without hiding the tote."""
-    initial_edit = (
-        ROOT / "scripts" / "migrations" / "030_storefront_editorial_order.sql"
-    ).read_text()
-    refinement = (
-        ROOT / "scripts" / "migrations" / "031_refine_fresh_storefront_edit.sql"
-    ).read_text()
-    restoration = (
-        ROOT / "scripts" / "migrations" / "032_restore_fresh_runner_edit.sql"
-    ).read_text()
-    scenarios = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-    curations = (FRONTEND / "data" / "personaCurations.ts").read_text()
-
-    assert "('fresh', '10', 9)" in initial_edit
-    assert "('fresh', '9', 9)" not in initial_edit
-    assert 'WHEN "productId" = \'10\' THEN 9' in refinement
-    assert 'WHEN "productId" = \'9\' THEN 9' in restoration
-    assert 'WHEN "productId" = \'10\' THEN NULL' in restoration
-    assert (
-        "'A considered carry-all for a long weekend.', 'explore', NULL, '10'"
-        in scenarios
-    )
-    assert "A considered carry-all for a long weekend." in curations
-
-
-def test_inventory_contract_covers_all_hundred_curated_products() -> None:
-    warehouse = (
-        ROOT / "scripts" / "migrations" / "006_warehouse_inventory.sql"
-    ).read_text()
-
-    assert "BETWEEN 1 AND 60" not in warehouse
-    assert "IF nrows <> 300 OR invalid_products <> 0 OR drift_count <> 0 THEN" in warehouse
+def test_inventory_covers_all_hundred_products_and_matches_the_catalog() -> None:
+    seed = SEED.read_text()
+    assert "Expected 300 warehouse rows" in seed
+    assert "disagree with their warehouse rows" in seed
 
 
 def test_persona_selector_uses_editorial_personalities() -> None:
-    seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-    refinement = (
-        ROOT / "scripts" / "migrations" / "034_refine_persona_personalities.sql"
-    ).read_text()
-
-    for personality in (
-        "Travel, utility, leather, linen",
-        "Gifting, ceremony, silk, glass",
-        "Slow living, craft, stoneware, natural materials",
-    ):
-        assert personality in seed
-        assert personality in refinement
+    personas = _personas()
+    assert personas["marco"]["role_tag"] == "Travel, utility, leather, linen"
+    assert personas["anna"]["role_tag"] == "Gifting, ceremony, silk, glass"
+    assert personas["theo"]["role_tag"] == "Slow living, craft, stoneware, natural materials"
 
 
-def test_persona_hero_descriptions_match_the_approved_scenes() -> None:
-    seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-    refinement = (
-        ROOT / "scripts" / "migrations" / "036_refresh_persona_hero_alt_text.sql"
-    ).read_text()
+def test_persona_blurbs_are_plain_sentences() -> None:
+    """Anna's blurb is a sentence and never uses "search" as a noun (VOICE.md)."""
+    personas = _personas()
+    assert personas["anna"]["blurb"] == (
+        "Buys for others: partner, mother, friends. Lately she shops for milestones."
+    )
+    for profile in personas.values():
+        assert "search" not in profile["blurb"].lower()
+        assert profile["blurb"].endswith(".")
 
-    for description in (
-        "Leather weekender with folded linen and brass travel details in warm daylight",
-        "Ribbon-wrapped gift beside an amber candle, ceramic bud vase, and blank card",
-        "Charcoal stoneware bowl beside natural linen, a beeswax candle, and olive branches",
-    ):
-        assert description in seed
-        assert description in refinement
+
+def test_persona_hero_descriptions_match_the_refreshed_scenes() -> None:
+    """Copied verbatim from the image refresh report; no maker's hands, no rib tool."""
+    personas = _personas()
+    assert personas["fresh"]["hero_alt"] == (
+        "A leather weekender on an oak bench beside a linen throw, a wooden bowl and a "
+        "stoneware vase of olive branches"
+    )
+    assert personas["marco"]["hero_alt"] == (
+        "A cognac leather holdall and a folded linen shirt on a short oak bench against a "
+        "plain white wall"
+    )
+    assert personas["anna"]["hero_alt"] == (
+        "A white gift box tied with a blush-pink ribbon, a blank kraft tag and a vase with "
+        "one eucalyptus stem on a small oak side table"
+    )
+    assert personas["theo"]["hero_alt"] == (
+        "A charcoal stoneware bowl holding a beeswax taper beside folded linen on a small "
+        "oak side table"
+    )
 
 
 def test_persona_heroes_use_fixed_approved_images() -> None:
-    """Aurora serves the approved persona scenes; the home hero carries none.
+    """The persona files carry the approved scenes; the home hero carries none.
 
     The direction A home opens with the statement and the Ask Pellier bar,
     not a photograph, so the hero reads no scene metadata at all. The
-    approved images stay seeded for the persona cover inside Ask Pellier.
+    approved images stay for the persona cover inside Ask Pellier.
     """
-    seed = (ROOT / "scripts" / "migrations" / "029_live_surface_data.sql").read_text()
-    refinement = (
-        ROOT / "scripts" / "migrations" / "037_serve_persona_hero_masters.sql"
-    ).read_text()
+    personas = _personas()
     hero = (FRONTEND / "components" / "PellierHero.tsx").read_text()
     chat_body = (FRONTEND / "components" / "PellierChatBody.tsx").read_text()
 
-    for image in (
-        "/products/hero-marco.png",
-        "/products/hero-anna.png",
-        "/products/hero-theo.png",
-    ):
-        assert image in seed
-        assert image in refinement
+    for persona in ("marco", "anna", "theo"):
+        assert personas[persona]["hero_image"] == f"/products/hero-{persona}.png"
     assert 'data-testid="persona-hero-image"' not in hero
     assert "hero_image" not in hero
     assert "/api/observatory/personas" not in hero

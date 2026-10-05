@@ -15,7 +15,9 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 
 
-def audit_read_call(tool: str, arguments: dict, result: Any, started: float) -> None:
+def audit_read_call(
+    tool: str, arguments: dict, result: Any, started: float, *, build_fingerprint: Any = None
+) -> None:
     """Correlate a completed managed read with the route's immutable turn.
 
     Mutation tools already write their own receipts. This helper records only
@@ -30,6 +32,7 @@ def audit_read_call(tool: str, arguments: dict, result: Any, started: float) -> 
     write_tool_audit_independently(
         tool=tool, args=arguments, result=result,
         latency_ms=int((time.monotonic() - started) * 1000), session_id=turn_id,
+        build_fingerprint=build_fingerprint,
     )
 
 

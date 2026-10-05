@@ -179,7 +179,6 @@ class ChatHistoryProduct(BaseModel):
     name: str = Field(min_length=1, max_length=300)
     price: float = Field(ge=0)
     category: Optional[str] = Field(default=None, max_length=120)
-    availability: Optional[str] = Field(default=None, max_length=80)
     ownership: Optional[Literal["owned"]] = None
 
 
@@ -277,9 +276,9 @@ StorefrontBadge = Literal["EDITORS_PICK", "BESTSELLER", "JUST_IN"]
 class WarehouseStock(BaseModel):
     """One warehouse's on-hand count for a product.
 
-    Projected straight from ``pellier.warehouse_inventory`` joined to
-    ``pellier.warehouses`` — the same rows ``check_stock`` reports when the
-    Stock agent is asked about a single product. Ship windows are the
+    Projected straight from ``pellier.warehouse_inventory``, the same rows
+    ``check_stock`` reports when the Stock agent is asked about a single
+    product. ``warehouse_id`` carries the row's ``warehouse_code``. Ship windows are the
     warehouse's configured range in days, not a delivery promise.
     """
 

@@ -10,11 +10,10 @@ Rerank, live here too because this module owns the Bedrock clients.
 `deploy_lambda.py` packages this file into the function's zip next to
 `common/types.py` and `common/handler.py`.
 
-The transaction helpers (``begin_transaction``, ``execute_in_transaction``,
-``bind_runtime_principal``, ``commit_transaction``, ``rollback_transaction``)
-have no caller in this cut. Cut 4 binds the runtime role and the customer
-subject inside one Data API transaction so Row-Level Security holds on this
-rail; they stay here for that.
+A customer's own reads (``get_orders``, ``get_tickets``) run through
+``run_as_customer``: one Data API transaction that switches to
+``pellier_agent`` and names the customer, so row-level security holds on this
+rail exactly as it does in process.
 """
 from __future__ import annotations
 
@@ -22,7 +21,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
 
 import boto3
 
@@ -35,9 +34,9 @@ SECRET_ARN = os.environ.get("SECRET_ARN", "")
 DATABASE = os.environ.get("DATABASE", "postgres")
 SCHEMA = "pellier"
 
-# Non-owner runtime roles from migration 016. Both are NOBYPASSRLS, which is
-# what makes the policies bind; the owner would silently bypass them.
-_RUNTIME_ROLES = frozenset({"pellier_agent", "pellier_query"})
+# The application role from scripts/migrations/001_schema.sql. It is
+# NOBYPASSRLS and not the table owner, which is what makes the policies bind.
+CUSTOMER_ROLE = "pellier_agent"
 
 # Cohere Embed v4. MUST match the catalog seed and the in-process path
 # (`pellier/backend/services/embeddings.py`): the catalog was seeded with
@@ -150,16 +149,8 @@ def _parameter(name: str, value: Any) -> Dict[str, Any]:
     return {"name": name, "value": field}
 
 
-def run_store_sql(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
-    """The ``store_tools`` runner for this rail.
-
-    ``store_tools`` writes SQL with positional ``%s`` placeholders so psycopg can
-    bind it directly. The Data API takes named parameters, so each placeholder
-    becomes ``:pN`` in order and the values are typed by ``_parameter``. Rows
-    come back as dicts keyed by column name; numeric and timestamp columns are
-    strings or numbers here where psycopg would return ``Decimal`` and
-    ``datetime``, which the tools' shaping helpers accept.
-    """
+def _named(sql: str, params: Sequence[Any]) -> tuple[str, List[Dict[str, Any]]]:
+    """Rewrite positional ``%s`` placeholders as ``:pN`` and type the values."""
     values = list(params)
     seen = 0
 
@@ -173,7 +164,20 @@ def run_store_sql(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
         raise ValueError(
             f"store SQL declares {seen} %s placeholders but binds {len(values)} parameters"
         )
-    return execute_sql(named, [_parameter(f"p{index}", value) for index, value in enumerate(values)])
+    return named, [_parameter(f"p{index}", value) for index, value in enumerate(values)]
+
+
+def run_store_sql(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+    """The ``store_tools`` runner for this rail.
+
+    ``store_tools`` writes SQL with positional ``%s`` placeholders so psycopg can
+    bind it directly. The Data API takes named parameters, so each placeholder
+    becomes ``:pN`` in order and the values are typed by ``_parameter``. Rows
+    come back as dicts keyed by column name; numeric and timestamp columns are
+    strings or numbers here where psycopg would return ``Decimal`` and
+    ``datetime``, which the tools' shaping helpers accept.
+    """
+    return execute_sql(*_named(sql, params))
 
 
 def execute_write(sql: str, parameters: Optional[list] = None) -> None:
@@ -254,59 +258,53 @@ def execute_in_transaction(
     return [row_to_dict(record, columns) for record in response.get("records", [])]
 
 
-def bind_runtime_principal(
-    transaction_id: str,
-    *,
-    customer_subject: Optional[str],
-    role: str = "pellier_agent",
-) -> None:
-    """Bind the runtime role and the customer subject inside this transaction.
+def bind_runtime_principal(transaction_id: str, *, customer_id: str) -> None:
+    """Switch this transaction to ``pellier_agent`` and name the customer.
 
-    This is what makes Row-Level Security real on the Gateway rail. Without it
-    the Data API executes as the secret's user, which owns the tables and
-    therefore bypasses RLS entirely, so a governed write behind the Gateway was
-    never actually row-scoped.
+    The one place this rail binds row-level security. The policies show a row
+    only when its customer's ``cognito_username`` equals
+    ``pellier.principal_username``, so the setting is that customer's sign-in
+    name. The customer is the one the call carries, which the Gateway's
+    owner-only Cedar permit has already matched to the caller's token: the
+    Gateway hands a Lambda no other verified identity. An unknown customer
+    binds an empty name, which matches no rows.
 
-    Two things must be true at once, on the same server-side transaction:
-
-      * the effective role is not the table owner (``SET LOCAL ROLE``);
-      * ``pellier.principal_sub`` is set transaction-locally.
-
-    Statements sharing a ``transactionId`` share one server-side transaction, so
-    a setting established here still applies to the protected statement that
-    follows. Issuing either one outside the transaction would be a no-op with a
-    warning, and a silently unbound principal is the failure this exists to
-    prevent.
-
-    ``customer_subject`` of ``None`` binds the empty string, which the policies
-    resolve to no customer scope. That denies rather than widens, and it is bound
-    explicitly so the intent is legible in the transaction rather than being an
-    absent setting.
-
-    Args:
-        transaction_id: From ``begin_transaction``.
-        customer_subject: The Cognito subject of the CUSTOMER whose rows the
-            statement touches — never the operator's. Cedar authorizes the
-            operator; RLS scopes the customer.
-        role: Runtime role to assume. Whitelisted rather than interpolated
-            because ``SET ROLE`` takes no parameters.
+    Both settings are transaction-local, and statements sharing a
+    ``transactionId`` share one server-side transaction, so they hold for the
+    reads that follow and end with it.
     """
-    if role not in _RUNTIME_ROLES:
-        raise ValueError(
-            f"Unknown runtime role {role!r}; expected one of "
-            f"{', '.join(sorted(_RUNTIME_ROLES))}"
-        )
-    execute_in_transaction(transaction_id, f"SET LOCAL ROLE {role};")
+    execute_in_transaction(transaction_id, f"SET LOCAL ROLE {CUSTOMER_ROLE};")
     execute_in_transaction(
         transaction_id,
-        "SELECT set_config('pellier.principal_sub', :subject, true);",
-        [
-            {
-                "name": "subject",
-                "value": {"stringValue": str(customer_subject or "")},
-            }
-        ],
+        "SELECT set_config('pellier.principal_username', coalesce("
+        "(SELECT cognito_username FROM pellier.customers WHERE id = :customer), ''), true);",
+        [{"name": "customer", "value": {"stringValue": str(customer_id or "")}}],
     )
+
+
+Result = TypeVar("Result")
+
+
+def run_as_customer(customer_id: str, work: Callable[..., Result]) -> Result:
+    """Run ``work(run)`` as ``pellier_agent`` with ``customer_id`` named.
+
+    ``run`` is a ``store_tools`` runner whose statements share one transaction
+    with the binding, so row-level security applies to every one of them. The
+    transaction is read-only work and is committed; any failure rolls it back.
+    """
+    transaction_id = begin_transaction()
+    try:
+        bind_runtime_principal(transaction_id, customer_id=customer_id)
+
+        def run(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+            return execute_in_transaction(transaction_id, *_named(sql, params))
+
+        result = work(run)
+    except Exception:
+        rollback_transaction(transaction_id)
+        raise
+    commit_transaction(transaction_id)
+    return result
 
 
 def write_tool_audit_independently(
@@ -316,6 +314,7 @@ def write_tool_audit_independently(
     result: Dict[str, Any],
     latency_ms: float,
     session_id: str,
+    build_fingerprint: Optional[str] = None,
 ) -> None:
     """Write the execution receipt in its OWN transaction, so it survives.
 
@@ -337,9 +336,9 @@ def write_tool_audit_independently(
     try:
         execute_write(
             f"INSERT INTO {SCHEMA}.tool_audit "
-            "(session_id, tool, caller, args, result, latency_ms) "
+            "(session_id, tool, caller, args, result, latency_ms, build_fingerprint) "
             "VALUES (:session_id, :tool, 'gateway', :args::jsonb, :result::jsonb, "
-            ":latency_ms);",
+            ":latency_ms, :build_fingerprint);",
             [
                 {"name": "session_id", "value": {"stringValue": session_id}},
                 {"name": "tool", "value": {"stringValue": tool}},
@@ -349,6 +348,7 @@ def write_tool_audit_independently(
                     "value": {"stringValue": json.dumps(result, default=str)},
                 },
                 {"name": "latency_ms", "value": {"longValue": int(latency_ms)}},
+                _parameter("build_fingerprint", build_fingerprint or None),
             ],
         )
     except Exception as exc:  # noqa: BLE001 - evidence must not break the write

@@ -1,16 +1,15 @@
 """PROMPT 4 Phase A — governed execution of a confirmed review.
 
-The whole point of this stage is that four controls stay independent:
+The whole point of this stage is that the controls stay independent:
 
     Human      did a person decide?
     Cedar      may this principal attempt this action?
-    RLS        may this session touch these rows?
+    Approval   does pellier.apply_store_credit admit exactly this write?
     CHECK      is this mutation valid regardless of who asked?
 
 Most of the assertions below are therefore negative. A policy verdict must never
-appear on a rail where no policy engine was consulted; an ALLOW must never be
-inferred from a call that merely returned under LOG_ONLY; and the operator's own
-identity must never become the Row-Level Security subject.
+appear on a rail where no policy engine was consulted, and an ALLOW must never be
+inferred from a call that merely returned under LOG_ONLY.
 """
 
 from __future__ import annotations
@@ -54,7 +53,7 @@ def approved_review(**overrides: Any) -> Dict[str, Any]:
         "status": "approved",
         "action_hash": CREDIT_HASH,
         "source_turn_id": "turn-" + ("a" * 32),
-        "order_id": None,
+        "order_ids": [],
         "execution_turn_id": None,
         "decided_by": "operator-1",
     }
@@ -73,25 +72,13 @@ class FakeCredit:
 class FakeDb:
     """Records statements so the tests can assert what did NOT run."""
 
-    def __init__(
-        self,
-        *,
-        customer_subject: Optional[str] = THEO_SUBJECT,
-        existing_execution_turn: Optional[str] = None,
-    ) -> None:
-        self.customer_subject = customer_subject
+    def __init__(self, *, existing_execution_turn: Optional[str] = None) -> None:
         self.existing_execution_turn = existing_execution_turn
         self.statements: List[str] = []
         self.claimed_turns: List[str] = []
 
     async def fetch_one(self, query: str, *params: Any) -> Optional[Dict[str, Any]]:
         self.statements.append(query)
-        if "FROM pellier.principal_customers" in query:
-            return (
-                {"principal_sub": self.customer_subject}
-                if self.customer_subject
-                else None
-            )
         if query.strip().startswith("UPDATE pellier.approvals"):
             if self.existing_execution_turn:
                 return None  # the WHERE ... IS NULL guard refuses a second claim
@@ -104,17 +91,12 @@ class FakeDb:
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         self.statements.append(query)
-        if "FROM pellier.approvals" in query:
-            # The confirmed review the credit under test binds to: its id is
-            # what derives the one key the write is admitted under.
-            return [{"id": 12, "action_hash": CREDIT_HASH}]
         if "apply_store_credit" not in query:
             return []
-        key, request_hash, customer_id, amount_cents, reason, issued_by = params
+        key, customer_id, amount_cents, reason, issued_by = params
         FakeCredit.calls.append(
             {
                 "idempotency_key": key,
-                "request_hash": request_hash,
                 "customer_id": customer_id,
                 "amount_cents": amount_cents,
                 "reason": reason,
@@ -140,11 +122,6 @@ def _reset_logic(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "", raising=False)
     monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "", raising=False)
     monkeypatch.delenv("AGENTCORE_POLICY_ENGINE_ID", raising=False)
-
-    async def receipt_written(*_args: Any, **_kwargs: Any) -> int:
-        return 1
-
-    monkeypatch.setattr(ge, "record_receipt", receipt_written)
     yield
     FakeCredit.calls = []
 
@@ -287,25 +264,10 @@ async def test_a_tampered_review_never_reaches_the_database() -> None:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_the_customer_subject_is_resolved_server_side() -> None:
-    """A caller that could name its own RLS principal could read any client."""
-    db = FakeDb(customer_subject=THEO_SUBJECT)
-    outcome = await ge.execute_confirmed_review(
-        db, approved_review(), operator_sub=OPERATOR_SUBJECT
-    )
-    assert any("FROM pellier.principal_customers" in s for s in db.statements), (
-        "the subject was not resolved from the authorization mapping table"
-    )
-    assert outcome.customer_subject == THEO_SUBJECT
-    assert outcome.operator_sub == OPERATOR_SUBJECT
-
-
-@pytest.mark.asyncio
 async def test_a_credit_attributes_the_operator_as_the_actor() -> None:
-    """Attribution is the operator; the customer's subject is a different fact."""
+    """Attribution is the operator who executed the approved credit."""
     await ge.execute_confirmed_review(
-        FakeDb(customer_subject=THEO_SUBJECT), approved_review(),
-        operator_sub=OPERATOR_SUBJECT,
+        FakeDb(), approved_review(), operator_sub=OPERATOR_SUBJECT,
     )
     assert len(FakeCredit.calls) == 1
     call = FakeCredit.calls[0]
@@ -313,16 +275,15 @@ async def test_a_credit_attributes_the_operator_as_the_actor() -> None:
     assert call["customer_id"] == "CUST-THEO"
     assert call["amount_cents"] == 2500
     assert call["reason"] == "courtesy"
-    assert THEO_SUBJECT not in call["params"], "the customer subject reached the write"
 
 
 @pytest.mark.asyncio
-async def test_the_write_carries_the_confirmed_request_hash() -> None:
-    """The database compares the hash the human confirmed, not one the caller built."""
+async def test_the_write_carries_the_confirmed_reviews_own_key() -> None:
+    """The database admits the write only under the approved review's key."""
     await ge.execute_confirmed_review(
         FakeDb(), approved_review(), operator_sub=OPERATOR_SUBJECT
     )
-    assert FakeCredit.calls[0]["request_hash"] == CREDIT_HASH
+    assert FakeCredit.calls[0]["idempotency_key"] == f"operator-review:12:{CREDIT_HASH[:32]}"
 
 
 @pytest.mark.asyncio
@@ -374,7 +335,7 @@ async def test_concurrent_executions_share_one_turn_and_one_write_key() -> None:
     The turn is assigned once by the database's own guard, and the write key is
     derived from the review and its fingerprint rather than minted per request,
     so the second submission collapses onto the first inside
-    ``pellier.write_operations`` instead of becoming a second business effect.
+    ``pellier.apply_store_credit`` instead of becoming a second business effect.
     """
     db = FakeDb()
     first, second = await asyncio.gather(
@@ -389,25 +350,22 @@ async def test_concurrent_executions_share_one_turn_and_one_write_key() -> None:
 
 
 def test_the_database_refuses_an_execution_turn_on_an_unconfirmed_review() -> None:
-    """Assign-once and confirmation-first are storage guarantees, not habits."""
-    sql = (REPO / "scripts" / "migrations" / "021_governed_execution.sql").read_text()
-    assert "approvals_execution_requires_confirmation_check" in sql
+    """Confirmation-first is a storage guarantee, not a habit."""
+    sql = (REPO / "scripts" / "migrations" / "001_schema.sql").read_text()
+    assert "CONSTRAINT approvals_runs_only_when_approved CHECK (" in sql
     assert "execution_turn_id IS NULL OR status = 'approved'" in sql
-    assert "approvals_execution_turn_unique_idx" in sql
-    assert "^turn-[0-9a-f]{32}$" in sql
 
 
 def test_the_approval_status_was_not_widened_with_execution_outcomes() -> None:
     """The human axis stays the human axis.
 
     Adding `executed`, `policy_denied`, or `rls_denied` here would fold three
-    independent controls into one column, which is the conflation this entire arc
-    exists to dismantle.
+    independent controls into one column.
     """
-    for name in ("020_operator_review.sql", "021_governed_execution.sql"):
-        sql = (REPO / "scripts" / "migrations" / name).read_text()
-        for forbidden in ("'executed'", "'policy_denied'", "'rls_denied'", "'failed'"):
-            assert forbidden not in sql, f"{name} widened approvals.status with {forbidden}"
+    sql = (REPO / "scripts" / "migrations" / "001_schema.sql").read_text()
+    assert "status IN ('pending', 'approved', 'rejected')" in sql
+    for forbidden in ("'executed'", "'policy_denied'", "'rls_denied'", "'failed'"):
+        assert forbidden not in sql, f"approvals.status was widened with {forbidden}"
 
 
 # ---------------------------------------------------------------------------
@@ -613,24 +571,16 @@ async def test_a_database_denial_envelope_reports_denied_and_an_attempt_receipt(
 
 
 # ---------------------------------------------------------------------------
-# Runtime role and RLS binding, on the Gateway rail
+# The customer's own reads on the Gateway rail run under row-level security
 # ---------------------------------------------------------------------------
 
-def test_the_data_api_helper_binds_a_non_owner_role_and_the_principal() -> None:
+def test_the_data_api_helper_binds_the_application_role_and_the_customer() -> None:
     source = (DEPLOY / "common" / "dataapi.py").read_text()
     assert "def bind_runtime_principal(" in source
-    assert "SET LOCAL ROLE" in source
-    assert "set_config('pellier.principal_sub'" in source
-    assert ", true)" in source, "the principal must be transaction-local"
-    assert "_RUNTIME_ROLES" in source, "the role must be whitelisted, not interpolated"
-
-
-def test_the_runtime_roles_are_non_owner_and_do_not_bypass_rls() -> None:
-    sql = (REPO / "scripts" / "migrations" / "016_runtime_roles_rls.sql").read_text()
-    assert "CREATE ROLE pellier_agent NOLOGIN NOINHERIT NOBYPASSRLS" in sql
-    assert "CREATE ROLE pellier_query NOLOGIN NOINHERIT NOBYPASSRLS" in sql
-    assert "ALTER TABLE pellier.orders  ENABLE ROW LEVEL SECURITY" in sql
-    assert "ALTER TABLE pellier.returns ENABLE ROW LEVEL SECURITY" in sql
+    assert 'CUSTOMER_ROLE = "pellier_agent"' in source
+    assert "SET LOCAL ROLE {CUSTOMER_ROLE}" in source
+    assert "set_config('pellier.principal_username'" in source
+    assert "), true);" in source, "the name must be transaction-local"
 
 
 # ---------------------------------------------------------------------------
@@ -727,160 +677,6 @@ def test_an_unpublished_name_is_unknown_and_writes_no_audit(
 # ---------------------------------------------------------------------------
 
 MIGRATIONS = REPO / "scripts" / "migrations"
-
-
-def _sql_without_comments(path: Path) -> str:
-    return "\n".join(line.split("--", 1)[0] for line in path.read_text().splitlines())
-
-
-def test_migration_047_installs_append_only_and_fill_once_triggers() -> None:
-    """Receipts are append-only; tool_audit and write_operations fill exactly once."""
-    sql = _sql_without_comments(MIGRATIONS / "047_evidence_immutability.sql")
-    assert "FUNCTION pellier.reject_evidence_mutation()" in sql
-    assert "FUNCTION pellier.tool_audit_fill_once()" in sql
-    assert "FUNCTION pellier.write_operations_fill_once()" in sql
-    for trigger, table in (
-        ("governed_receipts_append_only", "pellier.governed_receipts"),
-        ("execution_receipts_append_only", "pellier.execution_receipts"),
-        ("tool_audit_fill_once", "pellier.tool_audit"),
-        ("write_operations_fill_once", "pellier.write_operations"),
-    ):
-        assert f"CREATE TRIGGER {trigger} BEFORE UPDATE OR DELETE ON {table}" in sql, trigger
-    assert "ERRCODE = 'insufficient_privilege'" in sql
-
-
-def test_migration_047_narrows_the_agent_update_grant_on_write_operations() -> None:
-    """016 granted table-wide UPDATE; only the claim -> completed columns survive."""
-    sql = _sql_without_comments(MIGRATIONS / "047_evidence_immutability.sql")
-    assert "REVOKE UPDATE ON pellier.write_operations FROM pellier_agent" in sql
-    assert "GRANT UPDATE (result, completed_at) ON pellier.write_operations TO pellier_agent" in sql
-
-
-def test_migration_047_keeps_the_claim_release_path_of_023() -> None:
-    """023 leaves a failed claim unfilled; deleting an UNFILLED claim must stay legal."""
-    sql = _sql_without_comments(MIGRATIONS / "047_evidence_immutability.sql")
-    body = sql[sql.index("write_operations_fill_once() RETURNS trigger"):]
-    delete_branch = body[body.index("IF TG_OP = 'DELETE'"):body.index("RETURN OLD")]
-    assert "OLD.completed_at IS NOT NULL" in delete_branch
-
-
-def test_migration_047_leaves_no_probe_residue() -> None:
-    """The self-probe cannot delete what it inserts, so it must roll itself back."""
-    text = (MIGRATIONS / "047_evidence_immutability.sql").read_text()
-    assert "SQLSTATE 'P0047'" in text
-    assert "ERRCODE = 'P0047'" in text
-
-
-# The scans above read the file. A trigger function whose body was reduced to
-# RETURN NEW would satisfy every one of them, so one test has to put a statement
-# to a server and watch it be refused. It runs against any database with the
-# migration list applied.
-#
-#   PELLIER_MIGRATION_DSN=postgresql://... .venv/bin/python -m pytest \
-#       tests/test_governed_execution.py -k immutability_is_enforced -v
-
-_MIGRATION_DSN = os.environ.get("PELLIER_MIGRATION_DSN", "")
-
-
-@pytest.mark.skipif(
-    not _MIGRATION_DSN,
-    reason="set PELLIER_MIGRATION_DSN to a database with the migrations applied",
-)
-def test_migration_047_immutability_is_enforced_by_the_server() -> None:
-    """UPDATE and DELETE really are refused, and the one legal completion is not.
-
-    Everything happens inside a transaction that is rolled back, because after
-    047 nothing can remove what this test inserts.
-    """
-    import psycopg
-
-    probe = "migration-047-live-probe"
-    with psycopg.connect(_MIGRATION_DSN) as conn:
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO pellier.governed_receipts"
-                    " (session_id, principal_id, principal_label, tool, caller, decision)"
-                    " VALUES (%s, 'probe', 'probe', 'probe', 'gateway', 'ALLOW')"
-                    " RETURNING receipt_id",
-                    (probe,),
-                )
-                receipt_id = cur.fetchone()[0]
-            for statement, params in (
-                ("UPDATE pellier.governed_receipts SET decision = 'DENY'"
-                 " WHERE receipt_id = %s", (receipt_id,)),
-                ("DELETE FROM pellier.governed_receipts WHERE receipt_id = %s",
-                 (receipt_id,)),
-            ):
-                with conn.transaction(force_rollback=True):
-                    with pytest.raises(psycopg.errors.InsufficientPrivilege):
-                        with conn.cursor() as cur:
-                            cur.execute(statement, params)
-
-            with conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO pellier.tool_audit (session_id, tool, caller, args)"
-                    " VALUES (%s, 'probe', 'probe', '{}'::jsonb) RETURNING audit_id",
-                    (probe,),
-                )
-                audit_id = cur.fetchone()[0]
-                # The one completion the writer is allowed.
-                cur.execute(
-                    "UPDATE pellier.tool_audit SET result = '{}'::jsonb, latency_ms = 1"
-                    " WHERE audit_id = %s",
-                    (audit_id,),
-                )
-            with conn.transaction(force_rollback=True):
-                with pytest.raises(psycopg.errors.InsufficientPrivilege):
-                    with conn.cursor() as cur:
-                        cur.execute(
-                            "UPDATE pellier.tool_audit SET latency_ms = 2"
-                            " WHERE audit_id = %s",
-                            (audit_id,),
-                        )
-        finally:
-            conn.rollback()
-
-
-# 047 makes three earlier probes illegal on any re-apply. Each was fixed in
-# place rather than exempted: the reset and a second bootstrap both re-run the
-# whole migration list, and a switch that suspends the triggers is the one thing
-# append-only evidence must not ship with.
-
-
-@pytest.mark.parametrize(
-    "migration, code",
-    [
-        ("019_operator_desk.sql", "P0019"),
-        ("023_idempotency_claims_release_on_failure.sql", "P0023"),
-        ("025_execution_receipts.sql", "P0025"),
-    ],
-)
-def test_the_earlier_probes_roll_back_instead_of_deleting_evidence(
-    migration: str, code: str
-) -> None:
-    """A probe that deletes its own completed rows cannot run twice after 047."""
-    text = (MIGRATIONS / migration).read_text()
-    assert f"ERRCODE = '{code}'" in text, "the probe must end by raising its private code"
-    assert f"SQLSTATE '{code}'" in text, "and catch it, so the subtransaction rolls back"
-    sql = _sql_without_comments(MIGRATIONS / migration)
-    for table in ("pellier.write_operations", "pellier.execution_receipts",
-                  "pellier.approvals"):
-        assert f"DELETE FROM {table}" not in sql, (
-            f"{migration} still deletes {table}; 047 refuses that on a re-apply"
-        )
-
-
-def test_migration_025_proves_the_cascade_from_the_catalog() -> None:
-    """The cascade cannot be exercised any more, so the declaration is asserted."""
-    sql = _sql_without_comments(MIGRATIONS / "025_execution_receipts.sql")
-    assert "confdeltype = 'c'" in sql
-    assert "confrelid = 'pellier.approvals'::regclass" in sql
-
-
-# ---------------------------------------------------------------------------
-# Task 2.4: the engine read is an inference; decisions come from observations
-# ---------------------------------------------------------------------------
 
 
 class _FakeControlPlane:
@@ -1082,10 +878,11 @@ def test_the_execute_route_maps_a_refusal_to_409(monkeypatch: pytest.MonkeyPatch
 # ---------------------------------------------------------------------------
 
 class _IdempotentDb(FakeDb):
-    """``apply_store_credit`` as Aurora behaves: one credit per key, then replay.
+    """``apply_store_credit`` as Aurora behaves: one credit per approved key, then replay.
 
-    Also records the ``tool_audit`` rows the in-process writer inserts and the
-    approvals the guard reads, so both counts can be asserted.
+    It refuses as the function does when no review is approved or the key is
+    not the approved review's own, and records the ``tool_audit`` rows the
+    in-process writer inserts, so both counts can be asserted.
     """
 
     def __init__(self) -> None:
@@ -1104,13 +901,16 @@ class _IdempotentDb(FakeDb):
         return await super().fetch_one(query, *params)
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
-        if "FROM pellier.approvals" in query:
-            self.statements.append(query)
-            return [{"id": 12, "action_hash": value} for value in self.approved]
         if "apply_store_credit" not in query:
             return await super().fetch_all(query, *params)
         self.statements.append(query)
         key = params[0]
+        if not self.approved:
+            return [{"result": {"status": "approval_required", "denied_by": "approval_guard",
+                                "message": "No confirmed review approves a store credit."}}]
+        if key not in {f"operator-review:12:{value[:32]}" for value in self.approved}:
+            return [{"result": {"status": "approval_key_mismatch", "denied_by": "approval_guard",
+                                "message": "This key is not that review's key."}}]
         if key in self.credits:
             return [{"result": {**self.credits[key], "idempotent_replay": True}}]
         self.credits[key] = {
@@ -1150,25 +950,27 @@ async def test_a_retry_on_the_in_process_rail_applies_the_credit_once(
 
 @pytest.mark.asyncio
 async def test_a_credit_nobody_approved_is_refused_in_process_and_still_audited() -> None:
-    """The approval guard binds this rail too: no write, one attempt row."""
+    """The database's approval check binds this rail too: no write, one attempt row."""
     db = _IdempotentDb()
     db.approved = []
     outcome = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
     assert outcome.result["status"] == "approval_required"
-    assert outcome.aurora == ge.AURORA_NOT_REACHED
+    assert outcome.aurora == ge.AURORA_DENIED
     # The tool was entered and refused, and this rail left the attempt row, as
     # the Lambda does on the Gateway rail: the same artifact on both axes.
     assert outcome.evidence == ge.EVIDENCE_ATTEMPT_RECEIPT
-    assert "no confirmed review" in outcome.notes["aurora"].lower() or "confirmed review" in outcome.notes["aurora"]
+    assert "apply_store_credit refused" in outcome.notes["aurora"]
     assert len(db.credits) == 0
     assert len([s for s in db.statements if "INSERT INTO pellier.tool_audit" in s]) == 1
 
 
-def test_an_approval_guard_refusal_is_not_an_aurora_verdict() -> None:
-    refusal = {"status": "approval_mismatch", "denied_by": "approval_guard"}
+def test_the_functions_refusal_is_a_database_verdict() -> None:
+    """The approval and order checks run inside pellier.apply_store_credit."""
+    refusal = {"status": "approval_mismatch", "denied_by": "approval_guard",
+               "message": "The confirmed review approves different arguments."}
     aurora, note = ge.classify_aurora(refusal)
-    assert aurora == ge.AURORA_NOT_REACHED
-    assert "fingerprints" in note
+    assert aurora == ge.AURORA_DENIED
+    assert "different arguments" in note and "Nothing changed" in note
     assert ge.classify_evidence_for(ge.POLICY_NOT_EVALUATED, aurora, refusal) == (
         ge.EVIDENCE_ATTEMPT_RECEIPT
     )
@@ -1181,8 +983,10 @@ def test_a_guard_refusal_is_an_attempt_receipt_on_either_rail(policy: str) -> No
     Both rails enter the tool and leave one attempt row for the refusal, so the
     evidence axis names that row whichever rail refused.
     """
-    for status in ("approval_required", "approval_mismatch", "approval_key_mismatch"):
-        refusal = {"status": status, "denied_by": "approval_guard"}
+    refusals = [(status, "approval_guard") for status in
+                ("approval_required", "approval_mismatch", "approval_key_mismatch")]
+    for status, guard in refusals + [("not_creditable", "order_guard")]:
+        refusal = {"status": status, "denied_by": guard}
         aurora, _note = ge.classify_aurora(refusal)
         assert ge.classify_evidence_for(policy, aurora, refusal) == ge.EVIDENCE_ATTEMPT_RECEIPT
 
@@ -1192,8 +996,8 @@ async def test_the_in_process_rail_refuses_the_approved_credit_under_a_fresh_key
     """The in-process rail's entry point binds the key too, not only execute's derivation.
 
     ``execute_confirmed_review`` always derives the review's own key, so the
-    fresh key is passed to the rail directly: the shared tool refuses it, and
-    nothing reaches ``apply_store_credit``.
+    fresh key is passed to the rail directly: ``apply_store_credit`` refuses it
+    and writes nothing.
     """
     db = _IdempotentDb()
     first = await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
@@ -1285,26 +1089,17 @@ async def test_a_non_enforcing_or_unreadable_engine_refuses_before_the_call(
 
 
 @pytest.mark.asyncio
-async def test_a_refused_execution_records_a_refused_receipt_and_runs_nothing(
+async def test_a_refused_execution_runs_nothing_and_names_what_is_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _governed(monkeypatch, gateway_url="")
-    recorded: List[Dict[str, Any]] = []
-
-    async def record(_db: Any, outcome: Any, **_kwargs: Any) -> int:
-        recorded.append(outcome.as_payload())
-        return 7
-
-    monkeypatch.setattr(ge, "record_receipt", record)
+    db = FakeDb()
     with pytest.raises(ge.GovernedRailUnavailable) as caught:
-        await ge.execute_confirmed_review(FakeDb(), approved_review(), operator_sub=OPERATOR_SUBJECT, access_token="jwt")
-    assert caught.value.receipt_id == 7
-    assert recorded[0]["rail"] == ge.RAIL_REFUSED
-    assert recorded[0]["assurance"] == {
-        "human": "CONFIRMED", "policy": ge.POLICY_EVALUATION_INCOMPLETE,
-        "aurora": ge.AURORA_NOT_REACHED, "evidence": ge.EVIDENCE_NO_EXECUTION,
-    }
+        await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT, access_token="jwt")
+    assert caught.value.missing == ("AGENTCORE_GATEWAY_URL",)
+    assert caught.value.as_detail()["error"] == "governed_rail_unavailable"
     assert FakeCredit.calls == []
+    assert not any("apply_store_credit" in s or "tool_audit" in s for s in db.statements)
 
 
 def test_the_evidence_axis_names_the_artifact_that_exists() -> None:
@@ -1330,7 +1125,8 @@ async def test_the_record_is_read_from_the_two_tables_that_hold_the_evidence() -
     record = await ge.evidence_for_key(_Db(), "operator-review:41:abc")
     assert record == {
         "idempotencyKey": "operator-review:41:abc", "creditRows": 1, "creditIds": [12],
-        "amountCents": 10000, "auditRows": 1, "auditIds": [4051], "readable": True,
+        "amountCents": 10000, "auditRows": 1, "auditIds": [4051], "auditCaller": "nadia",
+        "readable": True,
     }
 
 

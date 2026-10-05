@@ -23,13 +23,13 @@ from services.store_tools import write_request_hash
 JESSICA_ORDERS = [
     {"order_id": 301, "product_id": "42", "name": "Waffle Bath Robe, Sage", "brand": "NestWell",
      "category": "Home", "quantity": 1, "amount_paid_cents": 6400, "placed_at": None,
-     "return_status": "approved"},
+     "return_status": "received", "store_credit_id": None},
     {"order_id": 302, "product_id": "25", "name": "Reed Diffuser", "brand": "Pellier",
      "category": "Home", "quantity": 1, "amount_paid_cents": 3600, "placed_at": None,
-     "return_status": "approved"},
+     "return_status": "received", "store_credit_id": None},
     {"order_id": 303, "product_id": "31", "name": "Stoneware Pour-Over Set", "brand": "Pellier",
      "category": "Home", "quantity": 1, "amount_paid_cents": 5800, "placed_at": None,
-     "return_status": None},
+     "return_status": None, "store_credit_id": None},
 ]
 
 JESSICA_REASON = (
@@ -49,6 +49,8 @@ class _Run:
         self.orders = [dict(o) for o in (orders if orders is not None else JESSICA_ORDERS)]
         self.credits = [dict(c) for c in (credits or [])]
         self.calls: List[tuple[str, tuple[Any, ...]]] = []
+        # Statements that ran as pellier_agent with the customer named.
+        self.scoped_calls: List[tuple[str, tuple[Any, ...]]] = []
         self.reviews: List[Dict[str, Any]] = []
         # (customer, action_hash) -> the review row: the partial unique index.
         self.live: Dict[tuple[str, str], Dict[str, Any]] = {}
@@ -68,9 +70,8 @@ class _Run:
 
     def __call__(self, sql: str, params: Any = ()) -> List[Dict[str, Any]]:
         self.calls.append((sql, tuple(params)))
-        if "FROM pellier.orders o" in sql and "r.status = ANY(%s)" in sql:
-            received = set(params[1])
-            return [dict(o) for o in self.orders if o["return_status"] in received]
+        if "FROM pellier.orders o" in sql and "o.return_status = %s" in sql:
+            return [dict(o) for o in self.orders if o["return_status"] == params[1]]
         if "FROM pellier.orders o" in sql:
             return [dict(o) for o in self.orders]
         if "FROM pellier.support_tickets" in sql:
@@ -89,7 +90,7 @@ class _Run:
                 return []
             self.live[key] = {
                 "id": 41 + len(self.reviews), "status": "pending", "customer_id": params[0],
-                "args": params[1], "action_hash": params[6], "order_id": params[3],
+                "args": params[1], "action_hash": params[6], "order_ids": list(params[3]),
                 "recommendation": params[5],
             }
             self.reviews.append({"params": params})
@@ -254,8 +255,13 @@ def graph_runtime(monkeypatch: pytest.MonkeyPatch):
 
 
 def _investigate(run: _Run, events: List[Dict[str, Any]]) -> GRAPH.InvestigationResult:
+    def run_customer(sql: str, params: Any = ()) -> List[Dict[str, Any]]:
+        run.scoped_calls.append((sql, tuple(params)))
+        return run(sql, params)
+
     return GRAPH.run_investigation(
-        run=run, customer_id="CUST-JESSICA", customer_name="Jessica Nakamura",
+        run=run, run_customer=run_customer, customer_id="CUST-JESSICA",
+        customer_name="Jessica Nakamura",
         operator_sub="sub-nadia", turn_id="turn-" + "a" * 32, emit=events.append,
     )
 
@@ -290,6 +296,19 @@ def test_the_investigator_reads_are_bound_to_the_case_customer(graph_runtime) ->
                 seen.add(table)
                 assert params[0] == "CUST-JESSICA", (sql, params)
     assert seen == set(reads)
+
+
+def test_the_investigators_order_and_ticket_reads_run_under_row_level_security(
+    graph_runtime,
+) -> None:
+    """get_orders and get_tickets read through the customer-scoped runner."""
+    run = _Run()
+    _investigate(run, [])
+    scoped = [sql for sql, _params in run.scoped_calls]
+    assert any("FROM pellier.support_tickets" in sql for sql in scoped)
+    assert any("FROM pellier.orders o" in sql and "LIMIT %s" in sql for sql in scoped)
+    # The Planner's own read of the returns is a staff read, not the customer's.
+    assert not any("o.return_status = %s" in sql for sql in scoped)
 
 
 def test_the_investigator_reads_the_recorded_credits_bounded(graph_runtime) -> None:
@@ -331,11 +350,11 @@ def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_record
     assert json.loads(insert[1]) == {"amount_cents": 10000, "customer_id": "CUST-JESSICA",
                                      "reason": JESSICA_REASON}
     assert insert[2] == "turn-" + "a" * 32          # the investigation is the source turn
-    assert insert[3] == 301                          # the order it refers to
+    assert insert[3] == [301, 302]                   # the orders the credit covers
     planner_sentence = "Two items went back, no credit recorded."
     assert insert[4] == planner_sentence             # the Planner's words are the rationale
     recommendation = json.loads(insert[5])
-    assert recommendation["orderIds"] == [301, 302]
+    assert "orderIds" not in recommendation, "order_ids is a column, not desk data"
     assert recommendation["rationale"] == planner_sentence
     assert insert[7] == "sub-nadia" and insert[8] == "operator"
 
@@ -367,9 +386,9 @@ def test_naming_no_returned_order_proposes_nothing(graph_runtime, named) -> None
     assert run.reviews == [] and result.proposal is None, named
 
 
-@pytest.mark.parametrize("status", ["pending", "rejected", None])
+@pytest.mark.parametrize("status", ["requested", "refunded", None])
 def test_a_return_request_is_not_evidence_of_receipt(graph_runtime, status) -> None:
-    """Only an approved or refunded return counts; a request alone credits nothing."""
+    """Only a received return is credited: a request is a claim, and a refund was paid back."""
     orders = [dict(o) for o in JESSICA_ORDERS]
     orders[2]["return_status"] = status
     run = _Run(orders)
@@ -429,7 +448,7 @@ def test_a_later_returned_item_gets_a_review_of_its_own(graph_runtime) -> None:
     first = _investigate(run, [])
     assert first.proposal is not None
     run.approve(first.proposal.review_id)
-    run.orders[2]["return_status"] = "approved"
+    run.orders[2]["return_status"] = "received"
 
     _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
         ("propose_store_credit", {"order_ids": [301, 302, 303], "reason": "A third item came back."}),
@@ -481,7 +500,7 @@ def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) ->
     orders = JESSICA_ORDERS + [{
         "order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
         "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
-        "placed_at": None, "return_status": "refunded",
+        "placed_at": None, "return_status": "received", "store_credit_id": None,
     }]
     _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
         ("propose_store_credit", {"order_ids": order_ids, "reason": "Credit these."}),
@@ -548,7 +567,7 @@ def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> N
     orders = JESSICA_ORDERS + [{
         "order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
         "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
-        "placed_at": None, "return_status": "refunded",
+        "placed_at": None, "return_status": "received", "store_credit_id": None,
     }]
     _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
         ("propose_store_credit", {"order_ids": [399], "reason": "Over."}),

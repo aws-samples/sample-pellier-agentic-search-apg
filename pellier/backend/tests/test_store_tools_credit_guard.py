@@ -1,15 +1,15 @@
-"""``give_store_credit`` writes only what a confirmed review fingerprints, once.
+"""``give_store_credit`` hands one exact write to ``pellier.apply_store_credit``.
 
-The guard lives in the shared implementation, so the Operator's execute path
-and a staff token at the Gateway are bound the same way: the approved row's
-fingerprint must match the request, and the request's key must be the one key
-that approval admits, ``operator-review:{review id}:{fingerprint[:32]}``. A
-``run`` stand-in records every statement, so the tests can say what was NOT
-issued.
+The approval and order rules live in that database function, so the Operator's
+execute path, a staff token at the Gateway and a direct SQL caller are bound
+the same way. ``test_operator_credit_postgres.py`` proves the rules on real
+PostgreSQL. This file proves the thin shared wrapper: it validates its input
+before any statement, passes exactly the approved terms and key, and reports
+the function's answer unchanged.
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List
 
 from services import store_tools
 from services.store_tools import execution_idempotency_key, write_request_hash
@@ -21,22 +21,15 @@ JESSICA_KEY = execution_idempotency_key(REVIEW_ID, JESSICA_HASH)
 
 
 class _Run:
-    """The approved reviews, as ``(review id, fingerprint)``, and every statement."""
+    """Answers ``apply_store_credit`` with a fixed result and records every statement."""
 
-    def __init__(self, approved: Optional[List[Tuple[int, str]]] = None) -> None:
-        self.approved = list(approved or [])
+    def __init__(self, result: Dict[str, Any] | None = None) -> None:
+        self.result = result or {"status": "success", "credit_id": 1, "idempotent_replay": False}
         self.calls: List[tuple[str, tuple[Any, ...]]] = []
 
     def __call__(self, sql: str, params: Any = ()) -> List[Dict[str, Any]]:
         self.calls.append((sql, tuple(params)))
-        if "FROM pellier.approvals" in sql:
-            return [{"id": review_id, "action_hash": value} for review_id, value in self.approved]
-        if "apply_store_credit" in sql:
-            return [{"result": {"status": "success", "credit_id": 1, "idempotent_replay": False}}]
-        return []
-
-    def applied(self) -> bool:
-        return any("apply_store_credit" in sql for sql, _ in self.calls)
+        return [{"result": dict(self.result)}]
 
 
 def _credit(run: _Run, **overrides: Any) -> Dict[str, Any]:
@@ -45,106 +38,48 @@ def _credit(run: _Run, **overrides: Any) -> Dict[str, Any]:
     return store_tools.give_store_credit(run, **args)
 
 
-def test_a_confirmed_review_for_these_exact_arguments_admits_the_write() -> None:
-    run = _Run(approved=[(REVIEW_ID, JESSICA_HASH)])
-    result = _credit(run)
-    assert result["status"] == "success"
-    assert run.applied()
-    select_sql, select_params = run.calls[0]
-    assert "status = 'approved'" in select_sql and select_params == ("CUST-JESSICA",)
-    credit_params = run.calls[1][1]
-    assert credit_params[0] == JESSICA_KEY == f"operator-review:7:{JESSICA_HASH[:32]}"
+def test_one_statement_carries_exactly_the_terms_and_the_reviews_key() -> None:
+    run = _Run()
+    assert _credit(run)["status"] == "success"
+    (sql, params), = run.calls
+    assert "pellier.apply_store_credit(" in sql
+    # Cast at the call site: the Data API sends integers as bigint.
+    assert "%s::integer" in sql
+    assert params == (JESSICA_KEY, "CUST-JESSICA", 10000, "Two items went back.", "sub-nadia")
+    assert JESSICA_KEY == f"operator-review:7:{JESSICA_HASH[:32]}"
 
 
-def test_no_approval_is_a_distinct_refusal_with_no_write() -> None:
-    run = _Run(approved=[])
-    result = _credit(run)
-    assert result["status"] == store_tools.APPROVAL_REQUIRED
-    assert result["denied_by"] == store_tools.APPROVAL_GUARD
-    assert not run.applied()
-
-
-def test_a_changed_amount_is_a_mismatch_with_no_write() -> None:
-    run = _Run(approved=[(REVIEW_ID, JESSICA_HASH)])
-    result = _credit(run, amount_cents=10001)
-    assert result["status"] == store_tools.APPROVAL_MISMATCH
-    assert result["denied_by"] == store_tools.APPROVAL_GUARD
-    assert not run.applied()
-
-
-def test_a_changed_reason_or_customer_is_a_mismatch_too() -> None:
-    for change in ({"reason": "Something else."}, {"customer_id": "CUST-THEO"}):
-        run = _Run(approved=[(REVIEW_ID, JESSICA_HASH)])
-        result = _credit(run, **change)
-        assert result["status"] in (store_tools.APPROVAL_MISMATCH, store_tools.APPROVAL_REQUIRED), change
-        assert not run.applied(), change
-
-
-def test_a_declined_review_admits_nothing() -> None:
-    """Only ``approved`` rows reach the guard; the SELECT says so."""
-    run = _Run(approved=[])
-    _credit(run)
-    select_sql, _ = run.calls[0]
-    assert "status = 'approved'" in select_sql
-    assert "pending" not in select_sql and "rejected" not in select_sql
-
-
-def test_input_validation_still_runs_before_the_guard() -> None:
-    run = _Run(approved=[(REVIEW_ID, JESSICA_HASH)])
+def test_input_validation_runs_before_any_statement() -> None:
+    run = _Run()
     assert _credit(run, idempotency_key="")["status"] == "error"
     assert _credit(run, amount_cents="ten")["status"] == "error"
     assert _credit(run, reason="  ")["status"] == "error"
     assert run.calls == []
 
 
-def test_the_safety_ceiling_stays_with_the_database_not_the_guard() -> None:
-    """A $500.01 request with a matching approval reaches ``apply_store_credit``.
-
-    The $500 ceiling is the function's and the CHECK constraint's job; the guard
-    never clamps or caps, so a participant's Cedar rule is what decides $100.01.
-    """
-    over = {**JESSICA, "amount_cents": 50001}
-    over_hash = write_request_hash("give_store_credit", **over)
-    run = _Run(approved=[(REVIEW_ID, over_hash)])
-    over_key = execution_idempotency_key(REVIEW_ID, over_hash)
-    result = _credit(run, amount_cents=50001, idempotency_key=over_key)
-    assert run.applied()
-    assert result["status"] == "success"  # the stand-in applies; Aurora would refuse
+def test_the_databases_refusals_reach_the_caller_unchanged() -> None:
+    """No approval, other terms, another key and an already-credited order stay distinct."""
+    for status, guard in (
+        (store_tools.APPROVAL_REQUIRED, store_tools.APPROVAL_GUARD),
+        (store_tools.APPROVAL_MISMATCH, store_tools.APPROVAL_GUARD),
+        (store_tools.APPROVAL_KEY_MISMATCH, store_tools.APPROVAL_GUARD),
+        (store_tools.NOT_CREDITABLE, store_tools.ORDER_GUARD),
+    ):
+        result = _credit(_Run({"status": status, "denied_by": guard, "message": "m"}))
+        assert result == {"status": status, "denied_by": guard, "message": "m"}
+    assert store_tools.WRITE_GUARDS == {store_tools.APPROVAL_GUARD, store_tools.ORDER_GUARD}
 
 
-# ---------------------------------------------------------------------------
-# One approval admits one key, so one credit
-# ---------------------------------------------------------------------------
-
-
-def test_the_approved_arguments_under_a_fresh_key_are_refused_with_no_write() -> None:
-    """A staff caller who copies the approved terms and mints a new key gets nothing.
-
-    Without the key binding, ``apply_store_credit`` would treat a fresh key as
-    a new write and credit the same approval again, as many times as a caller
-    could mint keys.
-    """
-    for key in ("credit-2", f"operator-review:8:{JESSICA_HASH[:32]}", JESSICA_KEY + "-again"):
-        run = _Run(approved=[(REVIEW_ID, JESSICA_HASH)])
-        result = _credit(run, idempotency_key=key)
-        assert result["status"] == store_tools.APPROVAL_KEY_MISMATCH, key
-        assert result["denied_by"] == store_tools.APPROVAL_GUARD, key
-        assert not run.applied(), key
-
-
-def test_the_refusals_stay_distinct() -> None:
-    """No approval, other terms and another key are three different answers."""
-    assert _credit(_Run(approved=[]))["status"] == store_tools.APPROVAL_REQUIRED
-    assert _credit(_Run(approved=[(REVIEW_ID, JESSICA_HASH)]), amount_cents=9999)["status"] == (
-        store_tools.APPROVAL_MISMATCH
-    )
-    assert _credit(_Run(approved=[(REVIEW_ID, JESSICA_HASH)]), idempotency_key="k")["status"] == (
-        store_tools.APPROVAL_KEY_MISMATCH
-    )
+def test_the_wrapper_never_clamps_an_amount() -> None:
+    """$100.01 and $500.01 both reach the database; Cedar and the CHECK decide them."""
+    for cents in (10001, 50001):
+        run = _Run()
+        _credit(run, amount_cents=cents)
+        assert run.calls[0][1][2] == cents
 
 
 def test_the_key_is_the_reviews_own_and_is_derived_in_one_place() -> None:
-    """The Operator's execute path imports the derivation the guard recomputes."""
+    """The Operator's execute path imports the derivation the database recomputes."""
     from services import governed_execution
 
     assert governed_execution.execution_idempotency_key is execution_idempotency_key

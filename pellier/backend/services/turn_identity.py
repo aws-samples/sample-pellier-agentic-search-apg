@@ -64,6 +64,19 @@ def current_principal_sub() -> Optional[str]:
     return principal_sub_var.get()
 
 
+# The verified Cognito username for the turn currently executing. A customer's
+# own reads bind it for row-level security (``DatabaseService.principal_session``),
+# so it is set beside ``principal_sub`` and, like it, never from a persona.
+principal_username_var: ContextVar[Optional[str]] = ContextVar(
+    "principal_username_var", default=None
+)
+
+
+def current_principal_username() -> Optional[str]:
+    """Return the verified username for the executing turn, if any."""
+    return principal_username_var.get()
+
+
 # The verified customer scope for the turn currently executing.
 #
 # This is deliberately separate from the display persona and is populated only
@@ -99,12 +112,29 @@ def current_turn_id() -> Optional[str]:
     """Return the correlation id for the executing turn, if any."""
     return turn_id_var.get()
 
-USERNAME_TO_CUSTOMER_ID = {
-    "marco": "CUST-MARCO",
-    "anna": "CUST-ANNA",
-    "theo": "CUST-THEO",
-    "jessica": "CUST-JESSICA",
-}
+# Which customer each sign-in name belongs to, read from
+# ``pellier.customers.cognito_username`` when the app starts
+# (:func:`load_customer_usernames`). Until it is loaded, no username maps to a
+# customer, so a verified shopper gets no customer scope: the read is refused,
+# not widened.
+_customer_by_username: Dict[str, str] = {}
+
+_CUSTOMER_USERNAMES_SQL = "SELECT cognito_username, id FROM pellier.customers"
+
+
+async def load_customer_usernames(db: Any) -> int:
+    """Read the username-to-customer map from Aurora. Returns how many were read."""
+    rows = await db.fetch_all(_CUSTOMER_USERNAMES_SQL)
+    set_customer_usernames({str(row["cognito_username"]): str(row["id"]) for row in rows or []})
+    return len(_customer_by_username)
+
+
+def set_customer_usernames(mapping: Dict[str, str]) -> None:
+    """Replace the username-to-customer map (the loader above, and tests)."""
+    _customer_by_username.clear()
+    _customer_by_username.update(
+        {str(name).strip().casefold(): str(customer) for name, customer in mapping.items()}
+    )
 
 
 def new_turn_id() -> str:
@@ -130,9 +160,9 @@ def new_turn_id() -> str:
 
 
 def customer_id_for_verified_username(username: Optional[str]) -> Optional[str]:
-    """Map a verified Cognito username to its seeded Aurora customer."""
+    """Map a verified Cognito username to its Aurora customer."""
     normalized = str(username or "").strip().casefold()
-    return USERNAME_TO_CUSTOMER_ID.get(normalized)
+    return _customer_by_username.get(normalized)
 
 
 @dataclass(frozen=True)
@@ -150,6 +180,8 @@ class TurnIdentity:
         persona_is_simulated: True when a persona is active without a
             verified principal backing it — i.e. the customer scope comes
             from a UI selection, not from a token.
+        principal_username: Verified Cognito username, or ``None``. A
+            customer's own reads name it for row-level security.
     """
 
     principal_sub: Optional[str] = None
@@ -157,6 +189,7 @@ class TurnIdentity:
     demo_persona_id: Optional[str] = None
     authenticated: bool = False
     persona_is_simulated: bool = False
+    principal_username: Optional[str] = None
 
     def memory_actor(self) -> str:
         """Return the actor id AgentCore Memory should namespace under.
@@ -264,4 +297,7 @@ def resolve_turn_identity(
         demo_persona_id=persona_id,
         authenticated=principal_sub is not None,
         persona_is_simulated=persona_is_simulated,
+        principal_username=(
+            str(user.get("username") or "").strip() or None if principal_sub else None
+        ),
     )

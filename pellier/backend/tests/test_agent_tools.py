@@ -177,7 +177,9 @@ def test_caller_bound_reads_bind_the_verified_customer_not_the_argument(
 ) -> None:
     agent_tools._db_service = _SentinelDB()
     run = _FakeRun({})
-    monkeypatch.setattr(agent_tools, "_run_sql", run)
+    # A customer's own read goes through the runner that binds row-level security.
+    monkeypatch.setattr(agent_tools, "_run_customer_sql", run)
+    monkeypatch.setattr(agent_tools, "_run_sql", _FakeRun({}))
     token = authorized_customer_id_var.set("CUST-THEO")
     try:
         mismatch = _call(getattr(agent_tools, tool), customer_id="CUST-JESSICA")
