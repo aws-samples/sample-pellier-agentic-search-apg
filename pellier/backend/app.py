@@ -711,6 +711,19 @@ def _managed_skill_note(skills: List[Dict[str, Any]], skill_mode: str) -> Option
     return "; ".join(notes) or None
 
 
+def _managed_route_note(result: Any, skill_mode: str, agent: Optional[str]) -> Optional[str]:
+    """The Router step's Builder note on the managed rail: unpublished tools, then skills."""
+    from services.agentcore_gateway import unpublished_tools_note
+
+    notes: List[str] = []
+    if result.unpublished_tools:
+        notes.append(unpublished_tools_note(agent or "agent", result.unpublished_tools))
+    skills = _managed_skill_note(result.skills, skill_mode)
+    if skills:
+        notes.append(skills)
+    return "; ".join(notes) or None
+
+
 # A receipt is keyed by the turn, not the tool call, so it can be matched to
 # a search only when the turn ran exactly one search and wrote one receipt.
 MANAGED_MANY_SEARCHES = (
@@ -1207,7 +1220,7 @@ async def chat_stream(
                         else None
                     ),
                     rail="gateway-mcp",
-                    note=_managed_skill_note(managed_result.skills, request.skill_mode),
+                    note=_managed_route_note(managed_result, request.skill_mode, managed_agent),
                     stop_reason=managed_result.stop_reason or None,
                 )
                 yield f"data: {json.dumps(route_step, ensure_ascii=False)}\n\n"

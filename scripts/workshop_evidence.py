@@ -12,10 +12,13 @@ Every line is in one of four states, never two (``workshop_check``):
 PROVED, NOT YET, UNCHECKED and CONTRADICTED. UNCHECKED is not a soft NOT
 YET: "this did not happen" and "I could not look" are different findings.
 
-Labs 1 and 2 run the same checks the guide runs (``workshop/lab-1-rrf.sql``,
-``scripts/lab1_compare.py``, ``scripts/lab2_contract_check.py``), so the
-export and the lab never disagree. A task whose marked region still holds
-its starter is NOT YET, whatever the rows say.
+Each line runs the same verdict the guide's check prints
+(``workshop/lab-1-rrf.sql``, ``scripts/lab1_compare.py``,
+``scripts/lab2_contract_check.py``, ``scripts/lab3_check.py``), so the export
+and the lab never disagree. Lab 3B's direct Cedar probe calls the Gateway, so
+it stays in ``lab3_check.py``; the export reads only the system of record. A
+task whose marked region still holds its starter is NOT YET, whatever the
+rows say.
 
     python3 scripts/workshop_evidence.py
     python3 scripts/workshop_evidence.py --save /tmp/pellier-evidence/workshop-evidence.txt
@@ -190,21 +193,68 @@ def task_2b(cfg: Config, connect: Connect) -> check.Finding:
 
 
 # ---------------------------------------------------------------------------
-# Labs 3 and 4: the build state and the newest evidence row
+# Lab 3: the catalogue from source, then the build and the reads from tool_audit
 # ---------------------------------------------------------------------------
 
-# Lab 3: the Gateway Lambda writes a shopper turn's read with the turn id as its
-# session and the build the Runtime reported. Rows carrying a build come first,
-# because only they can be compared with this checkout.
-LAB3_SQL = """
-SELECT audit_id, session_id AS turn_id, tool, build_fingerprint AS deployed_fingerprint,
-       created_at
-  FROM pellier.tool_audit
- WHERE caller = 'gateway'
-   AND session_id LIKE 'turn-%'
- ORDER BY (build_fingerprint IS NOT NULL) DESC, audit_id DESC
- LIMIT 1;
-"""
+
+def task_3a() -> check.Finding:
+    """Lab 3A by the same verdict the doctor prints, after the starter rule."""
+    import lab3_check
+
+    title = "get_tickets is published and bound to the signed-in caller"
+    states = {key: source_state(key) for key in ("3A-catalogue", "3A-binding")}
+    if any(state == check.MISSING for state in states.values()):
+        return check.Finding("3A", title, UNCHECKED, "both Lab 3 marked regions readable",
+                             "a Lab 3 marked region could not be read",
+                             [f"{key}: {state}" for key, state in states.items()])
+    if any(state == check.STARTER for state in states.values()):
+        where = " and ".join(
+            {"3A-catalogue": "scripts/deploy/gateway_tool_schemas.py",
+             "3A-binding": "services/agentcore_gateway.py"}[key]
+            for key, state in states.items() if state == check.STARTER)
+        return _starter_finding("3A", title, "both Lab 3 marked regions edited", where)
+    try:
+        return lab3_check.judge_catalogue(*lab3_check.source_catalogue())
+    except Exception as exc:  # noqa: BLE001 - the reason is the finding
+        return check.Finding("3A", title, UNCHECKED, "the catalogues are readable",
+                             "the check could not look", [f"{type(exc).__name__}: {exc}"])
+
+
+def task_3b(rows: Optional[Dict[str, Any]], local_build: str) -> check.Finding:
+    """Lab 3B: Theo's managed turn ran this build and read only his own tickets.
+
+    The direct Cedar probe calls the Gateway, so it is ``scripts/lab3_check.py``'s
+    alone; the export reads only the system of record.
+    """
+    import lab3_check
+
+    title = "your build answered Theo, and every ticket read was his own"
+    expected = f"{lab3_check.BUILD_EXPECTED}; {lab3_check.TICKETS_EXPECTED}"
+    if any(source_state(key) == check.STARTER for key in ("3A-catalogue", "3A-binding")):
+        return check.Finding("3B", title, NOT_YET, expected, "Task 3A is not complete yet",
+                             ["Task 3B deploys the Task 3A edits"], "complete Task 3A first.")
+    if rows is None:
+        return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
+    parts = [lab3_check.judge_build(rows.get("build"), local_build),
+             lab3_check.judge_tickets(rows.get("tickets") or [])]
+    states = [part.state for part in parts]
+    if CONTRADICTED in states:
+        state = CONTRADICTED
+    elif all(s == PROVED for s in states):
+        state = PROVED
+    elif UNCHECKED in states:
+        state = UNCHECKED
+    else:
+        state = NOT_YET
+    return check.Finding("3B", title, state, expected,
+                         "; ".join(part.observed for part in parts),
+                         [line for part in parts for line in part.evidence],
+                         next((part.next_step for part in parts if part.state != PROVED), ""))
+
+
+# ---------------------------------------------------------------------------
+# Lab 4
+# ---------------------------------------------------------------------------
 
 # Lab 4: an approved credit executed once. The write key is the approved review's
 # own, so the credit and its tool_audit row are found by that key and by nothing
@@ -233,45 +283,6 @@ def credit_findings(row: Optional[Dict[str, Any]]) -> Dict[str, str]:
     amount = row.get("approved_cents") is not None and int(row["approved_cents"]) == int(
         row.get("amount_cents") or 0)
     return {"once": PROVED if once else CONTRADICTED, "amount": PROVED if amount else CONTRADICTED}
-
-
-def task_3a() -> check.Finding:
-    title = "get_tickets is published and bound to the caller"
-    expected = "both Lab 3 marked regions edited"
-    states = {key: source_state(key) for key in ("3A-catalogue", "3A-binding")}
-    observed = ", ".join(f"{key.split('-')[1]} {state}" for key, state in states.items())
-    if any(state == check.MISSING for state in states.values()):
-        return check.Finding("3A", title, UNCHECKED, expected, observed,
-                             ["a Lab 3 marked region could not be read"])
-    done = all(state == check.EDITED for state in states.values())
-    return check.Finding("3A", title, PROVED if done else NOT_YET, expected, observed,
-                         ["scripts/deploy/gateway_tool_schemas.py, services/agentcore_gateway.py"],
-                         "complete both Task 3A blocks.")
-
-
-def task_3b(row: Optional[Dict[str, Any]], available: bool, local_build: str) -> check.Finding:
-    title = "your build answered on the managed path"
-    expected = "a Gateway tool_audit row stamped with this checkout's build fingerprint"
-    if any(source_state(key) == check.STARTER for key in ("3A-catalogue", "3A-binding")):
-        return check.Finding("3B", title, NOT_YET, expected, "Task 3A is not complete yet",
-                             ["Task 3B deploys the Task 3A edits"], "complete Task 3A first.")
-    if not available:
-        return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
-    if not row:
-        return check.Finding("3B", title, NOT_YET, expected,
-                             "no Gateway tool call for a shopper turn yet", [],
-                             "run scripts/lab3-start.sh, then Theo's turn in Pellier.")
-    deployed = str(row.get("deployed_fingerprint") or "").strip()
-    evidence = [f"pellier.tool_audit audit {row.get('audit_id')}, turn {row.get('turn_id')}, "
-                f"build {check.short(deployed) or 'none'}; "
-                f"this checkout {check.short(local_build) or 'unknown'}"]
-    if not deployed or not local_build:
-        return check.Finding("3B", title, UNCHECKED, expected, "a build could not be compared",
-                             evidence)
-    state = PROVED if deployed == local_build else CONTRADICTED
-    return check.Finding("3B", title, state, expected,
-                         "the builds match" if state == PROVED else "another build answered",
-                         evidence, "deploy your Task 3A change and run Theo's turn again.")
 
 
 def task_4a() -> check.Finding:
@@ -338,28 +349,18 @@ def _with_connection(
 
 
 def _rows(cfg: Config, connect: Connect) -> Dict[str, Any]:
+    import lab3_check
+
     if cfg is None:
         return {"available": False}
     try:
+        out: Dict[str, Any] = {"available": True, "lab3": lab3_check.read_rows(cfg, connect)}
         with connect(cfg) as conn, conn.cursor() as cur:
-            out: Dict[str, Any] = {"available": True}
-            for key, sql in (("lab3", LAB3_SQL), ("lab4", LAB4_SQL)):
-                cur.execute(sql)
-                out[key] = cur.fetchone()
-            return out
+            cur.execute(LAB4_SQL)
+            out["lab4"] = cur.fetchone()
+        return out
     except Exception:  # noqa: BLE001 - reported as UNCHECKED on the lines that need it
         return {"available": False}
-
-
-def local_fingerprint() -> str:
-    """The digest a deploy from this checkout would stamp on the Runtime."""
-    try:
-        sys.path.insert(0, str(BACKEND))
-        from services.build_fingerprint import compute_fingerprint
-
-        return compute_fingerprint(BACKEND)
-    except Exception:  # noqa: BLE001 - provenance is never load-bearing
-        return ""
 
 
 def collect(
@@ -367,6 +368,8 @@ def collect(
     connect: Callable[[Dict[str, str]], Any] = check.connect,
 ) -> List[check.Finding]:
     """All eight task findings, in lab order."""
+    import lab3_check
+
     cfg = check.db_config(env_path)
     rows = _rows(cfg, connect)
     available = bool(rows.get("available"))
@@ -376,7 +379,7 @@ def collect(
         task_2a(cfg, connect),
         task_2b(cfg, connect),
         task_3a(),
-        task_3b(rows.get("lab3"), available, local_fingerprint()),
+        task_3b(rows.get("lab3") if available else None, lab3_check.local_fingerprint()),
         task_4a(),
         task_4b(rows.get("lab4"), available),
     ]

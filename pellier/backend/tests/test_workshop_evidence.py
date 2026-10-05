@@ -132,22 +132,46 @@ class TestTheWorksheetVerdict:
 
 
 class TestLabsThreeAndFour:
-    def test_the_executed_build_is_compared_with_this_checkout(
-        self, monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
+    BUILD_ROW = {"audit_id": 4, "turn_id": "turn-abc", "tool": "get_tickets",
+                 "deployed_fingerprint": BUILD}
+    THEO_READ = {"audit_id": 4, "turn_id": "turn-abc", "customer_id": "CUST-THEO"}
+
+    def test_the_executed_build_and_reads_decide_3b(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
-        row = {"audit_id": 4, "turn_id": "turn-abc", "deployed_fingerprint": BUILD}
-        assert evidence.task_3b(row, True, BUILD).state == PROVED
-        assert evidence.task_3b(row, True, "c" * 64).state == CONTRADICTED
-        unstamped = {**row, "deployed_fingerprint": None}
-        assert evidence.task_3b(unstamped, True, BUILD).state == UNCHECKED
-        assert evidence.task_3b(None, True, BUILD).state == NOT_YET
-        assert evidence.task_3b(row, False, BUILD).state == UNCHECKED
+        rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
+        assert evidence.task_3b(rows, BUILD).state == PROVED
+        assert evidence.task_3b(rows, "c" * 64).state == CONTRADICTED
+        unstamped = {**rows, "build": {**self.BUILD_ROW, "deployed_fingerprint": None}}
+        assert evidence.task_3b(unstamped, BUILD).state == UNCHECKED
+        assert evidence.task_3b({"build": None, "tickets": []}, BUILD).state == NOT_YET
+        assert evidence.task_3b(None, BUILD).state == UNCHECKED
+
+    def test_a_read_for_another_customer_contradicts_3b(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+        rows = {"build": self.BUILD_ROW,
+                "tickets": [self.THEO_READ, {**self.THEO_READ, "customer_id": "CUST-JESSICA"}]}
+        finding = evidence.task_3b(rows, BUILD)
+        assert finding.state == CONTRADICTED
+        assert "1 for anyone else" in finding.observed
 
     def test_lab_three_waits_for_task_3a(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
-        assert evidence.task_3b(None, True, BUILD).state == NOT_YET
-        assert "Task 3A" in evidence.task_3b(None, True, BUILD).observed
+        assert evidence.task_3a().state == NOT_YET
+        assert evidence.task_3b(None, BUILD).state == NOT_YET
+        assert "Task 3A" in evidence.task_3b(None, BUILD).observed
+
+    def test_3a_reads_the_catalogue_once_the_regions_are_edited(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        lab3 = importlib.import_module("lab3_check")
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+        monkeypatch.setattr(lab3, "source_catalogue", lambda: (
+            frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"),
+            frozenset({"get_tickets"})))
+        assert evidence.task_3a().state == PROVED
+        monkeypatch.setattr(lab3, "source_catalogue", lambda: (
+            frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"), frozenset()))
+        assert evidence.task_3a().state == NOT_YET
 
     @pytest.mark.parametrize("change", [{"credit_rows": 2}, {"audit_rows": 0}, {"audit_rows": 2}])
     def test_anything_but_one_of_each_contradicts(self, change: dict) -> None:

@@ -63,6 +63,7 @@ class _Dispatcher:
         self.last_specialist = "recommendation"
         self.last_model_id = "global.anthropic.claude-opus-5"
         self.last_tool_names = ["search_products"]
+        self.last_unpublished_tools = ("get_tickets",)
         self.last_skills = [
             {
                 "name": "the-gift-table",
@@ -167,6 +168,7 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
         "specialist": "recommendation",
         "model": "global.anthropic.claude-opus-5",
         "gateway_tools": ["search_products"],
+        "unpublished_tools": ["get_tickets"],
         "tool_calls": dispatcher.last_tool_events,
         # The skills the agent's prompt carried, from the source: the app
         # renders this list and never assembles one of its own.

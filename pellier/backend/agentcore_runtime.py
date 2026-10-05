@@ -188,6 +188,9 @@ try:
             "specialist": dispatcher.last_specialist,
             "model": dispatcher.last_model_id,
             "gateway_tools": list(dispatcher.last_tool_names),
+            # Tools the routed agent asked for that the Gateway does not
+            # publish. The agent ran without them; the Builder view names them.
+            "unpublished_tools": list(dispatcher.last_unpublished_tools),
             "tool_calls": list(dispatcher.last_tool_events or []),
             # The skills the routed agent's prompt carried, reported from the
             # source. The app renders this list and asserts nothing of its own.

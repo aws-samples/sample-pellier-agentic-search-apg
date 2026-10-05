@@ -93,6 +93,8 @@ class ManagedRuntimeResult:
     skills: List[Dict[str, Any]] = field(default_factory=list)
     # How the agent's turn ended, as the Runtime reported it; empty when it did not.
     stop_reason: str = ""
+    # Tools the routed agent asked for that the Gateway does not publish.
+    unpublished_tools: List[str] = field(default_factory=list)
 
 
 def _reported_skills(value: Any) -> List[Dict[str, Any]]:
@@ -110,6 +112,13 @@ def _reported_skills(value: Any) -> List[Dict[str, Any]]:
             "loaded": str(item.get("loaded") or "fixed"),
         })
     return reported
+
+
+def _reported_names(value: Any) -> List[str]:
+    """Tool names the Runtime reported, each a non-empty string."""
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str) and item.strip()]
 
 
 def _store_latest_trace(session_id: str, trace: Dict[str, Any]) -> None:
@@ -596,6 +605,7 @@ async def run_agent_on_runtime_result(
             orchestration="dispatcher",
             skills=_reported_skills(parsed.get("skills")),
             stop_reason=str(parsed.get("stop_reason") or ""),
+            unpublished_tools=_reported_names(parsed.get("unpublished_tools")),
         )
     except ManagedRuntimeError:
         raise

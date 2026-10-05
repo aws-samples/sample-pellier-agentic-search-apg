@@ -1,4 +1,4 @@
-"""The starter and the solution of each Lab 1 and Lab 2 region, whatever the live file holds.
+"""The starter and the solution of each lab region, whatever the live file holds.
 
 A participant edits the live files, so a contract test that read them would
 pass or fail with the participant's progress. These helpers build each variant
@@ -35,6 +35,12 @@ _CHECK_STOCK = ("Stock agent - check_stock",
 _GRANT = ("Stock agent - definition",
           STARTERS / "lab-2" / "stock-agent-definition.pyfrag",
           SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py")
+_PUBLISHED = ("Gateway catalogue - published tools",
+              STARTERS / "lab-3" / "gateway-published-tools.pyfrag",
+              SOLUTIONS / "the-ledger" / "gateway" / "gateway_tool_schemas_solution.py")
+_RECONCILE = ("Managed catalogue - support reconcile",
+              STARTERS / "lab-3" / "support-reconcile.pyfrag",
+              SOLUTIONS / "the-ledger" / "services" / "agentcore_gateway.py")
 
 
 def region(text: str, label: str) -> str:
@@ -84,3 +90,19 @@ def stock_grant(variant: str) -> List[Any]:
     exec(compile(body(_GRANT, variant), "<stock-grant>", "exec"),  # noqa: S102 - repo source
          dict(vars(stock_agent)), scratch)
     return scratch["_STOCK_TOOLS"]
+
+
+def _constants(spec: tuple, variant: str, *names: str) -> tuple:
+    scratch: Dict[str, Any] = {}
+    exec(compile(body(spec, variant), f"<{spec[0]}>", "exec"), {}, scratch)  # noqa: S102 - repo source
+    return tuple(scratch[name] for name in names)
+
+
+def deferred_tools(variant: str) -> frozenset:
+    """The ``WORKSHOP_DEFERRED_TOOLS`` the Gateway catalogue region names."""
+    return _constants(_PUBLISHED, variant, "WORKSHOP_DEFERRED_TOOLS")[0]
+
+
+def support_contract(variant: str) -> tuple:
+    """``(SUPPORT_MANAGED_TOOLS, SUPPORT_CALLER_BOUND_TOOLS)`` from the reconcile region."""
+    return _constants(_RECONCILE, variant, "SUPPORT_MANAGED_TOOLS", "SUPPORT_CALLER_BOUND_TOOLS")

@@ -11,7 +11,9 @@ a symptom.
            search receipt.
     Lab 2  Aurora reachable; the check_stock block and the Stock agent
            definition no longer hold their starters.
-    Lab 3  The service environment carries the two settings resolve_rail
+    Lab 3  The Gateway publishes every tool the Support agent asks for and
+           get_tickets is bound to the signed-in caller ("9 tools published");
+           the service environment carries the two settings resolve_rail
            reads (USE_AGENTCORE_RUNTIME, AGENTCORE_RUNTIME_ENDPOINT); a managed
            tool call left its tool_audit row with the build that made it.
     Lab 4  The Cedar policy is present and its rule has been authored;
@@ -48,7 +50,8 @@ DEFAULT_RUN_ENV = pathlib.Path("/etc/pellier/run.env")
 
 sys.path.insert(0, str(SCRIPTS))
 import workshop_check  # noqa: E402  (sibling module: database settings, region state)
-import workshop_evidence  # noqa: E402  (sibling script: the Lab 3 and Lab 4 evidence queries)
+import lab3_check  # noqa: E402  (sibling script: Lab 3's catalogue verdict and build query)
+import workshop_evidence  # noqa: E402  (sibling script: the Lab 4 evidence query)
 
 PASS = "PASS"
 FAIL = "FAIL"
@@ -274,67 +277,24 @@ def _managed_rail_selected(
     return Check(name, True, f"{run_env}")
 
 
-def _managed_catalogues_agree(repo: pathlib.Path = REPO) -> Check:
-    """Lab 3's two builds, read from source before anything is deployed.
+def _managed_catalogues_agree() -> Check:
+    """Lab 3A, read from source before anything is deployed.
 
-    The managed dispatcher asks the Gateway for exactly the tools it names and
-    raises ``Gateway is missing support tools`` when one is absent. That error
-    surfaces as an apologetic answer rather than a stack trace, so a
-    participant who has published a tool but not bound its caller sees a turn that "works" and a
-    receipt that never arrives. Naming the mismatch here is cheaper than
-    letting them find it in a trace.
+    The managed Router asks the Gateway for exactly the tools the Support agent
+    names. A tool the Gateway does not publish is left out of the agent, which
+    then tells Theo it can't look up his support tickets here: a turn that
+    "works" and answers nothing. Naming the gap here is cheaper than finding it
+    in a trace. The verdict is ``lab3_check.judge_catalogue``, which the
+    evidence export reads too.
     """
     name = "Gateway catalogue and Runtime support contract agree"
     try:
-        sys.path.insert(0, str(repo / "scripts" / "deploy"))
-        sys.path.insert(0, str(BACKEND))
-        from gateway_tool_schemas import workshop_published_tools
-        from services.agentcore_gateway import (
-            STAFF_ONLY_GATEWAY_TOOLS,
-            SUPPORT_CALLER_BOUND_TOOLS,
-            SUPPORT_MANAGED_TOOLS,
-        )
+        finding = lab3_check.judge_catalogue(*lab3_check.source_catalogue())
     except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
         return Check(name, False, f"could not read the catalogues: {exc}")
-
-    published = workshop_published_tools()
-    missing = sorted(set(SUPPORT_MANAGED_TOOLS) - published)
-    staff_only = sorted(set(SUPPORT_MANAGED_TOOLS) & STAFF_ONLY_GATEWAY_TOOLS)
-    if missing or staff_only:
-        # Name the step that is actually outstanding. Telling someone who has
-        # finished 3a to go and do 3a sends them to re-read a file they just
-        # got right.
-        facts, steps = [], []
-        if missing:
-            facts.append(
-                "the support specialist asks the Gateway for "
-                f"{', '.join(missing)}, which it does not publish"
-            )
-            if "get_tickets" in missing:
-                steps.append("Lab 3a (publish the customer-scoped read)")
-        if staff_only:
-            facts.append(
-                f"the support specialist names staff-only Gateway tools: {', '.join(staff_only)} "
-                "(published for the operator desk; a shopper-facing specialist must not bind "
-                "them and the dispatcher refuses to build one that does)"
-            )
-            steps.append("Task 3a (drop the staff-only tool from the specialist)")
-        remedy = " and ".join(steps) or "Lab 3"
-        return Check(name, False, f"{'; '.join(facts)}: complete {remedy}")
-    unbound = sorted(
-        tool
-        for tool in ("get_tickets",)
-        if tool in SUPPORT_MANAGED_TOOLS and tool not in SUPPORT_CALLER_BOUND_TOOLS
-    )
-    if unbound:
-        return Check(
-            name,
-            False,
-            f"{', '.join(unbound)} is published but not bound to the "
-            "authenticated caller: complete Task 3a caller binding so the server sets "
-            "customer_id instead of the model",
-        )
-    return Check(name, True, f"{len(published)} tools published, support serveable")
+    if finding.state == workshop_check.PROVED:
+        return Check(name, True, finding.observed)
+    return Check(name, False, f"{finding.observed}: {finding.next_step}")
 
 
 def lab3_checks(
@@ -361,7 +321,7 @@ def _managed_build(evidence: Evidence) -> Check:
     if not evidence.available:
         return Check(name, False, evidence.reason or "database unavailable")
     try:
-        row = evidence.one(workshop_evidence.LAB3_SQL)
+        row = evidence.one(lab3_check.BUILD_SQL)
     except Exception as exc:  # noqa: BLE001
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
     if not row:

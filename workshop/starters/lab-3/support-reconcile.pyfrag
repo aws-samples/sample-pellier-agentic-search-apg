@@ -1,10 +1,11 @@
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo's support-ticket request routes to the Support agent. On the
-# managed rail the Router asks the Gateway for exactly the tools named here and
-# raises "Gateway is missing support tools: ..." when the Gateway does not
-# publish one of them, so this tuple and the Gateway's published catalogue have
-# to agree.
+# managed rail the Router asks the Gateway for exactly the tools named here.
+# A tool the Gateway does not publish is left out: the agent tells Theo it
+# can't look up his support tickets here, and the Builder view names the tool
+# as not published. This tuple and the Gateway's published catalogue have to
+# agree.
 #
 # SUPPORT_CALLER_BOUND_TOOLS names the tools whose `customer_id` the server
 # overwrites with the authenticated caller's id before execution. `get_orders`

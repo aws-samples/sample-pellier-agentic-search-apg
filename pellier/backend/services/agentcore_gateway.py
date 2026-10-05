@@ -57,10 +57,11 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo's support-ticket request routes to the Support agent. On the
-# managed rail the Router asks the Gateway for exactly the tools named here and
-# raises "Gateway is missing support tools: ..." when the Gateway does not
-# publish one of them, so this tuple and the Gateway's published catalogue have
-# to agree.
+# managed rail the Router asks the Gateway for exactly the tools named here.
+# A tool the Gateway does not publish is left out: the agent tells Theo it
+# can't look up his support tickets here, and the Builder view names the tool
+# as not published. This tuple and the Gateway's published catalogue have to
+# agree.
 #
 # SUPPORT_CALLER_BOUND_TOOLS names the tools whose `customer_id` the server
 # overwrites with the authenticated caller's id before execution. `get_orders`
@@ -89,6 +90,43 @@ MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
     "stock": ("check_stock",),
     "support": SUPPORT_MANAGED_TOOLS,
 }
+
+
+# What each managed tool looks up, in the words an agent says when the
+# Gateway does not publish it.
+_TOOL_LOOKUPS: Dict[str, str] = {
+    "search_products": "products",
+    "browse_department": "a department's products",
+    "compare_products": "product comparisons",
+    "check_stock": "warehouse stock",
+    "get_orders": "orders",
+    "get_return_policy": "return policies",
+    "get_tickets": "support tickets",
+    "ask_a_person": "a person to hand this to",
+}
+
+
+def unpublished_tools_prompt(unpublished: Sequence[str]) -> str:
+    """The instruction an agent gets for the tools the Gateway does not publish.
+
+    The agent must say plainly that it cannot look the thing up here, never
+    guess it and never claim a look-up it did not make.
+    """
+    lookups = ", ".join(_TOOL_LOOKUPS.get(name, name) for name in unpublished)
+    return (
+        " The Gateway does not publish these tools, so they are not available to "
+        f"you: {', '.join(unpublished)}. If the shopper asks for {lookups}, say "
+        f"plainly that you can't look up {lookups} here. Do not guess or invent them. "
+        "Offer ask_a_person if it is available."
+    )
+
+
+def unpublished_tools_note(agent: str, unpublished: Sequence[str]) -> str:
+    """The Builder view's line for tools the routed agent asked for and was not given."""
+    names = ", ".join(unpublished)
+    one = len(unpublished) == 1
+    return (f"{names} {'is' if one else 'are'} not published on the Gateway, "
+            f"so the {agent} ran without {'it' if one else 'them'}")
 
 
 def _runtime_or_app_setting(name: str, default: str = "") -> str:
@@ -503,6 +541,8 @@ class ManagedGatewayDispatcher:
     last_specialist: str = ""
     last_model_id: str = ""
     last_tool_names: tuple[str, ...] = ()
+    # Tools the routed agent asked the Gateway for and was not given.
+    last_unpublished_tools: tuple[str, ...] = ()
     last_tool_events: list[Dict[str, Any]] | None = None
     last_products: list[dict[str, Any]] | None = None
     # The skills the routed agent's prompt carried, as the Runtime reports them.
@@ -558,11 +598,16 @@ class ManagedGatewayDispatcher:
             selected_names = tuple(
                 _logical_gateway_tool_name(tool.tool_name) for tool in selected
             )
-            missing = sorted(set(allowed_tools) - set(selected_names))
-            if missing:
-                raise RuntimeError(
-                    f"Gateway is missing {specialist} tools: {', '.join(missing)}"
+            # A tool the Gateway does not publish is not an error: the agent
+            # runs without it, says plainly what it cannot look up, and the
+            # Builder view names the tool (Lab 3's starter shows this).
+            unpublished = tuple(sorted(set(allowed_tools) - set(selected_names)))
+            if unpublished:
+                logger.warning(
+                    "Gateway does not publish %s tools: %s", specialist, ", ".join(unpublished)
                 )
+                system_prompt += unpublished_tools_prompt(unpublished)
+            self.last_unpublished_tools = unpublished
 
             agent = Agent(
                 name=specialist,
