@@ -26,15 +26,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const COPY_PATH = resolve(__dirname, "..", "copy.ts");
 
-// Same allowlist as the Python scanner.
+// Same allowlist as the Python scanner. Middle dots (U+00B7) are not on it:
+// VOICE.md bans them in copy.
 const ALLOWED_NON_ASCII = new Set([
-  0x00a0, 0x00a9, 0x00b7, 0x2013,
+  0x00a0, 0x00a9, 0x2013,
   0x2018, 0x2019, 0x201c, 0x201d,
   0x2022, 0x2026, 0x2039, 0x203a,
   0x2318,
 ]);
 
 const EM_DASH = "\u2014";
+// A middle dot written as an escape is still a middle dot on screen.
+const MIDDLE_DOT_ESCAPE = /\\(?:u00b7|u\{b7\}|xb7)/gi;
 
 const FORBIDDEN_WORDS = [
   "AI",
@@ -166,6 +169,18 @@ function scan(source) {
         `${fileName}:${lineno + 1}:${col + 1}: disallowed non-ASCII character U+${cpHex}`,
       );
       col += width;
+    }
+  }
+
+  // 1b. Middle dots spelled as escapes, which rule 1 cannot see.
+  for (let lineno = 0; lineno < rawLines.length; lineno++) {
+    MIDDLE_DOT_ESCAPE.lastIndex = 0;
+    let m;
+    while ((m = MIDDLE_DOT_ESCAPE.exec(rawLines[lineno])) !== null) {
+      violations.push(
+        `${fileName}:${lineno + 1}:${m.index + 1}: middle dot (${m[0]}) is not allowed; ` +
+          "use a comma or a period",
+      );
     }
   }
 

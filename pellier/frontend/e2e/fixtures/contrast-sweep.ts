@@ -266,18 +266,25 @@ export function sweepContrast(): ContrastFinding[] {
 }
 
 export interface GroundReport {
-  /** How many bands were measured; a sweep that matches nothing proves nothing. */
+  /** How many bands were measured, the page and the shared header included. */
   checked: number
+  /**
+   * How many of them the routed page itself supplied, inside `.pellier-stage`.
+   * The page and the header are always counted, so this is the number that
+   * shows the sweep reached the route: one that matches nothing proves nothing.
+   */
+  inStage: number
   findings: Array<{ ground: string; path: string }>
 }
 
 /**
  * The page ground under a route's main bands, run in the dark theme, where it
  * must be true black (#000000). A band is the page itself, the shared header,
- * and every visible, in-flow `main`, `section`, `header` or `footer`, or
- * direct child of `main`, that spans the routed page's full width. Panels and
- * cards are narrower than the page, so they are not bands and may sit on the
- * panel token (`--dl-paper`).
+ * the routed page's own root, and every visible, in-flow `main`, `section`,
+ * `header` or `footer`, or direct child of `main`, that spans the routed
+ * page's full width. The Operator desk has no full-width `main`, so its root
+ * is the only band it supplies. Panels and cards are narrower than the page,
+ * so they are not bands and may sit on the panel token (`--dl-paper`).
  *
  * A band's ground is its own background composited over its ancestors', not
  * what `elementsFromPoint` finds on top: a dialog or scrim over the page is
@@ -347,12 +354,14 @@ export function sweepGrounds(): GroundReport {
     return ground
   }
 
-  const stage = document.querySelector('.pellier-stage') ?? document.body
+  const routed = document.querySelector('.pellier-stage')
+  const stage = routed ?? document.body
   const stageStyle = getComputedStyle(stage)
   const pageWidth = stage.getBoundingClientRect().width
     - parseFloat(stageStyle.paddingLeft) - parseFloat(stageStyle.paddingRight)
   const bands = new Set<Element>([document.body, ...Array.from(document.querySelectorAll('.pellier-surface-bar'))])
-  for (const el of Array.from(stage.querySelectorAll('main, main > *, section, header, footer'))) {
+  const candidates = stage.querySelectorAll(':scope > *, main, main > *, section, header, footer')
+  for (const el of Array.from(candidates)) {
     const rect = el.getBoundingClientRect()
     const style = getComputedStyle(el)
     if (rect.width < pageWidth - 2 || rect.height < 24) continue
@@ -367,5 +376,6 @@ export function sweepGrounds(): GroundReport {
     const ground = groundOf(el)
     if (ground && hex(ground) !== WANT) findings.push({ ground: hex(ground), path: path(el) || el.tagName.toLowerCase() })
   }
-  return { checked: bands.size, findings }
+  const inStage = routed ? Array.from(bands).filter((band) => routed.contains(band)).length : 0
+  return { checked: bands.size, inStage, findings }
 }

@@ -1254,10 +1254,10 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
 
     # ---- Frontend agent-identity hook ----
     # The Pellier chat drawer reads this to attach an identity claim to
-    # every agent call. auth.ts + AuthModal + PreferencesModal +
-    # AuthContext already ship complete in the live frontend tree (real
-    # Cognito sign-in, no demo mode), so only the agent-identity hook is
-    # dropped in here; the rest are not overwritten.
+    # every agent call. auth.ts + AuthModal + AuthContext already ship
+    # complete in the live frontend tree (real Cognito sign-in, no demo
+    # mode), so only the agent-identity hook is dropped in here; the rest
+    # are not overwritten.
     copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
                   "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
     else

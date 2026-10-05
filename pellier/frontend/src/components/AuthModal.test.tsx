@@ -244,5 +244,7 @@ describe('AuthModal focus containment', () => {
 
     const dialog = screen.getByTestId('auth-modal')
     expect(dialog.contains(document.activeElement)).toBe(true)
+    // Focus placed by the trap draws no browser ring around the whole card.
+    expect(dialog.style.outline).toBe('none')
   })
 })

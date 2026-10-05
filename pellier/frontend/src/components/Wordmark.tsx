@@ -57,8 +57,11 @@ export default function Wordmark({ size = 'header', ariaLabel = 'Pellier home', 
 /**
  * The square p. mark: Ask Pellier's avatar, drawn from tokens so it follows
  * the theme (an ink square with an on-ink p in light, ivory with a black p in
- * dark; the dot is always copper). `public/favicon.svg` draws the same p. in
- * ink on a white tile.
+ * dark; the dot is always copper). `public/favicon.svg`, `favicon.ico` and
+ * `apple-touch-icon.png` draw the light mark: an ivory p. on the ink tile.
+ *
+ * The p and its dot share one span, the tile's single grid item, so the dot
+ * sits beside the p rather than in a second grid row below the tile.
  */
 export function PellierMark({
   size = 20,
@@ -76,7 +79,7 @@ export function PellierMark({
       data-testid={testId}
       style={{ ...BRAND_FACE, width: size, height: size, fontSize: Math.round(size * 0.68) }}
     >
-      p<span className="pellier-brand-dot">.</span>
+      <span>p<span className="pellier-brand-dot">.</span></span>
     </span>
   )
 }

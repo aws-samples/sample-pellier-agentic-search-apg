@@ -96,7 +96,8 @@ for (const theme of ['light', 'dark'] as const) {
         })
         if (theme === 'dark') {
           const grounds = await page.evaluate(sweepGrounds)
-          expect(grounds.checked, `${surface.name}: bands measured for the page ground`).toBeGreaterThan(1)
+          expect(grounds.inStage, `${surface.name}: route bands measured for the page ground`)
+            .toBeGreaterThanOrEqual(1)
           const findings = await sweepPage(page)
           const lines = [
             ...grounds.findings.map((g) => `ground ${g.ground}, not #000000, at ${g.path}`),

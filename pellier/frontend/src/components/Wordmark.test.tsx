@@ -74,6 +74,10 @@ describe('Wordmark', () => {
     const mark = screen.getByTestId('mark')
     expect(mark).toHaveClass('pellier-mark')
     expect(mark).toHaveTextContent('p.')
+    // One grid item, so the dot sits beside the p inside the tile, not in a
+    // second grid row below it.
+    expect(mark.childNodes).toHaveLength(1)
+    expect(mark.firstElementChild).toHaveTextContent('p.')
     expect(mark.style.fontFamily).toBe('var(--dl-font-display)')
     expect(block(nav, '.pellier-mark {')).not.toContain('font-family')
   })

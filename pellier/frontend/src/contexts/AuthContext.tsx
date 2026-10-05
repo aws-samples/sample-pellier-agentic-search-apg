@@ -69,7 +69,7 @@ interface AuthContextType {
   /**
    * Saved preferences from AgentCore Memory, fetched via
    * `/api/user/preferences`. `null` means either unauthenticated or no
-   * preferences saved yet; PreferencesModal is the onboarding for that case.
+   * preferences saved yet.
    */
   preferences: Preferences | null
   /**
@@ -286,7 +286,7 @@ export function AuthProvider({
   /**
    * `savePreferences(p)` — POST /api/user/preferences. On 2xx, bumps
    * `prefsVersion` so the ProductGrid remounts (Req 1.6.6). On non-2xx,
-   * throws so the PreferencesModal (Task 5.3) can surface the error.
+   * throws so the caller can surface the error.
    */
   const savePreferences = useCallback(async (p: Preferences) => {
     if (surface !== 'shopper') throw new Error('savePreferences: staff sessions have no preferences')

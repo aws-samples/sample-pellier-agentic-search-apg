@@ -63,7 +63,7 @@ export default {
       },
       fontFamily: {
         // Instrument Sans carries every heading and all prose. Fraunces is
-        // the wordmark's face only, through `.pellier-brand`.
+        // the wordmark's face only, set in `components/Wordmark.tsx`.
         sans: [
           '"Instrument Sans"',
           'system-ui',

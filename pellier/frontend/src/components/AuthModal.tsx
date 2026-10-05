@@ -156,6 +156,10 @@ export default function AuthModal() {
           boxShadow: 'var(--dl-sh-deep)',
           fontFamily: 'var(--sans)',
           color: c.ink,
+          // Focus lands here on open (useFocusTrap), not by keyboard; the
+          // browser's own ring would frame the whole card. The controls inside
+          // keep their focus rings.
+          outline: 'none',
         }}
       >
         {/* Header: the wordmark + title + subtitle. The square p. mark is

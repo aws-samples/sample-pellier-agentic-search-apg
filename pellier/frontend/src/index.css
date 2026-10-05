@@ -141,9 +141,9 @@
   }
 
   /* Headings: one rule. Instrument Sans at 500 with tight tracking. The
-     wordmark (`.pellier-brand`) is the only element that sets another
-     family; the Operator desk sets its own heading rules at higher
-     specificity. */
+     wordmark and the square p. mark, in `components/Wordmark.tsx`, are the
+     only elements that set another family; the Operator desk sets its own
+     heading rules at higher specificity. */
   h1,
   h2,
   h3,
