@@ -380,3 +380,23 @@ def test_stock_and_exclusion_requirements_reach_the_plan_as_a_reading(
 
     lambda_tools.TOOLS["search_products"]({"query": "a gift", "exclusions": "candle"}, None)
     assert seen["extracted"] == {"in_stock_only": False, "exclusions": ["candle"], "soft_signal": "a gift"}
+
+
+def test_multi_word_stock_and_browse_sql_reach_the_data_api_without_a_backslash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Live on the fourlab deploy: ESCAPE '\\' left :p1 unbound and the Data API refused it."""
+    fake = _DataApiFake()
+    monkeypatch.setattr(dataapi, "execute_sql", fake)
+
+    lambda_tools.TOOLS["check_stock"]({"product_query": "Velvet Opera Cape"}, None)
+    lambda_tools.TOOLS["browse_department"]({"department": "Home", "in_stock_only": True, "limit": 8}, None)
+
+    for sql, bound in fake.statements:
+        assert "\\" not in sql
+        assert set(bound) == {f"p{index}" for index in range(sql.count(":p"))}
+
+
+def test_the_data_api_transport_refuses_a_backslash_before_calling_aws() -> None:
+    with pytest.raises(ValueError, match="chr\\(92\\)"):
+        dataapi._named("SELECT 'a' LIKE %s ESCAPE '\\' AND 'b' LIKE %s", ("%a%", "%b%"))

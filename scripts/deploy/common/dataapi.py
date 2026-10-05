@@ -150,7 +150,18 @@ def _parameter(name: str, value: Any) -> Dict[str, Any]:
 
 
 def _named(sql: str, params: Sequence[Any]) -> tuple[str, List[Dict[str, Any]]]:
-    """Rewrite positional ``%s`` placeholders as ``:pN`` and type the values."""
+    """Rewrite positional ``%s`` placeholders as ``:pN`` and type the values.
+
+    The Data API reads a backslash inside a quoted literal as an escape and then
+    treats the rest of the statement as one string, leaving later placeholders
+    unbound (``syntax error at or near ":"``). Such SQL is refused here, before
+    it reaches AWS; write ``chr(92)`` for a literal backslash.
+    """
+    if "\\" in sql:
+        raise ValueError(
+            "store SQL contains a backslash, which the RDS Data API misreads inside a "
+            "quoted literal; write chr(92) instead"
+        )
     values = list(params)
     seen = 0
 

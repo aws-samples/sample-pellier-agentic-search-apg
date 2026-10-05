@@ -33,4 +33,5 @@ def test_every_like_filter_binds_the_escaped_pattern_with_an_escape_clause() -> 
 
     assert browse_params[0] == expected
     assert stock_params == (expected,)
-    assert all("ESCAPE '\\'" in sql for sql in (browse_sql, stock_sql))
+    assert all("ESCAPE chr(92)" in sql for sql in (browse_sql, stock_sql))
+    assert not any("\\" in sql for sql in (browse_sql, stock_sql))

@@ -179,7 +179,7 @@ def test_a_browse_counts_its_department_after_the_limits() -> None:
     sql, params, reasons = filter_count_sql(plan, extra)
 
     assert reasons == ["budget", "department"]
-    assert "(price <= %s) AND NOT (lower(category) LIKE %s ESCAPE '\\')) AS removed_1" in sql
+    assert "(price <= %s) AND NOT (lower(category) LIKE %s ESCAPE chr(92))) AS removed_1" in sql
     assert params[:3] == [100.0, 100.0, "%home%"]
     assert sql.count("%s") == len(params)
 

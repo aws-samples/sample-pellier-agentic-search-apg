@@ -226,7 +226,12 @@ def _product(row: Dict[str, Any]) -> Dict[str, Any]:
 
 # The department a browse reads. The filter counts reuse it, so "N of 100
 # fit" counts exactly the rows this predicate and the plan's limits keep.
-BROWSE_DEPARTMENT_CLAUSE = "lower(category) LIKE %s ESCAPE '\\'"
+# The escape character is the backslash prepare_like_pattern writes, spelled
+# chr(92): the RDS Data API reads a backslash inside a quoted literal as an
+# escape, so ESCAPE '\\' left every later :name placeholder unbound and the
+# Gateway rail's browse and multi-word stock checks failed with a syntax error.
+LIKE_ESCAPE = "ESCAPE chr(92)"
+BROWSE_DEPARTMENT_CLAUSE = f"lower(category) LIKE %s {LIKE_ESCAPE}"
 
 
 def _browse_sql(extra_clauses: Sequence[str] = ()) -> str:
@@ -375,7 +380,7 @@ def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
         return {"status": "not_found", "query": product_query, "message": "Empty product query."}
 
     # One LIKE per word, so "Hadley shirt" matches "Hadley ... Linen Shirt".
-    clause = " AND ".join(["lower(name) LIKE %s ESCAPE '\\'"] * len(tokens))
+    clause = " AND ".join([f"lower(name) LIKE %s {LIKE_ESCAPE}"] * len(tokens))
     candidates = run(
         _STOCK_PRODUCT_SQL.format(clause=clause),
         tuple(prepare_like_pattern(token) for token in tokens),
