@@ -2,155 +2,171 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <!-- Title: Lab4JessicaGovernance Pages: 1 -->
-<svg width="1798pt" height="1080pt"
- viewBox="0.00 0.00 1798.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-<g id="graph0" class="graph" transform="scale(0.861123 0.861123) rotate(0) translate(21.6 1232.58)">
+<svg width="1773pt" height="1080pt"
+ viewBox="0.00 0.00 1773.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1.04074 1.04074) rotate(0) translate(21.6 1016.13)">
 <title>Lab4JessicaGovernance</title>
-<polygon fill="#f7f3ec" stroke="none" points="-21.6,21.6 -21.6,-1232.58 2066.89,-1232.58 2066.89,21.6 -21.6,21.6"/>
-<text xml:space="preserve" text-anchor="middle" x="210.88" y="-1186.08" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 4 · JESSICA</text>
-<text xml:space="preserve" text-anchor="middle" x="210.88" y="-1159.83" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">Enforce identity and prove non&#45;execution</text>
-<!-- principals&#45;&gt;cognito -->
+<polygon fill="#f7f3ec" stroke="none" points="-21.6,21.6 -21.6,-1016.13 1682.09,-1016.13 1682.09,21.6 -21.6,21.6"/>
+<text xml:space="preserve" text-anchor="middle" x="283.62" y="-969.63" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 4: JESSICA AND NADIA</text>
+<text xml:space="preserve" text-anchor="middle" x="283.62" y="-943.38" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">Two controls on one credit, and the proof it moved once</text>
+<!-- request&#45;&gt;desk -->
 <g id="edge1" class="edge">
-<title>principals&#45;&gt;cognito</title>
-<path fill="none" stroke="#9a3412" stroke-width="2" d="M161.39,-1034C161.39,-1034 223.86,-1034 223.86,-1034"/>
-<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="223.86,-1036.52 231.06,-1034 223.86,-1031.48 223.86,-1036.52"/>
+<title>request&#45;&gt;desk</title>
+<path fill="none" stroke="#9a3412" stroke-width="2" d="M155.41,-841C155.41,-841 221.29,-841 221.29,-841"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="221.29,-843.52 228.49,-841 221.29,-838.48 221.29,-843.52"/>
+</g>
+<!-- desk&#45;&gt;approval -->
+<g id="edge2" class="edge">
+<title>desk&#45;&gt;approval</title>
+<path fill="none" stroke="#9a3412" stroke-width="2" d="M391.74,-841C391.74,-841 456.58,-841 456.58,-841"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="456.58,-843.52 463.78,-841 456.58,-838.48 456.58,-843.52"/>
+</g>
+<!-- desk&#45;&gt;rls -->
+<g id="edge8" class="edge">
+<title>desk&#45;&gt;rls</title>
+<path fill="none" stroke="#3f6212" stroke-width="1.5" stroke-dasharray="5,2" d="M311.49,-807.16C311.49,-807.16 311.49,-158.51 311.49,-158.51"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="1.5" points="314.01,-158.51 311.49,-151.31 308.97,-158.51 314.01,-158.51"/>
+<text xml:space="preserve" text-anchor="middle" x="378.24" y="-472.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">customer reads, one name bound</text>
+</g>
+<!-- approval&#45;&gt;cognito -->
+<g id="edge3" class="edge">
+<title>approval&#45;&gt;cognito</title>
+<path fill="none" stroke="#9a3412" stroke-width="2" d="M640.44,-841C640.44,-841 684.44,-841 684.44,-841"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="684.44,-843.52 691.64,-841 684.44,-838.48 684.44,-843.52"/>
 </g>
 <!-- cognito&#45;&gt;cedar -->
-<g id="edge2" class="edge">
+<g id="edge4" class="edge">
 <title>cognito&#45;&gt;cedar</title>
-<path fill="none" stroke="#9a3412" stroke-width="2" d="M416.98,-1034C416.98,-1034 484.49,-1034 484.49,-1034"/>
-<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="484.49,-1036.52 491.69,-1034 484.49,-1031.48 484.49,-1036.52"/>
+<path fill="none" stroke="#9a3412" stroke-width="2" d="M773.49,-813.19C773.49,-813.19 773.49,-519.54 773.49,-519.54"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="776.01,-519.54 773.49,-512.34 770.97,-519.54 776.01,-519.54"/>
+<text xml:space="preserve" text-anchor="middle" x="801.62" y="-655.08" font-family="Helvetica Neue" font-size="9.00" fill="#5a2a0a">verified claims</text>
 </g>
 <!-- cedar&#45;&gt;gateway -->
-<g id="edge3" class="edge">
+<g id="edge5" class="edge">
 <title>cedar&#45;&gt;gateway</title>
-<path fill="none" stroke="#9a3412" stroke-width="2" d="M640.47,-1034C640.47,-1034 720.94,-1034 720.94,-1034"/>
-<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="720.94,-1036.52 728.14,-1034 720.94,-1031.48 720.94,-1036.52"/>
+<path fill="none" stroke="#9a3412" stroke-width="2" d="M875.92,-475C875.92,-475 955.43,-475 955.43,-475"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="955.43,-477.52 962.63,-475 955.43,-472.48 955.43,-477.52"/>
 </g>
 <!-- cedar&#45;&gt;deny -->
-<g id="edge7" class="edge">
+<g id="edge9" class="edge">
 <title>cedar&#45;&gt;deny</title>
-<path fill="none" stroke="#991b1b" stroke-width="1.8" d="M567.49,-1005.77C567.49,-1005.77 567.49,-154.1 567.49,-154.1"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="1.8" points="570.01,-154.1 567.49,-146.9 564.97,-154.1 570.01,-154.1"/>
-<text xml:space="preserve" text-anchor="middle" x="603.87" y="-572.08" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">policy receipt only</text>
+<path fill="none" stroke="#991b1b" stroke-width="1.8" d="M773.49,-440.9C773.49,-440.9 773.49,-153.07 773.49,-153.07"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="1.8" points="776.01,-153.07 773.49,-145.87 770.97,-153.07 776.01,-153.07"/>
+<text xml:space="preserve" text-anchor="middle" x="829.74" y="-289.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">your rule supplies the denial</text>
 </g>
-<!-- gateway&#45;&gt;tool -->
-<g id="edge4" class="edge">
-<title>gateway&#45;&gt;tool</title>
-<path fill="none" stroke="#9a3412" stroke-width="2" d="M817.49,-1006.32C817.49,-1006.32 817.49,-607.13 817.49,-607.13"/>
-<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="820.01,-607.13 817.49,-599.93 814.97,-607.13 820.01,-607.13"/>
-<text xml:space="preserve" text-anchor="middle" x="842.99" y="-802.08" font-family="Helvetica Neue" font-size="9.00" fill="#5a2a0a">ALLOW only</text>
-</g>
-<!-- tool&#45;&gt;rls -->
-<g id="edge5" class="edge">
-<title>tool&#45;&gt;rls</title>
-<path fill="none" stroke="#9a3412" stroke-width="2" d="M901.84,-575C901.84,-575 997.13,-575 997.13,-575"/>
-<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="997.13,-577.52 1004.33,-575 997.13,-572.48 997.13,-577.52"/>
-</g>
-<!-- rls&#45;&gt;effect -->
+<!-- gateway&#45;&gt;apply -->
 <g id="edge6" class="edge">
-<title>rls&#45;&gt;effect</title>
-<path fill="none" stroke="#3f6212" stroke-width="2" d="M1197.77,-575C1197.77,-575 1276.99,-575 1276.99,-575"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="1276.99,-577.52 1284.19,-575 1276.99,-572.48 1276.99,-577.52"/>
+<title>gateway&#45;&gt;apply</title>
+<path fill="none" stroke="#9a3412" stroke-width="2" d="M1127.33,-475C1127.33,-475 1190.93,-475 1190.93,-475"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2" points="1190.93,-477.52 1198.13,-475 1190.93,-472.48 1190.93,-477.52"/>
+</g>
+<!-- apply&#45;&gt;effect -->
+<g id="edge7" class="edge">
+<title>apply&#45;&gt;effect</title>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M1357.72,-475C1357.72,-475 1462.12,-475 1462.12,-475"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="1462.12,-477.52 1469.32,-475 1462.12,-472.48 1462.12,-477.52"/>
 </g>
 <!-- effect&#45;&gt;allow -->
-<g id="edge8" class="edge">
+<g id="edge10" class="edge">
 <title>effect&#45;&gt;allow</title>
-<path fill="none" stroke="#3f6212" stroke-width="1.8" d="M1380.49,-546.98C1380.49,-546.98 1380.49,-154.16 1380.49,-154.16"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="1.8" points="1383.01,-154.16 1380.49,-146.96 1377.97,-154.16 1383.01,-154.16"/>
-<text xml:space="preserve" text-anchor="middle" x="1413.12" y="-343.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">exact&#45;key matrix</text>
+<path fill="none" stroke="#3f6212" stroke-width="1.8" d="M1552.49,-440.9C1552.49,-440.9 1552.49,-146.94 1552.49,-146.94"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="1.8" points="1555.01,-146.94 1552.49,-139.74 1549.97,-146.94 1555.01,-146.94"/>
+<text xml:space="preserve" text-anchor="middle" x="1579.12" y="-289.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">keyed counts</text>
 </g>
-<!-- operator&#45;&gt;no_execution -->
-<g id="edge9" class="edge">
-<title>operator&#45;&gt;no_execution</title>
-<path fill="none" stroke="#b45309" stroke-width="1.5" stroke-dasharray="5,2" d="M1746.78,-116C1746.78,-116 1833.67,-116 1833.67,-116"/>
-<polygon fill="#b45309" stroke="#b45309" stroke-width="1.5" points="1833.67,-118.52 1840.87,-116 1833.67,-113.48 1833.67,-118.52"/>
-</g>
-<!-- principals -->
+<!-- request -->
 <g id="node1" class="node">
-<title>principals</title>
-<polygon fill="#1f1410" stroke="#cbc1ad" stroke-width="1.2" points="160.98,-1061.36 0,-1061.36 0,-1006.64 160.98,-1006.64 160.98,-1061.36"/>
-<text xml:space="preserve" text-anchor="middle" x="80.49" y="-1042.5" font-family="Helvetica Neue" font-size="10.00" fill="#fbf8f2">01 · CUSTOMER PRINCIPALS</text>
-<text xml:space="preserve" text-anchor="middle" x="80.49" y="-1030.5" font-family="Helvetica Neue" font-size="10.00" fill="#fbf8f2">Marco · Anna · Jessica</text>
-<text xml:space="preserve" text-anchor="middle" x="80.49" y="-1018.5" font-family="Helvetica Neue" font-size="10.00" fill="#fbf8f2">persona is not identity</text>
+<title>request</title>
+<polygon fill="#1f1410" stroke="#cbc1ad" stroke-width="1.2" points="154.98,-868.36 0,-868.36 0,-813.64 154.98,-813.64 154.98,-868.36"/>
+<text xml:space="preserve" text-anchor="middle" x="77.49" y="-849.5" font-family="Helvetica Neue" font-size="10.00" fill="#fbf8f2">01 SHOPPER REQUEST</text>
+<text xml:space="preserve" text-anchor="middle" x="77.49" y="-837.5" font-family="Helvetica Neue" font-size="10.00" fill="#fbf8f2">Jessica asks about her credit</text>
+<text xml:space="preserve" text-anchor="middle" x="77.49" y="-825.5" font-family="Helvetica Neue" font-size="10.00" fill="#fbf8f2">a request carries no amount</text>
+</g>
+<!-- desk -->
+<g id="node2" class="node">
+<title>desk</title>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="391.23,-874.36 231.75,-874.36 231.75,-807.64 391.23,-807.64 391.23,-874.36"/>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-855.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">02 OPERATOR DESK</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-843.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">Investigator reads her case</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-831.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">Planner proposes 10000 cents</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-819.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">for two received returns</text>
+</g>
+<!-- approval -->
+<g id="node3" class="node">
+<title>approval</title>
+<polygon fill="#fbf8f2" stroke="#b45309" stroke-width="1.8" points="639.61,-868.36 467.38,-868.36 467.38,-813.64 639.61,-813.64 639.61,-868.36"/>
+<text xml:space="preserve" text-anchor="middle" x="553.49" y="-849.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">03 HUMAN APPROVAL</text>
+<text xml:space="preserve" text-anchor="middle" x="553.49" y="-837.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">Nadia approves the exact terms</text>
+<text xml:space="preserve" text-anchor="middle" x="553.49" y="-825.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">key operator&#45;review:&lt;id&gt;:&lt;hash&gt;</text>
 </g>
 <!-- cognito -->
-<g id="node2" class="node">
+<g id="node4" class="node">
 <title>cognito</title>
-<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="416.48,-1055.36 234.5,-1055.36 234.5,-1012.64 416.48,-1012.64 416.48,-1055.36"/>
-<text xml:space="preserve" text-anchor="middle" x="325.49" y="-1036.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">02 · COGNITO</text>
-<text xml:space="preserve" text-anchor="middle" x="325.49" y="-1024.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">Verified username + immutable sub</text>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="851.73,-868.36 695.25,-868.36 695.25,-813.64 851.73,-813.64 851.73,-868.36"/>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-849.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">04 COGNITO</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-837.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">Nadia&#39;s token</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-825.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">custom:staff_scope = returns</text>
 </g>
 <!-- cedar -->
-<g id="node3" class="node">
+<g id="node5" class="node">
 <title>cedar</title>
-<polygon fill="#fbf8f2" stroke="#9a3412" stroke-width="2" points="639.49,-1061.36 495.49,-1061.36 495.49,-1006.64 639.49,-1006.64 639.49,-1061.36"/>
-<text xml:space="preserve" text-anchor="middle" x="567.49" y="-1042.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">03 · CEDAR POLICY</text>
-<text xml:space="preserve" text-anchor="middle" x="567.49" y="-1030.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">username must map to</text>
-<text xml:space="preserve" text-anchor="middle" x="567.49" y="-1018.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">requested customer_id</text>
+<polygon fill="#fbf8f2" stroke="#9a3412" stroke-width="2" points="874.98,-508.36 672,-508.36 672,-441.64 874.98,-441.64 874.98,-508.36"/>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-489.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">05 CEDAR POLICY</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-477.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">supplied: give_store_credit_staff_scope</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-465.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">yours: workshop_credit_limit</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-453.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">unless amount_cents &lt;= 10000</text>
 </g>
 <!-- gateway -->
-<g id="node4" class="node">
-<title>gateway</title>
-<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="903.61,-1061.36 731.38,-1061.36 731.38,-1006.64 903.61,-1006.64 903.61,-1061.36"/>
-<text xml:space="preserve" text-anchor="middle" x="817.49" y="-1042.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">04 · AGENTCORE GATEWAY</text>
-<text xml:space="preserve" text-anchor="middle" x="817.49" y="-1030.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">DENY before target execution</text>
-<text xml:space="preserve" text-anchor="middle" x="817.49" y="-1018.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">ALLOW exposes bounded action</text>
-</g>
-<!-- tool -->
-<g id="node5" class="node">
-<title>tool</title>
-<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="901.36,-596.36 733.62,-596.36 733.62,-553.64 901.36,-553.64 901.36,-596.36"/>
-<text xml:space="preserve" text-anchor="middle" x="817.49" y="-577.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">05 · INITIATE_RETURN</text>
-<text xml:space="preserve" text-anchor="middle" x="817.49" y="-565.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">Idempotency key + owned input</text>
-</g>
-<!-- rls -->
 <g id="node6" class="node">
-<title>rls</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="2" points="1196.86,-602.36 1008.12,-602.36 1008.12,-547.64 1196.86,-547.64 1196.86,-602.36"/>
-<text xml:space="preserve" text-anchor="middle" x="1102.49" y="-583.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">06 · POSTGRESQL RLS</text>
-<text xml:space="preserve" text-anchor="middle" x="1102.49" y="-571.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">principal_sub → principal_customers</text>
-<text xml:space="preserve" text-anchor="middle" x="1102.49" y="-559.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">USING + WITH CHECK</text>
+<title>gateway</title>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="1126.98,-502.36 966,-502.36 966,-447.64 1126.98,-447.64 1126.98,-502.36"/>
+<text xml:space="preserve" text-anchor="middle" x="1046.49" y="-483.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">06 AGENTCORE GATEWAY</text>
+<text xml:space="preserve" text-anchor="middle" x="1046.49" y="-471.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">DENY before the Lambda runs</text>
+<text xml:space="preserve" text-anchor="middle" x="1046.49" y="-459.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">ALLOW calls give_store_credit</text>
+</g>
+<!-- apply -->
+<g id="node7" class="node">
+<title>apply</title>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.2" points="1357.36,-508.36 1201.62,-508.36 1201.62,-441.64 1357.36,-441.64 1357.36,-508.36"/>
+<text xml:space="preserve" text-anchor="middle" x="1279.49" y="-489.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">07 APPLY_STORE_CREDIT</text>
+<text xml:space="preserve" text-anchor="middle" x="1279.49" y="-477.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">approved review, exact terms</text>
+<text xml:space="preserve" text-anchor="middle" x="1279.49" y="-465.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">uncredited received orders</text>
+<text xml:space="preserve" text-anchor="middle" x="1279.49" y="-453.5" font-family="Helvetica Neue" font-size="10.00" fill="#1f1410">$500 safety ceiling</text>
 </g>
 <!-- effect -->
-<g id="node7" class="node">
+<g id="node8" class="node">
 <title>effect</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="2" points="1472.98,-602.36 1288,-602.36 1288,-547.64 1472.98,-547.64 1472.98,-602.36"/>
-<text xml:space="preserve" text-anchor="middle" x="1380.49" y="-583.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">07 · DURABLE EFFECT</text>
-<text xml:space="preserve" text-anchor="middle" x="1380.49" y="-571.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">one tool_audit · one write_operation</text>
-<text xml:space="preserve" text-anchor="middle" x="1380.49" y="-559.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">Jessica&#45;owned return row</text>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="2" points="1631.86,-508.36 1473.12,-508.36 1473.12,-441.64 1631.86,-441.64 1631.86,-508.36"/>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-489.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">08 DURABLE EFFECT</text>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-477.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">one tool_audit row</text>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-465.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">one store_credits row</text>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-453.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">a retry replays the same credit</text>
+</g>
+<!-- rls -->
+<g id="node9" class="node">
+<title>rls</title>
+<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="2" points="419.49,-148.36 203.49,-148.36 203.49,-69.64 419.49,-69.64 419.49,-148.36"/>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-129.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">POSTGRESQL RLS</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-117.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">orders_owner, support_tickets_owner</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-105.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">USING + WITH CHECK, as pellier_agent</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-93.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">customers.cognito_username =</text>
+<text xml:space="preserve" text-anchor="middle" x="311.49" y="-81.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">pellier.principal_username</text>
 </g>
 <!-- deny -->
-<g id="node8" class="node">
+<g id="node10" class="node">
 <title>deny</title>
-<polygon fill="#fef2f2" stroke="#991b1b" stroke-width="2" points="675.49,-143.36 459.49,-143.36 459.49,-88.64 675.49,-88.64 675.49,-143.36"/>
-<text xml:space="preserve" text-anchor="middle" x="567.49" y="-124.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">NEGATIVE CONTROL</text>
-<text xml:space="preserve" text-anchor="middle" x="567.49" y="-112.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">Marco/Anna → Jessica = DENY</text>
-<text xml:space="preserve" text-anchor="middle" x="567.49" y="-100.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">0 execution · 0 write · 0 business rows</text>
+<polygon fill="#fef2f2" stroke="#991b1b" stroke-width="2" points="881.49,-142.36 665.49,-142.36 665.49,-75.64 881.49,-75.64 881.49,-142.36"/>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-123.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">NEGATIVE CONTROL</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-111.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">an over&#45;limit review, 10001 cents</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-99.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">DENY: 0 tool_audit, 0 store_credits</text>
+<text xml:space="preserve" text-anchor="middle" x="773.49" y="-87.5" font-family="Helvetica Neue" font-size="10.00" fill="#991b1b">for its key</text>
 </g>
 <!-- allow -->
-<g id="node9" class="node">
-<title>allow</title>
-<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="2" points="1488.49,-143.36 1272.49,-143.36 1272.49,-88.64 1488.49,-88.64 1488.49,-143.36"/>
-<text xml:space="preserve" text-anchor="middle" x="1380.49" y="-124.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">POSITIVE CONTROL</text>
-<text xml:space="preserve" text-anchor="middle" x="1380.49" y="-112.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">Jessica → Jessica = ALLOW</text>
-<text xml:space="preserve" text-anchor="middle" x="1380.49" y="-100.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">replay keeps canonical write count = 1</text>
-</g>
-<!-- operator -->
-<g id="node10" class="node">
-<title>operator</title>
-<polygon fill="#fff7ed" stroke="#b45309" stroke-width="1.2" points="1746.49,-143.36 1512.49,-143.36 1512.49,-88.64 1746.49,-88.64 1746.49,-143.36"/>
-<text xml:space="preserve" text-anchor="middle" x="1629.49" y="-124.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">SEPARATE OPERATOR BOUNDARY</text>
-<text xml:space="preserve" text-anchor="middle" x="1629.49" y="-112.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">operator Cognito group → Case Investigator</text>
-<text xml:space="preserve" text-anchor="middle" x="1629.49" y="-100.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">→ Resolution Planner → human review</text>
-</g>
-<!-- no_execution -->
 <g id="node11" class="node">
-<title>no_execution</title>
-<polygon fill="#fbf8f2" stroke="#b45309" stroke-width="1.2" points="2045.29,-143.36 1843.69,-143.36 1843.69,-88.64 2045.29,-88.64 2045.29,-143.36"/>
-<text xml:space="preserve" text-anchor="middle" x="1944.49" y="-124.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">STOP CONDITION</text>
-<text xml:space="preserve" text-anchor="middle" x="1944.49" y="-112.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">Prepare the fair next step.</text>
-<text xml:space="preserve" text-anchor="middle" x="1944.49" y="-100.5" font-family="Helvetica Neue" font-size="10.00" fill="#7c2d12">Do not approve or execute it.</text>
+<title>allow</title>
+<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="2" points="1660.49,-136.36 1444.49,-136.36 1444.49,-81.64 1660.49,-81.64 1660.49,-136.36"/>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-117.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">POSITIVE CONTROL</text>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-105.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">Jessica&#39;s 10000 cents</text>
+<text xml:space="preserve" text-anchor="middle" x="1552.49" y="-93.5" font-family="Helvetica Neue" font-size="10.00" fill="#3f6212">ALLOW: 1 credit, unchanged on retry</text>
 </g>
 </g>
 </svg>

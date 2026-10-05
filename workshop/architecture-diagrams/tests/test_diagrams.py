@@ -73,7 +73,8 @@ class DiagramSourceTests(unittest.TestCase):
             "NOT INVOKED",
             "0 tool_audit",
             "exactly 1 execution",
-            "Aurora RLS".upper(),
+            "0 store_credits",
+            "your forbid applies",
             "human review is not implied",
         ):
             self.assertIn(fragment, source)

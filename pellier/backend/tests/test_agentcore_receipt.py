@@ -618,6 +618,17 @@ def test_an_allow_without_its_audit_row_is_not_a_policy_proof() -> None:
     assert any("exactly one tool_audit row" in error for error in errors)
 
 
+@pytest.mark.parametrize(("half", "field", "value"), [
+    ("allow", "action", "pellier-store-tools___check_stock"),
+    ("deny", "action", "pellier-store-tools___get_tickets"),
+    ("deny", "principal", "nadia"),
+])
+def test_the_proof_must_probe_the_pinned_calls(half: str, field: str, value: str) -> None:
+    """A DENY of some other tool, or by staff, does not prove the shopper boundary."""
+    errors = _policy_errors(lambda v: v["live_policy_proof"][half].update({field: value}))
+    assert any(f"Policy {half.upper()} must probe" in error for error in errors)
+
+
 def test_a_401_shaped_deny_is_not_a_policy_proof() -> None:
     errors = _policy_errors(
         lambda v: v["live_policy_proof"]["deny"].update(

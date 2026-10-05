@@ -566,6 +566,23 @@ def validate_receipt(
     return errors
 
 
+# The two calls the provisioner makes, pinned: a shopper's catalogue read that
+# must be allowed, and the same shopper's store credit that must be denied. A
+# receipt that probed anything else does not prove this boundary.
+PROBED = {
+    "allow": ("theo", "pellier-store-tools___get_return_policy"),
+    "deny": ("theo", "pellier-store-tools___give_store_credit"),
+}
+
+
+def _probed(half: str, call: dict[str, Any]) -> list[str]:
+    principal, action = PROBED[half]
+    if call.get("principal") != principal or call.get("action") != action:
+        return [f"Policy {half.upper()} must probe {action} as {principal}, not "
+                f"{call.get('action')!r} as {call.get('principal')!r}"]
+    return []
+
+
 def validate_live_policy_proof(payload: dict[str, Any]) -> list[str]:
     """Check the two-call Cedar proof the provisioner recorded.
 
@@ -579,6 +596,7 @@ def validate_live_policy_proof(payload: dict[str, Any]) -> list[str]:
     if not isinstance(allow, dict) or allow.get("outcome") != "allow":
         errors.append("verification.live_policy_proof.allow must prove ALLOW")
     else:
+        errors.extend(_probed("allow", allow))
         evidence = allow.get("evidence") if isinstance(allow.get("evidence"), dict) else {}
         row = evidence.get("tool_audit_row")
         if not isinstance(row, dict) or not row.get("audit_id"):
@@ -597,6 +615,7 @@ def validate_live_policy_proof(payload: dict[str, Any]) -> list[str]:
             "Policy DENY must be a Cedar policy denial, not an authentication, "
             "validation or transport failure"
         )
+    errors.extend(_probed("deny", deny))
     if not str(deny.get("idempotency_key") or "").strip():
         errors.append("Policy DENY must record the probe idempotency key")
     evidence = deny.get("evidence") if isinstance(deny.get("evidence"), dict) else {}

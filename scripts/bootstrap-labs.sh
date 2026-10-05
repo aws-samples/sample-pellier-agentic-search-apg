@@ -1231,15 +1231,6 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
                   "pellier/backend/services/cognito_auth.py" "Cognito auth helper"
     copy_solution "solutions/the-ledger/services/otel_trace_extractor.py" \
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
-
-    # ---- Frontend agent-identity hook ----
-    # The Pellier chat drawer reads this to attach an identity claim to
-    # every agent call. auth.ts + AuthModal + AuthContext already ship
-    # complete in the live frontend tree (real Cognito sign-in, no demo
-    # mode), so only the agent-identity hook is dropped in here; the rest
-    # are not overwritten.
-    copy_solution "solutions/the-ledger/frontend/agentIdentity.ts" \
-                  "pellier/frontend/src/utils/agentIdentity.ts" "Frontend agent identity"
     else
         log "Governed format: preserving the Stock agent and check_stock scaffolds for participant build"
         if (

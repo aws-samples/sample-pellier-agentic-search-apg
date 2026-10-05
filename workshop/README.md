@@ -10,21 +10,22 @@ from the database and the source you changed. A supplied answer, an open page, o
 a successful conversation is not a completed task; a recovered task keeps the
 same checks.
 
-| Lab and task | Work you do | Evidence to keep |
+| Lab and task | Work you do | Check |
 |---|---|---|
-| 1A · Anna | Explain the ranking | Your RRF judged against the recorded scores of the exact receipt. |
-| 1B · Anna | Relax preferences, keep requirements | The preference you chose, counts proving strict-empty, unchanged requirements, eligible IDs. |
-| 2A · Marco | Connect inventory to Aurora | Test inputs you chose, classified by the catalog; unknown, ambiguous and zero stay distinct. |
-| 2B · Marco | Make the agent use the facts | Exact turn, tool result, warehouse rows. |
-| 3A · Theo | Connect the customer-scoped tool | Direct owned and foreign Gateway results. |
-| 3B · Theo | Deploy and challenge the conversation | Agent-path ticket reads bound to Theo, fresh session, executed build; Memory is context. |
-| 4A · Jessica | Write the ownership rule | Five control outcomes under your Cedar rule. |
-| 4B · Jessica | Test ownership and reconcile the case | Rollback-only RLS, keyed absence with a positive control, one reviewed return and what it did not settle. |
+| 1A, Anna | Recompute the ranking (`workshop/lab-1-rrf.sql`) | `psql -X -P pager=off -f workshop/lab-1-rrf.sql` |
+| 1B, Anna | Keep her limits on the fallback (`services/search_plan.py`) | `python3 scripts/lab1_compare.py` |
+| 2A, Marco | Keep not carried apart from zero (`services/agent_tools.py`) | `python3 scripts/lab2_contract_check.py` |
+| 2B, Marco | Grant the Stock agent `check_stock` alone (`agents/stock_agent.py`) | `python3 scripts/lab2_contract_check.py --task 2B` |
+| 3A, Theo | Publish `get_tickets` and bind it to the caller | `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites` |
+| 3B, Theo | Deploy, then challenge with the household request | `python3 scripts/showcase_agentcore_memory.py provisioned --persona theo` and `python3 scripts/lab3_check.py` |
+| 4A, Jessica and Nadia | The $100 per-credit limit (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_policy_check.py` |
+| 4B, Jessica and Nadia | The row-ownership predicate (`workshop/lab-4-rls.sql`) | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then `-f workshop/lab-4-absence.sql` |
 
-Only edit the lab's markers. Python edits in Labs 1–2 need the guide's backend
-restart. Lab 3 packages its support adapter and needs a new Runtime session; it reuses
-provided Lambda tools. The Lab 2 wrapper and Lab 1 planner remain in-process. Lab 4 needs
-policy validation and deployment. Changing a local file does not update AWS.
+Only edit the lab's marked regions; there are eight. Python edits in Labs 1 and
+2 need the guide's backend restart. Lab 3's edits and Lab 4's rule reach AWS
+only through `python3 scripts/provision_agentcore_end_to_end.py --repo-path
+"$PWD" --mode participant`: changing a local file does not update AWS.
+Provisioning deploys Lab 4's starter rule, so the deploy updates it.
 
 ## One concierge, four growing responsibilities
 
@@ -37,18 +38,17 @@ implementations and evidence boundaries.
 
 ## Follow the request, then challenge the result
 
-- **Marco:** Storefront → chat API → specialist → tool → business logic → Aurora.
-  Compare the direct tool envelope with the exact turn's execution record.
-- **Anna:** in-process retrieval executor → SQL eligibility → lexical/vector ranks →
-  RRF → candidate budget → rerank. Explain where a candidate disappeared before
-  changing that stage. A fallback may relax preferences, but it must carry the original hard constraints and exclusions into every attempt.
-- **Theo:** verified identity → Runtime → Gateway and Policy → scoped tool.
-  The cross-session Memory experiment uses one verified-user/run actor; regular
-  Storefront history uses a separate actor per conversation. Memory is context,
-  not proof of a purchase or current availability.
-- **Jessica:** identity → Cedar → tool → transaction → output control. A response
-  suppressed after a commit must not be retried with a new operation key. Compare
-  the existing operation, domain effect, and audit evidence first.
+- **Anna:** in-process retrieval → SQL eligibility → lexical and vector ranks →
+  RRF → rerank. A fallback may relax a preference, but it carries the budget,
+  the stock rule and the exclusions into every attempt.
+- **Marco:** Ask Pellier → Router → Stock agent → `check_stock` → Aurora.
+  Compare the tool's envelope with one SELECT on `warehouse_inventory`.
+- **Theo:** verified identity → Runtime → Gateway and Cedar → the Lambda's
+  read as `pellier_agent`. The server binds the caller onto every
+  customer-scoped call; Memory is context, not proof of a purchase.
+- **Jessica and Nadia:** request → Investigator and Planner → Nadia's approval
+  → Cedar on the Gateway → `apply_store_credit`. One approval is worth one
+  credit; a retry under the same key returns the same credit.
 
 ## Revisit Lab 1 without more model calls
 

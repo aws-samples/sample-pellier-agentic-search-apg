@@ -76,8 +76,8 @@ AWS evidence, approve a staff action or mark an unrun check complete.
 | **2B** | Inventory specialist tool list in `agents/inventory_agent.py` | Agent calls the intended tool and its answer agrees with the retained result. |
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py` and caller binding in `services/agentcore_gateway.py` | Required support tool is published and bound to the verified customer's input. |
 | **3B** | Deploy/investigate the 3A changes; no additional authoring region | Live discovery, scope challenge, executing fingerprint, all-four Memory recall, Aurora product check and trace contract. |
-| **4A** | Final `unless` in `policies/workshop_identity_match_forbid.cedar` | CLI deployment followed by real owned/foreign caller outcomes; retained denial is attributed to the participant's policy. |
-| **4B** | Ownership predicate in `workshop/lab-4-rls.sql` and absence counts in `workshop/lab-4-absence.sql`; supplied Operator workflow | Direct RLS probes roll back; denied-key counts are zero and the allowed-key control is one. One staff review preserves source turn, action hash and write key across proposal, confirmation and execution. |
+| **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: the Cedar matrix, five wrong rules and the counterfactual locally, then, once deployed with `--mode participant`, a Gateway DENY of an over-limit credit of its own review with no row for its key. |
+| **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; the absence check `workshop/lab-4-absence.sql` is supplied | Direct RLS probes roll back; denied-key counts are zero and the allowed-key control is one. One staff review preserves source turn, action hash and write key across proposal, confirmation and execution. |
 
 The Lab 2 wrapper and Lab 1 search-plan implementation run in the application
 process; they are not moved into Runtime by Lab 3. The managed search Lambda is

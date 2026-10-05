@@ -5,7 +5,7 @@ digraph Lab4JessicaGovernance {
     fontcolor="#1f1410",
     fontname="Helvetica Neue",
     fontsize=22,
-    label="LAB 4 · JESSICA\nEnforce identity and prove non-execution",
+    label="LAB 4: JESSICA AND NADIA\nTwo controls on one credit, and the proof it moved once",
     labelloc=t,
     labeljust=l,
     margin=0,
@@ -38,46 +38,67 @@ digraph Lab4JessicaGovernance {
     penwidth=2
   ];
 
-  principals [
-    label="01 · CUSTOMER PRINCIPALS\nMarco · Anna · Jessica\npersona is not identity",
+  request [
+    label="01 SHOPPER REQUEST\nJessica asks about her credit\na request carries no amount",
     fillcolor="#1f1410",
     fontcolor="#fbf8f2"
   ];
+  desk [
+    label="02 OPERATOR DESK\nInvestigator reads her case\nPlanner proposes 10000 cents\nfor two received returns"
+  ];
+  approval [
+    label="03 HUMAN APPROVAL\nNadia approves the exact terms\nkey operator-review:<id>:<hash>",
+    color="#b45309",
+    fontcolor="#7c2d12",
+    penwidth=1.8
+  ];
   cognito [
-    label="02 · COGNITO\nVerified username + immutable sub"
+    label="04 COGNITO\nNadia's token\ncustom:staff_scope = returns"
   ];
   cedar [
-    label="03 · CEDAR POLICY\nusername must map to\nrequested customer_id",
+    label="05 CEDAR POLICY\nsupplied: give_store_credit_staff_scope\nyours: workshop_credit_limit\nunless amount_cents <= 10000",
     color="#9a3412",
     penwidth=2
   ];
   gateway [
-    label="04 · AGENTCORE GATEWAY\nDENY before target execution\nALLOW exposes bounded action"
+    label="06 AGENTCORE GATEWAY\nDENY before the Lambda runs\nALLOW calls give_store_credit"
   ];
-  tool [
-    label="05 · INITIATE_RETURN\nIdempotency key + owned input"
-  ];
-  rls [
-    label="06 · POSTGRESQL RLS\nprincipal_sub → principal_customers\nUSING + WITH CHECK",
-    color="#3f6212",
-    penwidth=2
+  apply [
+    label="07 APPLY_STORE_CREDIT\napproved review, exact terms\nuncredited received orders\n$500 safety ceiling"
   ];
   effect [
-    label="07 · DURABLE EFFECT\none tool_audit · one write_operation\nJessica-owned return row",
+    label="08 DURABLE EFFECT\none tool_audit row\none store_credits row\na retry replays the same credit",
     color="#3f6212",
     fontcolor="#3f6212",
     penwidth=2
   ];
 
-  principals -> cognito [label="authenticate"];
+  request -> desk [label="open request"];
+  desk -> approval [label="one proposal"];
+  approval -> cognito [label="Execute"];
   cognito -> cedar [label="verified claims"];
   cedar -> gateway [label="ALLOW or DENY"];
-  gateway -> tool [label="ALLOW only"];
-  tool -> rls [label="database transaction"];
-  rls -> effect [label="owned write only", color="#3f6212", fontcolor="#3f6212"];
+  gateway -> apply [label="ALLOW only"];
+  apply -> effect [label="one credit per approval", color="#3f6212", fontcolor="#3f6212"];
+
+  rls [
+    label="POSTGRESQL RLS\norders_owner, support_tickets_owner\nUSING + WITH CHECK, as pellier_agent\ncustomers.cognito_username =\npellier.principal_username",
+    color="#3f6212",
+    fillcolor="#eef4e6",
+    fontcolor="#3f6212",
+    penwidth=2,
+    width=3
+  ];
+  desk -> rls [
+    label="customer reads, one name bound",
+    color="#3f6212",
+    fontcolor="#3f6212",
+    penwidth=1.5,
+    style=dashed
+  ];
 
   deny [
-    label="NEGATIVE CONTROL\nMarco/Anna → Jessica = DENY\n0 execution · 0 write · 0 business rows",
+    label="NEGATIVE CONTROL\nan over-limit review, 10001 cents\nDENY: 0 tool_audit, 0 store_credits\nfor its key",
     color="#991b1b",
     fillcolor="#fef2f2",
     fontcolor="#991b1b",
@@ -85,7 +106,7 @@ digraph Lab4JessicaGovernance {
     width=3
   ];
   allow [
-    label="POSITIVE CONTROL\nJessica → Jessica = ALLOW\nreplay keeps canonical write count = 1",
+    label="POSITIVE CONTROL\nJessica's 10000 cents\nALLOW: 1 credit, unchanged on retry",
     color="#3f6212",
     fillcolor="#eef4e6",
     fontcolor="#3f6212",
@@ -93,41 +114,19 @@ digraph Lab4JessicaGovernance {
     width=3
   ];
   cedar -> deny [
-    label="policy receipt only",
+    label="your rule supplies the denial",
     color="#991b1b",
     fontcolor="#991b1b",
     penwidth=1.8
   ];
   effect -> allow [
-    label="exact-key matrix",
+    label="keyed counts",
     color="#3f6212",
     fontcolor="#3f6212",
     penwidth=1.8
   ];
 
-  operator [
-    label="SEPARATE OPERATOR BOUNDARY\noperator Cognito group → Case Investigator\n→ Resolution Planner → human review",
-    color="#b45309",
-    fillcolor="#fff7ed",
-    fontcolor="#7c2d12",
-    width=3.25
-  ];
-  no_execution [
-    label="STOP CONDITION\nPrepare the fair next step.\nDo not approve or execute it.",
-    color="#b45309",
-    fillcolor="#fbf8f2",
-    fontcolor="#7c2d12",
-    width=2.8
-  ];
-  operator -> no_execution [
-    label="human checkpoint",
-    color="#b45309",
-    fontcolor="#b45309",
-    penwidth=1.5,
-    style=dashed
-  ];
-
-  { rank=same; principals; cognito; cedar; gateway; }
-  { rank=same; tool; rls; effect; }
-  { rank=same; deny; allow; operator; no_execution; }
+  { rank=same; request; desk; approval; cognito; }
+  { rank=same; cedar; gateway; apply; effect; }
+  { rank=same; rls; deny; allow; }
 }

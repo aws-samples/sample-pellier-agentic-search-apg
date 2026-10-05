@@ -38,6 +38,7 @@ SOLUTION_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_cr
 RLS_STARTER = REPO / "workshop" / "starters" / "lab-4-rls.sql"
 RLS_SOLUTION = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-rls-solution.sql"
 ABSENCE = REPO / "workshop" / "lab-4-absence.sql"
+FORENSIC = REPO / "solutions" / "the-ledger" / "sql" / "forensic_incident.sql"
 JESSICA = "CUST-JESSICA"
 
 
@@ -199,6 +200,11 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     assert f"allowed key  {allowed_key}" in done.stdout
     assert "Observed  0, 0 and 1" in done.stdout
     assert "Lab 4 absence check passed" in done.stdout
+
+    forensic = _psql(fresh_db, FORENSIC)
+    assert forensic.returncode == 0, forensic.stderr
+    assert "Lab 4 over-limit probe: covers no order" in forensic.stdout
+    assert allowed_key in forensic.stdout and review["idempotency_key"] in forensic.stdout
 
     conn.execute("INSERT INTO pellier.tool_audit "
                  "(session_id, tool, caller, args, result, latency_ms) "

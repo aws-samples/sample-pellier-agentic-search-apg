@@ -49,11 +49,12 @@ participant's named task and prediction before proposing a change.
 | 2B | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
 | 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
 | 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue - support reconcile` |
-| 4A | `policies/workshop_identity_match_forbid.cedar` | final `unless` block |
+| 4A | `policies/workshop_credit_limit.cedar` | final `unless` block |
 | 4B | `workshop/lab-4-rls.sql` | `Row ownership - predicate` |
-| 4B | `workshop/lab-4-absence.sql` | `Keyed absence - deny proof` |
 
 Task 3B deploys and challenges the Task 3A edits; it adds no authoring region.
+Lab 4's keyed absence check (`workshop/lab-4-absence.sql`) is supplied; it has
+no region to author.
 Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its exercise boundary. This table grants access only to
 the task the participant names, never every file at once.
@@ -110,12 +111,12 @@ anchored to one person, in climbing order of difficulty:
 | Lab | Person | Task A | Task B |
 |---|---|---|---|
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Reconstruct recorded RRF | Preserve requirements across fallback |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | Implement the inventory result contract | Wire the specialist and prove a real turn |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | Keep not carried apart from zero stock | Grant the Stock agent `check_stock` alone |
 | 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | Reconcile publication and caller binding | Deploy, challenge scope, and identify the executed build |
-| 4. Build Governed Agent Actions with Cedar | Jessica | Author Cedar ownership and distinguish outcomes | Author RLS and keyed evidence, then investigate as staff |
+| 4. Build Governed Agent Actions with Cedar | Jessica | Author the $100 credit limit in Cedar | Author the RLS ownership predicate |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
-task map. `tests/test_workshop_marker_contract.py` checks the nine source
+task map. `tests/test_workshop_marker_contract.py` checks the eight marked
 regions, starter fragments, and recovery references behind the eight tasks.
 Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the exercise to an

@@ -148,7 +148,7 @@ provisioning runs, so it is forensic provenance and not authority.
 | Gateway | fresh: the CLI project. Audited account: direct control-plane API, in **no** stack | fresh: CLI. Audited: `update_gateway`, and only for policy mode | never deleted by any script here | `agentCoreGateways[]` | `describe_workshop_publication.py` vs live discovery |
 | Gateway targets | as Gateway | `update_gateway_target`, in place | never deleted and recreated | inline `toolSchema` from `gateway_tool_schemas.py` | `provision_agentcore_end_to_end.py` asserts live discovery == expected |
 | Policy engine | as Gateway | never replaced: `add policy-engine` creates rather than adopts, so a project-declared engine would be a *second* engine | never | `policyEngines[]` | `policy_mode.py` (read-only with no flags) |
-| Policies | fresh: `baseline_policies()` through the CLI. Participant rule: `agentcore add policy` in Lab 4 | `update_policy` keeps the policy id, so history and attachments survive | reset removes only the participant rule | `render_agentcore_project.py` | `policy_mode.py`; reset restores mode at both scopes |
+| Policies | fresh: `baseline_policies()` through the CLI, then Lab 4's starter `workshop_credit_limit` in a deploy of its own. Participant rule: `--mode participant` updates that policy in Lab 4 | `update_policy` keeps the policy id, so history and attachments survive | reset declares the starter rule again; it never removes it | `render_agentcore_project.py` | `policy_mode.py`; reset restores mode at both scopes |
 | Target Lambdas (4) | `deploy_lambda.py`, invoked by `provision_agentcore_end_to_end.py` | the same script | not by any script here | `scripts/deploy/pellier_*_server.py` | none: `provision_agentcore_end_to_end.py` republishes each package on every run and reads back only `FunctionArn`; it makes no code-SHA comparison |
 | IAM (3 resources) | the CFN stack | the stack | the stack | CDK output of `agentcore deploy` | stack status `UPDATE_COMPLETE` |
 
@@ -193,8 +193,10 @@ body calls `BusinessLogic.check_inventory` through `_run_async`.
       -> pellier/backend/agents/inventory_agent.py
     solutions/closing-marcos-gap/services/agent_tools_check_inventory_solution.py
       -> pellier/backend/services/agent_tools.py
-    solutions/the-concierge/policies/identity_match_forbid.cedar
-      -> policies/workshop_identity_match_forbid.cedar
+    solutions/the-concierge/policies/workshop_credit_limit.cedar
+      -> policies/workshop_credit_limit.cedar
+    solutions/the-concierge/sql/lab-4-rls-solution.sql
+      -> workshop/lab-4-rls.sql
 
 Directory names keep their historical form deliberately; the **file** names are canonical.
 Both Lab 2 copies retain the marker regions, so a participant who takes the fallback can

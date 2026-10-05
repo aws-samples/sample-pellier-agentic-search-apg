@@ -209,8 +209,17 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
         },
     }}}}
     rendered = []
+
+    def render(**kwargs):
+        # The provisioner stages the declared policies, so the render writes a project.
+        rendered.append(kwargs)
+        config = root / "agentcore" / "agentcore.json"
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(json.dumps({"policyEngines": [
+            {"name": identity.policy_engine_name, "policies": []}]}))
+
     monkeypatch.setattr(module, "_read_deployed_state", lambda _: state)
-    monkeypatch.setattr(module, "render_project", lambda **kwargs: rendered.append(kwargs))
+    monkeypatch.setattr(module, "render_project", render)
     deployed_root, deployed_state = module._deploy_cli_project(
         repo=tmp_path, account_id="123456789012", region="us-east-1",
         cognito_pool="fixture", cognito_client="fixture", lambda_arns={},

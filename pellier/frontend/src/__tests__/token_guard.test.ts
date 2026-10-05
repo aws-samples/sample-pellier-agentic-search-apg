@@ -35,12 +35,6 @@ const TOKEN_FILES = ['styles/daylight-tokens.css']
 /** Files the scan skips, each with the reason it may hold a literal. */
 const EXEMPT = new Map<string, string>([
   ['styles/daylight-tokens.css', 'the token file: every value is written here, in both themes'],
-  [
-    'utils/agentIdentity.ts',
-    'byte-identical twin of solutions/the-ledger/frontend/agentIdentity.ts, which bootstrap ' +
-      'copies over it in the builders format (test_solutions_parity.py); nothing in the app ' +
-      'imports it. The workshop-contract cut retires the pair rather than restyling both.',
-  ],
 ])
 
 const SCANNED_EXTENSIONS = new Set(['.ts', '.tsx', '.css'])

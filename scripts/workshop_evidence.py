@@ -350,18 +350,25 @@ def _psql_verdict(cfg: Config, path: pathlib.Path, passed: str, task: str, title
     done = subprocess.run([psql, "-X", "-P", "pager=off", "-f", str(path)],
                           env=check.psql_environment(cfg), capture_output=True, text=True,
                           timeout=60)
-    observed = next((line[len("Observed"):].strip() for line in done.stdout.splitlines()
-                     if line.startswith("Observed")), "the worksheet did not finish")
+    def line(tag: str) -> str:
+        return next((text[len(tag):].strip() for text in done.stdout.splitlines()
+                     if text.startswith(tag)), "")
+
+    observed = line("Observed") or "the worksheet did not finish"
+    where = path.relative_to(REPO)
     if passed in done.stdout:
-        return check.Finding(task, title, PROVED, expected, observed,
-                             [f"{path.relative_to(REPO)}: {passed}"])
-    reason = (done.stderr.strip().splitlines() or [""])[-1]
+        return check.Finding(task, title, PROVED, expected, observed, [f"{where}: {passed}"])
     state = CONTRADICTED if "check failed" in done.stdout else UNCHECKED
     if "none yet" in done.stdout:
         state = NOT_YET
-    return check.Finding(task, title, state, expected, observed,
-                         [f"{path.relative_to(REPO)}: {reason or 'no verdict'}"],
-                         f"run psql -X -P pager=off -f {path.relative_to(REPO)} and read it.")
+    if state == NOT_YET:
+        reason = "nothing to check yet"
+    elif state == CONTRADICTED:
+        reason = "check failed"
+    else:
+        reason = (done.stderr.strip().splitlines() or ["no verdict"])[-1]
+    return check.Finding(task, title, state, expected, observed, [f"{where}: {reason}"],
+                         line("Next") or f"run psql -X -P pager=off -f {where} and read it.")
 
 
 def task_4b(cfg: Config) -> check.Finding:

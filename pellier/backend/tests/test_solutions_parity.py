@@ -132,8 +132,6 @@ _AUTO_APPLIED_IDENTICAL = [
      _SOLUTIONS / "the-ledger" / "services" / "cognito_auth.py"),
     ("otel_trace_extractor", _BACKEND / "services" / "otel_trace_extractor.py",
      _SOLUTIONS / "the-ledger" / "services" / "otel_trace_extractor.py"),
-    ("frontend_agent_identity", _REPO_ROOT / "pellier" / "frontend" / "src" / "utils" / "agentIdentity.ts",
-     _SOLUTIONS / "the-ledger" / "frontend" / "agentIdentity.ts"),
 ]
 
 

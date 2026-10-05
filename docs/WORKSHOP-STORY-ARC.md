@@ -1,113 +1,89 @@
-# Pellier: Build a governed agentic retail system
+# Pellier: the four-lab workshop contract
 
-Pellier is a premium retail boutique building an agentic system for product discovery
-and customer support. Its concierge connects customer requests to specialist agents,
-current business data, and governed tools. Participants develop four connected retail
-workflows: ground answers in facts, preserve requirements, establish caller identity,
-and govern actions with evidence that staff can verify. Each customer retains a
-separate identity and conversation. Each lab adds a responsibility and its evidence; Lab 3 introduces a separate managed execution path.
+Pellier is a retail store building an agentic system for product discovery and
+customer support. Four customers each bring one leadership worry, and each lab
+answers one: it opens with the worry happening live, the participant fixes it,
+and a check proves the fix from the system of record.
 
 **Respect the requirements → know the facts → establish the caller → govern the action.**
 
-The source contract is `workshop/story-arc.json`. Workshop Studio owns full
-exercises. The application orients participants and shows their execution evidence.
-The presenter deck introduces the same decisions through progressive diagrams.
+The source contract is `workshop/story-arc.json`. Workshop Studio owns the full
+exercises. In `story-arc.json`, `title` is the lab name and `storyTitle` the
+persona-led scenario; keep the technical titles as the headings.
 
-Keep the technical lab titles as the primary headings. In `story-arc.json`,
-`title` is the lab name and `storyTitle` describes the persona-led scenario.
-Use the story wording in activities and transitions, not as a replacement lab name.
-
-| Lab | Main title | Scenario |
+| Lab | Customer | Worry |
 |---|---|---|
-| 1 | Build and Measure PostgreSQL Hybrid Retrieval | Anna: Respect the requirements |
-| 2 | Build a PostgreSQL-Grounded Agent | Marco: Know the facts |
-| 3 | Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo: Establish the caller |
-| 4 | Build Governed Agent Actions with Cedar | Jessica: Govern the action |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
+| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
+| 4. Build Governed Agent Actions with Cedar | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
-## Four labs, two participant tasks each
+## Every lab: spot the failure, then fix and prove it
 
-| Lab | Task A | Task B | Handoff |
-|---|---|---|---|
-| 1: Anna | Explain the ranking | Relax preferences, keep requirements | You can find suitable products. Next, ground Marco’s stock answer in Aurora. |
-| 2: Marco | Connect inventory to Aurora | Make the agent use the facts | You can check a product. Next, deploy Theo’s support capability and preserve the caller’s identity across the tool boundary. |
-| 3: Theo | Connect the customer-scoped tool | Deploy and challenge the conversation | You can read under the right identity. Next, follow Jessica’s action through authorization, database effects and staff review. |
-| 4: Jessica | Write the ownership rule | Test ownership and reconcile the case | Bring the four claims together: requirements, facts, caller and effect. Save your evidence and the next production question. |
+Each starter produces a visible, explainable failure in Ask Pellier or the
+Operator, never an exception or a missing feature. One starter-failure test
+per lab (`tests/test_lab{1,2,3,4}_starter_failure.py`) asserts the starter
+shows exactly that failure and the solution does not.
 
-Eight participant tasks are not eight arbitrary source edits. Task 3A spans
-publication and caller binding; 3B is a deployed investigation. Task 4B includes
-two SQL edits and independent results. Do not infer completion from marker removal.
-
-## The common learning loop
-
-The overarching story is **preserving business meaning across facts, requirements,
-identity and action**. Every lab runs the same four participant steps: **Spot the
-mistake → Build the contract → Challenge it → Explain the evidence.** "Challenge it"
-is the lab's existing verification step plus one decision the participant makes:
-
-| Lab | Participant decision | Independent evidence |
+| Lab | The live failure | The fix |
 |---|---|---|
-| Anna | The preference that forces a strict-empty search | Counts before the request; the receipt records the chosen tag |
-| Marco | The unknown, ambiguous and sold-out queries | The checker classifies each from the catalog before judging the tool |
-| Theo | A request, through the agent, for another customer's tickets | Lambda-written audit rows bound to Theo; direct probe denied by Cedar |
-| Jessica | Which ticket item to record, with which stated reason, and what stays open | Three review snapshots; a return request is not proof of receipt |
+| 1 | Anna's search, forced onto its fallback, returns a candle and a sold-out piece | 1A: the RRF expression. 1B: the fallback keeps her limits |
+| 2 | Marco asks about a piece Pellier does not carry and hears it is sold out | 2A: `check_stock` keeps not carried apart from zero. 2B: the Stock agent holds `check_stock` alone |
+| 3 | On the managed path the Support agent can't look up Theo's tickets; the Builder view names `get_tickets` as not published | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, then challenge |
+| 4 | Nadia approves Jessica's $100.00 credit and the starter forbid, deployed at provisioning, still denies it | 4A: the $100 per-credit limit in Cedar. 4B: the RLS ownership predicate |
 
-Keep exact files, markers, commands and acceptance criteria visible. Hints reveal
-reasoning progressively; worked recovery stays collapsed and is never stated in
-visible prose. Record authored, recovered-and-verified, and incomplete results
-separately.
+## Eight marked regions, one check per task
+
+| Task | Region | Check |
+|---|---|---|
+| 1A | `workshop/lab-1-rrf.sql`, `PostgreSQL RRF - fusion expression` | `psql -X -P pager=off -f workshop/lab-1-rrf.sql` |
+| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_compare.py` |
+| 2A | `services/agent_tools.py`, `Stock agent - check_stock` | `python3 scripts/lab2_contract_check.py` |
+| 2B | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_contract_check.py --task 2B` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Managed catalogue - support reconcile` | `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites` |
+| 3B | none: deploy with `--mode participant` | `python3 scripts/showcase_agentcore_memory.py provisioned --persona theo`, then `python3 scripts/lab3_check.py` |
+| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_policy_check.py` |
+| 4B | `workshop/lab-4-rls.sql`, `Row ownership - predicate` | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then the supplied `workshop/lab-4-absence.sql` |
+
+Every check prints three things: what was expected, what was observed, and the
+evidence (the row, the decision, the key). A check that did not pass says what
+to look at next. `python3 scripts/workshop_evidence.py` exports all eight
+lines; a task whose region still holds its starter is never proved.
 
 ## Acceptance and rejected implementations
 
-- **1A:** Reconstruct recorded RRF with zero contribution from a missing branch.
-  Reject integer division and a missing branch becoming rank zero.
-- **1B:** Every attempt keeps the original hard constraints and exclusions. Only
-  the declared preference changes; preserve the original plan and the recorded
-  relaxation. Reject dropping budget, availability or exclusions to obtain hits,
-  mutating the original request, and an unrecorded widening. The local checker
-  proves the plan contract; live receipt/SQL checks prove different boundaries.
-- **2A / 2B:** Preserve the business tool envelope and use it in a real agent turn.
-  Reject unknown products represented as stock zero, invented stock, or a tool
-  grant treated as database authorization. Supply model/prompt boilerplate.
-- **3A / 3B:** Reconcile Gateway publication and caller-bound support tools,
-  run the participant deployment command, then use a fresh session. Reject staff
-  credit exposed to shopper support, caller-supplied foreign identity, local edits presented as deployment,
-  and a remembered preference presented as permission. Runtime packages the support
-  adapter, not the Lab 2 inventory wrapper or Lab 1 planner. The reused Lambda
-  retrieval tool has a different input contract; do not imply fallback parity. Existing policy is active
-  before Lab 4; Lab 4 authors an additional ownership rule.
-- **4A:** Distinguish authentication, Cedar, business rejection, commit and output.
-  Reject a 401 called Cedar DENY or suppressed output called a rollback.
-- **4B:** Author an ownership predicate used by USING and WITH CHECK; test actual
-  runtime roles with owned, foreign, missing and unmapped identities and rollback.
-  Separately query denied-key effects with an allowed-key positive control.
-  Reject all-zero queries without the control, owner-role RLS proof, and Gateway
-  denial treated as proof of RLS. RLS trusts application-established context; it
-  does not independently validate a Cognito token. Investigate as the separate
-  operator account. Jessica's ticket names two pieces and asserts both were
-  received; Aurora holds neither. Record only the robe, with the reason she stated,
-  through proposal, confirmation and governed execution. Reject a preselected
-  reason, confirmation treated as execution, and a return request treated as proof
-  of receipt. The catchall, the receipt claim and the refund dispute stay open.
-  The authored RLS predicate is rollback-only; later tool calls use the supplied policy.
+- **1A:** a missing rank contributes zero, never rank zero.
+- **1B:** every fallback attempt keeps the budget, the stock rule and the
+  exclusions; only a preference changes, and the receipt records it.
+- **2A / 2B:** not carried, several and sold out stay three answers; the
+  Stock agent's numbers equal one SELECT on `warehouse_inventory`.
+- **3A / 3B:** the Support agent asks only for published tools, and the server
+  overwrites the model's `customer_id` on `get_tickets`. A model refusal is not
+  a control. The deployed build is read from `tool_audit.build_fingerprint`
+  beside this checkout's digest. Theo's own token, naming Jessica's customer
+  directly at the Gateway, is denied by `get_tickets_owner_only`. Memory is
+  context: Theo's provisioning conversation and the preference record
+  extracted from it, never permission.
+- **4A:** the participant's rule is evaluated with the real Cedar engine
+  beside the rendered baseline: shopper $100 DENY (the baseline's doing, not
+  the rule's), Nadia 9999 and 10000 ALLOW, 10001 DENY, the same for a second
+  staff member. The check rejects `false`, `true`, staff-only, `< 10000` and
+  `<= 100`, and shows that without the rule Nadia's 10001 cents is allowed.
+  On the box it sends one over-limit credit of its own approved review through
+  the Gateway: a Cedar DENY with no row for its key. A 401 or a business
+  refusal is not Cedar evidence. Nadia's approval of Jessica's 10000-cent case
+  executes once and a retry adds nothing.
+- **4B:** one expression serves USING and WITH CHECK on `orders` and
+  `support_tickets`. Theo's own rows are visible, Jessica's return 0, a ticket
+  written in her name fails with 42501, the Investigator still reads her case,
+  and everything rolls back. In process the customer comes from the token; on
+  the Gateway it is the customer Cedar admitted. RLS contains a wrong query.
+  The absence check is supplied: 0 and 0 for the denied key, 1 for the allowed
+  key, so a search that always returns zero cannot pass.
 
-## Presenter timing, separate from participant guides
+## Timing
 
-The 100-minute event budgets 15 minutes for the presenter introduction, then
-75 minutes for labs (15 / 15 / 20 / 25), five for recovery and five for closing.
-Setup belongs at the beginning of Lab 1. Seed the supplied Memory experiment then,
-so asynchronous extraction overlaps other work. Participant guides show lab
-budgets and a hands-on clock only; do not add the presentation to their tasks.
-These are targets pending a timed fresh-account rehearsal. Recovery does not waive
-proof, and a reference walkthrough is not participant completion.
-
-## Four accumulating claims
-
-1. This answer came from these facts and this tool invocation.
-2. These results followed this ranking and preserved these requirements.
-3. This deployed build handled this request under this caller.
-4. This control acted, this tool did or did not run, and these effects remain.
-
-Storefront exposes the customer experience. Observatory inspects the evidence.
-Operator uses it to support a human decision. An architecture image is not a
-runtime receipt. Source edits, local tests, source release, Studio publication and
-fresh-account rehearsal remain separate milestones.
+The event budgets 15 minutes for the presenter introduction, then 15, 15, 20
+and 25 minutes for Labs 1 to 4, five for recovery and five for closing. These
+are targets until a timed fresh-account rehearsal confirms them. Lab 3's and
+Lab 4's deploy waits are inside their budgets.

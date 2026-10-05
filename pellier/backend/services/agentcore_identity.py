@@ -14,7 +14,7 @@ This is the backend half of the governed auth and identity path:
     services/cognito_auth.py
     services/agentcore_identity.py         ← this file
     frontend/src/utils/auth.ts
-    frontend/src/components/{AuthModal,PreferencesModal}.tsx
+    frontend/src/components/AuthModal.tsx
 
 Key design choices (Req 4.3):
 

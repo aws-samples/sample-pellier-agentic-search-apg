@@ -2203,8 +2203,11 @@ def _live_policy_proof(
       for the tool; if Cedar failed open, the call would execute and those rows
       would expose it without crediting a real account.
 
-    Only the supplied baseline is probed. The participant's forbid and the
-    $100 rule belong to Lab 4's checker.
+    The shopper's credit is denied by the supplied baseline, which has no
+    shopper permit for it, and also by Lab 4's starter forbid, deployed with it.
+    This proof does not tell the two apart; ``scripts/lab4_policy_check.py``
+    does, locally, by evaluating the baseline alone. The $100 rule belongs to
+    that checker.
     """
     helper = deploy_dir / "gateway_policy_probe.py"
     turn_id = f"turn-readiness-{probe_id}"

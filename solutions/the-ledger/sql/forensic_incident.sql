@@ -1,59 +1,65 @@
--- Pellier governed workshop - forensic incident reference
+\set ON_ERROR_STOP on
+\pset footer off
+
+-- Pellier governed workshop: the auditor's question, after Lab 4.
 --
--- Incident:
---   Theo disputes a return he never requested. Reconstruct who the
---   Gateway allowed to call, who the tool call was for, which rail ran,
---   and what Aurora wrote.
+-- "Show me everything that moved money on Jessica's account, and prove the
+-- denied attempt moved nothing." Every answer is read from the tables that
+-- own it; nothing here writes.
+--
+--   psql -X -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql
 
--- 1. Find the seeded governed receipt and its linked execution row.
-SELECT
-    gr.receipt_id,
-    gr.created_at,
-    gr.principal_id AS invoking_principal,
-    gr.principal_label,
-    gr.identity_source,
-    gr.verified_subject,
-    gr.verified_username,
-    gr.token_fingerprint_sha256,
-    gr.decision,
-    gr.caller,
-    gr.tool,
-    gr.args->>'customer_id' AS return_for_customer_id,
-    gr.args->>'product_id' AS product_id,
-    gr.args->>'reason' AS reason,
-    ta.audit_id,
-    ta.result->>'return_id' AS return_id
-FROM pellier.governed_receipts gr
-LEFT JOIN pellier.tool_audit ta
-  ON ta.audit_id = gr.audit_id
-WHERE gr.session_id = 'gateway-marco-for-theo-incident';
+\echo '1. The lineage, from her request to the credit'
+-- A shopper's request carries no amount. The investigation that answered it
+-- opened one review; a person decided it; one execution turn ran it; the
+-- credit names the review it pays.
+SELECT r.id                     AS request,
+       r.source_turn_id         AS shopper_turn,
+       r.status                 AS request_status,
+       r.answered_turn_id       AS investigation_turn,
+       v.id                     AS review,
+       v.status                 AS decision,
+       v.decided_by_name        AS decided_by,
+       v.execution_turn_id,
+       v.last_attempt->>'outcome' AS last_answer,
+       c.credit_id,
+       c.amount_cents
+  FROM pellier.approvals r
+  LEFT JOIN pellier.approvals v ON v.id = r.answered_by_review_id
+  LEFT JOIN pellier.store_credits c ON c.approval_id = v.id
+ WHERE r.tool = 'store_credit_request'
+   AND r.customer_id = 'CUST-JESSICA'
+ ORDER BY r.id;
 
--- 2. Resolve both identities and the product/order context.
-SELECT
-    gr.principal_id AS invoking_principal,
-    principal.name AS invoking_principal_name,
-    gr.args->>'customer_id' AS return_for_customer_id,
-    customer.name AS return_for_customer_name,
-    pc.name AS product_name,
-    o.placed_at AS original_order_at,
-    gr.caller,
-    gr.decision,
-    gr.policy_name
-FROM pellier.governed_receipts gr
-JOIN pellier.customers principal
-  ON principal.id = gr.principal_id
-JOIN pellier.customers customer
-  ON customer.id = gr.args->>'customer_id'
-JOIN pellier.product_catalog pc
-  ON pc.product_id = gr.args->>'product_id'
-LEFT JOIN pellier.orders o
-  ON o.customer_id = gr.args->>'customer_id'
- AND o.product_id = gr.args->>'product_id'
-WHERE gr.session_id = 'gateway-marco-for-theo-incident';
+\echo ''
+\echo '2. Every credit review on her account, and what its key left behind'
+-- One row per review, with the write key it admits. An executed credit leaves
+-- one tool_audit row and one store_credits row for that key; a call Cedar
+-- denied leaves neither, and its stored answer says so.
+SELECT v.id                                                     AS review,
+       (v.args->>'amount_cents')::int                           AS approved_cents,
+       cardinality(v.order_ids)                                 AS orders_covered,
+       v.issue,
+       v.last_attempt->>'outcome'                               AS last_answer,
+       v.last_attempt->>'policy'                                AS policy,
+       left(v.last_attempt->>'policy_digest', 23)               AS policy_set,
+       k.key                                                    AS idempotency_key,
+       (SELECT count(*) FROM pellier.tool_audit
+         WHERE args->>'idempotency_key' = k.key)                AS tool_audit_rows,
+       (SELECT count(*) FROM pellier.store_credits
+         WHERE idempotency_key = k.key)                         AS store_credits_rows
+  FROM pellier.approvals v
+ CROSS JOIN LATERAL (SELECT 'operator-review:' || v.id || ':' || left(v.action_hash, 32)) AS k(key)
+ WHERE v.tool = 'give_store_credit'
+   AND v.customer_id = 'CUST-JESSICA'
+ ORDER BY v.id;
 
--- Finding:
--- The Gateway/Cedar rail allowed principal CUST-MARCO to invoke
--- initiate_return. The tool arguments recorded customer_id='theo',
--- so the return was for Theo's Wabi-Sabi Bowl even though Marco was
--- the authenticated caller. Keeping JWT principal and tool customer_id
--- as separate evidence fields makes the mismatch visible.
+\echo ''
+\echo '3. The orders each credit covers'
+-- An order holds one store_credit_id, so no order is paid twice.
+SELECT o.id AS order_id, pc.name AS product, o.amount_paid_cents, o.return_status,
+       o.store_credit_id
+  FROM pellier.orders o
+  JOIN pellier.product_catalog pc ON pc."productId" = o.product_id
+ WHERE o.customer_id = 'CUST-JESSICA'
+ ORDER BY o.id;

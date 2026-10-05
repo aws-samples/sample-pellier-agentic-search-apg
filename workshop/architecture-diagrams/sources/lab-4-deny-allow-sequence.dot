@@ -5,7 +5,7 @@ digraph Lab4DenyAllowSequence {
     fontcolor="#1f1410",
     fontname="Helvetica Neue",
     fontsize=22,
-    label="LAB 4 · TWO-LANE SEQUENCE\nThe same Jessica-owned request; only the verified principal changes",
+    label="LAB 4: TWO LANES\nThe same staff identity and an approved review in each; only the amount changes",
     labelloc=t,
     labeljust=l,
     margin=0,
@@ -42,24 +42,24 @@ digraph Lab4DenyAllowSequence {
     fontcolor="#991b1b";
     fontname="Helvetica Neue";
     fontsize=13;
-    label="DENY LANE · Marco or Anna requests CUST-JESSICA";
+    label="DENY LANE: Nadia sends the over-limit review, 10001 cents";
     labeljust=l;
     margin=18;
     penwidth=1.8;
     style=filled;
 
-    d1 [label="1 · COGNITO\nverified Marco/Anna"];
-    d2 [label="2 · CEDAR\nidentity mismatch", color="#991b1b", fontcolor="#991b1b"];
-    d3 [label="3 · GATEWAY\nDENY before target", color="#991b1b", fontcolor="#991b1b"];
-    d4 [label="4 · LAMBDA\nNOT INVOKED", color="#991b1b", fontcolor="#991b1b"];
-    d5 [label="5 · AURORA\n0 tool_audit\n0 write_operations", color="#991b1b", fontcolor="#991b1b"];
-    d6 [label="6 · EVIDENCE\n1 DENY receipt\nnamed absence", color="#991b1b", fontcolor="#991b1b"];
+    d1 [label="1 COGNITO\nverified nadia\nstaff scope"];
+    d2 [label="2 CEDAR\nstaff permit matches\nyour forbid applies", color="#991b1b", fontcolor="#991b1b"];
+    d3 [label="3 GATEWAY\nDENY before target", color="#991b1b", fontcolor="#991b1b"];
+    d4 [label="4 LAMBDA\nNOT INVOKED", color="#991b1b", fontcolor="#991b1b"];
+    d5 [label="5 AURORA\n0 tool_audit\n0 store_credits", color="#991b1b", fontcolor="#991b1b"];
+    d6 [label="6 EVIDENCE\nthe desk stores the DENY\nnamed absence by key", color="#991b1b", fontcolor="#991b1b"];
 
     d1 -> d2 [color="#991b1b", label="claims", fontcolor="#991b1b"];
     d2 -> d3 [color="#991b1b", label="forbid", fontcolor="#991b1b"];
     d3 -> d4 [arrowhead=tee, color="#991b1b", label="blocked", fontcolor="#991b1b"];
     d4 -> d5 [arrowhead=tee, color="#991b1b", label="no transaction", fontcolor="#991b1b", style=dashed];
-    d3 -> d6 [color="#991b1b", label="receipt", fontcolor="#991b1b"];
+    d3 -> d6 [color="#991b1b", label="answer", fontcolor="#991b1b"];
     d5 -> d6 [color="#991b1b", label="prove zero", fontcolor="#991b1b", style=dashed];
     { rank=same; d1; d2; d3; d4; d5; d6; }
   }
@@ -70,18 +70,18 @@ digraph Lab4DenyAllowSequence {
     fontcolor="#3f6212";
     fontname="Helvetica Neue";
     fontsize=13;
-    label="ALLOW LANE · Jessica requests CUST-JESSICA";
+    label="ALLOW LANE: Nadia executes Jessica's approved review, 10000 cents";
     labeljust=l;
     margin=18;
     penwidth=1.8;
     style=filled;
 
-    a1 [label="1 · COGNITO\nverified Jessica"];
-    a2 [label="2 · CEDAR\nidentity match", color="#3f6212", fontcolor="#3f6212"];
-    a3 [label="3 · GATEWAY\nALLOW bounded target", color="#3f6212", fontcolor="#3f6212"];
-    a4 [label="4 · LAMBDA\nexactly 1 execution", color="#3f6212", fontcolor="#3f6212"];
-    a5 [label="5 · AURORA RLS\nowned row + WITH CHECK\nreplay remains 1", color="#3f6212", fontcolor="#3f6212"];
-    a6 [label="6 · EVIDENCE\npolicy + execution\ncanonical write", color="#3f6212", fontcolor="#3f6212"];
+    a1 [label="1 COGNITO\nverified nadia\nstaff scope"];
+    a2 [label="2 CEDAR\nstaff permit matches\nyour forbid exempts it", color="#3f6212", fontcolor="#3f6212"];
+    a3 [label="3 GATEWAY\nALLOW bounded target", color="#3f6212", fontcolor="#3f6212"];
+    a4 [label="4 LAMBDA\nexactly 1 execution", color="#3f6212", fontcolor="#3f6212"];
+    a5 [label="5 APPLY_STORE_CREDIT\napproved terms and key\na retry replays it", color="#3f6212", fontcolor="#3f6212"];
+    a6 [label="6 EVIDENCE\n1 tool_audit\n1 store_credits", color="#3f6212", fontcolor="#3f6212"];
 
     a1 -> a2 [color="#3f6212", label="claims", fontcolor="#3f6212"];
     a2 -> a3 [color="#3f6212", label="permit", fontcolor="#3f6212"];
@@ -99,7 +99,7 @@ digraph Lab4DenyAllowSequence {
   d6 -> a6 [style=invis, weight=100];
 
   checkpoint [
-    label="SEPARATE FACT · Operator human review is not implied by either lane",
+    label="SEPARATE FACT: Nadia's human review is not implied by either lane",
     color="#b45309",
     fillcolor="#fff7ed",
     fontcolor="#7c2d12",
@@ -110,7 +110,7 @@ digraph Lab4DenyAllowSequence {
     arrowhead=none,
     color="#b45309",
     fontcolor="#b45309",
-    label="do not collapse authorization, execution, and approval",
+    label="do not collapse authorization, execution and approval",
     penwidth=1.3,
     style=dashed
   ];
