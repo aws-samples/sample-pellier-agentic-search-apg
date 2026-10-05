@@ -6,7 +6,7 @@
  * Coverage:
  *   - `picked`   renders `Picked because {reason}` in Instrument Sans
  *     with a small B mark prefix (Req 1.7.2).
- *   - `matched`  renders `Matched on: {a} · {b} · {c}` (Req 1.7.3).
+ *   - `matched`  renders `Matched on: {a}, {b}, {c}` (Req 1.7.3).
  *   - `pricing`  renders the lead clause and wraps the urgent clause
  *     in `<span style="color: var(--accent)">` terracotta (Req 1.7.4).
  *   - `context`  renders the provided context copy (Req 1.7.5).
@@ -70,7 +70,7 @@ describe('ReasoningChip — picked style (Req 1.7.2)', () => {
 })
 
 describe('ReasoningChip — matched style (Req 1.7.3)', () => {
-  it('renders `Matched on: {a} · {b} · {c}` using tag attributes', () => {
+  it('renders `Matched on: {a}, {b}, {c}` using tag attributes', () => {
     const text = reasoningMatched('earth', 'warm', 'everyday')
     render(<ReasoningChip chip={{ style: 'matched', text }} />)
 

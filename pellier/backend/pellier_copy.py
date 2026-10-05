@@ -250,7 +250,7 @@ DISCOVER_PAGE_COMING_SOON = STORYBOARD_PAGE_COMING_SOON
 # Footer (Requirement 1.10)
 FOOTER = {
     "BRAND": {
-        "TAGLINE": "Carefully curated goods from makers who care about craft",
+        "TAGLINE": "Well-made everyday pieces for travel, gifts, and home.",
     },
     "SHOP": {
         "HEADING": "Shop",
@@ -263,12 +263,6 @@ FOOTER = {
     "SERVICE": {
         "HEADING": "Service",
         "ITEMS": ["Shipping", "Returns", "Contact", "FAQ"],
-    },
-    "STORYBOARD_NEWSLETTER": {
-        "HEADING": "Storyboard",
-        "COPY": "A weekly letter on craft, makers, and a slower kind of shopping",
-        "EMAIL_PLACEHOLDER": "Your email",
-        "SUBMIT": "Subscribe",
     },
     "BOTTOM_STRIP": {
         "COPYRIGHT": "\u00a9 Pellier",

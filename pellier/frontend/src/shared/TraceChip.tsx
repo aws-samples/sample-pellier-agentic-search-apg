@@ -10,7 +10,7 @@
  *
  * Visual: warm tint + 1px accent border, mono label at 11px with slight
  * tracking for readable dot-syntax. Optional `duration` renders a faint
- * right-aligned mono timestamp ("· 2.1s ago").
+ * right-aligned mono timestamp ("2.1s ago"), spaced by the chip's gap.
  */
 import React from 'react'
 import { lookupVocab } from './agentVocabulary'
@@ -101,7 +101,7 @@ export const TraceChip: React.FC<TraceChipProps> = ({
       <span>{label}</span>
       {duration ? (
         <span style={{ color: 'color-mix(in srgb, var(--accent) 48%, var(--ink))' }}>
-          · {duration}
+          {duration}
         </span>
       ) : null}
     </>

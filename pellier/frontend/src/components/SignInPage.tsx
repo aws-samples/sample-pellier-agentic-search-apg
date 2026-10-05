@@ -43,7 +43,7 @@ export default function SignInPage() {
 
   useEffect(() => {
     const previous = document.title
-    document.title = operator ? 'Sign in · Pellier Operator' : 'Sign in · Pellier'
+    document.title = operator ? 'Sign in | Pellier Operator' : 'Sign in | Pellier'
     mounted.current = true
     return () => { mounted.current = false; controller.current?.abort(); document.title = previous }
   }, [operator])

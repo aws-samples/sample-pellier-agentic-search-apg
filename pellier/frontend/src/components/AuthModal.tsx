@@ -32,6 +32,7 @@ import { useUI } from '../contexts/UIContext'
 import { redirectToSignIn, type SignInProvider } from '../utils/auth'
 import { cssVar as c } from '../design/cssVars'
 import { useFocusTrap } from '../shared/useFocusTrap'
+import PellierMark from './PellierMark'
 
 // === REFERENCE: START ===
 // --- Design tokens (storefront.md) ---------------------------------------
@@ -158,25 +159,7 @@ export default function AuthModal() {
       >
         {/* Header: Pellier mark + title + subtitle */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, textAlign: 'center' }}>
-          <span
-            data-testid="auth-modal-mark"
-            aria-hidden="true"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 44,
-              height: 44,
-              borderRadius: '50%',
-              background: c.ink,
-              color: c.bg,
-              fontFamily: 'var(--dl-font-display)',
-              fontSize: 26,
-              lineHeight: 1,
-            }}
-          >
-            p
-          </span>
+          <PellierMark size={44} data-testid="auth-modal-mark" />
           <h2
             id="auth-modal-title"
             data-testid="auth-modal-header"

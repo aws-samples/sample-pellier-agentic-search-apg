@@ -15,6 +15,8 @@ const seed = readFileSync(
   resolve(here, '../../../../scripts/migrations/029_live_surface_data.sql'),
   'utf8',
 )
+/* The static theme-color meta the inline script picks from before paint. */
+const indexHtml = readFileSync(resolve(here, '../../index.html'), 'utf8')
 
 function tokens(block: string): Record<string, string> {
   const out: Record<string, string> = {}
@@ -113,6 +115,16 @@ const DARK_RULE_PAIRS: Array<[string, string]> = [
 describe('dark rules', () => {
   it.each(DARK_RULE_PAIRS)('%s on %s is 1.25:1 or better', (fg, bg) => {
     expect(contrast(DARK[fg], DARK[bg])).toBeGreaterThanOrEqual(1.25)
+  })
+})
+
+describe('the browser chrome', () => {
+  it('takes the page ground in each theme, before and after paint', () => {
+    const meta = indexHtml.match(/<meta\s+name="theme-color"[^>]*>/)?.[0] ?? ''
+    const attr = (name: string) => meta.match(new RegExp(`${name}="(#[0-9a-fA-F]{6})"`))?.[1]
+    expect(attr('data-light')).toBe(LIGHT['--dl-bg'])
+    expect(attr('data-dark')).toBe(DARK['--dl-bg'])
+    expect(attr('content')).toBe(LIGHT['--dl-bg'])
   })
 })
 

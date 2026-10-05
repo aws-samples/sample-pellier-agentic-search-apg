@@ -308,7 +308,7 @@ export const REASONING = {
 // Storyboard teaser cards (Requirement 1.9.4)
 //
 // Each card composes to the eyebrow line
-//   `{badge} \u00b7 {volume} \u00b7 {theme}` above the italic Fraunces title,
+//   `{badge} {volume}: {theme}` above the italic Fraunces title,
 // followed by a 2-3 sentence excerpt and the terracotta `link`. See
 // StoryboardTeaser.tsx for the rendering contract.
 export interface StoryboardTeaser {
@@ -403,7 +403,7 @@ export const ABOUT_BRIEF = {
 // Fewer promises, every promise kept.
 export const FOOTER = {
   BRAND: {
-    TAGLINE: "Curated goods for travel, gifting, and home rituals",
+    TAGLINE: "Well-made everyday pieces for travel, gifts, and home.",
   },
   EXPLORE: {
     HEADING: "Explore",
@@ -499,12 +499,12 @@ export const PREFERENCES_MODAL = {
       heading: "Your overall vibe",
       kind: "card",
       chips: [
-        { label: "Minimal", descriptor: "Quiet \u00b7 Considered" },
-        { label: "Bold", descriptor: "Statement \u00b7 Saturated" },
-        { label: "Serene", descriptor: "Soft \u00b7 Calming" },
-        { label: "Adventurous", descriptor: "Outdoor \u00b7 Durable" },
-        { label: "Creative", descriptor: "Layered \u00b7 Textured" },
-        { label: "Classic", descriptor: "Timeless \u00b7 Refined" },
+        { label: "Minimal", descriptor: "Quiet, considered" },
+        { label: "Bold", descriptor: "Statement, saturated" },
+        { label: "Serene", descriptor: "Soft, calming" },
+        { label: "Adventurous", descriptor: "Outdoor, durable" },
+        { label: "Creative", descriptor: "Layered, textured" },
+        { label: "Classic", descriptor: "Timeless, refined" },
       ],
     },
     {
