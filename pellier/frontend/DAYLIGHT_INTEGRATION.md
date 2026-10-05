@@ -1,25 +1,23 @@
-# Daylight design system — integration
+# Daylight design system integration
 
 Pellier consumes the Daylight design system (originally built for the
 DAT409 Wayfare workshop) as the source of truth for color, type,
-spacing, radius, shadow, and component CSS. Every Pellier and
-Observatory surface inherits from these tokens.
+spacing, radius, shadow, and component CSS. The Storefront and the
+Operator inherit from these tokens.
 
 ## Layout
 
 ```
 pellier/frontend/
 ├── public/design-system/daylight/   ← VENDORED from dat409
-│   ├── tokens.css                     (78 lines — all CSS variables)
-│   ├── daylight.css                   (259 lines — all .dl-* components)
+│   ├── tokens.css                     (78 lines, all CSS variables)
+│   ├── daylight.css                   (259 lines, all .dl-* components)
 │   ├── components.html                (gallery, dev reference)
 │   └── STYLEGUIDE.md                  (token usage rules)
 └── src/
     ├── index.css                    @imports Daylight + bridge before Tailwind
-    ├── styles/
-    │   └── daylight-bridge.css      Aliases Pellier names → --dl-* tokens
-    └── observatory/styles/
-        └── tokens.css               --obs-* semantic aliases (cards, pills, sidebar)
+    └── styles/
+        └── daylight-bridge.css      Aliases Pellier names → --dl-* tokens
 ```
 
 ## Cascade order (load priority)
@@ -29,8 +27,7 @@ pellier/frontend/
 2. public/design-system/daylight/daylight.css   ← .dl-* component styles
 3. src/styles/daylight-bridge.css               ← --cream / --ink / --accent / --obs-* → --dl-*
 4. tailwind base / components / utilities        (inside @layer base)
-5. src/observatory/styles/tokens.css                 ← --obs-* semantic aliases
-6. component-level CSS / inline styles
+5. component-level CSS / inline styles
 ```
 
 `tailwind.config.js` references CSS variables (`'cream': 'var(--cream)'`,
@@ -39,11 +36,11 @@ flows through the bridge to the Daylight value at runtime.
 
 ## Token contract
 
-**Daylight tokens (`--dl-*`)** — the source of truth. Defined once in
+**Daylight tokens (`--dl-*`)** are the source of truth. Defined once in
 `public/design-system/daylight/tokens.css`. Don't override here; if you
 need a different value for a surface, override at scope.
 
-**Pellier aliases (`--cream`, `--ink`, `--accent`, ...)** — declared in
+**Pellier aliases (`--cream`, `--ink`, `--accent`, ...)** are declared in
 `src/styles/daylight-bridge.css`. Existing component code references
 these names; the bridge renames Daylight tokens onto them so no
 component file needs editing.
@@ -58,20 +55,15 @@ component file needs editing.
 | `--ink-quiet` | `--dl-muted` | Captions, eyebrows |
 | `--accent` | `--dl-accent` | Terracotta accent |
 | `--rule-1` | `--dl-line` | Hairline borders |
-| `--obs-cream-1` | `--dl-bg` | Observatory background |
-| `--obs-ink-1` | `--dl-ink` | Observatory primary text |
-| `--obs-red-1` | `--dl-accent` | Observatory accent |
-| `--obs-green-1` | `--dl-ok` | Observatory "shipped" status |
+| `--obs-cream-1` | `--dl-bg` | Second alias family, still read by `src/shared/` and `components/ui/` |
+| `--obs-ink-1` | `--dl-ink` | Primary text, same family |
+| `--obs-red-1` | `--pellier-accent` | Accent, same family |
+| `--obs-green-1` | `--dl-ok` | "Shipped" status, same family |
 | `--serif` / `--obs-serif` | `--dl-font-serif` | Instrument Serif → Fraunces → Georgia |
 | `--sans` / `--obs-sans` | `--dl-font-sans` | Instrument Sans → system UI |
 | `--mono` / `--obs-mono` | `--dl-font-mono` | JetBrains Mono |
 
 Full list in `src/styles/daylight-bridge.css`.
-
-**Observatory semantic aliases (`--obs-card-bg`, `--obs-status-shipped-bg`,
-`--obs-sidebar-bg`, ...)** — declared in `src/observatory/styles/tokens.css`.
-These reference `--obs-*` aliases and the bridge resolves the chain
-back to `--dl-*`.
 
 ## How to override a single surface
 
@@ -118,7 +110,7 @@ cp $DAT/design-system/daylight/{tokens.css,daylight.css,STYLEGUIDE.md,components
 ```
 
 The bridge file at `src/styles/daylight-bridge.css` only renames
-tokens — it never copies values. So upstream Daylight changes propagate
+tokens; it never copies values. So upstream Daylight changes propagate
 automatically. If a token is *renamed* in upstream Daylight, update
 the bridge to point at the new name; that's the only file you'll
 need to touch.
@@ -126,14 +118,12 @@ need to touch.
 ## What was removed when Daylight landed
 
 - The hardcoded `:root` block in `index.css` (60+ lines of color hex
-  values — replaced by the bridge)
-- The hardcoded `--obs-*` color values in `observatory/styles/tokens.css`
-  (the file now holds only Observatory-specific semantic aliases)
+  values, replaced by the bridge)
 - Hardcoded hex values in `tailwind.config.js` (`'cream': '#fbf4e8'`,
-  etc. — repointed at `var(--cream)`)
+  etc., repointed at `var(--cream)`)
 
 ## Persona avatar shades
 
 `--persona-marco` / `--persona-anna` are intentionally *not* in
-Daylight — they're scoped to persona surfaces and stay declared
+Daylight: they're scoped to persona surfaces and stay declared
 inline in `index.css`. Add new persona shades there if needed.

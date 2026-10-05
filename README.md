@@ -20,7 +20,7 @@ Each lab follows one customer and answers one worry a store's leadership would h
 |---|---|---|---|---|
 | 1. Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." | The RRF expression that fuses the vector and full-text ranks, and a search fallback that keeps her budget, stock and exclusions | Your expression reproduces the score recorded for her search, and every product returned meets her limits in Aurora |
 | 2. Grounding | Marco | "If the assistant guesses stock, we'll promise things we can't ship." | The `check_stock` tool body and the Stock agent's tool grant | The agent's counts match the warehouse rows in Aurora, and a piece Pellier does not carry is "not found", never zero |
-| 3. Managed | Theo | "The assistant should remember our customers, but never let one see another's account." | Publish `get_tickets` on AgentCore Gateway, bind it to the signed-in caller and deploy to AgentCore Runtime | His own tickets come back and another customer's do not, a new session recalls his taste from AgentCore Memory, and the response names the build that ran |
+| 3. Managed | Theo | "The assistant should remember our customers, but never let one see another's account." | Publish `get_tickets` on AgentCore Gateway, bind it to the signed-in caller and deploy to AgentCore Runtime | His own tickets come back and another customer's do not, a new session recalls his taste from AgentCore Memory, and the audit rows name the build that ran |
 | 4. Governed | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." | A Cedar rule that caps a staff store credit at $100, and the row-level security predicate for customer rows | Nadia's approved credit of up to $100 is allowed and recorded once, even on retry; $100.01 is denied and leaves no audit or credit row; another customer's rows return nothing |
 
 ## Architecture
@@ -59,7 +59,7 @@ flowchart LR
   agentcore -. models .-> bedrock
 ```
 
-- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Shopping and Support on Claude Opus 5, Stock on Claude Sonnet 5. Each agent gets only its own tools. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
+- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Shopping and Support on Claude Opus 5, Stock on Claude Sonnet 5. Each agent gets only its own tools once Lab 2 narrows the Stock agent's grant. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
 - **Store tools.** Nine tools: `search_products`, `browse_department`, `compare_products`, `check_stock`, `get_orders`, `get_return_policy`, `get_tickets`, `give_store_credit` and `ask_a_person`. One implementation serves both the local agents and the Gateway Lambda. `pellier/backend/services/store_tools.py`, `scripts/deploy/pellier_store_tools.py`
 - **Hybrid search.** The shopper's limits become SQL filters on a pgvector branch and a full-text branch. Reciprocal Rank Fusion (k = 60) merges them, Cohere Rerank 3.5 reorders the pool, and a shopper's search records its ranks in a retrieval receipt. The storefront's Builder view shows the ranks as "How it ranked". `pellier/backend/services/store_tools.py`, `pellier/backend/services/search_plan.py`
 - **Managed path.** AgentCore Runtime runs the same Router and agents, and their tools come through AgentCore Gateway. AgentCore Policy evaluates Cedar before the Lambda runs, so a denied call never executes and leaves no `tool_audit` row. `pellier/backend/agentcore_runtime.py`, `scripts/deploy/gateway_tool_schemas.py`, `policies/`
@@ -89,7 +89,7 @@ From the repository root:
 cd pellier/backend
 python3 -m venv .venv
 ./.venv/bin/python -m pip install --require-hashes -r requirements.lock
-cp .env.example .env    # set DATABASE_URL (or delete it and set DB_*) and AWS_REGION
+cp .env.example .env    # set DB_* (or DATABASE_URL) and AWS_REGION
 cd ../..
 
 # 2. Into an existing, empty database: schema, the 100-product catalog
@@ -108,7 +108,7 @@ npm run dev
 
 Locally the agents run in-process. Ask Pellier works signed out, and AgentCore Memory falls back to a process-local store when `AGENTCORE_MEMORY_ID` is empty. Shopper sign-in and the Operator need the Cognito user pool and demo users that the workshop deployment creates (`COGNITO_*` in `.env`).
 
-The code is in the labs' starting state: some marked regions are incomplete on purpose (for example, the Stock agent has no tools until Lab 2), and `solutions/` holds reference versions.
+The code is in the labs' starting state: some marked regions are incomplete on purpose (for example, the Stock agent may call the catalog tools beside `check_stock` until Lab 2 narrows its grant), and `solutions/` holds reference versions.
 
 To deploy the managed path to your own account, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`). It expects an existing Aurora cluster and Cognito user pool, which the Workshop Studio templates create; those templates are not in this repository.
 

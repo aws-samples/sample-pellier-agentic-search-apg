@@ -1,7 +1,8 @@
 # Pellier backend guidance
 
-This directory owns FastAPI, Strands specialists, tools, retrieval, memory,
-AgentCore adapters, policy integration, SSE streaming, and backend tests.
+This directory owns FastAPI, the Router and the three Strands agents, the
+Operator's investigation graph, the store tools, retrieval, memory, AgentCore
+adapters, policy integration, SSE streaming, and backend tests.
 
 Read the repository `CLAUDE.md` first and choose participant or maintainer
 mode before editing.
@@ -28,8 +29,8 @@ The participant runs verification; explain what the result establishes and
 what it does not. A passing in-process check is not managed execution proof.
 
 Model and prompt configuration are supplied in Task 2B. Do not add temperature;
-the configured profile does not support that argument. Task 3A's owned and
-foreign probes test Cedar separately from the managed caller binding.
+the configured profile does not support that argument. Task 3B's direct
+Gateway probe tests Cedar separately from the managed caller binding.
 
 ## Maintainer architecture
 
@@ -37,13 +38,18 @@ foreign probes test Cedar separately from the managed caller binding.
   serving.
 - `services/chat.py` owns the streamed turn contract. Preserve SSE ordering,
   terminal events, cumulative versus delta semantics, and error taxonomy.
-- `agents/` owns specialist construction and tool grants.
-- `services/agent_tools.py` owns deterministic business-tool boundaries.
-- `skills/` loads root `skills/*/SKILL.md` files into specialist prompts.
-- `routes/observatory.py` serves evidence read models. It must not
-  fabricate readiness or call managed services merely to render a page.
+- `services/intent_router.py` is the Router: deterministic, no model call,
+  three intents.
+- `agents/` owns the Shopping, Stock and Support agents and their tool grants.
+- `services/store_tools.py` is the one implementation of the nine store tools;
+  `services/agent_tools.py` wraps them for the local agents and owns the
+  caller-bound boundaries.
+- `services/operator_graph.py` is the Operator's Investigator and Planner;
+  `routes/operator.py` serves the desk.
+- `skills/` loads root `skills/*/SKILL.md` files into the agents' prompts.
 - `agentcore_runtime.py`, `services/agentcore_*`, and `services/managed_policy.py`
-  own managed-boundary behavior.
+  own managed-boundary behavior. Report what a managed service said; do not
+  fabricate readiness.
 
 ## Backend rules
 
@@ -72,7 +78,7 @@ python tests/test_copy_compliance.py
 hermetic environment: it sets `PELLIER_DISABLE_DOTENV=1` so `Settings` ignores
 any real `.env`, and supplies `DB_*` placeholders so importing `config` cannot
 raise. Do not reintroduce a `DB_HOST=... python -m pytest` prefix, and do not
-remove those lines — without the dotenv guard, tests asserting a variable is
+remove those lines. Without the dotenv guard, tests asserting a variable is
 absent read a developer's live `.env` and fail only on boxes that have been
 through bootstrap; without the placeholders, every module touching settings
 reports a collection error.

@@ -10,8 +10,8 @@ Task 1A's recovery restores the worksheet with the fusion expression written:
 cp solutions/the-quiet-search/sql/lab-1-rrf-solution.sql workshop/lab-1-rrf.sql
 ```
 
-Task 1B's recovery restores `search_plan.py` with a fallback that keeps the
-shopper's limits:
+Task 1B's recovery restores `pellier/backend/services/search_plan.py` with a
+fallback that keeps the shopper's limits:
 
 ```bash
 cp solutions/the-quiet-search/retrieval/search_plan_solution.py \
@@ -65,9 +65,9 @@ executed build with this checkout's and asks Cedar to refuse his direct read of
 Jessica's tickets. The managed Memory, Runtime, Gateway and JWT path has no
 local substitute; move a participant to a ready environment when it fails.
 
-`sql/forensic_incident.sql` reconstructs Jessica's credit after Lab 4: who
-asked, who investigated, who approved, what the Gateway answered, and what was
-paid. It only reads:
+`solutions/the-ledger/sql/forensic_incident.sql` reconstructs Jessica's
+credit after Lab 4: who asked, who investigated, who approved, what the
+Gateway answered, and what was paid. It only reads:
 
 ```bash
 psql -X -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql

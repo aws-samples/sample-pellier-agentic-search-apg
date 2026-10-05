@@ -1,111 +1,100 @@
 # AgentCore implementation and exercise map
 
 This is the maintainer contract for the governed workshop. Workshop Studio owns
-the participant instructions. The supplied infrastructure and exercise starters
-are intentionally different: a successful bootstrap establishes the baseline;
-each participant must still run the checks for their own changes.
+the participant instructions. Provisioning establishes the baseline; each
+participant still runs the checks for their own changes.
 
 ## Services in the required path
 
-| AgentCore capability | Supplied implementation | Participant progression and proof |
+| AgentCore capability | Supplied implementation | Where participants prove it |
 |---|---|---|
-| **Runtime** | Two Python CodeZip runtimes: shopper dispatcher/specialists and a separate staff investigation graph. Shopper invocation uses Cognito `CUSTOM_JWT`; the backend invokes the staff runtime with IAM after authenticating staff. Both packages have build fingerprints. | Lab 3 deploys the changed support adapter and proves the executing shopper build and `gateway-mcp` rail. Lab 4 investigates Jessica through the staff runtime and checks its fingerprint and graph order. |
-| **Gateway** | Four Lambda targets; 18 defined tool schemas, 16 published at baseline and 17 after Lab 3A. MCP discovery is scoped to the authenticated caller. Managed execution fails closed when Gateway is unavailable. | Lab 3A publishes `get_ticket_history` and repairs the support adapter's binding. Lab 3B deploys, discovers the catalog, checks owned/foreign customer access and compares build fingerprints. `restock_inventory` stays unpublished. |
-| **Memory** | Conversation events with 30-day expiry; four real extraction strategies, listed below. Configuration, extraction and retrieval are separate checks. | Introduction records Theo's source conversation. Extraction runs during Labs 1–2. Lab 3 inspects all four record types and recalls them in a new session with no prior chat events. Product recommendations are checked against current Aurora records. |
-| **Observability** | OpenTelemetry agent/model/tool spans, CloudWatch Runtime, Gateway and Memory delivery, Transaction Search, encrypted logs with bounded retention, and control-plane audit. Memory service logs expose extraction and consolidation. Aurora separately stores queryable application execution evidence. | Lab 2 retains a structured tool result; Lab 1 reconstructs ranking from recorded candidates; Lab 3 requires correlated managed traces and matching builds; Lab 4 reconciles policy, execution and committed effects. The Observatory reads evidence; a UI indicator is not a provider decision. |
-| **Policy** | Gateway-attached managed Cedar engine in `ENFORCE`. Explicit catalog permits, owner-scoped customer reads, staff-scoped writes, and a managed output guardrail. The shopper return permit deliberately leaves ownership for Lab 4. | Lab 4A supplies the bounded ownership forbid. Lab 4B distinguishes authentication failure, policy denial, tool refusal, committed effect and output suppression; direct SQL proves RLS and keyed absence with an allowed positive control. |
-| **Identity** | Runtime/Gateway service-managed workload identities, Cognito person identity and IAM service authentication. Verified customer/staff claims drive the caller boundary. | Identity is exercised throughout Labs 3–4. There is no separate outbound OAuth/API-key credential-provider exercise; the rendered project's `credentials` list is empty. |
+| **Runtime** | One Python CodeZip runtime, `pellier_orchestrator` (with the deployment suffix when one is set), entrypoint `pellier/backend/agentcore_runtime.py`. It runs the same Router and three agents as the app and gets every tool through Gateway. Invocation requires a Cognito access token (`CUSTOM_JWT`). The package carries a build fingerprint over `RUNTIME_SOURCE_FILES` (`pellier/backend/services/build_fingerprint.py`). | Lab 3 switches the Storefront to the managed rail (`scripts/lab3-start.sh`), deploys the 3A edits with `--mode participant`, and `scripts/lab3_check.py` compares the executed build with the checkout's. |
+| **Gateway** | One Lambda target, `pellier-store-tools`, with nine tool schemas: eight published at baseline and nine after Lab 3A publishes `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`). Discovery is filtered by policy per caller. Managed turns fail closed when Gateway is unavailable. | Lab 3A publishes `get_tickets` and binds it to the caller; `scripts/workshop_doctor.py --lab 3 --phase prerequisites` reads the catalogue. |
+| **Policy** | A managed Cedar engine attached to Gateway in `ENFORCE` mode. Baseline permits: an exact allow-list of the six shopper-safe reads, `get_orders_owner_only` (and `get_tickets_owner_only` once published), and `give_store_credit_staff_scope` with no amount condition. Provisioning also deploys the Lab 4 starter forbid `workshop_credit_limit`, which denies every credit. A managed output guardrail can suppress a credit response after execution. | Lab 3B's direct probe: Theo's token for Jessica's tickets is denied. Lab 4A: `scripts/lab4_policy_check.py` evaluates the rule with `cedarpy`, then gets a Gateway DENY for an over-limit credit with no row for its key. |
+| **Memory** | Conversation events with 30-day expiry and four extraction strategies (below). Provisioning records Theo's first conversation. Turns read Memory for an authenticated shopper; a failed read is reported in the turn and the turn continues. | Lab 3B: a new session's Builder view names the user-preference record the agent was given, and `scripts/lab3_check.py` reads it back. |
+| **Observability** | Runtime, Gateway and Memory log delivery, OpenTelemetry agent, model and tool spans, CloudWatch Transaction Search, KMS-encrypted Runtime logs with bounded retention, and control-plane audit. | Not a required lab check. `workshop/lab-3-otel-contract.jq` checks span structure on a downloaded trace; the lab checks read Aurora's `tool_audit` as execution evidence. |
+| **Identity** | Cognito person identity for shoppers and staff. A pre-token trigger (`scripts/deploy/cognito_customer_claim.py`) stamps `custom:customer_id` on a shopper's access token from a map rendered from `pellier.customers`, and `custom:staff_scope` on a member of the operator group. Runtime and Gateway use service-managed workload identities. | Throughout Labs 3 and 4. There is no outbound credential-provider exercise. |
+
+The Operator's investigation (Investigator, then Planner) runs in process in
+the app, not on Runtime. Nadia's Execute calls Gateway with her own token, so
+Cedar authorizes a person.
 
 AgentCore Browser, Code Interpreter, managed Evaluations, Harness and Payments
-are not configured on the required path. The project's `evaluators` and
-`onlineEvalConfigs` lists are empty. Application evaluation tooling and
-after-workshop extensions must not be presented as deployed AgentCore Evaluations.
-Amazon Bedrock inference, embeddings, reranking and output guardrails; Strands;
-Cognito; Lambda; Aurora/RDS; CloudWatch; CloudTrail; IAM and KMS are supporting
-services or libraries, not additional AgentCore components.
+are not configured. Amazon Bedrock models, Strands, Cognito, Lambda, Aurora,
+CloudWatch, CloudTrail, IAM and KMS are supporting services, not additional
+AgentCore components.
+
+## Baseline authorization on a fresh stack
+
+3 policies, all permits, no forbid; 4 once Lab 3A publishes `get_tickets` and
+its owner-only permit lands in the same deployment. Provisioning deploys Lab 4's
+starter forbid, `workshop_credit_limit`, beside them. The source is
+`scripts/deploy/render_agentcore_project.py`, and
+`pellier/backend/tests/test_fresh_policy_set.py` checks this table against it.
+Every statement types the principal as `AgentCore::OAuthUser`, pins the
+resource to the deployed Gateway ARN, and names actions
+`pellier-store-tools___<tool>`.
+
+| Policy | Effect | Shape |
+|---|---|---|
+| `baseline_permit_workshop_tools` | permit | An exact list of the six reads that expose no customer data: `search_products`, `browse_department`, `compare_products`, `check_stock`, `get_return_policy`, `ask_a_person`. No wildcard, so a tool published later is denied by default. |
+| `get_orders_owner_only` | permit | Only when the token's `custom:customer_id` equals `context.input.customer_id`. `get_tickets_owner_only` has the same shape once Lab 3A publishes that read. |
+| `give_store_credit_staff_scope` | permit | A principal whose `custom:staff_scope` is `returns`. No amount condition: the $100 per-credit limit is the Lab 4 rule, and no shopper permit names this action. |
+
+A token with neither claim may read the catalogue and nothing else.
 
 ## Memory contract
 
-| Strategy | Name | Namespace | Required evidence |
-|---|---|---|---|
-| `USER_PREFERENCE` | `PellierUserPreferences` | `/pellier/preferences/{actorId}/` | Extracted preference record and retrieval by the same actor |
-| `SEMANTIC` | `PellierFacts` | `/pellier/facts/{actorId}/` | Extracted fact record and retrieval by the same actor |
-| `SUMMARIZATION` | `PellierSessionSummary` | `/pellier/summaries/{actorId}/{sessionId}/` | Extracted source-session summary and retrieval |
-| `EPISODIC` | `PellierEpisodes` | `/pellier/episodes/{actorId}/{sessionId}/` | A completed episode with situation, intent, assessment and justification, plus retrieval |
-
-Episodic reflections use `/pellier/episodes/{actorId}/`. Their configuration and
-real read path are supplied. Reflection generation is asynchronous and is an
-optional follow-up; a partial episode or reflection cannot replace the required
-completed episode. Strategy names, namespaces and expiry come from
-`pellier/backend/services/memory_contract.py`.
-
-Bootstrap's `scripts/deploy/verify_memory_readiness.py` writes an isolated source
-conversation using `CreateEvent`. It requires all four strategies to be ACTIVE
-with the expected configuration, source-event readback, `ListMemoryRecords`,
-`GetMemoryRecord` and `RetrieveMemoryRecords` agreement on actual record IDs and
-namespaces, an empty recall session, and an empty retrieval for a different fresh
-actor. It never inserts long-term records. Missing evidence fails after a bounded
-20-minute configuration/extraction wait; AWS latency is not guaranteed by that
-deadline. Each run has a new actor/session, so old evidence cannot pass a new run.
-
-The detailed result is saved under `memory.seed.acceptance` in the managed
-provisioning receipt. `scripts/validate_agentcore_receipt.py` rejects the old
-seed-only receipt and missing or inconsistent record evidence.
-`scripts/health-gate.sh` also checks the current four-strategy configuration.
-Theo's participant experiment uses its own actor/session and independently proves
-that retrieved context reaches the managed recommendation; bootstrap's extraction
-probe is not a substitute for that application-level test.
-
-The staff Runtime bootstrap smoke runs both real graph nodes against an explicitly
-labelled synthetic deployment brief and verifies the executing package. It proves
-managed execution and graph order, not Jessica's case or a reviewed business action.
-Lab 4 and fresh-event acceptance must use actual scoped Aurora records and complete
-the proposal, confirmation and execution checks for the same review.
-
-## Progressive exercises and escape hatches
-
-There are four labs, eight tasks and eight authoring regions. Recovery provides
-the missing implementation and converges on the same checks. It cannot produce
-AWS evidence, approve a staff action or mark an unrun check complete.
-
-| Task | Intentionally incomplete surface / supplied operation | Acceptance after an attempt or recovery |
+| Strategy | Name | Namespace |
 |---|---|---|
-| **1A** | RRF expression in `workshop/lab-1-rrf.sql` | Participant reconstructs fusion scores from recorded candidate ranks. |
-| **1B** | Requirement preservation in `services/search_plan.py` | Local contract check plus live Aurora eligibility for exact returned product IDs; fallback relaxes preferences without losing requirements. |
-| **2A** | Inventory envelope in `services/agent_tools.py` | Direct tool contract distinguishes unknown product, zero stock and stocked product; independent current SQL confirms inventory. |
-| **2B** | Stock agent definition in `agents/stock_agent.py` (`check_stock` alone) | Agent calls the intended tool and its answer agrees with the retained result. |
-| **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py` and caller binding in `services/agentcore_gateway.py` | Required support tool is published and bound to the verified customer's input. |
-| **3B** | Deploy/investigate the 3A changes; no additional authoring region | `scripts/lab3_check.py`: the executing build fingerprint; the user-preference record AgentCore Memory extracted from Theo's provisioning conversation, as the managed rail reads it and as the Builder view's Router step names it; every executed ticket read bound to Theo; Cedar's denial of his direct read of Jessica's tickets with no row. |
-| **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: the unchanged policy head, the Cedar matrix with three read tools that stay allowed, six wrong rules and the counterfactual locally, then, once deployed with `--mode participant`, a Gateway DENY of an over-limit credit of its own review with no row for its key. |
-| **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; the absence check `workshop/lab-4-absence.sql` is supplied | Direct RLS probes roll back; denied-key counts are zero and the allowed-key control is one. One staff review preserves source turn, action hash and write key across proposal, confirmation and execution. |
+| `USER_PREFERENCE` | `PellierUserPreferences` | `/pellier/preferences/{actorId}/` |
+| `SEMANTIC` | `PellierFacts` | `/pellier/facts/{actorId}/` |
+| `SUMMARIZATION` | `PellierSessionSummary` | `/pellier/summaries/{actorId}/{sessionId}/` |
+| `EPISODIC` | `PellierEpisodes` | `/pellier/episodes/{actorId}/{sessionId}/` |
 
-The Lab 2 wrapper and Lab 1 search-plan implementation run in the application
-process; they are not moved into Runtime by Lab 3. The managed search Lambda is
-supplied separately and does not implement Lab 1's exclusion/preference ladder.
-The progression builds connected contracts and evidence across one application;
-guides must not claim that every prior participant edit migrates unchanged.
-Lab 3 packages the support adapter; the Lambda tool implementations are supplied.
-Lab 4's RLS exercise is a rollback-only policy experiment, not a persistent
-replacement of the deployed RLS baseline.
+Names, namespaces and expiry come from
+`pellier/backend/services/memory_contract.py`. Lab 3 uses the
+`USER_PREFERENCE` record only; the other three are configured and checked at
+provisioning.
 
-Hints, bounded recovery references and the catch-up commands remain in Workshop
-Studio. Managed-service failure remains a failed/incomplete managed check. The
-participant keeps the error and evidence, tries the documented recovery once,
-then uses the continuation checkpoint if support cannot resolve it.
+`scripts/deploy/verify_memory_readiness.py` writes an isolated conversation
+with `CreateEvent` and requires every strategy to be ACTIVE with the expected
+configuration, and list, get and retrieve to agree on real record ids and
+namespaces. It never writes long-term records. `scripts/health-gate.sh` checks
+the same configuration.
 
-## Release and fresh-event acceptance
+## Exercises and recovery
 
-Local source tests and Studio validators check contracts, starter boundaries,
-recovery compilation/parity and receipt rejection. They do not prove AWS delivery
-or participant timing. Publish source first, update Studio's source and
-infrastructure pins, sync S3 assets, sync static URLs to **In sync**, then push
-Studio and verify the resulting build before creating the test event.
+Four labs, eight tasks, eight marked regions. Recovery copies a reference into
+the region and converges on the same checks. It cannot produce AWS evidence,
+approve a credit or mark an unrun check complete.
 
-In that fresh event, require CloudFormation completion, successful bootstrap
-signal, `E2E_PROVED`, the health gate and a valid managed receipt. Rehearse all
-eight tasks with participant identities, including browser authentication, both
-runtimes, all four Memory record types, policy/output controls, SQL positive
-controls and the full staff review lifecycle. Repeat a bounded recovery on an
-exercise copy and run the same acceptance. Record cold provisioning and lab
-timings, failed attempts, source SHA, Studio build and account/Region. A prior
-account's pass does not establish this event's readiness.
+| Task | Region | Acceptance |
+|---|---|---|
+| **1A** | RRF expression in `workshop/lab-1-rrf.sql` | Every recorded score recomputed from its two ranks. |
+| **1B** | Fallback in `pellier/backend/services/search_plan.py` | `scripts/lab1_compare.py`: the search that answered kept every limit the shopper asked for, and every product meets them. |
+| **2A** | `check_stock` in `pellier/backend/services/agent_tools.py` | `scripts/lab2_contract_check.py`: not carried, several, sold out and in stock stay distinct. |
+| **2B** | Stock agent grant in `pellier/backend/agents/stock_agent.py` | `--task 2B`: the answering Stock agent held `check_stock` alone, and its counts equal `warehouse_inventory`. |
+| **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | Nine tools published, `get_tickets` bound to the signed-in caller. |
+| **3B** | No region: deploy with `--mode participant` | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo, Cedar's denial of his direct read of Jessica's tickets. |
+| **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: Cedar matrix, six wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
+| **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; `workshop/lab-4-absence.sql` supplied | RLS probes in one rolled-back transaction; the absence check prints 0, 0 and 1. |
+
+Labs 1 and 2 run in process; Lab 3 does not move those edits into the Lambda.
+The store tools themselves are one implementation (`services/store_tools.py`),
+so the Lambda runs the same search and stock code that is packaged with it at
+deploy time.
+
+## Fresh-event acceptance
+
+Local tests check contracts, starter boundaries, recovery parity and receipt
+validation. They do not prove AWS delivery or timing. Publish the source,
+update the Workshop Studio pins, sync assets, then build and verify the
+Studio package before creating a test event.
+
+In that event, require CloudFormation and bootstrap completion, the health
+gate and a valid provisioning receipt. Rehearse all eight tasks with the
+participant identities, Lab 3's deploy and Lab 4's deploy, one Operator
+investigation and the cleanup. Record source SHA, Studio build, account,
+Region, cold provisioning time and each lab's time. A previous account's pass
+does not establish this event's readiness.

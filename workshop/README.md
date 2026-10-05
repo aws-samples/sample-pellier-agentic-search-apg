@@ -34,7 +34,7 @@ only through `python3 scripts/provision_agentcore_end_to_end.py --repo-path
 "$PWD" --mode participant`: changing a local file does not update AWS.
 Provisioning deploys Lab 4's starter rule, so the deploy updates it.
 
-## One concierge, four growing responsibilities
+## One assistant, four growing responsibilities
 
 **Respect the requirements → know the facts → establish the caller → govern the action.**
 

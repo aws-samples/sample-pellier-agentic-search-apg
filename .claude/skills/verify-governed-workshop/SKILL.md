@@ -1,6 +1,6 @@
 ---
 name: verify-governed-workshop
-description: Audit Pellier's governed two-hour workshop against its title, abstract, four labs, runtime claims, proof surfaces, and delivery gates. Use before flagship delivery, after changes to retrieval, audit, AgentCore, Cedar, workshop navigation, bootstrap, or participant-facing evidence.
+description: Audit Pellier's governed 100-minute workshop against its title, abstract, four labs, runtime claims, proof surfaces, and delivery gates. Use before flagship delivery, after changes to retrieval, audit, AgentCore, Cedar, workshop navigation, bootstrap, or participant-facing evidence.
 ---
 
 # Verify the governed workshop
@@ -20,8 +20,9 @@ Read `references/contract.md` before starting.
 5. Check bootstrap branch selection, model IDs, migrations, service startup,
    and participant-global Claude Code guidance.
 6. Run the validation gates in the root `CLAUDE.md`.
-7. Verify Pellier and named Pellier Observatory routes in a browser. Check console errors,
-   layout, streaming, identity state, and evidence provenance.
+7. Verify the storefront (with Ask Pellier and its Builder view) and the
+   Operator in a browser. Check console errors, layout, streaming, identity
+   state, and evidence provenance.
 8. Report findings first, ordered by severity, with file and line references.
    Separate blockers from polish.
 
@@ -38,8 +39,8 @@ Read `references/contract.md` before starting.
 ## Scope control
 
 - Preserve the flagship title and four-lab spine.
-- Keep Pellier and Code Editor primary; open Pellier Observatory only at named proof
-  points.
+- Keep the storefront, the Operator and Code Editor primary; the Builder view
+  assists a named proof point and never replaces the terminal check.
 - Do not add a persona, specialist, business flow, or unrelated AWS service
   merely to make the workshop look broader.
 - Fix drift between the app and Workshop Studio in the owning source rather

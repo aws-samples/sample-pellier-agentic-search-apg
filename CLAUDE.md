@@ -14,9 +14,9 @@ Claude Code guidance is intentionally layered:
    - `pellier/frontend/CLAUDE.md`
    - `skills/CLAUDE.md`
 4. `.claude/skills/<name>/SKILL.md` contains on-demand Claude Code workflows.
-5. `skills/<name>/SKILL.md` contains Pellier runtime skills loaded into
-   Strands specialists per shopper turn. These are application data, not
-   Claude Code instructions.
+5. `skills/<name>/SKILL.md` contains Pellier runtime skills loaded into the
+   Strands agents' prompts. These are application data, not Claude Code
+   instructions.
 
 Read `VOICE.md` before changing shopper-facing copy, editorial model prompts,
 or runtime skills.
@@ -96,13 +96,19 @@ AgentCore
 
 The application must continue to demonstrate:
 
-- A Strands SDK dispatcher routing shoppers to specialist agents.
-- Aurora PostgreSQL hybrid retrieval using full-text search and pgvector.
-- Cohere Rerank relevance ranking.
-- Aurora-backed inventory, orders, customer records, returns, and a queryable
-  JSONB audit ledger.
+- A deterministic Router that sends each shopper request to one of three
+  Strands agents: Shopping, Stock and Support.
+- Nine store tools with one implementation for the local agents and the
+  Gateway Lambda (`pellier/backend/services/store_tools.py`).
+- Aurora PostgreSQL hybrid retrieval: full-text search and pgvector fused with
+  RRF, then Cohere Rerank.
+- Ten Aurora tables (`scripts/migrations/001_schema.sql`): catalog, warehouse
+  stock, customers, orders, return policies, support tickets, approvals, store
+  credits, the `tool_audit` ledger and retrieval receipts.
 - AgentCore Runtime, Memory, Gateway, and Policy.
-- Cedar authorization on sensitive tool actions.
+- Cedar authorization on every Gateway tool call: owner-only customer reads
+  and a staff-only store credit.
+- A person approving every credit in the Operator before it is written.
 - Inspectable ALLOW execution and DENY non-execution evidence.
 
 The required participant path is four labs, each with Tasks A and B
@@ -110,14 +116,15 @@ anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
 |---|---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Reconstruct recorded RRF | Preserve requirements across fallback |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Recompute the ranking | Keep the limits on the fallback |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | Keep not carried apart from zero stock | Grant the Stock agent `check_stock` alone |
-| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | Reconcile publication and caller binding | Deploy, challenge scope, and identify the executed build |
-| 4. Build Governed Agent Actions with Cedar | Jessica | Author the $100 credit limit in Cedar | Author the RLS ownership predicate |
+| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, then challenge with the household request |
+| 4. Build Governed Agent Actions with Cedar | Jessica, with Nadia | Write the $100 per-credit limit in Cedar | Write the row-ownership predicate |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
-task map. `tests/test_workshop_marker_contract.py` checks the eight marked
-regions, starter fragments, and recovery references behind the eight tasks.
+task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the
+eight marked regions, starter fragments, and recovery references behind the
+eight tasks.
 Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the exercise to an
 unpackaged file or infer deployed completion from source inspection.
@@ -132,34 +139,32 @@ documentation.
 
 ## Architecture invariants
 
-- Aurora is the source of truth for catalog, inventory, customer, order,
-  return, and audit data.
+- Aurora is the source of truth for the catalog, stock, customers, orders and
+  their returns, support tickets, approvals, store credits and audit rows.
 - Tool results and SQL rows are evidence. UI state alone is not proof.
 - A Cedar DENY receipt and the absence of a matching `tool_audit` execution
   row are distinct, intentional evidence.
 - Cognito identity travels in the signed token. Do not invent ambient identity
   or correlation fields across managed boundaries.
-- Pellier is shopper-facing, Pellier Observatory is an assisted inspection
-  surface, and Code Editor plus SQL/curl remain canonical workshop proof.
-  Participant-facing chrome and public routes use "Pellier", "Pellier
-  Observatory", `/`, and `/observatory`.
-- **One name for the inspection surface: Observatory.** It is the display name,
-  the route (`/observatory`), the API prefix (`/api/observatory`), the source
-  directories (`src/observatory/`, `routes/observatory.py`), the CSS and
-  `data-testid` namespace (`observatory-*`), the span table
-  (`pellier.observatory_spans`), and the CSS custom-property prefix
-  (`--obs-*`). Both former names are fully retired in every casing and
-  separator, including `Agent Trace` and its `--at-` variable prefix, and
-  `Pellier Labs`. No component, module, file, route, class, test id, API path,
-  CSS variable, or database object carries either. The only permitted
-  exceptions are the legacy-path redirects in `App.tsx` and the tests that
-  assert them, which must name the old paths to do their job, plus the one-time
-  `ALTER TABLE` in migration 002 that converges an existing cluster.
-  `tests/test_surface_naming.py` enforces this by scanning the repository.
+- Pellier has two surfaces. The Storefront (`/`) is where shoppers use Ask
+  Pellier, the docked chat panel; its Builder view shows each turn's Router
+  step, tool calls and "How it ranked". The Operator (`/operator`) is where
+  staff investigate a case and approve or reject a credit. Code Editor, SQL
+  and the lab checks remain the canonical workshop proof; the Builder view
+  shows evidence but does not replace it.
+- Retired surface names stay retired in every casing and separator: the
+  inspection surface (Observatory, and before it Pellier Labs and Agent Trace
+  with its `--at-` variable prefix). No component, module, file, route, class,
+  test id, API path, CSS variable, or database object carries them. The
+  exceptions are history under `docs/release-readiness/` and
+  `docs/superpowers/`, the route test that proves old paths land on the
+  Storefront, and this file. `pellier/backend/tests/test_surface_naming.py`
+  enforces this by scanning the repository.
 - Boutique is fully retired on the same terms. `VOICE.md` bans "boutique" in
   shopper copy, model prompts, runtime skills, and product descriptions.
-- Editorial specialists use the configured Opus profile when available;
-  reporting and routing specialists use the configured Sonnet profile.
+- The Shopping and Support agents use the configured Opus profile; the Stock
+  agent and the Operator's Investigator and Planner use the Sonnet profile.
+  The Router makes no model call.
 - Never hardcode credentials, JWTs, account IDs, endpoints, or `.env` values
   into tracked files.
 

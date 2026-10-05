@@ -64,8 +64,8 @@ Avoid in shopper-facing copy:
 - the words listed under "Words we do not use"
 - raw tool names, JWTs, ARNs, internal endpoints, and stack identifiers
 
-Pellier Observatory and workshop copy may use precise architecture terms because the
-audience is inspecting the system.
+The Builder view, the Operator's investigation steps and workshop copy may use
+precise architecture terms because the audience is inspecting the system.
 
 ## Grounding and memory
 
@@ -124,8 +124,8 @@ voice as the concierge, with two extra rules:
   carry.
 - The page speaks as the store, not the workshop. "Pellier" and "the
   floor", never "profile", "signal" or "tag weight". The About page may name
-  the stack once, in its chips; the prose names the three surfaces in plain
-  words: the store, the Operator desk, the Observatory.
+  the stack once, in its chips; the prose names the two surfaces in plain
+  words: the store and the Operator desk.
 
 Photography for these pages belongs to one world: soft natural window
 daylight, warm-white plaster walls, pale oak and linen, true colors, no

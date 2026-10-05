@@ -22,8 +22,9 @@ persona-led scenario; keep the technical titles as the headings.
 
 Each starter produces a visible, explainable failure in Ask Pellier or the
 Operator, never an exception or a missing feature. One starter-failure test
-per lab (`tests/test_lab{1,2,3,4}_starter_failure.py`) asserts the starter
-shows exactly that failure and the solution does not.
+per lab (`pellier/backend/tests/test_lab1_starter_failure.py` to
+`test_lab4_starter_failure.py`) asserts the starter shows exactly that failure
+and the solution does not.
 
 | Lab | The live failure | The fix |
 |---|---|---|
@@ -33,6 +34,8 @@ shows exactly that failure and the solution does not.
 | 4 | Nadia approves Jessica's $100.00 credit and the starter forbid, deployed at provisioning, still denies it | 4A: the $100 per-credit limit in Cedar. 4B: the RLS ownership predicate |
 
 ## Eight marked regions, one check per task
+
+Paths under `services/` and `agents/` are in `pellier/backend/`.
 
 | Task | Region | Check |
 |---|---|---|
@@ -71,10 +74,12 @@ proved.
   context: Theo's provisioning conversation and the preference record
   extracted from it, never permission.
 - **4A:** the participant's rule is evaluated with the real Cedar engine
-  beside the rendered baseline: shopper $100 DENY (the baseline's doing, not
-  the rule's), Nadia 9999 and 10000 ALLOW, 10001 DENY, the same for a second
-  staff member. The check rejects `false`, `true`, staff-only, `< 10000` and
-  `<= 100`, and shows that without the rule Nadia's 10001 cents is allowed.
+  (`cedarpy`) beside the rendered baseline: shopper $100 DENY (the baseline's
+  doing, not the rule's), Nadia 9999 and 10000 ALLOW, 10001 DENY, the same for
+  a second staff member, and three read tools still ALLOW. The policy head
+  must be unchanged. The check rejects six wrong rules (`false`, `true`,
+  staff-only, `< 10000`, `<= 100`, and the rule widened to every action) and
+  shows that without the rule Nadia's 10001 cents is allowed.
   On the box it sends one over-limit credit of its own approved review through
   the Gateway: a Cedar DENY with no row for its key. A 401 or a business
   refusal is not Cedar evidence. Nadia's approval of Jessica's 10000-cent case

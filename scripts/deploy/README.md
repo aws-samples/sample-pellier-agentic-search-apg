@@ -10,49 +10,54 @@ Memory, authenticate test users, and verify the deployed path.
 
 ## What Gets Deployed
 
-1. **1 Lambda MCP server** — `pellier-store-tools-server`, behind the one
+1. **One Lambda MCP server**, `pellier-store-tools-server`, behind the one
    Gateway target `pellier-store-tools`: nine tool schemas, eight published at
    baseline and nine after Lab 3A publishes `get_tickets`. The tools are the
    same `services/store_tools.py` functions the in-process agents call; the
    Lambda hands them the RDS Data API instead of the psycopg pool.
 
-2. **AgentCore Memory** — Short-term conversation events with 30-day expiry,
+2. **AgentCore Memory**: short-term conversation events with 30-day expiry,
    plus `USER_PREFERENCE`, `SEMANTIC`, `SUMMARIZATION` and `EPISODIC` strategies.
    Bootstrap writes an isolated conversation, then requires extracted records
    to pass list, get-by-ID and retrieval checks in all four namespaces. Missing
    records, incomplete episodes, namespace drift or timeout fail readiness.
    The check does not write long-term records or reuse participant evidence.
 
-3. **AgentCore Gateway** — MCP Gateway that registers the one Lambda target with:
+3. **AgentCore Gateway**: an MCP Gateway that registers the one Lambda target with:
    - Cognito JWT authentication
    - Runtime tool discovery over MCP streamable HTTP
-   - Exact parity with the published catalog for the authenticated caller
+   - Discovery filtered by policy for the authenticated caller
 
    Docs: [Gateway overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/gateway.html)
 
-4. **AgentCore Policy** — A managed Cedar engine attached to Gateway in
+4. **AgentCore Policy**: a managed Cedar engine attached to Gateway in
    `ENFORCE` mode:
-   - Explicit permits for the shopper-safe catalog reads and the two
+   - Explicit permits for the six shopper-safe catalog reads and the
      owner-scoped customer reads (`get_orders`, and `get_tickets` once
      Lab 3A publishes it)
-   - One staff-scoped permit for `give_store_credit`, with no amount limit;
-     Lab 4 authors the $100 per-credit forbid on top of it
+   - One staff-scoped permit for `give_store_credit`, with no amount limit
+   - Lab 4's starter forbid, `workshop_credit_limit`, deployed from
+     `workshop/starters/workshop_credit_limit.cedar` so every credit is denied
+     until the participant writes the $100 limit; `--mode participant`
+     refuses a rule `scripts/lab4_policy_check.py` marks CONTRADICTED
    - A managed output guardrail can suppress a tool response after execution
-   - The Lab 4 policy proof (shopper DENY, staff ALLOW within the limit, staff
-     DENY over it) runs against the deployed Gateway from the lab, not from
-     provisioning
+   - Provisioning's live policy proof calls the Gateway as Theo through
+     `gateway_policy_probe.py`: a catalog read is allowed with its audit row,
+     and a store credit is denied with no row
 
-5. **AgentCore Runtime** — Separate shopper and staff managed HTTP runtimes:
-   - Shopper invocation requires a Cognito access token through `CUSTOM_JWT`
-   - Staff investigation is invoked with IAM after staff authentication
-   - Both executing packages carry verified build fingerprints
+5. **AgentCore Runtime**: one managed runtime, `pellier_orchestrator`, running
+   the Router and the Shopping, Stock and Support agents:
+   - Invocation requires a Cognito access token through `CUSTOM_JWT`
+   - The executing package carries a build fingerprint
    - Discovers tools via Gateway
    - Fails closed if identity or Gateway is unavailable
    - Uses AgentCore Memory context supplied by the application request path
 
+   The Operator's investigation runs in the app, not on Runtime.
+
    Docs: [Runtime overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime.html)
 
-6. **AgentCore Observability** — Runtime/Gateway delivery, correlated agent,
+6. **AgentCore Observability**: Runtime and Gateway delivery, correlated agent,
    model and tool spans, CloudWatch Transaction Search, encrypted bounded logs,
    and control-plane audit. Readiness requires actual trace delivery.
 
@@ -104,8 +109,8 @@ backend environment.
 5. After Gateway has published its action catalog, render the baseline Cedar
    set and run the same validate/deploy sequence again.
 6. Authenticate with Cognito, verify the caller-scoped live catalog, prove
-   extraction and retrieval for all four Memory strategies, invoke both
-   runtimes, and verify correlated trace delivery.
+   extraction and retrieval for all four Memory strategies, invoke the
+   Runtime, run the live policy proof, and verify correlated trace delivery.
 
 For unattended bootstrap, use
 `scripts/provision_agentcore_end_to_end.py`; it adds target/tool verification,
@@ -120,6 +125,9 @@ value, `30` in the workshop template).
 | File                              | Purpose                                        |
 | --------------------------------- | ---------------------------------------------- |
 | `pellier_store_tools.py`          | The one Lambda MCP server: nine store tools on one target |
+| `gateway_policy_probe.py`         | Calls one Gateway tool as a named Cognito user and reports the Cedar outcome and its rows |
+| `gateway_client.py`               | Cognito tokens and the shared policy-denial classifier |
+| `cognito_customer_claim.py`       | Pre-token trigger that stamps the customer and staff claims |
 | `common/dataapi.py`               | RDS Data API runner and Bedrock embed/rerank for the Lambda |
 | `deploy_lambda.py`                | Lambda deployment script (adapted from DAT403) |
 | `gateway_tool_schemas.py`         | One-target catalog and participant publication boundary   |
@@ -134,16 +142,16 @@ value, `30` in the workshop template).
 
 ## Where to look when something breaks
 
-- **`agentcore deploy` fails in CDK/IAM** — the CLI project deliberately omits
+- **`agentcore deploy` fails in CDK/IAM**: the CLI project deliberately omits
   `executionRoleArn`; CDK creates the Runtime and Gateway roles. Confirm the
   account is CDK-bootstrapped and the caller can assume/pass the
   `cdk-hnb659fds-*` deployment roles.
-- **Gateway returns `401`** — Cognito access token expired (1-hour default). Re-run the `cognito-idp initiate-auth` block from `deploy_all.sh` step 7.
-- **Runtime returns `managed_gateway_unavailable`** — `AGENTCORE_GATEWAY_URL` was absent or Gateway discovery failed. Repair the generated Runtime environment, redeploy, and rerun `npx -y @aws/agentcore@0.29.0 invoke --runtime pellier_orchestrator --bearer-token "$PELLIER_TOKEN" --prompt "Find linen pieces" --json`; do not enable a local fallback.
-- **`agentcore deploy` fails on a missing CDKToolkit / `cdk-hnb659fds` stack** — the account isn't CDK-bootstrapped. Run `npx -y aws-cdk@2 bootstrap aws://<account>/<region>` (bootstrap-environment.sh does this automatically on fresh accounts).
-- **Runtime traces** — run `npx -y @aws/agentcore@0.29.0 traces list --runtime pellier_orchestrator --limit 10 --since 1h --json`, then correlate on the session ID. Readiness requires correlated agent, model, and tool spans, per-step latency, matching Runtime builds, and content handling that matches the configured redaction mode. Redacted traces must not expose model or tool payloads.
+- **Gateway returns `401`**: the Cognito access token expired (1-hour default). Mint a fresh one with `source ~/pellier-token.sh <user>`. A 401 is not a Cedar DENY.
+- **Runtime returns `managed_gateway_unavailable`**: `AGENTCORE_GATEWAY_URL` was absent or Gateway discovery failed. Repair the generated Runtime environment, redeploy, and rerun `npx -y @aws/agentcore@0.29.0 invoke --runtime pellier_orchestrator --bearer-token "$PELLIER_TOKEN" --prompt "Find linen pieces" --json`; do not enable a local fallback.
+- **`agentcore deploy` fails on a missing CDKToolkit / `cdk-hnb659fds` stack**: the account isn't CDK-bootstrapped. Run `npx -y aws-cdk@2 bootstrap aws://<account>/<region>` (bootstrap-environment.sh does this automatically on fresh accounts).
+- **Runtime traces**: run `npx -y @aws/agentcore@0.29.0 traces list --runtime pellier_orchestrator --limit 10 --since 1h --json`, then correlate on the session ID. Readiness requires correlated agent, model, and tool spans, per-step latency, matching Runtime builds, and content handling that matches the configured redaction mode. Redacted traces must not expose model or tool payloads.
 
 Run `bash scripts/health-gate.sh` for the governed readiness verdict. It also
 requires all four Memory strategies with the expected configuration and a
-complete extraction receipt, exactly 180 warehouse rows, Policy `ENFORCE`,
+complete extraction receipt, exactly 300 warehouse rows, Policy `ENFORCE`,
 and the structured provisioning receipt.

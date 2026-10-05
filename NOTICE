@@ -21,11 +21,11 @@ otherwise build on any substantial portion of this software, you must:
      in your distribution.
   2. Keep the copyright and permission notice intact in copies or substantial
      portions of the software.
-  3. Credit the original author — Shayon Sanyal — and cite the source repository:
+  3. Credit the original author, Shayon Sanyal, and cite the source repository:
      https://github.com/aws-samples/sample-pellier-agentic-search-apg
 
-The same expectation applies to non-code reuse — talks, blog posts, derived
-workshops, and internal forks: carry the credit with the work.
+The same expectation applies to non-code reuse (talks, blog posts, derived
+workshops, and internal forks): carry the credit with the work.
 
 Canonical attribution line (copy this)
 ---------------------------------------
@@ -35,9 +35,8 @@ Canonical attribution line (copy this)
 
 Third-party asset
 -----------------
-The GitHub Octicon mark embedded in
-pellier/frontend/src/observatory/shell/TopBar.tsx is sourced from
-https://commons.wikimedia.org/wiki/File:Octicons-mark-github.svg and the GitHub
+The GitHub Octicon mark (mark-github-24) drawn inline in
+pellier/frontend/src/components/Footer.tsx is sourced from the GitHub Primer
 Octicons project at https://github.com/primer/octicons.
 
 MIT License

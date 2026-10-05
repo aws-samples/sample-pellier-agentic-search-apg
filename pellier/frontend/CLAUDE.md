@@ -1,64 +1,44 @@
 # Pellier frontend guidance
 
-This directory owns the React/Vite Pellier and Pellier Observatory experiences.
-Read the repository `CLAUDE.md` and `VOICE.md` before editing.
+This directory owns the React and Vite app: the Storefront with Ask Pellier,
+and the Operator. Read the repository `CLAUDE.md` and `VOICE.md` before
+editing.
 
 ## Product boundaries
 
-- Pellier is a fast, editorial shopping experience.
-- Pellier Observatory is a core participant surface for labs and evidence. **It has no
-  sidebar.** Its top bar has two places: the Lab Collection and the Workbench. Every
-  other view belongs to a lab and is reached from the lab guide or from the page that
-  needs it. Routing, Workshop map and Settings were retired and redirect to the Lab
-  Collection. A `Sidebar` component with its own group names once rendered nowhere for
-  six days while its tests passed against a directly-mounted copy; it was deleted. Do
-  not reintroduce a second navigation for the same destinations.
-- `LabJourneyBar` (components/) is the lab guide: one sticky row under the shared
-  surface navigation on the Storefront, Operator and Observatory while a lab is open.
-  `shared/labJourney.ts` holds each lab's steps, copied from the Workshop Studio
-  guide's required path in its order and words, and the current step per lab in
-  localStorage. Code Editor and terminal steps carry no in-app link and are never
-  marked done: the selected step is a bookmark, and the guide's terminal checks
-  remain the proof. `labJourney.test.ts` fails if a step names a file or script
-  missing from the repository, or links to a route the app does not serve; when the
-  guide's steps change, change them here too. Its height joins
-  `--pellier-chrome-height`; pin or size anything below the shared navigation from
-  that token, not `--pellier-surface-bar-height`.
-- `referenceCatalog.ts` is the one source for lab groups (`LAB_REFERENCE_GROUPS`) and
-  each view's teaching question, evidence boundary, and implementation links. The Lab
-  Collection keeps the full `WorkbenchResources` index; the Workbench keeps only the
-  after-the-labs extensions. A reference inside a lab returns from its page title to
-  the Workbench of the lab being followed; an extension offers "Return to Lab N in
-  Workbench". New references must explain their lab purpose and belong to exactly one
-  lab group or to the extensions.
-- Each lab states its `lesson` (the transferable idea, two sentences) first: on the
-  Workbench under the lab title and on its Lab Collection card. Keep it aligned with
-  `workshop/story-arc.json` and the lab guide's "You will learn" line.
-- Typography: Instrument Sans for every heading and title on every surface. Fraunces sets
-  the pellier. wordmark and its square p. mark in `components/Wordmark.tsx` and nowhere
-  else; `src/__tests__/token_guard.test.ts` fails on a Fraunces, display-token or serif
-  reference in any other file.
-- Observatory connects Storefront conversations, Operator decisions, and system
-  evidence. Do not label the whole surface optional or invent completion from
-  visiting it. Individual extension exercises can be optional in the lab guide.
-  Code Editor, curl, and SQL remain the canonical workshop proof.
-- The one real build-state number (shipped tools, e.g. `16/17`) belongs beside
-  the Tool Registry entry, where it is a fact that changes when the guided
-  exercise lands. Never hardcode it: show an em dash when build state is
-  unavailable, because a stale literal reads as a confident "not wired yet".
-- The user made Observatory part of the core participant experience on
-  September 12, 2026. Its top bar and global navigation carry no `Optional`
-  badge. Mode labels distinguish running a request from reading evidence.
+- Pellier has two surfaces. The **Storefront** (`/`, plus product pages and
+  Stories) is a fast, editorial shopping experience with **Ask Pellier**, the
+  chat panel docked beside the page on desktop; on phones it opens over the
+  page. Shoppers are chosen in the panel or from the header; choosing one
+  performs the workshop sign-in, and Pellier trusts the signed token, not the
+  choice. The **Operator** (`/operator`) is the staff desk: clients, the
+  Investigator and Planner's investigation, and the review queue where a
+  person approves, declines or executes a credit.
+- The **Builder view** is one global switch in the shared header
+  (`components/turn/BuilderViewSwitch.tsx`). It shows "How it ranked" over the
+  grid, each turn's Router step and tool calls in the dock, and the Operator's
+  investigation steps. Off by default. It shows evidence the backend sent; it
+  never invents proof, and Code Editor, curl and SQL remain the canonical
+  workshop proof.
+- There is no inspection surface and no lab navigation in the app. The lab
+  guide lives in Workshop Studio. Old paths land on the Storefront
+  (`src/App.routes.test.tsx`).
+- Typography: Instrument Sans for every heading and title on every surface.
+  Fraunces sets the pellier. wordmark and its square p. mark in
+  `components/Wordmark.tsx` and nowhere else.
+- Colors come from tokens only. `src/__tests__/token_guard.test.ts` fails on a
+  hard-coded color, and on a Fraunces, display-token or serif reference outside
+  the wordmark. Dark grounds are true black.
+- `src/__tests__/copy_scanner.test.ts` runs the copy rules over `copy.ts` and
+  the copy files in `data/`.
 - **Application copy is self-paced; the lab guide is not.** No copy shipped in
   this app may route a participant through a facilitator, because the app also
   runs for anyone who clones the repo with no room around them. The Workshop
   Studio lab guide is the opposite case: it runs on a clock in a staffed room,
   so its escape hatches legitimately say "raise a hand" and name a table lead.
-  Keep the boundary at the repository edge — never copy an app string that
+  Keep the boundary at the repository edge: never copy an app string that
   assumes a facilitator, and never strip a facilitator escape hatch out of the
   lab guide to match this rule.
-- Code Editor, curl, and SQL remain the canonical proof surfaces.
-- Pellier Observatory may summarize live evidence but must not invent or replace proof.
 - Do not reintroduce the old Act I/II/III navigation.
 
 ## Interaction rules
@@ -73,8 +53,8 @@ Read the repository `CLAUDE.md` and `VOICE.md` before editing.
 - Human handoff is an explicit outcome, not a fallback for an ordinary
   partial catalog match.
 - Use the existing icon library and design tokens.
-- Keep SQL, code, IDs, and telemetry in JetBrains Mono; use the Pellier Observatory
-  sans/display typography for labels and prose.
+- Keep SQL, code, IDs, and telemetry in JetBrains Mono; use Instrument Sans
+  for labels and prose.
 - Keep proof data backend-driven. Browser state is not evidence.
 
 ## Responsive and accessibility rules

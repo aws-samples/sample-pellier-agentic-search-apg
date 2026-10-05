@@ -1,58 +1,41 @@
-# Skills Authoring Guide
+# Skills authoring guide
 
-This directory (`/skills`) is the canonical source for workshop skills.
+This directory (`skills/`) is the source of Pellier's five runtime skills.
 
 ## What a skill is
 
-- A skill is markdown injected into a specialist agent's system prompt.
+- A skill is markdown added to an agent's system prompt: how to answer, never
+  what is true. Prices, stock and customer facts come from the store tools.
 - A skill is **not** a tool and **not** a database record.
-- The skill router loads skills from each skill's `description` contract.
+- Each agent carries a fixed set, with no model call
+  (`pellier/backend/skills/assignments.py`): the Shopping agent
+  `the-gift-table`, `the-makers-shelf`, `the-packing-list` and
+  `the-proof-counter`; the Stock agent `the-proof-counter`; the Support agent
+  `the-care-card` and `the-proof-counter`.
+- With the Builder view on, "Agent loads its skills" in the Ask Pellier panel
+  switches an in-process agent to on-demand mode: it sees only each skill's
+  name and description and opens a body with a local loader tool. The managed
+  rail always uses the fixed set.
 
 ## Canonical path
 
 - Edit: `skills/<skill-name>/SKILL.md`
-- Runtime loader: `pellier/backend/skills/loader.py` (default points to `/skills`).
+- Runtime loader: `pellier/backend/skills/loader.py` (defaults to this directory).
 - Optional override: `PELLIER_SKILLS_DIR=/custom/path`.
 
-## Required frontmatter fields
+## Frontmatter
 
-- `name`: must match folder slug.
-- `description`: activation contract seen by the router.
+- `name`: must match the folder name.
+- `description`: what the agent reads in on-demand mode to decide whether to
+  open the skill. Keep it specific.
 - `version`: free-form string, defaults to `1.0`.
+- `display_name` (optional): the label the Builder view shows.
 
-Optional:
+## Check a change
 
-- `display_name`: human-friendly label in UI attribution.
-- other fields are preserved in `frontmatter` but not required.
-
-## Authoring structure (recommended)
-
-1. `When to apply`
-2. `Voice and curation rules`
-3. `Anchor examples (only if retrieved)`
-4. `Guardrails`
-
-Keep guidance concrete and retrieval-grounded. Do not hardcode behavior that conflicts with tool outputs.
-
-## Validation checklist
-
-1. Restart backend (or rely on `--reload`).
-2. Confirm boot log shows loaded skills and token counts.
-3. Hit `POST /api/observatory/skills/route` with a representative query.
-4. Verify Pellier/Pellier Observatory "Under the hood" shows expected loaded skill(s).
-5. Sync the Observatory fixture after skill edits:
-   - `python3 scripts/sync_skills_fixture.py`
-
-## Contract checks (agents + tools)
-
-Use these before shipping skill/router changes to catch drift in agent factories
-and `@tool` wrappers:
-
-- `pytest pellier/backend/tests/test_factory_shape.py -v`
-- `pytest pellier/backend/tests/test_agent_tools.py -v`
-
-## Mental model
-
-- **Intent router** chooses specialist class (`search`, `pricing`, `inventory`, ...).
-- **Skill router** chooses prompt overlays (`the-packing-list`, ...).
-- **Tools** execute retrieval/write operations and produce auditable traces.
+1. Restart the backend so the registry reloads.
+2. Run the contract checks from `pellier/backend`:
+   - `pytest tests/test_skill_assignments.py tests/test_product_name_references.py`
+   - `pytest tests/test_factory_shape.py tests/test_agent_tools.py`
+3. Ask the turn the skill is for, with the Builder view on, and read which
+   skills the Router step lists.

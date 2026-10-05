@@ -1,7 +1,7 @@
 # Pellier runtime skill guidance
 
-Files under this directory are runtime prompt overlays for Pellier's Strands
-specialists. They are not Claude Code skills.
+Files under this directory are runtime prompt overlays for Pellier's three
+Strands agents. They are not Claude Code skills.
 
 Claude Code project skills live under:
 

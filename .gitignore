@@ -41,19 +41,11 @@ pellier/config/mcp-server-config.json
 # directory is itself excluded, so excluding the CONTENTS is what makes the negation
 # below work at all.
 docs/*
-# One exception: the handoff source contract is what the next team authors the lab
-# guide against, so it ships with the repository rather than living in an ignored
-# directory a clone never receives.
-!docs/HANDOFF-SOURCE-CONTRACT.md
-!docs/MEMORY_SHOWCASE.md
+# The maintainer docs that ship with the repository, and the release history.
 !docs/AGENTCORE-READINESS.md
-!docs/GOVERNED-DEPLOYMENT.md
 !docs/E2E-IDENTITIES.md
-# Reviewed curriculum framing and editable architecture assets for the L400 guide.
-!docs/L400-SEARCH-RETRIEVAL-BRIEF.md
 !docs/WORKSHOP-STORY-ARC.md
 !docs/WORKSHOP-TRANSPORT.md
-!docs/architecture/
 !docs/release-readiness/
 
 # IDE

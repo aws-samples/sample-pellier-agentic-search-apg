@@ -48,22 +48,23 @@ or the existing Axios client. Avoid root `/api` browser navigation.
 
 ## Participant workflow
 
-Workshop Studio exposes exactly two participant links:
+Participants use two links:
 
 - `CodeEditorURL`: `https://<distribution>/editor/?tkn=<generated-token>`.
   Open it directly to edit files and use the terminal. Treat the link as a
   credential; no AWS workspace sign-in or launcher is involved.
 - `PellierURL`: `https://<distribution>/ports/8000/`.
-  Open it independently of the editor. Use Pellier's navigation for Operator and
-  Observatory. Application identity is still handled separately by Cognito.
+  Open it independently of the editor. Use Pellier's navigation for the
+  Operator. Application identity is still handled separately by Cognito.
 
 The throwaway shopper and Operator account details remain in
 `/workshop/test-credentials.txt` inside Code Editor.
 
 ## Verification boundary
 
-Source tests cover callback construction and the actual nginx config emitter.
-The Studio integration test starts real nginx with synthetic backend responses
+Source tests (`pellier/backend/tests/test_bootstrap_private_origin.py`) cover
+callback construction and the actual nginx config emitter. The Workshop Studio
+repository's integration test starts real nginx with synthetic backend responses
 and checks origin credential rejection, editor authentication, independent app
 entry, prefix forwarding, cookies, authorization, forwarded-host normalization,
 SSE first-chunk delivery and WebSocket traffic. It makes no AWS API calls.

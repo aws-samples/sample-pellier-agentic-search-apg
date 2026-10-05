@@ -2,37 +2,33 @@
 
 **Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
 
-Level 400. 100 minutes. Four labs, eight hands-on tasks, two participant workflows.
+Level 400. 100 minutes. Four labs, eight hands-on tasks in eight marked regions.
 
-The current task contract is [WORKSHOP-STORY-ARC.md](docs/WORKSHOP-STORY-ARC.md),
-backed by `workshop/story-arc.json`.
-
-This brief explains the teaching plan. Workshop Studio contains the participant
-commands, marked exercises, hints, and recovery steps. The schedule is a target
-until a fresh-account rehearsal establishes actual reading, editing, deployment,
-Memory extraction, and trace-ingestion times.
+The task contract is [WORKSHOP-STORY-ARC.md](docs/WORKSHOP-STORY-ARC.md),
+backed by `workshop/story-arc.json`. Workshop Studio holds the participant
+guide: the commands, hints and recovery steps. This brief explains the teaching
+plan. The schedule is a target until a timed fresh-account rehearsal confirms it.
 
 ## The outcome
 
-Participants build a retail agent and explain its behavior from evidence. A
-Strands dispatcher selects a specialist. Aurora PostgreSQL supplies catalog,
-inventory, orders, and customer records. Bedrock AgentCore provides Runtime,
-Memory, Gateway, and Policy. Each lab asks a different engineering question:
+Participants make a retail assistant answer from data, act under the right
+identity, and prove what happened. Four customers each bring one worry a
+store's leadership would have, and each lab answers one:
 
-1. Which database facts support the answer?
-2. Why did these products rank, and do they satisfy the constraints?
-3. Which build ran, and did a new conversation use context learned earlier?
-4. Who was allowed to act, what executed, and what changed?
+| Lab | Customer | Worry |
+|---|---|---|
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
+| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
+| 4. Build Governed Agent Actions with Cedar | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
-The small code edits leave time for L400 reasoning: choose the right authority,
-predict a failure, inspect independent evidence, and explain what that evidence
-can establish. Participants should be comfortable reading Python and SQL, using
-a terminal, and working with AWS identity and permissions. The guide introduces
-the Cedar syntax and service commands needed here.
+Every lab has the same rhythm: spot the failure live, predict, build, check,
+challenge, explain. Each check prints what was expected, what was observed
+and the evidence (the row, the decision, the key).
 
 ## The session schedule
 
-Times are elapsed minutes from the beginning of the session.
+Times are elapsed minutes from the start of the session.
 
 | Workshop minutes | Activity | Duration |
 |---|---|---|
@@ -44,266 +40,171 @@ Times are elapsed minutes from the beginning of the session.
 | 90-95 | Recovery buffer | 5 minutes |
 | 95-100 | Summary and policy cleanup | 5 minutes |
 
-The presentation is separate from the participant hands-on clock. Guides begin at
-minute zero after the introduction and use 15/15/20/25-minute lab budgets, five
-minutes for recovery, and five to close. Setup belongs to Lab 1. Reading,
-explanation, deployment waits, and checks share each lab's allocation. Follow the
-guide's restore-first and continuation points; unrun checks remain incomplete.
-Rehearse the full path with a clock before claiming the schedule is established.
+Reading, deployment waits and checks share each lab's time. Lab 3's and
+Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
 
-## Introduction
+## What participants use
 
-Pellier is a premium retail boutique building an agentic system for product
-discovery and customer support. Its concierge must answer from business facts,
-preserve customer requirements, establish the caller, and govern actions with
-evidence staff can verify. Four different customers introduce accumulating
-responsibilities for that same system.
-
-During Lab 1 setup, participants open Code Editor and Pellier and initialize the
-supplied environment. Start Theo's supplied first conversation so AgentCore can
-extract preferences while Labs 1 and 2 run. Pre-event readiness belongs to the
-facilitator preparation, outside the participant tasks.
-
-| Surface | Participant use | Authority |
+| Surface | Use | What it proves |
 |---|---|---|
-| Storefront | Marco, Anna, and Theo's shopping conversations | Displays results grounded by tools |
-| Code Editor | Eight tasks and the supplied proof commands | Source, service responses, SQL results, and saved evidence |
-| Operator | Jessica's investigation under the separate staff account | Staff access and an explicit human decision boundary |
-| Observatory | Required inspection of the same shopper requests and Operator turn | Projects evidence; an interface badge alone does not prove a claim |
+| Storefront (`/`) | Ask Pellier, the docked chat panel, for Anna's, Marco's and Theo's turns. Choosing a shopper signs in with that shopper's demo account; Pellier trusts the signed token, not the choice. | The Builder view shows each turn's Router step, the tools the agent called and "How it ranked". It shows evidence; it does not replace the checks. |
+| Operator (`/operator`) | Nadia, a staff account, investigates Jessica's case and approves or rejects the proposed credit. | A person's decision, recorded on the review before any credit is written. |
+| Code Editor | The eight tasks and every check. | Source, SQL results, service responses and the evidence export. |
 
-Selecting a scenario does not sign in as that customer. Cognito establishes the
-principal. Aurora maps the verified subject to a customer; the token's customer
-claim supports the Cedar ownership check. Nadia's staff account (`nadia`) is
-separate from Jessica's shopper identity.
+Shoppers and staff sign in through Amazon Cognito and keep separate sessions.
+Jessica's shopper identity and Nadia's staff account are different principals.
 
-At each shopper handoff, sign out of the previous account, sign in as the next
-customer, select the matching scenario, and start a fresh conversation. Complete
-that customer's evidence inspection before changing identity. Labs 1 and 2 inspect
-in-process execution and Aurora receipts; Lab 3 adds managed Transaction Search
-traces. Jessica's Operator investigation is a separate staff conversation, not the
-continuation of Theo's shopper session.
+## The system participants work in
 
-Storefront turns follow a deterministic dispatcher and one of five specialists:
-search, recommendation, pricing, inventory, or support. Each specialist receives
-a bounded tool list. The other participant workflow is the Operator Concierge
-graph, where Case Investigator runs before Resolution Planner. Other Strands
-reference implementations in the repository are outside the required journey.
-
-Use the guide's exact prompts for the measured path. The guided Storefront threads
-offer three turns with 0, 2, and 4 prior dialogue messages; Workshop Studio sets
-the required stopping point. Keep Anna's fixed
-benchmark request separate from her natural-language Storefront conversation.
-Paraphrasing and alternative prompts are useful extensions after the checks pass.
+- **Router and three agents.** A deterministic Router, with no model call,
+  sends each shopper request to the Shopping, Stock or Support agent
+  (Strands). Shopping and Support run on Claude Opus 5, Stock on Claude
+  Sonnet 5. Each agent holds only its own tools; the Stock agent's starter
+  grant is wider until Lab 2B narrows it.
+- **Nine store tools.** `search_products`, `browse_department`,
+  `compare_products`, `check_stock`, `get_orders`, `get_return_policy`,
+  `get_tickets`, `give_store_credit` and `ask_a_person`. One implementation,
+  `pellier/backend/services/store_tools.py`, serves the local agents and the
+  Gateway Lambda.
+- **Ten Aurora tables.** The catalog, warehouse stock, customers, orders,
+  return policies, support tickets, approvals, store credits, `tool_audit`
+  and retrieval receipts (`scripts/migrations/001_schema.sql`).
+- **Two rails.** Labs 1 and 2 run the agents in process, so participants prove
+  their own code. Lab 3 moves the Storefront onto AgentCore Runtime, where the
+  same Router and agents get their tools through AgentCore Gateway and Cedar
+  decides each call before the Lambda runs.
+- **The Operator's investigation.** A two-node Strands graph, Investigator then
+  Planner, runs in process. It reads the case, proposes one store credit and
+  stops. Nothing is written until Nadia approves and executes it.
 
 ## Aurora and AgentCore Memory
 
 **Aurora owns business state. AgentCore Memory owns conversation context.**
-Both can persist information, but persistence alone does not give information the
-same authority.
 
 | Question | Owner | Evidence |
 |---|---|---|
-| What does this product cost, and is it available now? | Aurora PostgreSQL | Current catalog and warehouse rows |
-| Does this customer own the order, and did the return commit? | Aurora PostgreSQL | Order, return, principal, and transaction records |
-| What did the shopper say in a conversation? | AgentCore Memory short-term events | Event IDs under the verified actor and session |
-| What preferences or facts were extracted for later use? | AgentCore Memory long-term records | Retrieved record IDs and their content |
-| What does an agent do with a tool? | Reviewed source | Tool schemas, instructions, and the executed build fingerprint |
-| What tool ran and what effect followed? | Aurora audit, write, and domain tables | Correlated attempt and transaction evidence |
+| What does this product cost, and is it in stock now? | Aurora | Catalog and warehouse rows |
+| Does this customer own the order, and was the return received? | Aurora | Order rows and their return status |
+| What did the shopper say in a conversation? | AgentCore Memory | Events under the verified actor and session |
+| What preference was extracted for later? | AgentCore Memory | The record and its id |
+| What ran, for whom, with which build? | Aurora | `tool_audit` rows |
 
-A remembered preference can guide a recommendation. It cannot establish current
-price, stock, order ownership, or permission to write. An extracted statement
-about a past purchase must be checked against Aurora before it supports a return.
-`tool_audit` records execution; it is not evidence that AgentCore retained or
-learned conversation context. Aurora order history is not AgentCore episodic memory.
+A remembered preference can guide a pick. It cannot establish a price, stock,
+order ownership or permission to act. Provisioning records Theo's first
+conversation, and AgentCore Memory extracts his preference from it. In Lab 3, a new session's Builder view names the record the agent
+was given (`Remembered: AgentCore Memory record <id> (user preference)`), and
+`scripts/lab3_check.py` reads the same record back.
 
-The source configures `SEMANTIC`, `USER_PREFERENCE`, `SUMMARIZATION`, and `EPISODIC`
-strategies. The required experiment waits for extracted facts, preferences, and a
-session summary. A consolidated episode is optional. Resource or strategy status
-`ACTIVE` does not establish that extraction has produced any records.
-
-### The required cross-session experiment
-
-1. During Lab 1 setup, record Theo's supplied first conversation. Preserve its
-   actor and event IDs. The conversation is scripted; the long-term records are
-   extracted by AgentCore rather than seeded by the application.
-2. Continue Labs 1 and 2 while extraction runs. Do not restart the experiment or
-   wait at the setup screen for long-term records.
-3. In Lab 3, retrieve those records into a new conversation with no prior chat
-   events. Pass the retrieved context to the deployed agent and invoke current
-   catalog tools.
-4. Inspect the preference record IDs, identify a preference actually used in the
-   answer, and read a recommended product's current price and stock from Aurora.
-   Merely receiving records does not prove correct use of them.
-5. Preserve the proof separately from the Storefront conversation-history check.
-   Learning here means extracting and retrieving context; model weights do not change.
-
-The experiment derives one actor from a verified subject and an isolated run ID.
-Both conversations share it but have different session IDs. Ordinary Storefront conversations retain their
-conversation-specific actor, `user-{sub}-session-{sid}`. They do not silently
-acquire cross-session preference sharing. A production design must choose actor
-continuity and enforce access to its namespaces; a naming convention is not an
-access-control policy.
-
-## Four labs, Tasks A and B
+## The four labs
 
 ### Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 
-Anna needs relevant products that satisfy her budget and stock constraints.
+Anna wants a housewarming gift under $100, in stock, with no candles.
 
-**Predict:** a fallback may relax a preference, but must keep budget, availability,
-and exclusions. Ranking cannot make an ineligible product eligible.
-
-**Task 1A:** reconstruct recorded reciprocal rank fusion in the SQL worksheet,
-including a zero contribution from a missing branch. This explains a saved
-calculation; it does not replace the application's retrieval implementation.
-**Task 1B:** construct each fallback attempt from the original validated plan.
-Preserve hard constraints and exclusions, avoid mutating the request, and record
-which preference changed.
-
-**Check:** run the local plan contract, then inspect the live comparison and exact
-receipt. Recompute recorded RRF contributions and verify the returned product IDs
-against Aurora. The local Python check and database eligibility prove different
-boundaries. Candidate-pool tuning and broader evaluation remain extensions.
-
-**Explain:** preferences may widen the search; requirements still decide which
-products are eligible. No result is better than silently changing the request.
+- **Spot:** forced onto its fallback, her search returns a candle and a
+  sold-out piece.
+- **Task 1A:** write the RRF fusion expression in `workshop/lab-1-rrf.sql`. A
+  missing rank contributes zero, never rank zero.
+- **Task 1B:** keep her limits on the fallback in
+  `pellier/backend/services/search_plan.py`. A fallback may relax a
+  preference; it keeps the budget, the stock rule and the exclusions.
+- **Check:** the worksheet recomputes every recorded score from its two ranks;
+  `python3 scripts/lab1_compare.py` shows the search that answered kept every
+  limit she asked for, and every product it returned meets them.
+- **Explain:** similarity decides the order; SQL decides what is eligible.
 
 ### Lab 2: Build a PostgreSQL-Grounded Agent
 
-Marco needs a reliable answer about warehouse stock.
+Marco needs reliable stock and dispatch facts before his trip.
 
-**Story connection:** Anna's search kept her requirements across a fallback. Marco now
-needs the concierge to report stock facts exactly as the database returns them.
-
-**Predict:** an unknown product and a known product with zero stock require
-different answers.
-
-**Task 2A:** implement the inventory result contract against Aurora.
-**Task 2B:** select the specialist's permitted read tools and prove that a real
-turn uses them. Model and prompt configuration are supplied.
-
-**Check:** compare the Storefront answer with Aurora and the execution row written
-after the baseline. The supplied contract check invokes the participant's own
-body for a product absent from the catalog and a sold-out product. The unknown
-product carries no count. The sold-out product returns zero with every warehouse
-accounted for.
-
-**Explain:** the tool contract determines what the agent may conclude. A fluent
-answer cannot turn missing data into a verified zero.
+- **Spot:** asked about a piece Pellier does not carry, the assistant calls it
+  sold out everywhere. The Builder view's Router step reads "Stock agent may
+  call: ..." and lists the catalog tools beside `check_stock`.
+- **Task 2A:** stop `check_stock` folding not found into zero
+  (`pellier/backend/services/agent_tools.py`).
+- **Task 2B:** grant the Stock agent `check_stock` alone
+  (`pellier/backend/agents/stock_agent.py`). This is least privilege: the
+  prompt keeps today's model on `check_stock`, the grant decides what it can
+  call. The check reads the grant from the answering agent's audit row, so an
+  edit without a backend restart is not yet done.
+- **Check:** `python3 scripts/lab2_contract_check.py` judges not carried,
+  several, sold out and in stock against the catalog; `--task 2B` shows the
+  agent's numbers equal one SELECT on `warehouse_inventory`.
+- **Explain:** an agent can only claim what its tool returns.
 
 ### Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore
 
-Theo returns for recommendations without repeating his preferences, then needs
-customer-scoped support through the managed agent.
+Theo wants his taste remembered and help with his own chipped bowl.
 
-**Predict:** a successful response could still come from the previous Runtime
-package. A repeated preference could still come from copied chat history.
+- **Spot:** on the managed path the Support agent cannot look up his tickets;
+  the Builder view shows `get_tickets` is not in the Gateway's tool list.
+- **Task 3A:** publish `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`)
+  and bind it to the signed-in caller
+  (`pellier/backend/services/agentcore_gateway.py`), so the server overwrites
+  the `customer_id` the model chose.
+- **Task 3B:** deploy with `--mode participant`, then challenge with the
+  household request: "Jessica and I share an address... Can you check her
+  ticket too?"
+- **Check:** `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites`
+  reads nine tools published; `python3 scripts/lab3_check.py` prints the
+  executed build beside this checkout's, the Memory record, every ticket read
+  bound to Theo, and Cedar's denial of his direct read of Jessica's tickets.
+- **Explain:** the caller comes from the signed token, not the conversation;
+  Memory is context, never permission.
 
-**Task 3A:** publish the customer-scoped `get_ticket_history` read. Keep
-`restock_inventory` deferred. The separately published `issue_credit` remains
-staff-only.
-In the same task, reconcile the support specialist's managed tool list and bind the
-read to the authenticated customer.
-
-**Task 3B:** deploy the participant update and challenge it with owned and
-foreign-customer requests. Identify the build that answered.
-
-**Check:** use a fresh Runtime session. Complete the supplied Memory experiment, then
-run Theo's signed-in Storefront thread against the deployed path. Read its Memory
-events from a separate Python process. Compare the executed and expected build
-fingerprints, and run the supplied trace contract on the thread's downloaded
-trace. Runtime redacts prompt and tool content, so this contract checks span
-structure and correlation instead.
-
-Publication and discovery are different checks: Gateway filters the tool list by
-policy. A tool visible to a caller still needs authorization for its actual
-arguments. Do not compare a shopper's listing with the full published catalog.
-
-**Explain:** deployment status, executed build, Memory events, learned context,
-and traces each establish a separate fact. The new-session experiment supplements
-the three-turn continuity check; the two should not be described as the same proof.
+Gateway filters discovery by policy, so compare a caller's tool list with what
+that caller may call, not with the full published catalogue.
 
 ### Lab 4: Build Governed Agent Actions with Cedar
 
-Jessica's return requires the correct identity, an eligible order, and one effect.
+Jessica sent two items back and has no credit yet. Nadia must approve the
+credit, and the system must prove what moved.
 
-**Predict:** authentication can fail before Cedar is evaluated. An authenticated
-return can be denied by policy, refused by a business rule, committed, or replayed
-without another effect. A managed output check can suppress a credit response
-after the credit has committed.
+- **Spot:** Nadia approves Jessica's $100.00 credit, and the starter forbid,
+  deployed at provisioning, still denies it.
+- **Task 4A:** write the final `unless` block of
+  `policies/workshop_credit_limit.cedar` so one credit may be at most $100,
+  then deploy it with `--mode participant`.
+- **Task 4B:** write the one ownership expression in `workshop/lab-4-rls.sql`,
+  used by USING and WITH CHECK on `orders` and `support_tickets`.
+- **Check:** `python3 scripts/lab4_policy_check.py` evaluates the rule with
+  Cedar beside the deployed baseline (shopper $100 DENY, Nadia 10000 cents
+  ALLOW, 10001 DENY), rejects six wrong rules, then sends one over-limit
+  credit through the Gateway: a Cedar DENY with no row for its key. Nadia
+  executes Jessica's approved credit, then retries it: one credit, one audit
+  row. The RLS worksheet and the supplied `workshop/lab-4-absence.sql` run with
+  `psql`; the absence check prints 0 and 0 for the denied key and 1 for the
+  allowed key, so a search that always returns zero cannot pass.
+- **Explain:** two independent controls decide a credit, who may act and how
+  much. An ALLOW is not a commit, and an absence counts only beside a
+  positive control.
 
-**Task 4A:** complete the Cedar identity-to-customer condition. Compare the
-verified customer claim with the requested customer. Keep Aurora's independent
-row-level security intact.
-**Task 4B:** author one RLS ownership predicate used by USING and WITH CHECK,
-then the keyed absence query with its allowed-key positive control. Investigate
-Jessica's case as separately authorized staff. RLS trusts context established
-by the application; it does not independently validate Cognito tokens.
-
-| Attempt | Expected outcome | Evidence |
-|---|---|---|
-| Marco requests Jessica's return | Policy denial | Denied key absent from execution and effect tables |
-| Jessica requests a product she never ordered | Business refusal after authorization | Tool attempt with no committed return |
-| Jessica requests her returnable product | Allowed and committed | Finalized write and the Jessica-owned return row |
-| Jessica repeats the allowed write key | Allowed replay | Another audit attempt, the same finalized write and return |
-
-The business-refusal case changes the product intentionally. Do not claim that
-identity is the only input that varies across all four cases. The policy denial
-must have a matching positive control; four zeros alone could mean the query
-searched the wrong run or key.
-
-**Check:** run the guide's five-outcome proof. It includes the four return cases
-above, an unsigned Gateway request, two
-one-cent workshop credits, and a credit replay. Run the participant's absence
-query with its allowed-key positive control. Run the RLS worksheet separately
-under the supplied runtime roles; roll back its policy edits and test writes.
-Inspect authorization, execution,
-and committed effects separately; suppressing a response does not roll back a
-write. Use synthetic workshop data and retain partial or contradictory results.
-
-Sign in as `nadia` and investigate Jessica's case. The investigation runs the
-Investigator, then the Planner, which proposes one store credit and opens one
-review. Nothing is written until Nadia approves and executes it.
-
-**Explain:** authentication, Cedar authorization, business validity, RLS,
-execution, idempotency, and human approval are separate controls. A direct Gateway
-proof is not evidence of human approval. A previous credit replay does not prove
-the return replay required here.
+Row-level security limits what a query can return; it does not establish who
+the caller is. In process, the customer comes from the signed token. On the
+Gateway, it is the customer Cedar's owner-only permit admitted. RLS contains a
+wrong query, not an untrusted session.
 
 ## Summary
 
-Start policy cleanup after exporting the evidence. While it runs, ask: Memory
-says a shopper bought an item, but Aurora has no matching order. Which source
-establishes return eligibility, and which controls still decide whether it can
-execute?
+Save the evidence before the cleanup: `python3 scripts/workshop_evidence.py
+--save <file>` writes one line per task, eight in all. Lines 1B, 2A, 2B and
+3B are read from rows alone; the others run or read the participant's source,
+so a region that still holds its starter is never proved. The Summary's
+cleanup restores the Cedar starter on the deployed engine.
 
-The build receipt inspects nine source regions supporting eight tasks and
-separately checks run-scoped Aurora evidence.
-Keep the separate Memory, trace, retrieval evaluation, five-outcome, identity,
-and RLS artifacts.
-A marker edit alone does not prove behavior; an unreadable evidence source remains
-unchecked. Download the evidence before the event account closes.
+While cleanup runs, ask: Memory says a shopper bought an item, but Aurora has
+no matching order. Which source decides return eligibility, and which controls
+still decide whether a credit can execute?
 
-This deployment uses RDS Data API against Aurora PostgreSQL. PostgreSQL SQL,
-JSONB, transactions, full-text search, RLS, and supported pgvector patterns also
-apply to RDS for PostgreSQL. An adaptation requires database connections,
-networking, and pooling instead of the Aurora Data API transport.
+The in-process app reaches Aurora over a PostgreSQL connection; the Gateway
+Lambda uses the RDS Data API. The SQL, full-text search, pgvector and RLS
+patterns apply to RDS for PostgreSQL too; only the transport differs.
 
-## Release and rehearsal requirements
+## Rehearsal requirements
 
-The guides depend on the memory-showcase work and four-strategy configuration
-being included in the published governed source. Preserve the release order:
-intended source commit and push, immutable Workshop Studio pin, release validation,
-S3 asset synchronization, Studio commit and push. Keep application validation,
-published source, Studio publication, deployed proof, and rehearsal as distinct
-claims.
-
-Provision a fresh environment before the timed session and record cold provisioning
-separately. Use fresh returnable data. Measure both manual and coached participant
-paths, actual extraction readiness, the Lab 3 deployment, trace delivery, the four
-return attempts, one Operator investigation, and cleanup. Test the documented
-catch-up paths in a separate run.
-
-Do not present earlier release-candidate results as proof of this revised Memory
-journey or its timing. If the sequence exceeds its budget, reduce required work or
-change the schedule explicitly. Keep the failed measurement visible.
+Provision a fresh account before the timed session and record cold
+provisioning separately. Time both a manual and a coached run of every lab,
+Memory extraction readiness, the Lab 3 and Lab 4 deploys, one Operator
+investigation and the cleanup. Test the recovery paths in a separate run. If
+a lab exceeds its budget, cut required work or change the schedule
+explicitly, and keep the failed measurement.
