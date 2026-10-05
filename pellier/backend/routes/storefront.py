@@ -1,6 +1,6 @@
 """Live storefront catalog statistics.
 
-The storefront and Observatory use this small Aurora read for catalog facts.
+The storefront uses this small Aurora read for catalog facts.
 It deliberately returns an error when Aurora is unavailable rather than
 inventing an empty catalog, a default product, or a process-local metric.
 """

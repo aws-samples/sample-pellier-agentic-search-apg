@@ -344,7 +344,7 @@ server {
     # __PELLIER_ORIGIN_VERIFY__
     
     # Pellier (single-process): FastAPI on :8000 serves BOTH
-    # /api/* AND the built SPA (/, /observatory, /storyboard, /discover,
+    # /api/* AND the built SPA (/, /operator, /storyboard, /product/*,
     # /assets/*, /fonts/*). Code-server's /ports/<n>/* reverse proxy
     # (or the standalone /app/ alias below) routes the whole app
     # there.
@@ -381,8 +381,8 @@ server {
     }
 
     # /ports/8000/* – the canonical participant URL. It matches the baked
-    # SPA base path (VITE_BASE_PATH=/ports/8000/) and the PellierURL /
-    # ObservatoryURL CFN outputs. Serve it DIRECTLY here (nginx then FastAPI),
+    # SPA base path (VITE_BASE_PATH=/ports/8000/) and the template's Pellier
+    # URL outputs. Serve it DIRECTLY here (nginx then FastAPI),
     # bypassing code-server's port-forward proxy.
     #
     # WHY this block exists: code-server only forwards a port that has been
@@ -392,7 +392,7 @@ server {
     # rejects it with HTTP 400 ("This page isn't working"). That made the
     # storefront reachable only from inside an open, authenticated IDE tab –
     # fragile, and the first thing a participant trips on. Owning the prefix
-    # here makes Pellier and Pellier Observatory load token-free in any browser, with
+    # here makes the storefront and the Operator load token-free in any browser, with
     # no dependency on the IDE. Trailing slashes on both location and
     # proxy_pass strip the prefix: /ports/8000/assets/x serves /assets/x,
     # /ports/8000/api/... serves /api/... (SSE-safe: buffering + gzip off).
@@ -767,28 +767,24 @@ cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
 clear
 
 cat << EOF
-  Pellier agentic AI-powered search
-  Build, measure, and prove search with Aurora PostgreSQL
+  Pellier: governed agentic AI search
+  Aurora PostgreSQL and Amazon Bedrock AgentCore
 
-  START       Keep the lab guide open. Work primarily in this terminal and
-              the Pellier storefront.
+  START       Keep the lab guide open. Work in this terminal, the Pellier
+              storefront and the Operator.
 
-  BUILD       Required path: wire check_stock in
-              pellier/backend/services/agent_tools.py.
+  LABS        1 Anna, retrieval      2 Marco, grounded stock
+              3 Theo, AgentCore      4 Jessica and Nadia, Cedar and RLS
 
-  MEASURE     Compare retrieval strategies for Anna's query.
+  BUILD       Eight marked regions. The guide names each file and marker.
 
-  PROVE       Lab 4: query pellier.tool_audit from psql.
-
-  OBSERVATORY Use Pellier Observatory only when a step names a specific verification
-              or comparison view.
-
-  FILE        agent_tools.py is open. Find the check_stock WORKSHOP markers,
-              implement, save, then test in Pellier.
+  PROVE       Each check prints what was expected, what was observed and
+              the evidence. Save all eight with
+              python3 scripts/workshop_evidence.py --save <file>
 
 EOF
 
-# Auto-open the one file participants edit in the workshop.
+# Open a lab file so the editor starts inside the repository.
 code /workshop/sample-pellier-agentic-search-apg/pellier/backend/services/agent_tools.py 2>/dev/null || true
 
 # Exit cleanly so task completes

@@ -79,10 +79,10 @@ def test_root_mount_serves_spa_at_slash(reload_app):
 
 
 def test_root_mount_deep_link_serves_index(reload_app):
-    """React Router deep link refresh: /observatory/agents → index.html."""
+    """React Router deep link refresh: /operator/reviews/<id> → index.html."""
     app_module = reload_app("/")
     with TestClient(app_module.app) as client:
-        r = client.get("/observatory/agents")
+        r = client.get("/operator/reviews/review-1")
         assert r.status_code == 200
         assert "SPA" in r.text
 
@@ -134,7 +134,7 @@ def test_app_mount_bare_app_redirects_to_slash(reload_app):
 def test_app_mount_deep_link_serves_index(reload_app):
     app_module = reload_app("/app")
     with TestClient(app_module.app) as client:
-        r = client.get("/app/observatory/agents")
+        r = client.get("/app/operator/reviews/review-1")
         assert r.status_code == 200
         assert "SPA" in r.text
 

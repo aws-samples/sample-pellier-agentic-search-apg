@@ -7,7 +7,7 @@ import inspect
 from services.chat import EnhancedChatService
 
 
-def test_profile_event_matches_observatory_contract() -> None:
+def test_profile_event_matches_its_contract() -> None:
     source = inspect.getsource(EnhancedChatService.chat_stream)
 
     assert '"type": "aurora_profile_context"' in source

@@ -39,7 +39,7 @@ digraph PellierDeployedTopology {
   ];
 
   surfaces [
-    label="PELLIER SURFACES\nStorefront · Operator · Observatory",
+    label="PELLIER SURFACES\nStorefront and Operator",
     fillcolor="#1f1410",
     fontcolor="#fbf8f2",
     width=2.3

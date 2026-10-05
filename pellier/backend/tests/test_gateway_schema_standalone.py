@@ -1,4 +1,4 @@
-"""Observatory must read every schema in a clean backend interpreter."""
+"""Every schema must load in a clean backend interpreter."""
 from pathlib import Path
 import subprocess
 import sys

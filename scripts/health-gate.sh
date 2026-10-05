@@ -151,13 +151,13 @@ fi
 
 # 1b. Frontend SPA actually built + served. The backend serves /api even when
 # the Vite bundle is absent (it returns a JSON "bundle not found" note at /),
-# so /api/health alone can read green while Pellier and Pellier Observatory are blank.
+# so /api/health alone can read green while the storefront and the Operator are blank.
 # Check that / returns HTML, not that JSON note: this is what a participant
 # sees in the browser. (Root cause when it fails: the frontend build failed,
 # usually `npm run build` in pellier/frontend; recover with `rebuild-frontend`.)
 root_body="$(curl -fs --max-time 5 "${ROOT_URL:-http://localhost:8000/}" 2>/dev/null || true)"
 if echo "$root_body" | grep -qiE '<!doctype html|<div id="root"'; then
-  pass "Frontend SPA built and served at / (Pellier + Pellier Observatory render)"
+  pass "Frontend SPA built and served at / (the storefront and the Operator render)"
 else
   fail "Frontend SPA not served at / - bundle missing (got: ${root_body:0:80}). Run 'rebuild-frontend' (builds pellier/frontend, restarts pellier)."
   ok=false

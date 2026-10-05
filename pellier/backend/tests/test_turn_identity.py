@@ -187,7 +187,7 @@ def test_unknown_verified_username_does_not_fall_back_to_persona() -> None:
 
 
 def test_chat_uses_one_identity_service_namespace_for_shopper_stm() -> None:
-    """The STM writer and the Observatory replay must use the same key.
+    """The STM writer and the session-history read must use the same key.
 
     The only working-memory write in the chat service is the explicit facade
     call, keyed by the identity service's namespace builder. The Strands

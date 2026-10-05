@@ -844,8 +844,8 @@ def list_gateway_tools(access_token: Optional[str] = None) -> List[Dict[str, Any
 
     ``access_token`` is forwarded as a Bearer token (JWT passthrough) when
     supplied. Against a JWT-protected Gateway, calling without a token returns
-    [] (the call is rejected with 401) — which the Observatory panel renders as a
-    "skipped / needs identity" state rather than failing the turn.
+    [] (the call is rejected with 401), a "skipped / needs identity" state
+    rather than a failed turn.
 
     Returns a list of tool descriptors with name, description, and input schema.
     """

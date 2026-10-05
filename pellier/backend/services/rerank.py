@@ -104,7 +104,7 @@ class RerankService:
 
             On any Bedrock error, returns an empty list — the caller
             is responsible for falling back to RRF order. We log at
-            WARNING level so the failure is visible in the Observatory
+            WARNING level so the failure is visible in the backend log
             without crashing the request path.
         """
         if not documents:
@@ -172,9 +172,8 @@ class RerankService:
             return results
         except Exception as exc:
             # Don't crash the pipeline — return empty so the caller
-            # falls back to RRF order. The Observatory will surface this
-            # as a missing rerank stage in telemetry, which is the
-            # honest signal.
+            # falls back to RRF order. Telemetry then shows a missing
+            # rerank stage, which is the honest signal.
             logger.warning(
                 "Cohere Rerank failed: %s — caller should fall back to RRF order",
                 exc,

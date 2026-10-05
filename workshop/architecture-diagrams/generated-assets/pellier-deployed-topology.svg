@@ -17,8 +17,8 @@
 <!-- surfaces&#45;&gt;cognito -->
 <g id="edge1" class="edge">
 <title>surfaces&#45;&gt;cognito</title>
-<path fill="none" stroke="#9a3412" stroke-width="2.1" d="M364.45,-656.6C364.45,-656.6 444.39,-656.6 444.39,-656.6"/>
-<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2.1" points="444.39,-659.12 451.59,-656.6 444.39,-654.08 444.39,-659.12"/>
+<path fill="none" stroke="#9a3412" stroke-width="2.1" d="M364.5,-656.6C364.5,-656.6 444.42,-656.6 444.42,-656.6"/>
+<polygon fill="#9a3412" stroke="#9a3412" stroke-width="2.1" points="444.42,-659.12 451.62,-656.6 444.42,-654.08 444.42,-659.12"/>
 </g>
 <!-- cognito&#45;&gt;app -->
 <g id="edge2" class="edge">
@@ -29,8 +29,8 @@
 <!-- app&#45;&gt;surfaces -->
 <g id="edge8" class="edge">
 <title>app&#45;&gt;surfaces</title>
-<path fill="none" stroke="#3f6212" stroke-width="2.1" d="M835.34,-686.73C835.34,-696.37 835.34,-704.6 835.34,-704.6 835.34,-704.6 265.33,-704.6 265.33,-704.6 265.33,-704.6 265.33,-690.14 265.33,-690.14"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2.1" points="267.86,-690.14 265.34,-682.94 262.82,-690.14 267.86,-690.14"/>
+<path fill="none" stroke="#3f6212" stroke-width="2.1" d="M835.34,-686.73C835.34,-696.37 835.34,-704.6 835.34,-704.6 835.34,-704.6 281.33,-704.6 281.33,-704.6 281.33,-704.6 281.33,-690.14 281.33,-690.14"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2.1" points="283.86,-690.14 281.34,-682.94 278.82,-690.14 283.86,-690.14"/>
 <text xml:space="preserve" text-anchor="middle" x="553.34" y="-799.68" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">08 · answer + evidence IDs</text>
 </g>
 <!-- app&#45;&gt;runtime -->
@@ -49,8 +49,8 @@
 <!-- app&#45;&gt;human -->
 <g id="edge11" class="edge">
 <title>app&#45;&gt;human</title>
-<path fill="none" stroke="#b45309" stroke-width="1.4" stroke-dasharray="5,2" d="M751.72,-626.51C751.72,-594.87 751.72,-549.6 751.72,-549.6 751.72,-549.6 180.58,-549.6 180.58,-549.6 180.58,-549.6 180.58,-398.23 180.58,-398.23"/>
-<polygon fill="#b45309" stroke="#b45309" stroke-width="1.4" points="183.11,-398.23 180.59,-391.03 178.07,-398.23 183.11,-398.23"/>
+<path fill="none" stroke="#b45309" stroke-width="1.4" stroke-dasharray="5,2" d="M751.72,-626.51C751.72,-594.87 751.72,-549.6 751.72,-549.6 751.72,-549.6 97.33,-549.6 97.33,-549.6 97.33,-549.6 97.33,-398.23 97.33,-398.23"/>
+<polygon fill="#b45309" stroke="#b45309" stroke-width="1.4" points="99.86,-398.23 97.34,-391.03 94.82,-398.23 99.86,-398.23"/>
 <text xml:space="preserve" text-anchor="middle" x="406.08" y="-507.68" font-family="Helvetica Neue" font-size="9.00" fill="#b45309">prepare only</text>
 </g>
 <!-- runtime&#45;&gt;memory -->
@@ -123,9 +123,9 @@
 <!-- surfaces -->
 <g id="node1" class="node">
 <title>surfaces</title>
-<polygon fill="#1f1410" stroke="#cbc1ad" stroke-width="1.15" points="364.17,-679.46 166.5,-679.46 166.5,-633.74 364.17,-633.74 364.17,-679.46"/>
-<text xml:space="preserve" text-anchor="middle" x="265.33" y="-659.65" font-family="Helvetica Neue" font-size="11.00" fill="#fbf8f2">PELLIER SURFACES</text>
-<text xml:space="preserve" text-anchor="middle" x="265.33" y="-646.15" font-family="Helvetica Neue" font-size="11.00" fill="#fbf8f2">Storefront · Operator · Observatory</text>
+<polygon fill="#1f1410" stroke="#cbc1ad" stroke-width="1.15" points="364.13,-679.46 198.53,-679.46 198.53,-633.74 364.13,-633.74 364.13,-679.46"/>
+<text xml:space="preserve" text-anchor="middle" x="281.33" y="-659.65" font-family="Helvetica Neue" font-size="11.00" fill="#fbf8f2">PELLIER SURFACES</text>
+<text xml:space="preserve" text-anchor="middle" x="281.33" y="-646.15" font-family="Helvetica Neue" font-size="11.00" fill="#fbf8f2">Storefront and Operator</text>
 </g>
 <!-- cognito -->
 <g id="node2" class="node">

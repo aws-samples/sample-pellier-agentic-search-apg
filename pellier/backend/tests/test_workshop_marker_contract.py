@@ -311,7 +311,7 @@ def test_lab1_worksheet_finds_annas_receipt_and_fails_until_the_expression_is_ri
     assert "coalesce(1.0 / (60 + vector_rank), 0)" in reference
     for text in (starter, reference):
         assert "session_id LIKE 'persona-anna-%'" in text
-        for retired in ("receipt_high_water", "comparison_id", "observatory-compare"):
+        for retired in ("receipt_high_water", "comparison_id"):
             assert retired not in text
         assert "\\if :lab_1_passed" in text
         # `\quit` takes no argument; a raised exception under ON_ERROR_STOP is what
@@ -738,8 +738,8 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
 # Lab titles, as the participant reads them in TWO products.
 #
 # Previously the guide was renamed without updating the
-# shipped application, so the Observatory's Workshop Map and Proof Board went on
-# naming "Design the Retrieval Strategy" while the guide beside them said "Measure Hybrid
+# shipped application, so the application's workshop map went on
+# naming "Design the Retrieval Strategy" while the guide beside it said "Measure Hybrid
 # Retrieval Trade-offs". Nothing failed: the naming guards in this repository scan for
 # retired SURFACE and TOOL names, and a lab title is neither.
 #

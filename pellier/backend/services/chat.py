@@ -1430,8 +1430,8 @@ class EnhancedChatService:
             turn_identity.shopper_customer_id if turn_identity.authenticated else None
         )
 
-        # Per-turn runtime timing (seeds Observatory Runtime page live strip)
-        # and DB query log (seeds Observatory State Management live strip).
+        # Per-turn runtime timing (the runtime_timing event) and DB query
+        # log (the db_queries event), both emitted before the turn completes.
         # Markers are recorded inline via time.perf_counter(); the db log
         # is propagated through a ContextVar so tool invocations hit the
         # same buffer even when they run via asyncio.to_thread.
@@ -2307,9 +2307,9 @@ class EnhancedChatService:
         timing["stream"] = stream_ms
 
         # Record this turn's latency breakdown into the process-local
-        # perf log so /api/performance/runtime can serve live p50/p95
-        # aggregates to the Observatory Performance tab. Any failure is
-        # swallowed — measurement must never break a turn.
+        # perf log (services.performance_log), which keeps live p50/p95
+        # aggregates. Any failure is swallowed — measurement must never
+        # break a turn.
         try:
             from services.performance_log import record_turn
             record_turn(
@@ -2323,9 +2323,8 @@ class EnhancedChatService:
         except Exception as _exc:
             logger.debug("performance_log.record_turn failed: %s", _exc)
 
-        # Emit timing + db query events BEFORE the complete event so the
-        # Observatory runtime and state-management pages pick them up via
-        # their useAgentChat localStorage bridge.
+        # Emit timing + db query events BEFORE the complete event, so a
+        # client reading the stream has them when the turn ends.
         yield {
             "type": "runtime_timing",
             "timing": {

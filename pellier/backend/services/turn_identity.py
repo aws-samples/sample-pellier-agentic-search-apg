@@ -186,7 +186,7 @@ def new_turn_id() -> str:
     """Mint a stable identifier for one shopper turn.
 
     Every turn gets one, minted server-side. This is what makes a receipt deep
-    link reproducible: Pellier can hand the id to Observatory, and a reload
+    link reproducible: the client keeps the id beside the turn, and a lookup
     resolves the same turn rather than whatever happens to be newest.
 
     Deliberately not derived from message position or display order — a

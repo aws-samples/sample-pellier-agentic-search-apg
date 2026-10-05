@@ -243,7 +243,7 @@ async def _stream_agent_response(
         memory_receipt["write_status"] = "succeeded"
         # ``agentcore-memory`` is reserved for a write the SDK confirmed. The
         # non-strict rail falls back to a process-local dict and returns
-        # normally; the Observatory renders that source as managed
+        # normally; a reader would take that source for managed
         # persistence unless the receipt says otherwise.
         if write_backend != BACKEND_AGENTCORE:
             memory_receipt["source"] = "process-local"

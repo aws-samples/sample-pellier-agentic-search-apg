@@ -114,9 +114,9 @@ def test_preflight_probes_the_models_config_actually_resolves() -> None:
 
 
 def test_claude_profiles_are_global() -> None:
-    # The Observatory no longer keeps its own model catalogue: its Evidence tab
-    # reads /api/observatory/models, which reports these settings (and any .env
-    # override) directly, so there is no frontend copy left to drift.
+    # These settings are the one model catalogue: the Builder view's Router
+    # step reports the model the turn used from them, so no surface keeps its
+    # own copy to drift.
     for setting, model_id in _config_defaults().items():
         assert model_id.startswith("global.anthropic."), setting
 

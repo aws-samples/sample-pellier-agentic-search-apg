@@ -871,8 +871,8 @@ async def chat_stream(
             )
 
             # Per-turn guardrail INPUT check — records a decision in
-            # services/guardrails_log so the Observatory Grounding page's
-            # Guardrails lane shows live audit rows. Only runs when
+            # services/guardrails_log, a per-session ring buffer of
+            # guardrail outcomes. Only runs when
             # the user enabled guardrails in their request; otherwise
             # the log captures no entry (accurate — nothing happened).
             # Failures are swallowed: guardrail eval is observational,
@@ -945,8 +945,8 @@ async def chat_stream(
 
             # Mint the turn identity before streaming so the id is stable
             # for the whole turn and can be emitted on the first event.
-            # The client persists it and uses it to deep-link the exact
-            # turn's evidence in Observatory.
+            # The client persists it beside the turn, and the Builder view
+            # and the turn records key on it.
             turn_id = new_turn_id()
             from routes.auth import SIGN_IN_METHOD_WORKSHOP
             from services.auth import SHOPPER_SURFACE, session_cookie_names
@@ -1464,11 +1464,9 @@ async def compare_index_performance(
 async def performance_runtime(include_recent: bool = False):
     """Return rolling aggregates of chat turn latency breakdowns.
 
-    Feeds the Observatory Performance tab — layer p50/p95 replace the
-    hardcoded 3779ms/4ms numbers, cold-start histogram replaces the
-    stub bars, tool p50 fuels the per-tool legend. Empty buffer is
-    reported honestly so the UI can show a placeholder instead of
-    faking data.
+    Layer p50/p95, a cold-start histogram and per-tool p50 come from
+    ``services.performance_log``. An empty buffer is reported as empty
+    rather than filled with placeholder numbers.
     """
     try:
         from services.performance_log import get_aggregates, get_recent_turns
@@ -1849,9 +1847,8 @@ async def get_tracing_info():
 async def check_guardrails(request: Request):
     """Demo endpoint to test Bedrock Guardrails on input/output text.
 
-    Also records the decision in ``services/guardrails_log`` so the
-    Observatory Grounding page's Guardrails lane can surface a live audit
-    trail alongside the Cedar policy decisions.
+    Also records the decision in ``services/guardrails_log``, the
+    per-session ring buffer of guardrail outcomes.
     """
     import time as _time
     from services.guardrails import GuardrailsService
@@ -1894,9 +1891,8 @@ async def check_guardrails(request: Request):
 async def guardrails_decisions(session_id: str = "", limit: int = 50):
     """Return recent guardrail outcomes for a session.
 
-    Feeds the Observatory Grounding page's Guardrails lane. Distinct from
-    ``/api/agentcore/policy/decisions`` (Cedar tool-call enforcement);
-    these are Bedrock content filter outcomes on the prose side.
+    These are Bedrock content filter outcomes on the prose side, distinct
+    from Cedar's tool-call decisions at the Gateway.
     """
     try:
         from services.guardrails_log import get_guardrails
@@ -1946,11 +1942,10 @@ async def list_policies(operator: Dict[str, Any] = Depends(require_operator)):
 async def memory_status():
     """Return whether an ACTIVE AgentCore Memory is backing the SDK path.
 
-    The MemoryArchPage in the Observatory reads this to show an honest
-    banner — either 'Live: AgentCore Memory (id=...)' or 'Fallback:
-    in-process dict; set AGENTCORE_MEMORY_ID to enable LIVE'. An ID and
-    importable SDK are not sufficient: the control-plane resource must
-    exist and report ACTIVE.
+    ``scripts/health-gate.sh`` reads it. The answer is either live
+    AgentCore Memory (with its id) or the in-process fallback, which
+    ``AGENTCORE_MEMORY_ID`` replaces. An ID and an importable SDK are not
+    sufficient: the control-plane resource must exist and report ACTIVE.
     """
     try:
         from services.agentcore_memory import probe_memory_backend_status
@@ -1969,10 +1964,10 @@ async def memory_status():
 async def gateway_status():
     """Return the effective Gateway wiring for the current backend.
 
-    The Observatory MCP / Tool Registry tabs use this to show whether tools
-    are being discovered via MCP (Gateway configured) or loaded via
-    direct @tool imports (fallback). The ``source`` field is the
-    human-readable label shown next to the tool list.
+    It says whether tools are discovered via MCP (Gateway configured) or
+    loaded via direct @tool imports (fallback); ``source`` is the
+    human-readable label for that wiring. ``scripts/dry-run-builders.sh``
+    reads it.
     """
     try:
         from config import settings
@@ -2040,8 +2035,8 @@ async def agentcore_runtime_status():
     An AgentCore Runtime ARN being configured does not prove that a Storefront
     turn used Runtime. The control plane can prove the resource's lifecycle
     state; a managed-turn receipt with ``rail=gateway-mcp`` proves invocation.
-    Keep those facts separate in the response so Observatory and facilitators
-    do not mistake configuration for execution.
+    Keep those facts separate in the response so no reader mistakes
+    configuration for execution.
     """
     runtime_endpoint = settings.AGENTCORE_RUNTIME_ENDPOINT or ""
     managed_rail_requested = bool(settings.USE_AGENTCORE_RUNTIME)

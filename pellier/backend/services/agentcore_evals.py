@@ -75,11 +75,10 @@ def is_enabled() -> bool:
 
 
 def describe_configuration() -> Dict[str, Any]:
-    """Surface shape used by the Observatory Measure copy.
+    """The evaluation sidecar's configuration envelope.
 
-    Returns the same envelope whether the sidecar runs or not, so the
-    frontend can render a clear off/wired state without inspecting
-    credentials.
+    Returns the same envelope whether the sidecar runs or not, so a caller
+    can tell an off state from a wired one without inspecting credentials.
     """
     return {
         "configured": is_enabled(),

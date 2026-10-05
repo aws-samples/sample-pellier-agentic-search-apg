@@ -1013,7 +1013,7 @@ fi  # Non-governed Transaction Search setup.
 # STEP 14: AUTO-START PELLIER SERVICE (single-process, port 8000)
 # ============================================================================
 # Single systemd service. FastAPI serves:
-#   - the built SPA at /, /observatory, /storyboard, /discover, ...
+#   - the built SPA at /, /operator, /storyboard, /product/*, ...
 #   - the API at /api/*
 #   - self-hosted fonts + hashed bundles at /assets/*, /fonts/*
 #
@@ -1384,7 +1384,7 @@ EOF
         fi
         # Managed AgentCore Policy engine (4th pillar). The provisioner cannot
         # report ready without this id; keep the explicit guard because Lab 4
-        # and the Pellier Observatory Policy surface both read it.
+        # and the Operator's credit execution both read it.
         if [ -n "$POLICY_ENGINE_ID" ]; then
             upsert_env "AGENTCORE_POLICY_ENGINE_ID" "$POLICY_ENGINE_ID" "$REPO_PATH/.env"
             log "✅ Managed AgentCore Policy engine: $POLICY_ENGINE_ID"

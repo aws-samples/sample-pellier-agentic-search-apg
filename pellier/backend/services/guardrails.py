@@ -4,8 +4,7 @@ Guardrails Service — Bedrock Guardrails ApplyGuardrail integration.
 The input/output checks are fully implemented. Enforcement activates only
 when ``BEDROCK_GUARDRAIL_ID`` is set; otherwise the service runs in
 pass-through mode (allow-all) so Pellier works without a provisioned
-guardrail. In the workshop this is an inspect-only surface — the
-Observatory shows the config and attach point — so we do not make every turn
+guardrail. In the workshop it is optional, so we do not make every turn
 depend on a live ApplyGuardrail round-trip.
 """
 import re

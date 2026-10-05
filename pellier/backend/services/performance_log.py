@@ -1,13 +1,9 @@
 """Performance metrics log — per-turn latency + rolling aggregates.
 
-The Observatory Performance tab used to hardcode numbers (3779ms LLM
-synthesize, 4ms HNSW, etc.) lifted from an offline benchmark. That
-worked for screenshots but lied once attendees started running real
-queries. This module captures the real per-turn timing the chat
-stream already emits (``runtime_timing`` event: ``layers`` +
-``ttft_ms`` + ``total_ms``) into a rolling in-memory buffer, and
-exposes aggregates so the Performance tab's bar chart + cold-start
-histogram can render measured numbers.
+This module captures the real per-turn timing the chat stream already
+emits (``runtime_timing`` event: ``layers`` + ``ttft_ms`` + ``total_ms``)
+into a rolling in-memory buffer, and exposes measured aggregates: layer
+percentiles and a cold-start histogram.
 
 Process-local by design. Multi-worker deployments would want a shared
 store (Aurora, Valkey), but the Workshop Studio backend runs a single

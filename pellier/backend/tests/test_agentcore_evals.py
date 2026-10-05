@@ -203,7 +203,7 @@ def test_skipped_when_flag_on_but_log_groups_missing(
 def test_describe_configuration_envelope_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The Observatory Measure surface relies on these keys — pin them."""
+    """The configuration envelope's keys are a contract — pin them."""
     _enable(monkeypatch)
 
     cfg = agentcore_evals.describe_configuration()
@@ -282,5 +282,5 @@ def test_get_batch_evaluation_requires_an_id(
 
 
 # ---------------------------------------------------------------------------
-# Provenance states on the Observatory surface (audit finding C2)
+# Provenance states (audit finding C2)
 # ---------------------------------------------------------------------------

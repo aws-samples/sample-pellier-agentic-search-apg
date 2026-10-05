@@ -881,8 +881,8 @@ def test_process_local_memory_write_is_not_receipted_as_managed(
     """The receipt names the store that actually held the turn.
 
     With strict mode off, a dead or unset Memory resource silently lands the
-    write in a process-local dict. The Observatory renders ``agentcore-memory``
-    as managed persistence, so that source is reserved for a write the SDK
+    write in a process-local dict. A reader takes ``agentcore-memory`` for
+    managed persistence, so that source is reserved for a write the SDK
     confirmed.
     """
     from services.agentcore_memory import BACKEND_PROCESS_LOCAL

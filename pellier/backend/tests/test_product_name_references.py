@@ -23,7 +23,7 @@ OLD_BRANDS = ("Pellier Editions", "Pellier Everyday", "Pellier Active", "Pellier
               "Pellier Apothecary", "Pellier Gifting", "Pellier Parfum", "Pellier Atelier",
               "Pellier Maison")
 SCANNED = ("scripts/migrations", "skills", "pellier/backend/agents", "pellier/backend/services",
-           "pellier/backend/routes", "pellier/frontend/src/data", "pellier/frontend/src/observatory/fixtures", "solutions")
+           "pellier/backend/routes", "pellier/frontend/src/data", "solutions")
 
 # Capitalized phrases of two or more words read as product names. These are
 # the ones in skills that are not products: skill titles, services, places.

@@ -336,8 +336,8 @@ def _store_managed_runtime_receipt(
         "rail": rail,
         "jwtPassthrough": auth_token_present,
         "gatewayPassthrough": rail == "gateway-mcp",
-        # Provenance vocabulary shared with the Observatory surfaces: this is
-        # service telemetry, not application-generated spans.
+        # Provenance: this is service telemetry, not application-generated
+        # spans.
         "evidenceProvenance": "agentcore-service-telemetry",
         "traceId": trace_id,
         "runtimeRequestId": request_id,

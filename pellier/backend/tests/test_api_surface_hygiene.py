@@ -31,7 +31,6 @@ RETIRED_DEMO_PATHS = {
     "/api/agentcore/gateway/tools",
     "/api/agentcore/memories/episodes",
     "/api/agentcore/analytics",
-    "/api/observatory/readiness",
     "/api/operator/actions/issue-credit",
     "/api/operator/actions/resolve-return",
 }

@@ -225,8 +225,7 @@ def test_live_file_has_workshop_markers(
 ) -> None:
     """Every live participant-edit file MUST carry at least one
     ``# === WORKSHOP ... START ===`` marker. Without the marker
-    participants have no visual anchor for where to edit, and the
-    Observatory's Code Editor won't know where to focus.
+    participants have no visual anchor for where to edit.
     """
     src = live_path.read_text()
     # Matches "# === WORKSHOP ... START ===" in a tolerant way —

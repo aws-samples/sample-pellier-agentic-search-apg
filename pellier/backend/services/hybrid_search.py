@@ -216,8 +216,7 @@ class HybridSearch:
         """Run the same hybrid retrieval as :meth:`search`, but return the
         *intermediate* state instead of just the final ranking.
 
-        This exists purely for the Observatory "Search" teaching surface. It
-        re-uses the exact same branch queries and the exact same
+        It re-uses the exact same branch queries and the exact same
         ``store_tools.rrf_merge`` as the shipped path, so what a participant sees
         is what actually runs — there is no parallel "demo" pipeline.
 

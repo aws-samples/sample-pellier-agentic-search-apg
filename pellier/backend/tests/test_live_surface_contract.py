@@ -35,7 +35,6 @@ def test_personas_and_prompts_are_checked_in_files_and_orders_come_from_aurora()
     loader = (BACKEND / "services" / "personas.py").read_text()
 
     assert "personas-config.json" not in body
-    assert "/api/observatory/personas/reload" not in body
     assert '"personas.json"' in loader and '"scenarios.json"' in body
     # The order counts on the persona cards are read, not written into the file.
     assert "FROM pellier.orders GROUP BY customer_id" in body
@@ -188,7 +187,6 @@ def test_persona_heroes_use_fixed_approved_images() -> None:
         assert personas[persona]["hero_image"] == f"/products/hero-{persona}.png"
     assert 'data-testid="persona-hero-image"' not in hero
     assert "hero_image" not in hero
-    assert "/api/observatory/personas" not in hero
     assert "persona.hero_image" in chat_body
 
 

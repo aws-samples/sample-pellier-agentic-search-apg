@@ -2,7 +2,7 @@
 
 Three agents (Shopping, Stock, Support) sit behind a deterministic Router. The
 labels are *display* names, which makes the failure mode quiet: a stale label
-does not raise, it just shows the wrong word in the Observatory or silently
+does not raise, it just shows the wrong word in the Builder view or silently
 stops matching a key.
 
 Four rules, all enforced below.
@@ -17,7 +17,7 @@ Four rules, all enforced below.
    ``test_copy_compliance`` enforces that mechanically for ``pellier_copy.py``.
    A prompt that opens "You are Pellier's Stock agent" invites the model to
    echo the phrase into the shopper's transcript. The architecture label belongs
-   to the Observatory, the fixtures, and the docs; the prompt says "specialist".
+   to the Builder view, the fixtures, and the docs; the prompt says "specialist".
 
 4. **Internal keys and factory names must NOT be renamed for cosmetic parity.**
    ``build_stock_agent`` is imported by the dispatcher and exported by its
@@ -201,7 +201,7 @@ def test_no_specialist_prompt_names_itself_an_agent() -> None:
         + "\n".join(offenders)
         + "\n\nVOICE.md forbids that word in anything the shopper can hear, and "
         "a prompt is the one place the model reads its own name. Say "
-        "'specialist' in the prompt; keep the label for the Observatory."
+        "'specialist' in the prompt; keep the label for the Builder view."
     )
 
 
