@@ -5,8 +5,8 @@
  */
 
 /* ---- Design primitives ---------------------------------------------------
- * The five shapes the Observatory and the Operator desk both compose:
- * a section label, a card, a table, a state, and an absence. Their sizes are
+ * The four shapes the Observatory and the Operator desk both compose:
+ * a section label, a card, a table, and an absence. Their sizes are
  * inside the type-floor guard's scan roots, so a drift here fails a test
  * rather than reaching two surfaces at once.
  * ------------------------------------------------------------------------ */
@@ -22,9 +22,6 @@ export type {
 
 export { DataTable } from './DataTable'
 export type { DataTableProps, DataTableColumn, DataTableAlign } from './DataTable'
-
-export { StateBadge } from './StateBadge'
-export type { StateBadgeProps, StateBadgeTone } from './StateBadge'
 
 export { EmptyState } from './EmptyState'
 export type { EmptyStateProps } from './EmptyState'

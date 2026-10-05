@@ -99,10 +99,10 @@ describe('Footer — bottom strip', () => {
     expect(link).toHaveAttribute('href', FOOTER.BOTTOM_STRIP.GITHUB_URL)
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
-    expect(within(link).getByTestId('footer-github-icon')).toHaveAttribute(
-      'src',
-      '/assets/icons/github-mark.svg',
-    )
+    // Inline, so the mark takes the link's token color in both themes.
+    const icon = within(link).getByTestId('footer-github-icon')
+    expect(icon.tagName.toLowerCase()).toBe('svg')
+    expect(icon).toHaveAttribute('fill', 'currentColor')
   })
 
   it('does not render Privacy / Terms / Accessibility placeholder links', () => {

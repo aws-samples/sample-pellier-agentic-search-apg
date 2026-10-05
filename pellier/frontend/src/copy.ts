@@ -81,14 +81,6 @@ export const CURATED_FOR_YOU_CHIP = "Curated for you";
 export const SEARCH_PILL_PLACEHOLDER =
   "Tell Pellier what you're looking for...";
 
-// Hero headline block that sits above the rotating stage.
-export const HERO_HEADLINE = {
-  EYEBROW: "Resort Edit \u00b7 No. 06",
-  TITLE_TOP: "Pellier",
-  TITLE_BOTTOM: "Resort Edit",
-  SUBHEADLINE: "Tell Pellier what you're looking for. Watch the pieces find you.",
-} as const;
-
 export const PELLIER_HERO_SIGNED_OUT = {
   LINE_1: "Choose a shopper profile to begin.",
   LINE_2: "Pellier will tailor the floor around that visit.",
@@ -272,105 +264,6 @@ export const PRODUCT_GRID_HEADER = {
   SORT_LABEL: "Sort: Most loved",
 } as const;
 
-// Label rendered to the left of the intent ticker pills under the hero frame.
-export const OTHERS_ARE_ASKING_LABEL = "Others are asking";
-
-// Intent shape used by HeroStage.
-export interface IntentProductRef {
-  name: string;
-}
-export interface IntentProductOverride {
-  name: string;
-  brand: string;
-  color: string;
-  price: number;
-  rating: number;
-  reviewCount: number;
-  /** Pre-formatted review-count display (e.g. "1.4k reviews"); overrides reviewCount at render time when present. */
-  reviews?: string;
-  imageUrl: string;
-}
-export interface Intent {
-  id: number;
-  query: string;
-  matchedOn: string[];
-  /** Per-intent latency stamp rendered in IntentInfoCard (Req 1.3.4). e.g. "340 ms". */
-  latency: string;
-  productRef?: IntentProductRef;
-  productOverride?: IntentProductOverride;
-}
-
-// The 8 rotating intents (Requirement 1.3.1, storefront.md). Intent 2 carries
-// a productOverride for the Everyday Runner.
-export const INTENTS: Intent[] = [
-  {
-    id: 1,
-    query: "something for long summer walks",
-    matchedOn: ["linen", "warm", "everyday"],
-    latency: "340 ms",
-    productRef: { name: "Italian Linen Camp Shirt" },
-  },
-  {
-    id: 2,
-    query: "a thoughtful gift for someone who runs",
-    matchedOn: ["athletic", "footwear", "gift"],
-    latency: "412 ms",
-    productOverride: {
-      name: "Everyday Runner",
-      brand: "Pellier",
-      color: "Ember \u00b7 9.5",
-      price: 168,
-      rating: 4.9,
-      reviewCount: 1400,
-      reviews: "1.4k reviews",
-      imageUrl:
-        "https://images.unsplash.com/photo-1469395446868-fb6a048d5ca3?w=1600&q=85",
-    },
-  },
-  {
-    id: 3,
-    query: "something to wear for warm evenings out",
-    matchedOn: ["evening", "warm", "dresses"],
-    latency: "298 ms",
-    productRef: { name: "Hadley Linen Shirt" },
-  },
-  {
-    id: 4,
-    query: "pieces that travel well",
-    matchedOn: ["travel", "accessories", "neutral"],
-    latency: "325 ms",
-    productRef: { name: "Canvas Dopp Kit" },
-  },
-  {
-    id: 5,
-    query: "something for slow Sunday mornings",
-    matchedOn: ["slow", "soft", "home"],
-    latency: "367 ms",
-    productRef: { name: "Stoneware Pour-Over Set" },
-  },
-  {
-    id: 6,
-    query: "a linen piece that earns its golden hour",
-    matchedOn: ["linen", "evening", "warm"],
-    latency: "288 ms",
-    productRef: { name: "Hadley Linen Shirt" },
-  },
-  {
-    id: 7,
-    query: "a cozy layer for cool summer nights",
-    matchedOn: ["outerwear", "evening", "slow"],
-    latency: "315 ms",
-    productRef: { name: "Linen Overshirt" },
-  },
-  {
-    id: 8,
-    query: "something relaxed for weekend markets",
-    matchedOn: ["everyday", "linen", "classic"],
-    latency: "302 ms",
-    productRef: { name: "Cotton-Linen Crew Tee" },
-  },
-];
-
 // Sign-in strip (Requirement 1.4.1)
 export const SIGN_IN_STRIP = {
   EYEBROW: "YOUR ACCOUNT",
@@ -378,28 +271,6 @@ export const SIGN_IN_STRIP = {
   CTA: "Sign in for personalized visions",
   DISMISS: "Not now",
 } as const;
-
-// Curated banner (Requirement 1.4.3)
-export const curatedHeadline = (
-  givenName: string,
-  prefs: [string, string, string],
-): string =>
-  `Tailored to your preferences, ${givenName}. ${prefs[0]} \u00b7 ${prefs[1]} \u00b7 ${prefs[2]}`;
-
-export const CURATED_BANNER = {
-  LABEL: "CURATED FOR YOU",
-  ADJUST_LINK: "Adjust preferences",
-  headline: curatedHeadline,
-} as const;
-
-// Live status strip (Requirement 1.5.1)
-export const LIVE_STATUS =
-  "Live inventory \u00b7 refreshed daily \u00b7 curated by hand";
-// Pellier policy phrases rendered as plain labels on the right side of
-// the live status strip (mock pellier_5.html parity).
-export const SHIPPING = "Free shipping over $150";
-export const RETURNS = "Ships within 1 to 2 days";
-export const CONFIRMED_TOTALS = "Confirmed totals";
 
 // Reasoning chip copy (Requirement 1.7). The pricing style exposes its urgent
 // clause separately so the UI can render it in terracotta.

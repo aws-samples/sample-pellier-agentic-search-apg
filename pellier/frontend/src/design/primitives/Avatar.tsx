@@ -1,5 +1,4 @@
 import React from 'react';
-import { colors } from '../tokens';
 
 export interface AvatarProps {
   initial: string;
@@ -56,7 +55,5 @@ export const Avatar: React.FC<AvatarProps> = ({
     </div>
   );
 };
-
-void colors;
 
 export default Avatar;

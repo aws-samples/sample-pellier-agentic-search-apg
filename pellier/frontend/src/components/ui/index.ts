@@ -1,4 +1,3 @@
-export { Badge } from './badge';
 export {
   DropdownMenu,
   DropdownMenuContent,

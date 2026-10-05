@@ -5,9 +5,10 @@
  * Observatory. Both surfaces must speak one status language, or an attendee
  * learns two vocabularies for the same system state.
  *
- * This file EXTENDS the Daylight token system. It defines no new colors —
- * every value resolves to an existing `--dl-*` primitive so a palette
- * change stays in one place. It is imported after `daylight-bridge.css`,
+ * This file EXTENDS the Daylight token system. It defines no new colors:
+ * every value resolves to an existing `--dl-*` primitive, mixed with
+ * `transparent` for a tint, so a palette change stays in one place and both
+ * themes follow it. It is imported after `daylight-bridge.css`,
  * which is where the `--dl-*` → `--obs-*` aliases are established.
  *
  * Color discipline (from the design package, enforced here):
@@ -55,13 +56,13 @@
   /* ---- Decision states ------------------------------------------ */
   /* ALLOW: verified positive. The tool ran and left evidence. */
   --gov-allow-fg: var(--dl-ok);
-  --gov-allow-bg: rgba(63, 98, 18, 0.1);
-  --gov-allow-border: rgba(63, 98, 18, 0.4);
+  --gov-allow-bg: color-mix(in srgb, var(--dl-ok) 10%, transparent);
+  --gov-allow-border: color-mix(in srgb, var(--dl-ok) 40%, transparent);
 
   /* DENY: blocked before execution. Distinct from terracotta on purpose. */
   --gov-deny-fg: var(--dl-err);
-  --gov-deny-bg: rgba(153, 27, 27, 0.09);
-  --gov-deny-border: rgba(153, 27, 27, 0.38);
+  --gov-deny-bg: color-mix(in srgb, var(--dl-err) 9%, transparent);
+  --gov-deny-border: color-mix(in srgb, var(--dl-err) 38%, transparent);
 
   /* NOT_EVALUATED: no policy decision was made for this turn. */
   --gov-neutral-fg: var(--dl-ink-2);
@@ -70,8 +71,8 @@
 
   /* DEGRADED: the governed rail was asked for and could not serve. */
   --gov-degraded-fg: var(--dl-warn);
-  --gov-degraded-bg: rgba(180, 83, 9, 0.1);
-  --gov-degraded-border: rgba(180, 83, 9, 0.38);
+  --gov-degraded-bg: color-mix(in srgb, var(--dl-warn) 10%, transparent);
+  --gov-degraded-border: color-mix(in srgb, var(--dl-warn) 38%, transparent);
 
   /* UNAVAILABLE: not provisioned. Quieter than degraded — nothing broke,
      the capability simply is not present in this environment. */
@@ -82,22 +83,13 @@
   /* ---- Execution rails ------------------------------------------ */
   /* A verified gateway-mcp rail is the only rail that earns green. */
   --gov-rail-gateway-fg: var(--dl-ok);
-  --gov-rail-gateway-bg: rgba(63, 98, 18, 0.1);
+  --gov-rail-gateway-bg: color-mix(in srgb, var(--dl-ok) 10%, transparent);
   /* In-process is a legitimate rail, not a failure — neutral, not amber. */
   --gov-rail-inprocess-fg: var(--dl-ink-2);
   --gov-rail-inprocess-bg: var(--dl-paper-2);
   /* A fallback is a rail that is not what was asked for. */
   --gov-rail-fallback-fg: var(--dl-warn);
-  --gov-rail-fallback-bg: rgba(180, 83, 9, 0.1);
-
-  /* ---- Evidence categories -------------------------------------- */
-  /* Used by receipt chips so "source" and "policy" are distinguishable
-     at a glance without inventing six more colors. */
-  --gov-evidence-source: var(--dl-ink-2);
-  --gov-evidence-tool: var(--dl-accent);
-  --gov-evidence-memory: #6b21a8;
-  --gov-evidence-policy: var(--dl-ok);
-  --gov-evidence-audit: var(--dl-ink);
+  --gov-rail-fallback-bg: color-mix(in srgb, var(--dl-warn) 10%, transparent);
 
   /* ---- Provenance ----------------------------------------------- */
   /* Same four words the backend emits: live | fixture | modeled |
@@ -115,22 +107,10 @@
   --gov-radius-sm: 4px;
   --gov-radius-md: 8px;
   --gov-radius-lg: 14px;
-  --gov-shadow-sm: 0 1px 2px rgba(28, 25, 23, 0.06);
-  --gov-shadow-md: 0 4px 16px rgba(28, 25, 23, 0.08);
-
-  /* One warm shadow family for raised paper, on every surface.
-     Evidence cards used to be tinted rgb(20 28 24) -- a cool green-grey left
-     over from the period when the Observatory had a cool canvas. On the warm
-     paper all three surfaces now share, a cool shadow reads as a smudge under
-     the card rather than as light falling on it. rgb(60 40 10) is the same
-     tint the Daylight shadows already use. Two steps only: resting for a card
-     that sits, raised for a card you can actually press. */
-  --gov-shadow-card:
-    0 1px 2px rgb(60 40 10 / 0.05),
-    0 14px 36px rgb(60 40 10 / 0.07);
-  --gov-shadow-card-raised:
-    0 2px 4px rgb(60 40 10 / 0.06),
-    0 20px 48px rgb(60 40 10 / 0.11);
+  /* Raised paper takes the Daylight shadows, which are soft and low on
+     black: resting for a card that sits, lifted for a card you can press. */
+  --gov-shadow-card: var(--dl-sh-paper);
+  --gov-shadow-card-raised: var(--dl-sh-lift);
 
   /* ---- Focus ----------------------------------------------------- */
   /* One focus ring for the whole product. Terracotta reads as "you are

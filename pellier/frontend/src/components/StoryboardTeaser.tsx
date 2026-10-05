@@ -111,7 +111,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           aspectRatio: '4 / 5',
           overflow: 'hidden',
           borderRadius: 'var(--pellier-image-radius-md)',
-          background: '#e8d8bc',
+          background: c.paper2,
         }}
       >
         <ResponsiveImage

@@ -13,8 +13,6 @@ import { cssVar as c } from '../design/cssVars'
  * footer newsletter column so the phrase earns a home instead of
  * being decoration beneath a dead subscribe form.
  */
-const RULE_1 = 'rgba(45, 24, 16, 0.08)'
-
 const FRAUNCES_STACK = 'Fraunces, Georgia, serif'
 
 interface Note {
@@ -143,7 +141,7 @@ export default function FieldNotes() {
               data-testid={`field-note-${i}`}
               style={{
                 scrollMarginTop: 'calc(var(--pellier-surface-bar-height, 64px) + 96px)',
-                borderTop: `1px solid ${RULE_1}`,
+                borderTop: `1px solid ${c.line}`,
                 paddingTop: 32,
               }}
             >
@@ -209,7 +207,7 @@ export default function FieldNotes() {
           style={{
             marginTop: 72,
             paddingTop: 24,
-            borderTop: `1px solid ${RULE_1}`,
+            borderTop: `1px solid ${c.line}`,
             display: 'flex',
             justifyContent: 'center',
           }}

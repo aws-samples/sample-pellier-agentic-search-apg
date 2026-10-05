@@ -97,9 +97,6 @@ export interface ApiError {
 // The legacy `/api/search` endpoint keeps its current `SearchResponse` shape;
 // personalization endpoints use `PellierSearchResponse`.
 
-import type { Intent as PellierIntent } from '../copy'
-export type { PellierIntent }
-
 export type ReasoningStyle = 'picked' | 'matched' | 'pricing' | 'context'
 
 export interface ReasoningChip {

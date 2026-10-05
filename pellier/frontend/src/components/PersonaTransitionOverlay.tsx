@@ -82,12 +82,11 @@ export default function PersonaTransitionOverlay() {
           role="status"
           aria-live="polite"
         >
-          {/* Espresso scrim with a hair of blur — matches the tour
-              overlay register so the storefront palette carries. */}
+          {/* The theme's scrim with a hair of blur. */}
           <div
             className="absolute inset-0"
             style={{
-              background: 'rgba(31, 20, 16, 0.55)',
+              background: 'var(--dl-scrim)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
             }}
@@ -107,13 +106,11 @@ export default function PersonaTransitionOverlay() {
             <div
               className="text-center"
               style={{
-                background:
-                  'linear-gradient(180deg, rgba(255,252,247,0.98) 0%, rgba(247,239,226,0.98) 100%)',
+                background: 'var(--dl-paper)',
                 border: '1px solid var(--rule-1)',
                 borderRadius: 18,
                 overflow: 'visible',
-                boxShadow:
-                  '0 28px 80px -20px rgba(31, 20, 16, 0.5), 0 8px 28px rgba(31,20,16,0.18)',
+                boxShadow: 'var(--dl-sh-deep)',
                 padding:
                   lastTransition.kind === 'sign-in' ? '34px 34px 32px' : '28px 30px 26px',
               }}
@@ -128,14 +125,13 @@ export default function PersonaTransitionOverlay() {
                   borderRadius: '50%',
                   margin: '0 auto 18px',
                   background: lastTransition.persona.avatar_color,
-                  border: '4px solid rgba(255,250,240,0.94)',
-                  boxShadow:
-                    '0 18px 38px rgba(31,20,16,0.28), 0 0 0 1px rgba(31,20,16,0.1)',
+                  border: '4px solid var(--dl-paper)',
+                  boxShadow: '0 0 0 1px var(--dl-line), var(--dl-sh-lift)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   overflow: 'hidden',
-                  color: 'var(--cream-1)',
+                  color: 'var(--dl-on-photo)',
                   fontFamily: 'var(--sans)',
                   fontSize: lastTransition.kind === 'sign-in' ? 42 : 30,
                   fontWeight: 650,

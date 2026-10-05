@@ -76,7 +76,7 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
               fontFamily: 'var(--display, "Fraunces Variable", Georgia, serif)',
               fontSize: 'clamp(24px, 3vw, 32px)',
               margin: '0 0 16px',
-              color: 'var(--ink, #1f1410)',
+              color: 'var(--dl-ink)',
             }}
           >
             This page did not load
@@ -85,7 +85,7 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
             style={{
               fontSize: '15px',
               lineHeight: 1.6,
-              color: 'var(--ink-soft, #3a3833)',
+              color: 'var(--dl-ink-2)',
               maxWidth: '480px',
               margin: '0 0 24px',
             }}
@@ -103,8 +103,8 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
                 padding: '10px 18px',
                 borderRadius: '10px',
                 border: 'none',
-                background: 'var(--ink, #1f1410)',
-                color: 'var(--cream, #f7f3ec)',
+                background: 'var(--dl-ink)',
+                color: 'var(--dl-on-ink)',
                 cursor: 'pointer',
                 minHeight: '44px',
               }}
@@ -117,7 +117,7 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
               style={{
                 fontSize: '14px',
                 fontWeight: 500,
-                color: 'var(--ink-soft, #3a3833)',
+                color: 'var(--dl-ink-2)',
                 textDecoration: 'underline',
               }}
             >

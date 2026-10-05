@@ -30,22 +30,16 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
   }
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col rounded-[20px] overflow-hidden animate-slideUp"
-      style={{
-        background: 'rgba(0, 0, 0, 0.95)',
-        backdropFilter: 'blur(40px)',
-        WebkitBackdropFilter: 'blur(40px)',
-      }}
-    >
+    <div className="absolute inset-0 z-50 flex flex-col rounded-[20px] overflow-hidden animate-slideUp bg-paper text-ink shadow-deep">
       {/* Header */}
-      <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
+      <div className="flex items-center justify-between px-5 py-4 border-b border-line">
         <div className="flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-amber-400" />
-          <span className="text-sm font-semibold text-white">Compare Products</span>
-          <span className="text-[10px]" style={{ color: 'rgba(255, 255, 255, 0.4)' }}>({compareProducts.length} items)</span>
+          <Trophy className="h-4 w-4 text-copper" />
+          <span className="text-sm font-semibold text-ink">Compare Products</span>
+          <span className="text-[10px] text-muted">({compareProducts.length} items)</span>
         </div>
-        <button onClick={onClose} aria-label="Close comparison" className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-          <X className="h-4 w-4" style={{ color: 'rgba(255, 255, 255, 0.5)' }} />
+        <button onClick={onClose} aria-label="Close comparison" className="p-1.5 rounded-lg hover:bg-recessed transition-colors">
+          <X className="h-4 w-4 text-muted" />
         </button>
       </div>
 
@@ -57,12 +51,12 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
             const isImageUrl = product.image && (product.image.startsWith('http') || product.image.startsWith('data:') || product.image.startsWith('/'))
 
             return (
-              <div key={idx} className="flex flex-col gap-2 p-3 rounded-xl" style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+              <div key={idx} className="flex flex-col gap-2 p-3 rounded-xl border border-line bg-paper">
                 {/* Winner badges */}
                 {badges.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {badges.map((badge, i) => (
-                      <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">
+                      <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-full bg-recessed text-ink-2 border border-line font-semibold">
                         <Trophy className="h-2 w-2 inline mr-0.5" />{badge}
                       </span>
                     ))}
@@ -70,7 +64,7 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                 )}
 
                 {/* Image */}
-                <div className="w-full h-16 rounded-[var(--pellier-image-radius-sm)] flex items-center justify-center overflow-hidden" style={{ background: 'rgba(255, 255, 255, 0.06)' }}>
+                <div className="w-full h-16 rounded-[var(--pellier-image-radius-sm)] flex items-center justify-center overflow-hidden bg-recessed">
                   {isImageUrl ? (
                     <img src={imageSrc(product.image)} alt={product.name} className="h-full object-contain p-1" />
                   ) : (
@@ -79,7 +73,7 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                 </div>
 
                 {/* Name */}
-                <div className="text-xs font-medium text-white line-clamp-2 min-h-[2rem]">
+                <div className="text-xs font-medium text-ink line-clamp-2 min-h-[2rem]">
                   {product.name}
                 </div>
 
@@ -87,8 +81,8 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                 <div className="space-y-1.5">
                   {/* Price */}
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-white/40">Price</span>
-                    <span className={`text-sm font-bold ${product.price === lowestPrice ? 'text-green-400' : 'text-white/60'}`}>
+                    <span className="text-[10px] text-muted">Price</span>
+                    <span className={`text-sm font-bold ${product.price === lowestPrice ? 'text-ok' : 'text-ink-2'}`}>
                       ${product.price.toFixed(2)}
                     </span>
                   </div>
@@ -96,10 +90,10 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                   {/* Rating */}
                   {(product.rating || 0) > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-white/40">Rating</span>
+                      <span className="text-[10px] text-muted">Rating</span>
                       <div className="flex items-center gap-1">
-                        <Star className={`h-3 w-3 fill-current ${(product.rating || 0) === highestRating ? 'text-amber-400' : 'text-yellow-400'}`} />
-                        <span className={`text-xs font-medium ${(product.rating || 0) === highestRating ? 'text-amber-400' : 'text-white/50'}`}>
+                        <Star className="h-3 w-3 fill-current text-copper" />
+                        <span className={`text-xs ${(product.rating || 0) === highestRating ? 'font-semibold text-ink' : 'font-medium text-ink-2'}`}>
                           {product.rating?.toFixed(1)}
                         </span>
                       </div>
@@ -109,8 +103,8 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                   {/* Reviews */}
                   {(product.reviews || 0) > 0 && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-white/40">Reviews</span>
-                      <span className={`text-xs ${(product.reviews || 0) === mostReviews ? 'text-blue-400 font-semibold' : 'text-white/50'}`}>
+                      <span className="text-[10px] text-muted">Reviews</span>
+                      <span className={`text-xs ${(product.reviews || 0) === mostReviews ? 'text-ink font-semibold' : 'text-ink-2'}`}>
                         {product.reviews?.toLocaleString()}
                       </span>
                     </div>
@@ -119,8 +113,8 @@ const ProductComparison = ({ products, onClose }: ProductComparisonProps) => {
                   {/* Category */}
                   {product.category && (
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-white/40">Category</span>
-                      <span className="text-[10px] text-white/60 truncate max-w-[80px]">{product.category}</span>
+                      <span className="text-[10px] text-muted">Category</span>
+                      <span className="text-[10px] text-ink-2 truncate max-w-[80px]">{product.category}</span>
                     </div>
                   )}
                 </div>

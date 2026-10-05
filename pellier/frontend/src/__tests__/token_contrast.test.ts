@@ -99,6 +99,32 @@ describe.each([['light', LIGHT], ['dark', DARK]] as const)('%s theme contrast', 
   })
 })
 
+/**
+ * Hairlines on the black grounds stay visible (1.25:1): the hairline on the
+ * page, the dock and a panel, and the strong line on a recessed field, where
+ * the hairline itself measures 1.15:1. Light keeps the owner's hairline,
+ * #e9e9e5, which reads 1.22:1 on white, so this check is dark only.
+ */
+const DARK_RULE_PAIRS: Array<[string, string]> = [
+  ['--dl-line', '--dl-bg'], ['--dl-line', '--dl-dock'], ['--dl-line', '--dl-paper'],
+  ['--dl-line-strong', '--dl-paper-2'],
+]
+
+describe('dark rules', () => {
+  it.each(DARK_RULE_PAIRS)('%s on %s is 1.25:1 or better', (fg, bg) => {
+    expect(contrast(DARK[fg], DARK[bg])).toBeGreaterThanOrEqual(1.25)
+  })
+})
+
+describe('the brand-mark ground', () => {
+  /* Payment marks keep their own colors and are drawn for white; a ground
+     within a step of white keeps every one of them as legible as on white. */
+  it.each([['light', LIGHT], ['dark', DARK]] as const)('stays within a step of white in the %s theme', (_name, theme) => {
+    expect(theme['--dl-mark-ground']).toBeDefined()
+    expect(contrast(theme['--dl-mark-ground'], '#ffffff')).toBeLessThanOrEqual(1.2)
+  })
+})
+
 describe('the theme-independent values', () => {
   it('on-photo is the same ivory in both themes, so it reads on a seeded color either way', () => {
     expect(LIGHT['--dl-on-photo']).toBe(DARK['--dl-on-photo'])

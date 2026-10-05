@@ -50,8 +50,7 @@ const Toast = ({ message, show, onClose, duration = 3000 }: ToastProps) => {
         style={{
           background: 'var(--dl-paper)',
           border: '1px solid var(--rule-1)',
-          boxShadow:
-            '0 8px 32px rgba(31, 20, 16, 0.12), 0 2px 8px rgba(31, 20, 16, 0.06)',
+          boxShadow: 'var(--dl-sh-lift)',
           color: 'var(--dl-ink)',
         }}
       >

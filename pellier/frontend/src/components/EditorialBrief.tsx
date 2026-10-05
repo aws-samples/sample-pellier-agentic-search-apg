@@ -51,12 +51,8 @@ export default function EditorialBrief() {
                 className="w-full h-full object-cover"
               />
               <div
-                className="absolute inset-0 pointer-events-none"
+                className="absolute inset-0 pointer-events-none rounded-[inherit] shadow-frame"
                 aria-hidden
-                style={{
-                  background:
-                    'linear-gradient(135deg, rgba(247,243,238,0.05) 0%, rgba(59,47,47,0.08) 100%)',
-                }}
               />
             </div>
 

@@ -73,7 +73,6 @@ const FRONTEND_SRC = resolve(__dirname, '..')
 const SPEC_FILES: string[] = [
   'components/AnnouncementBar.tsx',
   'components/Header.tsx',
-  'components/LiveStatusStrip.tsx',
   'components/ProductGrid.tsx',
   'components/ProductCard.tsx',
   'components/ReasoningChip.tsx',

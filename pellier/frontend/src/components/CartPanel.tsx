@@ -1,10 +1,9 @@
 /**
- * CartPanel - slide-over bag panel in the Pellier daylight palette.
+ * CartPanel - slide-over bag panel.
  *
- * Cream background, espresso text, warm borders. Replaces the
- * Apple-dark-theme CSS vars with inline pellier values so the
- * panel matches the rest of the storefront without needing a
- * global theme class on <html>.
+ * Every color is a Daylight token, so the panel follows the light and
+ * dark themes with the rest of the storefront. Filled controls are ink
+ * with on-ink text; the paid and failed states use the ok and err pairs.
  *
  * Checkout triggers an in-panel confirmation state (no alert())
  * with a checkmark animation and "Continue shopping" reset.
@@ -33,14 +32,16 @@ import { useFocusTrap } from '../shared/useFocusTrap'
 // Re-export CartItem for backward compatibility with existing import paths
 export type { CartItem } from '../contexts/CartContext'
 
-// --- Pellier palette tokens (inline to avoid dark-theme var fallthrough) ---
+// --- Theme tokens for the inline styles below ---
 const BG = 'var(--cream-warm)'
-const BG_CARD = 'color-mix(in srgb, var(--dl-ink) 4%, transparent)'
+const BG_CARD = 'var(--dl-paper-2)'
 const TEXT = 'var(--ink)'
 const TEXT_SOFT = 'var(--ink-soft)'
 const TEXT_QUIET = 'var(--ink-quiet)'
-const BORDER = 'color-mix(in srgb, var(--dl-ink) 8%, transparent)'
-const GREEN = '#2d8a56'
+const BORDER = 'var(--dl-line)'
+const ON_TEXT = 'var(--dl-on-ink)'
+const OK = 'var(--dl-ok)'
+const ERR = 'var(--dl-err)'
 
 interface CartPanelProps {
   isOpen: boolean
@@ -101,7 +102,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
           <motion.div
             className="fixed inset-0 z-[60]"
             style={{
-              background: 'rgba(31, 20, 16, 0.35)',
+              background: 'var(--dl-scrim)',
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
             }}
@@ -121,7 +122,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
             className="fixed right-0 top-0 h-dvh w-full sm:w-[420px] z-[61] flex flex-col font-sans"
             style={{
               background: BG,
-              boxShadow: '-4px 0 32px rgba(31, 20, 16, 0.15)',
+              boxShadow: 'var(--dl-sh-deep)',
             }}
             initial={reducedMotion ? false : { x: '100%' }}
             animate={{ x: 0 }}
@@ -150,7 +151,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                       initial={{ scale: 0.6, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                      style={{ background: TEXT, color: BG }}
+                      style={{ background: TEXT, color: ON_TEXT }}
                     >
                       {itemCount}
                     </motion.span>
@@ -161,7 +162,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                     <button
                       onClick={clearCart}
                       className="text-xs font-medium px-3 py-1.5 rounded-full transition-all duration-200
-                               hover:bg-[rgba(168,66,58,0.08)] active:scale-95"
+                               hover:bg-err-tint active:scale-95"
                       style={{ color: TEXT_QUIET }}
                     >
                       Clear all
@@ -193,16 +194,16 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                   style={{
                     background:
                       checkoutReceipt?.status === 'paid'
-                        ? 'rgba(45, 138, 86, 0.12)'
-                        : 'rgba(168, 66, 58, 0.10)',
+                        ? 'var(--dl-ok-soft)'
+                        : 'var(--dl-err-soft)',
                     marginLeft: 'auto',
                     marginRight: 'auto',
                   }}
                 >
                   {checkoutReceipt?.status === 'paid' ? (
-                    <Check className="h-9 w-9" style={{ color: GREEN }} strokeWidth={2.5} />
+                    <Check className="h-9 w-9" style={{ color: OK }} strokeWidth={2.5} />
                   ) : (
-                    <AlertCircle className="h-9 w-9" style={{ color: '#a8423a' }} strokeWidth={2.2} />
+                    <AlertCircle className="h-9 w-9" style={{ color: ERR }} strokeWidth={2.2} />
                   )}
                 </motion.div>
                 <motion.h3
@@ -291,7 +292,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                   className="mt-7 px-8 py-3 rounded-full font-medium text-[14px] tracking-wide transition-shadow duration-200"
                   style={{
                     background: TEXT,
-                    color: BG,
+                    color: ON_TEXT,
                     border: 'none',
                     cursor: 'pointer',
                   }}
@@ -332,7 +333,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                       <p style={{ fontSize: '14px', lineHeight: 1.55, color: TEXT_QUIET }}>
                         Pieces you add from the collection or a conversation will appear here.
                       </p>
-                      <button type="button" onClick={onClose} className="mt-6 min-h-11 rounded-full px-6 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: TEXT, color: BG }}>
+                      <button type="button" onClick={onClose} className="mt-6 min-h-11 rounded-full px-6 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: TEXT, color: ON_TEXT }}>
                         Continue browsing
                       </button>
                     </div>
@@ -435,7 +436,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                                     onClick={() => removeFromCart(item.productId)}
                                     type="button"
                                     className="inline-flex min-h-11 items-center rounded-md px-3 text-[13px] font-medium transition-all duration-200
-                                             hover:bg-[rgba(168,66,58,0.08)] active:scale-95"
+                                             hover:bg-err-tint active:scale-95"
                                     style={{ color: TEXT_QUIET }}
                                   >
                                     Remove
@@ -468,14 +469,14 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                       <div
                         className="mb-4 p-3 rounded-lg flex gap-2.5"
                         style={{
-                          border: '1px solid rgba(168, 66, 58, 0.22)',
-                          background: 'rgba(168, 66, 58, 0.06)',
+                          border: `1px solid color-mix(in srgb, ${ERR} 30%, transparent)`,
+                          background: 'var(--dl-err-soft)',
                         }}
                         role="alert"
                       >
                         <AlertCircle
                           className="h-4 w-4 mt-0.5 flex-shrink-0"
-                          style={{ color: '#a8423a' }}
+                          style={{ color: ERR }}
                         />
                         <p style={{ fontSize: '12px', lineHeight: 1.5, color: TEXT_SOFT }}>
                           {checkoutError.message}
@@ -518,7 +519,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                             type="checkbox"
                             checked={acknowledged}
                             onChange={event => setAcknowledged(event.target.checked)}
-                            className="mt-0.5 h-4 w-4 accent-[#1f1410]"
+                            className="mt-0.5 h-4 w-4 accent-ink"
                           />
                           <span>
                             I confirm this ${checkoutQuote.amounts.total} total and authorize this
@@ -569,14 +570,14 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                         fontSize: '15px',
                         letterSpacing: '0.02em',
                         background: TEXT,
-                        color: BG,
+                        color: ON_TEXT,
                         border: 'none',
                         cursor:
                           isWorking || (!!checkoutQuote && !acknowledged)
                             ? 'not-allowed'
                             : 'pointer',
                         opacity: isWorking || (!!checkoutQuote && !acknowledged) ? 0.55 : 1,
-                        boxShadow: '0 2px 12px rgba(31, 20, 16, 0.15)',
+                        boxShadow: 'var(--dl-sh-paper)',
                       }}
                     >
                       {needsSignIn

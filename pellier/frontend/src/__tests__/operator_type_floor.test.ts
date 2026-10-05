@@ -30,7 +30,7 @@ const SRC = resolve(HERE, '..')
 // styles/. A guard scoped to directories missed exactly that.
 //
 // `shared/` holds the design primitives -- SectionEyebrow, EvidenceCard,
-// DataTable, StateBadge, EmptyState -- that both surfaces compose. A size
+// DataTable, EmptyState -- that both surfaces compose. A size
 // that drifts there drifts on both at once, which is the worst version of
 // this defect, so the primitives are inside the fence from the day they land.
 //
@@ -178,6 +178,5 @@ describe('Operator type floor', () => {
     expect(scanned).toContain(join('operator', 'styles', 'operator.css'))
     // The shared primitives both surfaces render.
     expect(scanned).toContain(join('shared', 'DataTable.tsx'))
-    expect(scanned).toContain(join('shared', 'StateBadge.tsx'))
   })
 })
