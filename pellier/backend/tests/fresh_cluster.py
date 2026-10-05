@@ -92,8 +92,7 @@ def start_cluster(root: Path) -> Cluster:
         _start_step([str(pg / "initdb"), "-D", str(root / "data"), "-U", "postgres",
                      "-A", "trust", "--no-locale", "--encoding=UTF8", "--no-sync"], log)
         _start_step([str(pg / "pg_ctl"), "-D", str(root / "data"), "-l", str(log),
-                     "-o", f"-F -h '' -k {socket} "
-                           "-c shared_preload_libraries=pg_stat_statements",
+                     "-o", f"-F -h '' -k {socket}",
                      "-w", "start"], log)
     except BaseException:
         cluster.stop()

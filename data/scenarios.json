@@ -1,0 +1,30 @@
+[
+  {"id": 1, "persona": "fresh", "ordinal": 1, "journey_role": "explore", "journey_stage": null, "preview_product_id": "10", "prompt": "A considered carry-all for a long weekend."},
+  {"id": 2, "persona": "fresh", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "8", "prompt": "Pieces for slow Sunday mornings"},
+  {"id": 3, "persona": "fresh", "ordinal": 3, "journey_role": "explore", "journey_stage": null, "preview_product_id": "2", "prompt": "Something to wear for warm evenings out"},
+  {"id": 4, "persona": "fresh", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "3", "prompt": "Linen pieces that travel well"},
+  {"id": 5, "persona": "fresh", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "8", "prompt": "A cozy layer for cooler nights"},
+
+  {"id": 6, "persona": "marco", "ordinal": 1, "journey_role": "explore", "journey_stage": null, "preview_product_id": "11", "prompt": "What linen do you have for 10 days in Goa?"},
+  {"id": 7, "persona": "marco", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "14", "prompt": "What would go with the Hadley Linen Shirt?"},
+  {"id": 8, "persona": "marco", "ordinal": 3, "journey_role": "required", "journey_stage": "prove", "preview_product_id": "2", "prompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?"},
+  {"id": 9, "persona": "marco", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "2", "prompt": "What's the price range for linen shirts?"},
+  {"id": 10, "persona": "marco", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "19", "prompt": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding – not product cards."},
+
+  {"id": 11, "persona": "anna", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "22", "prompt": "A housewarming gift for someone who loves slow morning rituals."},
+  {"id": 12, "persona": "anna", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "28", "prompt": "Keep it under $100 and in stock. Show me the strongest two options."},
+  {"id": 13, "persona": "anna", "ordinal": 3, "journey_role": "explore", "journey_stage": null, "preview_product_id": null, "prompt": "Which one should I choose? Compare the two options using their current prices and availability."},
+  {"id": 14, "persona": "anna", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "26", "prompt": "Wrap-ready gifts with no extra effort"},
+  {"id": 15, "persona": "anna", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "28", "prompt": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards."},
+
+  {"id": 16, "persona": "theo", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "31", "prompt": "Hand-thrown ceramics for a slower morning routine"},
+  {"id": 17, "persona": "theo", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "34", "prompt": "What goes well with the pour-over set, keeping to the same materials and morning routine?"},
+  {"id": 18, "persona": "theo", "ordinal": 3, "journey_role": "required", "journey_stage": "exercise", "preview_product_id": "37", "prompt": "My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?"},
+  {"id": 19, "persona": "theo", "ordinal": 4, "journey_role": "required", "journey_stage": "prove", "preview_product_id": null, "prompt": "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?"},
+  {"id": 20, "persona": "theo", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "38", "prompt": "The linen throw I bought 4 months ago developed a tear at the seam – I know the standard window closed but pieces like this should last. Can you handle this as an exception?"},
+
+  {"id": 21, "persona": "jessica", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "42", "prompt": "Please ask a person to look at a store credit for the two items I returned."},
+  {"id": 22, "persona": "jessica", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "25", "prompt": "I sent two things back last week, the sage robe and the reed diffuser. Has anything been credited?"},
+  {"id": 23, "persona": "jessica", "ordinal": 3, "journey_role": "explore", "journey_stage": null, "preview_product_id": null, "prompt": "What does your return policy say about store credit for returned home items?"},
+  {"id": 24, "persona": "jessica", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "46", "prompt": "A soft throw for slow evenings at home"}
+]
