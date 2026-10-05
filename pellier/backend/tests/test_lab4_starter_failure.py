@@ -102,6 +102,82 @@ def test_the_solution_lets_it_through_and_denies_one_cent_more() -> None:
     assert [row[-1] for row in result.table] == ["matches"] * 10
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("rule_path", "label", "credits"), [
+    (STARTER_RULE, "The Gateway answered: denied", 0),
+    (SOLUTION_RULE, "The Gateway answered: allowed", 1),
+], ids=["starter", "solution"])
+async def test_nadias_execute_in_the_operator_shows_what_cedar_decided(
+    fresh_db: Any, monkeypatch: pytest.MonkeyPatch, rule_path: Path, label: str,  # noqa: F811
+    credits: int,
+) -> None:
+    """The Spot step at test level: the failure is visible in the Operator.
+
+    Nadia executes Jessica's approved $100.00 credit through the Operator's
+    execute route on the managed rail. The Gateway is a stand-in whose Cedar is
+    the real engine over the rendered baseline and the rule; an allowed call
+    runs the store-tools Lambda on this cluster. With the starter deployed the
+    reloaded review reads "The Gateway answered: denied" and nothing is
+    written; with the solution it reads "allowed" and one credit is written.
+    """
+    from config import settings
+    from routes import operator as OP
+    from services import governed_execution as ge
+    from services import operator_review as rv
+    from tests.test_operator_credit_postgres import (
+        NADIA_SUB, _call_lambda, _clean_case, _conninfo, _investigate, _lambda, _order_id, _PgDb,
+    )
+
+    policies = lab4.baseline_set() + [
+        (lab4.CREDIT_LIMIT_POLICY, lab4.render_rule(rule_path.read_text()))]
+    schema = lab4.gateway_cedar_schema()
+    with psycopg.connect(**_conninfo(fresh_db)) as sync:
+        _clean_case(sync)
+        module = _lambda(monkeypatch, sync)
+
+        async def gateway_with_cedar(*, tool: str, args: Any, idempotency_key: str,
+                                     access_token: str):
+            tool_input = {**dict(args), "idempotency_key": idempotency_key}
+            decided = lab4.decide(policies, schema, lab4.NADIA, ge.gateway_action_id(tool),
+                                  tool_input)
+            if decided.decision == lab4.DENY:
+                said = ("Tool call not allowed due to policy enforcement "
+                        f"[{', '.join(decided.decided_by)}]")
+                return ge.POLICY_DENY, {"status": "policy_denied", "gateway_message": said}, said
+            return ge.POLICY_ALLOW, _call_lambda(module, tool_input), "Cedar permitted it."
+
+        async def enforcing(_row: Any) -> Any:
+            return ge.PolicyEngineState(gateway_mode="ENFORCE")
+
+        monkeypatch.setattr(settings, "WORKSHOP_FORMAT", "governed", raising=False)
+        monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "https://gw.example", raising=False)
+        monkeypatch.setattr(settings, "AGENTCORE_POLICY_ENGINE_ID", "engine-1", raising=False)
+        monkeypatch.setattr(ge, "_execute_through_gateway", gateway_with_cedar)
+        monkeypatch.setattr(OP, "_policy_engine_state", enforcing)
+        cases = [_order_id(sync, "42"), _order_id(sync, "25")]
+        async with await psycopg.AsyncConnection.connect(**_conninfo(fresh_db)) as aconn:
+            db = _PgDb(aconn)
+            proposal = _investigate(sync, cases, "Both returns were received.")
+            assert proposal["amount_cents"] == lab4.LIMIT_CENTS
+            review_id = int(proposal["review_id"])
+            row = await rv.get_review(db, review_id)
+            await rv.decide_review(db, review_id=review_id, decision=rv.STATUS_CONFIRMED,
+                                   decided_by=NADIA_SUB, action_hash=row["action_hash"],
+                                   decided_by_name="nadia")
+            nadia = {"sub": NADIA_SUB, "username": "nadia", "access_token": "jwt-nadia"}
+            await OP.execute_review(OP.ReviewExecuteRequest(), review_id=review_id,
+                                    operator=nadia, db=db)
+            reloaded = (await OP.get_review(review_id, db=db))["review"]
+
+        assert reloaded["execution"]["lastAttempt"]["label"] == label
+        assert reloaded["assurance"]["policy"] == ("DENY" if credits == 0 else "ALLOW")
+        assert reloaded["policyCheckProbe"] is False
+        written = sync.execute("SELECT count(*) AS n FROM pellier.store_credits "
+                               "WHERE approval_id = %s", (review_id,)).fetchone()
+        assert written["n"] == credits
+        _clean_case(sync)
+
+
 # ---------------------------------------------------------------------------
 # Task 4B: the RLS worksheet
 # ---------------------------------------------------------------------------
@@ -133,7 +209,7 @@ def test_the_solution_passes_every_probe_and_keeps_nothing(fresh_db: Any, conn: 
     done = _psql(fresh_db, RLS_SOLUTION)
     assert done.returncode == 0, done.stdout + done.stderr
     assert "Lab 4B check passed" in done.stdout
-    assert "10 of 10 probes match" in done.stdout
+    assert "9 of 9 probes match" in done.stdout
     assert "42501" in done.stdout
     assert _live_state(conn) == before
 
@@ -178,7 +254,8 @@ def _jessicas_credit(conn: Any) -> str:
 
 
 def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: Any,  # noqa: F811
-                                                                      conn: Any) -> None:
+                                                                      conn: Any,
+                                                                      tmp_path: Path) -> None:
     waiting = _psql(fresh_db, ABSENCE)
     assert waiting.returncode != 0
     assert "none yet: no approved review is named Lab 4 over-limit probe" in waiting.stdout
@@ -206,6 +283,15 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     assert f"allowed key  {allowed_key}" in done.stdout
     assert "Observed  0, 0 and 1" in done.stdout
     assert "Lab 4 absence check passed" in done.stdout
+
+    # Both keys are derived the same way, so a derivation that drifted from the
+    # desk's finds no allowed credit and fails, instead of two vacuous zeros.
+    drifted = tmp_path / "lab-4-absence-drifted.sql"
+    drifted.write_text(ABSENCE.read_text().replace("left(a.action_hash, 32)",
+                                                   "left(a.action_hash, 31)"))
+    vacuous = _psql(fresh_db, drifted)
+    assert vacuous.returncode != 0
+    assert "the allowed key does not find exactly one credit" in vacuous.stdout
 
     forensic = _psql(fresh_db, FORENSIC)
     assert forensic.returncode == 0, forensic.stderr

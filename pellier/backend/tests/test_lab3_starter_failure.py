@@ -150,6 +150,7 @@ def test_the_starter_support_turn_runs_without_the_read_and_says_so(managed_supp
     assert "get_tickets" not in agent.tool_names
     assert set(agent.tool_names) == {"get_orders", "get_return_policy", "ask_a_person"}
     assert "can't look up support tickets here" in agent.system_prompt
+    assert "The Gateway does not list these tools for you" in agent.system_prompt
     assert "Do not guess or invent them" in agent.system_prompt
     assert dispatcher.last_tool_events == []
     assert "support tickets" in answer
@@ -157,7 +158,8 @@ def test_the_starter_support_turn_runs_without_the_read_and_says_so(managed_supp
 
 def test_the_starter_builder_view_names_the_tool_as_not_published() -> None:
     assert _route_note(["get_tickets"]) == (
-        "get_tickets is not published on the Gateway, so the Support agent ran without it")
+        "get_tickets is not in the Gateway's tool list for this caller, so the Support agent "
+        "ran without it")
     assert _route_note([]) is None, "a published read leaves no note"
 
 
@@ -184,7 +186,7 @@ def test_the_solution_publishes_the_read_and_the_agent_gets_it(managed_support) 
 
     assert dispatcher.last_unpublished_tools == ()
     assert "get_tickets" in agent.tool_names
-    assert "not available to you" not in agent.system_prompt
+    assert "does not list these tools" not in agent.system_prompt
 
 
 def test_the_solution_binds_a_request_for_jessica_to_theo(managed_support) -> None:

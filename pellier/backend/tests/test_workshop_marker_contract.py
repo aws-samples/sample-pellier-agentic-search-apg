@@ -335,11 +335,14 @@ def test_the_absence_check_is_supplied_and_finds_both_keys_itself() -> None:
         "args->>'idempotency_key' = :'lab_4_deny_key'",
         "WHERE idempotency_key = :'lab_4_deny_key'",
         "WHERE idempotency_key = :'lab_4_allow_key'",
-        "c.customer_id = 'CUST-JESSICA'",
+        "a.customer_id = 'CUST-JESSICA'",
+        # Both keys are derived the same way, so the positive control covers it.
+        "WHERE c.approval_id = a.id",
         ":lab_4_allowed_credit_rows = 1 AS lab_4_control_holds",
         "Expected  ", "Observed ", "Evidence  ", "Next      ",
     ):
         assert fragment in text, fragment
+    assert text.count("'operator-review:' || a.id || ':' || left(a.action_hash, 32)") == 2
     assert "INSERT" not in text and "UPDATE" not in text and "DELETE" not in text
 
 
@@ -539,6 +542,18 @@ def test_lab4_reference_rule_admits_an_amount_up_to_the_limit() -> None:
     assert "CUST-" not in code and "getTag" not in code
 
 
+def test_lab4_reference_rule_is_byte_identical_to_the_starter_outside_the_unless_block() -> None:
+    """The Cedar pair keeps the twin convention: only the final unless block differs.
+
+    ``same_rule`` ignores comments, so a header that drifted would still deploy the
+    same rule; this keeps the recovery copy's comments the participant's own.
+    """
+    starter = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
+    reference = _read(LAB4_REFERENCE)
+    assert starter[:starter.rindex("unless")] == reference[:reference.rindex("unless")]
+    assert starter == _read(LAB4_STARTER), "the live file holds its starter"
+
+
 def test_lab4_reference_rule_is_the_starter_plus_the_condition() -> None:
     """Same head, different body.
 
@@ -584,12 +599,14 @@ def test_lab4_rls_proof_covers_read_write_and_rolls_everything_back() -> None:
             "set_config('pellier.principal_username', 'jessica', true)",
             "WHEN insufficient_privilege",
             "'42501'",
-            "The Operator desk reads every order",
+            "No one signed in reads orders",
             "Lab 4B check passed",
             "Expected  ", "Observed ", "Evidence  ", "Next      ",
         ):
             assert fragment in text, f"{rel} lost {fragment!r}"
         assert "principal_customers" not in text and "pellier_query" not in text
+        # A probe comparing the owner's count with the owner's count cannot fail.
+        assert "The Operator desk reads every order" not in text
         assert "COMMIT" not in text
         assert len(re.findall(r"^BEGIN;", text, re.MULTILINE)) == 1
         assert len(re.findall(r"^ROLLBACK;", text, re.MULTILINE)) == 1

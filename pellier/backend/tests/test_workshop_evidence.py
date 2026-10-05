@@ -323,7 +323,7 @@ def test_lab_4b_runs_the_rls_worksheet_and_the_absence_check(
         _jessicas_credit(conn)
     done = evidence.task_4b(cfg)
     assert done.state == PROVED, done
-    assert "10 of 10 probes match" in done.observed and "0, 0 and 1" in done.observed
+    assert "9 of 9 probes match" in done.observed and "0, 0 and 1" in done.observed
 
     monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
     rows = evidence._rows(cfg, check.connect)

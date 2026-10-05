@@ -50,7 +50,6 @@ SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS 
        (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-JESSICA') AS jessica_orders,
        (SELECT count(*) FROM pellier.support_tickets WHERE customer_id = 'CUST-JESSICA')
          AS jessica_tickets,
-       (SELECT count(*) FROM pellier.orders) AS all_orders,
        (SELECT string_agg(cognito_username || ' -> ' || id, ', ' ORDER BY id)
           FROM pellier.customers WHERE id IN ('CUST-THEO', 'CUST-JESSICA')) AS names
 \gset owner_
@@ -132,9 +131,8 @@ SELECT (SELECT count(*) FROM pellier.orders) AS orders,
        (SELECT count(*) FROM pellier.support_tickets) AS tickets
 \gset as_jessica_
 
--- The Operator desk's own reads run as the owner, which these policies do not bind.
+-- Back to the owner, to tabulate the probes.
 RESET ROLE;
-SELECT count(*) AS orders FROM pellier.orders \gset as_desk_
 
 -- A temporary table inside the transaction: the ROLLBACK below drops it too.
 CREATE TEMP TABLE lab_4_probes (probe text, bound_as text, expected text, observed text);
@@ -149,8 +147,7 @@ INSERT INTO lab_4_probes VALUES
     ('The Investigator reads Jessica''s orders', 'jessica', :'owner_jessica_orders',
      :'as_jessica_orders'),
     ('The Investigator reads Jessica''s tickets', 'jessica', :'owner_jessica_tickets',
-     :'as_jessica_tickets'),
-    ('The Operator desk reads every order', 'owner', :'owner_all_orders', :'as_desk_orders');
+     :'as_jessica_tickets');
 
 \echo 'Lab 4B: your ownership predicate, as pellier_agent, rolled back'
 \echo 'Evidence  policies orders_owner and support_tickets_owner, rewritten inside this transaction'

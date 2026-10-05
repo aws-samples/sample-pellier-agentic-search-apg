@@ -45,7 +45,7 @@
       "worry": "The assistant should remember our customers, but never let one see another's account.",
       "minutes": 20,
       "need": "Theo wants his taste remembered and help with his own chipped bowl.",
-      "spot": "On the managed path the Support agent says it can't look up Theo's support tickets; the Builder view shows get_tickets is not published on the Gateway.",
+      "spot": "On the managed path the Support agent says it can't look up Theo's support tickets; the Builder view shows get_tickets is not in the Gateway's tool list for this caller.",
       "a": "Publish get_tickets and bind it to the caller",
       "b": "Deploy, then challenge with the household request",
       "todo": "Task 3A: publish get_tickets (scripts/deploy/gateway_tool_schemas.py) and bind it to the signed-in caller (services/agentcore_gateway.py). Task 3B: deploy with --mode participant, then prove memory, the executed build and the boundary.",

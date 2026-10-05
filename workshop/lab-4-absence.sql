@@ -17,11 +17,14 @@
 -- first, then run:
 --   psql -X -P pager=off -f workshop/lab-4-absence.sql
 --
--- It finds both keys itself and never writes:
+-- It finds both keys itself and never writes. Both are derived the same way,
+-- from an approved review: operator-review:<review id>:<first 32 of its hash>.
 --   denied   the over-limit review scripts/lab4_policy_check.py sent through
---            the Gateway (its issue names it), keyed the way every approved
---            review is: operator-review:<review id>:<first 32 of its hash>
---   allowed  the store credit Nadia's approval of Jessica's case wrote
+--            the Gateway (its issue names it)
+--   allowed  Nadia's approved review of Jessica's case that wrote a credit
+-- Because the allowed key is derived, not copied from the credit, a
+-- derivation that drifted from the one the desk uses would find no credit for
+-- it, and the check would fail rather than vouch for two vacuous zeros.
 
 SET client_min_messages TO warning;
 
@@ -32,10 +35,15 @@ SELECT coalesce((SELECT 'operator-review:' || a.id || ':' || left(a.action_hash,
                     AND a.issue = 'Lab 4 over-limit probe: covers no order'
                   ORDER BY a.id DESC
                   LIMIT 1), '') AS deny_key,
-       coalesce((SELECT c.idempotency_key
-                   FROM pellier.store_credits c
-                  WHERE c.customer_id = 'CUST-JESSICA'
-                  ORDER BY c.credit_id DESC
+       coalesce((SELECT 'operator-review:' || a.id || ':' || left(a.action_hash, 32)
+                   FROM pellier.approvals a
+                  WHERE a.tool = 'give_store_credit'
+                    AND a.status = 'approved'
+                    AND a.customer_id = 'CUST-JESSICA'
+                    AND a.issue IS DISTINCT FROM 'Lab 4 over-limit probe: covers no order'
+                    AND EXISTS (SELECT 1 FROM pellier.store_credits c
+                                 WHERE c.approval_id = a.id)
+                  ORDER BY a.id DESC
                   LIMIT 1), '') AS allow_key
 \gset lab_4_
 

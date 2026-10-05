@@ -94,25 +94,30 @@ _TOOL_LOOKUPS: Dict[str, str] = {
 
 
 def unpublished_tools_prompt(unpublished: Sequence[str]) -> str:
-    """The instruction an agent gets for the tools the Gateway does not publish.
+    """The instruction an agent gets for the tools the Gateway did not list for this caller.
 
     The agent must say plainly that it cannot look the thing up here, never
     guess it and never claim a look-up it did not make.
     """
     lookups = ", ".join(_TOOL_LOOKUPS.get(name, name) for name in unpublished)
     return (
-        " The Gateway does not publish these tools, so they are not available to "
-        f"you: {', '.join(unpublished)}. If the shopper asks for {lookups}, say "
+        " The Gateway does not list these tools for you, so they are not available: "
+        f"{', '.join(unpublished)}. If the shopper asks for {lookups}, say "
         f"plainly that you can't look up {lookups} here. Do not guess or invent them. "
         "Offer ask_a_person if it is available."
     )
 
 
 def unpublished_tools_note(agent: str, unpublished: Sequence[str]) -> str:
-    """The Builder view's line for tools the routed agent asked for and was not given."""
+    """The Builder view's line for tools the routed agent asked for and was not given.
+
+    Gateway discovery is filtered by policy for each caller, so a tool missing
+    from the list may be unpublished (Lab 3's starter) or published behind a
+    permit this caller cannot meet. The line says what was observed, not which.
+    """
     names = ", ".join(unpublished)
     one = len(unpublished) == 1
-    return (f"{names} {'is' if one else 'are'} not published on the Gateway, "
+    return (f"{names} {'is' if one else 'are'} not in the Gateway's tool list for this caller, "
             f"so the {agent} ran without {'it' if one else 'them'}")
 
 
@@ -585,13 +590,16 @@ class ManagedGatewayDispatcher:
             selected_names = tuple(
                 _logical_gateway_tool_name(tool.tool_name) for tool in selected
             )
-            # A tool the Gateway does not publish is not an error: the agent
-            # runs without it, says plainly what it cannot look up, and the
-            # Builder view names the tool (Lab 3's starter shows this).
+            # A tool the Gateway does not list for this caller is not an
+            # error: the agent runs without it, says plainly what it cannot
+            # look up, and the Builder view names the tool (Lab 3's starter
+            # shows this). Discovery is policy-filtered, so the tool may be
+            # unpublished or published behind a permit this caller cannot meet.
             unpublished = tuple(sorted(set(allowed_tools) - set(selected_names)))
             if unpublished:
                 logger.warning(
-                    "Gateway does not publish %s tools: %s", specialist, ", ".join(unpublished)
+                    "Gateway does not list %s tools for this caller: %s",
+                    specialist, ", ".join(unpublished),
                 )
                 system_prompt += unpublished_tools_prompt(unpublished)
             self.last_unpublished_tools = unpublished

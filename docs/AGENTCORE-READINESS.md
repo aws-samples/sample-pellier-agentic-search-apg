@@ -64,7 +64,7 @@ the proposal, confirmation and execution checks for the same review.
 
 ## Progressive exercises and escape hatches
 
-There are four labs, eight tasks and nine authoring regions. Recovery provides
+There are four labs, eight tasks and eight authoring regions. Recovery provides
 the missing implementation and converges on the same checks. It cannot produce
 AWS evidence, approve a staff action or mark an unrun check complete.
 
@@ -73,9 +73,9 @@ AWS evidence, approve a staff action or mark an unrun check complete.
 | **1A** | RRF expression in `workshop/lab-1-rrf.sql` | Participant reconstructs fusion scores from recorded candidate ranks. |
 | **1B** | Requirement preservation in `services/search_plan.py` | Local contract check plus live Aurora eligibility for exact returned product IDs; fallback relaxes preferences without losing requirements. |
 | **2A** | Inventory envelope in `services/agent_tools.py` | Direct tool contract distinguishes unknown product, zero stock and stocked product; independent current SQL confirms inventory. |
-| **2B** | Inventory specialist tool list in `agents/inventory_agent.py` | Agent calls the intended tool and its answer agrees with the retained result. |
+| **2B** | Stock agent definition in `agents/stock_agent.py` (`check_stock` alone) | Agent calls the intended tool and its answer agrees with the retained result. |
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py` and caller binding in `services/agentcore_gateway.py` | Required support tool is published and bound to the verified customer's input. |
-| **3B** | Deploy/investigate the 3A changes; no additional authoring region | Live discovery, scope challenge, executing fingerprint, all-four Memory recall, Aurora product check and trace contract. |
+| **3B** | Deploy/investigate the 3A changes; no additional authoring region | `scripts/lab3_check.py`: the executing build fingerprint; the user-preference record AgentCore Memory extracted from Theo's provisioning conversation, as the managed rail reads it and as the Builder view's Router step names it; every executed ticket read bound to Theo; Cedar's denial of his direct read of Jessica's tickets with no row. |
 | **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: the unchanged policy head, the Cedar matrix with three read tools that stay allowed, six wrong rules and the counterfactual locally, then, once deployed with `--mode participant`, a Gateway DENY of an over-limit credit of its own review with no row for its key. |
 | **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; the absence check `workshop/lab-4-absence.sql` is supplied | Direct RLS probes roll back; denied-key counts are zero and the allowed-key control is one. One staff review preserves source turn, action hash and write key across proposal, confirmation and execution. |
 
