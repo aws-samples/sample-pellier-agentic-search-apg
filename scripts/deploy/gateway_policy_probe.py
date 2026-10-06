@@ -51,6 +51,7 @@ from gateway_client import (
     _load_env,
     _require,
     _token_from_cognito,
+    is_policy_denial_text,
 )
 
 DEFAULT_TARGET = "pellier-store-tools"
@@ -76,8 +77,10 @@ def classify_call(call: Any, exc: BaseException | None) -> dict[str, Any]:
     """Name the outcome of one Gateway call: ``allow``, ``deny`` or ``error``.
 
     A raised Cedar denial is ``deny`` and nothing else is: the tool was never
-    entered. A result the Lambda marked ``isError`` is ``error`` with the tool
-    entered, so a failure inside the tool cannot pose as a policy decision.
+    entered. AgentCore can also return that denial as an ``isError`` result,
+    which reads ``deny`` only when its text carries the Gateway's denial shape.
+    Any other ``isError`` result is ``error`` with the tool entered, so a
+    failure inside the tool cannot pose as a policy decision.
     """
     if exc is not None:
         denied = _is_authorization_denial(exc)
@@ -89,6 +92,16 @@ def classify_call(call: Any, exc: BaseException | None) -> dict[str, Any]:
             "error": _exception_summary(exc),
         }
     if bool(getattr(call, "isError", False)):
+        content = json.dumps(_jsonable(getattr(call, "content", None)), default=str)
+        if is_policy_denial_text(content):
+            # AgentCore documents a Cedar denial as an isError result too.
+            return {
+                "outcome": "deny",
+                "cedar_denial": True,
+                "tool_executed": False,
+                "error_type": "PolicyDenied",
+                "error": content[:700],
+            }
         return {
             "outcome": "error",
             "cedar_denial": False,

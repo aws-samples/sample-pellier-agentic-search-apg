@@ -806,6 +806,28 @@ async def _execute_in_process(
         }
 
 
+def _result_text(raw: Any) -> str:
+    """The text items of an MCP tool result, joined."""
+    return " ".join(
+        str(getattr(item, "text", "") or "") for item in getattr(raw, "content", None) or []
+    )
+
+
+def _policy_denied(gateway_message: str) -> tuple[str, Dict[str, Any], str]:
+    """The DENY outcome of a Gateway call that Cedar refused before the tool ran."""
+    return (
+        POLICY_DENY,
+        {
+            "status": "policy_denied",
+            "message": "AgentCore Policy denied the action before the tool ran.",
+            "denied_by": "agentcore_policy",
+            # The Gateway's own words, which name the policy that denied.
+            "gateway_message": gateway_message[:_ATTEMPT_DETAIL_LIMIT],
+        },
+        "Cedar denied the action; the tool was never entered.",
+    )
+
+
 async def _execute_through_gateway(
     *,
     tool: str,
@@ -857,23 +879,23 @@ async def _execute_through_gateway(
         if is_policy_denial(exc):
             from services.gateway_errors import gateway_error_text
 
-            return (
-                POLICY_DENY,
-                {
-                    "status": "policy_denied",
-                    "message": "AgentCore Policy denied the action before the tool ran.",
-                    "denied_by": "agentcore_policy",
-                    # The Gateway's own words, which name the policy that denied.
-                    "gateway_message": gateway_error_text(exc)[:_ATTEMPT_DETAIL_LIMIT],
-                },
-                "Cedar denied the action; the tool was never entered.",
-            )
+            return _policy_denied(gateway_error_text(exc))
         # A transport, token, or target failure is NOT a governance proof.
         raise ExecutionError(f"gateway_unavailable:{type(exc).__name__}", 502) from exc
 
-    # The Gateway returned, so Cedar permitted the action (the caller confirms
-    # the engine was enforcing from the engine's own mode, never from this
-    # response).
+    return classify_gateway_result(raw)
+
+
+def classify_gateway_result(raw: Any) -> tuple[str, Dict[str, Any], str]:
+    """``(policy_state, result_envelope, note)`` for a Gateway call that returned.
+
+    AgentCore documents a Cedar denial as an ``isError`` tool result as well as
+    a raised error; either shape means the Lambda never ran. Any other result
+    means Cedar permitted the action (the caller confirms the engine was
+    enforcing from the engine's own mode, never from this response).
+    """
+    if getattr(raw, "isError", False) and is_policy_denial(_result_text(raw)):
+        return _policy_denied(_result_text(raw))
     envelope: Dict[str, Any] = {}
     if getattr(raw, "isError", False) and is_output_suppression(str(raw)):
         return POLICY_ALLOW, {"status": "output_suppressed"}, (

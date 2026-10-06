@@ -15,6 +15,7 @@ inferred from a call that merely returned under LOG_ONLY.
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import sys
 from pathlib import Path
@@ -1325,3 +1326,45 @@ def test_the_policy_digest_names_the_authored_policy_set() -> None:
     assert one.startswith("sha256:") and len(one) == len("sha256:") + 64
     state = ge.PolicyEngineState.from_engine_read({"gateway_mode": "ENFORCE", "policy_digest": one})
     assert state is not None and state.policy_digest == one
+
+
+# ---------------------------------------------------------------------------
+# A Cedar denial returned as an isError result, the shape AgentCore documents
+# ---------------------------------------------------------------------------
+
+
+class _Text:
+    def __init__(self, text: str) -> None:
+        self.text = text
+
+
+class _Result:
+    def __init__(self, text: str, *, is_error: bool) -> None:
+        self.content = [_Text(text)]
+        self.isError = is_error
+
+
+_GATEWAY_DENIAL = ("Tool call not allowed due to policy enforcement [Policy evaluation "
+                   "denied due to workshop_credit_limit-abc]")
+
+
+def test_a_denial_returned_as_an_error_result_is_a_deny_not_an_allow() -> None:
+    state, envelope, note = ge.classify_gateway_result(_Result(_GATEWAY_DENIAL, is_error=True))
+    assert state == ge.POLICY_DENY
+    assert envelope["status"] == "policy_denied"
+    assert "workshop_credit_limit" in envelope["gateway_message"]
+    assert "never entered" in note
+
+
+def test_a_tool_error_result_stays_an_allow_with_its_envelope() -> None:
+    body = json.dumps({"status": "error", "message": "amount over the safety ceiling"})
+    state, envelope, _note = ge.classify_gateway_result(_Result(body, is_error=True))
+    assert state == ge.POLICY_ALLOW
+    assert envelope["message"] == "amount over the safety ceiling"
+
+
+def test_the_denial_text_in_a_successful_result_is_not_a_deny() -> None:
+    body = json.dumps({"status": "success", "note": _GATEWAY_DENIAL})
+    state, envelope, _note = ge.classify_gateway_result(_Result(body, is_error=False))
+    assert state == ge.POLICY_ALLOW
+    assert envelope["status"] == "success"
