@@ -784,6 +784,9 @@ async def execute_review(
         raise HTTPException(status_code=404, detail=f"Unknown review: {review_id}")
     if rv.is_request(row):
         raise HTTPException(status_code=409, detail="request_not_approvable")
+    if rv.is_policy_check_probe(row):
+        # Probe data the Lab 4 check confirmed itself; no person approved a credit.
+        raise HTTPException(status_code=409, detail="probe_not_executable")
 
     # Stale-view check before anything else, so a desk showing old terms never
     # starts an execution it would misreport.

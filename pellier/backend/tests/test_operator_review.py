@@ -238,6 +238,21 @@ def test_a_credit_request_cannot_be_approved_declined_executed_or_opened_as_a_re
     assert not any(s.strip().startswith("UPDATE") for s in db.statements)
 
 
+def test_the_lab4_probe_review_is_never_executed_from_the_desk(monkeypatch) -> None:
+    """The check confirms its own probe; no person approved a credit, so Execute refuses it."""
+    from services import governed_execution as ge
+
+    async def must_not_run(*_args: Any, **_kwargs: Any) -> None:
+        raise AssertionError("the probe review reached execution")
+
+    monkeypatch.setattr(ge, "execute_confirmed_review", must_not_run)
+    db = FakeReviewDb()
+    probe = db.add_pending(issue=rv.POLICY_CHECK_PROBE_ISSUE, status="approved",
+                           decided_by_name=rv.POLICY_CHECK_DECIDER)
+    response = build_client(db).post(f"/api/operator/reviews/{probe['review_id']}/execute", json={})
+    assert response.status_code == 409 and response.json()["detail"] == "probe_not_executable"
+
+
 def test_the_queue_refuses_an_anonymous_read() -> None:
     db = FakeReviewDb()
     db.add_pending()
