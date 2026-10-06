@@ -109,7 +109,7 @@ class Settings(BaseSettings):
     # API settings
     API_VERSION: str = "1.0.0"
     API_TITLE: str = "Pellier Workshop API"
-    API_DESCRIPTION: str = "Semantic Search API powered by Amazon Aurora PostgreSQL and Bedrock"
+    API_DESCRIPTION: str = "Semantic Search API powered by AWS Aurora PostgreSQL and Amazon Bedrock"
     # FAIL CLOSED on this branch. `governed` is the flagship lineage here, and a
     # deployment that forgets to set this must not quietly serve governed writes on the
     # in-process rail: that happened, and a shopper executed a return directly with no

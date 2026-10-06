@@ -3,7 +3,7 @@ import { awsServiceMark } from './awsServiceMarks'
 
 describe('awsServiceMark', () => {
   it('names the managed service behind a source row', () => {
-    expect(awsServiceMark('Aurora PostgreSQL')?.label).toBe('Amazon Aurora')
+    expect(awsServiceMark('Aurora PostgreSQL')?.label).toBe('AWS Aurora')
     expect(awsServiceMark('Amazon Bedrock')?.label).toBe('Amazon Bedrock')
     expect(awsServiceMark('AgentCore Memory')?.label).toBe(
       'Amazon Bedrock AgentCore',

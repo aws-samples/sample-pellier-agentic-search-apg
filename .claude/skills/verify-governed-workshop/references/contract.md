@@ -6,7 +6,7 @@ Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore
 
 ## Abstract
 
-Build a governed agentic AI search application with Amazon Aurora PostgreSQL
+Build a governed agentic AI search application with AWS Aurora PostgreSQL
 and Amazon Bedrock AgentCore. Explore a retail shopping scenario where a
 Strands SDK dispatcher routes shoppers to specialist agents. Aurora powers
 hybrid search with PostgreSQL full-text search for lexical retrieval, pgvector

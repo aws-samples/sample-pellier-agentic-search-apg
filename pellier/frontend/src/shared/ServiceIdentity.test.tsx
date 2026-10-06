@@ -4,7 +4,7 @@ import ServiceIdentity, { serviceIdentity } from './ServiceIdentity'
 
 describe('service provenance identity', () => {
   it.each([
-    ['Amazon Aurora', 'aurora', 'Database records'],
+    ['AWS Aurora', 'aurora', 'Database records'],
     ['AgentCore Memory', 'agentcore', 'Remembered context'],
     ['Amazon Bedrock AgentCore Gateway', 'agentcore', 'Tool access'],
     ['AgentCore Policy', 'agentcore', 'Policy evaluation'],

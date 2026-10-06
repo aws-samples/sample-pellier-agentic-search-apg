@@ -22,7 +22,7 @@ const MARKS: ReadonlyArray<{ match: string } & AwsServiceMark> = [
   {
     match: 'aurora',
     src: '/assets/icons/aws/amazon-aurora.svg',
-    label: 'Amazon Aurora',
+    label: 'AWS Aurora',
   },
   {
     match: 'agentcore',
