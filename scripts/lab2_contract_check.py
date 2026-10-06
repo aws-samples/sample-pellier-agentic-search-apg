@@ -300,8 +300,8 @@ def judge_recorded_2a(conn: Any) -> check.Finding:
                              "no check_stock call of Marco's asked about a piece Pellier does "
                              "not carry", ["pellier.tool_audit: no such row in a persona-marco- "
                                            "session"],
-                             f"choose Marco on the home page and ask \"{MARCO_CAPE_QUESTION}\", "
-                             "then rerun this.")
+                             "in Ask Pellier, choose Marco under Signed in as and ask "
+                             f"\"{MARCO_CAPE_QUESTION}\", then rerun this.")
     evidence: List[str] = []
     differs: List[str] = []
     for case in CASES:
@@ -442,8 +442,8 @@ def judge_2b(conn: Any) -> check.Finding:
                              "no turn of Marco's answered by the Stock agent recorded yet",
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
-                             f"choose Marco on the home page, ask \"{MARCO_STOCK_QUESTION}\", "
-                             "then rerun this check.")
+                             "in Ask Pellier, choose Marco under Signed in as, ask "
+                             f"\"{MARCO_STOCK_QUESTION}\", then rerun this check.")
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "

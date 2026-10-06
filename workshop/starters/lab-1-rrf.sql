@@ -116,7 +116,7 @@ SELECT count(*) AS lab_1_products,
 \else
   \echo 'Expected  a search receipt written in a session of Anna''s'
   \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting persona-anna-'
-  \echo 'Next      choose Anna on the home page, send her request in Ask Pellier,'
+  \echo 'Next      in Ask Pellier, choose Anna under Signed in as, send her request,'
   \echo '          then run this again.'
   \echo 'Lab 1A check not yet'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check not yet; see the lines above'; END $fail$;

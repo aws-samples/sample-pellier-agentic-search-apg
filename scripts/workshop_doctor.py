@@ -291,8 +291,8 @@ def lab1_checks(evidence: Evidence, *, include_proof: bool = True) -> List[Check
         name="Anna's search receipt",
         sql=_ANNA_RECEIPT,
         key="receipt_id",
-        hint="no pellier.retrieval_receipts row in a session of Anna's; choose Anna on "
-             "the home page and send her request",
+        hint="no pellier.retrieval_receipts row in a session of Anna's; in Ask Pellier, "
+             "choose Anna under Signed in as and send her request",
     )
     return [columns, receipt]
 
