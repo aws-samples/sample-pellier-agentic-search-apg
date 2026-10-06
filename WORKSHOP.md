@@ -38,7 +38,7 @@ Times are elapsed minutes from the start of the session.
 | 45-65 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 20 minutes |
 | 65-90 | Lab 4: Build Governed Agent Actions with Cedar | 25 minutes |
 | 90-95 | Recovery buffer | 5 minutes |
-| 95-100 | Summary and policy cleanup | 5 minutes |
+| 95-100 | Summary: export the evidence | 5 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
 Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
@@ -112,6 +112,11 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
   `python3 scripts/lab1_compare.py` shows the search that answered kept every
   limit she asked for, and every product it returned meets them.
 - **Explain:** similarity decides the order; SQL decides what is eligible.
+- **Managed path:** the Gateway's store tools Lambda is packaged at
+  provisioning, and the Lab 3 and Lab 4 participant deploys look it up rather
+  than repackage it. Task 1B therefore changes the in-process search only; a
+  search through the Gateway keeps the starter fallback until a full
+  provision.
 
 ### Lab 2: Build a PostgreSQL-Grounded Agent
 
@@ -169,7 +174,7 @@ credit, and the system must prove what moved.
   used by USING and WITH CHECK on `orders` and `support_tickets`.
 - **Check:** `python3 scripts/lab4_policy_check.py` evaluates the rule with
   Cedar beside the deployed baseline (shopper $100 DENY, Nadia 10000 cents
-  ALLOW, 10001 DENY), rejects six wrong rules, then sends one over-limit
+  ALLOW, 10001 DENY), rejects eight wrong rules, then sends one over-limit
   credit through the Gateway: a Cedar DENY with no row for its key. Nadia
   executes Jessica's approved credit, then retries it: one credit, one audit
   row. The RLS worksheet and the supplied `workshop/lab-4-absence.sql` run with
@@ -186,15 +191,15 @@ wrong query, not an untrusted session.
 
 ## Summary
 
-Save the evidence before the cleanup: `python3 scripts/workshop_evidence.py
+Exporting the evidence is the last action: `python3 scripts/workshop_evidence.py
 --save <file>` writes one line per task, eight in all. Lines 1B, 2A, 2B and
 3B are read from rows alone; the others run or read the participant's source,
-so a region that still holds its starter is never proved. The Summary's
-cleanup restores the Cedar starter on the deployed engine.
+so a region that still holds its starter is never proved. The guide has no
+participant cleanup step.
 
-While cleanup runs, ask: Memory says a shopper bought an item, but Aurora has
-no matching order. Which source decides return eligibility, and which controls
-still decide whether a credit can execute?
+Then ask: Memory says Theo prefers stoneware. Could that ever justify a store
+credit? Which checks still decide whether a credit can run after a person
+approves it?
 
 The in-process app reaches Aurora over a PostgreSQL connection; the Gateway
 Lambda uses the RDS Data API. The SQL, full-text search, pgvector and RLS
@@ -205,12 +210,12 @@ patterns apply to RDS for PostgreSQL too; only the transport differs.
 Provision a fresh account before the timed session and record cold
 provisioning separately. Time both a manual and a coached run of every lab,
 Memory extraction readiness, the Lab 3 and Lab 4 deploys, one Operator
-investigation and the cleanup. Test the recovery paths in a separate run. If
+investigation and the evidence export. Test the recovery paths in a separate run. If
 a lab exceeds its budget, cut required work or change the schedule
 explicitly, and keep the failed measurement.
 
-Give every dry run its own fresh provision. Do not reuse a box after the
-Summary's reset: `scripts/reset-governed-workshop.sh` rebuilds the database,
+Give every dry run its own fresh provision. Do not reuse a box after a
+maintainer reset: `scripts/reset-governed-workshop.sh` rebuilds the database,
 restores the exercise files and restores Lab 4's starter policy, but it does
 not undo Lab 3's deploy. The Gateway still publishes `get_tickets` with its
 owner-only permit, and the Runtime still runs the last participant's build, so
