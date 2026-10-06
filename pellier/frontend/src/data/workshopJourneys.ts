@@ -55,7 +55,7 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
     labId: 'managed-agent-path',
     surface: 'storefront',
     prompts: [
-      'Hand-thrown ceramics for a slower morning routine',
+      'Something for a slower morning routine',
       'What goes well with the pour-over set, keeping to the same materials and morning routine?',
       'My Wabi-Sabi Bowl arrived chipped. Please help me return it.',
     ],

@@ -150,7 +150,7 @@ describe('chat service auth transport', () => {
     const { sendChatMessageStreaming } = await import('./chat')
     const turn1User = {
       role: 'user' as const,
-      content: 'Hand-thrown ceramics for a slower morning routine',
+      content: 'Something for a slower morning routine',
       timestamp: new Date(),
     }
     const turn1Assistant = {

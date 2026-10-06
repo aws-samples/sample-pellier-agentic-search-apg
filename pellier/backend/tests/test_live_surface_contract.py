@@ -98,7 +98,7 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
             "and what ship window is recorded?",
         ],
         "theo": [
-            "Hand-thrown ceramics for a slower morning routine",
+            "Something for a slower morning routine",
             "My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?",
             "Jessica and I share an address. She sent two things back last week and "
             "hasn't heard anything. Can you check her ticket too?",

@@ -17,7 +17,7 @@
   {"id": 14, "persona": "anna", "ordinal": 3, "journey_role": "explore", "journey_stage": null, "preview_product_id": "26", "prompt": "Wrap-ready gifts with no extra effort"},
   {"id": 15, "persona": "anna", "ordinal": 4, "journey_role": "explore", "journey_stage": null, "preview_product_id": "28", "prompt": "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards."},
 
-  {"id": 16, "persona": "theo", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "31", "prompt": "Hand-thrown ceramics for a slower morning routine"},
+  {"id": 16, "persona": "theo", "ordinal": 1, "journey_role": "required", "journey_stage": "establish", "preview_product_id": "31", "prompt": "Something for a slower morning routine"},
   {"id": 17, "persona": "theo", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "34", "prompt": "What goes well with the pour-over set, keeping to the same materials and morning routine?"},
   {"id": 18, "persona": "theo", "ordinal": 3, "journey_role": "required", "journey_stage": "exercise", "preview_product_id": "37", "prompt": "My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?"},
   {"id": 19, "persona": "theo", "ordinal": 4, "journey_role": "required", "journey_stage": "prove", "preview_product_id": null, "prompt": "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?"},

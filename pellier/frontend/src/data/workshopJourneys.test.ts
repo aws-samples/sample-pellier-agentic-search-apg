@@ -19,7 +19,7 @@ const EXPECTED = {
     'Wrap-ready gifts with no extra effort',
   ],
   theo: [
-    'Hand-thrown ceramics for a slower morning routine',
+    'Something for a slower morning routine',
     'What goes well with the pour-over set, keeping to the same materials and morning routine?',
     'My Wabi-Sabi Bowl arrived chipped. Please help me return it.',
   ],
@@ -62,7 +62,7 @@ describe('four-lab workshop journey contract', () => {
           'A gift with a watch, under $100, in stock, no candles.',
         ],
         theo: [
-          'Hand-thrown ceramics for a slower morning routine',
+          'Something for a slower morning routine',
           'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',
           "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?",
         ],
@@ -89,7 +89,7 @@ describe('four-lab workshop journey contract', () => {
 
     it('ignores whitespace and casing, since the chip text is echoed back', () => {
       expect(
-        nextJourneyPrompt('  hand-thrown CERAMICS for a   slower morning routine  '),
+        nextJourneyPrompt('  SOMETHING for a   slower morning routine  '),
       ).toBe(WORKSHOP_REQUIRED_PROMPTS.theo[1])
     })
 
