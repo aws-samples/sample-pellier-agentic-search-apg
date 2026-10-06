@@ -131,6 +131,24 @@ def test_the_solution_fallback_keeps_annas_limits(conn, monkeypatch) -> None:
     assert rows and all(row[-1] == "ok" for row in rows)
 
 
+def test_a_second_search_in_the_same_turn_does_not_hide_the_fallback(conn, monkeypatch) -> None:
+    """From the 2026-10-05 review: the check read the newest receipt, so a turn that searched
+    twice was judged on the search that never needed the fallback."""
+    _anna_search(conn, monkeypatch, lab_variants.SOLUTION)
+    vector = _candle_embedding(conn)
+    store_tools.search_products(
+        _run(conn), query="something for a slow morning", extracted={}, limit=5,
+        embed=lambda _text: vector,
+        rerank=lambda **kw: [{"index": i, "relevance_score": 1 - i / 100}
+                             for i in range(len(kw["documents"]))],
+        receipt={"turn_id": f"turn-lab1-{lab_variants.SOLUTION}",
+                 "session_id": f"persona-anna-{lab_variants.SOLUTION}", "rail": "in-process",
+                 "embedding_model": "stand-in", "rerank_model": "stand-in"},
+    )
+    finding, _rows = lab1_compare.evaluate(conn)
+    assert finding.state == "PROVED", finding
+
+
 def test_the_receipt_records_what_was_asked_beside_what_answered(conn, monkeypatch) -> None:
     _anna_search(conn, monkeypatch, lab_variants.STARTER)
     with conn.cursor() as cur:
@@ -228,7 +246,7 @@ def test_the_worksheet_says_what_to_do_without_a_receipt(fresh_db) -> None:  # n
                              dbname="postgres", autocommit=True) as other:
             other.execute("DROP DATABASE lab1_empty")
     assert done.returncode != 0
-    assert "choose Anna on the home page" in done.stdout
+    assert "choose Anna under Signed in as" in done.stdout
 
 
 @pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])

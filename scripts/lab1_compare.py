@@ -2,9 +2,10 @@
 """Lab 1B's check: Anna's latest search kept every limit she asked for.
 
 When the first search is sparse, the fallback retries with fewer preferences;
-it must never retry with fewer limits. This finds the newest retrieval receipt
-written in Anna's session (``persona-anna-...``, the session choosing Anna on
-the home page starts) and compares two things it records: the limits the
+it must never retry with fewer limits. This reads the retrieval receipts of
+Anna's newest turn (``persona-anna-...``, the session choosing Anna under
+Signed in as starts), takes the search that needed the fallback (else the
+newest), and compares two things it records: the limits the
 shopper asked for (``retrieval_config.requested``, the plan built from her
 words before any fallback) and the limits the search that answered kept. It
 then reads every product that search returned from the catalog and checks each
@@ -44,15 +45,26 @@ NEXT_STEP = (
     "next attempt keep the budget, the stock rule and the exclusions? Restart, "
     "send Anna's request again, then rerun this check."
 )
-NEXT_REQUEST = (f"choose Anna on the home page and send the guide's request (\"{ANNA_REQUEST}\"), "
-                "then rerun this check.")
+NEXT_REQUEST = ("in Ask Pellier, choose Anna under Signed in as and send the guide's request "
+                f"(\"{ANNA_REQUEST}\"), then rerun this check.")
 
+# Anna's newest turn, not just her newest receipt: a turn can run more than one
+# search, and the one that needed the fallback is the one Task 1B decides. A
+# receipt with no turn id stands alone.
 _LATEST_RECEIPT = """
-SELECT receipt_id, session_id, created_at, query_preview, citation_ids, relaxations,
-       hard_constraints, exclusions, retrieval_config
-  FROM pellier.retrieval_receipts
- WHERE session_id LIKE %s
- ORDER BY receipt_id DESC
+WITH newest AS (
+  SELECT receipt_id, turn_id
+    FROM pellier.retrieval_receipts
+   WHERE session_id LIKE %(session)s
+   ORDER BY receipt_id DESC
+   LIMIT 1
+)
+SELECT r.receipt_id, r.session_id, r.created_at, r.query_preview, r.citation_ids,
+       r.relaxations, r.hard_constraints, r.exclusions, r.retrieval_config
+  FROM pellier.retrieval_receipts r, newest
+ WHERE r.session_id LIKE %(session)s
+   AND (r.receipt_id = newest.receipt_id OR r.turn_id = newest.turn_id)
+ ORDER BY jsonb_array_length(r.relaxations) > 0 DESC, r.receipt_id DESC
  LIMIT 1
 """
 
@@ -176,9 +188,12 @@ def _evidence(receipt: Dict[str, Any], requested: Optional[Dict[str, Any]]) -> L
 
 
 def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
-    """Judge Anna's newest search receipt. Returns the finding and one row per product."""
+    """Judge the search of Anna's newest turn that needed the fallback (else its newest).
+
+    Returns the finding and one row per product.
+    """
     with conn.cursor() as cur:
-        cur.execute(_LATEST_RECEIPT, (ANNA_SESSION_PREFIX + "%",))
+        cur.execute(_LATEST_RECEIPT, {"session": ANNA_SESSION_PREFIX + "%"})
         receipt = cur.fetchone()
         if not receipt:
             return check.Finding(
