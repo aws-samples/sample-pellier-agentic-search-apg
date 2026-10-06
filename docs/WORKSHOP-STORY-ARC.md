@@ -75,11 +75,13 @@ proved.
   extracted from it, never permission.
 - **4A:** the participant's rule is evaluated with the real Cedar engine
   (`cedarpy`) beside the rendered baseline: shopper $100 DENY (the baseline's
-  doing, not the rule's), Nadia 9999 and 10000 ALLOW, 10001 DENY, the same for
-  a second staff member, and three read tools still ALLOW. The policy head
-  must be unchanged. The check rejects six wrong rules (`false`, `true`,
-  staff-only, `< 10000`, `<= 100`, and the rule widened to every action) and
-  shows that without the rule Nadia's 10001 cents is allowed.
+  doing, not the rule's), Nadia 1, 9999 and 10000 cents ALLOW, 10001 DENY, the
+  same for a second staff member and other customers, three read tools still
+  ALLOW and another customer's orders still DENY. The policy head must be
+  unchanged and the file must hold one policy. The check rejects eight wrong
+  rules (`false`, `true`, staff-only, `< 10000`, `<= 100`, one customer only,
+  a lower bound, and the rule widened to every action) and shows that without
+  the rule Nadia's 10001 cents is allowed.
   On the box it sends one over-limit credit of its own approved review through
   the Gateway: a Cedar DENY with no row for its key. A 401 or a business
   refusal is not Cedar evidence. Nadia's approval of Jessica's 10000-cent case

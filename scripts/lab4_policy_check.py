@@ -13,13 +13,18 @@ the Gateway's Cedar schema rendered from the published tool schemas:
   change;
 * every policy must parse, validate against the schema and evaluate without
   an error (an erroring forbid is skipped, which would read as an ALLOW);
+* the file must hold exactly one policy, the forbid: a second policy would
+  deploy beside your rule, so a permit appended after the ``unless`` block is
+  refused before any decision is read;
 * the decision matrix: a shopper at $100, and Nadia at 9999, 10000 and 10001
-  cents, plus an ordinary amount and a second staff member; then three tools
-  the rule does not govern, which must stay allowed: a shopper's return
-  policy, a shopper's own orders and a staff stock check;
-* six wrong rules, five put in place of your ``unless`` block (``false``,
-  ``true``, staff-only, ``< 10000`` and ``<= 100``) and one that widens your
-  rule to every action, each of which the matrix must catch;
+  cents, plus a one-cent credit, an ordinary amount and a second staff member,
+  for other customers and reasons; then four tools the rule does not govern: a
+  shopper's return policy, a shopper's own orders and a staff stock check stay
+  allowed, and a shopper reading another customer's orders stays denied;
+* eight wrong rules, seven put in place of your ``unless`` block (``false``,
+  ``true``, staff-only, ``< 10000``, ``<= 100``, one customer only and a lower
+  bound) and one that widens your rule to every action, each of which the
+  matrix must catch;
 * the matrix with your rule left out: Nadia's 10001-cent request must then be
   allowed, so the denial is your rule's.
 
@@ -35,6 +40,7 @@ must deny it, and its key must leave no ``tool_audit`` row and no
 from __future__ import annotations
 
 import hashlib
+import json
 import pathlib
 import sys
 from dataclasses import dataclass, field
@@ -118,19 +124,22 @@ def dollars(cents: int) -> str:
     return f"${cents // 100}.{cents % 100:02d}"
 
 
-def credit_input(cents: int) -> Dict[str, Any]:
+def credit_input(cents: int, customer_id: str = PROBE_CUSTOMER,
+                 reason: str = "Lab 4 policy check") -> Dict[str, Any]:
     """A schema-valid give_store_credit input for ``cents``."""
-    return {"customer_id": PROBE_CUSTOMER, "amount_cents": cents,
-            "reason": "Lab 4 policy check", "idempotency_key": "lab4-local-check"}
+    return {"customer_id": customer_id, "amount_cents": cents,
+            "reason": reason, "idempotency_key": "lab4-local-check"}
 
 
-def credit(caller: Caller, cents: int, want: str) -> Request:
-    return Request(f"{caller.label}, {dollars(cents)} ({cents} cents)", caller,
-                   "give_store_credit", credit_input(cents), want)
+def credit(caller: Caller, cents: int, want: str, customer_id: str = PROBE_CUSTOMER,
+           reason: str = "Lab 4 policy check") -> Request:
+    unit = "cent" if cents == 1 else "cents"
+    return Request(f"{caller.label}, {dollars(cents)} ({cents} {unit})", caller,
+                   "give_store_credit", credit_input(cents, customer_id, reason), want)
 
 
-# The four rows the guide predicts, then three that catch a hardcoded amount
-# or a hardcoded person.
+# The four rows the guide predicts, then four that catch a hardcoded amount, a
+# lower bound, or a hardcoded person, customer or reason.
 MATRIX: Tuple[Request, ...] = (
     credit(SHOPPER, 10000, DENY),
     credit(NADIA, 9999, ALLOW),
@@ -138,12 +147,14 @@ MATRIX: Tuple[Request, ...] = (
     credit(NADIA, 10001, DENY),
 )
 MORE: Tuple[Request, ...] = (
-    credit(NADIA, 5000, ALLOW),
-    credit(OTHER_STAFF, 10000, ALLOW),
-    credit(OTHER_STAFF, 10001, DENY),
+    credit(NADIA, 1, ALLOW, "CUST-ANNA", "Late delivery"),
+    credit(NADIA, 5000, ALLOW, "CUST-THEO", "Chipped on arrival"),
+    credit(OTHER_STAFF, 10000, ALLOW, "CUST-MARCO", "Wrong size sent"),
+    credit(OTHER_STAFF, 10001, DENY, "CUST-MARCO", "Wrong size sent"),
 )
 # Tools the rule does not govern. A rule that reaches them is wrong however it
-# treats credits: widened to every action, it would deny every shopper tool.
+# treats credits: widened to every action, it would deny every shopper tool, and
+# a permit slipped in beside it would let a shopper read another's orders.
 READS: Tuple[Request, ...] = (
     Request("A shopper (Jessica) reads the return policy", SHOPPER, "get_return_policy", {},
             ALLOW),
@@ -151,6 +162,8 @@ READS: Tuple[Request, ...] = (
             {"customer_id": "CUST-JESSICA"}, ALLOW),
     Request("Nadia checks stock", NADIA, "check_stock", {"product_query": "Wabi-Sabi Bowl"},
             ALLOW),
+    Request("A shopper (Jessica) reads Theo's orders", SHOPPER, "get_orders",
+            {"customer_id": "CUST-THEO"}, DENY),
 )
 REQUESTS: Tuple[Request, ...] = MATRIX + MORE + READS
 
@@ -165,6 +178,12 @@ MUTATIONS: Tuple[Tuple[str, str], ...] = (
      "context.input has amount_cents && context.input.amount_cents < 10000"),
     ("dollars, not cents, <= 100",
      "context.input has amount_cents && context.input.amount_cents <= 100"),
+    ("one customer only",
+     "context.input has amount_cents && context.input.amount_cents <= 10000 && "
+     'context.input.customer_id == "CUST-JESSICA"'),
+    ("a lower bound, >= 5000",
+     "context.input has amount_cents && context.input.amount_cents >= 5000 && "
+     "context.input.amount_cents <= 10000"),
 )
 # The one wrong rule that changes the head: your unless block over every action.
 WIDENED = "your unless block over every action, not only give_store_credit"
@@ -271,6 +290,17 @@ def unless_body(text: str) -> str:
     inner = tail[tail.index("{") + 1:tail.rindex("}")]
     lines = [line.split("//", 1)[0].strip() for line in inner.splitlines()]
     return " ".join(line for line in lines if line)
+
+
+def policy_count(rule: str) -> Optional[int]:
+    """How many policies Cedar parses from ``rule``; ``None`` when it does not parse."""
+    import cedarpy
+
+    try:
+        parsed = json.loads(cedarpy.policies_to_json_str(rule))
+    except Exception:  # noqa: BLE001 - the matrix reports a rule Cedar rejects
+        return None
+    return len(parsed.get("staticPolicies") or {}) + len(parsed.get("templates") or {})
 
 
 def same_rule(left: str, right: str) -> bool:
@@ -442,14 +472,16 @@ def _decided(decision: Optional[Decision]) -> str:
 
 
 _LOCAL_TITLE = "your rule limits one credit to $100"
-_LOCAL_EXPECTED = ("Cedar accepts the rule and the lines before its unless block are the "
-                   "starter's; shopper $100 DENY, Nadia 9999 and 10000 ALLOW, 10001 DENY, the "
-                   "same for a second staff member; a shopper's return policy and own orders, "
-                   "and a staff stock check, stay ALLOW; the six wrong rules are caught; "
-                   "without your rule Nadia's 10001 cents is allowed")
+_LOCAL_EXPECTED = ("Cedar accepts the rule, the file holds one policy and the lines before its "
+                   "unless block are the starter's; shopper $100 DENY, Nadia 1, 9999 and 10000 "
+                   "cents ALLOW, 10001 DENY, the same for a second staff member and other "
+                   "customers; a shopper's return policy and own orders, and a staff stock "
+                   "check, stay ALLOW, and another customer's orders stay DENY; the eight "
+                   "wrong rules are caught; without your rule Nadia's 10001 cents is allowed")
 
 
-def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, yours: Assessment,
+def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, policies: Optional[int],
+                    yours: Assessment,
                     caught: Sequence[Tuple[str, Assessment]], alone: Assessment,
                     baseline: Sequence[Tuple[str, str]], tools: int) -> List[str]:
     digest = hashlib.sha256(rule.encode("utf-8")).hexdigest()
@@ -457,6 +489,8 @@ def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, yours: Assess
         f"{CREDIT_LIMIT_SOURCE} sha256:{digest[:16]}, unless {{ {unless_body(rule_text)} }}",
         "policy head: " + ("the starter's, unchanged" if head_kept
                            else "differs from the starter's (principal, action or resource)"),
+        "policies in the file: " + (str(policies) if policies is not None
+                                    else "Cedar cannot parse it"),
         f"evaluated with Cedar beside {len(baseline)} baseline policies "
         f"({', '.join(name for name, _ in baseline)}) and the Gateway schema for "
         f"{tools} published tools",
@@ -474,8 +508,8 @@ def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, yours: Assess
     return evidence
 
 
-def _local_state(*, unchanged: bool, head_kept: bool, yours: Assessment, escaped: List[str],
-                 counterfactual_holds: bool) -> Tuple[str, str]:
+def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, yours: Assessment,
+                 escaped: List[str], counterfactual_holds: bool) -> Tuple[str, str]:
     """The verdict and the next step, in the order the check reads them."""
     if unchanged:
         return check.NOT_YET, "edit the final unless block, then run this again."
@@ -483,6 +517,9 @@ def _local_state(*, unchanged: bool, head_kept: bool, yours: Assessment, escaped
         return check.CONTRADICTED, ("edit only the final unless block: the lines before it (the "
                                     "principal, the give_store_credit action and the Gateway) "
                                     "stay as the starter wrote them.")
+    if extra_policies:
+        return check.CONTRADICTED, ("keep one policy in the file, the forbid: anything after its "
+                                    "unless block would deploy beside your rule.")
     if yours.passed and not escaped and counterfactual_holds:
         return check.PROVED, ""
     if escaped or not counterfactual_holds:
@@ -503,7 +540,7 @@ def _no_unless_block(rule_text: str) -> LocalResult:
 
 
 def local_check(rule_text: str, starter_text: str) -> LocalResult:
-    """Part 1: the head, the matrix, the six wrong rules and the counterfactual."""
+    """Part 1: the head, one policy, the matrix, the eight wrong rules and the counterfactual."""
     if policy_head(rule_text) is None:
         return _no_unless_block(rule_text)
     schema, baseline = gateway_cedar_schema(), baseline_set()
@@ -513,6 +550,8 @@ def local_check(rule_text: str, starter_text: str) -> LocalResult:
     caught = [(label, assess(mutant, schema, baseline)) for label, mutant in mutants(rule)]
     escaped = [label for label, mutant in caught if mutant.passed]
     head_kept = policy_head(rule_text) == policy_head(starter_text)
+    policies = policy_count(rule)
+    extra_policies = policies is not None and policies != 1
     table = _table(alone, assess(render_rule(starter_text), schema, baseline), yours)
     over_limit_alone = alone.decision_for(NADIA, PROBE_CENTS)
     counterfactual_holds = over_limit_alone is not None and over_limit_alone.decision == ALLOW
@@ -523,14 +562,18 @@ def local_check(rule_text: str, starter_text: str) -> LocalResult:
                 f"{over_limit_alone.decision if over_limit_alone else 'not evaluated'}")
     if yours.errors:
         observed = f"Cedar rejects your rule: {yours.errors[0][:160]}"
+    if extra_policies:
+        observed = f"your file holds {policies} policies, not one; {observed}"
     if not head_kept:
         observed = f"your edit changes the lines before the unless block; {observed}"
     state, next_step = _local_state(
-        unchanged=rule_text == starter_text, head_kept=head_kept, yours=yours,
-        escaped=escaped, counterfactual_holds=counterfactual_holds)
+        unchanged=rule_text == starter_text, head_kept=head_kept,
+        extra_policies=extra_policies, yours=yours, escaped=escaped,
+        counterfactual_holds=counterfactual_holds)
     evidence = _local_evidence(
-        rule_text, rule=rule, head_kept=head_kept, yours=yours, caught=caught, alone=alone,
-        baseline=baseline, tools=len(schema["AgentCore"]["actions"]) - 2)
+        rule_text, rule=rule, head_kept=head_kept, policies=policies, yours=yours,
+        caught=caught, alone=alone, baseline=baseline,
+        tools=len(schema["AgentCore"]["actions"]) - 2)
     return LocalResult(check.Finding("4A", _LOCAL_TITLE, state, _LOCAL_EXPECTED, observed,
                                      evidence, next_step), table)
 

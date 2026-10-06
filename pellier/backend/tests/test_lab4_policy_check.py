@@ -62,7 +62,8 @@ class TestTheSchemaAndTheSet:
         reads = {r.label: d.decision for r, d in alone.rows if r.tool != "give_store_credit"}
         assert reads == {"A shopper (Jessica) reads the return policy": lab4.ALLOW,
                          "A shopper (Jessica) reads her own orders": lab4.ALLOW,
-                         "Nadia checks stock": lab4.ALLOW}
+                         "Nadia checks stock": lab4.ALLOW,
+                         "A shopper (Jessica) reads Theo's orders": lab4.DENY}
 
     def test_decide_takes_the_action_and_its_input(self) -> None:
         """A shopper's own orders are allowed, another customer's are not: the input decides."""
@@ -144,10 +145,37 @@ class TestTheVerdicts:
         evidence = "\n".join(lab4.local_check(SOLUTION, STARTER).finding.evidence)
         assert "decided by workshop_credit_limit" in evidence
         assert "without your rule, Nadia at 10001 cents: ALLOW" in evidence
-        assert evidence.count(": caught,") == len(lab4.MUTATIONS) + 1 == 6
+        assert evidence.count(": caught,") == len(lab4.MUTATIONS) + 1 == 8
         assert "policy head: the starter's, unchanged" in evidence
-        assert table[7][:5] == ["A shopper (Jessica) reads the return policy", "ALLOW", "ALLOW",
+        assert "policies in the file: 1" in evidence
+        assert table[4][:5] == ["Nadia, $0.01 (1 cent)", "ALLOW", "DENY", "ALLOW", "ALLOW"]
+        assert table[8][:5] == ["A shopper (Jessica) reads the return policy", "ALLOW", "ALLOW",
                                 "ALLOW", "ALLOW"]
+        assert len(table) == 12
+
+    def test_a_policy_appended_after_the_unless_block_is_contradicted(self) -> None:
+        """Reproduced from the 2026-10-05 review: a permit appended after the rule kept the
+        starter's head and passed the matrix, and the deploy gate would have shipped it."""
+        widening = ('\npermit(principal, action == AgentCore::Action::'
+                    '"pellier-store-tools___get_orders", resource);\n')
+        result = lab4.local_check(SOLUTION + widening, STARTER)
+        assert result.finding.state == check.CONTRADICTED
+        assert result.finding.observed.startswith("your file holds 2 policies, not one")
+        assert "keep one policy in the file" in result.finding.next_step
+        reads = {row[0]: row[3] for row in result.table}
+        assert reads["A shopper (Jessica) reads Theo's orders"] == lab4.ALLOW, (
+            "the matrix catches the widening on its own as well")
+
+    @pytest.mark.parametrize("body", [
+        'context.input has amount_cents && context.input.amount_cents <= 10000 && '
+        'context.input.customer_id == "CUST-JESSICA"',
+        'context.input has amount_cents && context.input.amount_cents <= 10000 && '
+        'context.input.reason == "Lab 4 policy check"',
+        "context.input has amount_cents && context.input.amount_cents >= 100 && "
+        "context.input.amount_cents <= 10000",
+    ])
+    def test_a_hardcoded_customer_reason_or_lower_bound_is_caught(self, body: str) -> None:
+        assert lab4.local_check(_with(body), STARTER).finding.state == check.CONTRADICTED
 
     def test_a_rule_widened_to_every_action_is_contradicted(self) -> None:
         """Reproduced from the cut 6b review: the reference rule over every action passed

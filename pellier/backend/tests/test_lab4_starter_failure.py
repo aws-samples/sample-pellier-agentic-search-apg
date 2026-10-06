@@ -99,7 +99,7 @@ def test_the_solution_lets_it_through_and_denies_one_cent_more() -> None:
     assert _nadia(SOLUTION_RULE, 10001) == lab4.DENY
     result = lab4.local_check(SOLUTION_RULE.read_text(), STARTER_RULE.read_text())
     assert result.finding.state == lab4.check.PROVED
-    assert [row[-1] for row in result.table] == ["matches"] * 10
+    assert [row[-1] for row in result.table] == ["matches"] * 12
 
 
 @pytest.mark.asyncio

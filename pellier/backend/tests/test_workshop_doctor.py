@@ -190,7 +190,7 @@ class TestLab1:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
         check = _by_name(doctor.lab1_checks(evidence))["Anna's search receipt"]
         assert check.passed is False
-        assert "choose Anna on the home page" in check.detail
+        assert "choose Anna under Signed in as" in check.detail
         assert "persona-anna-" in evidence.queries[-1][0]
 
     def test_missing_citation_columns_fail(self) -> None:
@@ -374,7 +374,7 @@ class TestLab4:
             tmp_path, "context.input has amount_cents &&\n  context.input.amount_cents <= 10000")
         checks = _by_name(doctor.lab4_checks(FakeEvidence(), repo=repo))
         assert checks[self.NAME].passed is True
-        assert "10 of 10 decisions match" in checks[self.NAME].detail
+        assert "12 of 12 decisions match" in checks[self.NAME].detail
 
     def test_an_exclusive_limit_fails_and_says_why(self, tmp_path: Path) -> None:
         repo = self._repo_with_rule(

@@ -77,7 +77,7 @@ approve a credit or mark an unrun check complete.
 | **2B** | Stock agent grant in `pellier/backend/agents/stock_agent.py` | `--task 2B`: the answering Stock agent held `check_stock` alone, and its counts equal `warehouse_inventory`. |
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | Nine tools published, `get_tickets` bound to the signed-in caller. |
 | **3B** | No region: deploy with `--mode participant` | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo, Cedar's denial of his direct read of Jessica's tickets. |
-| **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: Cedar matrix, six wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
+| **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: Cedar matrix, eight wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
 | **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; `workshop/lab-4-absence.sql` supplied | RLS probes in one rolled-back transaction; the absence check prints 0, 0 and 1. |
 
 Labs 1 and 2 run in process; Lab 3 does not move those edits into the Lambda.
