@@ -85,7 +85,7 @@ class TestTheProbe:
     def test_a_cedar_denial_with_no_row_is_proved(self) -> None:
         finding = lab3.judge_probe(self.DENY, 0)
         assert finding.state == check.PROVED
-        assert "the Gateway said: Tool call not allowed" in finding.evidence[-1]
+        assert "Gateway diagnostic, verbatim: Tool call not allowed" in finding.evidence[-1]
 
     def test_an_allow_contradicts(self) -> None:
         allow = {**self.DENY, "outcome": "allow", "cedar_denial": False, "error": None}

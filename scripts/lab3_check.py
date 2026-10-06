@@ -322,7 +322,7 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
     ]
     said = str(payload.get("error") or payload.get("result") or "")[:200]
     if said:
-        evidence.append(f"the Gateway said: {said}")
+        evidence.append(f"Gateway diagnostic, verbatim: {said}")
     outcome = payload.get("outcome")
     if outcome == "allow":
         return check.Finding("3B", _PROBE_TITLE, check.CONTRADICTED, PROBE_EXPECTED,

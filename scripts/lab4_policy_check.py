@@ -755,7 +755,8 @@ def judge_managed(*, deployed: Optional[str], local_rule: str, local_proved: boo
         f"review {review['id']} for {PROBE_CUSTOMER}, {PROBE_CENTS} cents, covers no order, "
         "opened and confirmed by the Lab 4 policy check (probe data)",
         f"idempotency key {review['idempotency_key']}",
-        f"the Gateway said: {str(payload.get('error') or payload.get('result') or '')[:160]}",
+        "Gateway diagnostic, verbatim: "
+        f"{str(payload.get('error') or payload.get('result') or '')[:160]}",
         f"tool_audit rows {rows['audit_rows']}, store_credits rows {rows['credit_rows']} "
         "for that key",
     ]
