@@ -230,6 +230,53 @@ def test_apply_exits_two_and_names_the_residue_when_a_record_survives(
     assert "RESIDUE actor=operator-sub sessions=0 events=0 records=1" in out
     assert "RESIDUE actor=engineer-sub" not in out
     assert "RESIDUE actor=CUST-MARCO" not in out
+    # A record already deleted is polled, never deleted again.
+    assert client.deleted_records.count("r2") == 1
+
+
+def _extract_late(module, monkeypatch: pytest.MonkeyPatch, client: FakeMemoryClient,
+                  record_id: str) -> None:
+    """Land one preference record for operator-sub at the first verification read.
+
+    That is what asynchronous extraction does to a reset run minutes after a turn:
+    the events are gone, and a record derived from them appears afterwards.
+    """
+    real_survey, calls = module.survey, []
+
+    def survey(memory_client: Any, memory_id: str) -> List[Dict[str, Any]]:
+        calls.append(memory_id)
+        if len(calls) == 2:
+            client.records["operator-sub"].append(record_id)
+        return real_survey(memory_client, memory_id)
+
+    monkeypatch.setattr(module, "survey", survey)
+
+
+def test_a_record_extracted_after_the_delete_pass_is_deleted_then_verified(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_module()
+    client = FakeMemoryClient()
+    _extract_late(module, monkeypatch, client, "r9")
+
+    assert _run_main(module, monkeypatch, client) == 0
+    assert client.deleted_records.count("r9") == 1
+    assert client.records["operator-sub"] == []
+    assert client.records["CUST-MARCO"] == ["mr1"]
+    out = capsys.readouterr().out
+    assert "Deleted 1 preference record(s) extracted after the delete pass" in out
+
+
+def test_a_late_record_the_service_keeps_still_quarantines(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_module()
+    client = FakeMemoryClient(sticky_record="r9")
+    _extract_late(module, monkeypatch, client, "r9")
+
+    assert _run_main(module, monkeypatch, client) == 2
+    assert client.deleted_records.count("r9") == 1
+    assert "RESIDUE actor=operator-sub sessions=0 events=0 records=1" in capsys.readouterr().out
 
 
 def test_apply_exits_zero_when_the_second_survey_finds_nothing(

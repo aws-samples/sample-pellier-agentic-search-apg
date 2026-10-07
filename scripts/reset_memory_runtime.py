@@ -267,14 +267,45 @@ def residue(actors: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     ]
 
 
+def _delete_late_records(
+    client: Any, memory_id: str, leftovers: List[Dict[str, Any]], known: set,
+) -> int:
+    """Delete records the extraction strategy wrote after the delete pass.
+
+    Extraction runs asynchronously, so a turn taken minutes before the reset can
+    yield preference records after its events were deleted. Those carry new ids:
+    they are new data, not a slow delete. Each is deleted once, per record, under
+    the same non-preserved actor; an id already in ``known`` is never retried.
+
+    Returns:
+        How many late records were found.
+    """
+    late = 0
+    for entry in leftovers:
+        for record in entry["records"]:
+            record_id = record["memoryRecordId"]
+            if record_id in known:
+                continue
+            known.add(record_id)
+            late += 1
+            try:
+                client.delete_memory_record(memoryId=memory_id, memoryRecordId=record_id)
+            except Exception as exc:  # noqa: BLE001
+                print(f"  ! late record {record_id}: {exc}", file=sys.stderr)
+    return late
+
+
 def _report_residue(
     client: Any, memory_id: str, *, timeout_seconds: float = 180,
+    known: set | None = None,
 ) -> List[Dict[str, Any]]:
     """Wait for two clean surveys; persistent residue still fails the reset.
 
-    Successful deletes can remain visible to ListMemoryRecords briefly. Poll
-    without repeating deletes or broadening their scope. A second clean survey
-    also catches records that become visible while deletion is settling.
+    Successful deletes can remain visible to ListMemoryRecords briefly, so a record
+    already deleted is polled, never deleted again. With ``known`` (the ids the
+    delete pass removed), a record extracted after that pass is deleted once and
+    the two clean surveys start again; a record the service keeps after its delete
+    still ends as residue.
     """
     deadline = time.monotonic() + timeout_seconds
     clean_surveys = 0
@@ -283,6 +314,11 @@ def _report_residue(
         clean_surveys = 0 if leftovers else clean_surveys + 1
         if clean_surveys >= 2 or (not leftovers and timeout_seconds == 0):
             return []
+        if known is not None and leftovers:
+            late = _delete_late_records(client, memory_id, leftovers, known)
+            if late:
+                print(f"Deleted {late} preference record(s) extracted after the delete pass",
+                      flush=True)
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             if not leftovers:
@@ -349,8 +385,9 @@ def main() -> int:
     # Exit 2 is the verified-residue signal the reset quarantines on. It is
     # distinct from exit 1 (a delete call failed) because the delete pass can
     # report every call succeeded and the service still hold a record.
+    deleted = {record["memoryRecordId"] for entry in drop for record in entry["records"]}
     leftovers = _report_residue(
-        client, memory_id, timeout_seconds=0 if counts["failures"] else 180,
+        client, memory_id, timeout_seconds=0 if counts["failures"] else 180, known=deleted,
     ) if args.apply else []
 
     if args.json:
