@@ -417,6 +417,41 @@ def _log_protection_checks(
     return encrypted, bounded
 
 
+def _already_protected(group: dict[str, Any]) -> bool:
+    """True for an existing group already encrypted with a KMS key and given bounded retention."""
+    days = group.get("retentionInDays")
+    return (
+        bool(group.get("kmsKeyId"))
+        and type(days) is int
+        and days in _RUNTIME_LOG_RETENTION_DAYS
+    )
+
+
+def _trace_protection_checks(groups: list[dict[str, Any]]) -> tuple[bool, bool]:
+    """Verify each trace group against its own target, from read-back settings.
+
+    A group the workshop created or changed targets the workshop's key and
+    retention; a shared group kept as found targets the protection it already
+    had. Either way the observed settings must equal the target.
+    """
+    def observed(group: dict[str, Any]) -> dict[str, Any]:
+        value = group.get("observed")
+        return value if isinstance(value, dict) else {}
+
+    encrypted = len(groups) == len(_TRACE_LOG_GROUP_NAMES) and all(
+        bool(group.get("kms_key_arn"))
+        and observed(group).get("kms_key_arn") == group["kms_key_arn"]
+        for group in groups
+    )
+    bounded = len(groups) == len(_TRACE_LOG_GROUP_NAMES) and all(
+        type(group.get("retention_days")) is int
+        and group["retention_days"] in _RUNTIME_LOG_RETENTION_DAYS
+        and observed(group).get("retention_days") == group["retention_days"]
+        for group in groups
+    )
+    return encrypted, bounded
+
+
 def _require_existing_log_group_change_authorization(
     groups: list[dict[str, Any]],
     *,
@@ -768,8 +803,18 @@ def _ensure_trace_log_groups(
         for name in _TRACE_LOG_GROUP_NAMES
         if (group := _find_runtime_log_group(logs, name)) is not None
     ]
+    # A shared group another owner already protects (a KMS key and bounded
+    # retention) is kept exactly as found: the workshop verifies it against its
+    # own key and never re-keys account-wide history. Only an unprotected group
+    # needs authorization to change. A fresh account has neither group, so the
+    # workshop creates and protects both with its own key.
+    kept = {} if allow_existing_changes else {
+        group["logGroupName"]: (group["kmsKeyId"], group["retentionInDays"])
+        for group in existing
+        if _already_protected(group)
+    }
     _require_existing_log_group_change_authorization(
-        existing,
+        [group for group in existing if group["logGroupName"] not in kept],
         kms_key_arn=kms_key_arn,
         retention_days=retention_days,
         allow_existing_changes=allow_existing_changes,
@@ -777,11 +822,13 @@ def _ensure_trace_log_groups(
     spans_existed = any(group["logGroupName"] == "aws/spans" for group in existing)
     if not spans_existed and activate_transaction_search is None:
         raise RuntimeError("Missing aws/spans requires Transaction Search activation")
+    application_key, application_days = kept.get(
+        "/aws/application-signals/data", (kms_key_arn, retention_days))
     application_group = _ensure_protected_log_group(
         logs=logs,
         log_group_name="/aws/application-signals/data",
-        kms_key_arn=kms_key_arn,
-        retention_days=retention_days,
+        kms_key_arn=application_key,
+        retention_days=application_days,
         on_cleanup_state=on_cleanup_state,
         allow_existing_changes=allow_existing_changes,
     )
@@ -792,17 +839,20 @@ def _ensure_trace_log_groups(
         if time.monotonic() >= deadline:
             raise RuntimeError("Transaction Search did not create aws/spans within 120 seconds")
         time.sleep(5)
+    spans_key, spans_days = kept.get("aws/spans", (kms_key_arn, retention_days))
     spans_group = _ensure_protected_log_group(
         logs=logs,
         log_group_name="aws/spans",
-        kms_key_arn=kms_key_arn,
-        retention_days=retention_days,
+        kms_key_arn=spans_key,
+        retention_days=spans_days,
         on_cleanup_state=on_cleanup_state,
         # An absent reserved group is created by the activation above. Capture
         # its service defaults for restoration, while preserving shared history.
         allow_existing_changes=allow_existing_changes or not spans_existed,
     )
     groups = [spans_group, application_group]
+    for group in groups:
+        group["kept_existing_protection"] = group["name"] in kept
     return {
         "groups": groups,
         "kms_key_arn": kms_key_arn,
@@ -2872,11 +2922,7 @@ def main() -> int:
         )
         result["observability"]["trace_log_groups"] = trace_log_groups
         checkpoint()
-        encrypted, bounded = _log_protection_checks(
-            trace_log_groups["groups"],
-            kms_key_arn=required["runtime_log_kms_key_arn"],
-            retention_days=runtime_log_retention_days,
-        )
+        encrypted, bounded = _trace_protection_checks(trace_log_groups["groups"])
         result["verification"]["trace_log_groups_encrypted"] = encrypted
         result["verification"]["trace_log_groups_retention_bounded"] = bounded
         result["verification"]["transaction_search_ready"] = True

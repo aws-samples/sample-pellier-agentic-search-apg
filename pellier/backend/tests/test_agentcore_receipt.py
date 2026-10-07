@@ -559,6 +559,33 @@ def test_ready_receipt_rejects_unprotected_trace_log_group() -> None:
     assert "trace log group 'aws/spans' must use the receipt KMS key" in errors
 
 
+def test_a_shared_trace_group_kept_as_found_may_use_its_own_key() -> None:
+    validator = _load_validator()
+    receipt = _valid_receipt()
+    group = receipt["observability"]["trace_log_groups"]["groups"][0]
+    group["kms_key_arn"] = "arn:aws:kms:us-east-1:123456789012:key/other"
+    group["retention_days"] = 7
+    group["observed"] = {**group.get("observed", {}), "kms_key_arn": group["kms_key_arn"],
+                         "retention_days": 7}
+    group["kept_existing_protection"] = True
+
+    errors = validator.validate_receipt(receipt)
+
+    assert not [e for e in errors if "trace log group 'aws/spans'" in e]
+
+
+def test_a_kept_trace_group_still_needs_a_kms_key() -> None:
+    validator = _load_validator()
+    receipt = _valid_receipt()
+    group = receipt["observability"]["trace_log_groups"]["groups"][0]
+    group["kms_key_arn"] = None
+    group["kept_existing_protection"] = True
+
+    errors = validator.validate_receipt(receipt)
+
+    assert "trace log group 'aws/spans' was kept without a KMS key" in errors
+
+
 @pytest.mark.parametrize("kind", ["facts", "preferences", "summary", "episodic"])
 def test_each_memory_strategy_needs_read_and_retrieved_record_ids(kind):
     receipt = _valid_receipt()

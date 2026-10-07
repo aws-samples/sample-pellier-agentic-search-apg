@@ -415,13 +415,20 @@ def validate_receipt(
         for group in trace_groups:
             if not isinstance(group, dict):
                 continue
-            if group.get("kms_key_arn") != expected_kms:
+            # A shared group kept as found keeps its owner's key and retention.
+            kept = group.get("kept_existing_protection") is True
+            group_key = group.get("kms_key_arn")
+            if kept and not (isinstance(group_key, str) and group_key.startswith("arn:")):
+                errors.append(
+                    f"trace log group {group.get('name')!r} was kept without a KMS key"
+                )
+            if not kept and group_key != expected_kms:
                 errors.append(
                     f"trace log group {group.get('name')!r} must use the receipt KMS key"
                 )
             if (
                 type(group.get("retention_days")) is not int
-                or group.get("retention_days") != expected_retention
+                or (not kept and group.get("retention_days") != expected_retention)
                 or group["retention_days"] <= 0
             ):
                 errors.append(

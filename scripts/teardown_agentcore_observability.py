@@ -313,6 +313,9 @@ def cleanup_plan(
         for group in trace_log_groups.get("groups", []):
             if not isinstance(group, dict) or group.get("name") not in TRACE_LOG_GROUP_NAMES:
                 raise ValueError("receipt contains an unexpected trace log group")
+            if group.get("kept_existing_protection") is True:
+                # Kept as found at provisioning; cleanup has nothing to restore.
+                continue
             groups.append(group)
     runtime = observability.get("runtime_log_group")
     if isinstance(runtime, dict):

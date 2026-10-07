@@ -185,7 +185,7 @@ def shared_group(name, *, key=KEY, days=30):
 
 
 @pytest.mark.parametrize("first", [None, {"key": KEY}, {"key": None}])
-@pytest.mark.parametrize("second", [{"key": None}, {"days": 7}])
+@pytest.mark.parametrize("second", [{"key": None}, {"key": None, "days": 7}])
 def test_both_shared_groups_are_preflighted_before_any_mutation(
     provisioner, monkeypatch, first, second,
 ):
@@ -280,3 +280,47 @@ def test_activation_cannot_mutate_unapproved_existing_shared_groups(provisioner,
         )
     assert not activated
     assert all(event[0] == "read" for event in logs.events)
+
+
+OTHER_KEY = "arn:aws:kms:us-east-1:123456789012:key/87654321-4321-4321-4321-ba0987654321"
+
+
+def test_shared_groups_another_owner_protects_are_kept_as_found(provisioner, monkeypatch):
+    """A dev account's trace groups already carry another project's key: keep them as they
+    are, verify them against that key, and change nothing account-wide."""
+    groups = {name: shared_group(name, key=OTHER_KEY, days=7) for name in TRACE_GROUPS}
+    logs = SharedLogs(groups)
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *_args, **_kwargs: logs)
+
+    receipt = provisioner._ensure_trace_log_groups(
+        region="us-east-1", kms_key_arn=KEY, retention_days=30,
+    )
+
+    assert all(event[0] == "read" for event in logs.events)
+    assert logs.groups == groups
+    assert all(group["kept_existing_protection"] is True for group in receipt["groups"])
+    assert {group["kms_key_arn"] for group in receipt["groups"]} == {OTHER_KEY}
+    assert provisioner._trace_protection_checks(receipt["groups"]) == (True, True)
+
+
+def test_an_unprotected_shared_group_is_still_refused_beside_a_kept_one(
+    provisioner, monkeypatch,
+):
+    groups = {TRACE_GROUPS[0]: shared_group(TRACE_GROUPS[0], key=OTHER_KEY),
+              TRACE_GROUPS[1]: shared_group(TRACE_GROUPS[1], key=None)}
+    logs = SharedLogs(groups)
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *_args, **_kwargs: logs)
+
+    with pytest.raises(RuntimeError, match="/aws/application-signals/data"):
+        provisioner._ensure_trace_log_groups(
+            region="us-east-1", kms_key_arn=KEY, retention_days=30,
+        )
+    assert logs.groups == groups
+
+
+def test_trace_checks_fail_when_a_kept_group_drifts(provisioner):
+    group = {"name": TRACE_GROUPS[0], "kms_key_arn": OTHER_KEY, "retention_days": 7,
+             "observed": {"kms_key_arn": KEY, "retention_days": 7}}
+    other = {"name": TRACE_GROUPS[1], "kms_key_arn": OTHER_KEY, "retention_days": 7,
+             "observed": {"kms_key_arn": OTHER_KEY, "retention_days": 7}}
+    assert provisioner._trace_protection_checks([group, other]) == (False, True)

@@ -197,6 +197,15 @@ def test_cleanup_cannot_smuggle_an_unrelated_group_into_trace_destinations() -> 
         module.cleanup_plan(receipt)
 
 
+def test_cleanup_never_touches_a_trace_group_kept_as_found() -> None:
+    module = _load_script()
+    receipt = _receipt()
+    kept = receipt["observability"]["trace_log_groups"]["groups"][0]
+    kept["kept_existing_protection"] = True
+    plan = module.cleanup_plan(receipt)
+    assert not [step for step in plan if step.get("log_group_name") == kept["name"]]
+
+
 def test_cleanup_rejects_duplicate_log_groups() -> None:
     module = _load_script()
     receipt = _receipt()
