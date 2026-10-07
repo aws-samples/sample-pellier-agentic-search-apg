@@ -32,9 +32,11 @@ Memory, authenticate test users, and verify the deployed path.
 
 4. **AgentCore Policy**: a managed Cedar engine attached to Gateway in
    `ENFORCE` mode:
-   - Explicit permits for the six shopper-safe catalog reads and the
+   - Explicit permits for the five shopper-safe catalog reads and the
      owner-scoped customer reads (`get_orders`, and `get_tickets` once
      Lab 3A publishes it)
+   - A caller-bound permit for `ask_a_person`: it may name no customer, or
+     only the token's own
    - One staff-scoped permit for `give_store_credit`, with no amount limit
    - Lab 4's starter forbid, `workshop_credit_limit`, deployed from
      `workshop/starters/workshop_credit_limit.cedar` so every credit is denied

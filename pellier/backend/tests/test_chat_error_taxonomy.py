@@ -1,3 +1,5 @@
+import pytest
+
 from services.chat_error_taxonomy import classify_chat_error
 
 
@@ -45,3 +47,27 @@ def test_unmapped_verified_customer_is_an_authentication_error() -> None:
 
     assert result["code"] == "authentication_required"
     assert result["retryable"] is False
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "authentication_failed",
+        "authentication_required",
+        "customer_identity_unmapped",
+        "customer_scope_mismatch",
+    ],
+)
+def test_runtime_identity_refusals_ask_for_sign_in_not_a_retry(code: str) -> None:
+    result = classify_chat_error(code)
+
+    assert result["code"] == "authentication_required"
+    assert result["retryable"] is False
+
+
+@pytest.mark.parametrize("code", ["auth_unavailable", "auth_not_configured"])
+def test_runtime_verifier_outages_are_service_unavailable(code: str) -> None:
+    result = classify_chat_error(code)
+
+    assert result["code"] == "service_unavailable"
+    assert result["retryable"] is True

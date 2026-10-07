@@ -148,15 +148,19 @@ GIVE_STORE_CREDIT_ACTION = f"{STORE_TARGET}___give_store_credit"
 WORKSHOP_RUNTIME_EXPOSURE = "public-workshop-only"
 
 # The catalogue reads a shopper may call. Every other published tool needs its
-# own permit: the two owner-scoped reads and the staff-only credit.
+# own permit: the two owner-scoped reads, the caller-bound handoff and the
+# staff-only credit.
 SHOPPER_SAFE_TOOLS: frozenset[str] = frozenset({
     "search_products",
     "browse_department",
     "compare_products",
     "check_stock",
     "get_return_policy",
-    "ask_a_person",
 })
+
+# The handoff may open a credit request on a customer's case, so the customer it
+# names must be the caller's own. Naming no customer stays open to any caller.
+CALLER_BOUND_TOOL = "ask_a_person"
 
 # The packaged-file list and the digest algorithm live in the backend so that
 # what is staged and what is fingerprinted cannot drift apart. Import them
@@ -219,6 +223,26 @@ STAFF_RETURNS_SCOPE = "returns"
 OAUTH_PRINCIPAL = "principal is AgentCore::OAuthUser"
 
 
+def access_token_authorizer(discovery_url: str, client_id: str) -> dict[str, Any]:
+    """Use the same access-token contract at both managed entry points.
+
+    Cognito access tokens use client_id; an ID-token audience is not an API
+    permission. The token-use condition also protects direct Gateway callers.
+    """
+    return {"customJwtAuthorizer": {
+        "discoveryUrl": discovery_url,
+        "allowedClients": [client_id],
+        "customClaims": [{
+            "inboundTokenClaimName": "token_use",
+            "inboundTokenClaimValueType": "STRING",
+            "authorizingClaimMatchValue": {
+                "claimMatchOperator": "EQUALS",
+                "claimMatchValue": {"matchValueString": "access"},
+            },
+        }],
+    }}
+
+
 def _gateway_resource(gateway_arn: str) -> str:
     """The resource clause every tool-specific policy must carry.
 
@@ -256,6 +280,28 @@ def _customer_scoped_permit_statement(action: str, gateway_arn: str) -> str:
     )
 
 
+def _caller_bound_permit_statement(action: str, gateway_arn: str) -> str:
+    """Permit a call that names no customer, or names the token's own customer.
+
+    ``ask_a_person`` takes an optional ``customer_id``. Without this condition a
+    direct Gateway caller could open a credit request on another customer's
+    case. The permit, not a forbid, carries the rule, so the tool stays
+    discoverable to every authenticated caller. The right-hand ``has`` repeats
+    the guard because Cedar's strict validator does not carry a negated ``has``
+    across ``||``; without it the optional attribute read fails validation.
+    """
+    return (
+        f"permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::\"{action}\", "
+        f"{_gateway_resource(gateway_arn)})\n"
+        "when {\n"
+        "  !(context.input has customer_id) ||\n"
+        "  (context.input has customer_id &&\n"
+        f'   principal.hasTag("{CUSTOMER_CLAIM}") &&\n'
+        f'   principal.getTag("{CUSTOMER_CLAIM}") == context.input.customer_id)\n'
+        "};"
+    )
+
+
 def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
     """The fail-closed Cedar baseline a fresh workshop provision installs.
 
@@ -283,7 +329,13 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
        before the target runs. The owner-only permit for ``get_tickets`` lands
        in the same deployment as its publication.
 
-    3. ``give_store_credit_staff_scope`` lets staff (principals whose
+    3. ``ask_a_person_caller_bound`` permits the handoff for any caller that
+       names no customer, and otherwise only when ``custom:customer_id``
+       equals the requested ``customer_id``. The tool can open a credit
+       request on the named customer's case, so a direct Gateway caller must
+       not name someone else.
+
+    4. ``give_store_credit_staff_scope`` lets staff (principals whose
        ``custom:staff_scope`` is ``returns``) execute a store credit the
        operator desk confirmed. The desk calls the Gateway with the operator's
        own token, so the permit authorizes a person, not a service. No shopper
@@ -295,8 +347,8 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
        database CHECK, as a safety check distinct from authorization.
 
     A token with neither claim is an authenticated stranger. It may read the
-    catalogue and nothing else. This is a teaching baseline, not a claim about a
-    complete production posture.
+    catalogue and ask for a person without naming a customer, and nothing else.
+    This is a teaching baseline, not a claim about a complete production posture.
     """
     gateway = _gateway_resource(gateway_arn)
     published = workshop_target_tools()
@@ -340,6 +392,21 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
                 f"Permit {tool} only when the token's customer claim names the requested customer"
             ),
             "statement": _customer_scoped_permit_statement(f"{target}___{tool}", gateway_arn),
+            "validationMode": "FAIL_ON_ANY_FINDINGS",
+            "enforcementMode": "ACTIVE",
+        })
+    caller_bound_target = next(
+        (name for name, tools in published.items() if CALLER_BOUND_TOOL in tools), None
+    )
+    if caller_bound_target is not None:
+        policies.append({
+            "name": f"{CALLER_BOUND_TOOL}_caller_bound",
+            "description": (
+                f"Permit {CALLER_BOUND_TOOL} when it names no customer or the token's own"
+            ),
+            "statement": _caller_bound_permit_statement(
+                f"{caller_bound_target}___{CALLER_BOUND_TOOL}", gateway_arn
+            ),
             "validationMode": "FAIL_ON_ANY_FINDINGS",
             "enforcementMode": "ACTIVE",
         })
@@ -501,6 +568,13 @@ def render_project(
                 "codeLocation": str(runtime_dir),
                 "runtimeVersion": "PYTHON_3_12",
                 "envVars": [
+                    {
+                        "name": "PELLIER_COGNITO_ISSUER",
+                        "value": discovery_url.removesuffix(
+                            "/.well-known/openid-configuration"
+                        ),
+                    },
+                    {"name": "PELLIER_COGNITO_CLIENT_ID", "value": cognito_client},
                     {"name": "AGENT_MODEL_ID", "value": model_id},
                     {
                         "name": "BEDROCK_OPUS_MODEL",
@@ -534,12 +608,7 @@ def render_project(
                 "protocol": "HTTP",
                 "requestHeaderAllowlist": ["Authorization"],
                 "authorizerType": "CUSTOM_JWT",
-                "authorizerConfiguration": {
-                    "customJwtAuthorizer": {
-                        "discoveryUrl": discovery_url,
-                        "allowedClients": [cognito_client],
-                    }
-                },
+                "authorizerConfiguration": access_token_authorizer(discovery_url, cognito_client),
                 "tags": tags,
             }
         ],
@@ -562,12 +631,7 @@ def render_project(
                 "protocolType": "MCP",
                 "targets": targets,
                 "authorizerType": "CUSTOM_JWT",
-                "authorizerConfiguration": {
-                    "customJwtAuthorizer": {
-                        "discoveryUrl": discovery_url,
-                        "allowedClients": [cognito_client],
-                    }
-                },
+                "authorizerConfiguration": access_token_authorizer(discovery_url, cognito_client),
                 "enableSemanticSearch": True,
                 "exceptionLevel": "NONE",
                 "policyEngineConfiguration": {

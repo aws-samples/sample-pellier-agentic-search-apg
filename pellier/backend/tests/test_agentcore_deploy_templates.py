@@ -197,6 +197,8 @@ def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) ->
     )
 
     assert env == {
+        "PELLIER_COGNITO_ISSUER": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_example",
+        "PELLIER_COGNITO_CLIENT_ID": "client-id",
         "AGENT_MODEL_ID": "global.anthropic.claude-sonnet-5",
         "BEDROCK_OPUS_MODEL": "global.anthropic.claude-sonnet-5",
         "BEDROCK_REPORTING_MODEL": "global.anthropic.claude-sonnet-5",

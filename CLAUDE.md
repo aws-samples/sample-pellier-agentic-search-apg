@@ -106,8 +106,9 @@ The application must continue to demonstrate:
   stock, customers, orders, return policies, support tickets, approvals, store
   credits, the `tool_audit` ledger and retrieval receipts.
 - AgentCore Runtime, Memory, Gateway, and Policy.
-- Cedar authorization on every Gateway tool call: owner-only customer reads
-  and a staff-only store credit.
+- Cedar authorization on every Gateway tool call: owner-only customer reads,
+  a handoff that may name only the caller's own customer, and a staff-only
+  store credit.
 - A person approving every credit in the Operator before it is written.
 - Inspectable ALLOW execution and DENY non-execution evidence.
 

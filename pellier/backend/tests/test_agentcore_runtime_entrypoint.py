@@ -12,7 +12,9 @@ from typing import Any
 import pytest
 
 import services.agentcore_gateway as gateway_module
+from services import runtime_identity
 from services.conversation_context import build_conversation_prompt
+from tests.test_cognito_auth import _Signer, _valid_access_claims, ISSUER, CLIENT_ID
 
 
 ENTRYPOINT = Path(__file__).resolve().parents[1] / "agentcore_runtime.py"
@@ -82,7 +84,17 @@ def _load_entrypoint(
     monkeypatch: pytest.MonkeyPatch,
     *,
     response: _Response,
+    subject: str = "cognito-sub-123",
+    customer_id: str = "CUST-MARCO",
 ) -> tuple[Any, _Dispatcher, list[dict[str, Any]]]:
+    signer = _Signer()
+    verifier = runtime_identity.RuntimeIdentityVerifier(ISSUER, CLIENT_ID)
+    monkeypatch.setattr(verifier.jwks, "fetch_data", lambda: {"keys": [signer.public_jwk()]})
+    monkeypatch.setattr(runtime_identity, "_verifier", lambda: verifier)
+    token = signer.sign(
+        {**_valid_access_claims(), "sub": subject, "custom:customer_id": customer_id}
+    )
+    monkeypatch.setattr(_Context, "request_headers", {"Authorization": "Bearer " + token})
     runtime_sdk = types.ModuleType("bedrock_agentcore.runtime")
     runtime_sdk.BedrockAgentCoreApp = _RuntimeApp
     runtime_sdk.BedrockAgentCoreContext = type(
@@ -142,7 +154,7 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
 
     assert factory_calls == [
         {
-            "access_token": "verified-jwt",
+            "access_token": _Context.request_headers["Authorization"][7:],
             "customer_id": "CUST-MARCO",
             "routing_query": "Build a resort edit",
         }
@@ -196,7 +208,10 @@ def test_remembered_preferences_go_ahead_of_the_prompt_and_their_ids_come_back(
     with no id or no text is not sent, because the Builder view could not
     attribute it.
     """
-    handler, dispatcher, _ = _load_entrypoint(monkeypatch, response=_Response("Stoneware."))
+    handler, dispatcher, _ = _load_entrypoint(
+        monkeypatch, response=_Response("Stoneware."),
+        subject="cognito-sub-theo", customer_id="CUST-THEO",
+    )
     result = handler(
         {
             "prompt": "Something for the table",

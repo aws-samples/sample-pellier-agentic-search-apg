@@ -25,7 +25,10 @@ _AUTH_MARKERS = (
     "http 401",
     "401 unauthorized",
     "authentication failed",
+    "authentication_failed",
+    "authentication_required",
     "customer_identity_unmapped",
+    "customer_scope_mismatch",
 )
 _RATE_LIMIT_MARKERS = (
     "throttlingexception",
@@ -46,6 +49,8 @@ _UNAVAILABLE_MARKERS = (
     "runtime_not_configured",
     "runtime_unavailable",
     "managed_gateway_unavailable",
+    "auth_unavailable",
+    "auth_not_configured",
     "connection refused",
     "connection reset",
     "endpointconnectionerror",

@@ -1817,6 +1817,13 @@ def _authenticated_runtime_smoke(
             env=env,
         )
         decoded = _decode_runtime_invoke(proc)
+        # An entrypoint that refused the request reports no build digest, so
+        # retrying would misreport its refusal as the previous version.
+        if decoded.get("error"):
+            raise RuntimeError(
+                "Runtime smoke was rejected by the deployed entrypoint: "
+                f"{decoded['error']}"
+            )
         answered_by = str(decoded.get("build_fingerprint") or "").strip()
         if not expected_fingerprint or answered_by == expected_fingerprint:
             break

@@ -143,16 +143,27 @@ try:
         the ids of the ones sent come back as ``remembered``. The Runtime reads
         no customer record from Aurora.
         """
-        prompt = (payload or {}).get("prompt", "")
+        # Direct callers can submit arbitrary JSON. In particular, a Strands
+        # toolUse content block must never be accepted as a user prompt.
+        if not isinstance(payload, dict):
+            return {"error": "invalid_request", "products": [], "rail": "runtime"}
+        prompt = payload.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            return {"error": "invalid_request", "products": [], "rail": "runtime"}
+        history = payload.get("history", [])
+        if not isinstance(history, list) or any(
+            not isinstance(turn, dict)
+            or turn.get("role") not in ("user", "assistant")
+            or not isinstance(turn.get("content"), str)
+            for turn in history
+        ):
+            return {"error": "invalid_request", "products": [], "rail": "runtime"}
         session_id = (
             getattr(context, "session_id", None)
             or (payload or {}).get("session_id")
             or "runtime-session"
         )
-        user_id = (payload or {}).get("user_id", "anonymous")
-        history = (payload or {}).get("history", [])
         turn_id = (payload or {}).get("turn_id")
-        customer_id = (payload or {}).get("customer_id")
         from services.conversation_context import (
             build_conversation_prompt,
             build_remembered_prompt,
@@ -174,6 +185,15 @@ try:
                 "products": [],
                 "rail": rail,
             }
+
+        from services.runtime_identity import RuntimeIdentityError, verified_runtime_identity
+
+        try:
+            identity = verified_runtime_identity(access_token, payload or {})
+        except RuntimeIdentityError as exc:
+            return {"error": str(exc), "products": [], "rail": rail}
+        user_id = identity.subject
+        customer_id = identity.customer_id
 
         if not os.environ.get("AGENTCORE_GATEWAY_URL"):
             logger.error("Managed Runtime invocation rejected: Gateway URL missing")

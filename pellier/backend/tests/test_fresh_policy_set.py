@@ -57,8 +57,9 @@ EXPECTED_CANONICAL: Set[str] = {
 EXPECTED_PUBLISHED: Set[str] = EXPECTED_CANONICAL - {"get_tickets"}
 SHOPPER_SAFE: Set[str] = {
     "search_products", "browse_department", "compare_products", "check_stock",
-    "get_return_policy", "ask_a_person",
+    "get_return_policy",
 }
+HANDOFF_ACTION = f"{STORE}___ask_a_person"
 
 EXPECTED_TARGETS: Dict[str, Set[str]] = {STORE: EXPECTED_PUBLISHED}
 
@@ -149,6 +150,7 @@ def test_the_fresh_policy_set_is_exactly_the_named_baseline_and_scoped_reads() -
     assert set(_by_name()) == {
         "baseline_permit_workshop_tools",
         "get_orders_owner_only",
+        "ask_a_person_caller_bound",
         "give_store_credit_staff_scope",
     }
 
@@ -170,6 +172,7 @@ def test_publishing_get_tickets_adds_its_owner_only_permit(monkeypatch) -> None:
     assert set(_policies_after_lab_three(monkeypatch)) == {
         "baseline_permit_workshop_tools",
         *CUSTOMER_READ_POLICIES,
+        "ask_a_person_caller_bound",
         "give_store_credit_staff_scope",
     }
 
@@ -205,7 +208,7 @@ def test_every_conditional_policy_pins_one_action() -> None:
     types such as `Mcp`, `CallTool` and `InvokeLLM`.
 
     Unconditional policies may use `action in [...]` freely: there is no condition to
-    type-check, which is why the baseline allow-list names six at once.
+    type-check, which is why the baseline allow-list names five at once.
     """
     for policy in _policies():
         statement = policy["statement"]
@@ -290,12 +293,15 @@ def test_the_baseline_is_an_exact_allow_list_not_a_wildcard() -> None:
     assert 'action in AgentCore::Action::"pellier-' not in statement
 
 
-def test_the_baseline_permits_exactly_the_six_shopper_safe_reads() -> None:
-    """Customer-scoped reads and the credit never sit in the unconditional permit."""
+def test_the_baseline_permits_exactly_the_five_shopper_safe_reads() -> None:
+    """Customer-scoped tools and the credit never sit in the unconditional permit."""
     expected = {f"{STORE}___{tool}" for tool in SHOPPER_SAFE}
     actual = set(_actions(_by_name()["baseline_permit_workshop_tools"]["statement"]))
     assert actual == expected
-    assert len(actual) == 6
+    assert len(actual) == 5
+    assert HANDOFF_ACTION not in actual, (
+        "ask_a_person takes a customer_id, so it needs the caller-bound permit"
+    )
     assert not any("give_store_credit" in action for action in actual), (
         "the unconditional catalogue permit must never reach the staff-only credit"
     )
@@ -338,6 +344,19 @@ def test_sensitive_gateway_reads_are_permitted_only_to_the_claimed_customer(monk
         assert "CUST-" not in statement, name
 
 
+def test_the_handoff_may_name_only_the_callers_own_customer() -> None:
+    """`ask_a_person` can open a credit request on the customer it names."""
+    statement = _norm(_by_name()["ask_a_person_caller_bound"]["statement"])
+    assert statement.startswith("permit (principal is AgentCore::OAuthUser,")
+    assert f'action == AgentCore::Action::"{HANDOFF_ACTION}"' in statement
+    assert "!(context.input has customer_id) ||" in statement
+    assert f'principal.hasTag("{CUSTOMER_CLAIM}")' in statement
+    assert (
+        f'principal.getTag("{CUSTOMER_CLAIM}") == context.input.customer_id'
+        in statement
+    )
+
+
 def test_every_policy_is_typed_and_pinned_to_the_gateway_arn() -> None:
     """Untyped `hasTag` rules fail validation; `resource is` fails for pinned actions.
 
@@ -358,7 +377,11 @@ def test_policies_cannot_render_without_the_gateway_arn() -> None:
 
 
 def test_an_authenticated_stranger_may_only_read_the_catalogue() -> None:
-    """A token with neither claim matches exactly one permit."""
+    """Only the catalogue permit is unconditional.
+
+    A stranger may also ask for a person without naming a customer; the matrix
+    above evaluates that case through the caller-bound permit.
+    """
     unconditional = [
         policy["name"]
         for policy in _policies()
@@ -471,7 +494,14 @@ def _decide(
 @pytest.mark.parametrize(("who", "action", "inp", "expected"), [
     ("stranger", f"{STORE}___check_stock", {"product_query": "linen shirt"}, "ALLOW"),
     ("shopper", f"{STORE}___search_products", {"query": "linen"}, "ALLOW"),
-    ("shopper", f"{STORE}___ask_a_person", {"reason": "a person, please"}, "ALLOW"),
+    ("shopper", HANDOFF_ACTION, {"reason": "a person, please"}, "ALLOW"),
+    ("stranger", HANDOFF_ACTION, {"reason": "a person, please"}, "ALLOW"),
+    ("shopper", HANDOFF_ACTION, {"reason": "credit", "customer_id": "CUST-MARCO",
+                                 "credit_request": True}, "ALLOW"),
+    ("shopper", HANDOFF_ACTION, {"reason": "credit", "customer_id": "CUST-THEO",
+                                 "credit_request": True}, "DENY"),
+    ("stranger", HANDOFF_ACTION, {"reason": "credit", "customer_id": "CUST-MARCO"}, "DENY"),
+    ("staff", HANDOFF_ACTION, {"reason": "credit", "customer_id": "CUST-MARCO"}, "DENY"),
     ("shopper", f"{STORE}___get_orders", {"customer_id": "CUST-MARCO"}, "ALLOW"),
     ("shopper", f"{STORE}___get_orders", {"customer_id": "CUST-THEO"}, "DENY"),
     ("shopper", f"{STORE}___get_orders", {}, "DENY"),
@@ -605,7 +635,7 @@ def test_the_readiness_map_names_every_baseline_policy() -> None:
     """The doc that tells a maintainer what ships must not drift from what ships.
 
     A prose table nobody checks is a claim, not a contract. The renderer produces
-    three policies on the starter (four after Lab 3A publishes `get_tickets`).
+    four policies on the starter (five after Lab 3A publishes `get_tickets`).
     """
     readiness = (
         pathlib.Path(__file__).resolve().parents[3]

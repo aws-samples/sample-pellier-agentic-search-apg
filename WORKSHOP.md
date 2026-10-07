@@ -53,6 +53,12 @@ Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
 
 Shoppers and staff sign in through Amazon Cognito and keep separate sessions.
 Jessica's shopper identity and Nadia's staff account are different principals.
+On the managed path, Runtime revalidates the access token and resolves the
+shopper from its signed claims; conflicting payload identities are refused
+before an agent is constructed. Runtime and Gateway both require access tokens.
+Nadia's execution carries her own staff token directly to Gateway; it does not
+borrow Jessica's identity. These controls are supplied infrastructure, outside
+the participant edit regions.
 
 ## The system participants work in
 
