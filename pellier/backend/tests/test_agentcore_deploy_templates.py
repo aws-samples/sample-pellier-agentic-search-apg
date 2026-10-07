@@ -2048,6 +2048,93 @@ def test_participant_update_refuses_to_remove_an_active_policy(monkeypatch, tmp_
         )
 
 
+def _starter_reset_project(identity: Any) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The last participant deploy (Lab 3 published), and the starter render."""
+    def project(tools: list[str], policies: list[dict[str, Any]]) -> dict[str, Any]:
+        return {
+            "policyEngines": [{"name": identity.policy_engine_name, "policies": policies}],
+            "agentCoreGateways": [{"targets": [{"tools": tools}],
+                                   "policyEngineConfiguration": {"mode": "ENFORCE"}}],
+        }
+    baseline = {"name": "baseline_permit_workshop_tools"}
+    orders = {"name": "get_orders_owner_only"}
+    tickets = {"name": "get_tickets_owner_only"}
+    staff = {"name": "give_store_credit_staff_scope"}
+    deployed = project(["get_orders", "get_tickets"],
+                       [baseline, orders, tickets, staff,
+                        {"name": "workshop_credit_limit", "statement": "the participant's rule"}])
+    starter = project(["get_orders"],
+                      [baseline, orders, staff,
+                       {"name": "workshop_credit_limit", "statement": "the starter rule"}])
+    return deployed, starter
+
+
+def _run_starter_reset(provisioner, monkeypatch, tmp_path, *, active: set[str]):
+    identity = provisioner.deployment_identity()
+    root = tmp_path / "project"
+    (root / "agentcore").mkdir(parents=True)
+    deployed, starter = _starter_reset_project(identity)
+    (root / "agentcore/agentcore.json").write_text(json.dumps(deployed))
+    deploys: list[dict[str, Any]] = []
+
+    def cli(_root, *args, **_kwargs):
+        if args[0] == "deploy":
+            deploys.append(json.loads((root / "agentcore/agentcore.json").read_text()))
+
+    monkeypatch.setattr(provisioner, "project_root", lambda *_a, **_k: root)
+    monkeypatch.setattr(provisioner, "render_project", lambda **_k: (
+        root / "agentcore/agentcore.json").write_text(json.dumps(starter)))
+    monkeypatch.setattr(provisioner, "_active_policy_names", lambda **_k: active)
+    monkeypatch.setattr(provisioner, "_agentcore", cli)
+    monkeypatch.setattr(
+        provisioner, "_read_deployed_state", lambda _r: _participant_state(identity)
+    )
+    provisioner._redeploy_participant_edits(
+        repo=tmp_path, account_id="123456789012", region="us-east-1",
+        cognito_pool="pool", cognito_client="client", lambda_arns=_lambda_arns(),
+        model_id="model", opus_model_id="opus", sonnet_model_id="sonnet",
+        workshop_id="dat416", env={}, identity=identity, reset_to_starters=True,
+    )
+    return root, deployed, starter, deploys
+
+
+def test_reset_to_starters_retires_a_permit_before_withdrawing_its_schema(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """The reset puts Lab 3 back: the owner-only permit goes first, then the schema it names.
+
+    The pinned CLI validates policies against published actions, so the permit is
+    retired while get_tickets is still published; the final deploy is the starter render.
+    """
+    provisioner = _load_provisioner()
+    identity = provisioner.deployment_identity()
+    deployed, _ = _starter_reset_project(identity)
+    active = {p["name"] for p in deployed["policyEngines"][0]["policies"]}
+
+    root, deployed, starter, deploys = _run_starter_reset(
+        provisioner, monkeypatch, tmp_path, active=active)
+
+    assert len(deploys) == 2
+    retiring, final = deploys
+    assert retiring["agentCoreGateways"] == deployed["agentCoreGateways"]
+    assert [p["name"] for p in retiring["policyEngines"][0]["policies"]] == [
+        "baseline_permit_workshop_tools", "get_orders_owner_only",
+        "give_store_credit_staff_scope", "workshop_credit_limit",
+    ]
+    assert final == starter
+    assert json.loads((root / "agentcore/agentcore.json").read_text()) == starter
+
+
+def test_reset_to_starters_still_refuses_a_policy_added_by_hand(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    """Only policies this project's renderer owns can be retired, even by the reset."""
+    provisioner = _load_provisioner()
+    with pytest.raises(RuntimeError, match="would remove active policies: a_policy_added_by_hand"):
+        _run_starter_reset(provisioner, monkeypatch, tmp_path,
+                           active={"get_tickets_owner_only", "a_policy_added_by_hand"})
+
+
 def test_participant_update_refuses_an_unprovisioned_environment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

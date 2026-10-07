@@ -2485,6 +2485,7 @@ def _redeploy_participant_edits(
     workshop_id: str,
     env: dict[str, str],
     identity: DeploymentIdentity,
+    reset_to_starters: bool = False,
 ) -> tuple[Path, dict[str, Any]]:
     """Publish new tool schemas before policies that refer to their actions.
 
@@ -2493,6 +2494,14 @@ def _redeploy_participant_edits(
     edited schemas with every existing policy retained and ENFORCE unchanged;
     the new action remains default-denied. Then deploy its new owner-only permit.
     An update with no new policies needs only the final deployment.
+
+    A participant deploy never removes an active policy. ``reset_to_starters`` is
+    the workshop reset's deploy from the restored starters: it may retire a policy
+    the project itself declared last time and the starters no longer render (Lab 3's
+    ``get_tickets_owner_only``), in the reverse order: the permit first, while the
+    schema it names is still published, then the starter render withdraws the
+    schema. A policy the project never declared was added outside the CLI and is
+    still refused.
     """
     root = project_root(repo, identity.suffix)
     if not (root / "agentcore" / "agentcore.json").is_file():
@@ -2512,6 +2521,8 @@ def _redeploy_participant_edits(
     active_policies = _active_policy_names(
         region=region, policy_engine_id=str(policy_state["policyEngineId"])
     )
+    config_path = root / "agentcore" / "agentcore.json"
+    previous = json.loads(config_path.read_text())
     render_project(
         repo=repo,
         account_id=account_id,
@@ -2528,15 +2539,16 @@ def _redeploy_participant_edits(
         gateway_arn=str(gateway_state["gatewayArn"]),
         runtime_arns=runtime_arns,
     )
-    config_path = root / "agentcore" / "agentcore.json"
     desired = json.loads(config_path.read_text())
     engine = next(item for item in desired["policyEngines"] if item["name"] == identity.policy_engine_name)
     desired_names = {policy["name"] for policy in engine["policies"]}
     if missing := active_policies - desired_names:
-        raise RuntimeError(
-            "Participant render would remove active policies: " + ", ".join(sorted(missing))
-        )
-    if desired_names - active_policies:
+        if not reset_to_starters:
+            raise RuntimeError(
+                "Participant render would remove active policies: " + ", ".join(sorted(missing))
+            )
+        _retire_policies(root, previous, desired, missing, identity=identity, env=env)
+    elif desired_names - active_policies:
         staged = json.loads(json.dumps(desired))
         staged_engine = next(item for item in staged["policyEngines"] if item["name"] == identity.policy_engine_name)
         staged_engine["policies"] = [policy for policy in engine["policies"] if policy["name"] in active_policies]
@@ -2551,6 +2563,45 @@ def _redeploy_participant_edits(
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
     return root, _read_deployed_state(root)
+
+
+def _retire_policies(
+    root: Path,
+    previous: dict[str, Any],
+    desired: dict[str, Any],
+    missing: set[str],
+    *,
+    identity: DeploymentIdentity,
+    env: dict[str, str],
+) -> None:
+    """Deploy the last project without ``missing``, schemas unchanged; leave ``desired`` on disk."""
+    previous_engine = next(
+        (item for item in previous.get("policyEngines") or []
+         if item.get("name") == identity.policy_engine_name),
+        {"policies": []},
+    )
+    declared = {policy["name"] for policy in previous_engine.get("policies") or []}
+    if foreign := missing - declared:
+        raise RuntimeError(
+            "Starter render would remove active policies: " + ", ".join(sorted(foreign))
+            + " (never declared by this project, so added outside the CLI)"
+        )
+    retiring = json.loads(json.dumps(previous))
+    retiring_engine = next(
+        item for item in retiring["policyEngines"] if item["name"] == identity.policy_engine_name
+    )
+    retiring_engine["policies"] = [
+        policy for policy in retiring_engine["policies"] if policy["name"] not in missing
+    ]
+    config_path = root / "agentcore" / "agentcore.json"
+    print("Retiring policies the starters no longer declare: " + ", ".join(sorted(missing)),
+          flush=True)
+    try:
+        config_path.write_text(json.dumps(retiring, indent=2) + "\n")
+        _agentcore(root, "validate", env=env)
+        _agentcore(root, "deploy", "--yes", "--json", env=env)
+    finally:
+        config_path.write_text(json.dumps(desired, indent=2) + "\n")
 
 
 def _participant_update(
@@ -2568,6 +2619,7 @@ def _participant_update(
     env: dict[str, str],
     result: dict[str, Any],
     checkpoint: Callable[[], None],
+    reset_to_starters: bool = False,
 ) -> int:
     """Deploy a participant's Lab 3 and Lab 4 edits and prove only what the lab asks.
 
@@ -2592,6 +2644,7 @@ def _participant_update(
     and a narrower document at that path would fail them.
     """
     result["mode"] = "participant"
+    result["reset_to_starters"] = reset_to_starters
     lambda_arns = _existing_lambda_arns(region=region, identity=identity)
     result["lambdas"] = {
         surface: {"function_arn": arn} for surface, arn in lambda_arns.items()
@@ -2611,6 +2664,7 @@ def _participant_update(
         workshop_id=required["workshop_id"],
         env=env,
         identity=identity,
+        reset_to_starters=reset_to_starters,
     )
     result["cli"]["project_root"] = str(root)
 
@@ -2730,8 +2784,19 @@ def main() -> int:
             "and the executed build fingerprint."
         ),
     )
+    parser.add_argument(
+        "--reset-to-starters",
+        action="store_true",
+        help=(
+            "participant mode only, for the workshop reset: deploy the restored "
+            "starters and retire the policies this project declared that they no "
+            "longer render."
+        ),
+    )
     parser.add_argument("--output-json", default=None)
     args = parser.parse_args()
+    if args.reset_to_starters and args.mode != "participant":
+        parser.error("--reset-to-starters needs --mode participant")
 
     repo = Path(args.repo_path).resolve()
     deploy_dir = repo / "scripts" / "deploy"
@@ -2874,6 +2939,7 @@ def main() -> int:
                 env=deploy_env,
                 result=result,
                 checkpoint=checkpoint,
+                reset_to_starters=args.reset_to_starters,
             )
 
         _require_release_log_protection(

@@ -446,6 +446,25 @@ def test_the_reset_quarantines_incomplete_memory_or_policy_restoration() -> None
     assert "exit 1" in policy
 
 
+def test_the_reset_redeploys_the_starters_after_a_participant_deploy() -> None:
+    """A reset box must match a fresh one: Lab 3's catalogue and permit go back too.
+
+    The participant files are restored, but a participant deploy left get_tickets
+    published and its owner-only permit active, and its receipt names that catalogue,
+    so lab3-start.sh and the health gate refused the reset box. The same deploy from
+    the restored starters puts the live project back; it is gated on that receipt,
+    runs before Lab 4's policy leg, and quarantines the box when it fails.
+    """
+    body = _reset_body()
+    deploy = '--mode participant --reset-to-starters'
+    assert deploy in body
+    assert body.index(deploy) < body.index("declare_credit_limit")
+    leg = body[body.index("PARTICIPANT_RECEIPT="):body.index("declare_credit_limit")]
+    assert '-f "$PARTICIPANT_RECEIPT"' in leg
+    assert "_quarantine starter-deploy" in leg
+    assert "exit 1" in leg
+
+
 def test_the_reset_refuses_a_live_backend_it_cannot_stop() -> None:
     """Refusing is the safe default; racing must be an explicit opt-in."""
     body = _reset_body()

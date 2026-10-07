@@ -13,7 +13,9 @@
 #                                      reset database and a fresh one cannot differ.
 #   4. Clean AgentCore Memory runtime. Aurora is not the whole workshop; preference
 #                                      records are actor-scoped and outlive a session.
-#   5. Restore participant Cedar state through the CLI project.
+#   5. Restore participant AgentCore state. After a participant deploy, redeploy
+#      the managed project from the restored starters (Lab 3's tool and permit
+#      retired); then Lab 4's Cedar policy and live enforcement mode.
 #   6. Restart the application.        On a trap, so a mid-script failure cannot leave
 #                                      the box with the backend down.
 #   7. Verify the baseline, then run the health gate.
@@ -578,6 +580,34 @@ _agentcore() {
     fi
   )
 }
+
+# Lab 3 goes back to its starter too. A participant deploy (Lab 3 or Lab 4) renders
+# the whole managed project from source - the Gateway's tool schemas, the Runtime
+# package and the Cedar policies - and records it in the participant receipt. The
+# files were restored above, but the live Gateway still publishes get_tickets with its
+# owner-only permit, and the receipt still names that catalogue, so lab3-start.sh
+# (Lab 3's first step) and the health gate both refused the reset box. The same deploy
+# from the restored starters puts the live project back to what provisioning built;
+# --reset-to-starters lets it retire the permit the starters no longer render, permit
+# first and schema second. Before any participant deploy there is no receipt, and the
+# live project is already provisioning's own render of these starters.
+PARTICIPANT_RECEIPT="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}"
+if [[ -f "$PARTICIPANT_RECEIPT" ]]; then
+  _starter_rc=0
+  (cd "$REPO" && "$PYTHON" "$REPO/scripts/provision_agentcore_end_to_end.py" \
+      --repo-path "$REPO" --mode participant --reset-to-starters \
+      --output-json "$PARTICIPANT_RECEIPT") \
+    >/tmp/pellier-governed-reset-starter-deploy.log 2>&1 || _starter_rc=$?
+  if [[ "$_starter_rc" -eq 0 ]]; then
+    pass "Managed project redeployed from the starters: Lab 3's tool and permit retired"
+  else
+    fail "Could not redeploy the managed project from the starters (see /tmp/pellier-governed-reset-starter-deploy.log)"
+    _quarantine starter-deploy "Could not redeploy the managed project from the starters"
+    exit 1
+  fi
+else
+  pass "No participant deploy since provisioning; the managed project is already the starters'"
+fi
 
 # Lab 4's policy goes back to its starter, not away: provisioning deployed the
 # starter forbid (`unless { false }`), and the next participant's Lab 4 opens
