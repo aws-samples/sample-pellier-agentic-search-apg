@@ -11,6 +11,7 @@ can only come back if the SQL never asked to exclude them.
 from __future__ import annotations
 
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List
@@ -47,6 +48,12 @@ def _row(product_id: str, name: str, price: str, quantity: int, tags: List[str])
     }
 
 
+def _array(field: Dict[str, Any]) -> List[str]:
+    """Read the array literal the Data API adapter binds for a list parameter."""
+    return [re.sub(r"\\(.)", r"\1", item)
+            for item in re.findall(r'"((?:[^"\\]|\\.)*)"', field["stringValue"])]
+
+
 CATALOG = [
     _row("P-1", "Linen Table Runner", "48.0", 5, ["home", "gift"]),
     _row("P-2", "Beeswax Pillar Candle", "32.0", 9, ["candle", "gift"]),
@@ -75,8 +82,8 @@ class _PredicateHonouringDataApi:
         for name, value in bound.items():
             if f"price <= :{name}" in sql and float(row["price"]) > float(value["doubleValue"]):
                 return False
-            if f"tags ?| :{name}" in sql:
-                excluded = set(value["arrayValue"]["stringValues"])
+            if f"tags ?| CAST(:{name} AS text[])" in sql:
+                excluded = set(_array(value))
                 if excluded & set(json.loads(row["tags"])) or excluded & set(json.loads(row["materials"])):
                     return False
         if "quantity > 0" in sql and int(row["quantity"]) <= 0:
@@ -132,8 +139,9 @@ def test_stock_exclusion_and_budget_requirements_are_hard_filters(
     for sql, bound in transport.branches:
         assert "quantity > 0" in sql
         assert "price <= :p" in sql
-        assert "NOT (tags ?| :p" in sql
-        arrays = [v["arrayValue"]["stringValues"] for v in bound.values() if "arrayValue" in v]
+        assert "NOT (tags ?| CAST(:p" in sql
+        assert all("arrayValue" not in value for value in bound.values())
+        arrays = [_array(bound[name]) for name in re.findall(r"CAST\(:(p\d+) AS text\[\]\)", sql)]
         assert arrays and all(values == ["candle"] for values in arrays)
 
 
@@ -191,7 +199,7 @@ def test_browse_department_carries_the_same_requirement_arguments(
     assert result["search_plan"]["hard_constraints"]["price_max_usd"] == 100.0
     assert result["search_plan"]["exclusions"] == ["candle"]
     (sql, bound), = transport.branches
-    assert "quantity > 0" in sql and "price <= :p" in sql and "NOT (tags ?| :p" in sql
+    assert "quantity > 0" in sql and "price <= :p" in sql and "NOT (tags ?| CAST(:p" in sql
     assert "lower(category) LIKE" in sql
 
     # Without the arguments the browse is the plain department read.

@@ -122,7 +122,7 @@ def _from_field(field: Dict[str, Any]) -> Any:
         if kind in field:
             return field[kind]
     if "arrayValue" in field:
-        return list(field["arrayValue"].get("stringValues") or [])
+        raise AssertionError("ValidationException: Array parameters are not supported")
     raise AssertionError(f"unhandled Data API parameter {field}")
 
 

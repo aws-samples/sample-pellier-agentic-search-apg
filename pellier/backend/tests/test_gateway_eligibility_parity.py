@@ -307,14 +307,14 @@ def test_run_store_sql_rewrites_placeholders_in_order_and_types_the_values(
     sql, bound = fake.statements[-1]
     assert sql == (
         "SELECT 1 WHERE a = :p0 AND b <= :p1 AND c > :p2 AND d IS :p3 "
-        "AND e = ANY(:p4) AND f = :p5"
+        "AND e = ANY(CAST(:p4 AS text[])) AND f = :p5"
     )
     assert bound == {
         "p0": {"stringValue": "text"},
         "p1": {"doubleValue": 4.5},
         "p2": {"longValue": 7},
         "p3": {"isNull": True},
-        "p4": {"arrayValue": {"stringValues": ["x", "y"]}},
+        "p4": {"stringValue": '{"x","y"}'},
         "p5": {"booleanValue": True},
     }
 

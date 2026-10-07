@@ -126,13 +126,31 @@ def execute_sql(sql: str, parameters: Optional[list] = None) -> List[Dict[str, A
 _POSITIONAL = re.compile(r"%s")
 
 
+def _array_literal(values: Sequence[Any]) -> str:
+    """Return ``values`` as a PostgreSQL array literal, every element quoted.
+
+    Quoting each element keeps commas, braces, spaces and the word NULL as data;
+    a backslash and a double quote are the only characters escaped inside quotes.
+    ``None`` becomes an unquoted NULL element.
+    """
+    def element(value: Any) -> str:
+        if value is None:
+            return "NULL"
+        text = str(value).replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{text}"'
+
+    return "{" + ",".join(element(value) for value in values) + "}"
+
+
 def _parameter(name: str, value: Any) -> Dict[str, Any]:
     """One Data API parameter, typed from the Python value.
 
     Integers travel as ``longValue``, which arrives as bigint, so a store tool
     that calls a function with an ``integer`` parameter casts at the call site
     (``%s::integer``); PostgreSQL does not narrow bigint implicitly when it
-    resolves an overload. A list binds as ``text[]``.
+    resolves an overload. A list travels as an array literal in ``stringValue``
+    and ``_named`` casts its placeholder to ``text[]``: ExecuteStatement refuses
+    ``arrayValue`` parameters ("Array parameters are not supported").
     """
     if value is None:
         field: Dict[str, Any] = {"isNull": True}
@@ -143,7 +161,7 @@ def _parameter(name: str, value: Any) -> Dict[str, Any]:
     elif isinstance(value, float):
         field = {"doubleValue": value}
     elif isinstance(value, (list, tuple)):
-        field = {"arrayValue": {"stringValues": [str(item) for item in value]}}
+        field = {"stringValue": _array_literal(value)}
     else:
         field = {"stringValue": str(value)}
     return {"name": name, "value": field}
@@ -168,7 +186,10 @@ def _named(sql: str, params: Sequence[Any]) -> tuple[str, List[Dict[str, Any]]]:
     def placeholder(_match: "re.Match[str]") -> str:
         nonlocal seen
         seen += 1
-        return f":p{seen - 1}"
+        index = seen - 1
+        if index < len(values) and isinstance(values[index], (list, tuple)):
+            return f"CAST(:p{index} AS text[])"
+        return f":p{index}"
 
     named = _POSITIONAL.sub(placeholder, sql)
     if seen != len(values):
