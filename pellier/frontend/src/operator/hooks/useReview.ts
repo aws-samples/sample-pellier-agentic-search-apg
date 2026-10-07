@@ -5,9 +5,10 @@
  * the system may carry the approved credit out, which is a separate question
  * with its own answer. After each, the record is re-read from the server: the
  * decision's authoritative shape, the stored receipt and the counted rows all
- * come from there, never from local state.
+ * come from there, never from local state. The desk's lists are refreshed in
+ * the same breath, so the rail never shows a decision as still waiting.
  */
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useContext, useEffect, useRef, useState } from 'react'
 import {
   confirmReview,
   declineReview,
@@ -17,6 +18,8 @@ import {
   type OperatorExecutionResult,
   type OperatorReviewDetail,
 } from '../../services/operator'
+import { ClientBookContext } from './useClientBook'
+import { ReviewQueueContext } from './useReviewQueue'
 
 export type ReviewBusy = 'approving' | 'declining' | 'executing' | null
 
@@ -42,6 +45,8 @@ export function useReview(reviewId: number | null): ReviewController {
   const [decisionError, setDecisionError] = useState<string | null>(null)
   const [decisionErrorMissing, setDecisionErrorMissing] = useState<readonly string[]>([])
   const active = useRef(true)
+  const refreshQueue = useContext(ReviewQueueContext)?.refresh
+  const refreshClients = useContext(ClientBookContext)?.refresh
 
   useEffect(() => {
     active.current = true
@@ -89,8 +94,10 @@ export function useReview(reviewId: number | null): ReviewController {
       if (active.current) setBusy(null)
       // The server owns the outcome. Re-read it whether the call succeeded or not.
       await reload()
+      void refreshQueue?.()
+      refreshClients?.()
     }
-  }, [busy, detail, reload])
+  }, [busy, detail, reload, refreshQueue, refreshClients])
 
   const approve = useCallback(
     () => run('approving', () => confirmReview(detail!.review.reviewId, detail!.review.actionHash)),

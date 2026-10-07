@@ -435,6 +435,28 @@ describe('the desk shell', () => {
     expect(screen.getByTestId('operator-reviews-link-count')).toHaveTextContent('1')
   })
 
+  it('refreshes the reviews rail when a decision lands, not on the next poll', async () => {
+    api.fetchReview.mockResolvedValueOnce(detail(APPROVED_REVIEW)).mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
+    render(
+      <MemoryRouter initialEntries={['/operator/reviews/41']}>
+        <Routes>
+          <Route path="/operator" element={<OperatorFrame />}>
+            <Route path="reviews/:reviewId" element={<ReviewRecord />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByTestId('operator-review-41')).toHaveAttribute('data-outcome', 'Waiting for Nadia')
+    expect(screen.getByTestId('operator-reviews-link-count')).toHaveTextContent('1')
+    api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, reviews: [EXECUTED_REVIEW], pendingCount: 0 })
+
+    fireEvent.click(await screen.findByTestId('operator-review-execute'))
+
+    await waitFor(() => expect(screen.getByTestId('operator-review-41')).toHaveAttribute('data-outcome', 'Credited'))
+    expect(screen.getByTestId('operator-reviews-link-count')).toHaveTextContent('0')
+    expect(api.fetchClientBook.mock.calls.length).toBeGreaterThan(1)
+  })
+
   it('offers the password sign-in, never a staff chip, when nobody is signed in', async () => {
     auth.isAuthenticated = false
     auth.user = null

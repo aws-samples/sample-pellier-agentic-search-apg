@@ -14,7 +14,7 @@
  * Mounted on `.operator-root`, in direction A's tokens, so both themes apply
  * with nothing to restyle.
  */
-import React, { createContext, useContext, useEffect } from 'react'
+import React, { useEffect } from 'react'
 import { LogOut, User } from 'lucide-react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from '../../contexts/AuthContext'
@@ -28,18 +28,12 @@ import { ClientList } from '../surfaces/ClientBook'
 import { ReviewList } from '../surfaces/ReviewQueue'
 import '../styles/operator.css'
 
-const OperatorQueueRefreshContext = createContext<() => void>(() => undefined)
-
 /** Tab, history and bookmark titles for each desk route. */
 export function operatorTitleForPath(pathname: string): string {
   if (pathname.startsWith('/operator/clients/')) return 'Client, Pellier Operator'
   if (pathname.startsWith('/operator/reviews/')) return 'Review, Pellier Operator'
   if (pathname.startsWith('/operator/reviews')) return 'Reviews, Pellier Operator'
   return 'Clients, Pellier Operator'
-}
-
-export function useOperatorQueueRefresh(): () => void {
-  return useContext(OperatorQueueRefreshContext)
 }
 
 const PendingCount: React.FC = () => {
@@ -93,7 +87,6 @@ const OperatorDesk: React.FC = () => {
   return (
     <ClientBookContext.Provider value={clients}>
       <ReviewQueueContext.Provider value={queue}>
-        <OperatorQueueRefreshContext.Provider value={queue.refresh}>
           <div className="operator-root" data-testid="operator-root">
             <div className="op-bar">
               <nav className="op-bar-sections" aria-label="Operator sections">
@@ -116,7 +109,6 @@ const OperatorDesk: React.FC = () => {
               </main>
             </div>
           </div>
-        </OperatorQueueRefreshContext.Provider>
       </ReviewQueueContext.Provider>
     </ClientBookContext.Provider>
   )
