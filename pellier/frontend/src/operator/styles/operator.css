@@ -228,8 +228,8 @@
 }
 
 .op-row[aria-current='page'] {
-  background: var(--dl-paper-2);
-  box-shadow: inset 2px 0 0 var(--pellier-copper);
+  background: var(--dl-raised);
+  box-shadow: var(--dl-raised-shadow);
 }
 
 .op-row:focus-visible {
