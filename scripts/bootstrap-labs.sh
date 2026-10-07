@@ -391,6 +391,8 @@ else
 fi
 
 # Fix permissions
+# Stage 2 may have replaced the source checkout. Revalidate the editor links.
+python3.14 "$REPO_PATH/scripts/configure_participant_workspace.py" --repo "$REPO_PATH"
 chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH"
 
 # Install workshop-wide Claude Code guidance without overwriting unrelated

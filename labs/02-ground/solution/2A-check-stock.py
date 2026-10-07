@@ -1,0 +1,1 @@
+../../../solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py

@@ -45,6 +45,8 @@ Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
 
 ## What participants use
 
+Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the live exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+
 | Surface | Use | What it proves |
 |---|---|---|
 | Storefront (`/`) | Ask Pellier, the docked chat panel, for Anna's, Marco's and Theo's turns. Choosing a shopper signs in with that shopper's demo account; Pellier trusts the signed token, not the choice. | The Builder view shows each turn's Router step, the tools the agent called and "How it ranked". It shows evidence; it does not replace the checks. |

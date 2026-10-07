@@ -158,6 +158,13 @@ def _settings_blocks(text: str) -> list[dict]:
     return blocks
 
 
+def _user_settings_block(text: str) -> dict:
+    """The user-level settings heredoc, found by its tag rather than its position."""
+    match = re.search(r"<<\s*'VSCODE_SETTINGS'\n(.*?)\nVSCODE_SETTINGS\n", text, re.S)
+    assert match, "user settings heredoc not found"
+    return json.loads(re.sub(r"^\s*//.*$", "", match.group(1), flags=re.M))
+
+
 def test_settings_heredocs_are_valid_json(environment: str) -> None:
     assert _settings_blocks(environment), "no editor settings block found"
 
@@ -167,18 +174,18 @@ def test_user_settings_use_the_room_tested_appearance(
     environment: str, key: str, value: int
 ) -> None:
     """The user-level block is what a participant actually sees."""
-    user_block = _settings_blocks(environment)[0]
+    user_block = _user_settings_block(environment)
     assert user_block.get(key) == value, f"{key} is {user_block.get(key)!r}, expected {value!r}"
 
 
 def test_terminal_foreground_is_forced_high_contrast(environment: str) -> None:
     """Same value the sibling workshop already ships on this AMI."""
-    user_block = _settings_blocks(environment)[0]
+    user_block = _user_settings_block(environment)
     customizations = user_block.get("workbench.colorCustomizations", {})
     assert customizations.get("terminal.foreground") == "#FFFFFF"
 
 
 def test_source_control_ui_stays_hidden(environment: str) -> None:
     """Defence in depth beside the .git removal, not a substitute for it."""
-    user_block = _settings_blocks(environment)[0]
+    user_block = _user_settings_block(environment)
     assert user_block.get("git.enabled") is False

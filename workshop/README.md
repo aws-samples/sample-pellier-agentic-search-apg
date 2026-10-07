@@ -1,5 +1,7 @@
 # Governed workshop: keep building after the session
 
+For the participant entry point, open [START_HERE.md](../START_HERE.md) and [Pellier.code-workspace](../Pellier.code-workspace). The numbered `labs/` groups link to these same files.
+
 Workshop Studio contains the instructions and recovery answers for the four labs.
 This directory is the source map and portable notebook for the **governed** track.
 The Builders event informed its pacing and exercises; `main` is a different track.

@@ -73,6 +73,8 @@ flowchart LR
 
 ### In the workshop
 
+Start with [START_HERE.md](START_HERE.md). Code Editor opens [Pellier.code-workspace](Pellier.code-workspace): **01 - Retrieve**, **02 - Ground**, **03 - Deploy**, **04 - Govern**, and **05 - Explore Pellier source**. Each lab has a short README, links to its actual exercise files, and a solution folder for the documented recovery path. The terminal always starts at the repository root.
+
 At an AWS event, Workshop Studio gives you an AWS account with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide with every step and check. The guide is the source of truth for the labs; this repository holds the app and the code you edit.
 
 ### Locally

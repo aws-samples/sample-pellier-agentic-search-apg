@@ -1,0 +1,42 @@
+[
+  {
+    "alias": "labs/01-retrieve/1A-rrf.sql",
+    "source": "workshop/lab-1-rrf.sql",
+    "solution": "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
+  },
+  {
+    "alias": "labs/01-retrieve/1B-search-plan.py",
+    "source": "pellier/backend/services/search_plan.py",
+    "solution": "solutions/the-quiet-search/retrieval/search_plan_solution.py"
+  },
+  {
+    "alias": "labs/02-ground/2A-check-stock.py",
+    "source": "pellier/backend/services/agent_tools.py",
+    "solution": "solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py"
+  },
+  {
+    "alias": "labs/02-ground/2B-stock-agent.py",
+    "source": "pellier/backend/agents/stock_agent.py",
+    "solution": "solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
+  },
+  {
+    "alias": "labs/03-deploy/3A-published-tools.py",
+    "source": "scripts/deploy/gateway_tool_schemas.py",
+    "solution": "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py"
+  },
+  {
+    "alias": "labs/03-deploy/3A-caller-binding.py",
+    "source": "pellier/backend/services/agentcore_gateway.py",
+    "solution": "solutions/the-ledger/services/agentcore_gateway.py"
+  },
+  {
+    "alias": "labs/04-govern/4A-credit-policy.cedar",
+    "source": "policies/workshop_credit_limit.cedar",
+    "solution": "solutions/the-concierge/policies/workshop_credit_limit.cedar"
+  },
+  {
+    "alias": "labs/04-govern/4B-row-ownership.sql",
+    "source": "workshop/lab-4-rls.sql",
+    "solution": "solutions/the-concierge/sql/lab-4-rls-solution.sql"
+  }
+]

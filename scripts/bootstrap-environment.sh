@@ -527,6 +527,34 @@ else
     warn "Could not resolve account id (sts get-caller-identity) — skipping CDK bootstrap; AgentCore Runtime deploy will need it run manually"
 fi
 
+# Folder settings for the source root of Pellier.code-workspace. The
+# configurator then merges the workspace defaults into this file, writes the
+# folderOpen terminal task beside it, and validates every lab link (repairing
+# ZIP-materialized links) before the editor starts. A folderOpen task only
+# fires from the .vscode/ of a folder the editor opens, so both files live in
+# the repository, not in $HOME_FOLDER. The task also needs
+# "task.allowAutomaticTasks": "on", or the editor prompts instead of running it.
+REPO_VSCODE="$HOME_FOLDER/$REPO_NAME/.vscode"
+sudo -u "$CODE_EDITOR_USER" mkdir -p "$REPO_VSCODE"
+cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
+{
+    "workbench.colorTheme": "Default Dark Modern",
+    "editor.fontSize": 16,
+    "terminal.integrated.fontSize": 18,
+    "window.zoomLevel": 1,
+    "python.defaultInterpreterPath": "/usr/bin/python3.14",
+    "python.analysis.typeCheckingMode": "off",
+    "task.autoDetect": "on",
+    "task.allowAutomaticTasks": "on",
+    "task.problemMatchers.neverPrompt": true,
+    "explorer.autoReveal": true,
+    "explorer.expandSingleFolderWorkspaces": true
+}
+WORKSPACE_SETTINGS
+chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_VSCODE"
+sudo -u "$CODE_EDITOR_USER" python3.14 "$HOME_FOLDER/$REPO_NAME/scripts/configure_participant_workspace.py" --repo "$HOME_FOLDER/$REPO_NAME"
+log "✅ Workspace links, folder settings and terminal task configured"
+
 cat > /etc/systemd/system/code-editor@.service << EOF
 [Unit]
 Description=AWS Code Editor Server
@@ -541,7 +569,7 @@ Environment=PATH=/opt/pellier/bin:/usr/local/bin:/usr/bin:/bin:/home/$CODE_EDITO
 Environment=HOME=/home/$CODE_EDITOR_USER
 Environment=AWS_REGION=$AWS_REGION
 Environment=AWS_DEFAULT_REGION=$AWS_REGION
-ExecStart=$CODE_EDITOR_CMD --accept-server-license-terms --host 127.0.0.1 --port 8080 --server-base-path $CODE_EDITOR_BASE_PATH --default-workspace $HOME_FOLDER/$REPO_NAME --default-folder $HOME_FOLDER/$REPO_NAME --connection-token $CODE_EDITOR_PASSWORD
+ExecStart=$CODE_EDITOR_CMD --accept-server-license-terms --host 127.0.0.1 --port 8080 --server-base-path $CODE_EDITOR_BASE_PATH --default-workspace $HOME_FOLDER/$REPO_NAME/Pellier.code-workspace --connection-token $CODE_EDITOR_PASSWORD
 Restart=always
 RestartSec=10
 StandardOutput=journal
@@ -742,120 +770,6 @@ VSCODE_SETTINGS
 chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$SETTINGS_DIR"
 
 log "✅ VS Code user settings configured"
-
-# NOTE: workspace (.vscode) settings + tasks.json are written below into
-# the REPO folder code-editor actually opens ($HOME_FOLDER/$REPO_NAME),
-# not $HOME_FOLDER. A folderOpen task only fires from the opened folder's
-# .vscode/, so writing them here (the unopened parent) had no effect.
-log "✅ VS Code user settings configured"
-
-# ============================================================================
-# AUTO-OPEN TERMINAL CONFIGURATION
-# ============================================================================
-
-log "Configuring auto-open terminal with welcome message..."
-
-# Create scripts directory
-mkdir -p "$HOME_FOLDER/scripts"
-
-# Create welcome script that exits cleanly
-cat > "$HOME_FOLDER/scripts/welcome.sh" << 'WELCOME_EOF'
-#!/bin/bash
-
-# Display welcome message once and exit
-clear
-
-cat << EOF
-  Pellier: governed agentic AI search
-  Aurora PostgreSQL and Amazon Bedrock AgentCore
-
-  START       Keep the lab guide open. Work in this terminal, the Pellier
-              storefront and the Operator.
-
-  LABS        1 Anna, retrieval      2 Marco, grounded stock
-              3 Theo, AgentCore      4 Jessica and Nadia, Cedar and RLS
-
-  BUILD       Eight marked regions. The guide names each file and marker.
-
-  PROVE       Each check prints what was expected, what was observed and
-              the evidence. Save all eight with
-              python3 scripts/workshop_evidence.py --save <file>
-
-EOF
-
-# Open a lab file so the editor starts inside the repository.
-code /workshop/sample-pellier-agentic-search-apg/pellier/backend/services/agent_tools.py 2>/dev/null || true
-
-# Exit cleanly so task completes
-exit 0
-WELCOME_EOF
-
-chmod +x "$HOME_FOLDER/scripts/welcome.sh"
-chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/scripts/welcome.sh"
-
-# Create VS Code tasks.json for auto-open terminal.
-#
-# CRITICAL: a `folderOpen` task only fires from the .vscode/ of the
-# folder code-editor actually OPENS, which is $HOME_FOLDER/$REPO_NAME
-# (see --default-folder in the systemd ExecStart), NOT $HOME_FOLDER.
-# A prior revision wrote this to $HOME_FOLDER/.vscode and the task
-# silently never ran on fresh accounts. Write it to the repo's .vscode/.
-# (Pairs with "task.allowAutomaticTasks": "on" in user settings above,
-# without which code-editor PROMPTS instead of auto-running.)
-REPO_VSCODE="$HOME_FOLDER/$REPO_NAME/.vscode"
-sudo -u "$CODE_EDITOR_USER" mkdir -p "$REPO_VSCODE"
-cat > "$REPO_VSCODE/tasks.json" << 'TASKS_EOF'
-{
-    "version": "2.0.0",
-    "tasks": [
-        {
-            "label": "Welcome Terminal",
-            "type": "shell",
-            "command": "bash",
-            "args": ["-c", "/workshop/scripts/welcome.sh && exec bash"],
-            "presentation": {
-                "echo": false,
-                "reveal": "always",
-                "focus": true,
-                "panel": "dedicated",
-                "showReuseMessage": false,
-                "clear": true,
-                "close": false
-            },
-            "runOptions": {
-                "runOn": "folderOpen"
-            },
-            "isBackground": false,
-            "problemMatcher": []
-        }
-    ]
-}
-TASKS_EOF
-
-# Workspace settings live in the SAME folder code-editor opens (the repo),
-# alongside tasks.json — so task.autoDetect applies to the folder whose
-# folderOpen task we want to fire. (Earlier this was written to
-# $HOME_FOLDER/.vscode, the unopened parent, so it had no effect.)
-cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
-{
-    "workbench.colorTheme": "Default Dark Modern",
-    "editor.fontSize": 16,
-    "terminal.integrated.fontSize": 18,
-    "window.zoomLevel": 1,
-    "python.defaultInterpreterPath": "/usr/bin/python3.14",
-    "python.analysis.typeCheckingMode": "off",
-    "task.autoDetect": "on",
-    "task.allowAutomaticTasks": "on",
-    "task.problemMatchers.neverPrompt": true,
-    "explorer.autoReveal": true,
-    "explorer.expandSingleFolderWorkspaces": true
-}
-WORKSPACE_SETTINGS
-
-chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_VSCODE"
-chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER/scripts"
-
-log "✅ Auto-open terminal configured (repo .vscode/, auto-tasks enabled)"
 
 # ============================================================================
 # STEP 10: PYTHON SETUP (~10 sec)

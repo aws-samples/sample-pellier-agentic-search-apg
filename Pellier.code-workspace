@@ -1,0 +1,64 @@
+{
+  "folders": [
+    {
+      "name": "01 - Retrieve",
+      "path": "labs/01-retrieve"
+    },
+    {
+      "name": "02 - Ground",
+      "path": "labs/02-ground"
+    },
+    {
+      "name": "03 - Deploy",
+      "path": "labs/03-deploy"
+    },
+    {
+      "name": "04 - Govern",
+      "path": "labs/04-govern"
+    },
+    {
+      "name": "05 - Explore Pellier source",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "workbench.colorTheme": "Default Dark Modern",
+    "editor.fontSize": 16,
+    "terminal.integrated.fontSize": 18,
+    "window.zoomLevel": 1,
+    "workbench.editorAssociations": {
+      "**/START_HERE.md": "vscode.markdown.preview.editor"
+    },
+    "markdown.preview.fontSize": 16,
+    "explorer.compactFolders": false,
+    "explorer.sortOrder": "default",
+    "terminal.integrated.cwd": "${workspaceFolder:05 - Explore Pellier source}",
+    "task.allowAutomaticTasks": "on",
+    "files.readonlyInclude": {
+      "labs/*/solution/**": true,
+      "solution/**": true
+    },
+    "files.exclude": {
+      "**/.git": true,
+      "**/.github": true,
+      "**/.vscode": true,
+      "**/.venv": true,
+      "**/__pycache__": true,
+      "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
+      "**/node_modules": true,
+      "**/dist": true,
+      "**/.DS_Store": true,
+      ".env": true,
+      ".env.*": true,
+      ".agentcore-project": true,
+      ".local": true,
+      ".worktrees": true,
+      "data": true,
+      "logs": true,
+      "tmp": true,
+      "archive": true,
+      "docs/release-readiness": true
+    }
+  }
+}

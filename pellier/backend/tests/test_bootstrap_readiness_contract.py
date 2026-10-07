@@ -1279,9 +1279,13 @@ def test_the_automatic_terminal_task_can_actually_fire() -> None:
     _user, workspace = _settings_blocks()
     assert workspace["task.allowAutomaticTasks"] == "on"
     source = BOOTSTRAP_ENV.read_text(encoding="utf-8")
-    assert "folderOpen" in source
-    # The task must be written into the repo folder's .vscode, not the parent.
-    assert "REPO_VSCODE" in source
+    configurator = (REPO / "scripts" / "configure_participant_workspace.py").read_text(
+        encoding="utf-8"
+    )
+    assert '"runOn": "folderOpen"' in configurator
+    # The task is written into the repo folder's .vscode, not the parent.
+    assert 'vscode = repo / ".vscode"' in configurator
+    assert '--repo "$HOME_FOLDER/$REPO_NAME"' in source
 
 
 def test_source_control_is_hidden_from_the_editor() -> None:

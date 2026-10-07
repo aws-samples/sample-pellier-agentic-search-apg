@@ -1,0 +1,1 @@
+../../scripts/deploy/gateway_tool_schemas.py

@@ -1,0 +1,1 @@
+../../pellier/backend/agents/stock_agent.py

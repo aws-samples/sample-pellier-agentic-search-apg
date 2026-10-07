@@ -50,6 +50,8 @@ docs/*
 
 # IDE
 .vscode/
+# Per-checkout editor state, e.g. the terminal launcher's start marker
+.local/
 .idea/
 *.swp
 *.swo
