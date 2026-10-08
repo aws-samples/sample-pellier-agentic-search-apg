@@ -125,11 +125,15 @@ def test_a_shopper_with_no_records_is_named_beside_theo() -> None:
         "signed-in customer.")
 
 
-def test_a_second_shopper_with_records_is_counted_in_their_own_namespaces() -> None:
-    anna = {path.replace("CUST-THEO", "CUST-ANNA"): row for path, row in THEO.items()}
-    line = showcase._versus_line("CUST-THEO", _found("CUST-ANNA", anna))
-    assert line.startswith("CUST-ANNA, the same five reads: 1 USER_PREFERENCE, 1 SEMANTIC")
-    assert "under CUST-ANNA's own namespaces" in line
+def test_a_second_shopper_is_counted_in_their_own_namespaces_with_their_preferences() -> None:
+    marco = {path.replace("CUST-THEO", "CUST-MARCO"): row for path, row in THEO.items()}
+    marco["/pellier/preferences/CUST-MARCO/"] = ("PellierUserPreferences", json.dumps(
+        {"preference": "Prefers earthy tones: sand, olive, and terracotta."}))
+    head, preference = showcase._versus_lines("CUST-THEO", _found("CUST-MARCO", marco))
+    assert head.startswith("CUST-MARCO, the same five reads: 1 USER_PREFERENCE, 1 SEMANTIC")
+    assert "under CUST-MARCO's own namespaces" in head
+    assert head.endswith("CUST-MARCO's turns are given:")
+    assert preference.endswith("  Prefers earthy tones: sand, olive, and terracotta.")
 
 
 class _Misfiled(_Data):

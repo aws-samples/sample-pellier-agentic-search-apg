@@ -20,7 +20,7 @@ facts, the session summary, the episode and its reflection. Each strategy says
 whether its records follow the customer into new conversations and whether a
 Pellier turn reads them. `--versus` runs the same reads for a second shopper:
 
-    python3 scripts/showcase_agentcore_memory.py strategies --persona theo --versus jessica
+    python3 scripts/showcase_agentcore_memory.py strategies --persona theo --versus marco
 """
 from __future__ import annotations
 
@@ -222,20 +222,24 @@ def render_strategies(found: dict, memory_id: str, versus: Optional[dict] = None
         if not records:
             lines.append("  none yet: AgentCore extracts after the conversation; run this again")
     if versus is not None:
-        lines += ["", _versus_line(found["actor"], versus)]
+        lines += ["", *_versus_lines(found["actor"], versus)]
     return "\n".join(lines)
 
 
-def _versus_line(actor: str, versus: dict) -> str:
+def _versus_lines(actor: str, versus: dict) -> list:
+    """The same reads for a second shopper, and the preferences their turns are given."""
     counts = {kind: len(versus["strategies"][kind]["records"]) for kind, *_ in STRATEGY_ROWS}
     other = versus["actor"]
     if not any(counts.values()):
-        return (f"{other}, the same five reads: 0 records. {other}'s turns are given no "
+        return [f"{other}, the same five reads: 0 records. {other}'s turns are given no "
                 f"remembered preference, and none of {actor}'s: every read is keyed by the "
-                "signed-in customer.")
+                "signed-in customer."]
     held = ", ".join(f"{counts[kind]} {strategy_type}" for kind, strategy_type, *_ in STRATEGY_ROWS)
-    return (f"{other}, the same five reads: {held}, all under {other}'s own namespaces. "
-            f"None of {actor}'s records are among them.")
+    preferences = versus["strategies"]["preferences"]["records"]
+    return [f"{other}, the same five reads: {held}, all under {other}'s own namespaces. "
+            f"None of {actor}'s records are among them. {other}'s turns are given:",
+            *(f"  {r.get('memoryRecordId')}  {record_text(r, 'preferences')}"
+              for r in preferences)]
 
 
 def _strategies(persona: str, versus: Optional[str]) -> int:
