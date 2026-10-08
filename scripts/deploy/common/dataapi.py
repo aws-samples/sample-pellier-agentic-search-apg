@@ -21,9 +21,11 @@ import json
 import logging
 import os
 import re
+import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar
 
 import boto3
+from botocore.exceptions import ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +108,24 @@ def _statement_args(sql: str, parameters: Optional[list]) -> Dict[str, Any]:
     return args
 
 
+def _while_resuming(operation: Callable[..., Any], **kwargs: Any) -> Any:
+    """Retry only the Data API response that proves the database has not run SQL.
+
+    Never retry timeouts, commit failures or ambiguous transport errors: a write
+    might already have happened. Aurora resumes automatically on this specific
+    rejection; give it at most 30 seconds before returning the failure.
+    """
+    for attempt in range(7):
+        try:
+            return operation(**kwargs)
+        except ClientError as exc:
+            if exc.response.get("Error", {}).get("Code") != "DatabaseResumingException":
+                raise
+            if attempt == 6:
+                raise
+            time.sleep(5)
+
+
 def execute_sql(sql: str, parameters: Optional[list] = None) -> List[Dict[str, Any]]:
     """Execute one statement via the Data API and return rows as dicts.
 
@@ -118,7 +138,7 @@ def execute_sql(sql: str, parameters: Optional[list] = None) -> List[Dict[str, A
     Returns:
         The result rows.
     """
-    response = rds_client.execute_statement(**_statement_args(sql, parameters))
+    response = _while_resuming(rds_client.execute_statement, **_statement_args(sql, parameters))
     columns = [column["name"] for column in response.get("columnMetadata", [])]
     return [row_to_dict(record, columns) for record in response.get("records", [])]
 
@@ -224,7 +244,7 @@ def execute_write(sql: str, parameters: Optional[list] = None) -> None:
         sql: A single INSERT, UPDATE, or DELETE.
         parameters: Data API parameter dicts, or None.
     """
-    rds_client.execute_statement(**_statement_args(sql, parameters))
+    _while_resuming(rds_client.execute_statement, **_statement_args(sql, parameters))
 
 
 def begin_transaction() -> str:
@@ -239,7 +259,7 @@ def begin_transaction() -> str:
         The transaction id to pass to `execute_in_transaction`, `commit`, or
         `rollback`.
     """
-    return rds_client.begin_transaction(
+    return _while_resuming(rds_client.begin_transaction,
         resourceArn=DB_CLUSTER_ARN, secretArn=SECRET_ARN, database=DATABASE
     )["transactionId"]
 

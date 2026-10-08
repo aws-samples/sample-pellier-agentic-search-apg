@@ -124,3 +124,29 @@ def test_the_seed_reports_theos_ids_for_lab_3(monkeypatch: pytest.MonkeyPatch) -
     assert result["lab3_theo"] == {"source_event_ids": ["0000001-theo-1"],
                                    "preference_record_ids": ["mem-theo-1"]}
     assert {call["sessionId"] for call in created} == {"prefseed"}
+
+
+def test_reprovisioning_reuses_the_existing_conversation(monkeypatch):
+    created = []
+
+    class Data(_Pages):
+        def create_event(self, **kwargs):
+            created.append(kwargs)
+            return {"event": {"eventId": "new"}}
+
+    pairs = seed.SEED_TURNS["CUST-THEO"]
+    events = [{"eventId": str(index), "payload": [
+        {"conversational": {"content": {"text": text}, "role": role}}
+        for role, text in (("USER", user), ("ASSISTANT", assistant))
+    ]} for index, (user, assistant) in enumerate(pairs)]
+    data = Data({"list_events": events, "list_memory_records": [THEO_RECORD]}, [])
+    clients = {"bedrock-agentcore-control": _Control(), "bedrock-agentcore": data}
+    monkeypatch.setattr(seed, "SEED_TURNS", {"CUST-THEO": pairs})
+    monkeypatch.setattr(seed.boto3, "client", lambda name, **_k: clients[name])
+    monkeypatch.setattr(seed, "verify_memory_readiness", lambda *a, **k: {"strategies": {}})
+    for _ in range(2):
+        result = seed.seed("mem-1", "us-east-1", timeout=5)
+        assert result["events_created"] == 0
+        assert result["events_already_present"] == 2
+        assert result["lab3_theo"]["source_event_ids"] == ["0", "1"]
+    assert created == []

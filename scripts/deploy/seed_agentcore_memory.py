@@ -108,7 +108,24 @@ def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
     created = 0
     duplicates = 0
     for actor_id, pairs in SEED_TURNS.items():
+        # The idempotency token is not a permanent seed ledger. Read the source
+        # events so another provision cannot append the same conversation again.
+        existing_payloads = {
+            json.dumps(event.get("payload", []), sort_keys=True)
+            for page in data.get_paginator("list_events").paginate(
+                memoryId=memory_id, actorId=actor_id, sessionId=SEED_SESSION,
+                includePayloads=True,
+            )
+            for event in page.get("events", [])
+        }
         for index, (user_message, assistant_message) in enumerate(pairs):
+            payload = [
+                {"conversational": {"content": {"text": text}, "role": role}}
+                for role, text in (("USER", user_message), ("ASSISTANT", assistant_message))
+            ]
+            if json.dumps(payload, sort_keys=True) in existing_payloads:
+                duplicates += 1
+                continue
             try:
                 data.create_event(
                     memoryId=memory_id,
@@ -116,20 +133,7 @@ def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
                     sessionId=SEED_SESSION,
                     eventTimestamp=datetime.now(timezone.utc),
                     clientToken=f"pellier-prefseed-{actor_id}-{index}",
-                    payload=[
-                        {
-                            "conversational": {
-                                "content": {"text": user_message},
-                                "role": "USER",
-                            }
-                        },
-                        {
-                            "conversational": {
-                                "content": {"text": assistant_message},
-                                "role": "ASSISTANT",
-                            }
-                        },
-                    ],
+                    payload=payload,
                 )
                 created += 1
             except ClientError as exc:
