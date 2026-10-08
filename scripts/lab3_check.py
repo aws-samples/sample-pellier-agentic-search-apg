@@ -15,8 +15,8 @@ It prints four findings, each with Expected, Observed and Evidence:
     tickets  every executed ``get_tickets`` call on the Gateway in Theo's turns
              read his own tickets, and none read another customer's
     probe    Theo's own token, asking the Gateway directly for Jessica's
-             tickets, is denied by the owner-only permit and leaves no
-             ``tool_audit`` row
+             tickets, is denied by Cedar (the owner-only permit does not match,
+             so nothing permits it) and leaves no ``tool_audit`` row
 
 Task 3A's check is the doctor's prerequisites line
 (``scripts/workshop_doctor.py --lab 3 --phase prerequisites``); it and the
@@ -56,9 +56,9 @@ SELECT audit_id, session_id AS turn_id, tool, build_fingerprint AS deployed_fing
 
 # Theo's turns only: a turn is his when one of its Gateway calls was bound to
 # CUST-THEO. Jessica asks for her credit on the managed path in Lab 4, and her
-# own ticket read is not Theo's. The owner-only permit refuses any read whose
-# customer differs from the token's, so an executed read for another customer
-# can only come from that customer's own turn.
+# own ticket read is not Theo's. The owner-only permit matches only a read whose
+# customer is the token's; Cedar denies by default otherwise, so an executed read
+# for another customer can only come from that customer's own turn.
 TICKETS_SQL = """
 SELECT t.audit_id, t.session_id AS turn_id, t.args->>'customer_id' AS customer_id, t.created_at
   FROM pellier.tool_audit t
@@ -309,8 +309,9 @@ def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Fi
 # ---------------------------------------------------------------------------
 
 _PROBE_TITLE = "Cedar refuses Theo's direct read of Jessica's tickets"
-PROBE_EXPECTED = ("a Cedar policy denial from the owner-only permit, and no tool_audit row "
-                  "for the probe's turn: a denied call never runs")
+PROBE_EXPECTED = ("a Cedar denial: the owner-only permit matches only Theo's own customer id, "
+                  "so nothing permits the read; and no tool_audit row for the probe's turn: "
+                  "a denied call never runs")
 
 
 def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Finding:

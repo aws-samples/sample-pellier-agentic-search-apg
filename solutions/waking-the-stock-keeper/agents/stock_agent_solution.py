@@ -69,8 +69,7 @@ _STOCK_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 # agent answer a stock question from a product listing instead.
 _STOCK_TOOLS = [agent_tools.check_stock]
 #
-# Source delta: the Stock agent has no temperature field. Sonnet 5 rejects the
-# deprecated temperature kwarg, so the correct definition omits it.
+# The Stock agent sets no temperature: Sonnet 5 rejects that argument.
 # === WORKSHOP - Stock agent - definition: END ===
 
 

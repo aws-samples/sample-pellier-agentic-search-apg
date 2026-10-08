@@ -18,5 +18,4 @@ _STOCK_TOOLS = [
     agent_tools.check_stock,
 ]
 #
-# Source delta: the Stock agent has no temperature field. Sonnet 5 rejects the
-# deprecated temperature kwarg, so the correct definition omits it.
+# The Stock agent sets no temperature: Sonnet 5 rejects that argument.

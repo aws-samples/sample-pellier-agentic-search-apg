@@ -72,7 +72,8 @@ EXPECTED_2A = ("not carried -> not_found with no count; several -> ambiguous wit
                 "the warehouse rows")
 _NEXT_2A = ("open the Stock agent - check_stock block in pellier/backend/services/agent_tools.py: "
             "it must return the shared implementation's answer unchanged, so not_found stays "
-            "not_found. Restart, then rerun this check.")
+            "not_found. Save the file and rerun this check; it calls your check_stock "
+            "directly, so no restart is needed.")
 
 # The catalog's own answer to "which pieces does this query name?": every word
 # of the query in the name, the matching rule check_stock documents.
