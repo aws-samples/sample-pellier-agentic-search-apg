@@ -19,7 +19,8 @@ new conversation, and the requests are that lab's required ones in
 Labs 1 and 2 and through AgentCore Runtime and Gateway for Labs 3 and 4. Lab 4
 then does Nadia's part in the Operator: investigate Jessica's case, approve
 the credit the Planner proposes, and execute it. A Cedar deployment takes a
-few minutes to apply, so an execution Cedar still denies is retried.
+few minutes to apply, so an execution that Cedar still denies, or that the
+Gateway cannot yet answer, is retried.
 
 Each step prints ``+ OK`` or ``x FAIL``. The first failure stops the command
 with exit status 1.
@@ -64,7 +65,7 @@ NEXT_AFTER_SOLUTION = {
 
 OPERATOR = "nadia"
 CREDIT_CLIENT = "CUST-JESSICA"
-POLICY_ALLOW, POLICY_DENY = "ALLOW", "DENY"
+POLICY_ALLOW, POLICY_DENY, POLICY_INCOMPLETE = "ALLOW", "DENY", "EVALUATION_INCOMPLETE"
 HEALTH_WAIT_SECONDS = 120
 POLICY_WAIT_SECONDS = 420
 RETRY_SECONDS = 30
@@ -319,23 +320,44 @@ def approve(backend: Backend, token: str, proposal: Dict[str, Any]) -> None:
     ok(f"Nadia approved review {review}")
 
 
+def _execute_once(backend: Backend, token: str, review: int,
+                  ) -> Tuple[Optional[Dict[str, Any]], str]:
+    """One execution: the payload when Policy allowed it, else why to try again."""
+    try:
+        payload = backend.post_json(f"/api/operator/reviews/{review}/execute", {}, token)
+    except BackendError as exc:
+        if exc.status == 502 and exc.detail.startswith("gateway_unavailable"):
+            return None, f"the Gateway did not answer ({exc.detail})"
+        raise
+    policy = (payload.get("assurance") or {}).get("policy")
+    if policy == POLICY_ALLOW:
+        return payload, ""
+    if policy == POLICY_DENY:
+        return None, "Policy DENY; the deployed Cedar rule may still be applying"
+    if policy == POLICY_INCOMPLETE:
+        notes = json.dumps(payload.get("notes") or {})[:200]
+        return None, f"Policy could not confirm enforcement yet ({notes})"
+    raise LabRunError(f"Policy reported {policy} for review {review}: "
+                      f"{json.dumps(payload.get('notes') or {})}")
+
+
 def execute_until_allowed(backend: Backend, token: str, review: int) -> Dict[str, Any]:
-    """Execute the approved credit, retrying while a new Cedar rule applies."""
+    """Execute the approved credit, retrying while a new deployment settles.
+
+    Each retry carries the review's idempotency key, so it cannot write a
+    second credit.
+    """
     deadline = time.monotonic() + POLICY_WAIT_SECONDS
     while True:
-        payload = backend.post_json(f"/api/operator/reviews/{review}/execute", {}, token)
-        policy = (payload.get("assurance") or {}).get("policy")
-        if policy == POLICY_ALLOW:
+        payload, why = _execute_once(backend, token, review)
+        if payload is not None:
             return payload
-        if policy != POLICY_DENY:
-            raise LabRunError(f"Policy reported {policy} for review {review}: "
-                              f"{json.dumps(payload.get('notes') or {})}")
         if time.monotonic() >= deadline:
             raise LabRunError(
-                f"Cedar still denies review {review} after {POLICY_WAIT_SECONDS // 60} minutes. "
-                "Check Task 4A with python3 scripts/lab4_policy_check.py, deploy it, and rerun.")
-        wait(f"Policy DENY; the deployed Cedar rule may still be applying. "
-             f"Retrying in {RETRY_SECONDS} s.")
+                f"review {review} has no Policy ALLOW after {POLICY_WAIT_SECONDS // 60} "
+                f"minutes; last: {why}. Check Task 4A with python3 "
+                "scripts/lab4_policy_check.py, deploy it, and rerun.")
+        wait(f"{why}. Retrying in {RETRY_SECONDS} s.")
         time.sleep(RETRY_SECONDS)
 
 

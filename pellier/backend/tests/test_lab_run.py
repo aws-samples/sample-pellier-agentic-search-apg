@@ -55,7 +55,10 @@ class FakeBackend:
             return {"status": "approved"}
         if path.endswith("/execute"):
             policy = self.policies.pop(0) if len(self.policies) > 1 else self.policies[0]
+            if policy == "502":
+                return 502, {"detail": "gateway_unavailable:ReadTimeout"}
             return {"assurance": {"policy": policy}, "idempotencyKey": "credit-41-abc",
+                    "notes": {"policy": "engine state unreadable"},
                     "record": {"creditRows": 1 if policy == "ALLOW" else 0}}
         raise AssertionError(f"unexpected path {path}")
 
@@ -82,9 +85,12 @@ def _handler(fake: FakeBackend) -> type:
                 self._send(401, "application/json", json.dumps({"detail": "token_expired"}))
                 return
             result = fake.answer(self.path, body)
-            if isinstance(result, list):
-                events = "".join((f"event: {name}\n" if name else "") + f"data: {json.dumps(data)}\n\n"
-                                 for name, data in result)
+            if isinstance(result, tuple):
+                self._send(result[0], "application/json", json.dumps(result[1]))
+            elif isinstance(result, list):
+                events = "".join(
+                    (f"event: {name}\n" if name else "") + f"data: {json.dumps(data)}\n\n"
+                    for name, data in result)
                 self._send(200, "text/event-stream", events)
             else:
                 self._send(200, "application/json", json.dumps(result))
@@ -321,6 +327,27 @@ def test_lab_4_retries_while_the_new_cedar_rule_applies(
     assert capsys.readouterr().out.count("Policy DENY") == 2
 
 
+def test_lab_4_retries_while_the_gateway_and_policy_state_settle(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.policies = ["502", "EVALUATION_INCOMPLETE", "ALLOW"]
+    assert _run(fake, 4) == 0
+    out = capsys.readouterr().out
+    assert "the Gateway did not answer (gateway_unavailable:ReadTimeout)" in out
+    assert "Policy could not confirm enforcement yet" in out
+
+
+def test_lab_4_stops_on_an_execution_error_that_will_not_clear(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.policies = ["NOT_EVALUATED"]
+    assert _run(fake, 4) == 1
+    assert "Policy reported NOT_EVALUATED for review 41" in capsys.readouterr().err
+    assert len([r for r in fake.requests if r["path"].endswith("/execute")]) == 1
+
+
 def test_lab_4_skips_approval_a_person_already_gave(fake: FakeBackend) -> None:
     fake.rail = lab_run.MANAGED
     fake.proposal = {**PROPOSAL, "status": "approved"}
@@ -335,7 +362,9 @@ def test_lab_4_gives_up_when_cedar_keeps_denying(
     fake.rail = lab_run.MANAGED
     fake.policies = ["DENY"]
     assert _run(fake, 4) == 1
-    assert "Cedar still denies review 41" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "review 41 has no Policy ALLOW after 0 minutes" in err
+    assert "last: Policy DENY" in err
 
 
 def test_lab_4_reports_a_planner_that_proposed_nothing(
