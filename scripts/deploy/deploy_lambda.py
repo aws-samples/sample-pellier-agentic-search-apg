@@ -99,9 +99,6 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
       with open(zip_path, 'rb') as f:
         zip_content = f.read()
       
-      with open('package.zip', 'wb') as z:
-        z.write(zip_content)
-      
       zip_size_mb = len(zip_content) / (1024 * 1024)
       logger.info(f"Created deployment package: {zip_size_mb:.1f} MB")
       os.remove(zip_path)
