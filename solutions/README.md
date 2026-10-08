@@ -2,6 +2,8 @@
 
 These files are facilitator recovery paths and readable reference implementations. A participant who uses a reference still runs the same live proof.
 
+The commands below recover one task. To recover a whole lab, `python3 scripts/lab_run.py solution --lab N` copies both of its answers, and after the restart or deployment `python3 scripts/lab_run.py send --lab N` makes that lab's requests. Each guide's "Short on time?" block chains them with the lab's checks.
+
 ## Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 
 Task 1A's recovery restores the worksheet with the fusion expression written:
