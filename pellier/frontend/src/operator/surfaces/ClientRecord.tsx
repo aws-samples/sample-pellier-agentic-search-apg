@@ -37,9 +37,16 @@ function ticketWord(status: string): string {
   return 'Closed'
 }
 
-/** The review the record follows: the open one, else the newest. */
+/**
+ * The review the record follows: the open one, else the newest. The Lab 4
+ * policy check's probe is never followed while a real review exists: it is the
+ * newest review the moment the check runs, and following it swapped Jessica's
+ * $100.00 credit for the probe's DENY right after Nadia executed the credit.
+ */
 export function activeReview(reviews: OperatorReview[]): OperatorReview | null {
-  return reviews.find(r => r.humanState === 'confirmation_required') ?? reviews[0] ?? null
+  const real = reviews.filter(r => !r.policyCheckProbe)
+  const pool = real.length > 0 ? real : reviews
+  return pool.find(r => r.humanState === 'confirmation_required') ?? pool[0] ?? null
 }
 
 function reviewTone(review: OperatorReview): { tone: 'good' | 'blocked' | 'pending'; word: string; pulse: boolean } {
