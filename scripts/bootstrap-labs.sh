@@ -1456,7 +1456,7 @@ EOF
     # this on AGENTCORE_OK left the participant with no CLI at all).
     if command -v npm &>/dev/null; then
         log "Installing pinned AgentCore CLI globally (@aws/agentcore@0.29.0)..."
-        npm install -g @aws/agentcore@0.29.0 >/dev/null 2>&1 \
+        (umask 022; npm install -g @aws/agentcore@0.29.0 >/dev/null 2>&1) \
             && log "✅ agentcore CLI installed globally ($(command agentcore --version 2>/dev/null || echo 'version check skipped'))" \
             || warn "Global @aws/agentcore@0.29.0 install failed — the agentcore function will fall back to npx; see npm logs."
     fi

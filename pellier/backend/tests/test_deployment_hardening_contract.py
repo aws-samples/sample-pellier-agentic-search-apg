@@ -117,6 +117,24 @@ def test_claude_code_install_uses_the_pin(environment: str) -> None:
     ), "an unpinned Claude Code install remains"
 
 
+def test_global_npm_installs_are_readable_by_the_participant(
+    environment: str, labs: str
+) -> None:
+    """The worker runs under umask 077; a bare `npm install -g` there leaves
+    /usr/lib/node_modules/<pkg> root-only, and the participant cannot run the CLI
+    (found on a live event: `claude` absent from the coaching track)."""
+    for name, text in (("bootstrap-environment.sh", environment), ("bootstrap-labs.sh", labs)):
+        for line in text.splitlines():
+            code = line.split("#", 1)[0]
+            if "npm install -g" not in code or "Recover:" in code or "warn " in code:
+                continue
+            assert "umask 022" in code, f"{name}: global install without umask 022: {line.strip()}"
+
+
+def test_claude_code_is_checked_as_the_participant(environment: str) -> None:
+    assert 'runuser -u "$CODE_EDITOR_USER" -- claude --version' in environment
+
+
 def test_no_phantom_claude_code_model_variable(environment: str, labs: str) -> None:
     """`CLAUDE_CODE_MODEL` is not read by Claude Code; `ANTHROPIC_MODEL` is."""
     for name, text in (("bootstrap-environment.sh", environment), ("bootstrap-labs.sh", labs)):

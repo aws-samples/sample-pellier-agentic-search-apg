@@ -131,7 +131,10 @@ if [ "$_node24_ok" = true ]; then
     # needs it; Pellier + frontend build don't.
     if command -v npm >/dev/null 2>&1; then
         log "Installing TypeScript compiler globally (tsc – required by @aws/agentcore deploy)..."
-        if npm install -g typescript@5 >/dev/null 2>&1; then
+        # Global installs run under umask 022: the worker's private umask 077
+        # left /usr/lib/node_modules/<pkg> root-only (0700), so the
+        # participant could not run anything npm installed here.
+        if (umask 022; npm install -g typescript@5 >/dev/null 2>&1); then
             # The CLI's deploy build runs `sh -c tsc` as the PARTICIPANT user
             # (provisioning is `sudo -u $CODE_EDITOR_USER`). npm's global prefix
             # may not be on that user's PATH, so symlink tsc into /usr/bin
@@ -159,14 +162,20 @@ if [ "$_node24_ok" = true ]; then
         # Updating this version is a deliberate release action followed by a
         # provisioned-environment rehearsal.
         log "Installing Claude Code CLI ${CLAUDE_CODE_VERSION} globally for Lab 2..."
-        if npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" >/dev/null 2>&1; then
+        if (umask 022; npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" >/dev/null 2>&1); then
             # Same /usr/bin symlink defense as tsc above: the CLI runs as the
             # PARTICIPANT user, whose PATH may not include npm's global prefix.
             _claude_bin="$(command -v claude 2>/dev/null || true)"
             if [ -n "$_claude_bin" ] && [ "$_claude_bin" != "/usr/bin/claude" ]; then
                 ln -sf "$_claude_bin" /usr/bin/claude 2>/dev/null || true
             fi
-            log "✅ Claude Code CLI installed: $(claude --version 2>/dev/null || echo 'version check skipped') ($(command -v claude 2>/dev/null))"
+            # Check as the participant, who runs it: a root-only install
+            # passed a root check while the coaching track had no CLI.
+            if _claude_version="$(runuser -u "$CODE_EDITOR_USER" -- claude --version 2>/dev/null)"; then
+                log "✅ Claude Code CLI installed: ${_claude_version} ($(command -v claude 2>/dev/null)), runs as $CODE_EDITOR_USER"
+            else
+                warn "Claude Code CLI installed but $CODE_EDITOR_USER cannot run it. Recover: 'sudo chmod -R a+rX /usr/lib/node_modules/@anthropic-ai'."
+            fi
         else
             warn "Claude Code CLI ${CLAUDE_CODE_VERSION} install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
         fi
