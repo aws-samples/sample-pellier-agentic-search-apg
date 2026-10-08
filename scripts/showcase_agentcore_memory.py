@@ -13,14 +13,24 @@ user-preference records AgentCore extracted from it, and prints Expected,
 Observed and Evidence with the source event ids beside the record ids:
 
     python3 scripts/showcase_agentcore_memory.py provisioned --persona theo
+
+`strategies` is Lab 3's look at all four strategies. It reads, and never
+writes, every record AgentCore made from that one conversation: preferences,
+facts, the session summary, the episode and its reflection. Each strategy says
+whether its records follow the customer into new conversations and whether a
+Pellier turn reads them. `--versus` runs the same reads for a second shopper:
+
+    python3 scripts/showcase_agentcore_memory.py strategies --persona theo --versus jessica
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import json
+import re
 import sys
 from pathlib import Path
+from typing import Any, Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pellier" / "backend"))
@@ -107,13 +117,163 @@ def _provisioned(persona: str) -> int:
     return 0 if finding.state == check.PROVED else 1
 
 
+FOLLOWS = "follows the customer into every new conversation"
+STAYS = "stays with the conversation it came from"
+NOT_READ = "kept; no Pellier turn reads it"
+# Each strategy as printed: its namespace kind, how far its records reach, and
+# whether a Pellier turn reads them. Only preferences go ahead of a prompt.
+STRATEGY_ROWS = (
+    ("preferences", "USER_PREFERENCE", FOLLOWS,
+     "read into every signed-in turn; the Router step names these ids"),
+    ("facts", "SEMANTIC", FOLLOWS, NOT_READ),
+    ("summary", "SUMMARIZATION", STAYS, NOT_READ),
+    ("episodic", "EPISODIC", STAYS, NOT_READ),
+    ("reflection", "EPISODIC reflection", FOLLOWS, NOT_READ),
+)
+_LINE_TEXT = 90
+
+
+def _cut(text: str) -> str:
+    text = " ".join(str(text).split())
+    return text if len(text) <= _LINE_TEXT else text[: _LINE_TEXT - 3] + "..."
+
+
+def _json_field(raw: str, key: str) -> str:
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError):
+        return ""
+    return str(parsed.get(key) or "") if isinstance(parsed, dict) else ""
+
+
+def record_text(record: dict, kind: str) -> str:
+    """What one record says, on one line: a preference, a fact, a topic, an episode."""
+    from services.memory_records import record_view
+
+    view = record_view(record, "episodic" if kind == "reflection" else kind)
+    if kind == "summary":
+        text = re.sub(r'<topic name="([^"]*)">', r"\1: ", view["raw"])
+        return _cut(re.sub(r"<[^>]+>", " ", text))
+    if kind == "episodic" and view["episode"]:
+        episode = view["episode"]
+        return _cut(f"goal met: {episode['assessment']}. {episode['intent']}")
+    if kind == "reflection":
+        return _cut(_json_field(view["raw"], "title") or view["content"])
+    return _cut(view["content"])
+
+
+def _records(data: Any, memory_id: str, strategy_id: Optional[str], path: str) -> list:
+    from services.memory_contract import record_matches
+
+    if not strategy_id:
+        return []
+    found: list = []
+    for page in data.get_paginator("list_memory_records").paginate(
+        memoryId=memory_id, namespace=path, memoryStrategyId=strategy_id,
+    ):
+        found.extend(r for r in page.get("memoryRecordSummaries", [])
+                     if record_matches(r, strategy_id, path))
+    return found
+
+
+def strategy_records(control: Any, data: Any, memory_id: str, actor: str) -> dict:
+    """Everything AgentCore Memory holds for ``actor``'s provisioning conversation.
+
+    The conversation (session ``prefseed``) and, per strategy, the records in
+    that actor's namespace, plus the episodic reflection. Nothing here writes.
+    """
+    from seed_agentcore_memory import SEED_SESSION
+    from services.memory_contract import REFLECTION_NAMESPACE, STRATEGIES, namespace
+
+    resource = control.get_memory(memoryId=memory_id)["memory"]
+    ids = {s.get("name"): s.get("strategyId") for s in resource.get("strategies", [])}
+    events: list = []
+    for page in data.get_paginator("list_events").paginate(
+        memoryId=memory_id, actorId=actor, sessionId=SEED_SESSION, includePayloads=True,
+    ):
+        events.extend(page.get("events", []))
+    events.sort(key=lambda event: (str(event.get("eventTimestamp", "")), str(event.get("eventId"))))
+    strategies = {}
+    for kind, *_rest in STRATEGY_ROWS:
+        name = STRATEGIES["episodic" if kind == "reflection" else kind][1]
+        path = (REFLECTION_NAMESPACE.format(actorId=actor) if kind == "reflection"
+                else namespace(kind, actor, SEED_SESSION))
+        strategies[kind] = {"name": name, "namespace": path,
+                            "records": _records(data, memory_id, ids.get(name), path)}
+    return {"actor": actor, "session": SEED_SESSION, "events": events, "strategies": strategies}
+
+
+def _plural(count: int, word: str) -> str:
+    return f"{count} {word}" + ("" if count == 1 else "s")
+
+
+def render_strategies(found: dict, memory_id: str, versus: Optional[dict] = None) -> str:
+    """The four strategies for one shopper, then the same reads for a second one."""
+    lines = [f"AgentCore Memory {memory_id}",
+             f"{found['actor']}'s first conversation (session {found['session']}): "
+             f"{_plural(len(found['events']), 'event')}"]
+    lines += [f"  {e.get('eventId')}  {_cut(_text(e))}" for e in found["events"]]
+    for kind, strategy_type, reach, use in STRATEGY_ROWS:
+        strategy = found["strategies"][kind]
+        records = strategy["records"]
+        lines += ["", f"{strategy_type} ({strategy['name']}): {_plural(len(records), 'record')}",
+                  f"  {strategy['namespace']}  {reach}", f"  Pellier: {use}"]
+        lines += [f"  {r.get('memoryRecordId')}  {record_text(r, kind)}" for r in records]
+        if not records:
+            lines.append("  none yet: AgentCore extracts after the conversation; run this again")
+    if versus is not None:
+        lines += ["", _versus_line(found["actor"], versus)]
+    return "\n".join(lines)
+
+
+def _versus_line(actor: str, versus: dict) -> str:
+    counts = {kind: len(versus["strategies"][kind]["records"]) for kind, *_ in STRATEGY_ROWS}
+    other = versus["actor"]
+    if not any(counts.values()):
+        return (f"{other}, the same five reads: 0 records. {other}'s turns are given no "
+                f"remembered preference, and none of {actor}'s: every read is keyed by the "
+                "signed-in customer.")
+    held = ", ".join(f"{counts[kind]} {strategy_type}" for kind, strategy_type, *_ in STRATEGY_ROWS)
+    return (f"{other}, the same five reads: {held}, all under {other}'s own namespaces. "
+            f"None of {actor}'s records are among them.")
+
+
+def _strategies(persona: str, versus: Optional[str]) -> int:
+    """Print every strategy's records for one shopper; exit 0 when Memory answered."""
+    import boto3
+    from gateway_client import _load_env
+
+    _load_env()
+    from config import settings
+    from services.memory_showcase import AWS_CONFIG
+
+    memory_id = settings.AGENTCORE_MEMORY_ID
+    if not memory_id:
+        print("Memory showcase unavailable: AGENTCORE_MEMORY_ID is not configured",
+              file=sys.stderr)
+        return 1
+    region = settings.aws_region_resolved
+    control = boto3.client("bedrock-agentcore-control", region_name=region, config=AWS_CONFIG)
+    data = boto3.client("bedrock-agentcore", region_name=region, config=AWS_CONFIG)
+    found = strategy_records(control, data, memory_id, "CUST-" + persona.upper())
+    other = (strategy_records(control, data, memory_id, "CUST-" + versus.upper())
+             if versus else None)
+    print(render_strategies(found, memory_id, other))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("learn", "status", "recall", "finish", "provisioned"))
+    parser.add_argument("command",
+                        choices=("learn", "status", "recall", "finish", "provisioned", "strategies"))
     parser.add_argument("--persona", choices=("marco", "anna", "theo", "jessica"), default="marco")
+    parser.add_argument("--versus", choices=("marco", "anna", "theo", "jessica"),
+                        help="strategies only: run the same reads for a second shopper")
     args = parser.parse_args()
-    if args.command == "provisioned":
+    if args.command in ("provisioned", "strategies"):
         try:
+            if args.command == "strategies":
+                return _strategies(args.persona, args.versus)
             return _provisioned(args.persona)
         except Exception as exc:
             detail = str(exc) if isinstance(exc, (ValueError, RuntimeError)) else type(exc).__name__
