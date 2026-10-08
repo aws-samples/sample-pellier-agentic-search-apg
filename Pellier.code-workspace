@@ -31,7 +31,7 @@
     },
     "markdown.preview.fontSize": 16,
     "explorer.compactFolders": false,
-    "explorer.sortOrder": "default",
+    "explorer.sortOrder": "filesFirst",
     "terminal.integrated.cwd": "${workspaceFolder:05 - Explore Pellier source}",
     "task.allowAutomaticTasks": "on",
     "files.readonlyInclude": {
@@ -58,7 +58,10 @@
       "logs": true,
       "tmp": true,
       "archive": true,
-      "docs/release-readiness": true
+      "docs/release-readiness": true,
+      ".provision.env": true,
+      ".workshop-ref.json": true,
+      "package.zip": true
     }
   }
 }

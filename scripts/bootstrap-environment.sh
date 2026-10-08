@@ -689,13 +689,18 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # and Mosaic: 16/18 reads at arm's length on a laptop, zoomLevel 1 lifts the
 # whole chrome without breaking the layout, and the forced white terminal
 # foreground is the same value Mosaic already ships on this AMI, so it is known
-# to render here. Keep this block strict JSON - the readiness contract parses it
-# with json.loads, not a JSONC reader.
+# to render here. It is scoped to Default Dark Modern: on a light theme the
+# terminal's minimum contrast ratio would turn forced white into a pale grey
+# (#6C6C6C on #F8F8F8), where the theme's own text is #3B3B3B.
+# Keep this block strict JSON - the readiness contract parses it with
+# json.loads, not a JSONC reader.
 cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
 {
     "workbench.colorTheme": "Default Dark Modern",
     "workbench.colorCustomizations": {
-        "terminal.foreground": "#FFFFFF"
+        "[Default Dark Modern]": {
+            "terminal.foreground": "#FFFFFF"
+        }
     },
     "editor.fontSize": 16,
     "terminal.integrated.fontSize": 18,
@@ -771,7 +776,10 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "LICENSE": true,
         "NOTICE": true,
         "VOICE.md": true,
-        "data": true
+        "data": true,
+        ".provision.env": true,
+        ".workshop-ref.json": true,
+        "package.zip": true
     }
 }
 VSCODE_SETTINGS

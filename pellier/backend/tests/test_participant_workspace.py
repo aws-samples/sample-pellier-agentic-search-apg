@@ -42,6 +42,19 @@ def test_numbered_groups_and_every_link_reach_existing_repository_files():
         assert (alias.parent / "solution" / alias.name).samefile(ROOT / item["solution"])
 
 
+
+def test_each_lab_lists_its_exercise_files_before_its_solution_folder():
+    """Folders sort first by default, which put solution/ above 1A and 1B."""
+    settings = json.loads((ROOT / "Pellier.code-workspace").read_text())["settings"]
+    assert settings["explorer.sortOrder"] == "filesFirst"
+
+
+def test_deployment_bookkeeping_stays_out_of_the_explorer():
+    """Provisioning writes these beside the source; scripts read them, participants do not."""
+    excludes = json.loads((ROOT / "Pellier.code-workspace").read_text())["settings"]["files.exclude"]
+    for name in (".provision.env", ".workshop-ref.json", "package.zip"):
+        assert excludes.get(name) is True, f"{name} should be hidden from the Explorer"
+
 def test_editing_numbered_file_edits_the_live_source_and_rerun_preserves_it(repo):
     workspace.configure(repo)
     alias = repo / "labs/01-retrieve/1A-rrf.sql"

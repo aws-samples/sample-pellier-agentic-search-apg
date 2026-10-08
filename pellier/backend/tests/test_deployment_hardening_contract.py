@@ -197,10 +197,16 @@ def test_user_settings_use_the_room_tested_appearance(
 
 
 def test_terminal_foreground_is_forced_high_contrast(environment: str) -> None:
-    """Same value the sibling workshop already ships on this AMI."""
+    """Same value the sibling workshop already ships on this AMI.
+
+    Scoped to the default dark theme. Unscoped, it also applies after a
+    participant picks a light theme, where the terminal's minimum contrast
+    ratio turns it into pale grey instead of the theme's own dark text.
+    """
     user_block = _user_settings_block(environment)
     customizations = user_block.get("workbench.colorCustomizations", {})
-    assert customizations.get("terminal.foreground") == "#FFFFFF"
+    assert customizations.get("[Default Dark Modern]", {}).get("terminal.foreground") == "#FFFFFF"
+    assert "terminal.foreground" not in customizations
 
 
 def test_source_control_ui_stays_hidden(environment: str) -> None:
