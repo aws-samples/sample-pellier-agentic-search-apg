@@ -43,7 +43,7 @@ import os
 import pathlib
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 BACKEND = REPO / "pellier" / "backend"
@@ -318,12 +318,17 @@ def _managed_rail_selected(
         environ: Process environment, consulted when neither file carries a key.
     """
     name = "service env selects the managed rail"
-    layered: Dict[str, str] = {}
-    for source in (workshop_check.parse_dotenv(env_path), workshop_check.parse_dotenv(run_env)):
-        layered.update({key: value for key, value in source.items() if value})
+    # Later files win, as in the unit: the repo .env, then run.env.
+    layered: Dict[str, Tuple[str, str]] = {}
+    for path in (env_path, run_env):
+        for key, value in workshop_check.parse_dotenv(path).items():
+            if value:
+                layered[key] = (value, str(path))
 
     def _value(key: str) -> str:
-        return (layered.get(key) or environ.get(key, "")).strip()
+        if key in layered:
+            return layered[key][0].strip()
+        return environ.get(key, "").strip()
 
     missing = []
     switch = _value("USE_AGENTCORE_RUNTIME")
@@ -332,8 +337,9 @@ def _managed_rail_selected(
     if not _value("AGENTCORE_RUNTIME_ENDPOINT"):
         missing.append("AGENTCORE_RUNTIME_ENDPOINT unset (the Runtime ARN)")
     if missing:
-        return Check(name, False, "; ".join(missing) + f"; run scripts/lab3-start.sh ({run_env})")
-    return Check(name, True, f"{run_env}")
+        return Check(name, False, "; ".join(missing) + "; run scripts/lab3-start.sh")
+    # Name the file that actually set the switch, never one that does not exist.
+    return Check(name, True, layered.get("USE_AGENTCORE_RUNTIME", ("", "process environment"))[1])
 
 
 def _managed_catalogues_agree() -> Check:

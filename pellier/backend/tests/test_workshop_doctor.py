@@ -299,6 +299,45 @@ class TestLab3:
         )
         assert checks["service env selects the managed rail"].passed is True
 
+    def test_the_pass_names_the_file_that_set_the_switch(self, tmp_path: Path) -> None:
+        """Workshop hosts have no run.env; the PASS must not credit a missing file."""
+        env_file = tmp_path / ".env"
+        env_file.write_text(
+            f"USE_AGENTCORE_RUNTIME=true\nAGENTCORE_RUNTIME_ENDPOINT={RUNTIME_ARN}\n",
+            encoding="utf-8",
+        )
+        absent = tmp_path / "etc" / "run.env"
+        checks = _by_name(
+            doctor.lab3_checks(FakeEvidence(), run_env=absent, env_path=env_file, environ={})
+        )
+        rail = checks["service env selects the managed rail"]
+        assert rail.passed is True
+        assert rail.detail == str(env_file)
+
+    def test_the_pass_names_run_env_when_run_env_set_the_switch(self, tmp_path: Path) -> None:
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"AGENTCORE_RUNTIME_ENDPOINT={RUNTIME_ARN}\n", encoding="utf-8")
+        run_env = tmp_path / "run.env"
+        run_env.write_text("USE_AGENTCORE_RUNTIME=true\n", encoding="utf-8")
+        checks = _by_name(
+            doctor.lab3_checks(FakeEvidence(), run_env=run_env, env_path=env_file, environ={})
+        )
+        assert checks["service env selects the managed rail"].detail == str(run_env)
+
+    def test_the_pass_names_the_process_environment_when_no_file_did(
+        self, tmp_path: Path
+    ) -> None:
+        environ = {"USE_AGENTCORE_RUNTIME": "true", "AGENTCORE_RUNTIME_ENDPOINT": RUNTIME_ARN}
+        checks = _by_name(
+            doctor.lab3_checks(
+                FakeEvidence(),
+                run_env=tmp_path / "absent",
+                env_path=tmp_path / "absent.env",
+                environ=environ,
+            )
+        )
+        assert checks["service env selects the managed rail"].detail == "process environment"
+
     def test_missing_managed_turn_names_lab3_start(self, tmp_path: Path) -> None:
         checks = _by_name(
             doctor.lab3_checks(
@@ -606,6 +645,43 @@ class TestLabEntryPoints:
         )
         assert not canary.exists(), f"{relative} executed a dotenv value"
         assert result.returncode == 1, result.stdout + result.stderr
+
+
+def _rail_target(script: Path, run_env: Path, env_file: Path, explicit: str) -> str:
+    """Run lab3-start.sh's own ``_rail_target``."""
+    body = _extract_shell_functions(script, "_rail_target")
+    program = f'set -uo pipefail\n{body}\n_rail_target "$1" "$2" "$3"\n'
+    result = subprocess.run(
+        [BASH, "-c", program, "--", str(run_env), str(env_file), explicit],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return result.stdout.strip()
+
+
+@pytest.mark.skipif(BASH is None, reason="bash not available")
+class TestRailTarget:
+    """Where lab3-start.sh writes USE_AGENTCORE_RUNTIME=true."""
+
+    SCRIPT = REPO / "scripts" / "lab3-start.sh"
+
+    def test_a_host_without_etc_pellier_writes_the_repo_env(self, tmp_path: Path) -> None:
+        """Workshop Studio hosts: no /etc/pellier, so no warning and no fallback."""
+        env_file = tmp_path / ".env"
+        run_env = tmp_path / "etc" / "pellier" / "run.env"
+        assert _rail_target(self.SCRIPT, run_env, env_file, "") == str(env_file)
+
+    def test_a_host_with_etc_pellier_keeps_run_env(self, tmp_path: Path) -> None:
+        (tmp_path / "etc" / "pellier").mkdir(parents=True)
+        run_env = tmp_path / "etc" / "pellier" / "run.env"
+        assert _rail_target(self.SCRIPT, run_env, tmp_path / ".env", "") == str(run_env)
+
+    def test_an_explicit_run_env_is_honoured(self, tmp_path: Path) -> None:
+        run_env = tmp_path / "missing" / "run.env"
+        assert _rail_target(self.SCRIPT, run_env, tmp_path / ".env", str(run_env)) == str(
+            run_env
+        )
 
 
 @pytest.mark.skipif(BASH is None, reason="bash not available")

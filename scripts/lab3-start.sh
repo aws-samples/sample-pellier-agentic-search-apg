@@ -109,6 +109,20 @@ _env_target_mode() {
   printf '%s\n' "$mode"
 }
 
+# Where the rail switch belongs. The unit loads the repo .env, then
+# /etc/pellier/run.env when it exists. Workshop hosts ship no /etc/pellier, so
+# the switch goes straight into the repo .env there instead of failing to
+# create a root-owned directory and warning about it. A host that ships
+# /etc/pellier, or a caller that names PELLIER_RUN_ENV, keeps run.env.
+_rail_target() {
+  local run_env="$1" env_file="$2" explicit="$3"
+  if [ -n "$explicit" ] || [ -d "$(dirname "$run_env")" ]; then
+    printf '%s\n' "$run_env"
+  else
+    printf '%s\n' "$env_file"
+  fi
+}
+
 # Replace or append KEY=value in an env file without evaluating anything,
 # without widening the target's mode, and without truncating it on a read
 # failure.
@@ -222,8 +236,12 @@ fi
 # resolve_rail() reads USE_AGENTCORE_RUNTIME and AGENTCORE_RUNTIME_ENDPOINT and
 # nothing else. Step 1 verified the endpoint and the Gateway URL, so this one
 # setting is the whole switch.
-rail_target="$RUN_ENV_FILE"
+rail_target="$(_rail_target "$RUN_ENV_FILE" "$ENV_FILE" "${PELLIER_RUN_ENV:-}")"
 if ! _upsert_env "$rail_target" "USE_AGENTCORE_RUNTIME" "true"; then
+  if [ "$rail_target" = "$ENV_FILE" ]; then
+    fail "Could not write the rail switch to $rail_target"
+    exit 1
+  fi
   warn "Could not write $RUN_ENV_FILE; writing the rail switch to $ENV_FILE instead"
   rail_target="$ENV_FILE"
   if ! _upsert_env "$rail_target" "USE_AGENTCORE_RUNTIME" "true"; then
