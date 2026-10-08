@@ -1,6 +1,6 @@
 /**
- * Pellier orientation remains session-gated: the storefront shows a short
- * welcome at most once per session.
+ * Pellier orientation shows a short welcome at most once per browser: a
+ * dismissal in one tab holds in every other tab.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, beforeEach } from 'vitest';
@@ -18,6 +18,7 @@ function read(relativePath: string): string {
 describe('first-visit orientation', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it('PellierPage renders PellierSpotlight', () => {
@@ -27,8 +28,8 @@ describe('first-visit orientation', () => {
     expect(page).toContain('<PellierSpotlight />');
   });
 
-  it('the Pellier spotlight is session-gated so it shows at most once', () => {
-    expect(read('components/PellierSpotlight.tsx')).toContain('sessionStorage');
+  it('the Pellier spotlight is remembered per browser so it shows at most once', () => {
+    expect(read('components/PellierSpotlight.tsx')).toContain('localStorage');
   });
 
   it('the Pellier spotlight is dismissible', () => {
@@ -139,6 +140,7 @@ describe('Escape on the welcome tour', () => {
 
   beforeEach(() => {
     window.sessionStorage.clear();
+    window.localStorage.clear();
     // A laptop width, where the store opens with Ask Pellier docked.
     Object.defineProperty(window, 'innerWidth', { configurable: true, writable: true, value: 1440 });
   });
@@ -170,6 +172,7 @@ describe('Escape on the welcome tour', () => {
 describe('spotlight session gate', () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it('a dismissed spotlight stays dismissed within the session', () => {
@@ -182,6 +185,26 @@ describe('spotlight session gate', () => {
     const { container } = render(<PellierSpotlight />);
 
     // Nothing rendered: the gate held.
+    expect(container.textContent).toBe('');
+  });
+});
+
+describe('spotlight in a second tab', () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+  });
+
+  it('a tour dismissed in one tab stays closed in a new tab', () => {
+    // Lab 4 opens PellierURL in Tab 2; a reopened tour covered the Operator link.
+    const first = render(<PellierSpotlight />);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    first.unmount();
+
+    // A new tab starts with empty sessionStorage and the same localStorage.
+    window.sessionStorage.clear();
+    const { container } = render(<PellierSpotlight />);
     expect(container.textContent).toBe('');
   });
 });

@@ -98,10 +98,17 @@ const FOCUSABLE_SELECTOR = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',')
 
+// Seen once in this browser means seen in every tab: Lab 4 opens the
+// storefront in a second tab, where a tour reopening over the header blocked
+// the Operator link. sessionStorage is still read so a tab that set it keeps
+// working.
 function hasSeenSpotlight(): boolean {
   if (typeof window === 'undefined') return true
   try {
-    return window.sessionStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
+    return (
+      window.localStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
+      || window.sessionStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
+    )
   } catch {
     return true
   }
@@ -110,7 +117,7 @@ function hasSeenSpotlight(): boolean {
 function markSpotlightSeen(): void {
   if (typeof window === 'undefined') return
   try {
-    window.sessionStorage.setItem(SPOTLIGHT_SEEN_KEY, 'true')
+    window.localStorage.setItem(SPOTLIGHT_SEEN_KEY, 'true')
   } catch {
     // Storage is optional. Do not trap the visitor in the tour.
   }
