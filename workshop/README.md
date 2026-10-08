@@ -30,6 +30,10 @@ recovered task keeps the same checks.
 | 4A, Jessica and Nadia | The $100 per-credit limit (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_policy_check.py` |
 | 4B, Jessica and Nadia | The row-ownership predicate (`workshop/lab-4-rls.sql`) | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then `-f workshop/lab-4-absence.sql` |
 
+Optional in Lab 1: `psql -X -P pager=off -f workshop/lab-1-hnsw.sql` shows whether Aurora
+uses the HNSW index at this catalog's size, and what a filter does to the index when it is
+used. It only reads, and rolls back.
+
 Only edit the lab's marked regions; there are eight. Python edits in Labs 1 and
 2 need the guide's backend restart. Lab 3's edits and Lab 4's rule reach AWS
 only through `python3 scripts/provision_agentcore_end_to_end.py --repo-path

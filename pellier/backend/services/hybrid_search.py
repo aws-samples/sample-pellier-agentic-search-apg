@@ -278,7 +278,7 @@ class HybridSearch:
         This query sets no HNSW knobs of its own. ``hnsw.iterative_scan``
         and ``hnsw.ef_search`` are session settings applied once per pooled
         connection in ``services.database._configure_connection``, so every
-        branch query already runs with relaxed-order iterative scan and the
+        branch query already runs with strict-order iterative scan and the
         configured ``ef_search``. A hard predicate in ``extra_clauses`` is
         therefore safe here: iterative scan keeps walking the graph until
         the filtered LIMIT is met instead of returning a short list.

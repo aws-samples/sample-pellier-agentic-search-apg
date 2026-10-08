@@ -6,6 +6,7 @@ seed) and `database-reset.sh` (drop and rebuild) against a throwaway PostgreSQL
 run.
 """
 import re
+import subprocess
 from pathlib import Path
 
 import psycopg
@@ -296,6 +297,59 @@ def test_retrieval_receipts_are_append_only(fresh_db):
                 with conn.transaction():
                     conn.execute("UPDATE pellier.retrieval_receipts SET query_hash = 'x' "
                                  "WHERE receipt_id = %s", (receipt,))
+
+
+# ---------------------------------------------------------------------------
+# Filtered vector search: strict-order iterative scan, and the Lab 1 index check
+# ---------------------------------------------------------------------------
+
+
+def _iterative_scan_block() -> str:
+    schema = (REPO / "scripts/migrations/001_schema.sql").read_text()
+    block = re.search(r"DO \$iterative_scan\$.*?\$iterative_scan\$;", schema, re.S)
+    assert block, "001_schema.sql no longer sets hnsw.iterative_scan"
+    return block.group(0)
+
+
+def test_new_sessions_default_to_strict_order_iterative_scan(fresh_db):
+    """The Gateway Lambda's Data API calls hold no pooled session; the default reaches them."""
+    assert fresh_db.psql("SHOW hnsw.iterative_scan") == "strict_order"
+
+
+def test_a_user_that_does_not_own_the_database_sets_it_for_itself(fresh_db):
+    fresh_db.psql("CREATE ROLE lab_reader LOGIN")
+    try:
+        fresh_db.psql("SET client_min_messages TO error;\nSET ROLE lab_reader;\n"
+                      + _iterative_scan_block())
+        assert fresh_db.psql(
+            "SELECT array_to_string(setconfig, ',') FROM pg_db_role_setting "
+            "WHERE setrole = 'lab_reader'::regrole") == "hnsw.iterative_scan=strict_order"
+    finally:
+        fresh_db.psql("ALTER ROLE lab_reader RESET ALL; DROP ROLE lab_reader")
+
+
+def test_the_lab1_index_check_shows_the_scan_the_short_list_and_the_full_list(fresh_db):
+    done = subprocess.run(
+        [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
+         "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-P", "pager=off",
+         "-f", str(REPO / "workshop/lab-1-hnsw.sql")],
+        capture_output=True, text=True, timeout=120)
+    out = done.stdout
+    assert done.returncode == 0, done.stderr + out
+    choice, forced = out.split("1. The planner's own choice")[1].split(
+        "2. Forced onto the HNSW index, iterative scan off")
+    assert "Seq Scan on product_catalog" in choice
+    assert "product_catalog_embedding_hnsw" not in choice
+    assert "Index Scan using product_catalog_embedding_hnsw" in forced
+    eligible = int(re.search(r"1\. exact scan: 20 of 20 \((\d+) products are \$35 or less "
+                             r"and not candles\)", out).group(1))
+    assert eligible >= 20
+    short = int(re.search(r"2\. HNSW, iterative scan off: (\d+) of 20", out).group(1))
+    assert short < 20
+    assert "3. HNSW, strict_order: 20 of 20, the exact 20 in the same order" in out
+    assert out.rstrip().endswith("Lab 1 index check passed")
+    # Read-only: the forced plan and the scan setting end with the transaction.
+    assert fresh_db.psql("SHOW enable_seqscan") == "on"
 
 
 # ---------------------------------------------------------------------------

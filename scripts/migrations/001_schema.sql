@@ -64,6 +64,26 @@ CREATE TABLE pellier.product_catalog (
 -- Vector search: HNSW on cosine distance, pgvector's default build settings.
 CREATE INDEX product_catalog_embedding_hnsw ON pellier.product_catalog
     USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+-- When the planner uses this index, pgvector filters the rows the graph returns.
+-- With iterative scan off, a selective WHERE can leave fewer rows than the LIMIT;
+-- strict_order keeps walking the graph until the LIMIT is met and returns rows
+-- in exact distance order, which RRF's ranks need. It is the default for every
+-- new session in this database: the app's pool, the Gateway Lambda's RDS Data
+-- API calls and psql. A user that does not own the database sets it for itself.
+-- workshop/lab-1-hnsw.sql shows both behaviors on this catalog.
+DO $iterative_scan$
+BEGIN
+    -- Load pgvector in this session, so hnsw.iterative_scan is a known setting a
+    -- database owner (or the role itself) may set without superuser rights.
+    PERFORM '[1]'::vector;
+    EXECUTE format('ALTER DATABASE %I SET hnsw.iterative_scan = %L',
+                   current_database(), 'strict_order');
+EXCEPTION WHEN insufficient_privilege THEN
+    EXECUTE format('ALTER ROLE %I SET hnsw.iterative_scan = %L', current_user, 'strict_order');
+    RAISE WARNING '% does not own database %; hnsw.iterative_scan = strict_order is set for % only',
+        current_user, current_database(), current_user;
+END
+$iterative_scan$;
 -- Keyword search: the full-text column above.
 CREATE INDEX product_catalog_description_tsv_gin ON pellier.product_catalog
     USING gin (description_tsv);

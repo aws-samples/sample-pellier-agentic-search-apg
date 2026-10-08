@@ -212,9 +212,10 @@ async def _configure_connection(conn: AsyncConnection) -> None:
     plan carries no Sort node above the index scan either way. The ordering
     guarantee has to come from the scan mode.
 
-    The catalog loader sets this at database level via ALTER DATABASE, but
-    that only applies to NEW connections — existing pool connections need
-    this configure callback to pick up the setting.
+    ``scripts/migrations/001_schema.sql`` also makes it the database default
+    (ALTER DATABASE), which is what the Gateway Lambda's RDS Data API calls
+    get, since they hold no pooled session. A default only reaches new
+    connections; this callback sets it on every pooled one regardless.
     """
     stmt_ms = int(max(1000, settings.DB_STATEMENT_TIMEOUT_MS))
     lock_ms = int(max(250, settings.DB_LOCK_TIMEOUT_MS))

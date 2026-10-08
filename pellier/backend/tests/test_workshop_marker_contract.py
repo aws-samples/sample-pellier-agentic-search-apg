@@ -131,6 +131,7 @@ LAB3_STAFF_ONLY_TOOL = "give_store_credit"
 # ---------------------------------------------------------------------------
 
 LAB4_ABSENCE_CHECK = "workshop/lab-4-absence.sql"
+LAB1_INDEX_CHECK = "workshop/lab-1-hnsw.sql"
 LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
 LAB4_STARTER = "policies/workshop_credit_limit.cedar"
@@ -622,6 +623,20 @@ def test_lab4_rls_starter_is_false_and_the_reference_names_the_bound_customer() 
     assert "cognito_username" in reference
 
 
+def test_the_lab1_index_check_is_read_only_and_forces_the_index_only_inside_it() -> None:
+    """The worksheet changes nothing: one read-only transaction, rolled back, and every
+    planner or scan setting it changes is SET LOCAL, so it ends with that transaction."""
+    sql = _read(LAB1_INDEX_CHECK)
+    statements = [line.strip() for line in sql.splitlines()
+                  if line.strip() and not line.strip().startswith(("--", "\\"))]
+    assert "BEGIN READ ONLY;" in statements and statements.count("ROLLBACK;") == 1
+    assert statements.index("BEGIN READ ONLY;") < statements.index("ROLLBACK;")
+    settings = [line for line in statements if line.upper().startswith("SET ")]
+    assert settings and all(line.startswith(("SET LOCAL ", "SET client_min_messages"))
+                            for line in settings), settings
+    assert not re.search(r"\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b", sql.split("Run:")[1])
+
+
 def test_no_lab_anchor_is_a_broken_path() -> None:
     """One list, so a future anchor cannot be added without an existence check."""
     anchors: List[str] = [rel for rel, _ in LAB2_REGIONS]
@@ -632,6 +647,7 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
         LAB1_REFERENCE,
         LAB1_PLAN_REFERENCE,
         LAB1_PLAN_REGION[0],
+        LAB1_INDEX_CHECK,
         LAB3_TRACE_CONTRACT,
         LAB4_ABSENCE_CHECK,
         LAB4_STARTER,

@@ -1207,11 +1207,15 @@ def test_the_runtime_role_never_requests_bypassrls() -> None:
     Scoped to role-defining statements. The health gate then checks the live
     attribute, because ALTER ROLE ... NOBYPASSRLS needs a true superuser on
     Aurora and a later grant would change nothing in the schema file.
+    ``ALTER ROLE <name> SET|RESET <setting>`` only sets a session default and
+    cannot change a role attribute, so it is not a role-defining statement.
     """
     for line in SCHEMA.read_text().splitlines():
         stripped = line.strip()
         lowered = stripped.lower()
         if stripped.startswith("--") or not ("create role" in lowered or "alter role" in lowered):
+            continue
+        if re.search(r"\balter role\s+\S+\s+(set|reset)\s", lowered):
             continue
         assert "nobypassrls" in lowered, f"role statement may grant BYPASSRLS: {stripped}"
     assert "NOT r.rolbypassrls" in HEALTH_GATE.read_text(encoding="utf-8")
