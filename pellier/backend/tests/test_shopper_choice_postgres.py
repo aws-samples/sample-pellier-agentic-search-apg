@@ -32,7 +32,7 @@ LAB_PROMPTS = {
         "and what ship window is recorded?",
     ],
     "theo": [
-        "Something for a slower morning routine",
+        "Pick one piece you think I'd love.",
         "My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?",
         "Jessica and I share an address. She sent two things back last week and "
         "hasn't heard anything. Can you check her ticket too?",
