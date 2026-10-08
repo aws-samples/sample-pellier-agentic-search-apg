@@ -198,15 +198,13 @@ async def _remembered_preferences(
     ``customer_id`` is the turn's server-resolved customer, never a request
     value. Returns the records and, when the read failed, its stable code. A
     failed read carries no remembered preference and the turn goes on: Memory
-    is context, never permission, and nothing is substituted for it. A box
-    with no Memory configured reads nothing and reports no failure.
+    is context, never permission, and nothing is substituted for it. The
+    caller reads only for a signed-in customer on a box with Memory
+    configured (:func:`_memory_is_read`).
     """
-    from config import settings
     from services.agentcore_memory import AgentCoreMemory, ManagedMemoryError
     from services.conversation_context import remembered_preferences
 
-    if not settings.AGENTCORE_MEMORY_ID:
-        return [], None
     try:
         records = await AgentCoreMemory(strict=True).get_semantic_memories(customer_id)
     except ManagedMemoryError as exc:
@@ -216,6 +214,21 @@ async def _remembered_preferences(
         )
         return [], exc.code
     return remembered_preferences(records), None
+
+
+def _memory_is_read(turn_identity: Any) -> bool:
+    """Whether this turn asks AgentCore Memory about its customer.
+
+    Signed out reads no one, and a box with no Memory configured reads
+    nothing; neither reports a failure.
+    """
+    from config import settings
+
+    return bool(
+        turn_identity.authenticated
+        and turn_identity.shopper_customer_id
+        and settings.AGENTCORE_MEMORY_ID
+    )
 
 
 def _persona_preamble(
@@ -1706,9 +1719,10 @@ class EnhancedChatService:
                 persona_memory_source = "error"
                 logger.warning(f"Persona LTM read failed for {customer_id}: {e}")
 
+        remembered_read = _memory_is_read(turn_identity)
         remembered, remembered_error = (
             await _remembered_preferences(turn_identity.shopper_customer_id)
-            if turn_identity.authenticated and turn_identity.shopper_customer_id
+            if remembered_read
             else ([], None)
         )
         persona_preamble = _persona_preamble(
@@ -1761,7 +1775,8 @@ class EnhancedChatService:
             "skill_mode": skill_mode,
             "memory": memory_receipt,
             "remembered": remembered_receipt(
-                [item["record_id"] for item in remembered], remembered_error
+                [item["record_id"] for item in remembered], remembered_error,
+                read=remembered_read,
             ),
             "note": (
                 "The agent sees its skills' names and opens the ones it needs"

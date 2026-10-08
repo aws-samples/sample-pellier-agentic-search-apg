@@ -108,6 +108,14 @@ describe('evidenceLine', () => {
     expect(first).not.toContain('kept from earlier')
   })
 
+  it('shows the words a search sent to Aurora', () => {
+    const line = evidenceLine({
+      id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', tags: ['Aurora'],
+      builder: { tool: 'search_products', rail: 'gateway-mcp', duration_ms: 1108, query: 'quiet tactile keepsake piece' },
+    })
+    expect(line).toBe('searched "quiet tactile keepsake piece"; rail gateway-mcp; 1108 ms')
+  })
+
   it('says when the answer was cut short, and nothing for a turn that ended normally', () => {
     const route = (stop_reason: string | null) => ({
       id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router'],
@@ -138,6 +146,11 @@ describe('evidenceLine', () => {
     expect(evidenceLine(managed)).toBe('Remembered: AgentCore Memory records mem-a, mem-b (user preference)')
     const none = { ...route, builder: { tool: null, intent: 'shopping', remembered: null } }
     expect(evidenceLine(none)).toBe('intent shopping')
+    const empty = {
+      ...route,
+      builder: { tool: null, intent: 'shopping', remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: [] } },
+    }
+    expect(evidenceLine(empty)).toBe('intent shopping; Remembered: no AgentCore Memory record (user preference)')
     const failed = {
       ...route,
       builder: {

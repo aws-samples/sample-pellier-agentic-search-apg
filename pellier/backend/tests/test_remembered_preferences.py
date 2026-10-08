@@ -87,6 +87,8 @@ async def _read_fails(self: Any, customer_id: str) -> list:
 
 MEMORY_FAILED = {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "records": [],
                  "error": "managed_memory_unavailable"}
+# A read that was made and found no record: the Builder view says none was given.
+MEMORY_EMPTY = {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "records": []}
 
 
 # ---------------------------------------------------------------------------
@@ -167,14 +169,26 @@ def test_the_managed_payload_carries_theos_preference_and_the_step_names_its_rec
     assert [e for e in events if e.get("type") == "aurora_profile_context"] == []
 
 
-def test_a_runtime_that_reports_no_record_gets_no_memory_line(managed_theo) -> None:
+def test_a_runtime_that_reports_no_record_says_none_was_given(managed_theo) -> None:
     """The step names what the Runtime says it sent, never the list the app sent."""
     managed_theo.reported["ids"] = []
     route = _route(managed_theo())
 
     assert managed_theo.sent[0]["preferences"] == [THEO_RECORD]
-    assert route["builder"]["remembered"] is None
-    assert "Memory" not in route["tags"]
+    assert route["builder"]["remembered"] == MEMORY_EMPTY
+
+
+def test_a_shopper_with_nothing_remembered_is_told_apart_from_signed_out(managed_theo) -> None:
+    """Jessica's read is made and finds nothing; Theo's records never reach her turn."""
+    app_module.app.dependency_overrides[app_module.get_current_user] = lambda: {
+        "sub": "principal-jessica", "username": "jessica", "access_token": "jwt-jessica",
+    }
+    route = _route(managed_theo())
+
+    assert managed_theo.sent[0]["customer_id"] == "CUST-JESSICA"
+    assert managed_theo.sent[0]["preferences"] == []
+    assert route["builder"]["remembered"] == MEMORY_EMPTY
+    assert "Memory" in route["tags"]
 
 
 def test_a_failed_preference_read_continues_the_turn_and_says_so(managed_theo,
@@ -341,6 +355,16 @@ def test_a_signed_out_turn_reads_no_one_from_memory(in_process, theo_memory) -> 
 
     assert theo_memory.reads == []
     assert "AgentCore Memory" not in _prompt(events)
+    assert _route(events)["builder"]["remembered"] is None
+
+
+def test_in_process_a_read_that_finds_nothing_says_so(in_process, theo_memory) -> None:
+    jessica = {"sub": "sub-jessica", "username": "jessica", "customer_id": "CUST-JESSICA"}
+    events = in_process(jessica)
+
+    assert theo_memory.reads == ["CUST-JESSICA"]
+    assert "AgentCore Memory" not in _prompt(events)
+    assert _route(events)["builder"]["remembered"] == MEMORY_EMPTY
 
 
 def test_in_process_a_failed_read_continues_and_the_router_step_says_so(

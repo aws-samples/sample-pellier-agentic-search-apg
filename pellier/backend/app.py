@@ -1155,7 +1155,8 @@ async def chat_stream(
                     # The records the Runtime reports it put ahead of the
                     # prompt, never the list the app sent.
                     remembered=remembered_receipt(
-                        managed_result.remembered, remembered_error
+                        managed_result.remembered, remembered_error,
+                        read=turn_identity.authenticated,
                     ),
                     rail="gateway-mcp",
                     note=_managed_route_note(managed_result, request.skill_mode, managed_agent),

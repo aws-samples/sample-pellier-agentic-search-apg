@@ -121,6 +121,8 @@ export interface LoadedSkill {
 
 export interface StepBuilder {
   tool: string | null
+  /** The words a catalog search sent to Aurora, as the agent wrote them. */
+  query?: string
   rail?: string
   duration_ms?: number | null
   audit_id?: number | null

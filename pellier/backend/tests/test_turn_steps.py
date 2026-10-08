@@ -374,6 +374,34 @@ def test_finished_step_carries_the_builder_payload_and_no_raw_result() -> None:
     assert "productId" not in json.dumps(done)
 
 
+def test_a_search_step_shows_the_words_the_agent_searched_for() -> None:
+    """Remembered taste reaches a search only through the words the agent chose."""
+    query = "hand-thrown   stoneware,\n quiet tactile piece"
+    done = TurnSteps().finished("search_products", json.dumps(_search(2)),
+                                tool_input={"query": query, "limit": 8})
+    managed = TurnSteps().managed({"tool": "search_products", "status": "success",
+                                   "input": {"query": query}})
+    assert done["builder"]["query"] == "hand-thrown stoneware, quiet tactile piece"
+    assert managed["builder"]["query"] == done["builder"]["query"]
+    assert done["builder"]["query"] not in json.dumps(
+        {key: value for key, value in done.items() if key != "builder"})
+
+    long = TurnSteps().finished("search_products", json.dumps(_search(1)),
+                                tool_input={"query": "linen " * 60})
+    assert len(long["builder"]["query"]) == 160
+
+
+def test_a_call_without_a_query_shows_no_search_text() -> None:
+    browse = TurnSteps().managed({"tool": "browse_department", "status": "success",
+                                  "input": {"department": "Home"}})
+    stock = TurnSteps().finished("check_stock", "{}", tool_input={"product_query": "cape"})
+    blank = TurnSteps().finished("search_products", json.dumps(_search(0)),
+                                 tool_input={"query": "  "})
+    assert "query" not in browse["builder"]
+    assert "query" not in stock["builder"]
+    assert "query" not in blank["builder"]
+
+
 def test_route_step_names_the_agent_once_and_its_skills() -> None:
     steps = TurnSteps()
     route = steps.route(

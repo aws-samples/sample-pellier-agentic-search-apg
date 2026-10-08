@@ -81,6 +81,23 @@ _SCOPE_FINDINGS = {
 }
 
 
+# The longest search text the Builder view prints. The model writes it, so it is cut.
+_SEARCH_TEXT_LIMIT = 160
+
+
+def search_text(tool_input: Optional[Dict[str, Any]]) -> Optional[str]:
+    """The words a catalog search sent to Aurora, as the agent wrote them.
+
+    A remembered preference reaches the agent as prompt context, never as a
+    tool argument, so the words the agent chose are where it shows up in a
+    search. ``None`` for a call that takes no ``query``.
+    """
+    query = (tool_input or {}).get("query")
+    if not isinstance(query, str) or not query.strip():
+        return None
+    return " ".join(query.split())[:_SEARCH_TEXT_LIMIT]
+
+
 def step_label(tool: str, tool_input: Optional[Dict[str, Any]] = None) -> str:
     """The plain-words label for a tool start."""
     if tool == SKILL_LOAD_TOOL:
@@ -388,22 +405,24 @@ def layer_tags(tool: str, parsed: Dict[str, Any]) -> List[str]:
 
 
 def remembered_receipt(
-    record_ids: Sequence[str], error: Optional[str] = None,
+    record_ids: Sequence[str], error: Optional[str] = None, *, read: bool,
 ) -> Optional[Dict[str, Any]]:
     """The Router step's evidence for preferences remembered in AgentCore Memory.
 
     Names each user-preference record whose preference went ahead of the
-    prompt, so the Builder view can print the id. ``error`` is the stable code
-    of a Memory read that failed: the turn went on with no remembered
-    preference, and the step says so rather than looking like an empty read.
-    ``None`` when no record was given and nothing failed.
+    prompt, so the Builder view can print the id. ``read`` says whether Memory
+    was asked about this turn's customer: a read that found nothing gives an
+    empty ``records`` list, so the step says no record was given instead of
+    leaving the line out. ``error`` is the stable code of a Memory read that
+    failed: the turn went on with no remembered preference, and the step says
+    so. ``None`` only when nothing was read: signed out, or no Memory.
     """
     receipt = {"source": "agentcore-memory", "strategy": "USER_PREFERENCE"}
     if error:
         return {**receipt, "records": [], "error": error}
-    records = [str(record_id) for record_id in record_ids if str(record_id).strip()]
-    if not records:
+    if not read:
         return None
+    records = [str(record_id) for record_id in record_ids if str(record_id).strip()]
     return {**receipt, "records": records}
 
 
@@ -532,6 +551,9 @@ class TurnSteps:
             "ranking": evidence.get("ranking"),
             "requirements": requirement_phrases(parsed.get("search_plan"), carried),
         }
+        query = search_text(tool_input)
+        if query:
+            builder["query"] = query
         if tool == SKILL_LOAD_TOOL:
             builder["skills"] = list(self.loaded_skills)
         event: Dict[str, Any] = {
@@ -571,9 +593,11 @@ class TurnSteps:
         answer was cut short at ``max_tokens``.
 
         ``memory`` is the Aurora customer record the prompt carried (facts and
-        orders); ``remembered`` names the AgentCore Memory records whose
-        preferences it carried (:func:`remembered_receipt`). Each is present
-        only when the agent was actually given it. ``grant`` is what the built
+        orders), present only when the agent was given it. ``remembered``
+        names the AgentCore Memory records whose preferences it carried
+        (:func:`remembered_receipt`), present whenever Memory was read for
+        this customer, with no records when the read found none. Either one
+        tags the step Memory. ``grant`` is what the built
         agent may call (:func:`grant_receipt`), on the in-process rail.
         """
         tags = list(LAYER_TAGS[ROUTE_STEP_ID])
@@ -632,6 +656,19 @@ class TurnSteps:
         step_id = self.step_id(tool, str(tool_call.get("id") or "") or None)
         label = step_label(tool, tool_call.get("input") or {})
         self.labels[step_id] = label
+        builder: Dict[str, Any] = {
+            "tool": tool,
+            "rail": rail,
+            "duration_ms": tool_call.get("duration_ms"),
+            "audit_id": None,
+            "receipt_id": None,
+            "identity": identity,
+            "ranking": tool_call.get("ranking"),
+            "requirements": None,
+        }
+        query = search_text(tool_call.get("input"))
+        if query:
+            builder["query"] = query
         return _with_results({
             "type": "step",
             "id": step_id,
@@ -639,16 +676,7 @@ class TurnSteps:
             "status": "failed" if failed else "done",
             "finding": finding,
             "tags": list(LAYER_TAGS.get(tool, ())),
-            "builder": {
-                "tool": tool,
-                "rail": rail,
-                "duration_ms": tool_call.get("duration_ms"),
-                "audit_id": None,
-                "receipt_id": None,
-                "identity": identity,
-                "ranking": tool_call.get("ranking"),
-                "requirements": None,
-            },
+            "builder": builder,
         }, tool_call.get("results"))
 
 

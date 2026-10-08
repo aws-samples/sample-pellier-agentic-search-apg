@@ -39,6 +39,9 @@ export function rememberedSentence(records: string[]): string {
   return `Remembered: AgentCore Memory ${noun} ${records.join(', ')} (user preference)`
 }
 
+/** Memory was read for this customer and held no preference: the agent was given none. */
+const REMEMBERED_NONE = 'Remembered: no AgentCore Memory record (user preference)'
+
 /** The read failed: the turn went on with no remembered preference, and says which failure. */
 export function rememberedFailedSentence(error: string): string {
   return `Remembered: AgentCore Memory read failed (${error}); none given`
@@ -66,6 +69,7 @@ export function evidenceLine(step: TurnStep): string {
     if (builder.memory) parts.push(`${builder.memory.facts} facts, ${builder.memory.orders} orders from ${builder.memory.source}`)
     if (builder.remembered?.error) parts.push(rememberedFailedSentence(builder.remembered.error))
     else if (builder.remembered?.records.length) parts.push(rememberedSentence(builder.remembered.records))
+    else if (builder.remembered) parts.push(REMEMBERED_NONE)
     if (builder.skills && builder.skills.length > 0) {
       const mode = builder.skills[0].loaded
       parts.push(`skills ${builder.skills.map(skill => skill.name).join(', ')} (${mode})`)
@@ -79,6 +83,7 @@ export function evidenceLine(step: TurnStep): string {
     else if (builder.stop_reason && builder.stop_reason !== 'end_turn') parts.push(`stop ${builder.stop_reason}`)
     return parts.join('; ')
   }
+  if (builder.query) parts.push(`searched "${builder.query}"`)
   if (builder.identity) parts.push(identitySentence(builder.identity))
   if (builder.requirements?.carried?.length) {
     parts.push(`kept from earlier: ${builder.requirements.carried.join(', ')}`)
