@@ -25,10 +25,15 @@ def _runtime_parts(runtime_arn: str) -> tuple[str, str, str, str]:
     return match.groups()
 
 
+def runtime_log_group(runtime_arn: str) -> str:
+    """The Runtime's own log group: its runtime logs, and its ADOT spans."""
+    _, _, _, identifier = _runtime_parts(runtime_arn)
+    return f"/aws/bedrock-agentcore/runtimes/{identifier}-DEFAULT"
+
+
 def runtime_telemetry_environment(runtime_arn: str) -> dict[str, str]:
     """Make the ADOT destination explicit, including for CodeZip runtimes."""
-    _, _, _, identifier = _runtime_parts(runtime_arn)
-    group = f"/aws/bedrock-agentcore/runtimes/{identifier}-DEFAULT"
+    group = runtime_log_group(runtime_arn)
     return {
         "OTEL_EXPORTER_OTLP_TRACES_HEADERS": f"x-aws-log-group={group},x-aws-log-stream=spans",
         "OTEL_EXPORTER_OTLP_LOGS_HEADERS": (
@@ -44,8 +49,8 @@ def ensure_runtime_log_delivery(
     *,
     on_checkpoint: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    partition, region, account, identifier = _runtime_parts(runtime_arn)
-    group = f"/aws/bedrock-agentcore/runtimes/{identifier}-DEFAULT"
+    partition, region, account, _identifier = _runtime_parts(runtime_arn)
+    group = runtime_log_group(runtime_arn)
     group_arn = f"arn:{partition}:logs:{region}:{account}:log-group:{group}"
     statement = {
         "Sid": STATEMENT_ID,
