@@ -6,8 +6,8 @@
 
 | File in this folder | Task | Application file |
 |---|---|---|
-| [3A-published-tools.py](3A-published-tools.py) | Publish the support-ticket tool | `scripts/deploy/gateway_tool_schemas.py` |
-| [3A-caller-binding.py](3A-caller-binding.py) | Bind the support read to the signed-in customer | `pellier/backend/services/agentcore_gateway.py` |
+| [3A-1-publish-tool.py](3A-1-publish-tool.py) | Publish the support-ticket tool | `scripts/deploy/gateway_tool_schemas.py` |
+| [3A-2-bind-caller.py](3A-2-bind-caller.py) | Bind the support read to the signed-in customer | `pellier/backend/services/agentcore_gateway.py` |
 
 These are links to the actual application files. Saving here changes the file the app or deployment uses; there is no second copy to synchronize. Edit only the marked region named in the guide.
 

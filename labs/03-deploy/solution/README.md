@@ -2,8 +2,8 @@
 
 Try the marked task first. These files are the supplied answers, not the files the application executes.
 
-- [3A-published-tools.py](3A-published-tools.py)
-- [3A-caller-binding.py](3A-caller-binding.py)
+- [3A-1-publish-tool.py](3A-1-publish-tool.py)
+- [3A-2-bind-caller.py](3A-2-bind-caller.py)
 
 To use the guide’s full recovery path, first save any edits you want to keep. Then run these commands **from the repository root**; they replace the corresponding exercise files:
 

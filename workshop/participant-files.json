@@ -20,12 +20,12 @@
     "solution": "solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
   },
   {
-    "alias": "labs/03-deploy/3A-published-tools.py",
+    "alias": "labs/03-deploy/3A-1-publish-tool.py",
     "source": "scripts/deploy/gateway_tool_schemas.py",
     "solution": "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py"
   },
   {
-    "alias": "labs/03-deploy/3A-caller-binding.py",
+    "alias": "labs/03-deploy/3A-2-bind-caller.py",
     "source": "pellier/backend/services/agentcore_gateway.py",
     "solution": "solutions/the-ledger/services/agentcore_gateway.py"
   },
