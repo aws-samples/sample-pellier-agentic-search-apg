@@ -478,3 +478,35 @@ describe('the desk shell', () => {
     }
   })
 })
+
+describe('the investigation status after a decision', () => {
+  it('names the decision instead of the stale waiting status', async () => {
+    const { decidedStatus } = await import('./investigation/InvestigationSteps')
+    const waiting = { label: 'Waiting for approval', state: 'done' as const }
+    const review = (humanState: string) =>
+      ({ detail: { review: { humanState } } }) as unknown as Parameters<typeof decidedStatus>[1]
+    expect(decidedStatus(waiting, review('confirmation_required'), true)).toEqual(waiting)
+    expect(decidedStatus(waiting, review('confirmed'), true)).toEqual({ label: 'Approved', state: 'done' })
+    expect(decidedStatus(waiting, review('declined'), true)).toEqual({ label: 'Declined', state: 'done' })
+    expect(decidedStatus(waiting, null, true)).toEqual(waiting)
+    const working = { label: 'Investigator reads the case', state: 'working' as const }
+    expect(decidedStatus(working, review('confirmed'), true)).toEqual(working)
+    // A case that resolved to a review someone had already approved keeps saying so.
+    const already = { label: 'Already approved', state: 'done' as const }
+    expect(decidedStatus(already, review('confirmed'), false)).toEqual(already)
+  })
+})
+
+describe('the review a client record follows', () => {
+  it('skips the Lab 4 probe while a real review exists', async () => {
+    const { activeReview } = await import('./surfaces/ClientRecord')
+    const { PROBE_REVIEW, EXECUTED_REVIEW, PENDING_REVIEW } = await import('./fixtures')
+    // The check's probe is the newest review once it runs; Jessica's credit stays followed.
+    expect(activeReview([PROBE_REVIEW, EXECUTED_REVIEW])).toBe(EXECUTED_REVIEW)
+    // An open review still wins over a decided one.
+    expect(activeReview([PROBE_REVIEW, EXECUTED_REVIEW, PENDING_REVIEW])).toBe(PENDING_REVIEW)
+    // A record whose only review is the probe still shows it.
+    expect(activeReview([PROBE_REVIEW])).toBe(PROBE_REVIEW)
+    expect(activeReview([])).toBeNull()
+  })
+})

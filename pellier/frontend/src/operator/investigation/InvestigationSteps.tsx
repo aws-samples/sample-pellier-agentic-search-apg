@@ -23,6 +23,22 @@ interface Props {
   hasOpenReview: boolean
 }
 
+/**
+ * The status line once a person has decided. The investigation's own status is
+ * fixed when the Planner finishes ("Waiting for approval"); after Nadia approves
+ * or declines, the live review is the truth, so say what she decided.
+ */
+export function decidedStatus(
+  status: TurnStatus | null,
+  review: ReviewController | null,
+  proposalWasPending: boolean,
+): TurnStatus | null {
+  const decision = review?.detail?.review.humanState
+  if (!status || status.state !== 'done' || !proposalWasPending) return status
+  if (!decision || decision === 'confirmation_required') return status
+  return { label: decision === 'declined' ? 'Declined' : 'Approved', state: 'done' }
+}
+
 function phaseLabel(phase: InvestigationPhase, hasOpenReview: boolean): string {
   if (phase === 'running') return 'Investigating'
   if (hasOpenReview) return 'Investigate again'
@@ -33,6 +49,7 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
   const [builderView] = useBuilderView()
   const { phase, steps, answer, status, error } = investigation
   const live = phase === 'running'
+  const shown = decidedStatus(status, review, answer?.proposal?.status === 'pending')
 
   return (
     <section className="op-investigation" aria-labelledby="op-investigation-title" data-phase={phase} data-testid="operator-investigation">
@@ -60,7 +77,7 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
         </p>
       ) : null}
 
-      {status ? <StatusLine label={status.label} state={status.state} className="op-status" /> : null}
+      {shown ? <StatusLine label={shown.label} state={shown.state} className="op-status" /> : null}
       <StepList steps={steps} live={live} builderView={builderView} folded={phase === 'done'} summary={`How the desk investigated, ${steps.length} ${steps.length === 1 ? 'step' : 'steps'}`} />
 
       {answer && (answer.investigation.facts.length > 0 || answer.investigation.missing.length > 0) ? (
