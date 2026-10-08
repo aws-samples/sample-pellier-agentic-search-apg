@@ -34,7 +34,7 @@ from models.search import (
 from services.database import DatabaseService
 from services.auth import get_current_user, require_operator
 from services.embeddings import EmbeddingService
-from services.chat import ChatService
+from services.chat import ChatService, attach_warehouse_units
 from services.chat_error_taxonomy import classify_chat_error
 from services.sql_query_logger import init_query_logger, get_query_logger
 from services.index_performance import get_index_performance_service
@@ -1202,7 +1202,11 @@ async def chat_stream(
                         + "\n\n"
                     )
                 yield f"data: {json.dumps(status_event(STATUS_WRITING))}\n\n"
-                for product in managed_result.products:
+                # The same warehouse join the in-process stream gives its cards,
+                # so a managed card says In stock or Sold out, not Not verified.
+                managed_products = [dict(product) for product in managed_result.products]
+                await attach_warehouse_units(db_service, managed_products)
+                for product in managed_products:
                     yield (
                         "data: "
                         + json.dumps(
@@ -1223,7 +1227,7 @@ async def chat_stream(
                     "type": "complete",
                     "response": {
                         "response": managed_result.response,
-                        "products": managed_result.products,
+                        "products": managed_products,
                         "suggestions": [],
                         "success": True,
                         "model": managed_result.model,

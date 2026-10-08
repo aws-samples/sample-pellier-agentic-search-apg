@@ -775,6 +775,45 @@ def make_tool_audit_hooks(
     return on_before_tool_audit, on_after_tool_audit
 
 
+async def attach_warehouse_units(db: Any, products: List[Dict]) -> None:
+    """Give every emitted product card its units across the three warehouses.
+
+    One read for the whole card set, from ``pellier.warehouse_inventory``, the
+    same rows ``check_stock`` reports. Both rails call it: the in-process
+    stream and the managed (gateway-mcp) turn in ``app.py``. A card the read
+    did not reach keeps no stock claim, so it renders "Not verified" rather
+    than a guess.
+
+    Args:
+        db: A database service with ``fetch_all``, or None when Aurora is not
+            connected (the cards then keep what they had).
+        products: Card dicts keyed by ``id`` or ``productId``; updated in place.
+    """
+    if not products or not db:
+        return
+    product_ids = [
+        str(product.get("id") or product.get("productId"))
+        for product in products
+        if product.get("id") or product.get("productId")
+    ]
+    if not product_ids:
+        return
+    try:
+        rows = await db.fetch_all(
+            "SELECT product_id, sum(quantity)::int AS units "
+            "FROM pellier.warehouse_inventory WHERE product_id = ANY(%s) "
+            "GROUP BY product_id",
+            product_ids,
+        )
+    except Exception as exc:  # noqa: BLE001 - a card without stock is still a card
+        logger.warning("stock read for product cards failed: %s", exc)
+        return
+    units = {str(row["product_id"]): int(row["units"]) for row in rows or []}
+    for product in products:
+        product_id = str(product.get("id") or product.get("productId") or "")
+        if product_id in units:
+            product["quantity"] = units[product_id]
+            product["inStock"] = units[product_id] > 0
 
 
 class EnhancedChatService:
@@ -1167,37 +1206,8 @@ class EnhancedChatService:
                 product["tags"] = list(catalog["tags"])
 
     async def _attach_stock(self, products: List[Dict]) -> None:
-        """Give every emitted product card its units across the three warehouses.
-
-        One read for the whole card set, from ``pellier.warehouse_inventory``,
-        the same rows ``check_stock`` reports. A card the read did not reach
-        keeps no stock claim.
-        """
-        if not products or not self.db_service:
-            return
-        product_ids = [
-            str(product.get("id") or product.get("productId"))
-            for product in products
-            if product.get("id") or product.get("productId")
-        ]
-        if not product_ids:
-            return
-        try:
-            rows = await self.db_service.fetch_all(
-                "SELECT product_id, sum(quantity)::int AS units "
-                "FROM pellier.warehouse_inventory WHERE product_id = ANY(%s) "
-                "GROUP BY product_id",
-                product_ids,
-            )
-        except Exception as exc:  # noqa: BLE001 - a card without stock is still a card
-            logger.warning("stock read for product cards failed: %s", exc)
-            return
-        units = {str(row["product_id"]): int(row["units"]) for row in rows or []}
-        for product in products:
-            product_id = str(product.get("id") or product.get("productId") or "")
-            if product_id in units:
-                product["quantity"] = units[product_id]
-                product["inStock"] = units[product_id] > 0
+        """Give every emitted product card its units; see ``attach_warehouse_units``."""
+        await attach_warehouse_units(self.db_service, products)
 
     def _generate_contextual_suggestions(self, query: str, conversation_history: Optional[List[Dict[str, str]]] = None) -> List[str]:
         """Generate action-oriented follow-up suggestions that feel agentic."""

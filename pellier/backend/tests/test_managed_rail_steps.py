@@ -455,3 +455,56 @@ def test_a_managed_browse_shows_the_ids_it_returned_and_says_what_it_lacks(
     assert browse["results"]["product_ids"] == ["31", "36", "22"]
     assert browse["results"]["limits"] == [] and browse["results"]["filters"] is None
     assert browse["results"]["note"] == app_module.MANAGED_BROWSE_NOTE
+
+
+def test_managed_product_cards_carry_warehouse_units(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A managed card gets the same warehouse join as an in-process card.
+
+    Without it every card on the gateway-mcp rail read "Not verified", even for
+    pieces Aurora holds in every warehouse.
+    """
+    reads: List[Any] = []
+
+    class _Db:
+        async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
+            if "pellier.warehouse_inventory" in sql:
+                reads.append(params)
+                return [{"product_id": "65", "units": 24}, {"product_id": "43", "units": 0}]
+            return []
+
+        async def fetch_one(self, *_: Any, **__: Any) -> None:
+            return None
+
+        async def execute(self, *_: Any, **__: Any) -> None:
+            return None
+
+    async def _managed(**kwargs: Any) -> ManagedRuntimeResult:
+        return ManagedRuntimeResult(
+            response="Start with the Stoneware Mugs, Set of 2.",
+            products=[
+                {"productId": "65", "name": "Stoneware Mugs, Set of 2", "price": 38},
+                {"productId": "43", "name": "Quilted Silk Vest", "price": 120},
+                {"productId": "999", "name": "Unknown", "price": 1},
+            ],
+            rail="gateway-mcp",
+            intent="shopping",
+            specialist="shopping",
+            model="global.anthropic.claude-opus-5",
+            tool_calls=[],
+        )
+
+    monkeypatch.setattr(app_module, "db_service", _Db())
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _managed)
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "stoneware mugs", "conversation_history": [], "session_id": "sess-anna"},
+    ).text
+    cards = [event["product"] for event in _events(body) if event.get("type") == "product"]
+    assert reads == [(["65", "43", "999"],)]
+    assert cards[0]["quantity"] == 24 and cards[0]["inStock"] is True
+    assert cards[1]["quantity"] == 0 and cards[1]["inStock"] is False
+    assert "inStock" not in cards[2]
+    complete = [event for event in _events(body) if event.get("type") == "complete"][0]
+    assert complete["response"]["products"][0]["inStock"] is True
