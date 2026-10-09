@@ -19,8 +19,8 @@ store's leadership would have, and each lab answers one:
 |---|---|---|
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
-| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
-| 4. Build Governed Agent Actions with Cedar | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." |
+| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
+| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
 Every lab has the same rhythm: spot the failure live, predict, build, check,
 challenge, explain. Each check prints what was expected, what was observed
@@ -35,8 +35,8 @@ Times are elapsed minutes from the start of the session.
 | 0-15 | Presenter introduction | 15 minutes |
 | 15-30 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
 | 30-45 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
-| 45-65 | Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore | 20 minutes |
-| 65-90 | Lab 4: Build Governed Agent Actions with Cedar | 25 minutes |
+| 45-65 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 20 minutes |
+| 65-90 | Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | 25 minutes |
 | 90-95 | Recovery buffer | 5 minutes |
 | 95-100 | Summary: export the evidence | 5 minutes |
 
@@ -151,7 +151,7 @@ Marco needs reliable stock and dispatch facts before his trip.
   agent's numbers equal one SELECT on `warehouse_inventory`.
 - **Explain:** an agent can only claim what its tool returns.
 
-### Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore
+### Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
 
 Theo wants his taste remembered and help with his own chipped bowl.
 
@@ -178,7 +178,7 @@ Theo wants his taste remembered and help with his own chipped bowl.
 Gateway filters discovery by policy, so compare a caller's tool list with what
 that caller may call, not with the full published catalogue.
 
-### Lab 4: Build Governed Agent Actions with Cedar
+### Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security
 
 Jessica sent two items back and has no credit yet. Nadia must approve the
 credit, and the system must prove what moved.

@@ -46,7 +46,7 @@ Restart, ask Marco's questions again, then run
 `python3 scripts/lab2_contract_check.py` and
 `python3 scripts/lab2_contract_check.py --task 2B`.
 
-## Lab 3: Deploy and Operate Agents with Amazon Bedrock AgentCore
+## Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
 
 Task 3A's recovery publishes `get_tickets` and binds it to the signed-in
 caller. A copy changes nothing in AWS until it is deployed, because the
@@ -75,7 +75,7 @@ Gateway answered, and what was paid. It only reads:
 psql -X -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql
 ```
 
-## Lab 4: Build Governed Agent Actions with Cedar
+## Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security
 
 Task 4A's recovery is the $100 per-credit limit. Provisioning deployed the
 starter as the policy `workshop_credit_limit`, so the deploy updates it:

@@ -40,7 +40,7 @@
     {
       "id": "managed-agent-path",
       "name": "Theo",
-      "title": "Deploy and Operate Agents with Amazon Bedrock AgentCore",
+      "title": "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore",
       "storyTitle": "Establish the caller",
       "worry": "The assistant should remember our customers, but never let one see another's account.",
       "minutes": 20,
@@ -57,7 +57,7 @@
     {
       "id": "fail-closed-policy",
       "name": "Jessica",
-      "title": "Build Governed Agent Actions with Cedar",
+      "title": "Govern Agent Actions with Cedar and PostgreSQL Row-Level Security",
       "storyTitle": "Govern the action",
       "worry": "No AI moves money on its own, and when money moves, we must prove what happened.",
       "minutes": 25,

@@ -15,8 +15,8 @@ persona-led scenario; keep the technical titles as the headings.
 |---|---|---|
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
-| 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
-| 4. Build Governed Agent Actions with Cedar | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
+| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
+| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
 ## Every lab: spot the failure, then fix and prove it
 

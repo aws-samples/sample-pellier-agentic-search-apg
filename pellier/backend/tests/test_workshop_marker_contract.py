@@ -29,13 +29,13 @@ that starts by dropping the shopper's limits.
 Each lab's starters fail the way its guide's Spot step shows, and its solutions do not:
 ``tests/test_lab1_starter_failure.py`` and ``tests/test_lab2_starter_failure.py``.
 
-**Lab 3 - Deploy and Operate Agents with Amazon Bedrock AgentCore.** Two marker regions and two
+**Lab 3 - Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore.** Two marker regions and two
 fallback files. 3A publishes ``get_tickets`` on the Gateway and reconciles the
 tools the Runtime asks the Gateway for, binding that read to the caller. One of the two
 files is a packaged runtime source. Task 3B deploys those edits and checks the executed
 fingerprint, which is how the participant proves their own build answered.
 
-**Lab 4 - Build Governed Agent Actions with Cedar.** A starter Cedar file that must NOT contain
+**Lab 4 - Govern Agent Actions with Cedar and PostgreSQL Row-Level Security.** A starter Cedar file that must NOT contain
 the answer, a reference rule that must (an amount rule on ``give_store_credit``, not an
 identity-pair match), and an RLS worksheet whose one ownership expression starts as
 ``false``. The keyed absence check is supplied, with no region to author, and so is the
@@ -767,8 +767,8 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
 CANONICAL_LAB_TITLE_PARTS: Tuple[Tuple[str, str], ...] = (
     ("Lab 2", "Build a PostgreSQL-Grounded Agent"),
     ("Lab 1", "Build and Measure PostgreSQL Hybrid Retrieval"),
-    ("Lab 3", "Deploy and Operate Agents with Amazon Bedrock AgentCore"),
-    ("Lab 4", "Build Governed Agent Actions with Cedar"),
+    ("Lab 3", "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore"),
+    ("Lab 4", "Govern Agent Actions with Cedar and PostgreSQL Row-Level Security"),
 )
 
 # Titles the rename replaced. Present anywhere in the shipped product, they are drift.
@@ -779,6 +779,8 @@ RETIRED_LAB_TITLES: Tuple[str, ...] = (
     "Operate and Observe the AgentCore Managed Path",
     "Deploy and Operate the Managed Agent Path",
     "Govern and Prove Agent Actions",
+    "Deploy and Operate Agents with Amazon Bedrock AgentCore",
+    "Build Governed Agent Actions with Cedar",
 )
 
 # Surfaces a participant actually reads a lab title on, plus the API that supplies one.
