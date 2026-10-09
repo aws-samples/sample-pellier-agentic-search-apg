@@ -164,9 +164,13 @@ Theo wants his taste remembered and help with his own chipped bowl.
   household request: "Jessica and I share an address... Can you check her
   ticket too?"
 - **Check:** `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites`
-  reads nine tools published; `python3 scripts/lab3_check.py` prints the
-  executed build beside this checkout's, the Memory record, every ticket read
-  bound to Theo, and Cedar's denial of his direct read of Jessica's tickets.
+  reads nine tools published and sends a forged ticket read through the
+  checkout's binding: the model asks for Jessica's tickets while Theo is signed
+  in, and the call must leave as `CUST-THEO`. Theo's real turns rarely make
+  that request, so the check makes it every time. `python3
+  scripts/lab3_check.py` prints the executed build beside this checkout's, the
+  Memory record, every ticket read bound to Theo with the same forged call, and
+  Cedar's denial of his direct read of Jessica's tickets.
 - **Explain:** the caller comes from the signed token, not the conversation;
   Memory is context, never permission.
 

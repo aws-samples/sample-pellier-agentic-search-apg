@@ -13,14 +13,20 @@ It prints four findings, each with Expected, Observed and Evidence:
              user-preference record extracted from his provisioning
              conversation, and the Builder view names that record id
     tickets  every executed ``get_tickets`` call on the Gateway in Theo's turns
-             read his own tickets, and none read another customer's
+             read his own tickets, none read another customer's, and a forged
+             call (the model asking for Jessica's tickets while Theo is signed
+             in) leaves this checkout bound to Theo; the build finding shows
+             this checkout is the build that answered
     probe    Theo's own token, asking the Gateway directly for Jessica's
              tickets, is denied by Cedar (the owner-only permit does not match,
              so nothing permits it) and leaves no ``tool_audit`` row
 
 Task 3A's check is the doctor's prerequisites line
 (``scripts/workshop_doctor.py --lab 3 --phase prerequisites``); it and the
-evidence export judge the source with :func:`judge_catalogue` below.
+evidence export judge the source with :func:`judge_catalogue` below, which runs
+the forged call through the checkout's own binding (:func:`probe_binding`).
+Theo's real turns rarely make that call, because the model seldom asks for
+another customer, so the probe makes it every time.
 """
 
 from __future__ import annotations
@@ -90,10 +96,48 @@ _CATALOGUE_EXPECTED = ("the Gateway publishes every tool the Support agent asks 
 STAFF_ONLY = frozenset({"give_store_credit"})
 
 
+def probe_binding(bind: Callable[..., Dict[str, Any]]) -> Dict[str, str]:
+    """A forged ticket read through ``bind``, the server's binding, before it leaves Runtime.
+
+    Theo is signed in and the model asks ``get_tickets`` for Jessica. ``sent``
+    is the customer the call would carry to the Gateway. ``unsigned`` is what
+    the same call does when no customer is verified: ``refused``, or the
+    customer it would still carry.
+
+    Args:
+        bind: ``services.agentcore_gateway._bind_server_tool_context``.
+    """
+    forged = {"name": f"pellier-store-tools___{PROBE_TOOL}", "toolUseId": "lab3-forged",
+              "input": {"customer_id": JESSICA}}
+    sent = bind(forged, customer_id=THEO, turn_id="")["input"].get("customer_id")
+    try:
+        carried = bind(forged, customer_id="", turn_id="")["input"].get("customer_id")
+        unsigned = str(carried or "none")
+    except ValueError:
+        unsigned = "refused"
+    return {"sent": str(sent or "none"), "unsigned": unsigned}
+
+
+def _probe_lines(probe: Dict[str, str]) -> List[str]:
+    unsigned = "refused" if probe["unsigned"] == "refused" else f"sent as {probe['unsigned']}"
+    return [(f"forged call: Theo signed in, the model asks get_tickets for {JESSICA}; "
+             f"the server sends {probe['sent']}"),
+            f"the same call with no signed-in customer: {unsigned}"]
+
+
+def _probe_binds(probe: Dict[str, str]) -> bool:
+    return probe["sent"] == THEO and probe["unsigned"] == "refused"
+
+
 def judge_catalogue(
     published: Iterable[str], managed: Sequence[str], bound: Iterable[str],
+    probe: Optional[Dict[str, str]] = None,
 ) -> check.Finding:
-    """Task 3A's verdict from the two lists in its marked regions."""
+    """Task 3A's verdict from the two lists in its marked regions and the forged call.
+
+    ``probe`` (:func:`probe_binding`) decides the binding when it is given: it
+    is what the server does, where ``bound`` is only what the region names.
+    """
     published, bound = frozenset(published), frozenset(bound)
     evidence = [
         f"scripts/deploy/gateway_tool_schemas.py publishes {len(published)} tools",
@@ -101,6 +145,8 @@ def judge_catalogue(
         "services/agentcore_gateway.py binds to the caller: "
         + (", ".join(sorted(bound)) or "none"),
     ]
+    if probe is not None:
+        evidence += _probe_lines(probe)
     staff_only = sorted(set(managed) & STAFF_ONLY)
     if staff_only:
         return check.Finding(
@@ -114,27 +160,37 @@ def judge_catalogue(
             f"the Support agent asks for {', '.join(unpublished)}, which is not published "
             "on the Gateway", evidence,
             "publish it in the Gateway catalogue - published tools block.")
-    if PROBE_TOOL in managed and PROBE_TOOL not in bound:
+    unbound = (not _probe_binds(probe)) if probe is not None else PROBE_TOOL not in bound
+    if PROBE_TOOL in managed and unbound:
+        observed = ("get_tickets is published but not bound to the signed-in caller, so the "
+                    "model chooses whose tickets to read")
+        if probe is not None and probe["sent"] != THEO:
+            observed += f"; a forged call for {JESSICA} would leave as {probe['sent']}"
         return check.Finding(
-            "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED,
-            "get_tickets is published but not bound to the signed-in caller, so the model "
-            "chooses whose tickets to read", evidence,
+            "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED, observed, evidence,
             "add get_tickets to SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - "
             "support reconcile block.")
+    observed = f"{len(published)} tools published, get_tickets bound to the signed-in caller"
+    if probe is not None:
+        observed = f"{len(published)} tools published; a forged call for {JESSICA} leaves as {THEO}"
     return check.Finding("3A", _CATALOGUE_TITLE, check.PROVED, _CATALOGUE_EXPECTED,
-                         f"{len(published)} tools published, get_tickets bound to the "
-                         "signed-in caller", evidence)
+                         observed, evidence)
 
 
 def source_catalogue() -> tuple:
-    """``(published, support tools, caller-bound tools)`` from the live source."""
+    """``(published, support tools, caller-bound tools, forged call)`` from the live source."""
     for path in (DEPLOY, BACKEND):
         if str(path) not in sys.path:
             sys.path.insert(0, str(path))
     from gateway_tool_schemas import workshop_published_tools
-    from services.agentcore_gateway import SUPPORT_CALLER_BOUND_TOOLS, SUPPORT_MANAGED_TOOLS
+    from services.agentcore_gateway import (
+        SUPPORT_CALLER_BOUND_TOOLS,
+        SUPPORT_MANAGED_TOOLS,
+        _bind_server_tool_context,
+    )
 
-    return workshop_published_tools(), SUPPORT_MANAGED_TOOLS, SUPPORT_CALLER_BOUND_TOOLS
+    return (workshop_published_tools(), SUPPORT_MANAGED_TOOLS, SUPPORT_CALLER_BOUND_TOOLS,
+            probe_binding(_bind_server_tool_context))
 
 
 # ---------------------------------------------------------------------------
@@ -187,14 +243,25 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
 
 _TICKETS_TITLE = "every executed ticket read was Theo's own"
 TICKETS_EXPECTED = ("at least one executed get_tickets call on the Gateway in Theo's turns, "
-                    f"every one for {THEO}, none for another customer")
+                    f"every one for {THEO}, none for another customer; a forged call for "
+                    f"{JESSICA} leaves this checkout as {THEO}")
+_NEXT_BIND = ("add get_tickets to SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - support "
+              "reconcile block, then deploy with --mode participant.")
 
 
-def judge_tickets(rows: Sequence[Dict[str, Any]]) -> check.Finding:
-    """Whose tickets the executed Gateway reads asked for."""
+def judge_tickets(rows: Sequence[Dict[str, Any]],
+                  probe: Optional[Dict[str, str]] = None) -> check.Finding:
+    """Whose tickets the executed Gateway reads asked for, and whose a forged one would.
+
+    Theo's own reads carry CUST-THEO whether or not the server binds them,
+    because the model usually names him. ``probe`` (:func:`probe_binding`)
+    shows the server binds a request for someone else too.
+    """
     evidence = [f"pellier.tool_audit audit {r.get('audit_id')}: get_tickets for "
                 f"{r.get('customer_id') or 'no customer'} in turn {r.get('turn_id')}"
                 for r in rows[-5:]]
+    if probe is not None:
+        evidence += _probe_lines(probe)
     if not rows:
         return check.Finding("3B", _TICKETS_TITLE, check.NOT_YET, TICKETS_EXPECTED,
                              "no get_tickets call has run on the Gateway yet", evidence,
@@ -204,9 +271,33 @@ def judge_tickets(rows: Sequence[Dict[str, Any]]) -> check.Finding:
                 f"{len(others)} for anyone else")
     if others:
         return check.Finding("3B", _TICKETS_TITLE, check.CONTRADICTED, TICKETS_EXPECTED,
-                             observed, evidence,
-                             "check SUPPORT_CALLER_BOUND_TOOLS names get_tickets, then deploy.")
+                             observed, evidence, _NEXT_BIND)
+    if probe is not None and not _probe_binds(probe):
+        return check.Finding("3B", _TICKETS_TITLE, check.CONTRADICTED, TICKETS_EXPECTED,
+                             observed + f"; a forged call for {JESSICA} would leave as "
+                             f"{probe['sent']}", evidence, _NEXT_BIND)
+    if probe is not None:
+        observed += f"; a forged call for {JESSICA} leaves as {THEO}"
     return check.Finding("3B", _TICKETS_TITLE, check.PROVED, TICKETS_EXPECTED, observed, evidence)
+
+
+def source_probe() -> tuple:
+    """``(forged call, "")`` through this checkout's binding, or ``(None, the reason)``."""
+    try:
+        return source_catalogue()[3], ""
+    except Exception as exc:  # noqa: BLE001 - reported as the tickets finding's reason
+        return None, f"{type(exc).__name__}: {str(exc)[:160]}"
+
+
+def tickets_finding(rows: Sequence[Dict[str, Any]]) -> check.Finding:
+    """The tickets verdict, which needs the forged call: Theo's own reads alone prove nothing."""
+    probe, reason = source_probe()
+    if probe is None:
+        return check.Finding("3B", _TICKETS_TITLE, check.UNCHECKED, TICKETS_EXPECTED,
+                             "the forged call could not run through this checkout's binding",
+                             [reason], "run this from the repository root on the workshop box, "
+                             "with the backend's Python.")
+    return judge_tickets(rows, probe)
 
 
 # ---------------------------------------------------------------------------
@@ -418,7 +509,7 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
         try:
             rows = read_rows(cfg)
             rows_findings = [judge_build(rows["build"], local_fingerprint()),
-                             judge_tickets(rows["tickets"])]
+                             tickets_finding(rows["tickets"])]
         except Exception as exc:  # noqa: BLE001 - the reason is the finding
             reason = [f"{type(exc).__name__}: {str(exc)[:160]}"]
             rows_findings = [

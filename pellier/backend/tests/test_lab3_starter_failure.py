@@ -216,3 +216,68 @@ def test_published_but_unbound_leaves_the_model_choosing_whose_tickets(managed_s
     assert agent.last_bound_input["customer_id"] == JESSICA
     (event,) = dispatcher.last_tool_events
     assert event["binding"] == "unbound" and event["requested_other_customer"] is True
+
+
+# ---------------------------------------------------------------------------
+# The check's forged call: what the server's binding does, every time
+# ---------------------------------------------------------------------------
+
+
+def _probe(variant: str, monkeypatch) -> dict:
+    """The forged ticket read through the server binding, under one variant's region."""
+    _managed, bound = lab_variants.support_contract(variant)
+    monkeypatch.setattr(agentcore_gateway, "_CUSTOMER_SCOPED_TOOL_NAMES",
+                        frozenset({"get_orders"}) | bound)
+    return lab3.probe_binding(agentcore_gateway._bind_server_tool_context)
+
+
+def test_the_forged_call_leaves_the_starter_as_jessica_and_the_solution_as_theo(
+    monkeypatch,
+) -> None:
+    assert _probe(lab_variants.STARTER, monkeypatch) == {"sent": JESSICA, "unsigned": JESSICA}
+    assert _probe(lab_variants.SOLUTION, monkeypatch) == {"sent": THEO, "unsigned": "refused"}
+
+
+def test_the_doctor_names_the_forged_customer_on_published_but_unbound(monkeypatch) -> None:
+    """Task 3A half done: get_tickets published, the region still binding nothing."""
+    managed, _bound = lab_variants.support_contract(lab_variants.SOLUTION)
+    probe = _probe(lab_variants.STARTER, monkeypatch)
+    finding = lab3.judge_catalogue(_published(lab_variants.SOLUTION), managed, frozenset(), probe)
+    assert finding.state == lab3.check.NOT_YET
+    assert f"a forged call for {JESSICA} would leave as {JESSICA}" in finding.observed
+    assert any("the server sends CUST-JESSICA" in line for line in finding.evidence)
+
+
+def test_the_doctor_passes_the_solution_on_the_forged_call(monkeypatch) -> None:
+    managed, bound = lab_variants.support_contract(lab_variants.SOLUTION)
+    probe = _probe(lab_variants.SOLUTION, monkeypatch)
+    finding = lab3.judge_catalogue(_published(lab_variants.SOLUTION), managed, bound, probe)
+    assert finding.state == lab3.check.PROVED
+    assert finding.observed == f"9 tools published; a forged call for {JESSICA} leaves as {THEO}"
+    assert "the same call with no signed-in customer: refused" in finding.evidence
+
+
+THEO_READS = [{"audit_id": 7, "turn_id": "turn-a", "customer_id": THEO}]
+
+
+def test_theos_own_reads_do_not_prove_the_binding_without_the_forged_call(monkeypatch) -> None:
+    """The model names Theo by itself, so his reads look the same bound or unbound."""
+    unbound = lab3.judge_tickets(THEO_READS, _probe(lab_variants.STARTER, monkeypatch))
+    assert unbound.state == lab3.check.CONTRADICTED
+    assert f"a forged call for {JESSICA} would leave as {JESSICA}" in unbound.observed
+    assert "SUPPORT_CALLER_BOUND_TOOLS" in unbound.next_step
+
+    bound = lab3.judge_tickets(THEO_READS, _probe(lab_variants.SOLUTION, monkeypatch))
+    assert bound.state == lab3.check.PROVED
+    assert bound.observed.endswith(f"a forged call for {JESSICA} leaves as {THEO}")
+
+
+def test_the_tickets_finding_is_unchecked_when_the_forged_call_cannot_run(monkeypatch) -> None:
+    """Without the forged call, Theo's own reads cannot show the binding, so nothing is proved."""
+    def broken() -> tuple:
+        raise ModuleNotFoundError("strands.vended_plugins")
+
+    monkeypatch.setattr(lab3, "source_catalogue", broken)
+    finding = lab3.tickets_finding(THEO_READS)
+    assert finding.state == lab3.check.UNCHECKED
+    assert "ModuleNotFoundError: strands.vended_plugins" in finding.evidence[0]

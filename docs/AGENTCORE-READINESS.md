@@ -121,8 +121,8 @@ approve a credit or mark an unrun check complete.
 | **1B** | Fallback in `pellier/backend/services/search_plan.py` | `scripts/lab1_compare.py`: the search that answered kept every limit the shopper asked for, and every product meets them. |
 | **2A** | `check_stock` in `pellier/backend/services/agent_tools.py` | `scripts/lab2_contract_check.py`: not carried, several, sold out and in stock stay distinct. |
 | **2B** | Stock agent grant in `pellier/backend/agents/stock_agent.py` | `--task 2B`: the answering Stock agent held `check_stock` alone, and its counts equal `warehouse_inventory`. |
-| **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | Nine tools published, `get_tickets` bound to the signed-in caller. |
-| **3B** | No region: deploy with `--mode participant` | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo, Cedar's denial of his direct read of Jessica's tickets. |
+| **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | Nine tools published, `get_tickets` bound to the signed-in caller: a forged read for `CUST-JESSICA` leaves the checkout as `CUST-THEO`, and is refused with no signed-in customer. |
+| **3B** | No region: deploy with `--mode participant` | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo with the forged read bound too, Cedar's denial of his direct read of Jessica's tickets. |
 | **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: Cedar matrix, eight wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
 | **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; `workshop/lab-4-absence.sql` supplied | RLS probes in one rolled-back transaction; the absence check prints 0, 0 and 1. |
 
