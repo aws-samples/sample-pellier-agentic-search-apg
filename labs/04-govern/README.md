@@ -21,7 +21,7 @@ psql -X -P pager=off -f workshop/lab-4-rls.sql
 python3 scripts/lab4_rls_check.py
 ```
 
-Deploy the Cedar edit with the guide’s participant deployment. The RLS worksheet runs in a transaction that rolls back; it does not replace the deployed policy. `scripts/lab4_rls_check.py` then probes the deployed policies as Theo, in process and through the Gateway Lambda's Data API binding, and also rolls back. Run `workshop/lab-4-absence.sql` for the final absence proof.
+Deploy the Cedar edit with the guide’s participant deployment. The RLS worksheet runs in a transaction that rolls back; it does not replace the deployed policy. `scripts/lab4_rls_check.py` then probes the deployed policies as Theo, in process and through the Gateway Lambda's Data API binding, and also rolls back. Run `workshop/lab-4-absence.sql` for the final absence proof. Afterwards, `python3 scripts/observability_check.py` reads the steps outside AgentCore's trace: the app's spans, Database Insights and the refused write in the PostgreSQL log.
 
 ## If you need a solution
 
