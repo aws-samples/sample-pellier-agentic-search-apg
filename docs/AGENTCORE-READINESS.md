@@ -124,7 +124,7 @@ approve a credit or mark an unrun check complete.
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | Nine tools published, `get_tickets` bound to the signed-in caller: a forged read for `CUST-JESSICA` leaves the checkout as `CUST-THEO`, and is refused with no signed-in customer. |
 | **3B** | No region: deploy with `--mode participant` | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo with the forged read bound too, Cedar's denial of his direct read of Jessica's tickets. |
 | **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: Cedar matrix, eight wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
-| **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; `workshop/lab-4-absence.sql` supplied | RLS probes in one rolled-back transaction; the absence check prints 0, 0 and 1. |
+| **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; `scripts/lab4_rls_check.py` and `workshop/lab-4-absence.sql` supplied | RLS probes in one rolled-back transaction; the live policies stop a wrong query as Theo in process and through the Gateway Lambda's Data API binding; the absence check prints 0, 0 and 1. |
 
 Labs 1 and 2 run in process; Lab 3 does not move those edits into the Lambda.
 The store tools themselves are one implementation (`services/store_tools.py`),

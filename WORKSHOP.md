@@ -196,7 +196,15 @@ credit, and the system must prove what moved.
   executes Jessica's approved credit, then retries it: one credit, one audit
   row. The RLS worksheet and the supplied `workshop/lab-4-absence.sql` run with
   `psql`; the absence check prints 0 and 0 for the denied key and 1 for the
-  allowed key, so a search that always returns zero cannot pass.
+  allowed key, so a search that always returns zero cannot pass. The worksheet
+  rolls its predicate back, so `python3 scripts/lab4_rls_check.py` then probes
+  the live policies through both binding paths, in process and the Gateway
+  Lambda's Data API transaction: bound as Theo, a query for Jessica's rows
+  returns none and a ticket in her name is refused with 42501. Row-level
+  security stops a wrong query; Cedar's owner-only permit decides which
+  customer a Gateway call may carry. The query that joins `tool_audit` to
+  `store_credits` by idempotency key is the guide's record of what ran and
+  what was written.
 - **Explain:** two independent controls decide a credit, who may act and how
   much. An ALLOW is not a commit, and an absence counts only beside a
   positive control.

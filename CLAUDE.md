@@ -53,8 +53,9 @@ participant's named task and prediction before proposing a change.
 | 4B | `workshop/lab-4-rls.sql` | `Row ownership - predicate` |
 
 Task 3B deploys and challenges the Task 3A edits; it adds no authoring region.
-Lab 4's keyed absence check (`workshop/lab-4-absence.sql`) is supplied; it has
-no region to author.
+Lab 4's keyed absence check (`workshop/lab-4-absence.sql`) and live row-level
+security check (`scripts/lab4_rls_check.py`) are supplied; neither has a region
+to author.
 Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its exercise boundary. This table grants access only to
 the task the participant names, never every file at once.

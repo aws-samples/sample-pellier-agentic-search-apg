@@ -18,9 +18,10 @@ Every prepared terminal starts at the repository root. Run the checks at the poi
 ```bash
 python3 scripts/lab4_policy_check.py
 psql -X -P pager=off -f workshop/lab-4-rls.sql
+python3 scripts/lab4_rls_check.py
 ```
 
-Deploy the Cedar edit with the guide’s participant deployment. The RLS worksheet runs in a transaction that rolls back; it does not replace the deployed policy. Run `workshop/lab-4-absence.sql` for the final absence proof.
+Deploy the Cedar edit with the guide’s participant deployment. The RLS worksheet runs in a transaction that rolls back; it does not replace the deployed policy. `scripts/lab4_rls_check.py` then probes the deployed policies as Theo, in process and through the Gateway Lambda's Data API binding, and also rolls back. Run `workshop/lab-4-absence.sql` for the final absence proof.
 
 ## If you need a solution
 

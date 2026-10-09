@@ -28,7 +28,7 @@ recovered task keeps the same checks.
 | 3A, Theo | Publish `get_tickets` and bind it to the caller | `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites` |
 | 3B, Theo | Deploy, then challenge with the household request | the Builder view's `Remembered: AgentCore Memory record <id>` line and `python3 scripts/lab3_check.py` |
 | 4A, Jessica and Nadia | The $100 per-credit limit (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_policy_check.py` |
-| 4B, Jessica and Nadia | The row-ownership predicate (`workshop/lab-4-rls.sql`) | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then `-f workshop/lab-4-absence.sql` |
+| 4B, Jessica and Nadia | The row-ownership predicate (`workshop/lab-4-rls.sql`) | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, `python3 scripts/lab4_rls_check.py`, then `psql -X -P pager=off -f workshop/lab-4-absence.sql` |
 
 Optional in Lab 1: `psql -X -P pager=off -f workshop/lab-1-hnsw.sql` shows whether Aurora
 uses the HNSW index at this catalog's size, and what a filter does to the index when it is

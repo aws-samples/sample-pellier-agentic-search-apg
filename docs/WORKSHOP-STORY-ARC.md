@@ -46,7 +46,7 @@ Paths under `services/` and `agents/` are in `pellier/backend/`.
 | 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Managed catalogue - support reconcile` | `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites`, which sends a forged ticket read for Jessica through the checkout's binding |
 | 3B | none: deploy with `--mode participant` | the Builder view's `Remembered: AgentCore Memory record <id>` line, then `python3 scripts/lab3_check.py` |
 | 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_policy_check.py` |
-| 4B | `workshop/lab-4-rls.sql`, `Row ownership - predicate` | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then the supplied `workshop/lab-4-absence.sql` |
+| 4B | `workshop/lab-4-rls.sql`, `Row ownership - predicate` | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then the supplied `python3 scripts/lab4_rls_check.py` (the live policies, both binding paths) and `workshop/lab-4-absence.sql` |
 
 Every check prints three things: what was expected, what was observed, and the
 evidence (the row, the decision, the key). A check that did not pass says what
