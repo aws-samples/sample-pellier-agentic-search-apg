@@ -1,6 +1,7 @@
 export { default as StatusLine } from './StatusLine'
 export { default as StatusTag } from './StatusTag'
 export { default as LayerTag } from './LayerTag'
+export { default as TurnIdLine } from './TurnIdLine'
 export { default as StepList, foldSummary } from './StepList'
 export { default as RankingPanel, RankingSummary } from './RankingPanel'
 export { default as RevealedProse } from './RevealedProse'

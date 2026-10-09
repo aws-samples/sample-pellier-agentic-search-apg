@@ -208,6 +208,42 @@
   overflow-wrap: anywhere;
 }
 
+/* ---- The turn's id (Builder view) ---- */
+.tn-turn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.tn-turn-id {
+  font: 400 11.5px/1.5 var(--dl-font-mono);
+  color: var(--dl-ink-2);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.tn-turn-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dl-ink-2);
+  cursor: pointer;
+}
+.tn-turn-copy:hover {
+  color: var(--pellier-copper);
+  background: var(--pellier-copper-tint);
+}
+.tn-turn-copy:focus-visible {
+  outline: 2px solid var(--pellier-copper);
+  outline-offset: 2px;
+}
+
 /* ---- Layer tags (Builder view) ---- */
 .tn-layer {
   font: 500 10.5px/1 var(--dl-font-mono);

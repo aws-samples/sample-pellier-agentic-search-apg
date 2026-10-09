@@ -111,6 +111,8 @@ for (const width of [1440, 390]) {
     await expect(drawer.getByText('Stoneware Pour-Over Set').first()).toBeVisible()
     // No sold-out or over-budget card on Anna's turn.
     await expect(drawer.getByText('Sold out')).toHaveCount(0)
+    // Shoppers never see the turn id.
+    await expect(drawer.getByTestId('turn-id')).toHaveCount(0)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-answered.png`) })
 
     // Builder view on, from the header: layer tags and the evidence line in
@@ -126,9 +128,14 @@ for (const width of [1440, 390]) {
     }
     // The verified principal for the turn, from the server, not the chooser.
     await expect(drawer.getByTestId('turn-principal')).toHaveText('IdentityWorkshop sign-in, CUST-ANNA')
+    // The turn's id from turn_start: the key its tool_audit rows and spans carry.
+    await expect(drawer.getByTestId('turn-id')).toHaveText(`Turn${'turn-' + 'a'.repeat(32)}`)
+    await expect(drawer.getByRole('button', { name: 'Copy turn id' })).toBeVisible()
     await page.addStyleTag({ content: '.cd-latest { visibility: hidden !important; }' })
     await page.waitForTimeout(400)
     await drawer.screenshot({ path: join(SHOTS, `anna-${width}-builder.png`) })
+    await drawer.getByTestId('turn-id').scrollIntoViewIfNeeded()
+    await drawer.screenshot({ path: join(SHOTS, `anna-${width}-turn-id.png`) })
     await expect(page.evaluate(() => localStorage.getItem('pellier-builder-view'))).resolves.toBe('on')
   })
 }

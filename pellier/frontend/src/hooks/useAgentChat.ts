@@ -448,7 +448,16 @@ export function useAgentChat(
             if (!activeRef.current) return
             if (data.type === 'turn_start') {
               const principal = readPrincipal(data.principal)
-              if (principal) updateLast(lastMsg => ({ ...lastMsg, principal }))
+              // The turn id arrives here first, so a turn that fails or is
+              // refused still names the key its evidence is filed under.
+              const turnId = typeof data.turn_id === 'string' ? data.turn_id : undefined
+              if (principal || turnId) {
+                updateLast(lastMsg => ({
+                  ...lastMsg,
+                  ...(principal ? { principal } : {}),
+                  ...(turnId ? { turnId } : {}),
+                }))
+              }
             } else if (data.type === 'status') {
               if (typeof data.label !== 'string') return
               report({ type: 'status', label: data.label })
@@ -563,7 +572,7 @@ export function useAgentChat(
             agentStatus: 'complete',
             status: lastMsg.status ? { ...lastMsg.status, state: 'done' } : undefined,
             failure: undefined,
-            turnId: response.turn_id,
+            turnId: response.turn_id ?? lastMsg.turnId,
             sessionId: response.session_id,
             railDecision: response.railDecision,
             degradation: response.degradation,

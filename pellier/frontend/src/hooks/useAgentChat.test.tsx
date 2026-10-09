@@ -401,6 +401,24 @@ describe('useAgentChat — the step contract', () => {
     expect(localStorage.getItem('k')).not.toContain('"principal"')
   })
 
+  it('takes the turn id from turn_start and keeps it when the final payload omits it', async () => {
+    const { result } = renderHook(() => useAgentChat(), { wrapper })
+    act(() => {
+      void result.current.sendMessage('a linen throw')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    act(() => {
+      capturedOnUpdate!({ type: 'turn_start', turn_id: 'turn-7', session_id: 's' })
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.turnId).toBe('turn-7'))
+    expect(result.current.messages.at(-1)?.principal).toBeUndefined()
+    act(() => {
+      releaseStream!({ response: 'The linen throw is in stock.', products: [], suggestions: [] })
+    })
+    await waitFor(() => expect(result.current.messages.at(-1)?.agentStatus).toBe('complete'))
+    expect(result.current.messages.at(-1)?.turnId).toBe('turn-7')
+  })
+
   it('reads a signed-out turn_start as no principal, and an unknown method as none', async () => {
     const { result } = renderHook(() => useAgentChat(), { wrapper })
     act(() => {

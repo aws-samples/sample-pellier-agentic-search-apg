@@ -25,6 +25,7 @@ import {
   RevealedProse,
   StatusLine,
   StepList,
+  TurnIdLine,
   principalLine,
   sentenceEndAfter,
   type RankingPayload,
@@ -376,6 +377,13 @@ function AgentMessage({
           </div>
         </section>
       )}
+
+      {/* Builder view: the id that joins this answer to its tool_audit rows and
+          its spans in CloudWatch. Shown once the turn settles, so it never
+          moves the answer while it reveals. */}
+      {builderView && message.turnId && (revealFinished || message.failure) ? (
+        <TurnIdLine turnId={message.turnId} />
+      ) : null}
 
       {revealFinished && isLastAssistantMessage && !message.failure && (
         <div className="ec-followups">
