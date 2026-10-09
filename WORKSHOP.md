@@ -68,7 +68,8 @@ the participant edit regions.
   sends each shopper request to the Shopping, Stock or Support agent
   (Strands). Shopping and Support run on Claude Opus 5, Stock on Claude
   Sonnet 5. Each agent holds only its own tools; the Stock agent's starter
-  grant is wider until Lab 2B narrows it.
+  grant has the catalog tools and not `check_stock`, until Lab 2B connects
+  `check_stock` alone.
 - **Nine store tools.** `search_products`, `browse_department`,
   `compare_products`, `check_stock`, `get_orders`, `get_return_policy`,
   `get_tickets`, `give_store_credit` and `ask_a_person`. One implementation,
