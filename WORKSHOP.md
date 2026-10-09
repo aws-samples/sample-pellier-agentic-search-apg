@@ -130,16 +130,21 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
 
 Marco needs reliable stock and dispatch facts before his trip.
 
-- **Spot:** asked about a piece Pellier does not carry, the assistant calls it
-  sold out everywhere. The Builder view's Router step reads "Stock agent may
-  call: ..." and lists the catalog tools beside `check_stock`.
+- **Spot:** Marco asks how many Hadley Linen Shirts the Brooklyn warehouse
+  holds. The Builder view's Router step reads "Stock agent may call:
+  search_products, browse_department, compare_products" beside the prompt rule
+  "Every stock answer starts from check_stock": the prompt names a tool the
+  agent was never connected to, so no step reads `warehouse_inventory`. The
+  Lab 2A check, run on the starter, shows `check_stock` itself calling a piece
+  Pellier does not carry sold out.
 - **Task 2A:** stop `check_stock` folding not found into zero
   (`pellier/backend/services/agent_tools.py`).
-- **Task 2B:** grant the Stock agent `check_stock` alone
-  (`pellier/backend/agents/stock_agent.py`). This is least privilege: the
-  prompt keeps today's model on `check_stock`, the grant decides what it can
-  call. The check reads the grant from the answering agent's audit row, so an
-  edit without a backend restart is not yet done.
+- **Task 2B:** connect `check_stock` to the Stock agent, and only `check_stock`
+  (`pellier/backend/agents/stock_agent.py`). A prompt can name a tool; only
+  the grant decides what the agent can call, and leaving the catalog tools in
+  would let it answer from a listing. The check reads the grant from the
+  answering agent's audit row, so an edit without a backend restart is not yet
+  done.
 - **Check:** `python3 scripts/lab2_contract_check.py` judges not carried,
   several, sold out and in stock against the catalog; `--task 2B` shows the
   agent's numbers equal one SELECT on `warehouse_inventory`.

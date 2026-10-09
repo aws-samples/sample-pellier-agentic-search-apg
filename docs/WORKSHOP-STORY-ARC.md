@@ -29,7 +29,7 @@ and the solution does not.
 | Lab | The live failure | The fix |
 |---|---|---|
 | 1 | Anna asks for a gift in stock, under $100, with no candles; her search, forced onto its fallback, returns a candle and a sold-out piece | 1A: the RRF expression. 1B: the fallback keeps her limits |
-| 2 | Marco asks about a piece Pellier does not carry and hears it is sold out; the Builder view shows the Stock agent may call the catalog tools beside `check_stock` | 2A: `check_stock` keeps not carried apart from zero. 2B: the Stock agent holds `check_stock` alone |
+| 2 | Marco asks for Brooklyn's Hadley count; the Builder view shows the Stock agent may call only the catalog tools while its prompt names `check_stock`, and the Lab 2A check shows `check_stock` calling a piece Pellier does not carry sold out | 2A: `check_stock` keeps not carried apart from zero. 2B: connect `check_stock` to the Stock agent, alone |
 | 3 | On the managed path the Support agent can't look up Theo's tickets; the Builder view names `get_tickets` as not published | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, then challenge |
 | 4 | Nadia approves Jessica's $100.00 credit and the starter forbid, deployed at provisioning, still denies it | 4A: the $100 per-credit limit in Cedar. 4B: the RLS ownership predicate |
 

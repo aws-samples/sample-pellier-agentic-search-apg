@@ -113,7 +113,8 @@ class TestLab2:
         grant = checks[GRANT]
         assert grant.passed is False
         assert grant.detail == ("stock_agent.py grants search_products, browse_department, "
-                                "compare_products, check_stock; Task 2B grants check_stock alone")
+                                "compare_products; Task 2B connects check_stock alone, the one "
+                                "tool that reads warehouse_inventory")
 
     @pytest.mark.parametrize("body", [
         "_STOCK_TOOLS = [agent_tools.check_stock]\n",
@@ -142,7 +143,8 @@ class TestLab2:
         check = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))[GRANT]
         assert check.passed is False
         assert check.detail.startswith("stock_agent.py grants ")
-        assert check.detail.endswith("Task 2B grants check_stock alone")
+        assert check.detail.endswith(
+            "Task 2B connects check_stock alone, the one tool that reads warehouse_inventory")
 
     def test_an_edit_the_running_agent_has_not_loaded_says_restart(self, tmp_path: Path) -> None:
         backend = _scratch_backend(tmp_path, tool_body="    pass\n",

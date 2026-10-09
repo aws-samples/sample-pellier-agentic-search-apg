@@ -54,7 +54,7 @@ _STOCK_SYSTEM_PROMPT = (
 )
 
 # === WORKSHOP - Stock agent - definition: START ===
-# Task 2B: grant the tools a stock answer may come from.
+# Task 2B: connect the tool a stock answer must come from.
 # Prompt and model configuration are supplied.
 
 # Provided: Stock agent system instructions.
@@ -71,7 +71,6 @@ _STOCK_TOOLS = [
     agent_tools.search_products,
     agent_tools.browse_department,
     agent_tools.compare_products,
-    agent_tools.check_stock,
 ]
 #
 # The Stock agent sets no temperature: Sonnet 5 rejects that argument.

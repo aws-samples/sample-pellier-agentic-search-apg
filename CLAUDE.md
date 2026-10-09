@@ -119,7 +119,7 @@ anchored to one person, in climbing order of difficulty:
 | Lab | Person | Task A | Task B |
 |---|---|---|---|
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Recompute the ranking | Keep the limits on the fallback |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | Keep not carried apart from zero stock | Grant the Stock agent `check_stock` alone |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | Keep not carried apart from zero stock | Connect `check_stock` to the Stock agent, alone |
 | 3. Deploy and Operate Agents with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, then challenge with the household request |
 | 4. Build Governed Agent Actions with Cedar | Jessica, with Nadia | Write the $100 per-credit limit in Cedar | Write the row-ownership predicate |
 

@@ -678,7 +678,7 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
 
     # Each starter runs and fails visibly; none is a stub.
     assert "agent_tools.search_products," in stock_agent
-    assert "agent_tools.check_stock," in stock_agent
+    assert "check_stock" not in stock_agent.split("_STOCK_TOOLS = [", 1)[1].split("]", 1)[0]
     assert "_STOCK_SYSTEM_PROMPT_FOR_AGENT = _STOCK_SYSTEM_PROMPT" in stock_agent
     assert 'if result.get("status") == "not_found":' in stock_tool
     assert '"total_units": 0' in stock_tool

@@ -15,9 +15,9 @@ Workshop solution contract
 --------------------------
 
 Lab 2 has two starters that run and fail visibly: the Stock agent
-definition in ``agents/stock_agent.py`` grants the catalog tools beside
-``check_stock``, and ``check_stock`` in ``services/agent_tools.py`` folds
-not_found into zero. The copy solutions are drop-ins that make each stage
+definition in ``agents/stock_agent.py`` connects only the catalog tools, none
+of which reads ``warehouse_inventory``, and ``check_stock`` in
+``services/agent_tools.py`` folds not_found into zero. The copy solutions are drop-ins that make each stage
 safe to recover during a live room.
 
 What this test enforces

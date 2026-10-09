@@ -35,7 +35,7 @@ cp solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py \
   pellier/backend/services/agent_tools.py
 ```
 
-Task 2B's recovery grants the Stock agent `check_stock` alone:
+Task 2B's recovery connects `check_stock` to the Stock agent, alone:
 
 ```bash
 cp solutions/waking-the-stock-keeper/agents/stock_agent_solution.py \

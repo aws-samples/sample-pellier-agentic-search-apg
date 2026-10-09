@@ -244,7 +244,8 @@ def _grant_check(evidence: Evidence, path: pathlib.Path) -> Check:
     grant = source_grant(path)
     if grant != ["check_stock"]:
         listed = ", ".join(grant) if grant else "no readable _STOCK_TOOLS list"
-        return Check(name, False, f"{path.name} grants {listed}; Task 2B grants check_stock alone")
+        return Check(name, False, f"{path.name} grants {listed}; Task 2B connects check_stock "
+                                  "alone, the one tool that reads warehouse_inventory")
     running = _running_stock_grant(evidence)
     held = (running or {}).get("grant")
     if isinstance(held, list) and held != ["check_stock"]:

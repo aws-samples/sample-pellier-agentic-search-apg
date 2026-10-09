@@ -32,7 +32,7 @@ appears in `UNBOUND_BY_DECISION` with a reason. That makes both directions fail 
 The scan reads the source rather than building agents, so it needs no model or
 settings: a tool an agent module imports by name, or names as ``agent_tools.<tool>``,
 is bound. `stock_agent.py` grants its tools inside the Lab 2B marker region, where the
-starter grants the catalog tools beside `check_stock` and the solution `check_stock`
+starter grants only the catalog tools and the solution connects `check_stock`
 alone; `tests/test_lab2_starter_failure.py` asserts both.
 """
 

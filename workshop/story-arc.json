@@ -28,13 +28,13 @@
       "worry": "If the assistant guesses stock, we'll promise things we can't ship.",
       "minutes": 15,
       "need": "Marco needs reliable stock and dispatch facts before his trip.",
-      "spot": "Asked about a piece Pellier does not carry, the assistant calls it sold out everywhere. The Builder view's Router step shows the Stock agent may call the catalog tools beside check_stock.",
+      "spot": "Marco asks how many Hadley Linen Shirts the Brooklyn warehouse holds. The Builder view's Router step shows the Stock agent may call only the catalog tools while its prompt rule names check_stock, so no step reads warehouse_inventory. The Lab 2A check shows check_stock itself calling a piece Pellier does not carry sold out.",
       "a": "Keep not carried apart from zero stock",
-      "b": "Grant the Stock agent check_stock alone",
-      "todo": "Task 2A: stop check_stock folding not found into zero (services/agent_tools.py). Task 2B: narrow the Stock agent's grant to check_stock (agents/stock_agent.py).",
+      "b": "Connect check_stock to the Stock agent, alone",
+      "todo": "Task 2A: stop check_stock folding not found into zero (services/agent_tools.py). Task 2B: connect check_stock to the Stock agent, in place of the catalog tools (agents/stock_agent.py).",
       "proof": "python3 scripts/lab2_contract_check.py judges not carried, several, sold out and in stock against the catalog; --task 2B reads the grant the answering Stock agent held from its audit row, then shows its numbers equal one SELECT on warehouse_inventory.",
       "challenge": "Choose the not-carried, ambiguous and sold-out queries; the catalog classifies each before the tool is judged.",
-      "lesson": "An agent can only claim what its tool returns, so the tool passes the database's answer through unchanged and the agent holds only the tool it needs.",
+      "lesson": "An agent can only claim what its tool returns, so the tool passes the database's answer through unchanged and the agent holds only the tool it needs. A prompt can name a tool; only the grant connects it.",
       "next": "You can check a product. Next, deploy Theo's support capability and keep the caller's identity across the tool boundary."
     },
     {

@@ -93,9 +93,11 @@ def test_blank_choices_use_the_defaults_and_say_so() -> None:
 
 @pytest.mark.parametrize("grant, state", [
     (["check_stock"], None),
-    (["search_products", "browse_department", "compare_products", "check_stock"], "NOT YET"),
-    (["check_stock", "compare_products", "browse_department", "search_products"], "NOT YET"),
+    (["search_products", "browse_department", "compare_products"], "NOT YET"),
+    (["compare_products", "browse_department", "search_products"], "NOT YET"),
     (None, "NOT YET"),
+    # check_stock connected but the catalog tools left in: a wrong grant, not an unfinished one.
+    (["search_products", "browse_department", "compare_products", "check_stock"], "CONTRADICTED"),
     (["search_products", "check_stock"], "CONTRADICTED"),
     ([], "CONTRADICTED"),
 ])

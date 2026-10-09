@@ -19,9 +19,11 @@ session is the one choosing Marco on the home page starts, ``persona-marco-...``
 Each in-process audit row records the agent that called the tool and the store
 tools that running agent held (``args->>'agent'``, ``args->'grant'``), so the
 check reads the grant the answering Stock agent actually had, never the source:
-a definition edited without a restart stays NOT YET. That agent may hold only
-``check_stock``, the turn may call nothing else, and every count it was given
-must equal the warehouse rows. A Shopping-agent turn of Marco's is not judged.
+a definition edited without a restart stays NOT YET. The starter connects only
+the catalog tools, so its Stock agent cannot read ``warehouse_inventory`` at
+all. Once connected, that agent may hold only ``check_stock``, the turn may
+call nothing else, and every count it was given must equal the warehouse rows.
+A Shopping-agent turn of Marco's is not judged.
 
 The evidence export judges 2A from the same rows (:func:`judge_recorded_2a`):
 Marco's latest ``check_stock`` call for each case, as recorded, against the
@@ -50,9 +52,10 @@ BACKEND = REPO / "pellier" / "backend"
 MARCO_SESSION_PREFIX = "persona-marco-"
 # The Stock agent's name on the audit rows it leaves (``args->>'agent'``).
 STOCK_AGENT_NAME = "stock"
-# What the Stock agent - definition starter grants; a turn answered with it is
-# a lab not done yet, not a wrong answer.
-STARTER_GRANT = ("search_products", "browse_department", "compare_products", "check_stock")
+# What the Stock agent - definition starter grants: the catalog tools, and no
+# tool that reads warehouse_inventory. A turn answered with it is a lab not done
+# yet, not a wrong answer.
+STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 MARCO_STOCK_QUESTION = ("How many Hadley Linen Shirts are available at the Brooklyn "
                         "warehouse, and what ship window is recorded?")
 MARCO_CAPE_QUESTION = "Is the Velvet Opera Cape in stock?"
@@ -347,9 +350,10 @@ def with_restart_hint(guide: check.Finding, recorded: check.Finding) -> check.Fi
 
 EXPECTED_2B = ("the Stock agent that answered Marco's latest stock question held check_stock "
                "alone and called only check_stock; every count equals warehouse_inventory")
-_NEXT_2B_GRANT = ("grant the Stock agent check_stock alone in the Stock agent - definition "
-                  "block of agents/stock_agent.py, restart the backend so the running agent "
-                  "loads it, ask Marco's stock question again, then rerun this check.")
+_NEXT_2B_GRANT = ("connect check_stock to the Stock agent, and only check_stock, in the Stock "
+                  "agent - definition block of agents/stock_agent.py, restart the backend so "
+                  "the running agent loads it, ask Marco's stock question again, then rerun "
+                  "this check.")
 
 
 def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
@@ -379,7 +383,7 @@ def _grant_verdict(grant: Optional[List[str]]) -> Tuple[Optional[str], str]:
     text = ", ".join(grant) or "no store tools"
     if sorted(grant) == sorted(STARTER_GRANT):
         return check.NOT_YET, ("the Stock agent that answered still held the starter's grant: "
-                               + text)
+                               + text + ", none of which reads warehouse_inventory")
     return check.CONTRADICTED, f"the Stock agent that answered was granted {text}"
 
 
@@ -440,11 +444,14 @@ def judge_2b(conn: Any) -> check.Finding:
     rows = latest_stock_turn(conn)
     if not rows:
         return check.Finding("2B", title, check.NOT_YET, EXPECTED_2B,
-                             "no turn of Marco's answered by the Stock agent recorded yet",
+                             "no tool call by Marco's Stock agent recorded yet",
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
                              "in Ask Pellier, choose Marco under Signed in as, ask "
-                             f"\"{MARCO_STOCK_QUESTION}\", then rerun this check.")
+                             f"\"{MARCO_STOCK_QUESTION}\", then rerun this check. The "
+                             "starter's Stock agent holds no tool that reads "
+                             "warehouse_inventory, so it may answer without calling one: "
+                             "connect check_stock first (Task 2B) and restart the backend.")
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "

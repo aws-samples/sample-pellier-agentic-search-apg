@@ -4,12 +4,13 @@ Task 2A. The starter ``check_stock`` folds not_found into zero: Marco asks about
 the Velvet Opera Cape, which Pellier does not carry, and the Builder view says
 "Sold out in all three warehouses". The solution keeps it not_found.
 
-Task 2B. The starter Stock agent is granted the shopping tools beside
-``check_stock``, so it can answer a stock question from a product listing
-instead of the warehouse rows. The solution grants ``check_stock`` alone. The
-built agent's own registry is what the audit row records and the Builder view
-shows; ``scripts/lab2_contract_check.py --task 2B`` judges Marco's latest
-Stock-agent turn by that recorded grant, its calls and its counts.
+Task 2B. The starter Stock agent is connected to the catalog tools only, so
+it holds no tool that reads ``warehouse_inventory``: it can answer a stock
+question from a product listing, or not at all, even though its prompt names
+``check_stock``. The solution connects ``check_stock`` alone. The built
+agent's own registry is what the audit row records and the Builder view shows;
+``scripts/lab2_contract_check.py --task 2B`` judges Marco's latest Stock-agent
+turn by that recorded grant, its calls and its counts.
 
 The tool bodies run on the real schema and seed; the Stock agent is built by
 its real factory.
@@ -125,11 +126,23 @@ def _names(tools: Any) -> list:
     return [tool.tool_name for tool in tools]
 
 
-def test_the_starter_grants_catalog_tools_and_the_solution_only_check_stock() -> None:
+def test_the_starter_connects_only_catalog_tools_and_the_solution_only_check_stock() -> None:
     starter = _names(lab_variants.stock_grant(lab_variants.STARTER))
     solution = _names(lab_variants.stock_grant(lab_variants.SOLUTION))
-    assert set(starter) == CATALOG_TOOLS | {"check_stock"}
+    assert set(starter) == CATALOG_TOOLS
+    assert "check_stock" not in starter
     assert solution == ["check_stock"]
+
+
+def test_the_starter_prompt_names_a_tool_its_grant_does_not_hold() -> None:
+    """The Spot step's evidence line: the prompt asks for check_stock; only the grant decides."""
+    from agents import stock_agent
+    from services.turn_steps import grant_receipt
+
+    starter = _names(lab_variants.stock_grant(lab_variants.STARTER))
+    receipt = grant_receipt(starter, stock_agent.STOCK_PROMPT_RULE)
+    assert "check_stock" in receipt["rule"]
+    assert "check_stock" not in receipt["tools"]
 
 
 @pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
@@ -181,7 +194,7 @@ def _audit(conn: Any, turn: str, tool: str, args: Dict[str, Any], result: Dict[s
             (f"{session}{turn}", tool, json.dumps(recorded), json.dumps(result)))
 
 
-STARTER_GRANT = ("search_products", "browse_department", "compare_products", "check_stock")
+STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 
 
 def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
@@ -192,6 +205,7 @@ def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
     finding = lab2.judge_2b(conn)
     assert finding.state == "NOT YET", finding
     assert "still held the starter's grant: search_products" in finding.observed
+    assert "none of which reads warehouse_inventory" in finding.observed
     assert "restart the backend" in finding.next_step
     assert lab2.STARTER_GRANT == tuple(_names(lab_variants.stock_grant(lab_variants.STARTER)))
 

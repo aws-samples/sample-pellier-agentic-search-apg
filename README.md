@@ -111,7 +111,7 @@ npm run dev
 
 Locally the agents run in-process. Ask Pellier works signed out, and AgentCore Memory falls back to a process-local store when `AGENTCORE_MEMORY_ID` is empty. Shopper sign-in and the Operator need the Cognito user pool and demo users that the workshop deployment creates (`COGNITO_*` in `.env`).
 
-The code is in the labs' starting state: some marked regions are incomplete on purpose (for example, the Stock agent may call the catalog tools beside `check_stock` until Lab 2 narrows its grant), and `solutions/` holds reference versions.
+The code is in the labs' starting state: some marked regions are incomplete on purpose (for example, the Stock agent is connected to the catalog tools but not `check_stock` until Lab 2 connects it), and `solutions/` holds reference versions.
 
 To deploy the managed path to your own account, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`). It expects an existing Aurora cluster and Cognito user pool, which the Workshop Studio templates create; those templates are not in this repository.
 
