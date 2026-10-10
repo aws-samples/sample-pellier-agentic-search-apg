@@ -683,6 +683,10 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # opens: pellier/, policies/, skills/, solutions/, README.md, and CLAUDE.md.
 # Repo meta (licenses, VOICE.md, .claude/, data/) stays on disk for Claude
 # Code and the terminal but is hidden from the tree and from editor search.
+# So do the facilitator brief (WORKSHOP.md) and the workshop/ files only
+# scripts and tests read (starters, the story arc, the participant file map,
+# diagram sources and the trace contract). Keep takeaway/ visible: the
+# Wrap-up page sends participants to the skill there.
 # Do NOT hide policies/, skills/, or solutions/ here - Lab 4 and the
 # documented fallback lane direct participants to files inside them.
 # Room-tested Code Editor appearance, identical across the two Pellier formats
@@ -777,6 +781,12 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "NOTICE": true,
         "VOICE.md": true,
         "data": true,
+        "WORKSHOP.md": true,
+        "workshop/architecture-diagrams": true,
+        "workshop/starters": true,
+        "workshop/participant-files.json": true,
+        "workshop/story-arc.json": true,
+        "workshop/lab-3-otel-contract.jq": true,
         ".provision.env": true,
         ".workshop-ref.json": true,
         "package.zip": true

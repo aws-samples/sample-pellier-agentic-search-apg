@@ -59,6 +59,12 @@
       "tmp": true,
       "archive": true,
       "docs/release-readiness": true,
+      "WORKSHOP.md": true,
+      "workshop/architecture-diagrams": true,
+      "workshop/starters": true,
+      "workshop/participant-files.json": true,
+      "workshop/story-arc.json": true,
+      "workshop/lab-3-otel-contract.jq": true,
       ".provision.env": true,
       ".workshop-ref.json": true,
       "package.zip": true

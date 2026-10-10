@@ -534,8 +534,9 @@ def _no_unless_block(rule_text: str) -> LocalResult:
                             "the policy has no final unless block",
                             [f"{CREDIT_LIMIT_SOURCE} sha256:"
                              f"{hashlib.sha256(rule_text.encode('utf-8')).hexdigest()[:16]}"],
-                            "restore the starter (workshop/starters/workshop_credit_limit.cedar) "
-                            "and edit only its final unless block.")
+                            "restore the starter with cp workshop/starters/"
+                            "workshop_credit_limit.cedar policies/workshop_credit_limit.cedar, "
+                            "then edit only its final unless block.")
     return LocalResult(finding, [])
 
 

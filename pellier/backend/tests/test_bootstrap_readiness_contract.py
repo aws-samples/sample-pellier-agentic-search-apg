@@ -1229,6 +1229,22 @@ def test_the_runtime_role_never_requests_bypassrls() -> None:
 # ---------------------------------------------------------------------------
 
 BOOTSTRAP_ENV = REPO / "scripts" / "bootstrap-environment.sh"
+# The facilitator brief and the workshop/ files only scripts and tests read.
+HIDDEN_FROM_PARTICIPANTS = (
+    "WORKSHOP.md",
+    "workshop/architecture-diagrams",
+    "workshop/starters",
+    "workshop/participant-files.json",
+    "workshop/story-arc.json",
+    "workshop/lab-3-otel-contract.jq",
+)
+# The worksheets the lab guide opens or runs.
+GUIDE_WORKSHEETS = (
+    "workshop/lab-1-rrf.sql",
+    "workshop/lab-1-hnsw.sql",
+    "workshop/lab-4-rls.sql",
+    "workshop/lab-4-absence.sql",
+)
 
 
 def _settings_blocks() -> list[dict]:
@@ -1305,14 +1321,23 @@ def test_explorer_hides_repo_meta_but_keeps_the_lab_folders() -> None:
     the runtime skills live in skills/, and Lab 3A opens
     scripts/deploy/gateway_tool_schemas.py - hiding any of them strands a
     participant step, because Quick Open and search inherit files.exclude.
-    Repo meta stays on disk for Claude Code and the terminal but out of the
-    Explorer and editor search."""
+    The Wrap-up page sends participants to takeaway/, and every lab opens a
+    worksheet in workshop/. Repo meta, the facilitator brief and the workshop/
+    files only scripts read stay on disk for Claude Code and the terminal but
+    out of the Explorer and editor search."""
     user_settings, _workspace = _settings_blocks()
     excludes = user_settings["files.exclude"]
-    for hidden in (".claude", ".gitignore", "LICENSE", "NOTICE", "VOICE.md", "data"):
+    for hidden in (".claude", ".gitignore", "LICENSE", "NOTICE", "VOICE.md", "data",
+                   *HIDDEN_FROM_PARTICIPANTS):
         assert excludes.get(hidden) is True, f"{hidden} should be hidden from the Explorer"
-    for visible in ("policies", "skills", "solutions", "pellier", "pellier/frontend"):
-        assert visible not in excludes, f"{visible} must stay visible in the Explorer"
+    workspace_excludes = json.loads(
+        (REPO / "Pellier.code-workspace").read_text(encoding="utf-8"))["settings"]["files.exclude"]
+    for hidden in HIDDEN_FROM_PARTICIPANTS:
+        assert workspace_excludes.get(hidden) is True, f"{hidden} should be hidden in the workspace"
+    for visible in ("policies", "skills", "solutions", "pellier", "pellier/frontend",
+                    "takeaway", "workshop", *GUIDE_WORKSHEETS):
+        for listing in (excludes, workspace_excludes):
+            assert visible not in listing, f"{visible} must stay visible in the Explorer"
     for pattern, hidden in excludes.items():
         if hidden and pattern.rstrip("/").split("/")[-1] == "scripts":
             raise AssertionError(f"{pattern} hides scripts/, where Lab 3A's marked region lives")
