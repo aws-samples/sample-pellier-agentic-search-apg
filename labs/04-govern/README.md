@@ -1,6 +1,6 @@
 # Lab 4: Govern
 
-**Jessica and Nadia.** Keep the matching Workshop Studio guide open for the requests, predictions, marked edit regions and checks.
+**Jessica and Nadia.** Keep the matching Workshop Studio guide open for the requests, the marked edit regions and the checks.
 
 ## Open the file
 

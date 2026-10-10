@@ -1,6 +1,6 @@
 # Lab 2: Ground
 
-**Marco.** Keep the matching Workshop Studio guide open for the requests, predictions, marked edit regions and checks.
+**Marco.** Keep the matching Workshop Studio guide open for the requests, the marked edit regions and the checks.
 
 ## Open the file
 
