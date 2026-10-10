@@ -11,10 +11,11 @@
  *     `Read the note \u203a` link (Req 1.9.2, 1.9.4).
  *   - Hovering a card scales its image `transform` to `scale(1.05)`
  *     (Req 1.9.3).
- *   - The three cards render in the exact authored order:
+ *   - The four cards render in the exact authored order:
  *     `FIELD NOTE No. 02: Marco`,
  *     `FIELD NOTE No. 03: Anna`,
- *     `FIELD NOTE No. 04: Theo` (Req 1.9.4), with no middle dots.
+ *     `FIELD NOTE No. 04: Theo`,
+ *     `FIELD NOTE No. 05: Jessica` (Req 1.9.4), with no middle dots.
  *   - The daylight photographs render untinted: no overlay sits on them.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
@@ -25,19 +26,19 @@ import StoryboardTeaser from './StoryboardTeaser'
 import { STORYBOARD_TEASERS } from '../copy'
 import { imageSrc } from '../utils/assetPath'
 
-describe('StoryboardTeaser - 3-card grid (Req 1.9.1)', () => {
-  it('renders exactly 3 cards, never 1', () => {
+describe('StoryboardTeaser - 4-card grid (Req 1.9.1)', () => {
+  it('renders exactly 4 cards, never 1', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
     const cards = screen.getAllByRole('listitem')
-    expect(cards).toHaveLength(3)
+    expect(cards).toHaveLength(4)
   })
 
   it('renders each card from the authored STORYBOARD_TEASERS order', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
-    // The data source must carry exactly three authored cards; the
+    // The data source must carry exactly four authored cards; the
     // component should not pad or drop entries.
-    expect(STORYBOARD_TEASERS).toHaveLength(3)
+    expect(STORYBOARD_TEASERS).toHaveLength(4)
     for (let i = 0; i < STORYBOARD_TEASERS.length; i += 1) {
       expect(screen.getByTestId(`storyboard-card-${i}`)).toBeInTheDocument()
     }
@@ -45,7 +46,7 @@ describe('StoryboardTeaser - 3-card grid (Req 1.9.1)', () => {
 })
 
 describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
-  it('renders the three cards with the exact eyebrow lines from the spec', () => {
+  it('renders the four cards with the exact eyebrow lines from the spec', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     expect(screen.getByTestId('storyboard-card-eyebrow-0')).toHaveTextContent(
@@ -56,6 +57,9 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-2')).toHaveTextContent(
       'FIELD NOTE No. 04: Theo',
+    )
+    expect(screen.getByTestId('storyboard-card-eyebrow-3')).toHaveTextContent(
+      'FIELD NOTE No. 05: Jessica',
     )
   })
 

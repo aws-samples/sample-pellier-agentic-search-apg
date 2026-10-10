@@ -6,7 +6,7 @@
  * Coverage:
  *   - Header renders with Storyboard in the ink-highlighted
  *     current-page state (Req 1.13.4).
- *   - The 3-card Storyboard grid renders verbatim from copy.ts
+ *   - The 4-card Storyboard grid renders verbatim from copy.ts
  *     (Req 1.13.1 / reuse of Req 1.9).
  *   - The four FieldNotes essays replace the old coming-soon line.
  *   - Footer renders and the floating CommandPill does not, matching About
@@ -127,21 +127,21 @@ describe('StoryboardPage - header current-page state (Req 1.13.4)', () => {
   })
 })
 
-describe('StoryboardPage - 3-card storyboard grid (Req 1.13.1)', () => {
-  it('renders the reused StoryboardTeaser with all 3 cards', () => {
+describe('StoryboardPage - 4-card storyboard grid (Req 1.13.1)', () => {
+  it('renders the reused StoryboardTeaser with all 4 cards', () => {
     renderStoryboard()
 
     // The teaser section is present.
     const teaser = screen.getByTestId('storyboard-teaser')
     expect(teaser).toBeInTheDocument()
 
-    // 3 cards, not 1 (never collapse into a single editorial block).
+    // 4 cards, not 1 (never collapse into a single editorial block).
     // Scope to the teaser region so Footer `<li>` elements do not leak
     // into the listitem count.
     const cards = within(teaser).getAllByRole('listitem')
-    expect(cards).toHaveLength(3)
+    expect(cards).toHaveLength(4)
 
-    // Spot-check the three authored eyebrows appear.
+    // Spot-check the four authored eyebrows appear.
     STORYBOARD_TEASERS.forEach((_card, i) => {
       expect(
         screen.getByTestId(`storyboard-card-${i}`),
@@ -151,14 +151,14 @@ describe('StoryboardPage - 3-card storyboard grid (Req 1.13.1)', () => {
 })
 
 describe('StoryboardPage - Field Notes essay surface', () => {
-  it('renders the FieldNotes section with four essays', () => {
+  it('renders the FieldNotes section with five essays', () => {
     renderStoryboard()
 
-    // The section mounts and carries four field notes, one per
-    // persona archetype (editorial + Marco + Anna + Theo).
+    // The section mounts and carries five field notes, one per
+    // persona archetype (editorial + Marco + Anna + Theo + Jessica).
     const section = screen.getByTestId('field-notes')
     expect(section).toBeInTheDocument()
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       expect(screen.getByTestId(`field-note-${i}`)).toBeInTheDocument()
     }
   })

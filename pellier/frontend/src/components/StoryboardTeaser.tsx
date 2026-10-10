@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { STORYBOARD_TEASERS, type StoryboardTeaser as StoryboardTeaserCard } from '../copy'
 import ResponsiveImage from './ResponsiveImage'
 import { cssVar as c } from '../design/cssVars'
+import '../styles/storyboard.css'
 
 // --- Design tokens (storefront.md) ---------------------------------------
 const HEADING = 'var(--dl-font-heading)'
@@ -58,14 +59,7 @@ export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 
           </Heading>
         </header>
 
-        <div
-          role="list"
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-            gap: 32,
-          }}
-        >
+        <div role="list" className="storyboard-grid">
           {STORYBOARD_TEASERS.map((card, index) => (
             <StoryboardCard key={`${card.badge}-${card.volume}`} card={card} index={index} />
           ))}

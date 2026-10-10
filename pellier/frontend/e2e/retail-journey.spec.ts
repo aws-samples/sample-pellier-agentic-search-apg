@@ -38,7 +38,7 @@ for (const width of [1440, 390]) {
   test(`each Stories link opens its matching essay above the sticky headers at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 960 })
     await page.goto('/storyboard')
-    for (const name of ['Marco', 'Anna', 'Theo']) {
+    for (const name of ['Marco', 'Anna', 'Theo', 'Jessica']) {
       const link = page.getByRole('link', { name: `Read ${name}'s note`, exact: false })
       await link.focus()
       await page.keyboard.press('Enter')

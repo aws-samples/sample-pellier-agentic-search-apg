@@ -2,8 +2,8 @@ import { cssVar as c } from '../design/cssVars'
 /**
  * FieldNotes — short editorial essays for the Storyboard route.
  *
- * Four notes total: one for each returning persona (Marco, Anna,
- * Theo) and one editorial note written in the Pellier voice. Each
+ * Five notes total: one for each returning persona (Marco, Anna,
+ * Theo, Jessica) and one editorial note written in the Pellier voice. Each
  * note is a short Instrument Sans title over a prose body at 15px/1.7, so
  * the page reads as "the storefront wrote this, not a marketing page." The
  * section sits on the page ground, black in the dark theme.
@@ -60,6 +60,15 @@ const NOTES: readonly Note[] = [
     ],
     signature: 'Theo, a slow shopper',
   },
+  {
+    id: 'field-note-jessica',
+    kicker: 'Field note No. 05',
+    title: 'Jessica, on being made whole.',
+    body: [
+      'A sage waffle robe and a reed diffuser went back, and no credit followed. Pellier hands her request to a person, and nothing moves until Nadia approves it.',
+    ],
+    signature: 'Jessica, a returning customer',
+  },
 ]
 
 export default function FieldNotes() {
@@ -114,7 +123,7 @@ export default function FieldNotes() {
             }}
           >
             A slower kind of shopping,{' '}
-            <span style={{ color: c.ink2 }}>in four notes.</span>
+            <span style={{ color: c.ink2 }}>in five notes.</span>
           </h2>
           <p
             style={{

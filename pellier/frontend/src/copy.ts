@@ -420,6 +420,17 @@ export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
     imageUrl: "/products/story-makers.png",
     imageAlt: "A freshly thrown charcoal stoneware bowl on a potter's wheel against a white plaster wall",
   },
+  {
+    badge: "FIELD NOTE",
+    volume: "No. 05",
+    theme: "Jessica",
+    title: "On being made whole.",
+    excerpt: "Two pieces went back; a person decides the credit.",
+    link: "Read Jessica's note \u203a",
+    noteId: "field-note-jessica",
+    imageUrl: "/products/house-waffle-bath-robe-sage.png",
+    imageAlt: "A sage waffle-weave cotton bath robe hanging on a hook in a pale bathroom",
+  },
 ];
 
 export const ABOUT_BRIEF = {
@@ -430,17 +441,17 @@ export const ABOUT_BRIEF = {
   TITLE_LINES: ["A store that", "shows its work."],
   LABEL: "Pellier + Pellier Operator",
   PARAGRAPHS: [
-    "Pellier sells natural materials: linen for travel, stoneware for the table, leather that wears in. Ask in your own words. Every answer is checked against live stock in Aurora, and anything that moves money goes to a person.",
+    "Pellier sells natural materials: linen for travel, stoneware for the table, leather that wears in. Ask in your own words. Answers come from Aurora: the catalog, live stock and your own orders. Anything that moves money goes to a person.",
   ],
   STACK: [
     "Aurora PostgreSQL",
     "pgvector",
     "Amazon Bedrock",
     "AgentCore",
-    "Strands SDK",
+    "Strands Agents",
     "Claude",
     "Cohere Embed v4",
-    "Cohere Rerank",
+    "Cohere Rerank 3.5",
     "Cedar",
   ],
   COLOPHON:

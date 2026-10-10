@@ -1,5 +1,5 @@
 /**
- * Stories pairs three shopper introductions with their FieldNotes essays.
+ * Stories pairs four shopper introductions with their FieldNotes essays.
  * Shared storefront chrome stays visible; the floating command pill stays
  * off the editorial pages so it does not overlap the prose.
  */
