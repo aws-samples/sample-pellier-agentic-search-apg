@@ -47,5 +47,9 @@ Then point it at your own code.
 | `references/proof-queries.sql` | One query per claim, for all four contracts |
 | `references/mcp-publishing.md` | How Pellier publishes tools over MCP through AgentCore Gateway, and what to keep elsewhere |
 
-Everything here runs unchanged on Aurora PostgreSQL and Amazon RDS for
-PostgreSQL. Table and column names are Pellier's; the patterns are not.
+The SQL runs on Aurora PostgreSQL and Amazon RDS for PostgreSQL alike. The RDS
+Data API in `references/mcp-publishing.md` is Aurora-only; on RDS for
+PostgreSQL the tool Lambda connects with a driver instead, through RDS Proxy.
+The templates use short names (`catalog`, `app_agent`,
+`app.principal_username`); Pellier's are `pellier.product_catalog`,
+`pellier_agent` and `pellier.principal_username`.

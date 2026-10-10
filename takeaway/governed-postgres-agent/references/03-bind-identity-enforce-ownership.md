@@ -42,7 +42,8 @@ async with conn.transaction():
 ```
 
 `set_config(..., true)` scopes the value to the transaction. Pooling then
-cannot leak one principal into the next request. Over the RDS Data API the
+cannot leak one principal into the next request. Pellier's setting is
+`pellier.principal_username`. Over the RDS Data API the
 same `set_config` runs as the first statement in the transaction.
 
 ## Template: row-level security
@@ -83,7 +84,8 @@ worksheet before trusting a result):
 Where tool calls cross a gateway, authorization decides whether the call runs
 at all. In Cedar, an owner-only read permit matches the customer in the call
 to the identity in the token, so a direct call with a mismatched customer is
-denied before any tool runs:
+denied before any tool runs. AgentCore exposes the token's claims as
+principal tags; this is Pellier's permit, with its custom claim:
 
 ```cedar
 permit(
@@ -91,7 +93,11 @@ permit(
   action == AgentCore::Action::"store-tools___get_tickets",
   resource == AgentCore::Gateway::"<gateway arn>"
 )
-when { context.input.customer_id == principal.customer_id };
+when {
+  principal.hasTag("custom:customer_id") &&
+  context.input has customer_id &&
+  principal.getTag("custom:customer_id") == context.input.customer_id
+};
 ```
 
 Policy stops a wrong call. Row-level security stops a wrong query. One without

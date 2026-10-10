@@ -32,7 +32,8 @@ SELECT product_id, vector_rank, full_text_rank, recorded_rrf,
  ORDER BY recorded_rrf DESC;
 
 -- 1b. Every returned product meets the hard constraints the search recorded.
---     Expect zero violations. (Pellier records the applied plan with the receipt.)
+--     Expect zero violations. (Pellier's receipt keeps search_plan,
+--     hard_constraints and exclusions as JSONB; adapt the names.)
 WITH receipt AS (
   SELECT receipt_id, returned_product_ids, plan
     FROM retrieval_receipts ORDER BY receipt_id DESC LIMIT 1
@@ -80,9 +81,9 @@ SELECT w.warehouse_name, w.quantity AS in_table,
    AND w.product_id = (SELECT result->'product'->>'productId' FROM last_call);
 
 -- 2b. The grant the answering agent held, from its audit row. Expect only the
---     tool it needs.
-SELECT session_id, result->>'grant' AS tools_granted
-  FROM tool_audit WHERE caller = 'stock_agent' ORDER BY audit_id DESC LIMIT 5;
+--     tool it needs. (Pellier writes the agent's name and tool list into args.)
+SELECT session_id, args->>'agent' AS agent, args->'grant' AS tools_granted
+  FROM tool_audit WHERE args->>'agent' = 'stock' ORDER BY audit_id DESC LIMIT 5;
 
 -- ---------------------------------------------------------------------------
 -- Contract 3: bind identity, enforce ownership
@@ -115,13 +116,17 @@ EXCEPTION WHEN insufficient_privilege THEN
 END $$;
 ROLLBACK;
 
--- 3c. Every executed customer-scoped call in a shopper's turns read that
---     shopper. Expect zero rows.
+-- 3c. The binding is proved by a forged call, not by reading history: a model
+--     rarely asks for someone else's rows, so past rows prove little. While a
+--     shopper is signed in, send a call for another customer through the
+--     binding, then read the row it left. Expect the shopper's id, not the
+--     forged one. (Pellier's Lab 3 check, scripts/lab3_check.py, sends Theo's
+--     forged ticket read through the server's binding.)
 SELECT audit_id, session_id, args->>'customer_id' AS read_customer
   FROM tool_audit
- WHERE tool IN ('get_orders', 'get_tickets')
-   AND caller = 'support_agent'
-   AND args->>'customer_id' <> result->>'bound_customer_id';
+ WHERE tool = 'get_tickets'
+ ORDER BY audit_id DESC
+ LIMIT 1;
 
 -- ---------------------------------------------------------------------------
 -- Contract 4: approve and deduplicate writes

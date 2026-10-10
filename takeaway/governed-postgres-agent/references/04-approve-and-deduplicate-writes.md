@@ -36,7 +36,7 @@ cannot invent a key that maps to an approval it does not have.
 
 All the rules live in the database, so a direct SQL caller is held to them
 too. Lock, then look for an existing row under the key, then check the
-approval, then write. From Pellier's `apply_store_credit`:
+approval, then write. Simplified from Pellier's `apply_store_credit`:
 
 ```sql
 CREATE TABLE store_credits (
@@ -103,7 +103,7 @@ forbid(
 )
 unless {
   context.input has amount_cents &&
-  context.input.amount_cents <= 10000      -- cents; inclusive
+  context.input.amount_cents <= 10000      // cents, inclusive
 };
 ```
 

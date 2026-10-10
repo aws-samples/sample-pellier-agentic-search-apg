@@ -9,6 +9,8 @@ The tool bodies live in one module (`services/store_tools.py`). The in-process
 agents call them directly with a database connection. The Gateway target is a
 Lambda (`scripts/deploy/pellier_store_tools.py`) that imports the same module
 and runs it over the RDS Data API. There is no second implementation to drift.
+The Data API is Aurora-only; on RDS for PostgreSQL the Lambda would connect
+with a driver, through RDS Proxy, and keep the same tool module.
 
 ```
 agent (in process) ──► store_tools.check_stock(run_sql, ...) ──► Aurora over TLS
@@ -50,8 +52,9 @@ does not.
 Every executed Lambda call writes a `tool_audit` row with the caller, the
 arguments, the result and the build fingerprint of the Runtime that made the
 call. AgentCore Observability writes a span per managed step (Runtime,
-Identity, Policy, Gateway, Lambda) under one trace id to CloudWatch. A span
-proves a call ran; it does not prove what it wrote. The row does.
+Identity, Policy and Gateway, whose span records whether the Lambda ran) under
+one trace id to CloudWatch. A span proves a call ran; it does not prove what
+it wrote. The row does.
 
 ## If your gateway is not AgentCore
 

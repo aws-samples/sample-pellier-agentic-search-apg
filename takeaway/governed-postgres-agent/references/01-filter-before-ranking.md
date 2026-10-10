@@ -7,7 +7,7 @@ Ranking orders eligible rows; it never decides eligibility.
 
 Both branches take the same `extra_clauses` (price cap, in-stock, exclusions,
 tenant) and apply them inside the query. Parameters are bound, never
-interpolated. From Pellier's `services/store_tools.py`:
+interpolated. Simplified from Pellier's `services/store_tools.py`:
 
 ```sql
 -- Vector branch: nearest by meaning, among eligible rows only.
@@ -81,8 +81,8 @@ def relaxed(plan: SearchPlan) -> SearchPlan:
 
 The defect to look for: `SearchPlan(query=plan.query, soft_tags=())`, which
 takes the default for every field not passed, including the hard ones. Record
-which relaxation was applied (`drop_tags`) alongside the receipt so the retry
-is explainable.
+which relaxation was applied alongside the receipt so the retry is explainable
+(Pellier writes `drop_tags` into the receipt's `relaxations` column).
 
 ## pgvector under a filter
 

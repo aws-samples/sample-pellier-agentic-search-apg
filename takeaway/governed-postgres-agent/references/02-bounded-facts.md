@@ -6,7 +6,7 @@ tools its job needs.
 
 ## Template: the result contract
 
-Four states, never collapsed. From Pellier's `check_stock`:
+Four states, never collapsed. Simplified from Pellier's `check_stock`:
 
 ```python
 def check_stock(run, *, product_query: str) -> dict:
@@ -69,9 +69,10 @@ stock_agent = Agent(
 )
 ```
 
-Record the grant with each answer (Pellier writes `Stock agent may call:
-check_stock` into the audit row) so a reviewer can see what the agent *could*
-have used, not only what it did use.
+Record the grant with each answer (Pellier writes the agent's tool list into
+each audit row's `args`, as `grant`, and shows "Stock agent may call:
+check_stock" in the turn's Router step) so a reviewer can see what the agent
+*could* have used, not only what it did use.
 
 ## Bounded rows
 
