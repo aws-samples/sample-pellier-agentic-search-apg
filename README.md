@@ -68,6 +68,7 @@ flowchart LR
 - **Row-level security.** The customer-scoped tools (`get_orders`, `get_tickets`) run as the `pellier_agent` database role with one customer named. In process, that customer comes from the signed token. On the Gateway, it is the customer Cedar's owner-only permit admitted. Either way Aurora returns only that customer's rows, even if the tool's own SQL asks for someone else's. Lab 4 has you write the ownership predicate and prove it with direct SQL. `workshop/lab-4-rls.sql`
 - **Memory.** AgentCore Memory keeps conversation events and the preferences it extracts from them. A remembered preference can guide a pick; prices and stock still come from Aurora. `pellier/backend/services/agentcore_memory.py`
 - **Human approval.** In the Operator, a two-node Strands graph (Investigator, then Planner) reads the case, proposes one store credit and stops. `give_store_credit` writes only for a review a person approved with the same arguments, and a retry under that review's key returns the first result instead of a second credit. `pellier/backend/services/operator_graph.py`, `pellier/backend/services/store_tools.py`
+- **Observability.** The app sends each turn's routing span and its agents' spans to CloudWatch, tagged with `pellier.turn_id`, and AgentCore traces the managed Gateway steps. Every tool call that runs writes a `pellier.tool_audit` row carrying the turn's id, and Builder view shows that id under each settled turn. `scripts/observability_check.py` reads the app spans, Database Insights and the PostgreSQL log. `pellier/backend/services/evidence_spans.py`, `pellier/backend/services/otel_cloudwatch_export.py`
 
 ## Run it
 
@@ -115,6 +116,17 @@ The code is in the labs' starting state: some marked regions are incomplete on p
 
 To deploy the managed path to your own account, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`). It expects an existing Aurora cluster and Cognito user pool, which the Workshop Studio templates create; those templates are not in this repository.
 
+## Take it home
+
+`takeaway/governed-postgres-agent` packages the four contracts the labs build (filter before ranking, bounded facts, bind identity and enforce ownership, approve and deduplicate writes) as an Agent Skill: a checklist for each, templates lifted from this source, and the SQL that proves each one holds. To use it in Claude Code on any project:
+
+```bash
+mkdir -p ~/.claude/skills
+cp -r takeaway/governed-postgres-agent ~/.claude/skills/
+```
+
+Then run `/governed-postgres-agent review <path>` on your own code. Its [README](takeaway/governed-postgres-agent/README.md) covers other agents and a first run against Pellier.
+
 ## Repository layout
 
 | Path | Contents |
@@ -123,10 +135,14 @@ To deploy the managed path to your own account, `scripts/provision_agentcore_end
 | `pellier/frontend/` | React and TypeScript app: the storefront, Ask Pellier and the Operator |
 | `skills/` | Five runtime skills: instructions the agents load, not code |
 | `policies/` | The Cedar policy you complete in Lab 4 |
+| `labs/` | The Code Editor lab groups: each lab's README, links to its two exercise files, and a solution folder |
 | `workshop/` | Lab SQL worksheets and a starter copy of each marked region |
 | `solutions/` | Reference solutions for the lab tasks |
+| `takeaway/` | `governed-postgres-agent`, the four contracts as an Agent Skill for your own code |
 | `scripts/` | Database setup and migrations, catalog seeding, AgentCore deployment and lab checks |
 | `data/` | The 100-product catalog and its cached Cohere Embed v4 vectors |
+| `docs/` | Workshop design notes: the story arc, transport and AgentCore readiness |
+| `tests/` | Deployment helpers for end-to-end runs and a performance smoke test |
 
 ## Tests
 
