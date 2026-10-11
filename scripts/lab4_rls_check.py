@@ -177,7 +177,7 @@ def deployed_finding(connect: Callable[[], Any],
                              {name: row["stamp"] for name, row in policies.items()})
     qual = policies.get("orders_owner", {}).get("qual", "")
     if qual:
-        finding.evidence.append(f"live USING on orders: {' '.join(qual.split())[:110]}")
+        finding.evidence.append(f"live USING on orders: {' '.join(qual.split())}")
     return finding
 
 
