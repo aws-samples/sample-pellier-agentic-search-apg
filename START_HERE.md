@@ -18,11 +18,15 @@ collapsed `solution` folder.
 | [01 - Retrieve](labs/01-retrieve/README.md) | Anna | A ranking you can recompute, and a retry that keeps her limits | `1A-rrf.sql`, `1B-search-plan.py` |
 | [02 - Ground](labs/02-ground/README.md) | Marco | A stock tool that answers from a warehouse row, held by one agent | `2A-check-stock.py`, `2B-stock-agent.py` |
 | [03 - Deploy](labs/03-deploy/README.md) | Theo | A published ticket tool bound to the caller, on AgentCore | `3A-1-publish-tool.py`, `3A-2-bind-caller.py` |
-| [04 - Govern](labs/04-govern/README.md) | Jessica, with Nadia | A Cedar credit limit and a row-ownership policy in Aurora | `4A-credit-policy.cedar`, `4B-row-ownership.sql` |
+| [04 - Govern](labs/04-govern/README.md) | Jessica, with Nadia | A Cedar credit limit, and a row-ownership predicate tested in Aurora | `4A-credit-policy.cedar`, `4B-row-ownership.sql` |
 
-The files in these groups are the application's own files, linked into place. Saving one
-changes what the app runs; there is no second copy to keep in sync. Edit only between the
-`START` and `END` markers the guide names for your task.
+The files in these groups are links to the application's own files, so there is no second
+copy to keep in sync. Python edits reach the running backend once it restarts, as the guide
+directs; the Lab 3 and Lab 4 Cedar edits reach AgentCore when you run the guide's deployment.
+Two files are worksheets you run with `psql`, and neither changes what the app runs:
+`1A-rrf.sql` recomputes the scores Anna's search recorded, and `4B-row-ownership.sql` tests
+your predicate in a transaction that rolls back. Edit only between the `START` and `END`
+markers the guide names for your task.
 
 **05 - Explore Pellier source** is the whole repository, for when you want to see how a
 tool, an agent or a check is built. Every terminal starts at the repository root, so the

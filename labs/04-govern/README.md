@@ -9,7 +9,7 @@
 | [4A-credit-policy.cedar](4A-credit-policy.cedar) | Authorize credits within the amount limit | `policies/workshop_credit_limit.cedar` |
 | [4B-row-ownership.sql](4B-row-ownership.sql) | Enforce row ownership | `workshop/lab-4-rls.sql` |
 
-These are links to the actual application files. Saving here changes the file the app or deployment uses; there is no second copy to synchronize. Edit only the marked region named in the guide.
+Both are links to the application's own files, so there is no second copy to synchronize. Saving `4A-credit-policy.cedar` changes the policy the guide's participant deployment publishes. `4B-row-ownership.sql` is a worksheet you run with `psql`: it tries your predicate on the live tables in a transaction that rolls back, so the deployed row-level security policies never change. Edit only the marked region named in the guide.
 
 ## Check your work
 
@@ -21,7 +21,7 @@ psql -X -P pager=off -f workshop/lab-4-rls.sql
 python3 scripts/lab4_rls_check.py
 ```
 
-Deploy the Cedar edit with the guide’s participant deployment. The RLS worksheet runs in a transaction that rolls back; it does not replace the deployed policy. `scripts/lab4_rls_check.py` then probes the deployed policies as Theo, in process and through the Gateway Lambda's Data API binding, and also rolls back. Run `workshop/lab-4-absence.sql` for the final absence proof. Afterwards, `python3 scripts/observability_check.py` reads the steps outside AgentCore's trace: the app's spans, Database Insights and the refused write in the PostgreSQL log.
+Deploy the Cedar edit with the guide’s participant deployment. `scripts/lab4_rls_check.py` then probes the deployed policies as Theo, in process and through the Gateway Lambda's Data API binding, and also rolls back. Run `workshop/lab-4-absence.sql` for the final absence proof. Afterwards, `python3 scripts/observability_check.py` reads the steps outside AgentCore's trace: the app's spans, Database Insights and the refused write in the PostgreSQL log.
 
 ## If you need a solution
 

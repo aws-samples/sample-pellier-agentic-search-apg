@@ -10,7 +10,7 @@ Start with START_HERE.md and keep the Workshop Studio guide open.
 01 Retrieve: Anna       02 Ground: Marco
 03 Deploy: Theo         04 Govern: Jessica and Nadia
 
-Each numbered Explorer group has the live edit files, a README and solutions.
+Each numbered Explorer group has the files you edit, a README and solutions.
 This terminal starts at the repository root. Follow the guide's checks.
 WELCOME
 

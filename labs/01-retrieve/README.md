@@ -9,7 +9,7 @@
 | [1A-rrf.sql](1A-rrf.sql) | Recompute the RRF score | `workshop/lab-1-rrf.sql` |
 | [1B-search-plan.py](1B-search-plan.py) | Keep the budget, stock and exclusions on the fallback | `pellier/backend/services/search_plan.py` |
 
-These are links to the actual application files. Saving here changes the file the app or deployment uses; there is no second copy to synchronize. Edit only the marked region named in the guide.
+Both are links to the application's own files, so there is no second copy to synchronize. Saving `1B-search-plan.py` changes the code the backend runs. `1A-rrf.sql` is a worksheet you run with `psql`: it recomputes the scores Anna's search recorded and changes nothing the app runs. Edit only the marked region named in the guide.
 
 ## Check your work
 
