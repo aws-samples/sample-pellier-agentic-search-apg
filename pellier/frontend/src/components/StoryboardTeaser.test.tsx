@@ -12,10 +12,10 @@
  *   - Hovering a card scales its image `transform` to `scale(1.05)`
  *     (Req 1.9.3).
  *   - The four cards render in the exact authored order:
+ *     `FIELD NOTE No. 01: Anna`,
  *     `FIELD NOTE No. 02: Marco`,
- *     `FIELD NOTE No. 03: Anna`,
- *     `FIELD NOTE No. 04: Theo`,
- *     `FIELD NOTE No. 05: Jessica` (Req 1.9.4), with no middle dots.
+ *     `FIELD NOTE No. 03: Theo`,
+ *     `FIELD NOTE No. 04: Jessica` (Req 1.9.4), with no middle dots.
  *   - The daylight photographs render untinted: no overlay sits on them.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react'
@@ -50,16 +50,16 @@ describe('StoryboardTeaser - per-card contents (Req 1.9.2, 1.9.4)', () => {
     render(<MemoryRouter><StoryboardTeaser /></MemoryRouter>)
 
     expect(screen.getByTestId('storyboard-card-eyebrow-0')).toHaveTextContent(
-      'FIELD NOTE No. 02: Marco',
+      'FIELD NOTE No. 01: Anna',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-1')).toHaveTextContent(
-      'FIELD NOTE No. 03: Anna',
+      'FIELD NOTE No. 02: Marco',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-2')).toHaveTextContent(
-      'FIELD NOTE No. 04: Theo',
+      'FIELD NOTE No. 03: Theo',
     )
     expect(screen.getByTestId('storyboard-card-eyebrow-3')).toHaveTextContent(
-      'FIELD NOTE No. 05: Jessica',
+      'FIELD NOTE No. 04: Jessica',
     )
   })
 

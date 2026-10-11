@@ -155,7 +155,7 @@ describe('StoryboardPage - Field Notes essay surface', () => {
     renderStoryboard()
 
     // The section mounts and carries five field notes, one per
-    // persona archetype (editorial + Marco + Anna + Theo + Jessica).
+    // persona archetype (editorial + Anna + Marco + Theo + Jessica, in lab order).
     const section = screen.getByTestId('field-notes')
     expect(section).toBeInTheDocument()
     for (let i = 0; i < 5; i++) {

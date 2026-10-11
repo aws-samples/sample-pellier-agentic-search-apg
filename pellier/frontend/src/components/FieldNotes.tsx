@@ -26,12 +26,21 @@ interface Note {
 const NOTES: readonly Note[] = [
   {
     id: 'field-note-editors',
-    kicker: 'Field note No. 01',
+    kicker: 'From the editors',
     title: 'On asking for the piece, not the product.',
     body: [
       'A store that knows its floor should answer "a linen piece that travels well" as readily as "camp shirt, size 41." You know what you want before you know its name.',
     ],
     signature: 'The editors',
+  },
+  {
+    id: 'field-note-anna',
+    kicker: 'Field note No. 01',
+    title: 'Anna, on gifting as a practiced art.',
+    body: [
+      'Anna arrives with people, not products, and a gift under $100 is a real limit. Pellier holds to it, and can show that it did.',
+    ],
+    signature: 'Anna, a gift-giver',
   },
   {
     id: 'field-note-marco',
@@ -43,17 +52,8 @@ const NOTES: readonly Note[] = [
     signature: 'Marco, a regular',
   },
   {
-    id: 'field-note-anna',
-    kicker: 'Field note No. 03',
-    title: 'Anna, on gifting as a practiced art.',
-    body: [
-      'Anna arrives with people, not products, and a gift under $100 is a real limit. Pellier holds to it, and can show that it did.',
-    ],
-    signature: 'Anna, a gift-giver',
-  },
-  {
     id: 'field-note-theo',
-    kicker: 'Field note No. 04',
+    kicker: 'Field note No. 03',
     title: 'Theo, on pieces that wear in.',
     body: [
       'First a brass incense holder, then ceramic tumblers, a stoneware pour-over set and a wabi-sabi bowl. Each piece earned the next, and Theo comes back for things that wear in.',
@@ -62,7 +62,7 @@ const NOTES: readonly Note[] = [
   },
   {
     id: 'field-note-jessica',
-    kicker: 'Field note No. 05',
+    kicker: 'Field note No. 04',
     title: 'Jessica, on being made whole.',
     body: [
       'A sage waffle robe and a reed diffuser went back, and no credit followed. Pellier hands her request to a person, and nothing moves until Nadia approves it.',

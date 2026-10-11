@@ -389,6 +389,17 @@ export interface StoryboardTeaser {
 export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
   {
     badge: "FIELD NOTE",
+    volume: "No. 01",
+    theme: "Anna",
+    title: "On gifting as a practiced art.",
+    excerpt: "Start with the person, then the piece.",
+    link: "Read Anna's note \u203a",
+    noteId: "field-note-anna",
+    imageUrl: "/products/story-edit.png",
+    imageAlt: "Linen fabrics in white, oat, sage, charcoal and grey fanned across a pale wood table, with a stoneware cup, a coiled leather strap and black shears",
+  },
+  {
+    badge: "FIELD NOTE",
     volume: "No. 02",
     theme: "Marco",
     title: "On being remembered.",
@@ -401,17 +412,6 @@ export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
   {
     badge: "FIELD NOTE",
     volume: "No. 03",
-    theme: "Anna",
-    title: "On gifting as a practiced art.",
-    excerpt: "Start with the person, then the piece.",
-    link: "Read Anna's note \u203a",
-    noteId: "field-note-anna",
-    imageUrl: "/products/story-edit.png",
-    imageAlt: "Linen fabrics in white, oat, sage, charcoal and grey fanned across a pale wood table, with a stoneware cup, a coiled leather strap and black shears",
-  },
-  {
-    badge: "FIELD NOTE",
-    volume: "No. 04",
     theme: "Theo",
     title: "On pieces that wear in.",
     excerpt: "Stoneware and linen that earn their place over time.",
@@ -422,7 +422,7 @@ export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
   },
   {
     badge: "FIELD NOTE",
-    volume: "No. 05",
+    volume: "No. 04",
     theme: "Jessica",
     title: "On being made whole.",
     excerpt: "Two pieces went back; a person decides the credit.",
