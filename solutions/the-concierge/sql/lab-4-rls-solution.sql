@@ -20,9 +20,9 @@
 -- Run with:
 --   psql -X -P pager=off -f workshop/lab-4-rls.sql
 --
--- Everything below runs in one transaction that ends in ROLLBACK: your policy
--- edit and the test writes are never kept, and the live policies stay as
--- they were.
+-- Everything below runs in one transaction. If every probe matches, it
+-- commits: your predicate becomes the live policy and the probe writes are
+-- undone. If any probe differs, it rolls back and the live policies stay.
 
 SET client_min_messages TO warning;
 BEGIN;
@@ -44,6 +44,14 @@ ALTER POLICY orders_owner ON pellier.orders
 ALTER POLICY support_tickets_owner ON pellier.support_tickets
     USING (:ownership_predicate) WITH CHECK (:ownership_predicate);
 
+-- Stamp both policies with your predicate's sha256, so scripts/lab4_rls_check.py
+-- can tell the predicate you deployed from the one the database shipped with.
+SELECT 'Lab 4B predicate sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
+  FROM (SELECT encode(sha256(convert_to(:'ownership_predicate', 'UTF8')), 'hex') AS hash) h
+\gset
+COMMENT ON POLICY orders_owner ON pellier.orders IS :'stamp';
+COMMENT ON POLICY support_tickets_owner ON pellier.support_tickets IS :'stamp';
+
 -- What the tables hold, read as the owner, which row-level security does not
 -- apply to: the numbers each probe below must reproduce under your policy.
 SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS theo_orders,
@@ -55,6 +63,10 @@ SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS 
        (SELECT string_agg(cognito_username || ' -> ' || id, ', ' ORDER BY id)
           FROM pellier.customers WHERE id IN ('CUST-THEO', 'CUST-JESSICA')) AS names
 \gset owner_
+
+-- The probes run inside a savepoint. Rolling back to it undoes their test
+-- writes; your policy edit above stays in the transaction.
+SAVEPOINT probes;
 
 -- A denial below proves something only if the role is subject to the policy:
 -- no BYPASSRLS, no superuser, not the tables' owner, and exactly one
@@ -133,11 +145,49 @@ SELECT (SELECT count(*) FROM pellier.orders) AS orders,
        (SELECT count(*) FROM pellier.support_tickets) AS tickets
 \gset as_jessica_
 
--- Back to the owner, to tabulate the probes.
+-- Back to the owner.
 RESET ROLE;
 
--- A temporary table inside the transaction: the ROLLBACK below drops it too.
-CREATE TEMP TABLE lab_4_probes (probe text, bound_as text, expected text, observed text);
+-- Every customer, one at a time, as pellier_agent: each must see exactly their
+-- own orders and tickets. A predicate that names Theo and Jessica would pass the
+-- probes above and still hide everyone else's rows, so it is refused here.
+DO $every_customer$
+DECLARE
+    names text[];
+    own bigint[];
+    seen bigint;
+    exact int := 0;
+BEGIN
+    SELECT array_agg(c.cognito_username ORDER BY c.id),
+           array_agg((SELECT count(*) FROM pellier.orders o WHERE o.customer_id = c.id)
+                     + (SELECT count(*) FROM pellier.support_tickets t
+                         WHERE t.customer_id = c.id) ORDER BY c.id)
+      INTO names, own
+      FROM pellier.customers c;
+    FOR i IN 1 .. coalesce(array_length(names, 1), 0) LOOP
+        PERFORM set_config('pellier.principal_username', names[i], true);
+        EXECUTE 'SET LOCAL ROLE pellier_agent';
+        SELECT (SELECT count(*) FROM pellier.orders)
+               + (SELECT count(*) FROM pellier.support_tickets) INTO seen;
+        EXECUTE 'RESET ROLE';
+        IF seen = own[i] THEN
+            exact := exact + 1;
+        END IF;
+    END LOOP;
+    PERFORM set_config('lab4.customers', coalesce(array_length(names, 1), 0)::text, true);
+    PERFORM set_config('lab4.customers_exact', exact::text, true);
+END
+$every_customer$;
+SELECT current_setting('lab4.customers') AS customers,
+       current_setting('lab4.customers_exact') AS exact
+\gset every_
+
+-- Undo the probe writes and settings; your policy edit stays in the transaction.
+ROLLBACK TO SAVEPOINT probes;
+
+-- A temporary table, dropped when the transaction ends either way.
+CREATE TEMP TABLE lab_4_probes (probe text, bound_as text, expected text, observed text)
+    ON COMMIT DROP;
 INSERT INTO lab_4_probes VALUES
     ('Theo reads his own orders', 'theo', :'owner_theo_orders', :'as_theo_theo_orders'),
     ('Theo reads his own tickets', 'theo', :'owner_theo_tickets', :'as_theo_theo_tickets'),
@@ -149,9 +199,11 @@ INSERT INTO lab_4_probes VALUES
     ('The Investigator reads Jessica''s orders', 'jessica', :'owner_jessica_orders',
      :'as_jessica_orders'),
     ('The Investigator reads Jessica''s tickets', 'jessica', :'owner_jessica_tickets',
-     :'as_jessica_tickets');
+     :'as_jessica_tickets'),
+    ('Customers who see exactly their own orders and tickets', 'each customer',
+     :'every_customers', :'every_exact');
 
-\echo 'Lab 4B: your ownership predicate, as pellier_agent, rolled back'
+\echo 'Lab 4B: your ownership predicate, probed as pellier_agent'
 \echo 'Evidence  policies orders_owner and support_tickets_owner, rewritten inside this transaction'
 \echo '          sign-in names in pellier.customers:' :owner_names
 \echo ''
@@ -164,17 +216,22 @@ SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probe
   FROM lab_4_probes
 \gset lab_4_
 
-ROLLBACK;
-
-\echo 'Expected  every probe matches, and the policy edit and the test writes are rolled back'
-\echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, nothing above was kept'
+\echo 'Expected  every probe matches; then the transaction commits and your predicate is the live policy'
 SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
 \if :lab_4_passed
+  COMMIT;
+  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; committed, your predicate is now the live policy'
+  \echo 'Deployed  your predicate on orders_owner and support_tickets_owner, sha256' :stamp_short
+  \echo '          the probe writes were undone before the commit'
   \echo 'Lab 4B check passed'
 \else
+  ROLLBACK;
+  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, the live policies are unchanged'
   \echo 'Next      read the rows marked differs. 0 where a number is expected means your'
   \echo '          expression matches nobody; a number where 0 is expected means it matches'
   \echo '          everybody. The bound name is current_setting(''pellier.principal_username'', true).'
+  \echo '          If only the every-customer row differs, your expression names particular'
+  \echo '          customers instead of the one bound on the session.'
   \echo 'Lab 4B check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4B check failed; see the lines above'; END $fail$;
 \endif

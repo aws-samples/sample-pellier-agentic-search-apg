@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Lab 4B, live: the policies guarding Pellier stop a wrong query on both database paths.
+"""Lab 4B, live: your deployed predicate stops a wrong query on both database paths.
 
-``workshop/lab-4-rls.sql`` tests your predicate inside a transaction it rolls
-back. This check probes the live policies, ``orders_owner`` and
-``support_tickets_owner``, through each way Pellier binds a customer before it
-reads their rows:
+``workshop/lab-4-rls.sql`` probes your predicate and, when every probe matches,
+commits it as the live policy on ``orders_owner`` and ``support_tickets_owner``,
+commented with its sha256. This check first confirms both live policies carry
+the predicate now in your file, so the policies it probes are yours and not the
+ones the database shipped with. Then it probes them through each way Pellier
+binds a customer before it reads their rows:
 
     in process   DatabaseService.principal_session, which Ask Pellier and the
                  Operator's Investigator use
@@ -26,6 +28,7 @@ Cedar's owner-only permit has already matched to the caller's token (Lab 3).
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import os
 import pathlib
@@ -41,6 +44,26 @@ BACKEND = REPO / "pellier" / "backend"
 DEPLOY = SCRIPTS / "deploy"
 
 THEO_USERNAME, THEO = "theo", "CUST-THEO"
+
+WORKSHEET = REPO / "workshop" / "lab-4-rls.sql"
+STARTER = REPO / "workshop" / "starters" / "lab-4-rls.sql"
+REGION = "Row ownership - predicate"
+STAMP_PREFIX = "Lab 4B predicate sha256 "
+POLICY_NAMES = ("orders_owner", "support_tickets_owner")
+RUN_WORKSHEET = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-rls.sql"
+DEPLOYED_TITLE = "your predicate is the live policy on both tables"
+DEPLOYED_EXPECTED = ("orders_owner and support_tickets_owner carry the predicate now in "
+                     "workshop/lab-4-rls.sql, committed by its passing run")
+DEPLOYED_SQL = """
+SELECT pol.polname AS policy,
+       coalesce(obj_description(pol.oid, 'pg_policy'), '') AS stamp,
+       pg_get_expr(pol.polqual, pol.polrelid) AS qual,
+       pg_get_expr(pol.polwithcheck, pol.polrelid) AS with_check
+  FROM pg_policy pol
+  JOIN pg_class c ON c.oid = pol.polrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+ WHERE n.nspname = 'pellier' AND pol.polname IN ('orders_owner', 'support_tickets_owner')
+"""
 
 # What each probe asks for, bound as Theo. The first is his own; the rest are a
 # wrong query's: rows a correct tool, filtering by the bound customer, never reads.
@@ -73,6 +96,89 @@ _PATHS = {
 
 class _Undo(Exception):
     """Raised inside a transaction so it ends in a rollback."""
+
+
+# ---------------------------------------------------------------------------
+# Deployed: the live policies carry the predicate in the participant's file
+# ---------------------------------------------------------------------------
+
+
+def file_stamp(worksheet: bytes) -> Optional[str]:
+    """The comment a passing run leaves on both policies, from the file's own bytes.
+
+    psql hashes the text between the two ``$predicate$`` quotes exactly as read,
+    so the file is read as bytes, without newline translation.
+    """
+    parts = worksheet.decode("utf-8").split("$predicate$")
+    if len(parts) < 3:
+        return None
+    return STAMP_PREFIX + hashlib.sha256(parts[1].encode("utf-8")).hexdigest()
+
+
+def _stamp_line(policy: str, comment: str) -> str:
+    if comment.startswith(STAMP_PREFIX):
+        return f"{policy}: sha256 {comment[len(STAMP_PREFIX):][:12]}..."
+    return f"{policy}: no Lab 4B comment"
+
+
+def judge_deployed(stamp: Optional[str], is_starter: bool,
+                   deployed: Dict[str, str]) -> check.Finding:
+    """Whether both live policies carry the predicate now in the worksheet.
+
+    Args:
+        stamp: ``file_stamp`` of the worksheet, or None when its region is gone.
+        is_starter: The region still holds the starter predicate.
+        deployed: Each policy's comment, empty when it has none.
+    """
+    if stamp is None:
+        return check.Finding("4B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
+                             "the worksheet's predicate region could not be read",
+                             ["workshop/lab-4-rls.sql: no $predicate$ quotes"],
+                             "restore the region from workshop/starters/lab-4-rls.sql.")
+    if is_starter:
+        return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
+                             "the worksheet still holds the starter predicate",
+                             ["workshop/lab-4-rls.sql: Row ownership - predicate is false"],
+                             "write the predicate in workshop/lab-4-rls.sql, then run "
+                             f"{RUN_WORKSHEET}.")
+    short = stamp[len(STAMP_PREFIX):][:12]
+    evidence = [_stamp_line(name, deployed.get(name, "")) for name in POLICY_NAMES]
+    evidence.append(f"workshop/lab-4-rls.sql: sha256 {short}...")
+    if all(deployed.get(name) == stamp for name in POLICY_NAMES):
+        return check.Finding("4B", DEPLOYED_TITLE, check.PROVED, DEPLOYED_EXPECTED,
+                             f"both policies carry your predicate, sha256 {short}", evidence)
+    if not any(deployed.get(name, "").startswith(STAMP_PREFIX) for name in POLICY_NAMES):
+        return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
+                             "the live policies are still the ones the database shipped with",
+                             evidence, f"run {RUN_WORKSHEET}; it deploys your predicate once "
+                             "every probe matches.")
+    return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
+                         "the live policies carry a different predicate from the one in your "
+                         "file", evidence, f"your file changed after it was deployed; run "
+                         f"{RUN_WORKSHEET} again.")
+
+
+def deployed_policies(connect: Callable[[], Any]) -> Dict[str, Dict[str, str]]:
+    """Each owner policy's comment and expressions, read from the catalog."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(DEPLOYED_SQL)
+        names = [column.name for column in cur.description]
+        rows = [row if isinstance(row, dict) else dict(zip(names, row)) for row in cur.fetchall()]
+    return {row["policy"]: {key: row[key] or "" for key in ("stamp", "qual", "with_check")}
+            for row in rows}
+
+
+def deployed_finding(connect: Callable[[], Any],
+                     worksheet: pathlib.Path = WORKSHEET) -> check.Finding:
+    is_starter = check.region_state(worksheet, REGION, STARTER) == check.STARTER
+    stamp = file_stamp(worksheet.read_bytes())
+    policies = deployed_policies(connect)
+    finding = judge_deployed(stamp, is_starter,
+                             {name: row["stamp"] for name, row in policies.items()})
+    qual = policies.get("orders_owner", {}).get("qual", "")
+    if qual:
+        finding.evidence.append(f"live USING on orders: {' '.join(qual.split())[:110]}")
+    return finding
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +224,14 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
 def unchecked(path: str, exc: BaseException) -> check.Finding:
     return check.Finding("4B", f"{path} path: the live policy stops a wrong query",
                          check.UNCHECKED, EXPECTED, "the check could not run this path",
+                         [f"{type(exc).__name__}: {str(exc)[:200]}"],
+                         "run this on the workshop box, where pellier/backend/.env names "
+                         "the cluster.")
+
+
+def _unchecked_deployed(exc: BaseException) -> check.Finding:
+    return check.Finding("4B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
+                         "the check could not read the live policies",
                          [f"{type(exc).__name__}: {str(exc)[:200]}"],
                          "run this on the workshop box, where pellier/backend/.env names "
                          "the cluster.")
@@ -258,12 +372,16 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
     cfg = check.db_config(env_path)
     if cfg is None:
         reason = RuntimeError(check.missing_settings_reason(env_path))
-        return [unchecked(path, reason) for path in _PATHS]
+        return [_unchecked_deployed(reason)] + [unchecked(path, reason) for path in _PATHS]
+    try:
+        deployed = deployed_finding(lambda: check.connect(cfg))
+    except Exception as exc:  # noqa: BLE001 - the reason is the finding
+        deployed = _unchecked_deployed(exc)
     try:
         own = owner_tickets(cfg)
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return [unchecked(path, exc) for path in _PATHS]
-    findings: List[check.Finding] = []
+        return [deployed] + [unchecked(path, exc) for path in _PATHS]
+    findings: List[check.Finding] = [deployed]
     probes: Sequence[Tuple[str, Callable[[], Dict[str, Any]]]] = (
         ("in process", lambda: asyncio.run(_in_process(cfg))),
         ("Gateway", lambda: probe_gateway(_dataapi(check.parse_dotenv(env_path)))),
@@ -282,7 +400,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
     findings = collect()
-    print("Lab 4B, live: the policies guarding Pellier, as Theo, on both database paths")
+    print("Lab 4B, live: your deployed predicate, then the policies as Theo on both "
+          "database paths")
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PROVED for finding in findings)

@@ -45,7 +45,7 @@ Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
 
 ## What participants use
 
-Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the eight files, `labs/01-retrieve/1A-rrf.sql` and `labs/04-govern/4B-row-ownership.sql`, are worksheets: the first recomputes recorded scores and the second rolls back, so neither changes what the app runs. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. One of the eight files, `labs/01-retrieve/1A-rrf.sql`, is a worksheet that changes nothing the app runs: it recomputes recorded scores. `labs/04-govern/4B-row-ownership.sql` deploys itself: it commits the participant's predicate as the live policy only when every probe matches. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
 To see where a stuck participant's files depart from the answer without overwriting them, run `python3 scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
@@ -199,9 +199,11 @@ credit, and the system must prove what moved.
   executes Jessica's approved credit, then retries it: one credit, one audit
   row. The RLS worksheet and the supplied `workshop/lab-4-absence.sql` run with
   `psql`; the absence check prints 0 and 0 for the denied key and 1 for the
-  allowed key, so a search that always returns zero cannot pass. The worksheet
-  rolls its predicate back, so `python3 scripts/lab4_rls_check.py` then probes
-  the live policies through both binding paths, in process and the Gateway
+  allowed key, so a search that always returns zero cannot pass. A passing
+  worksheet commits its predicate as the live policy, commented with its
+  sha256, after undoing its probe writes; `python3 scripts/lab4_rls_check.py`
+  confirms both live policies carry the predicate in the file, then probes them
+  through both binding paths, in process and the Gateway
   Lambda's Data API transaction: bound as Theo, a query for Jessica's rows
   returns none and a ticket in her name is refused with 42501. Row-level
   security stops a wrong query; Cedar's owner-only permit decides which

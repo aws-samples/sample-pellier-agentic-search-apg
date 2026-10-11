@@ -24,7 +24,7 @@ What each line reads:
         the stored Gateway denial and Jessica's credit in pellier.approvals,
         pellier.store_credits and pellier.tool_audit
     4B  workshop/lab-4-rls.sql and the supplied workshop/lab-4-absence.sql, run
-        with psql
+        with psql; a passing worksheet commits its predicate again, unchanged
 
 Rows alone prove 1B, 2A, 2B and 3B, so those lines read no source and no
 code of yours runs: 2A and 2B need the backend restarted and the question
@@ -371,8 +371,9 @@ def _psql_verdict(cfg: Config, path: pathlib.Path, passed: str, task: str, title
 def task_4b(cfg: Config) -> check.Finding:
     """Lab 4B: the RLS worksheet's own verdict, then the supplied absence check."""
     title = "row-level security holds, and the denied credit moved nothing"
-    expected = ("Theo's own rows visible, Jessica's 0, a write in her name 42501, staff reads "
-                "intact, rolled back; the denied key 0 and 0, the allowed key 1")
+    expected = ("every probe matches and your predicate is the live policy: Theo's own rows "
+                "visible, Jessica's 0, a write in her name 42501, every customer exactly their "
+                "own; the denied key 0 and 0, the allowed key 1")
     if source_state("4B") == check.STARTER:
         return _starter_finding("4B", title, expected, "workshop/lab-4-rls.sql")
     path = REGIONS["4B"][0]

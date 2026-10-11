@@ -585,8 +585,13 @@ def test_lab4_policy_name_matches_the_deployed_policy() -> None:
     assert renderer.CREDIT_LIMIT_STARTER.as_posix() == PARTICIPANT_STARTERS["lab-4-cedar"][0]
 
 
-def test_lab4_rls_proof_covers_read_write_and_rolls_everything_back() -> None:
-    """One expression for USING and WITH CHECK on both tables, probed, then rolled back."""
+def test_lab4_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> None:
+    """One expression for USING and WITH CHECK on both tables, probed inside a savepoint.
+
+    The probe writes are undone with the savepoint. The transaction commits, making
+    the predicate the live policy, only on the passing branch, and rolls back on the
+    failing one.
+    """
     for rel in (LAB4_RLS_PROOF, LAB4_RLS_REFERENCE):
         text = _read(rel)
         for fragment in (
@@ -595,24 +600,37 @@ def test_lab4_rls_proof_covers_read_write_and_rolls_everything_back() -> None:
             "    USING (:ownership_predicate) WITH CHECK (:ownership_predicate);",
             "ALTER POLICY support_tickets_owner ON pellier.support_tickets\n"
             "    USING (:ownership_predicate) WITH CHECK (:ownership_predicate);",
+            "COMMENT ON POLICY orders_owner ON pellier.orders IS :'stamp';",
+            "COMMENT ON POLICY support_tickets_owner ON pellier.support_tickets IS :'stamp';",
             "SET LOCAL ROLE pellier_agent",
             "set_config('pellier.principal_username', 'theo', true)",
             "set_config('pellier.principal_username', 'jessica', true)",
             "WHEN insufficient_privilege",
             "'42501'",
             "No one signed in reads orders",
-            "Lab 4B check passed",
+            "Customers who see exactly their own orders and tickets",
+            "ON COMMIT DROP",
+            "Lab 4B check passed", "Lab 4B check failed",
             "Expected  ", "Observed ", "Evidence  ", "Next      ",
         ):
             assert fragment in text, f"{rel} lost {fragment!r}"
         assert "principal_customers" not in text and "pellier_query" not in text
         # A probe comparing the owner's count with the owner's count cannot fail.
         assert "The Operator desk reads every order" not in text
-        assert "COMMIT" not in text
         assert len(re.findall(r"^BEGIN;", text, re.MULTILINE)) == 1
-        assert len(re.findall(r"^ROLLBACK;", text, re.MULTILINE)) == 1
-        assert text.index("BEGIN;") < text.index("ALTER POLICY") < text.index("ROLLBACK;")
-        assert text.index("ROLLBACK;") < text.index("Lab 4B check passed")
+        assert len(re.findall(r"^SAVEPOINT probes;", text, re.MULTILINE)) == 1
+        assert len(re.findall(r"^ROLLBACK TO SAVEPOINT probes;", text, re.MULTILINE)) == 1
+        assert len(re.findall(r"^\s*COMMIT;", text, re.MULTILINE)) == 1
+        assert len(re.findall(r"^\s*ROLLBACK;", text, re.MULTILINE)) == 1
+        order = ["BEGIN;", "ALTER POLICY", "COMMENT ON POLICY", "SAVEPOINT probes;",
+                 "SET LOCAL ROLE pellier_agent", "ROLLBACK TO SAVEPOINT probes;",
+                 "\\if :lab_4_passed", "  COMMIT;", "Lab 4B check passed", "\\else",
+                 "  ROLLBACK;", "Lab 4B check failed", "\\endif"]
+        positions = [text.index(marker) for marker in order]
+        assert positions == sorted(positions), list(zip(order, positions))
+        after_probes = text[text.index("ROLLBACK TO SAVEPOINT probes;"):]
+        writes = re.findall(r"\b(INSERT INTO|UPDATE|DELETE FROM)\s+(\S+)", after_probes)
+        assert writes == [("INSERT INTO", "lab_4_probes")], writes
 
 
 def test_lab4_rls_starter_is_false_and_the_reference_names_the_bound_customer() -> None:

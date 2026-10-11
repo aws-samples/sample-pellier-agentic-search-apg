@@ -11,6 +11,6 @@ To use the guide’s full recovery path, first save any edits you want to keep. 
 python3 scripts/lab_run.py solution --lab 4
 ```
 
-Deploy the Cedar edit with the guide’s participant deployment. Then `python3 scripts/lab_run.py send --lab 4` makes Jessica’s request and does Nadia’s approval and execution for you. The RLS worksheet runs in a transaction that rolls back; it does not replace the deployed policy. Run `workshop/lab-4-absence.sql` for the final absence proof.
+Deploy the Cedar edit with the guide’s participant deployment. Then `python3 scripts/lab_run.py send --lab 4` makes Jessica’s request and does Nadia’s approval and execution for you. Run the RLS worksheet afterwards: with the solution every probe matches, so it commits the predicate as the live policy. Run `workshop/lab-4-absence.sql` for the final absence proof.
 
 Return to the [lab README](../README.md), repeat its checks and continue in Workshop Studio.

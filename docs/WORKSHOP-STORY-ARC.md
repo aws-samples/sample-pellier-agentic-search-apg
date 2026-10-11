@@ -46,7 +46,7 @@ Paths under `services/` and `agents/` are in `pellier/backend/`.
 | 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Managed catalogue - support reconcile` | `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites`, which sends a forged ticket read for Jessica through the checkout's binding |
 | 3B | none: deploy with `--mode participant` | the Builder view's `Remembered: AgentCore Memory record <id>` line, then `python3 scripts/lab3_check.py` |
 | 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_policy_check.py` |
-| 4B | `workshop/lab-4-rls.sql`, `Row ownership - predicate` | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then the supplied `python3 scripts/lab4_rls_check.py` (the live policies, both binding paths) and `workshop/lab-4-absence.sql` |
+| 4B | `workshop/lab-4-rls.sql`, `Row ownership - predicate` | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then the supplied `python3 scripts/lab4_rls_check.py` (your deployed predicate, then both binding paths) and `workshop/lab-4-absence.sql` |
 
 Every check prints three things: what was expected, what was observed, and the
 evidence (the row, the decision, the key). A check that did not pass says what
@@ -89,7 +89,8 @@ proved.
 - **4B:** one expression serves USING and WITH CHECK on `orders` and
   `support_tickets`. Theo's own rows are visible, Jessica's return 0, a ticket
   written in her name fails with 42501, the Investigator still reads her case,
-  and everything rolls back. In process the customer comes from the token; on
+  and every customer sees exactly their own rows; only then does the worksheet
+  commit the predicate as the live policy, after undoing its probe writes. In process the customer comes from the token; on
   the Gateway it is the customer Cedar admitted. RLS contains a wrong query.
   The absence check is supplied: 0 and 0 for the denied key, 1 for the allowed
   key, so a search that always returns zero cannot pass.

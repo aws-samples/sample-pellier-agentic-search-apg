@@ -6,9 +6,11 @@ starter still blocks it; with the solution it passes while 10001 cents is
 denied. Decided by the real Cedar engine over the rendered baseline.
 
 Task 4B. The RLS worksheet's starter expression is ``false``: Theo sees none of
-his own rows and the Investigator none of Jessica's, so the check fails. The
-solution passes every probe, and both leave the live policies and the tables
-as they were. The keyed absence check is supplied: it reads the over-limit
+his own rows and the Investigator none of Jessica's, so the check fails and the
+transaction rolls back. The solution passes every probe, so it commits: the
+solution's predicate becomes the live policy on both tables, stamped with its
+sha256, and the probe writes are undone. A failing run never replaces what an
+earlier passing run deployed. The keyed absence check is supplied: it reads the over-limit
 review the Lab 4A check sent and Jessica's credit, and passes only on 0, 0, 1.
 
 The worksheets run through ``psql`` on the real schema and seed.
@@ -16,12 +18,13 @@ The worksheets run through ``psql`` on the real schema and seed.
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, Iterator, List
 
 import psycopg
 import pytest
@@ -183,15 +186,55 @@ async def test_nadias_execute_in_the_operator_shows_what_cedar_decided(
 # ---------------------------------------------------------------------------
 
 
+STAMPS = """
+SELECT pol.polname AS policy, coalesce(obj_description(pol.oid, 'pg_policy'), '') AS stamp
+  FROM pg_policy pol
+  JOIN pg_class c ON c.oid = pol.polrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+ WHERE n.nspname = 'pellier' ORDER BY pol.polname
+"""
+SHIPPED = ("customer_id = (SELECT id FROM pellier.customers "
+           "WHERE cognito_username = current_setting('pellier.principal_username', true))")
+POLICY_TABLES = (("orders_owner", "orders"), ("support_tickets_owner", "support_tickets"))
+
+
 def _live_state(conn: Any) -> Dict[str, Any]:
     policies = conn.execute("SELECT policyname, qual, with_check FROM pg_policies "
                             "WHERE schemaname = 'pellier' ORDER BY policyname").fetchall()
     probes = conn.execute("SELECT count(*) AS n FROM pellier.support_tickets "
                           "WHERE ticket_id LIKE 'TKT-LAB4-%'").fetchone()["n"]
-    return {"policies": policies, "probe_tickets": probes}
+    return {"policies": policies, "stamps": conn.execute(STAMPS).fetchall(),
+            "probe_tickets": probes}
 
 
-def test_the_starter_predicate_hides_every_customers_own_rows(fresh_db: Any, conn: Any) -> None:  # noqa: F811
+def _stamp_for(worksheet: Path) -> str:
+    """The comment a passing worksheet leaves on both policies: its predicate's sha256."""
+    predicate = worksheet.read_bytes().decode("utf-8").split("$predicate$")[1]
+    return "Lab 4B predicate sha256 " + hashlib.sha256(predicate.encode("utf-8")).hexdigest()
+
+
+def _with_predicate(tmp_path: Path, name: str, predicate: str) -> Path:
+    path = tmp_path / name
+    path.write_text(RLS_STARTER.read_text().replace(
+        "SELECT $predicate$\n  false\n$predicate$", f"SELECT $predicate$\n  {predicate}\n$predicate$"))
+    return path
+
+
+@pytest.fixture
+def shipped(conn: Any) -> Iterator[None]:
+    """Each test starts and ends on the policies the migrations ship, unstamped."""
+    def restore() -> None:
+        for policy, table in POLICY_TABLES:
+            conn.execute(f"ALTER POLICY {policy} ON pellier.{table} "
+                         f"USING ({SHIPPED}) WITH CHECK ({SHIPPED})")
+            conn.execute(f"COMMENT ON POLICY {policy} ON pellier.{table} IS NULL")
+    restore()
+    yield
+    restore()
+
+
+def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
+        fresh_db: Any, conn: Any, shipped: None) -> None:
     before = _live_state(conn)
     done = _psql(fresh_db, RLS_STARTER)
     assert done.returncode != 0
@@ -200,27 +243,58 @@ def test_the_starter_predicate_hides_every_customers_own_rows(fresh_db: Any, con
                  "The Investigator reads Jessica's orders"):
         assert next(row for row in done.stdout.splitlines() if line in row).rstrip().endswith(
             "differs"), line
-    assert "rolled back" in done.stdout
+    assert "rolled back, the live policies are unchanged" in done.stdout
     assert _live_state(conn) == before
 
 
-def test_the_solution_passes_every_probe_and_keeps_nothing(fresh_db: Any, conn: Any) -> None:  # noqa: F811
-    before = _live_state(conn)
+def test_the_solution_passes_every_probe_and_becomes_the_live_policy(  # noqa: F811
+        fresh_db: Any, conn: Any, shipped: None) -> None:
     done = _psql(fresh_db, RLS_SOLUTION)
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "Lab 4B check passed" in done.stdout
-    assert "9 of 9 probes match" in done.stdout
-    assert "42501" in done.stdout
+    assert "10 of 10 probes match" in done.stdout
+    assert "your predicate is now the live policy" in done.stdout
+    assert "42501" in done.stdout and "Lab 4B check passed" in done.stdout
+    after = _live_state(conn)
+    stamp = _stamp_for(RLS_SOLUTION)
+    owned = {row["policy"]: row["stamp"] for row in after["stamps"]}
+    assert owned["orders_owner"] == owned["support_tickets_owner"] == stamp
+    assert f"sha256 {stamp.rsplit(' ', 1)[1][:12]}" in done.stdout
+    assert after["probe_tickets"] == 0, "the probe writes must not survive the commit"
+    again = _psql(fresh_db, RLS_SOLUTION)
+    assert again.returncode == 0 and _live_state(conn) == after
+
+
+def test_an_everyone_predicate_fails_and_changes_nothing(  # noqa: F811
+        fresh_db: Any, conn: Any, shipped: None, tmp_path: Path) -> None:
+    before = _live_state(conn)
+    done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-true.sql", "true"))
+    assert done.returncode != 0
+    assert "Theo reads Jessica's orders" in done.stdout and "Lab 4B check failed" in done.stdout
     assert _live_state(conn) == before
 
 
-def test_an_everyone_predicate_fails_too(fresh_db: Any, tmp_path: Path) -> None:  # noqa: F811
-    everyone = tmp_path / "lab-4-rls-true.sql"
-    everyone.write_text(RLS_STARTER.read_text().replace(
-        "SELECT $predicate$\n  false\n$predicate$", "SELECT $predicate$\n  true\n$predicate$"))
-    done = _psql(fresh_db, everyone)
-    assert done.returncode != 0
-    assert "Theo reads Jessica's orders" in done.stdout and "Lab 4B check failed" in done.stdout
+def test_a_predicate_for_theo_and_jessica_only_fails_the_every_customer_probe(  # noqa: F811
+        fresh_db: Any, conn: Any, shipped: None, tmp_path: Path) -> None:
+    before = _live_state(conn)
+    narrow = ("customer_id IN ('CUST-THEO', 'CUST-JESSICA') AND customer_id = (SELECT c.id "
+              "FROM pellier.customers c WHERE c.cognito_username = "
+              "current_setting('pellier.principal_username', true))")
+    done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-narrow.sql", narrow))
+    assert done.returncode != 0, done.stdout
+    row = next(r for r in done.stdout.splitlines() if "Customers who see exactly their own" in r)
+    assert row.rstrip().endswith("differs")
+    for line in ("Theo reads his own orders", "The Investigator reads Jessica's orders"):
+        assert next(r for r in done.stdout.splitlines() if line in r).rstrip().endswith("matches")
+    assert _live_state(conn) == before
+
+
+def test_a_failing_run_keeps_the_predicate_an_earlier_run_deployed(  # noqa: F811
+        fresh_db: Any, conn: Any, shipped: None, tmp_path: Path) -> None:
+    assert _psql(fresh_db, RLS_SOLUTION).returncode == 0
+    deployed = _live_state(conn)
+    done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-false.sql", "false"))
+    assert done.returncode != 0 and "Lab 4B check failed" in done.stdout
+    assert _live_state(conn) == deployed
 
 
 # ---------------------------------------------------------------------------

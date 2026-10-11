@@ -157,3 +157,84 @@ def test_the_data_api_module_is_pointed_at_the_box_cluster_even_if_already_impor
     assert (module.DB_CLUSTER_ARN, module.SECRET_ARN, module.DATABASE) == (
         cluster, "box-secret", "pellier")
     assert module.rds_client.meta.region_name == "eu-west-1"
+
+
+# ---------------------------------------------------------------------------
+# Deployed: the live policies carry the predicate in the participant's file
+# ---------------------------------------------------------------------------
+
+SOLUTION = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-rls-solution.sql"
+
+
+def _stamp(worksheet: Path) -> str:
+    stamp = lab4.file_stamp(worksheet.read_bytes())
+    assert stamp and stamp.startswith("Lab 4B predicate sha256 ")
+    return stamp
+
+
+def test_a_starter_worksheet_is_not_yet_deployed() -> None:
+    finding = lab4.judge_deployed(_stamp(SOLUTION), is_starter=True, deployed={})
+    assert finding.state == lab4.check.NOT_YET
+    assert "starter" in finding.observed
+    assert "workshop/lab-4-rls.sql" in finding.next_step
+
+
+def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
+    finding = lab4.judge_deployed(_stamp(SOLUTION), is_starter=False,
+                                  deployed={"orders_owner": "", "support_tickets_owner": ""})
+    assert finding.state == lab4.check.NOT_YET
+    assert "shipped" in finding.observed
+    assert "psql" in finding.next_step and "workshop/lab-4-rls.sql" in finding.next_step
+
+
+def test_a_file_edited_after_it_was_deployed_is_named() -> None:
+    old = "Lab 4B predicate sha256 " + "0" * 64
+    finding = lab4.judge_deployed(_stamp(SOLUTION), is_starter=False,
+                                  deployed={"orders_owner": old, "support_tickets_owner": old})
+    assert finding.state == lab4.check.NOT_YET
+    assert "different predicate" in finding.observed
+    assert "again" in finding.next_step
+
+
+def test_both_policies_carrying_the_file_stamp_is_proved() -> None:
+    stamp = _stamp(SOLUTION)
+    finding = lab4.judge_deployed(stamp, is_starter=False,
+                                  deployed={"orders_owner": stamp, "support_tickets_owner": stamp})
+    assert finding.state == lab4.check.PROVED
+    assert stamp.rsplit(" ", 1)[1][:12] in finding.observed
+
+
+def test_the_file_stamp_is_the_predicate_between_the_dollar_quotes_byte_for_byte() -> None:
+    crlf = SOLUTION.read_bytes().replace(b"\n", b"\r\n")
+    assert lab4.file_stamp(crlf) != _stamp(SOLUTION), "psql hashes the bytes it reads"
+    assert lab4.file_stamp(b"no predicate region here") is None
+
+
+def test_the_solution_worksheet_deploys_a_predicate_the_check_recognises(
+    fresh_db: Any, conn: psycopg.Connection,  # noqa: F811
+) -> None:
+    import subprocess
+
+    def deployed() -> dict:
+        return lab4.deployed_policies(lambda: psycopg.connect(**_conninfo(fresh_db)))
+
+    before = deployed()
+    try:
+        assert lab4.judge_deployed(_stamp(SOLUTION), False, {k: v["stamp"] for k, v in
+                                                             before.items()}).state == lab4.check.NOT_YET
+        done = subprocess.run(
+            [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
+             "-d", "postgres", "-P", "pager=off", "-f", str(SOLUTION)],
+            capture_output=True, text=True, timeout=60)
+        assert done.returncode == 0, done.stdout + done.stderr
+        after = deployed()
+        finding = lab4.judge_deployed(_stamp(SOLUTION), False,
+                                      {k: v["stamp"] for k, v in after.items()})
+        assert finding.state == lab4.check.PROVED, finding
+        assert "cognito_username" in after["orders_owner"]["qual"]
+    finally:
+        for policy in POLICIES:
+            row = before[policy.split()[0]]
+            conn.execute(f"ALTER POLICY {policy} USING ({row['qual']}) "
+                         f"WITH CHECK ({row['with_check']})")
+            conn.execute(f"COMMENT ON POLICY {policy} IS NULL")
