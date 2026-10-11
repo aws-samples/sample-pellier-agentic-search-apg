@@ -4,10 +4,10 @@
 
 ## Open the file
 
-| File in this folder | Task | Application file |
-|---|---|---|
-| [1A-rrf.sql](1A-rrf.sql) | Recompute the RRF score | `workshop/lab-1-rrf.sql` |
-| [1B-search-plan.py](1B-search-plan.py) | Keep the budget, stock and exclusions on the fallback | `pellier/backend/services/search_plan.py` |
+| File in this folder | Task | Region to edit | Application file |
+|---|---|---|---|
+| [1A-rrf.sql](1A-rrf.sql) | Recompute the RRF score | `PostgreSQL RRF - fusion expression` | `workshop/lab-1-rrf.sql` |
+| [1B-search-plan.py](1B-search-plan.py) | Keep the budget, stock and exclusions on the fallback | `Search plan - preserve requirements` | `pellier/backend/services/search_plan.py` |
 
 Both are links to the application's own files, so there is no second copy to synchronize. Saving `1B-search-plan.py` changes the code the backend runs. `1A-rrf.sql` is a worksheet you run with `psql`: it recomputes the scores Anna's search recorded and changes nothing the app runs. Edit only the marked region named in the guide.
 

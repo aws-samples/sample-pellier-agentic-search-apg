@@ -4,10 +4,10 @@
 
 ## Open the file
 
-| File in this folder | Task | Application file |
-|---|---|---|
-| [2A-check-stock.py](2A-check-stock.py) | Keep not carried apart from sold out | `pellier/backend/services/agent_tools.py` |
-| [2B-stock-agent.py](2B-stock-agent.py) | Connect `check_stock` to the Stock agent | `pellier/backend/agents/stock_agent.py` |
+| File in this folder | Task | Region to edit | Application file |
+|---|---|---|---|
+| [2A-check-stock.py](2A-check-stock.py) | Keep not carried apart from sold out | `Stock agent - check_stock` | `pellier/backend/services/agent_tools.py` |
+| [2B-stock-agent.py](2B-stock-agent.py) | Connect `check_stock` to the Stock agent | `Stock agent - definition` | `pellier/backend/agents/stock_agent.py` |
 
 These are links to the actual application files. Saving here changes the file the app or deployment uses; there is no second copy to synchronize. Edit only the marked region named in the guide.
 

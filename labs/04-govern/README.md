@@ -4,10 +4,10 @@
 
 ## Open the file
 
-| File in this folder | Task | Application file |
-|---|---|---|
-| [4A-credit-policy.cedar](4A-credit-policy.cedar) | Authorize credits within the amount limit | `policies/workshop_credit_limit.cedar` |
-| [4B-row-ownership.sql](4B-row-ownership.sql) | Enforce row ownership | `workshop/lab-4-rls.sql` |
+| File in this folder | Task | Region to edit | Application file |
+|---|---|---|---|
+| [4A-credit-policy.cedar](4A-credit-policy.cedar) | Authorize credits within the amount limit | the final `unless` block | `policies/workshop_credit_limit.cedar` |
+| [4B-row-ownership.sql](4B-row-ownership.sql) | Enforce row ownership | `Row ownership - predicate` | `workshop/lab-4-rls.sql` |
 
 Both are links to the application's own files, so there is no second copy to synchronize. Saving `4A-credit-policy.cedar` changes the policy the guide's participant deployment publishes. `4B-row-ownership.sql` is a worksheet you run with `psql`: it tries your predicate on the live tables in a transaction that rolls back, so the deployed row-level security policies never change. Edit only the marked region named in the guide.
 
