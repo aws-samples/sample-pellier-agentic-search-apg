@@ -42,6 +42,11 @@ def test_private_origin_requires_origin_credential_and_preserves_editor_and_app_
     assert config.count("proxy_set_header X-Forwarded-Proto https;") == 4
     assert "proxy_set_header X-Forwarded-Proto $pellier_forwarded_proto;" not in config
     assert "location /editor/ {" in config
+    editor = config.split("location /editor/ {", 1)[1].split("}", 1)[0]
+    # Code Editor doubles its base path on built-in extension resources; without
+    # this rewrite the Dark Modern theme 404s and the editor opens light.
+    assert "rewrite ^/editor(/editor/.*)$ $1 break;" in editor
+    assert editor.index("rewrite ") < editor.index("proxy_pass http://127.0.0.1:8080;")
     assert "proxy_cookie_flags vscode-tkn secure samesite=lax;" in config
     assert "httponly" not in config.lower()
     assert "proxy_pass http://127.0.0.1:8080;" in config

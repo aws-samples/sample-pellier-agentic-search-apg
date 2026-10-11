@@ -422,6 +422,11 @@ server {
 
     # Frontend/IDE proxy (Code Editor)
     location / {
+        # Code Editor 1.101.2 puts --server-base-path into its
+        # vscode-remote-resource URLs twice (/editor/editor/...). Those 404
+        # without this rewrite, so the built-in Dark Modern theme, file icons
+        # and grammars never load and the editor falls back to a light theme.
+        rewrite ^/editor(/editor/.*)$ $1 break;
         # __PELLIER_EDITOR_COOKIE_FLAGS__
         proxy_pass http://127.0.0.1:8080/;
         proxy_set_header Host $http_host;
