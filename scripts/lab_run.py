@@ -7,6 +7,13 @@ restart or deployment and its checks:
     python3 scripts/lab_run.py solution --lab 1
     python3 scripts/lab_run.py send --lab 1
 
+A third action is for whoever is helping a stuck participant, and the guide
+does not show it. ``diff`` prints what ``solution`` would change, without
+changing it: a unified diff per task file, the finished version as '-' lines
+and the participant's file as '+' lines.
+
+    python3 scripts/lab_run.py diff --lab 2
+
 ``solution`` copies the lab's supplied answers over the files its tasks edit,
 using the map in ``workshop/participant-files.json`` (the files the
 ``labs/0N-*/solution/`` folders link to). It neither restarts the backend nor
@@ -29,6 +36,7 @@ with exit status 1.
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import pathlib
@@ -121,6 +129,46 @@ def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
         shutil.copyfile(answer, target)
         ok(f"{entry['alias']} now holds the solution ({entry['source']})")
     print(f"  Next: {NEXT_AFTER_SOLUTION[lab]}", flush=True)
+
+
+# ---------------------------------------------------------------------------
+# diff: what `solution` would change, without changing it
+# ---------------------------------------------------------------------------
+
+DIFF_COLORS = {"---": "1", "+++": "1", "@@": "36", "-": "31", "+": "32"}
+
+
+def _paint(line: str, color: bool) -> str:
+    if not color:
+        return line
+    code = next((c for prefix, c in DIFF_COLORS.items() if line.startswith(prefix)), "")
+    return f"\x1b[{code}m{line}\x1b[0m" if code else line
+
+
+def show_diff(lab: int, repo: pathlib.Path = REPO, color: bool = False) -> int:
+    """Print each task file's unified diff against its solution; return 1 if any differ.
+
+    '-' lines are the finished version, the lines ``solution`` would write.
+    '+' lines are the participant's file as it is now. Nothing is written.
+    """
+    differs = 0
+    for entry in solution_files(lab, repo):
+        expected = (repo / entry["solution"]).read_text("utf-8").splitlines(keepends=True)
+        yours = (repo / entry["source"]).read_text("utf-8").splitlines(keepends=True)
+        if expected == yours:
+            ok(f"{entry['alias']} matches the solution")
+            continue
+        differs = 1
+        lines = difflib.unified_diff(
+            expected, yours,
+            fromfile=f"expected (Lab {lab} solution: {entry['source']})",
+            tofile=f"yours ({entry['source']})")
+        for line in lines:
+            print(_paint(line.rstrip("\n"), color), flush=True)
+    if differs:
+        print(f"'-' lines are the finished version: what 'python3 scripts/lab_run.py solution "
+              f"--lab {lab}' would write.\n'+' lines are your file as it is now.", flush=True)
+    return differs
 
 
 # ---------------------------------------------------------------------------
@@ -403,13 +451,16 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("action", choices=("solution", "send"))
+    parser.add_argument("action", choices=("solution", "send", "diff"))
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
     args = parser.parse_args(argv)
-    title = "install the solution" if args.action == "solution" else "send the requests"
-    print(f"Lab {args.lab}: {title}", flush=True)
+    titles = {"solution": "install the solution", "send": "send the requests",
+              "diff": "compare your files with the solution"}
+    print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
     try:
-        if args.action == "solution":
+        if args.action == "diff":
+            show_diff(args.lab, color=sys.stdout.isatty() and "NO_COLOR" not in os.environ)
+        elif args.action == "solution":
             install_solution(args.lab)
         else:
             send(args.lab, Backend(base_url), token_for)

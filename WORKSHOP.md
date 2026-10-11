@@ -45,7 +45,9 @@ Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
 
 ## What participants use
 
-Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the live exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the eight files, `labs/01-retrieve/1A-rrf.sql` and `labs/04-govern/4B-row-ownership.sql`, are worksheets: the first recomputes recorded scores and the second rolls back, so neither changes what the app runs. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+
+To see where a stuck participant's files depart from the answer without overwriting them, run `python3 scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
 | Surface | Use | What it proves |
 |---|---|---|

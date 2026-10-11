@@ -208,6 +208,60 @@ def test_solution_leaves_other_labs_untouched(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# diff
+# ---------------------------------------------------------------------------
+
+
+def test_diff_shows_the_finished_lines_as_minus_and_the_participants_as_plus(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    lab_run.install_solution(2, repo)
+    capsys.readouterr()
+    entry = next(e for e in lab_run.solution_files(2, repo) if e["alias"].endswith("2B-stock-agent.py"))
+    lines = (repo / entry["solution"]).read_text().split("\n")
+    at = next(i for i, line in enumerate(lines) if line.strip() and lines.count(line) == 1)
+    finished, lines[at] = lines[at], "    my unfinished line"
+    (repo / entry["source"]).write_text("\n".join(lines))
+
+    differs = lab_run.show_diff(2, repo, color=False)
+
+    out = capsys.readouterr().out
+    assert differs == 1
+    assert f"--- expected (Lab 2 solution: {entry['source']})" in out
+    assert f"+++ yours ({entry['source']})" in out
+    assert f"\n-{finished}\n" in out
+    assert "\n+    my unfinished line\n" in out
+    assert "2A-check-stock.py matches the solution" in out
+    assert "python3 scripts/lab_run.py solution --lab 2" in out
+    assert "\x1b[" not in out
+
+
+def test_diff_reports_a_finished_lab_and_writes_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    lab_run.install_solution(4, repo)
+    before = {e["source"]: (repo / e["source"]).read_bytes() for e in lab_run.solution_files(4, repo)}
+    capsys.readouterr()
+
+    assert lab_run.show_diff(4, repo, color=False) == 0
+
+    out = capsys.readouterr().out
+    assert "--- expected" not in out
+    assert "4A-credit-policy.cedar matches the solution" in out
+    assert "4B-row-ownership.sql matches the solution" in out
+    assert {s: (repo / s).read_bytes() for s in before} == before
+
+
+def test_diff_colours_only_when_asked(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    repo = _scratch_repo(tmp_path)
+    (repo / "workshop/lab-1-rrf.sql").write_text("starter\n")
+    lab_run.show_diff(1, repo, color=True)
+    assert "\x1b[31m-" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
 # server-sent events
 # ---------------------------------------------------------------------------
 

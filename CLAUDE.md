@@ -66,8 +66,9 @@ the task the participant names, never every file at once.
 - Read surrounding source patterns and the nearest module guidance.
 - Propose only a minimal change inside the named region after the participant
   asks for an edit. Do not inspect `solutions/`, its editor aliases under
-  `labs/*/solution/`, recovery implementations, or `takeaway/`, which holds
-  the finished patterns participants take home.
+  `labs/*/solution/`, recovery implementations, `scripts/lab_run.py diff`
+  output, or `takeaway/`, which holds the finished patterns participants take
+  home.
 - Do not edit tests, dependencies, deployment configuration or infrastructure.
   The named Cedar block and Gateway catalogue block are the explicit exercise
   exceptions; they do not authorize other policy or deployment edits.
