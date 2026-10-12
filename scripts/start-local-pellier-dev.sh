@@ -184,7 +184,7 @@ if not certificate.is_file():
         "https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem", timeout=20
     ).read()
     if b"-----BEGIN CERTIFICATE-----" not in data:
-        raise SystemExit("The AWS RDS CA download did not contain a certificate bundle.")
+        raise SystemExit("The Amazon RDS CA download did not contain a certificate bundle.")
     temporary = certificate.with_suffix(".tmp")
     temporary.write_bytes(data)
     temporary.chmod(0o600)
