@@ -153,6 +153,16 @@ def test_governed_bootstrap_restores_all_participant_starters() -> None:
     assert governed_branch < bootstrap.index(command) < managed_provision
 
 
+def test_bootstrap_gives_the_participant_their_claude_code_folder() -> None:
+    # Root runs bootstrap under umask 077, so a bare mkdir leaves ~/.claude
+    # root:root 0700 and the participant's first `claude` stops on EACCES.
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    owned = 'install -d -o "$CODE_EDITOR_USER" -g "$CODE_EDITOR_USER" -m 0700 "$CLAUDE_HOME"'
+    assert owned in bootstrap
+    assert 'mkdir -p "$CLAUDE_HOME"' not in bootstrap
+    assert bootstrap.index(owned) < bootstrap.index('"$GLOBAL_CLAUDE_TMP" "$GLOBAL_CLAUDE"')
+
+
 def test_governed_reset_restores_participant_starters_before_health_gate() -> None:
     reset = RESET_GOVERNED.read_text(encoding="utf-8")
     command = '"$PYTHON" "$REPO/scripts/reset_participant_exercises.py"'

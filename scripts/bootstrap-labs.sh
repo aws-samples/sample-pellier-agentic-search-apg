@@ -401,7 +401,9 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH"
 CLAUDE_HOME="/home/$CODE_EDITOR_USER/.claude"
 GLOBAL_CLAUDE="$CLAUDE_HOME/CLAUDE.md"
 GLOBAL_CLAUDE_TMP=$(mktemp)
-mkdir -p "$CLAUDE_HOME"
+# Root creates this under umask 077: own it to the participant, or Claude Code
+# stops on a Settings Error (EACCES) reading ~/.claude/settings.json.
+install -d -o "$CODE_EDITOR_USER" -g "$CODE_EDITOR_USER" -m 0700 "$CLAUDE_HOME"
 
 if [ -f "$GLOBAL_CLAUDE" ]; then
     awk '
