@@ -426,6 +426,24 @@
 .tn-rank-scroll {
   overflow-x: auto;
 }
+/* A narrow screen scrolls the table sideways: fade its right edge while more columns
+   are off to the right. The scroll timeline is inactive when nothing overflows, so a
+   table that fits is never masked. */
+@supports (animation-timeline: scroll()) {
+  .tn-rank-scroll {
+    animation: tn-rank-more linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+@keyframes tn-rank-more {
+  0%,
+  96% {
+    mask-image: linear-gradient(to right, var(--dl-ink) calc(100% - 72px), transparent);
+  }
+  100% {
+    mask-image: none;
+  }
+}
 .tn-rank-table {
   display: grid;
   min-width: 560px;
