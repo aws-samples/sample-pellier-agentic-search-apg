@@ -1,13 +1,19 @@
 [
   {
-    "alias": "labs/01-retrieve/1A-rrf.sql",
-    "source": "workshop/lab-1-rrf.sql",
-    "solution": "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
+    "alias": "labs/01-retrieve/1A-vector-branch.py",
+    "source": "pellier/backend/services/store_tools.py",
+    "solution": "solutions/the-quiet-search/retrieval/store_tools_solution.py"
   },
   {
     "alias": "labs/01-retrieve/1B-search-plan.py",
     "source": "pellier/backend/services/search_plan.py",
     "solution": "solutions/the-quiet-search/retrieval/search_plan_solution.py"
+  },
+  {
+    "alias": "labs/01-retrieve/go-deeper-rrf.sql",
+    "source": "workshop/lab-1-rrf.sql",
+    "solution": "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql",
+    "optional": true
   },
   {
     "alias": "labs/02-ground/2A-check-stock.py",

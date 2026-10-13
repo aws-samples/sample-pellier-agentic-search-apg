@@ -85,7 +85,7 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     assert probes["The role's privileges and row policies on store_credits, orders, approvals"][1]\
         .endswith("; policy orders_credit_writer on orders USING (true): every customer's rows")
     assert "rolled back, the live state is unchanged" in done.stdout
-    assert "Lab 4B check failed" in done.stdout
+    assert "Lab 4B privileges check failed" in done.stdout
     assert _state(fresh_db) == before
 
 
@@ -99,7 +99,7 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
         "42501", "no INSERT privilege on pellier.store_credits"]
     assert probes["Raise the approved credit to $500 directly"][1:3] == [
         "42501", "no UPDATE privilege on pellier.store_credits"]
-    assert "Lab 4B check passed" in done.stdout
+    assert "Lab 4B privileges check passed" in done.stdout
     assert fresh_db.psql("SELECT count(*) FROM pellier.store_credits") == credits_before
     assert fresh_db.psql("SELECT obj_description('pellier.apply_store_credit(text, text, integer, "
                          "text, text)'::regprocedure, 'pg_proc')").startswith(

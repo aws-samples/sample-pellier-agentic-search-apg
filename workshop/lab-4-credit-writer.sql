@@ -20,7 +20,7 @@
 -- from it and puts the function back to its caller's rights.
 --
 -- Run with:
---   psql -X -P pager=off -f workshop/lab-4-credit-writer.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it
 -- commits: your statements become the live privileges and the probe credit is
@@ -215,17 +215,17 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; committed, your privileges are live'
   \echo 'Deployed  your statements for pellier_credit_writer, sha256' :stamp_short
   \echo '         ' :credits_rows
-  \echo 'Lab 4B check passed'
+  \echo 'Lab 4B privileges check passed'
 \else
   ROLLBACK;
   SELECT format('store_credits rows before %s, after %s', :credits_before, count(*)) AS rows
     FROM pellier.store_credits \gset credits_
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, the live state is unchanged'
   \echo '         ' :credits_rows
-  \echo 'Next      read the rows marked differs. 23514 means the trigger refused a row your'
-  \echo '          role was allowed to insert: a rule the owner can switch off, not a privilege'
-  \echo '          the role lacks. A direct UPDATE that goes through changes an approved amount'
-  \echo '          with no check at all. Which single privilege does a money path need?'
-  \echo 'Lab 4B check failed'
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4B check failed; see the lines above'; END $fail$;
+  \echo 'Next      which single privilege does a money path need? In the rows marked differs,'
+  \echo '          23514 is the trigger refusing a row your role was allowed to insert: a rule'
+  \echo '          the owner can switch off, not a privilege the role lacks. A direct UPDATE'
+  \echo '          that goes through changes an approved amount with no check at all.'
+  \echo 'Lab 4B privileges check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4B privileges check failed; see the lines above'; END $fail$;
 \endif

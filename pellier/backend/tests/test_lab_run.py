@@ -173,6 +173,16 @@ def test_each_lab_installs_exactly_its_own_task_files() -> None:
     assert len(lab_run.solution_files(3)) == 3
 
 
+def test_the_go_deeper_worksheet_is_not_a_task_file(tmp_path: Path) -> None:
+    """A catch-up must not overwrite the optional worksheet a participant may be editing."""
+    assert [Path(e["alias"]).name for e in lab_run.solution_files(1)] == [
+        "1A-vector-branch.py", "1B-search-plan.py"]
+    repo = _scratch_repo(tmp_path)
+    (repo / "workshop/lab-1-rrf.sql").write_text("my fusion attempt\n")
+    lab_run.install_solution(1, repo)
+    assert (repo / "workshop/lab-1-rrf.sql").read_text() == "my fusion attempt\n"
+
+
 def _scratch_repo(tmp_path: Path) -> Path:
     shutil.copytree(REPO / "workshop", tmp_path / "workshop")
     for entry in json.loads((REPO / "workshop/participant-files.json").read_text("utf-8")):
@@ -256,7 +266,7 @@ def test_diff_reports_a_finished_lab_and_writes_nothing(
 
 def test_diff_colours_only_when_asked(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     repo = _scratch_repo(tmp_path)
-    (repo / "workshop/lab-1-rrf.sql").write_text("starter\n")
+    (repo / "pellier/backend/services/search_plan.py").write_text("starter\n")
     lab_run.show_diff(1, repo, color=True)
     assert "\x1b[31m-" in capsys.readouterr().out
 

@@ -22,27 +22,32 @@ fallback files to copy. A missing marker breaks the primary lane; a missing fall
 breaks the recovery lane, which is worse, because it only fails for the participant who
 is already behind.
 
-**Lab 1 - Build and Measure PostgreSQL Hybrid Retrieval.** A runnable psql
-worksheet whose RRF expression starts plausible but wrong, plus a search-plan fallback
-that starts by dropping the shopper's limits.
+**Lab 1 - Build and Measure PostgreSQL Hybrid Retrieval.** Two marker regions: the
+vector branch, which starts ranking nothing by meaning, and a search-plan fallback that
+starts by dropping the shopper's limits. The RRF worksheet is Lab 1's Go deeper: it keeps
+its marker region and starter, but it is not a task.
 
-Each lab's starters fail the way its guide's Spot step shows, and its solutions do not:
-``tests/test_lab1_starter_failure.py`` and ``tests/test_lab2_starter_failure.py``.
+Each lab's starters fail the way its guide's See it fail step shows, and its solutions do
+not: ``tests/test_lab1_vector.py``, ``tests/test_lab1_starter_failure.py`` and
+``tests/test_lab2_starter_failure.py``.
 
-**Lab 3 - Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore.** Two marker regions and two
-fallback files. 3A publishes ``get_tickets`` on the Gateway and reconciles the
-tools the Runtime asks the Gateway for, binding that read to the caller. One of the two
-files is a packaged runtime source. Task 3B deploys those edits and checks the executed
-fingerprint, which is how the participant proves their own build answered.
+**Lab 3 - Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore.** Three marker
+regions and their fallback files. 3A publishes ``get_tickets`` on the Gateway and
+reconciles the tools the Runtime asks the Gateway for, binding that read to the caller.
+One of the two files is a packaged runtime source. Task 3B deploys those edits and checks
+the executed fingerprint, which is how the participant proves their own build answered,
+and writes the row-ownership predicate in an RLS worksheet whose one expression starts as
+``false``. The OpenTelemetry trace contract is supplied, with no region to author.
 
-**Lab 4 - Govern Agent Actions with Cedar and PostgreSQL Row-Level Security.** A starter Cedar file that must NOT contain
-the answer, a reference rule that must (an amount rule on ``give_store_credit``, not an
-identity-pair match), and an RLS worksheet whose one ownership expression starts as
-``false``. The keyed absence check is supplied, with no region to author, and so is the
-OpenTelemetry trace contract.
+**Lab 4 - Govern Agent Actions with Cedar and PostgreSQL Row-Level Security.** A starter
+Cedar file that must NOT contain the answer, a reference rule that must (an amount rule on
+``give_store_credit``, not an identity-pair match), and a credit-writer worksheet whose
+starter over-grants the money role. The keyed absence check is supplied, with no region to
+author.
 
-Eight marked regions in all: two per lab. ``tests/test_lab3_starter_failure.py`` and
-``tests/test_lab4_starter_failure.py`` hold Labs 3 and 4 to their Spot steps.
+Nine marked regions in all: eight marker regions and the Cedar ``unless`` block.
+``tests/test_lab3_starter_failure.py`` and ``tests/test_lab4_starter_failure.py`` hold
+Labs 3 and 4 to their See it fail steps.
 """
 
 from __future__ import annotations
@@ -84,7 +89,14 @@ LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
 # Lab 1, bounded build artifact plus pacing fallback.
 # ---------------------------------------------------------------------------
 
-LAB1_STARTER = "workshop/lab-1-rrf.sql"
+LAB1_VECTOR_REGION = (
+    "pellier/backend/services/store_tools.py",
+    "WORKSHOP - Vector branch - order by meaning",
+)
+LAB1_VECTOR_REFERENCE = "solutions/the-quiet-search/retrieval/store_tools_solution.py"
+LAB1_VECTOR_STARTER = "workshop/starters/lab-1/vector-branch.pyfrag"
+# Lab 1's Go deeper worksheet: a marker region and a starter, not a task.
+LAB1_FUSION_WORKSHEET = "workshop/lab-1-rrf.sql"
 LAB1_PLAN_REGION = (
     "pellier/backend/services/search_plan.py",
     "WORKSHOP - Search plan - preserve requirements",
@@ -95,8 +107,8 @@ LAB1_PLAN_REFERENCE = (
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
 # in-stock Home at or under $100 tagged both `gift` and `home`.
 LAB1_GOLDEN_IDS = ("21", "23", "25", "27", "29", "80", "83")
-LAB1_REFERENCE = "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
-LAB1_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
+LAB1_FUSION_REFERENCE = "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
+LAB1_FUSION_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
 
 # ---------------------------------------------------------------------------
 # Lab 3, two marker regions that together move the build onto the managed path.
@@ -136,9 +148,12 @@ LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
 LAB4_STARTER = "policies/workshop_credit_limit.cedar"
 LAB4_REFERENCE = "solutions/the-concierge/policies/workshop_credit_limit.cedar"
-LAB4_RLS_PROOF = "workshop/lab-3-rls.sql"
-LAB4_RLS_REFERENCE = "solutions/the-ledger/sql/lab-3-rls-solution.sql"
-LAB4_RLS_MARKER = "WORKSHOP - Row ownership - predicate"
+LAB3_RLS_PROOF = "workshop/lab-3-rls.sql"
+LAB3_RLS_REFERENCE = "solutions/the-ledger/sql/lab-3-rls-solution.sql"
+LAB3_RLS_MARKER = "WORKSHOP - Row ownership - predicate"
+LAB4_WRITER_WORKSHEET = "workshop/lab-4-credit-writer.sql"
+LAB4_WRITER_REFERENCE = "solutions/the-concierge/sql/lab-4-credit-writer-solution.sql"
+LAB4_WRITER_MARKER = "WORKSHOP - Credit writer - privileges"
 
 # The policy provisioning deploys and the participant's step updates.
 LAB4_POLICY_NAME = "workshop_credit_limit"
@@ -169,7 +184,7 @@ PARTICIPANT_STARTERS = {
     ),
     "lab-1-rrf": (
         "workshop/starters/lab-1-rrf.sql",
-        LAB1_STARTER,
+        LAB1_FUSION_WORKSHEET,
     ),
     "lab-1-preserve-requirements": (
         "workshop/starters/lab-1/preserve-requirements.pyfrag",
@@ -297,8 +312,9 @@ def test_lab2_fallback_copy_keeps_the_markers(source: str, destination: str) -> 
 @pytest.mark.parametrize(
     "starter,reference,label",
     (
-        (LAB1_STARTER, LAB1_REFERENCE, LAB1_MARKER),
-        (LAB4_RLS_PROOF, LAB4_RLS_REFERENCE, LAB4_RLS_MARKER),
+        (LAB1_FUSION_WORKSHEET, LAB1_FUSION_REFERENCE, LAB1_FUSION_MARKER),
+        (LAB3_RLS_PROOF, LAB3_RLS_REFERENCE, LAB3_RLS_MARKER),
+        (LAB4_WRITER_WORKSHEET, LAB4_WRITER_REFERENCE, LAB4_WRITER_MARKER),
     ),
 )
 def test_the_sql_worksheets_have_matching_build_markers(
@@ -313,8 +329,8 @@ def test_the_sql_worksheets_have_matching_build_markers(
 
 
 def test_lab1_worksheet_finds_annas_receipt_and_fails_until_the_expression_is_right() -> None:
-    starter = _read(LAB1_STARTER)
-    reference = _read(LAB1_REFERENCE)
+    starter = _read(LAB1_FUSION_WORKSHEET)
+    reference = _read(LAB1_FUSION_REFERENCE)
     # Plausible but wrong: a missing rank counted as rank zero.
     assert "1.0 / (60 + coalesce(vector_rank, 0))" in starter
     assert "coalesce(1.0 / (60 + vector_rank), 0)" in reference
@@ -593,14 +609,14 @@ def test_lab4_policy_name_matches_the_deployed_policy() -> None:
     assert renderer.CREDIT_LIMIT_STARTER.as_posix() == PARTICIPANT_STARTERS["lab-4-cedar"][0]
 
 
-def test_lab4_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> None:
+def test_lab3_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> None:
     """One expression for USING and WITH CHECK on both tables, probed inside a savepoint.
 
     The probe writes are undone with the savepoint. The transaction commits, making
     the predicate the live policy, only on the passing branch, and rolls back on the
     failing one.
     """
-    for rel in (LAB4_RLS_PROOF, LAB4_RLS_REFERENCE):
+    for rel in (LAB3_RLS_PROOF, LAB3_RLS_REFERENCE):
         text = _read(rel)
         for fragment in (
             "\\set ON_ERROR_STOP on",
@@ -641,9 +657,9 @@ def test_lab4_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
         assert writes == [("INSERT INTO", "lab_3_probes")], writes
 
 
-def test_lab4_rls_starter_is_false_and_the_reference_names_the_bound_customer() -> None:
+def test_lab3_rls_starter_is_false_and_the_reference_names_the_bound_customer() -> None:
     starter = _read(PARTICIPANT_STARTERS["lab-3-rls"][0])
-    reference = _read(LAB4_RLS_REFERENCE)
+    reference = _read(LAB3_RLS_REFERENCE)
     assert "SELECT $predicate$\n  false\n$predicate$ AS ownership_predicate" in starter
     assert "current_setting('pellier.principal_username', true)" in reference
     assert "cognito_username" in reference
@@ -669,8 +685,8 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
     anchors += [source for source, _ in LAB2_FALLBACK_COPIES]
     anchors += [destination for _, destination in LAB2_FALLBACK_COPIES]
     anchors += [
-        LAB1_STARTER,
-        LAB1_REFERENCE,
+        LAB1_FUSION_WORKSHEET,
+        LAB1_FUSION_REFERENCE,
         LAB1_PLAN_REFERENCE,
         LAB1_PLAN_REGION[0],
         LAB1_INDEX_CHECK,
@@ -678,8 +694,13 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
         LAB4_ABSENCE_CHECK,
         LAB4_STARTER,
         LAB4_REFERENCE,
-        LAB4_RLS_PROOF,
-        LAB4_RLS_REFERENCE,
+        LAB3_RLS_PROOF,
+        LAB3_RLS_REFERENCE,
+        LAB1_VECTOR_REGION[0],
+        LAB1_VECTOR_REFERENCE,
+        LAB1_VECTOR_STARTER,
+        LAB4_WRITER_WORKSHEET,
+        LAB4_WRITER_REFERENCE,
     ]
     absent = sorted({rel for rel in anchors if not (REPO / rel).is_file()})
     assert not absent, f"lab anchors missing from the repository: {absent}"
@@ -849,20 +870,36 @@ REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
     (source, destination, _PY_MARKER_BLOCK)
     for source, destination in LAB2_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
 ) + (
+    (LAB1_VECTOR_REFERENCE, LAB1_VECTOR_REGION[0], _PY_MARKER_BLOCK),
     (LAB1_PLAN_REFERENCE, LAB1_PLAN_REGION[0], _PY_MARKER_BLOCK),
-    (LAB1_REFERENCE, LAB1_STARTER, _SQL_MARKER_BLOCK),
-    (LAB4_RLS_REFERENCE, LAB4_RLS_PROOF, _SQL_MARKER_BLOCK),
+    (LAB1_FUSION_REFERENCE, LAB1_FUSION_WORKSHEET, _SQL_MARKER_BLOCK),
+    (LAB3_RLS_REFERENCE, LAB3_RLS_PROOF, _SQL_MARKER_BLOCK),
+    (LAB4_WRITER_REFERENCE, LAB4_WRITER_WORKSHEET, _SQL_MARKER_BLOCK),
 )
 
 
-def test_the_participant_path_is_eight_marked_regions() -> None:
-    """Two per lab: six marker regions in source, the RLS worksheet's, and the Cedar block."""
-    marked = list(LAB2_REGIONS) + list(LAB3_REGIONS) + [LAB1_PLAN_REGION,
-                                                       (LAB1_STARTER, LAB1_MARKER),
-                                                       (LAB4_RLS_PROOF, LAB4_RLS_MARKER)]
+def test_the_participant_path_is_nine_marked_regions() -> None:
+    """Six marker regions in source, the two worksheets' regions, and the Cedar block.
+
+    The RRF worksheet's region is Lab 1's Go deeper and is not counted.
+    """
+    marked = [LAB1_VECTOR_REGION, LAB1_PLAN_REGION, *LAB2_REGIONS, *LAB3_REGIONS,
+              (LAB3_RLS_PROOF, LAB3_RLS_MARKER), (LAB4_WRITER_WORKSHEET, LAB4_WRITER_MARKER)]
     for rel, label in marked:
         assert _read(rel).count(f"{label}: START ===") == 1, rel
-    assert len(marked) + 1 == 8, "seven marker regions and the Cedar unless block"
+        assert _read(rel).count(f"{label}: END ===") == 1, rel
+    assert len(marked) + 1 == 9, "eight marker regions and the Cedar unless block"
+
+
+def test_lab1_vector_region_starts_ranking_nothing_and_the_reference_orders_by_meaning() -> None:
+    rel, label = LAB1_VECTOR_REGION
+    starter = _read(LAB1_VECTOR_STARTER)
+    reference = _read(LAB1_VECTOR_REFERENCE)
+    assert "NULL::float AS similarity" in starter and "ORDER BY" not in starter
+    assert "LIMIT %s" in starter, "the parameter order is fixed, so LIMIT stays in the starter"
+    assert reference.count(f"{label}: START ===") == 1
+    assert "1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity" in reference
+    assert "ORDER BY embedding <=> (SELECT emb FROM query_embedding)" in reference
 
 
 def test_every_checked_in_starter_is_under_the_reset_guard() -> None:

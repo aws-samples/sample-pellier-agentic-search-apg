@@ -60,6 +60,15 @@ def test_task_3a_files_sort_in_the_order_the_guide_edits_them():
     assert by_name["3A-1-publish-tool.py"] == "scripts/deploy/gateway_tool_schemas.py"
     assert by_name["3A-2-bind-caller.py"] == "pellier/backend/services/agentcore_gateway.py"
 
+def test_lab_1s_go_deeper_worksheet_sorts_after_its_tasks():
+    """The Explorer's collator puts a leading "1-" before "1A", so the optional file
+    carries no task number and sorts after 1A and 1B."""
+    lab1 = [e for e in json.loads((ROOT / "workshop/participant-files.json").read_text())
+            if e["alias"].startswith("labs/01-retrieve/")]
+    assert [Path(e["alias"]).name for e in lab1] == [
+        "1A-vector-branch.py", "1B-search-plan.py", "go-deeper-rrf.sql"]
+    assert [bool(e.get("optional")) for e in lab1] == [False, False, True]
+
 def test_deployment_bookkeeping_stays_out_of_the_explorer():
     """Provisioning writes these beside the source; scripts read them, participants do not."""
     excludes = json.loads((ROOT / "Pellier.code-workspace").read_text())["settings"]["files.exclude"]
@@ -68,10 +77,10 @@ def test_deployment_bookkeeping_stays_out_of_the_explorer():
 
 def test_editing_numbered_file_edits_the_live_source_and_rerun_preserves_it(repo):
     workspace.configure(repo)
-    alias = repo / "labs/01-retrieve/1A-rrf.sql"
+    alias = repo / "labs/01-retrieve/1A-vector-branch.py"
     alias.write_text("participant's edit")
     workspace.configure(repo)
-    assert (repo / "workshop/lab-1-rrf.sql").read_text() == "participant's edit"
+    assert (repo / "pellier/backend/services/store_tools.py").read_text() == "participant's edit"
     settings = json.loads((repo / ".vscode/settings.json").read_text())
     assert settings["terminal.integrated.cwd"] == "${workspaceFolder}"
     # Solution aliases link to the answers recovery copies; the editor must not change them.
@@ -81,7 +90,7 @@ def test_editing_numbered_file_edits_the_live_source_and_rerun_preserves_it(repo
 
 
 def test_zip_materialized_link_is_repaired_but_an_edited_file_is_not_overwritten(repo):
-    alias = repo / "labs/01-retrieve/1A-rrf.sql"
+    alias = repo / "labs/01-retrieve/go-deeper-rrf.sql"
     alias.parent.mkdir(parents=True)
     alias.write_text(os.path.relpath(repo / "workshop/lab-1-rrf.sql", alias.parent))
     workspace.configure(repo)

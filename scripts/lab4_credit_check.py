@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lab 4B, live: your deployed privileges hold the money role to the credit function.
+"""Lab 4B's check: your deployed privileges hold the money role to the credit function.
 
 ``workshop/lab-4-credit-writer.sql`` probes your statements for
 ``pellier_credit_writer`` and, when every probe matches, commits them, stamping
@@ -210,8 +210,8 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
         return check.Finding("4B", title, check.PROVED, EXPECTED,
                              f"{len(WANT)} of {len(WANT)} probes match", evidence)
     return check.Finding("4B", title, check.CONTRADICTED, EXPECTED, "; ".join(differs), evidence,
-                         f"run {RUN_WORKSHEET}; a 00000 on a direct write means the role holds "
-                         "a table privilege it should not.")
+                         f"which statement in the {REGION} region grants a table privilege a "
+                         f"direct write can use? Fix it, then run {RUN_WORKSHEET}.")
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:
@@ -373,11 +373,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
     findings = collect()
-    print("Lab 4B, live: your deployed privileges, then the money role on both database paths")
+    print("Lab 4B: your deployed privileges, then the money role on both database paths")
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PROVED for finding in findings)
-    print("Lab 4B live check passed" if passed else "Lab 4B live check failed")
+    print("Lab 4B check passed" if passed else "Lab 4B check failed")
     return 0 if passed else 1
 
 

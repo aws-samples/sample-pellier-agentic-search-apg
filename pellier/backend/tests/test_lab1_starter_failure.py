@@ -1,9 +1,10 @@
-"""Lab 1's contract: the starters fail the way the guide's Spot step shows, the solutions do not.
+"""Lab 1's contract: the starters fail the way the guide's See it fail step shows.
 
-Task 1A. The starter's fusion expression counts a missing rank as rank zero, so
-a product found by only one search scores too high: the worksheet prints
-"differs" for exactly those products and fails. The solution matches every
-recorded score.
+Go deeper, the fusion worksheet. The starter's fusion expression counts a
+missing rank as rank zero, so a product found by only one search scores too
+high: the worksheet prints "differs" for exactly those products and fails. The
+solution matches every recorded score. Task 1A, the vector branch, is held to
+its check in ``tests/test_lab1_vector.py``.
 
 Task 1B. The starter's fallback rebuilds the plan from the shopper's words and
 drops her limits: Anna's request, forced onto the fallback, returns a candle and
@@ -184,7 +185,7 @@ def test_the_plan_contract_separates_the_starter_from_the_solution(monkeypatch, 
 
 
 # ---------------------------------------------------------------------------
-# Task 1A: the fusion expression
+# Go deeper: the fusion expression
 # ---------------------------------------------------------------------------
 
 
@@ -209,7 +210,7 @@ def test_the_starter_expression_misses_every_one_list_product(
 
     done = _psql_file(fresh_db, lab_variants.LAB1_RRF[lab_variants.STARTER])
     assert done.returncode != 0
-    assert "Lab 1A check failed" in done.stdout
+    assert "Lab 1 fusion check failed" in done.stdout
     assert done.stdout.count("| differs") == one_list, done.stdout
     assert "Expected  every recomputed score equals the score receipt" in done.stdout
     assert "persona-anna-starter" in done.stdout
@@ -221,7 +222,7 @@ def test_the_solution_expression_matches_every_recorded_score(
     _anna_search(conn, monkeypatch, lab_variants.SOLUTION)
     done = _psql_file(fresh_db, lab_variants.LAB1_RRF[lab_variants.SOLUTION])
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "Lab 1A check passed" in done.stdout
+    assert "Lab 1 fusion check passed" in done.stdout
     assert "| differs" not in done.stdout
 
 
@@ -246,7 +247,8 @@ def test_the_worksheet_says_what_to_do_without_a_receipt(fresh_db) -> None:  # n
                              dbname="postgres", autocommit=True) as other:
             other.execute("DROP DATABASE lab1_empty")
     assert done.returncode != 0
-    assert "choose Anna under Signed in as" in done.stdout
+    assert "python3 scripts/lab_run.py send --lab 1" in done.stdout
+    assert "Ask Pellier" not in done.stdout, "the terminal sends her request, not the app"
 
 
 @pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
@@ -263,6 +265,6 @@ def test_a_receipt_with_no_one_list_product_is_not_yet(
                     jsonb_build_object('22', 1.0/61 + 1.0/62, '28', 1.0/62 + 1.0/61))""")
     done = _psql_file(fresh_db, lab_variants.LAB1_RRF[variant])
     assert done.returncode != 0
-    assert "Lab 1A check not yet" in done.stdout, done.stdout
+    assert "Lab 1 fusion check not yet" in done.stdout, done.stdout
     assert "is in one list only, so it cannot tell a missing rank apart" in done.stdout
-    assert "Lab 1A check passed" not in done.stdout
+    assert "Lab 1 fusion check passed" not in done.stdout

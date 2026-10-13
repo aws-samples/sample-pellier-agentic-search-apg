@@ -3,7 +3,7 @@
 \set VERBOSITY terse
 \pset footer off
 
--- Lab 1, Task 1A: recompute Anna's recorded ranking.
+-- Lab 1, Go deeper: recompute Anna's recorded ranking.
 --
 -- Anna's latest search wrote a retrieval receipt. For every product it ranked,
 -- the receipt holds the product's place in the vector (meaning) list, its
@@ -14,10 +14,10 @@
 -- are proving the recorded score can be derived from the ranks beside it.
 --
 -- Run with:
---   psql -X -P pager=off -f workshop/lab-1-rrf.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-rrf.sql
 --
--- The receipt is the newest one written in Anna's session. Choosing Anna on
--- the home page starts that session, named persona-anna-...
+-- The receipt is the newest one written in Anna's session, which
+-- python3 scripts/lab_run.py send --lab 1 starts (persona-anna-...).
 
 SET client_min_messages TO warning;
 DROP TABLE IF EXISTS pg_temp.lab_1_ranks;
@@ -73,7 +73,7 @@ SELECT count(*) AS lab_1_products,
   FROM lab_1_fusion
 \gset
 
-\echo 'Lab 1A: recompute Anna''s recorded ranking from its two ranks'
+\echo 'Lab 1, Go deeper: recompute Anna''s recorded ranking from its two ranks'
 
 \if :lab_1_has_receipt
   \echo 'Evidence  pellier.retrieval_receipts receipt' :lab_1_receipt 'in session' :lab_1_session
@@ -100,24 +100,23 @@ SELECT count(*) AS lab_1_products,
     \echo 'Observed ' :lab_1_matched 'of' :lab_1_products 'scores match'
     SELECT :lab_1_matched = :lab_1_products AS lab_1_passed \gset
     \if :lab_1_passed
-      \echo 'Lab 1A check passed'
+      \echo 'Lab 1 fusion check passed'
     \else
-      \echo 'Next      pick a row marked differs and compute it by hand from its two ranks.'
-      \echo '          A rank shown as - means the product was not in that list.'
-      \echo 'Lab 1A check failed'
-      DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check failed; see the lines above'; END $fail$;
+      \echo 'Next      in the fusion expression, what should a rank shown as - add to the score?'
+      \echo '          Compute one row marked differs by hand from its two ranks.'
+      \echo 'Lab 1 fusion check failed'
+      DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 fusion check failed; see the lines above'; END $fail$;
     \endif
   \else
     \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only, so it cannot tell a missing rank apart'
-    \echo 'Next      send Anna''s request again for a new receipt, then run this again.'
-    \echo 'Lab 1A check not yet'
-    DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check not yet; see the lines above'; END $fail$;
+    \echo 'Next      send Anna''s request again: python3 scripts/lab_run.py send --lab 1'
+    \echo 'Lab 1 fusion check not yet'
+    DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 fusion check not yet; see the lines above'; END $fail$;
   \endif
 \else
   \echo 'Expected  a search receipt written in a session of Anna''s'
   \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting persona-anna-'
-  \echo 'Next      in Ask Pellier, choose Anna under Signed in as, send her request,'
-  \echo '          then run this again.'
-  \echo 'Lab 1A check not yet'
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1A check not yet; see the lines above'; END $fail$;
+  \echo 'Next      run python3 scripts/lab_run.py send --lab 1, then run this again.'
+  \echo 'Lab 1 fusion check not yet'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 fusion check not yet; see the lines above'; END $fail$;
 \endif

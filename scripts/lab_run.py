@@ -16,8 +16,9 @@ and the participant's file as '+' lines.
 
 ``solution`` copies the lab's supplied answers over the files its tasks edit,
 using the map in ``workshop/participant-files.json`` (the files the
-``labs/0N-*/solution/`` folders link to). It neither restarts the backend nor
-deploys; the block's next command does that.
+``labs/0N-*/solution/`` folders link to). An entry marked ``optional`` is a Go
+deeper worksheet, not a task, so ``solution`` and ``diff`` leave it alone. It
+neither restarts the backend nor deploys; the block's next command does that.
 
 ``send`` makes the lab's requests through the local backend, the way Ask
 Pellier does: each shopper signs in as their Cognito test user and starts a
@@ -111,9 +112,10 @@ def fail(message: str) -> None:
 
 
 def solution_files(lab: int, repo: pathlib.Path = REPO) -> List[Dict[str, str]]:
-    """The participant-file entries whose editor alias sits in this lab's folder."""
+    """The task files whose editor alias sits in this lab's folder; Go deeper files are left out."""
     entries = json.loads((repo / "workshop" / "participant-files.json").read_text("utf-8"))
-    mine = [entry for entry in entries if entry["alias"].startswith(f"labs/0{lab}-")]
+    mine = [entry for entry in entries
+            if entry["alias"].startswith(f"labs/0{lab}-") and not entry.get("optional")]
     if not mine:
         raise LabRunError(f"workshop/participant-files.json lists no files for Lab {lab}")
     return mine

@@ -61,7 +61,7 @@ def deployed(fresh_db: Any) -> Any:  # noqa: F811 - the imported fixture
          "-d", "postgres", "-P", "pager=off", "-f", str(SOLUTION)],
         capture_output=True, text=True, timeout=60,
     )
-    assert "Lab 4B check passed" in done.stdout, done.stdout + done.stderr
+    assert "Lab 4B privileges check passed" in done.stdout, done.stdout + done.stderr
     return fresh_db
 
 
