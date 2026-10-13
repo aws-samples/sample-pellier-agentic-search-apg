@@ -144,6 +144,7 @@ LAB3_STAFF_ONLY_TOOL = "give_store_credit"
 
 LAB4_ABSENCE_CHECK = "workshop/lab-4-absence.sql"
 LAB1_INDEX_CHECK = "workshop/lab-1-index.sql"
+LAB1_MEANING_WORKSHEET = "workshop/lab-1-meaning.sql"
 LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
 LAB4_STARTER = "policies/workshop_credit_limit.cedar"
@@ -682,6 +683,15 @@ def test_the_lab1_index_check_is_read_only_and_forces_the_index_only_inside_it()
     assert not re.search(r"\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP)\b", sql.split("Run:")[1])
 
 
+def test_the_lab1_meaning_worksheet_is_supplied_and_only_reads() -> None:
+    """Task 1A's discovery worksheet has no region to author and changes nothing."""
+    sql = _read(LAB1_MEANING_WORKSHEET)
+    assert "=== WORKSHOP" not in sql
+    assert "embedding <=> q.emb" in sql and "vector_cosine_ops" in sql
+    assert not re.search(r"\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT)\b",
+                         sql.split("Run:")[1])
+
+
 def test_no_lab_anchor_is_a_broken_path() -> None:
     """One list, so a future anchor cannot be added without an existence check."""
     anchors: List[str] = [rel for rel, _ in LAB2_REGIONS]
@@ -693,6 +703,7 @@ def test_no_lab_anchor_is_a_broken_path() -> None:
         LAB1_PLAN_REFERENCE,
         LAB1_PLAN_REGION[0],
         LAB1_INDEX_CHECK,
+        LAB1_MEANING_WORKSHEET,
         LAB3_TRACE_CONTRACT,
         LAB4_ABSENCE_CHECK,
         LAB4_STARTER,

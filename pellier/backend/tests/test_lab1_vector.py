@@ -32,6 +32,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 lab1_vector = importlib.import_module("lab1_vector")
 WORKSHEET = REPO / "workshop" / "lab-1-words.sql"
+MEANING = REPO / "workshop" / "lab-1-meaning.sql"
 LIVE = REPO / "pellier" / "backend" / "services" / "store_tools.py"
 LABEL = "Vector branch - order by meaning"
 DISTANCE = "embedding <=> (SELECT emb FROM query_embedding)"
@@ -111,16 +112,16 @@ def test_the_worksheet_query_is_the_one_the_search_builds() -> None:
     assert f"\\set words '{expected}'" in worksheet
 
 
-def _worksheet_rows(cluster: Any) -> List[List[str]]:
+def _worksheet_rows(cluster: Any, worksheet: Path = WORKSHEET, bars: int = 2) -> List[List[str]]:
     done = subprocess.run(
         [str(cluster.bin / "psql"), "-X", "-h", str(cluster.socket), "-U", "postgres",
-         "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-f", str(WORKSHEET)],
+         "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-f", str(worksheet)],
         capture_output=True, text=True, timeout=60,
     )
     assert done.returncode == 0, done.stderr
     assert "NOTICE" not in done.stdout + done.stderr
     return [[cell.strip() for cell in line.split("|")]
-            for line in done.stdout.splitlines() if line.count("|") >= 2]
+            for line in done.stdout.splitlines() if line.count("|") >= bars]
 
 
 def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> None:  # noqa: F811
@@ -130,6 +131,23 @@ def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> Non
     assert rows["100% Linen Apron"][2] == "100"
     assert "candles" in rows["Sunday Morning Candle"][2]
     assert rows["Sunday Morning Candle"][3] == "a candle"
+
+
+def test_the_meaning_worksheet_finds_the_probe_first(fresh_db) -> None:  # noqa: F811
+    rows = _worksheet_rows(fresh_db, MEANING)
+    ranked = [row for row in rows if row[0].isdigit()]
+    closest, furthest = ranked[:5], ranked[5:]
+    assert closest[0][1:] == ["Stoneware Mugs, Set of 2", "0.0000", "1.0000"]
+    distances = [float(row[2]) for row in closest]
+    assert distances == sorted(distances)
+    assert [float(row[2]) for row in furthest] == sorted(
+        (float(row[2]) for row in furthest), reverse=True)
+    assert float(furthest[0][2]) > distances[-1]
+    for row in closest + furthest:
+        assert abs(float(row[3]) - (1 - float(row[2]))) < 1e-4
+    index = [row for row in _worksheet_rows(fresh_db, MEANING, bars=1)
+             if row[0] == "product_catalog_embedding_hnsw"]
+    assert index and "vector_cosine_ops" in index[0][1]
 
 
 def test_the_worksheet_ranks_the_fitting_products_outside_the_rerank_pool(fresh_db) -> None:  # noqa: F811

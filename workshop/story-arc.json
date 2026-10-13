@@ -14,7 +14,7 @@
       "spot": "In the terminal, workshop/lab-1-words.sql shows what her sentence finds by words alone: the 8-Quart Stock Pot on \"stock\", Morning Run Shorts on \"mornings\", the candles on \"candles\". The starter's vector branch ranks nothing by meaning, so words are all the search has. After her request is sent, python3 scripts/lab1_check.py --task 1B shows the retry dropped every limit she gave.",
       "a": "Search by what she means",
       "b": "Keep her limits on the retry",
-      "todo": "Task 1A: rank the eligible products by meaning in the Vector branch - order by meaning region (services/store_tools.py). Task 1B: keep the shopper's limits in the search-plan fallback (services/search_plan.py).",
+      "todo": "Task 1A: run the supplied workshop/lab-1-meaning.sql, which ranks the catalog by meaning with a product's own embedding, then rank the eligible products by meaning in the Vector branch - order by meaning region (services/store_tools.py). Task 1B: keep the shopper's limits in the search-plan fallback (services/search_plan.py).",
       "proof": "python3 scripts/lab1_check.py --task 1A searches with products' own embeddings and under Anna's limits, and ends Lab 1A check passed; after python3 scripts/lab_run.py send --lab 1, python3 scripts/lab1_check.py --task 1B shows the search that answered kept every limit Anna asked for, and ends Lab 1B check passed.",
       "challenge": "A gift with a watch, under $100, in stock, no candles.",
       "lesson": "Similarity decides the order and SQL decides what is eligible; a retry may relax a preference but never a requirement.",

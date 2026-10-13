@@ -55,7 +55,8 @@ participant's named task and prediction before proposing a change.
 | 4B | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
 
 Task 3B writes the row-ownership predicate while the Task 3A edits deploy, then challenges both.
-Lab 3's live row-level security check (`scripts/lab3_row_ownership_check.py`), Lab 4's
+Lab 1's meaning worksheet (`workshop/lab-1-meaning.sql`, run before Task 1A's edit), Lab 3's
+live row-level security check (`scripts/lab3_row_ownership_check.py`), Lab 4's
 keyed absence check (`workshop/lab-4-absence.sql`) and Task 4B's check
 (`scripts/lab4_check.py --task 4B`) are supplied; none has a region to author.
 Use the exact START–END comments in each file; for Cedar, edit only the final
