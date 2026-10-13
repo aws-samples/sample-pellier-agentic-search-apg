@@ -87,7 +87,47 @@ END $$;
 ```
 
 Three guarantees, each by a different mechanism: *approved* by the review
-lookup, *once* by the unique key plus the lock, *bounded* by the `CHECK`.
+lookup, *once* by the unique key plus the lock, *bounded* by the `CHECK`. All
+three hold only for writes that go through the function, which is what the
+next template makes the only way in.
+
+## Template: the money role
+
+Whoever can write the table directly can skip every check above. A trigger
+that refuses an unapproved insert does nothing about an `UPDATE` that raises
+an approved credit from $25 to $500 afterwards. So the role the application
+writes money as holds one privilege, `EXECUTE` on the function, and the
+function runs with its owner's rights:
+
+```sql
+CREATE ROLE credit_writer NOLOGIN NOINHERIT NOBYPASSRLS;
+GRANT credit_writer TO app_login;          -- the login may switch to it
+
+ALTER FUNCTION apply_store_credit(text, text, integer, text, text)
+    SECURITY DEFINER SET search_path = pg_catalog, pg_temp;
+REVOKE EXECUTE ON FUNCTION apply_store_credit(text, text, integer, text, text) FROM PUBLIC;
+GRANT  EXECUTE ON FUNCTION apply_store_credit(text, text, integer, text, text) TO credit_writer;
+-- no GRANT on store_credits, approvals or orders: the function reaches them
+-- with its owner's rights, and nothing else can.
+```
+
+Each path switches to the role inside the write's own transaction, so the
+switch ends with it:
+
+```sql
+BEGIN;
+SET LOCAL ROLE credit_writer;
+SELECT apply_store_credit(:'key', :'customer', :cents, :'reason', :'issued_by');
+COMMIT;
+```
+
+Pin `search_path` on a `SECURITY DEFINER` function, and schema-qualify the
+names inside it, so a caller cannot put a look-alike table or operator ahead
+of the real one. Pellier's rails do this as `pellier_credit_writer`: in
+process through `DatabaseService.fetch_all_as_credit_writer`, and in the
+Gateway Lambda through `run_as_credit_writer` over the RDS Data API. In
+production, give each role its own login and secret rather than one login
+that switches.
 
 ## Template: the policy limit at the gateway
 
@@ -152,3 +192,5 @@ query). Two zeros on their own could mean the query looked in the wrong place.
 - Who approved this, what changed, and what proves it changed only once?
 - Where is the key minted, and can a caller mint one without an approval?
 - What would two concurrent retries do?
+- Which roles can write the money table without the function, and what stops
+  an `UPDATE` of an approved amount?

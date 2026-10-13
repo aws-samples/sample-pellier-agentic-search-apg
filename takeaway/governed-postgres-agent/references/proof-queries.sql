@@ -31,6 +31,18 @@ SELECT product_id, vector_rank, full_text_rank, recorded_rrf,
   FROM ranks
  ORDER BY recorded_rrf DESC;
 
+-- 1a2. The vector branch orders by meaning. Search with a product's own stored
+--      embedding: that product is at distance 0 from itself, so it must come
+--      back first, the rest in rising distance, similarity = 1 - distance.
+WITH q AS (SELECT embedding AS emb FROM catalog WHERE product_id = 'P-1')
+SELECT product_id,
+       1 - (embedding <=> (SELECT emb FROM q)) AS similarity
+  FROM catalog
+ WHERE price <= 100                          -- the same hard predicates as the search
+ ORDER BY embedding <=> (SELECT emb FROM q)
+ LIMIT 20;
+-- expect: P-1 first with similarity 1.000, then similarity falling
+
 -- 1b. Every returned product meets the hard constraints the search recorded.
 --     Expect zero violations. (Pellier's receipt keeps search_plan,
 --     hard_constraints and exclusions as JSONB; adapt the names.)
@@ -162,3 +174,27 @@ SELECT c.credit_id
 SELECT grantee, privilege_type FROM information_schema.role_table_grants
  WHERE table_name = 'tool_audit' AND privilege_type IN ('UPDATE', 'DELETE');
 -- expect zero rows for application roles
+
+-- 4e. The money role can write only through the function. It holds EXECUTE
+--     and no table privilege; the function runs as its owner with a pinned
+--     search_path; PUBLIC cannot execute it.
+SELECT p.prosecdef AS security_definer, p.proconfig AS settings,
+       has_function_privilege('credit_writer', p.oid, 'EXECUTE') AS writer_executes,
+       has_function_privilege('public', p.oid, 'EXECUTE')        AS public_executes,
+       (SELECT count(*) FROM information_schema.role_table_grants
+         WHERE grantee = 'credit_writer')                         AS writer_table_grants
+  FROM pg_proc p
+ WHERE p.oid = 'apply_store_credit(text, text, integer, text, text)'::regprocedure;
+-- expect: t, {"search_path=pg_catalog, pg_temp"}, t, f, 0
+
+-- 4f. Probe it: as the money role, a direct UPDATE of a credit is refused with
+--     42501 before it touches a row. Rolls back.
+BEGIN;
+SET LOCAL ROLE credit_writer;
+DO $$ BEGIN
+  UPDATE store_credits SET amount_cents = 50000 WHERE false;
+  RAISE EXCEPTION 'a direct update was allowed';
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'refused with %', SQLSTATE;   -- 42501
+END $$;
+ROLLBACK;

@@ -142,6 +142,12 @@ Review checklist:
 - [ ] A limit is enforced at the gateway (a `forbid ... unless` that lets
       through only a present, valid amount at or under the cap) and a safety
       ceiling is enforced in the database as a `CHECK` or in the function.
+- [ ] The role that writes money holds `EXECUTE` on the write function and no
+      privilege on the tables it writes. The function runs with its owner's
+      rights (`SECURITY DEFINER`) and a pinned `search_path`, `EXECUTE` is
+      revoked from `PUBLIC`, and each path switches to that role per
+      transaction. A trigger that guards inserts does not stop an `UPDATE`
+      of an approved amount; a role with no `UPDATE` privilege does.
 - [ ] One audit row per executed call; none for a denied call; none for a
       replay. The audit table is append-only.
 - [ ] The proof is three questions with three sources: *Was it permitted?*
