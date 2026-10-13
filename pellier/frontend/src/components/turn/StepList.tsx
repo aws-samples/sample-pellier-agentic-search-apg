@@ -15,7 +15,7 @@
  * ones behind "Show N earlier steps". It collapses, never merges: each step
  * keeps its own finding and evidence.
  */
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronRight, CircleAlert } from 'lucide-react'
 import LayerTag from './LayerTag'
 import RankingPanel from './RankingPanel'
@@ -49,6 +49,47 @@ function statusWord(status: TurnStep['status']): string {
   if (status === 'running') return 'in progress'
   if (status === 'failed') return 'did not complete'
   return 'done'
+}
+
+export const SHOW_ALL_EVIDENCE = 'Show all'
+export const SHOW_LESS_EVIDENCE = 'Show less'
+
+/**
+ * A step's Builder evidence, clamped at ten lines (`.tn-evidence[data-clamped]`) with
+ * "Show all" once it runs longer. Shorter lines render exactly as before, with no control.
+ */
+function EvidenceLine({ text }: { text: string }) {
+  const ref = useRef<HTMLSpanElement | null>(null)
+  const [overflows, setOverflows] = useState(false)
+  const [expanded, setExpanded] = useState(false)
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return
+    const measure = () => setOverflows(node.scrollHeight > node.clientHeight + 1)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [text, expanded])
+  return (
+    <>
+      <span ref={ref} className="tn-evidence" data-clamped={expanded ? undefined : 'true'} data-testid="turn-evidence">
+        {text}
+      </span>
+      {(overflows || expanded) && (
+        <button
+          type="button"
+          className="tn-evidence-more"
+          aria-expanded={expanded}
+          onClick={() => setExpanded(value => !value)}
+          data-testid="turn-evidence-more"
+        >
+          {expanded ? SHOW_LESS_EVIDENCE : SHOW_ALL_EVIDENCE}
+        </button>
+      )}
+    </>
+  )
 }
 
 export function foldSummary(count: number): string {
@@ -120,9 +161,7 @@ export default function StepList({
                   {builderView && step.tags.map(tag => <LayerTag key={tag}>{tag}</LayerTag>)}
                 </span>
                 {step.finding && <span className="tn-finding">{step.finding}</span>}
-                {evidence && (
-                  <span className="tn-evidence" data-testid="turn-evidence">{evidence}</span>
-                )}
+                {evidence && <EvidenceLine text={evidence} />}
                 {builderView && ranking && step.status !== 'running' && renderRanking(ranking)}
               </span>
             </li>

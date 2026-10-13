@@ -1,8 +1,8 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import StepList, { HIDE_EARLIER, earlierSummary, failedSuffix, foldSummary } from './StepList'
+import StepList, { HIDE_EARLIER, SHOW_ALL_EVIDENCE, SHOW_LESS_EVIDENCE, earlierSummary, failedSuffix, foldSummary } from './StepList'
 import type { TurnStep } from './turnTypes'
 
 const ROUTE: TurnStep = {
@@ -190,3 +190,28 @@ describe('StepList', () => {
     expect(screen.getByText('The stock check did not complete')).toBeInTheDocument()
   })
 })
+
+describe('StepList evidence clamp', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  it('shows no control and no change for evidence that fits in ten lines', () => {
+    render(<StepList steps={[ROUTE]} live={false} builderView />)
+    expect(screen.queryByTestId('turn-evidence-more')).toBeNull()
+    expect(screen.getByTestId('turn-evidence')).toHaveAttribute('data-clamped', 'true')
+  })
+
+  it('offers "Show all" once the evidence runs past ten lines, and "Show less" after', async () => {
+    // jsdom lays nothing out: report the evidence as taller than its ten-line box.
+    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(400)
+    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(172)
+    const user = userEvent.setup()
+    render(<StepList steps={[ROUTE]} live={false} builderView />)
+    const more = screen.getByTestId('turn-evidence-more')
+    expect(more).toHaveTextContent(SHOW_ALL_EVIDENCE)
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+    await user.click(more)
+    expect(screen.getByTestId('turn-evidence')).not.toHaveAttribute('data-clamped')
+    expect(screen.getByTestId('turn-evidence-more')).toHaveTextContent(SHOW_LESS_EVIDENCE)
+  })
+})
+

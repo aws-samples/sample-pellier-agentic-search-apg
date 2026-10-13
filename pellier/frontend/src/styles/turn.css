@@ -136,6 +136,22 @@
   color: var(--dl-faint);
   overflow-wrap: anywhere;
 }
+/* Ten lines at most until "Show all": no step in the guide runs past eight. */
+.tn-evidence[data-clamped='true'] {
+  max-height: calc(1.5em * 10);
+  overflow: hidden;
+}
+.tn-evidence-more {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 12px/1.4 var(--dl-font-sans);
+  color: var(--dl-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
 @keyframes tn-rise {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: none; }
