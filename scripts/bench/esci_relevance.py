@@ -22,7 +22,8 @@ Dataset
         sha256 25124442d064d64b26f74082d6fa09438d679efc0c183cf28d19064a2b65a265
     Download both files yourself; nothing from the dataset is stored in this repository.
     Subset: product_locale = "us" and small_version = 1; 500 queries sampled with seed 42;
-    a 50,000-product corpus of every judged product plus random US distractors (seed 42).
+    a 50,000-product corpus of every judged product plus other US products drawn at random
+    (seed 42).
 
 What is Pellier's and what is not
     Pellier's code: the OR-of-tokens full-text query (services.store_tools.or_tsquery),
