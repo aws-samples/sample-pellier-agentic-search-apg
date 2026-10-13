@@ -336,8 +336,8 @@ def lab1_checks(evidence: Evidence, *, include_proof: bool = True) -> List[Check
         name="Anna's search receipt",
         sql=_ANNA_RECEIPT,
         key="receipt_id",
-        hint="no pellier.retrieval_receipts row in a session of Anna's; in Ask Pellier, "
-             "choose Anna under Signed in as and send her request",
+        hint="no pellier.retrieval_receipts row in a session of Anna's; send her request "
+             "with python3 scripts/lab_run.py send --lab 1",
     )
     return [columns, receipt]
 
@@ -436,12 +436,12 @@ def _managed_build(evidence: Evidence) -> Check:
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
     if not row:
         return Check(name, False, "no Gateway tool_audit row for a shopper turn; run "
-                                  "scripts/lab3-start.sh to switch the rail, then run a Theo "
-                                  "turn in Pellier as a signed-in caller")
+                                  "bash scripts/lab3-start.sh theo to switch the rail, then "
+                                  "python3 scripts/lab_run.py send --lab 3")
     build = str(row.get("deployed_fingerprint") or "")
     if not build:
         return Check(name, False, f"turn {row.get('turn_id')} carries no build; deploy your "
-                                  "Task 3A change. Sign out, choose Theo, and send it again")
+                                  "Task 3A change, then python3 scripts/lab_run.py send --lab 3")
     return Check(name, True, f"turn {row.get('turn_id')} ran build {build[:12]}")
 
 

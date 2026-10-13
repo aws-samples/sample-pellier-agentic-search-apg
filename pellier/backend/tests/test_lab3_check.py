@@ -44,9 +44,9 @@ class TestTheBuild:
         finding = lab3.judge_build(BUILD_ROW, "c" * 64)
         assert finding.state == check.CONTRADICTED
         assert "--mode participant" in finding.next_step
-        # Choosing the shopper already signed in starts nothing; signing out
-        # first gives the retry a new Runtime session.
-        assert "Sign out, choose Theo, and send it again." in finding.next_step
+        # The retry needs a new Runtime session; lab_run.py send starts a new
+        # conversation for every request set it sends.
+        assert "python3 scripts/lab_run.py send --lab 3" in finding.next_step
 
     def test_no_turn_is_not_yet_and_an_unstamped_row_is_unchecked(self) -> None:
         assert lab3.judge_build(None, BUILD).state == check.NOT_YET
@@ -134,8 +134,7 @@ class TestTheMemory:
         evidence = "\n".join(finding.evidence)
         assert "source event 0000001-theo-1 (actor CUST-THEO, session prefseed)" in evidence
         assert "record mem-theo-1: Prefers hand-thrown ceramics and stoneware" in evidence
-        assert ("Remembered: AgentCore Memory record mem-theo-1 (user preference)"
-                in evidence), "the line the Builder view prints"
+        assert "Builder view" not in evidence, "the check reads Memory, not the app"
 
     def test_no_extraction_yet_is_not_yet(self) -> None:
         waiting = {**SEEDED, "records": []}
@@ -258,3 +257,24 @@ def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> 
         "in process path: the live policy stops a wrong query",
         "Gateway path: the live policy stops a wrong query",
     ]
+
+
+class TestTask3AToken:
+    """``--task 3A`` is Task 3A's check: one finding from source and its own token."""
+
+    def test_the_starter_prints_the_failure_token(self, capsys, monkeypatch) -> None:
+        evidence = importlib.import_module("workshop_evidence")
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
+        assert lab3.main(["--task", "3A"]) == 1
+        out = capsys.readouterr().out
+        assert out.rstrip().endswith("Lab 3A check failed")
+        assert "Lab 3B" not in out
+
+    def test_a_bound_published_read_prints_the_pass_token(self, capsys, monkeypatch) -> None:
+        evidence = importlib.import_module("workshop_evidence")
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+        monkeypatch.setattr(lab3, "source_catalogue", lambda: (
+            frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"),
+            frozenset({"get_tickets"})))
+        assert lab3.main(["--task", "3A"]) == 0
+        assert capsys.readouterr().out.rstrip().endswith("Lab 3A check passed")

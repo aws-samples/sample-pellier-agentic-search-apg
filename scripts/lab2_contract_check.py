@@ -15,7 +15,8 @@ fails as a test input, so a weak test cannot pass. A blank choice uses the
 default and the report says so.
 
 Task 2B reads Marco's latest Stock-agent turn from ``pellier.tool_audit`` (his
-session is the one choosing Marco on the home page starts, ``persona-marco-...``).
+session is the one ``python3 scripts/lab_run.py send --lab 2`` starts,
+``persona-marco-...``).
 Each in-process audit row records the agent that called the tool and the store
 tools that running agent held (``args->>'agent'``, ``args->'grant'``), so the
 check reads the grant the answering Stock agent actually had, never the source:
@@ -56,9 +57,7 @@ STOCK_AGENT_NAME = "stock"
 # tool that reads warehouse_inventory. A turn answered with it is a lab not done
 # yet, not a wrong answer.
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
-MARCO_STOCK_QUESTION = ("How many Hadley Linen Shirts are available at the Brooklyn "
-                        "warehouse, and what ship window is recorded?")
-MARCO_CAPE_QUESTION = "Is the Velvet Opera Cape in stock?"
+SEND = "python3 scripts/lab_run.py send --lab 2"
 
 CASES = ("unknown", "several", "sold_out", "in_stock")
 CHOSEN = ("unknown", "several", "sold_out")
@@ -73,10 +72,9 @@ _CASE_LABEL = {"unknown": "not carried", "several": "several", "sold_out": "sold
 EXPECTED_2A = ("not carried -> not_found with no count; several -> ambiguous with the "
                 "candidates; sold out -> success with 0 units; in stock -> success with "
                 "the warehouse rows")
-_NEXT_2A = ("open the Stock agent - check_stock block in pellier/backend/services/agent_tools.py: "
-            "it must return the shared implementation's answer unchanged, so not_found stays "
-            "not_found. Save the file and rerun this check; it calls your check_stock "
-            "directly, so no restart is needed.")
+_NEXT_2A = ("when the shared check_stock answers not_found, what should the Stock agent - "
+            "check_stock block in pellier/backend/services/agent_tools.py pass on? Save the file "
+            "and rerun this check; it calls your check_stock directly, so no restart is needed.")
 
 # The catalog's own answer to "which pieces does this query name?": every word
 # of the query in the name, the matching rule check_stock documents.
@@ -265,9 +263,9 @@ EXPECTED_2A_RECORDED = (
     "not_found with no count, and his latest call of every other case recorded the "
     "catalog's answer")
 _NEXT_2A_RECORDED = (
-    "open the Stock agent - check_stock block in pellier/backend/services/agent_tools.py: it "
-    "must return the shared implementation's answer unchanged. Restart the backend, ask "
-    f"Marco's question again (\"{MARCO_CAPE_QUESTION}\"), then rerun this.")
+    "when the shared check_stock answers not_found, what should the Stock agent - check_stock "
+    "block in pellier/backend/services/agent_tools.py pass on? Restart the backend, send "
+    f"Marco's requests again ({SEND}), then rerun this.")
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -304,8 +302,7 @@ def judge_recorded_2a(conn: Any) -> check.Finding:
                              "no check_stock call of Marco's asked about a piece Pellier does "
                              "not carry", ["pellier.tool_audit: no such row in a persona-marco- "
                                            "session"],
-                             "in Ask Pellier, choose Marco under Signed in as and ask "
-                             f"\"{MARCO_CAPE_QUESTION}\", then rerun this.")
+                             f"send Marco's requests with {SEND}, then rerun this.")
     evidence: List[str] = []
     differs: List[str] = []
     for case in CASES:
@@ -333,14 +330,14 @@ def with_restart_hint(guide: check.Finding, recorded: check.Finding) -> check.Fi
 
     The guide's check runs the checkout's ``check_stock`` in its own process, so
     it can pass while the running backend still answers with the code it started
-    with. Ask Pellier and the evidence export read Marco's recorded turns, so
-    they show the change only after a restart and his question asked again.
+    with. The storefront and the evidence export read Marco's recorded turns, so
+    they show the change only after a restart and his requests sent again.
     """
     if guide.state != check.PROVED or recorded.state == check.PROVED:
         return guide
     hint = ("this ran your check_stock in this process; Marco's recorded turns do not show it "
-            f"yet. Restart the backend and ask \"{MARCO_CAPE_QUESTION}\" as Marco again "
-            "before you export the evidence.")
+            f"yet. Restart the backend and send his requests again ({SEND}) before you "
+            "export the evidence.")
     return replace(guide, evidence=[*guide.evidence, hint])
 
 
@@ -350,10 +347,10 @@ def with_restart_hint(guide: check.Finding, recorded: check.Finding) -> check.Fi
 
 EXPECTED_2B = ("the Stock agent that answered Marco's latest stock question held check_stock "
                "alone and called only check_stock; every count equals warehouse_inventory")
-_NEXT_2B_GRANT = ("connect check_stock to the Stock agent, and only check_stock, in the Stock "
-                  "agent - definition block of agents/stock_agent.py, restart the backend so "
-                  "the running agent loads it, ask Marco's stock question again, then rerun "
-                  "this check.")
+_NEXT_2B_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
+                  "connect for a stock answer to come from a warehouse row, and what else may "
+                  "it hold? Restart the backend so the running agent loads it, send Marco's "
+                  f"requests again ({SEND}), then rerun this check.")
 
 
 def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
@@ -447,11 +444,9 @@ def judge_2b(conn: Any) -> check.Finding:
                              "no tool call by Marco's Stock agent recorded yet",
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
-                             "in Ask Pellier, choose Marco under Signed in as, ask "
-                             f"\"{MARCO_STOCK_QUESTION}\", then rerun this check. The "
-                             "starter's Stock agent holds no tool that reads "
-                             "warehouse_inventory, so it may answer without calling one: "
-                             "connect check_stock first (Task 2B) and restart the backend.")
+                             f"send Marco's requests with {SEND}, then rerun this check. "
+                             "The starter's Stock agent holds no tool that reads "
+                             "warehouse_inventory, so it may answer without calling one.")
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "

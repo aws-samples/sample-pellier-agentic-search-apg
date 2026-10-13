@@ -15,7 +15,7 @@ evidence for both, and never writes:
     O3  PostgreSQL log      a write that row-level security refused is in the
                             cluster's postgresql log group
 
-Run it after a turn in Ask Pellier and after python3 scripts/lab3_rls_check.py:
+Run it after python3 scripts/lab_run.py send --lab 3 and python3 scripts/lab3_rls_check.py:
 
     python3 scripts/observability_check.py
     python3 scripts/observability_check.py --minutes 120
@@ -102,8 +102,9 @@ def app_spans(logs: Any, start_ms: int, minutes: int) -> Finding:
     if not routed:
         return Finding("O1", "App spans in CloudWatch", NOT_YET, expected,
                        "no routing span from the app yet",
-                       next_step="send a request in Ask Pellier, wait about ten seconds and "
-                                 "run this again; if it stays empty, grep 'Failed to export span "
+                       next_step="send a request (python3 scripts/lab_run.py send --lab 3), "
+                                 "wait about ten seconds and run this again; if it stays empty, "
+                                 "grep 'Failed to export span "
                                  "batch' /tmp/pellier/uvicorn.log: a 403 means this instance's "
                                  "role cannot write traces")
     turns = {turn for _, turn in routed}
@@ -185,8 +186,8 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
     if not busy:
         return Finding("O2", "Database Insights on Aurora", NOT_YET, expected,
                        f"{setting}; no finished queries recorded in the window yet",
-                       next_step="send a request in Ask Pellier, wait about a minute and run "
-                                 "this again")
+                       next_step="send a request (python3 scripts/lab_run.py send --lab 3), "
+                                 "wait about a minute and run this again")
     evidence = [f"queries finished in {busy} of the {reported} minutes reported "
                 f"({QUERIES_FINISHED})"]
     evidence += ([f"top SQL by load: {s}" for s in statements]

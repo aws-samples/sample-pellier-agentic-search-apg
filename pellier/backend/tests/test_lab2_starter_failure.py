@@ -206,7 +206,7 @@ def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
     assert finding.state == "NOT YET", finding
     assert "still held the starter's grant: search_products" in finding.observed
     assert "none of which reads warehouse_inventory" in finding.observed
-    assert "restart the backend" in finding.next_step
+    assert "restart the backend" in finding.next_step.lower()
     assert lab2.STARTER_GRANT == tuple(_names(lab_variants.stock_grant(lab_variants.STARTER)))
 
 
@@ -264,7 +264,7 @@ def test_no_stock_agent_turn_is_not_yet(conn, monkeypatch) -> None:
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_2b(conn)
     assert finding.state == "NOT YET"
-    assert lab2.MARCO_STOCK_QUESTION in finding.next_step
+    assert "python3 scripts/lab_run.py send --lab 2" in finding.next_step
 
 
 # ---------------------------------------------------------------------------
@@ -299,4 +299,4 @@ def test_the_recorded_2a_line_waits_for_a_not_carried_question(conn, monkeypatch
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_recorded_2a(conn)
     assert finding.state == "NOT YET"
-    assert lab2.MARCO_CAPE_QUESTION in finding.next_step
+    assert "python3 scripts/lab_run.py send --lab 2" in finding.next_step

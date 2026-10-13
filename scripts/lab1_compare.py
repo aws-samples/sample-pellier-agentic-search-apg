@@ -3,13 +3,13 @@
 
 When the first search is sparse, the fallback retries with fewer preferences;
 it must never retry with fewer limits. This reads the retrieval receipts of
-Anna's newest turn (``persona-anna-...``, the session choosing Anna under
-Signed in as starts), takes the search that needed the fallback (else the
-newest), and compares two things it records: the limits the
-shopper asked for (``retrieval_config.requested``, the plan built from her
-words before any fallback) and the limits the search that answered kept. It
-then reads every product that search returned from the catalog and checks each
-requested limit against it.
+Anna's newest turn (``persona-anna-...``, the session
+``python3 scripts/lab_run.py send --lab 1`` starts), takes the search that
+needed the fallback (else the newest), and compares two things it records: the
+limits the shopper asked for (``retrieval_config.requested``, the plan built
+from her words before any fallback) and the limits the search that answered
+kept. It then reads every product that search returned from the catalog and
+checks each requested limit against it.
 
 The search must have needed the fallback: a receipt with no recorded
 relaxation never ran Task 1B's code, so it proves nothing either way. A
@@ -31,6 +31,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import workshop_check as check  # noqa: E402  (sibling module)
 
 ANNA_SESSION_PREFIX = "persona-anna-"
+SEND = "python3 scripts/lab_run.py send --lab 1"
 # The guide's request, the one Anna's first suggestion sends: three limits the
 # first search cannot fill, so the fallback has to run.
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "
@@ -43,10 +44,9 @@ EXPECTED = (
 NEXT_STEP = (
     "open _with_relaxations in pellier/backend/services/search_plan.py: does the "
     "next attempt keep the budget, the stock rule and the exclusions? Restart, "
-    "send Anna's request again, then rerun this check."
+    f"send Anna's request again ({SEND}), then rerun this check."
 )
-NEXT_REQUEST = ("in Ask Pellier, choose Anna under Signed in as and send the guide's request "
-                f"(\"{ANNA_REQUEST}\"), then rerun this check.")
+NEXT_REQUEST = f"send Anna's request with {SEND}, then rerun this check."
 
 # Anna's newest turn, not just her newest receipt: a turn can run more than one
 # search, and the one that needed the fallback is the one Task 1B decides. A

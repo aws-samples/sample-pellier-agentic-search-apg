@@ -2,7 +2,8 @@
 """Lab 3's checks: which build answered Theo, whose tickets ran, what Cedar refused,
 and what the database returned.
 
-Run after Theo's turns on the managed path (Task 3B):
+Run after Theo's turns on the managed path (Task 3B), which
+``python3 scripts/lab_run.py send --lab 3`` sends:
 
     python3 scripts/lab3_check.py
 
@@ -12,7 +13,7 @@ It prints seven findings, each with Expected, Observed and Evidence:
              build (``tool_audit.build_fingerprint`` beside the local digest)
     memory   the managed rail's AgentCore Memory read for Theo returns the
              user-preference record extracted from his provisioning
-             conversation, and the Builder view names that record id
+             conversation, and prints its id
     tickets  every executed ``get_tickets`` call on the Gateway in Theo's turns
              read his own tickets, none read another customer's, and a forged
              call (the model asking for Jessica's tickets while Theo is signed
@@ -30,12 +31,12 @@ Together the household request's three layers: the server binds a forged call
 to Theo, Cedar refuses his direct read of Jessica's tickets, and the database
 returns none of her rows even to a query that asks for them.
 
-Task 3A's check is the doctor's prerequisites line
-(``scripts/workshop_doctor.py --lab 3 --phase prerequisites``); it and the
-evidence export judge the source with :func:`judge_catalogue` below, which runs
-the forged call through the checkout's own binding (:func:`probe_binding`).
-Theo's real turns rarely make that call, because the model seldom asks for
-another customer, so the probe makes it every time.
+Task 3A's check is ``python3 scripts/lab3_check.py --task 3A``. It, the
+doctor's prerequisites line and the evidence export judge the source with
+:func:`judge_catalogue` below, which runs the forged call through the
+checkout's own binding (:func:`probe_binding`). Theo's real turns rarely make
+that call, because the model seldom asks for another customer, so the probe
+makes it every time.
 """
 
 from __future__ import annotations
@@ -55,6 +56,7 @@ DEPLOY = SCRIPTS / "deploy"
 
 THEO, JESSICA = "CUST-THEO", "CUST-JESSICA"
 PROBE_TOOL = "get_tickets"
+SEND = "python3 scripts/lab_run.py send --lab 3"
 
 # The Gateway Lambda writes a shopper turn's call with the turn id as its
 # session and the build the Runtime reported. Rows carrying a build come first,
@@ -161,14 +163,15 @@ def judge_catalogue(
         return check.Finding(
             "3A", _CATALOGUE_TITLE, check.CONTRADICTED, _CATALOGUE_EXPECTED,
             f"the Support agent names the staff-only tool {', '.join(staff_only)}", evidence,
-            "take the staff-only tool out of SUPPORT_MANAGED_TOOLS; only the Operator calls it.")
+            "which tool in SUPPORT_MANAGED_TOOLS is staff-only? Only the Operator calls it.")
     unpublished = sorted(set(managed) - published)
     if unpublished:
         return check.Finding(
             "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED,
             f"the Support agent asks for {', '.join(unpublished)}, which is not published "
             "on the Gateway", evidence,
-            "publish it in the Gateway catalogue - published tools block.")
+            "which tool does the Support agent ask for that the Gateway catalogue - published "
+            "tools block still withholds?")
     unbound = (not _probe_binds(probe)) if probe is not None else PROBE_TOOL not in bound
     if PROBE_TOOL in managed and unbound:
         observed = ("get_tickets is published but not bound to the signed-in caller, so the "
@@ -177,8 +180,8 @@ def judge_catalogue(
             observed += f"; a forged call for {JESSICA} would leave as {probe['sent']}"
         return check.Finding(
             "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED, observed, evidence,
-            "add get_tickets to SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - "
-            "support reconcile block.")
+            "which support tool lets the model choose whose records to read? See "
+            "SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - support reconcile block.")
     observed = f"{len(published)} tools published, get_tickets bound to the signed-in caller"
     if probe is not None:
         observed = f"{len(published)} tools published; a forged call for {JESSICA} leaves as {THEO}"
@@ -228,7 +231,7 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
     if not row:
         return check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
                              "no Gateway tool call in a shopper turn yet", [],
-                             "run scripts/lab3-start.sh theo, then Theo's turn in Ask Pellier.")
+                             f"run bash scripts/lab3-start.sh theo, then {SEND}.")
     deployed = str(row.get("deployed_fingerprint") or "").strip()
     evidence = [
         f"pellier.tool_audit audit {row.get('audit_id')}: {row.get('tool')} in turn "
@@ -239,23 +242,24 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
     if not deployed or not local:
         return check.Finding("3B", _BUILD_TITLE, check.UNCHECKED, BUILD_EXPECTED,
                              "a build could not be compared", evidence,
-                             "deploy with --mode participant. Sign out, choose Theo, and send "
-                             "it again.")
+                             "deploy with --mode participant, then send Theo's requests "
+                             f"again in a new conversation: {SEND}.")
     if deployed == local:
         return check.Finding("3B", _BUILD_TITLE, check.PROVED, BUILD_EXPECTED,
                              "the two builds match", evidence)
     return check.Finding("3B", _BUILD_TITLE, check.CONTRADICTED, BUILD_EXPECTED,
                          "another build answered", evidence,
-                         "deploy your Task 3A change with --mode participant. Sign out, "
-                         "choose Theo, and send it again.")
+                         "deploy your Task 3A change with --mode participant, then send "
+                         f"Theo's requests again in a new conversation: {SEND}.")
 
 
 _TICKETS_TITLE = "every executed ticket read was Theo's own"
 TICKETS_EXPECTED = ("at least one executed get_tickets call on the Gateway in Theo's turns, "
                     f"every one for {THEO}, none for another customer; a forged call for "
                     f"{JESSICA} leaves this checkout as {THEO}")
-_NEXT_BIND = ("add get_tickets to SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - support "
-              "reconcile block, then deploy with --mode participant.")
+_NEXT_BIND = ("which support tool lets the model choose whose records to read? See "
+              "SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - support reconcile block, then "
+              "deploy with --mode participant.")
 
 
 def judge_tickets(rows: Sequence[Dict[str, Any]],
@@ -274,7 +278,7 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
     if not rows:
         return check.Finding("3B", _TICKETS_TITLE, check.NOT_YET, TICKETS_EXPECTED,
                              "no get_tickets call has run on the Gateway yet", evidence,
-                             "ask Theo's ticket question in Ask Pellier on the managed path.")
+                             f"send Theo's ticket question on the managed path: {SEND}.")
     others = [r for r in rows if r.get("customer_id") != THEO]
     observed = (f"{len(rows)} executed call(s), {len(rows) - len(others)} for {THEO}, "
                 f"{len(others)} for anyone else")
@@ -315,8 +319,7 @@ def tickets_finding(rows: Sequence[Dict[str, Any]]) -> check.Finding:
 
 _MEMORY_TITLE = "the managed agent is given Theo's remembered taste"
 MEMORY_EXPECTED = ("the managed rail's AgentCore Memory read for CUST-THEO returns the "
-                   "user-preference record extracted from his provisioning conversation; the "
-                   "Builder view's Router step for his new-session turn names the same record")
+                   "user-preference record extracted from his provisioning conversation")
 
 
 def _event_text(event: Dict[str, Any]) -> str:
@@ -341,10 +344,6 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
     evidence += [f"source event {e.get('eventId')} (actor {seeded.get('actor')}, session "
                  f"{seeded.get('session')}): {_event_text(e)}" for e in seeded.get("events") or []]
     evidence += [f"record {item['record_id']}: {item['preference'][:90]}" for item in remembered]
-    if ids:
-        evidence.append("the Builder view, Router step of Theo's new-session turn: Remembered: "
-                        f"AgentCore Memory record{'s' if len(ids) > 1 else ''} {', '.join(ids)} "
-                        "(user preference)")
     observed = (f"the managed rail's read returns {len(ids)} record(s); provisioning's "
                 f"conversation produced {len(provisioned)}")
     if not seeded.get("events"):
@@ -533,11 +532,27 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
     return [build, memory_finding(), tickets, run_probe(cfg)] + lab3_rls_check.collect(env_path)
 
 
+def main_3a() -> int:
+    """Task 3A from source: the catalogue, the caller binding and the forged call."""
+    import workshop_evidence
+
+    finding = workshop_evidence.task_3a()
+    print("Lab 3A: get_tickets published on the Gateway and bound to the signed-in caller")
+    print(check.render(finding))
+    passed = finding.state == check.PROVED
+    print("Lab 3A check passed" if passed else "Lab 3A check failed")
+    return 0 if passed else 1
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.parse_args(argv)
+    parser.add_argument("--task", choices=("3A", "3B"), default="3B",
+                        help="3A checks the two Task 3A regions from source; 3B (the default) "
+                             "reads Theo's managed turns")
+    if parser.parse_args(argv).task == "3A":
+        return main_3a()
     findings = collect()
     print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory, the Gateway "
           "and the row policies")

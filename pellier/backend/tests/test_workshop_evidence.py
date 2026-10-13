@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import importlib
 import os
-import shutil
 import sys
 from pathlib import Path
 from typing import Any, Dict
@@ -32,6 +31,9 @@ check = importlib.import_module("workshop_check")
 
 PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
     check.PROVED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
+SOLVED_VECTOR = REPO / "solutions" / "the-quiet-search" / "retrieval" / "store_tools_solution.py"
+SOLVED_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
+SOLVED_WRITER = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-credit-writer-solution.sql"
 TASKS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B"]
 BUILD = "b" * 64
 CREDIT = {
@@ -92,6 +94,7 @@ class TestTheEightLines:
         for task in ("1A", "1B", "2A", "2B"):
             assert findings[task].state == UNCHECKED, findings[task]
             assert "no database settings" in findings[task].evidence[0]
+        assert findings["4B"].state == UNCHECKED, findings["4B"]
 
     def test_the_report_prints_three_things_per_line(self, tmp_path: Path, starters: None) -> None:
         report = evidence.render_report(evidence.collect(tmp_path / "absent.env",
@@ -125,40 +128,9 @@ class TestRegionState:
         assert check.region_state(live, "Thing - body", starter) == check.MISSING
 
     def test_a_whole_file_starter_compares_its_own_region(self) -> None:
-        live, label, starter = evidence.REGIONS["1A"]
-        assert check.region_state(lab_variants.LAB1_RRF["solution"], label, starter) == check.EDITED
+        live, label, starter = evidence.REGIONS["4B"]
+        assert check.region_state(SOLVED_WRITER, label, starter) == check.EDITED
         assert check.region_state(starter, label, starter) == check.STARTER
-
-
-class TestTheWorksheetVerdict:
-    PASSED = ("Lab 1A: recompute\nEvidence  receipt 7 in session persona-anna-x\n"
-              "          query: 'gift'\nObserved  9 of 9 scores match\nLab 1A check passed\n")
-
-    def test_passed(self) -> None:
-        finding = evidence.read_worksheet(self.PASSED, "")
-        assert finding.state == PROVED
-        assert finding.observed == "9 of 9 scores match"
-        assert finding.evidence == ["receipt 7 in session persona-anna-x", "query: 'gift'"]
-
-    def test_failed(self) -> None:
-        out = self.PASSED.replace("9 of 9", "3 of 9").replace("passed", "failed")
-        assert evidence.read_worksheet(out, "ERROR: Lab 1A check failed").state == CONTRADICTED
-
-    @pytest.mark.parametrize("observed", [
-        "none yet: no pellier.retrieval_receipts row has a session starting persona-anna-",
-        "none yet: no product in receipt 7 is in one list only, so it cannot tell a missing "
-        "rank apart",
-    ])
-    def test_a_receipt_that_cannot_decide_is_not_yet(self, observed: str) -> None:
-        out = f"Observed  {observed}\nLab 1A check not yet\n"
-        finding = evidence.read_worksheet(out, "ERROR:  Lab 1A check not yet")
-        assert finding.state == NOT_YET
-        assert finding.observed == observed
-
-    def test_a_worksheet_that_did_not_finish_is_unchecked(self) -> None:
-        finding = evidence.read_worksheet("", "psql: error: connection refused")
-        assert finding.state == UNCHECKED
-        assert finding.evidence == ["psql: error: connection refused"]
 
 
 def _remembered(state: str = PROVED):
@@ -168,10 +140,22 @@ def _remembered(state: str = PROVED):
                                  ["record mem-theo-1: Prefers hand-thrown ceramics"])
 
 
+def _finding(task: str, state: str) -> Any:
+    return check.Finding(task, "a part", state, "expected", f"observed {state}", ["evidence"],
+                         "" if state == PROVED else "the next step")
+
+
 class TestLabsThreeAndFour:
     BUILD_ROW = {"audit_id": 4, "turn_id": "turn-abc", "tool": "get_tickets",
                  "deployed_fingerprint": BUILD}
     THEO_READ = {"audit_id": 4, "turn_id": "turn-abc", "customer_id": "CUST-THEO"}
+
+    @pytest.fixture(autouse=True)
+    def _row_policies_hold(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Every region edited and the live row policies proved, unless a test says otherwise."""
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+        rls = importlib.import_module("lab3_rls_check")
+        monkeypatch.setattr(rls, "collect", lambda *args: [_finding("3B", PROVED)])
 
     def test_the_executed_build_and_reads_decide_3b(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
@@ -199,15 +183,44 @@ class TestLabsThreeAndFour:
         assert finding.state == CONTRADICTED
         assert "1 for anyone else" in finding.observed
 
-    def test_3a_reads_the_source_and_3b_only_the_rows(
-        self, monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """3B's rows prove it or not on their own: a starter in source does not hide them."""
+    def test_3a_and_3b_read_their_regions(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """3B's rows are not enough: a starter predicate leaves the row policies unwritten."""
         monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
         assert evidence.task_3a().state == NOT_YET
         assert evidence.task_3b(None, BUILD).state == UNCHECKED
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
-        assert evidence.task_3b(rows, BUILD, _remembered()).state == PROVED
+        finding = evidence.task_3b(rows, BUILD, _remembered())
+        assert finding.state == NOT_YET and "lab-3-rls.sql" in finding.observed
+
+    def test_3b_needs_the_live_row_policies(self) -> None:
+        rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
+        lagging = evidence.task_3b(rows, BUILD, _remembered(),
+                                   lambda: [_finding("3B", PROVED), _finding("3B", NOT_YET)])
+        assert lagging.state == NOT_YET, lagging
+        broken = evidence.task_3b(rows, BUILD, _remembered(),
+                                  lambda: [_finding("3B", CONTRADICTED)])
+        assert broken.state == CONTRADICTED, broken
+
+    @pytest.mark.parametrize(("states", "verdict"), [
+        ((PROVED, PROVED, PROVED), PROVED),
+        ((PROVED, NOT_YET, PROVED), NOT_YET),
+        ((PROVED, UNCHECKED, PROVED), UNCHECKED),
+        ((CONTRADICTED, PROVED, PROVED), CONTRADICTED),
+    ])
+    def test_4b_combines_the_credit_checks_findings(self, states: tuple, verdict: str) -> None:
+        finding = evidence.task_4b(lambda: [_finding("4B", state) for state in states])
+        assert finding.task == "4B" and finding.state == verdict, finding
+
+    def test_4b_with_the_starters_grants_is_not_yet_without_probing(
+        self, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
+
+        def must_not_probe() -> list:
+            raise AssertionError("a starter region must not be probed")
+
+        finding = evidence.task_4b(must_not_probe)
+        assert finding.state == NOT_YET and "lab-4-credit-writer.sql" in finding.observed
 
     def test_3a_reads_the_catalogue_once_the_regions_are_edited(
         self, monkeypatch: pytest.MonkeyPatch,
@@ -239,17 +252,16 @@ class TestLabsThreeAndFour:
 
 
 @pytest.fixture()
-def solved(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A copy of the Lab 1A worksheet with the solution's region, run by the export."""
-    copies = {"1A": lab_variants.LAB1_RRF["solution"]}
+def solved(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The export reads the solution's vector region and runs the solution's branch."""
+    from services import store_tools
+
     regions = dict(evidence.REGIONS)
-    for task, source in copies.items():
-        target = tmp_path / f"{task}{source.suffix}"
-        shutil.copyfile(source, target)
-        _path, label, starter = regions[task]
-        regions[task] = (target, label, starter)
+    _path, label, starter = regions["1A"]
+    regions["1A"] = (SOLVED_VECTOR, label, starter)
     monkeypatch.setattr(evidence, "REGIONS", regions)
-    return tmp_path
+    monkeypatch.setattr(store_tools, "vector_branch_sql",
+                        lab_variants.vector_branch(lab_variants.SOLUTION))
 
 
 def _cfg(cluster: Any) -> Dict[str, str]:
@@ -258,7 +270,7 @@ def _cfg(cluster: Any) -> Dict[str, str]:
 
 
 def test_lab_one_and_two_lines_read_the_real_schema(
-    fresh_db: Any, solved: Path, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
+    fresh_db: Any, solved: None, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
 ) -> None:
     """Labs 1 and 2 from the rows a solved run leaves; only 1A runs what you wrote."""
     monkeypatch.setenv("PATH", f"{fresh_db.bin}:{os.environ['PATH']}")
@@ -287,22 +299,20 @@ def test_lab_one_and_two_lines_read_the_real_schema(
                     '{"status": "not_found"}', 9)""")
 
     findings = {
-        "1A": evidence.task_1a(cfg),
+        "1A": evidence.task_1a(cfg, check.connect),
         "1B": evidence.task_1b(cfg, check.connect),
         "2A": evidence.task_2a(cfg, check.connect),
         "2B": evidence.task_2b(cfg, check.connect),
     }
     for task, finding in findings.items():
         assert finding.state == PROVED, (task, finding)
-    assert "2 of 2 scores match" in findings["1A"].observed
+    assert "Anna's limits held" in findings["1A"].observed
 
 
 # ---------------------------------------------------------------------------
 # Lab 4 on the real schema: the rule, the stored denial, the credit, RLS, absence
 # ---------------------------------------------------------------------------
 
-SOLVED_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
-SOLVED_RLS = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-rls-solution.sql"
 
 
 def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(
@@ -320,20 +330,13 @@ def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(
     assert evidence.task_4a(None).state == UNCHECKED
 
 
-def test_lab_4b_runs_the_rls_worksheet_and_the_absence_check(
+def test_lab_4a_reads_the_real_schema(
     fresh_db: Any, monkeypatch: pytest.MonkeyPatch,  # noqa: F811
 ) -> None:
     from tests.test_lab4_starter_failure import _jessicas_credit
 
     lab4 = importlib.import_module("lab4_policy_check")
-    regions = dict(evidence.REGIONS)
-    regions["4B"] = (SOLVED_RLS, regions["4B"][1], regions["4B"][2])
-    monkeypatch.setattr(evidence, "REGIONS", regions)
-    monkeypatch.setenv("PATH", f"{fresh_db.bin}:{os.environ['PATH']}")
     cfg = _cfg(fresh_db)
-
-    waiting = evidence.task_4b(cfg)
-    assert waiting.state == NOT_YET, waiting
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", autocommit=True, row_factory=dict_row) as conn:
         review = lab4.ensure_probe_review(conn, staff_sub="sub-nadia")
@@ -341,10 +344,6 @@ def test_lab_4b_runs_the_rls_worksheet_and_the_absence_check(
             {"outcome": "deny", "cedar_denial": True, "error": "not allowed due to policy"},
             review["idempotency_key"], {}))
         _jessicas_credit(conn)
-    done = evidence.task_4b(cfg)
-    assert done.state == PROVED, done
-    assert "10 of 10 probes match" in done.observed and "0, 0 and 1" in done.observed
-
     monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
     rows = evidence._rows(cfg, check.connect)
     assert evidence.task_4a(rows["lab4"]).state == PROVED

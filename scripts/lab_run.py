@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Catch up on a lab: install its solution files, then send its requests.
 
-The guide's "Short on time?" block chains these two commands with the lab's
+The guide's "Running behind?" block chains these two commands with the lab's
 restart or deployment and its checks:
 
     python3 scripts/lab_run.py solution --lab 1
@@ -28,7 +28,10 @@ Labs 1 and 2 and through AgentCore Runtime and Gateway for Labs 3 and 4. Lab 4
 then does Nadia's part in the Operator: investigate Jessica's case, approve
 the credit the Planner proposes, and execute it. A Cedar deployment takes a
 few minutes to apply, so an execution that Cedar still denies, or that the
-Gateway cannot yet answer, is retried.
+Gateway cannot yet answer, is retried. ``--shopper-only`` stops before
+Nadia's part, so the participant makes that decision in the Operator:
+
+    python3 scripts/lab_run.py send --lab 4 --shopper-only
 
 Each step prints ``+ OK`` or ``x FAIL``. The first failure stops the command
 with exit status 1.
@@ -438,15 +441,20 @@ def mint_token(username: str) -> str:
         raise LabRunError(f"could not sign in as {username}: {exc}") from exc
 
 
-def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token) -> None:
-    """Make the lab's requests on the lab's path, and for Lab 4 do Nadia's part."""
+def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
+         shopper_only: bool = False) -> None:
+    """Make the lab's requests on the lab's path, and for Lab 4 do Nadia's part unless
+    ``shopper_only``."""
     wait_until_healthy(backend)
     tokens: Dict[str, str] = {}
     for persona, stages in CONVERSATIONS[lab]:
         if persona not in tokens:
             tokens[persona] = token_for(persona)
         converse(backend, lab, tokens[persona], persona, required_requests(persona, stages))
-    if lab == 4:
+    if lab == 4 and shopper_only:
+        print("  Next: as Nadia in the Operator, investigate Jessica's case, approve the "
+              "proposed credit and select Execute.", flush=True)
+    elif lab == 4:
         approve_credit(backend, token_for(OPERATOR))
 
 
@@ -455,6 +463,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("action", choices=("solution", "send", "diff"))
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
+    parser.add_argument("--shopper-only", action="store_true",
+                        help="send: stop before Nadia's part in the Operator (Lab 4)")
     args = parser.parse_args(argv)
     titles = {"solution": "install the solution", "send": "send the requests",
               "diff": "compare your files with the solution"}
@@ -465,7 +475,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
         elif args.action == "solution":
             install_solution(args.lab)
         else:
-            send(args.lab, Backend(base_url), token_for)
+            send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only)
     except (LabRunError, SystemExit) as exc:
         fail(str(exc))
         return 1

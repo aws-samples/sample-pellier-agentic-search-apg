@@ -134,12 +134,12 @@ def _finding(state: str) -> object:
 
 @pytest.mark.parametrize("recorded", ["NOT YET", "CONTRADICTED"])
 def test_a_pass_the_running_backend_has_not_recorded_names_the_restart(recorded) -> None:
-    """The guide's check runs the checkout; Ask Pellier and the export read Marco's turns."""
+    """The guide's check runs the checkout; the storefront and the export read Marco's turns."""
     finding = check.with_restart_hint(_finding("PROVED"), _finding(recorded))
     assert finding.state == "PROVED"
     assert finding.evidence[0] == "row"
     assert "Restart the backend" in finding.evidence[-1]
-    assert check.MARCO_CAPE_QUESTION in finding.evidence[-1]
+    assert "python3 scripts/lab_run.py send --lab 2" in finding.evidence[-1]
 
 
 @pytest.mark.parametrize("guide, recorded", [("PROVED", "PROVED"), ("CONTRADICTED", "NOT YET")])

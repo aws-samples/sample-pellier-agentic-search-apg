@@ -9,8 +9,8 @@ needs a run id, or reads a notes file.
 
 What each line reads:
 
-    1A  workshop/lab-1-rrf.sql, run with psql: your fusion expression over
-        Anna's newest retrieval receipt
+    1A  your vector_branch_sql in services/store_tools.py, run against
+        pellier.product_catalog with embeddings whose nearest product is known
     1B  pellier.retrieval_receipts and pellier.product_catalog: what Anna asked
         for, what the search that answered kept, and every product it returned
     2A  pellier.tool_audit: Marco's latest recorded check_stock call per case,
@@ -19,19 +19,20 @@ What each line reads:
         agent held, and its counts against pellier.warehouse_inventory
     3A  the source: the Gateway catalogue and the caller binding
     3B  pellier.tool_audit (the executed build beside this checkout's digest,
-        and every get_tickets read) and AgentCore Memory (Theo's record)
+        and every get_tickets read), AgentCore Memory (Theo's record), and the
+        live row policies beside workshop/lab-3-rls.sql, probed on both paths
     4A  policies/workshop_credit_limit.cedar, evaluated with Cedar here, then
         the stored Gateway denial and Jessica's credit in pellier.approvals,
         pellier.store_credits and pellier.tool_audit
-    4B  workshop/lab-3-rls.sql and the supplied workshop/lab-4-absence.sql, run
-        with psql; a passing worksheet commits its predicate again, unchanged
+    4B  the live credit function beside workshop/lab-4-credit-writer.sql, and
+        the money role probed on both paths; every probe rolls back
 
-Rows alone prove 1B, 2A, 2B and 3B, so those lines read no source and no
-code of yours runs: 2A and 2B need the backend restarted and the question
-asked again before they can pass, where the guide's 2A check runs your edited
-check_stock directly. The other lines run or read what you wrote, so a region
-that still holds its starter is NOT YET whatever the rows say; the summary's
-cleanup restores the Cedar starter, so run this export before it.
+Rows alone prove 1B, 2A and 2B, so those lines read no source and no code of
+yours runs: 2A and 2B need the backend restarted and the question asked again
+before they can pass, where the guide's 2A check runs your edited check_stock
+directly. The other lines run or read what you wrote, so a region that still
+holds its starter is NOT YET whatever the rows say; the summary's cleanup
+restores the Cedar starter, so run this export before it.
 
 Every line is in one of four states, never two (``workshop_check``):
 PROVED, NOT YET, UNCHECKED and CONTRADICTED. UNCHECKED is not a soft NOT
@@ -47,8 +48,6 @@ from __future__ import annotations
 
 import argparse
 import pathlib
-import shutil
-import subprocess
 import sys
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence
@@ -69,20 +68,21 @@ PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
 
 # The marked region each task edits, and the starter it is compared with.
 REGIONS: Dict[str, tuple] = {
-    "1A": (REPO / "workshop" / "lab-1-rrf.sql", "PostgreSQL RRF - fusion expression",
-           STARTERS / "lab-1-rrf.sql"),
+    "1A": (BACKEND / "services" / "store_tools.py", "Vector branch - order by meaning",
+           STARTERS / "lab-1" / "vector-branch.pyfrag"),
     "3A-catalogue": (REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
                      "Gateway catalogue - published tools",
                      STARTERS / "lab-3" / "gateway-published-tools.pyfrag"),
     "3A-binding": (BACKEND / "services" / "agentcore_gateway.py",
                    "Managed catalogue - support reconcile",
                    STARTERS / "lab-3" / "support-reconcile.pyfrag"),
-    "4B": (REPO / "workshop" / "lab-3-rls.sql", "Row ownership - predicate",
+    "3B": (REPO / "workshop" / "lab-3-rls.sql", "Row ownership - predicate",
            STARTERS / "lab-3-rls.sql"),
+    "4B": (REPO / "workshop" / "lab-4-credit-writer.sql", "Credit writer - privileges",
+           STARTERS / "lab-4-credit-writer.sql"),
 }
 CEDAR_POLICY = REPO / "policies" / "workshop_credit_limit.cedar"
 CEDAR_STARTER = STARTERS / "workshop_credit_limit.cedar"
-ABSENCE_WORKSHEET = REPO / "workshop" / "lab-4-absence.sql"
 
 TITLES = {
     "1": "Lab 1: Build and Measure PostgreSQL Hybrid Retrieval",
@@ -108,52 +108,19 @@ def _starter_finding(task: str, title: str, expected: str, where: str) -> check.
 # Lab 1
 # ---------------------------------------------------------------------------
 
-_LAB1A_TITLE = "Anna's recorded ranking recomputes from its two ranks"
-_LAB1A_EXPECTED = "every product's recomputed score equals the score its receipt recorded"
+def task_1a(cfg: Config, connect: Connect) -> check.Finding:
+    """Run the participant's vector branch with the Lab 1A check's probes."""
+    import lab1_vector_check as lab1
 
-
-def task_1a(cfg: Optional[Dict[str, str]]) -> check.Finding:
-    """Run the participant's worksheet and read its verdict."""
     if source_state("1A") == check.STARTER:
-        return _starter_finding("1A", _LAB1A_TITLE, _LAB1A_EXPECTED, "workshop/lab-1-rrf.sql")
-    if cfg is None:
-        return check.Finding("1A", _LAB1A_TITLE, UNCHECKED, _LAB1A_EXPECTED,
-                             "the check could not look", [check.missing_settings_reason()])
-    psql = shutil.which("psql")
-    if psql is None:
-        return check.Finding("1A", _LAB1A_TITLE, UNCHECKED, _LAB1A_EXPECTED,
-                             "the check could not look", ["psql is not on PATH"])
-    done = subprocess.run(
-        [psql, "-X", "-P", "pager=off", "-f", str(REGIONS["1A"][0])],
-        env=check.psql_environment(cfg), capture_output=True, text=True, timeout=60,
-    )
-    return read_worksheet(done.stdout, done.stderr)
+        return _starter_finding("1A", lab1.TITLE, lab1.EXPECTED,
+                                "pellier/backend/services/store_tools.py")
 
+    def judge(conn: Any) -> check.Finding:
+        conn.autocommit = True
+        return lab1.evaluate(conn)[0]
 
-def read_worksheet(stdout: str, stderr: str) -> check.Finding:
-    """The worksheet's own Expected, Observed and Evidence lines, as a finding."""
-    def lines_after(tag: str) -> List[str]:
-        out, taking = [], False
-        for line in stdout.splitlines():
-            if line.startswith(tag):
-                taking = True
-                out.append(line[len(tag):].strip())
-            elif taking and line.startswith("          "):
-                out.append(line.strip())
-            else:
-                taking = False
-        return out
-
-    last_error = stderr.strip().splitlines()[-1] if stderr.strip() else ""
-    evidence = lines_after("Evidence") or [last_error]
-    observed = " ".join(lines_after("Observed")) or "the worksheet did not finish"
-    verdicts = (("Lab 1A check passed", PROVED), ("Lab 1A check not yet", NOT_YET),
-                ("Lab 1A check failed", CONTRADICTED))
-    state = next((found for line, found in verdicts if line in stdout), UNCHECKED)
-    return check.Finding("1A", _LAB1A_TITLE, state, _LAB1A_EXPECTED, observed,
-                         [line for line in evidence if line],
-                         " ".join(lines_after("Next")) or "run psql -X -f workshop/lab-1-rrf.sql "
-                                                          "and read its output.")
+    return _with_connection("1A", lab1.TITLE, lab1.EXPECTED, cfg, connect, judge)
 
 
 def task_1b(cfg: Config, connect: Connect) -> check.Finding:
@@ -215,25 +182,35 @@ def task_3a() -> check.Finding:
 
 
 def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
-            memory: Optional[Callable[[], check.Finding]] = None) -> check.Finding:
+            memory: Optional[Callable[[], check.Finding]] = None,
+            ownership: Optional[Callable[[], List[check.Finding]]] = None) -> check.Finding:
     """Lab 3B: Theo's managed turn ran this build, was given his remembered taste
-    from AgentCore Memory, and read only his own tickets.
+    from AgentCore Memory, read only his own tickets, and the live row policies
+    are the predicate in workshop/lab-3-rls.sql.
 
     ``memory`` reads AgentCore Memory (``lab3_check.memory_finding`` unless
-    given). The direct Cedar probe calls the Gateway, so it is
-    ``scripts/lab3_check.py``'s alone.
+    given); ``ownership`` reads and probes the live row policies
+    (``lab3_rls_check.collect``). The direct Cedar probe calls the Gateway, so it
+    is ``scripts/lab3_check.py``'s alone.
     """
     import lab3_check
+    import lab3_rls_check
 
-    title = "your build answered Theo, remembered his taste, and read only his own tickets"
+    title = ("your build answered Theo, remembered his taste, read only his own tickets, and "
+             "your row policies hold")
     expected = (f"{lab3_check.BUILD_EXPECTED}; {lab3_check.MEMORY_EXPECTED}; "
-                f"{lab3_check.TICKETS_EXPECTED}")
+                f"{lab3_check.TICKETS_EXPECTED}; {lab3_rls_check.DEPLOYED_EXPECTED}")
     if rows is None:
         return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
+    if source_state("3B") == check.STARTER:
+        owned = [_starter_finding("3B", title, expected, "workshop/lab-3-rls.sql")]
+    else:
+        owned = (ownership or lab3_rls_check.collect)()
     return _combine("3B", title, expected, [
         lab3_check.judge_build(rows.get("build"), local_build),
         (memory or lab3_check.memory_finding)(),
         lab3_check.judge_tickets(rows.get("tickets") or []),
+        *owned,
     ])
 
 
@@ -334,54 +311,16 @@ def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
         local, lab4.judge_recorded_probe(rows.get("probe")), credit_finding(rows.get("credit"))])
 
 
-def _psql_verdict(cfg: Config, path: pathlib.Path, passed: str, task: str, title: str,
-                  expected: str) -> check.Finding:
-    """Run one supplied worksheet and read its own verdict line."""
-    if cfg is None:
-        return check.Finding(task, title, UNCHECKED, expected, "the check could not look",
-                             [check.missing_settings_reason()])
-    psql = shutil.which("psql")
-    if psql is None:
-        return check.Finding(task, title, UNCHECKED, expected, "the check could not look",
-                             ["psql is not on PATH"])
-    done = subprocess.run([psql, "-X", "-P", "pager=off", "-f", str(path)],
-                          env=check.psql_environment(cfg), capture_output=True, text=True,
-                          timeout=60)
-    def line(tag: str) -> str:
-        return next((text[len(tag):].strip() for text in done.stdout.splitlines()
-                     if text.startswith(tag)), "")
+def task_4b(writer: Optional[Callable[[], List[check.Finding]]] = None) -> check.Finding:
+    """Lab 4B: the live credit function carries your statements, and the money role
+    writes only through it on both paths (``lab4_credit_check.collect`` unless given)."""
+    import lab4_credit_check as lab4b
 
-    observed = line("Observed") or "the worksheet did not finish"
-    where = path.relative_to(REPO)
-    if passed in done.stdout:
-        return check.Finding(task, title, PROVED, expected, observed, [f"{where}: {passed}"])
-    state = CONTRADICTED if "check failed" in done.stdout else UNCHECKED
-    if "none yet" in done.stdout:
-        state = NOT_YET
-    if state == NOT_YET:
-        reason = "nothing to check yet"
-    elif state == CONTRADICTED:
-        reason = "check failed"
-    else:
-        reason = (done.stderr.strip().splitlines() or ["no verdict"])[-1]
-    return check.Finding(task, title, state, expected, observed, [f"{where}: {reason}"],
-                         line("Next") or f"run psql -X -P pager=off -f {where} and read it.")
-
-
-def task_4b(cfg: Config) -> check.Finding:
-    """Lab 4B: the RLS worksheet's own verdict, then the supplied absence check."""
-    title = "row-level security holds, and the denied credit moved nothing"
-    expected = ("every probe matches and your predicate is the live policy: Theo's own rows "
-                "visible, Jessica's 0, a write in her name 42501, every customer exactly their "
-                "own; the denied key 0 and 0, the allowed key 1")
+    title = "the money role writes only through the credit function"
+    expected = f"{lab4b.DEPLOYED_EXPECTED}; {lab4b.EXPECTED}"
     if source_state("4B") == check.STARTER:
-        return _starter_finding("4B", title, expected, "workshop/lab-3-rls.sql")
-    path = REGIONS["4B"][0]
-    return _combine("4B", title, expected, [
-        _psql_verdict(cfg, path, "Lab 3B predicate check passed", "4B", title, expected),
-        _psql_verdict(cfg, ABSENCE_WORKSHEET, "Lab 4 absence check passed", "4B", title,
-                      expected),
-    ])
+        return _starter_finding("4B", title, expected, "workshop/lab-4-credit-writer.sql")
+    return _combine("4B", title, expected, (writer or lab4b.collect)())
 
 
 # ---------------------------------------------------------------------------
@@ -433,15 +372,19 @@ def collect(
     cfg = check.db_config(env_path)
     rows = _rows(cfg, connect)
     available = bool(rows.get("available"))
+    import lab3_rls_check
+    import lab4_credit_check
+
     return [
-        task_1a(cfg),
+        task_1a(cfg, connect),
         task_1b(cfg, connect),
         task_2a(cfg, connect),
         task_2b(cfg, connect),
         task_3a(),
-        task_3b(rows.get("lab3") if available else None, lab3_check.local_fingerprint()),
+        task_3b(rows.get("lab3") if available else None, lab3_check.local_fingerprint(),
+                ownership=lambda: lab3_rls_check.collect(env_path)),
         task_4a(rows.get("lab4") if available else None),
-        task_4b(cfg),
+        task_4b(lambda: lab4_credit_check.collect(env_path)),
     ]
 
 

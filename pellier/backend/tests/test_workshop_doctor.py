@@ -192,7 +192,7 @@ class TestLab1:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
         check = _by_name(doctor.lab1_checks(evidence))["Anna's search receipt"]
         assert check.passed is False
-        assert "choose Anna under Signed in as" in check.detail
+        assert "python3 scripts/lab_run.py send --lab 1" in check.detail
         assert "persona-anna-" in evidence.queries[-1][0]
 
     def test_missing_citation_columns_fail(self) -> None:

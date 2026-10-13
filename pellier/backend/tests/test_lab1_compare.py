@@ -64,7 +64,7 @@ def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, o
     finding = _judge(_receipt(requested=requested, kept={}, exclusions=[]))
     assert finding.state == "NOT YET"
     assert finding.observed == observed
-    assert lab1.ANNA_REQUEST in finding.next_step
+    assert "python3 scripts/lab_run.py send --lab 1" in finding.next_step
 
 
 def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> None:

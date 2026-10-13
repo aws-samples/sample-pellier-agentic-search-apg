@@ -130,8 +130,8 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeBackend]:
         server.server_close()
 
 
-def _run(fake: FakeBackend, lab: int, token_for: Any = None) -> int:
-    return lab_run.main(["send", "--lab", str(lab)], base_url=fake.url,
+def _run(fake: FakeBackend, lab: int, token_for: Any = None, *extra: str) -> int:
+    return lab_run.main(["send", "--lab", str(lab), *extra], base_url=fake.url,
                         token_for=token_for or (lambda user: f"token-{user}"))
 
 
@@ -438,3 +438,21 @@ def test_lab_4_reports_a_planner_that_proposed_nothing(
     fake.proposal = None
     assert _run(fake, 4) == 1
     assert "the Planner proposed no credit for Jessica: no basis" in capsys.readouterr().err
+
+
+def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_nadia(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    seen: List[str] = []
+
+    def token_for(user: str) -> str:
+        seen.append(user)
+        return f"token-{user}"
+
+    assert _run(fake, 4, token_for, "--shopper-only") == 0
+    (jessica,) = _turns(fake)
+    assert "store credit for the two items I returned" in jessica["body"]["message"]
+    assert not [r for r in fake.requests if r["path"].startswith("/api/operator/")]
+    assert seen == ["jessica"], "Nadia's token is never minted"
+    assert "as Nadia in the Operator" in capsys.readouterr().out
