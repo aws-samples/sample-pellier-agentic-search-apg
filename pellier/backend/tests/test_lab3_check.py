@@ -240,3 +240,21 @@ def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
     mine = [r for r in lab3.read_rows(cfg)["tickets"] if r["turn_id"].endswith("-scope")]
     assert [r["customer_id"] for r in mine] == ["CUST-THEO", "CUST-JESSICA"]
     assert lab3.judge_tickets(mine).state == check.CONTRADICTED
+
+
+def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> None:
+    """The household request's third layer: the database, read by the same check.
+
+    With no settings every finding is UNCHECKED, which is enough to see what the
+    check reports: the four managed-turn findings, then the row-ownership
+    check's deployed predicate and its two database paths.
+    """
+    rls = importlib.import_module("lab3_rls_check")
+    findings = lab3.collect(tmp_path / "missing.env")
+    assert len(findings) == 7
+    assert [finding.task for finding in findings] == ["3B"] * 7
+    assert findings[4].title == rls.DEPLOYED_TITLE
+    assert [finding.title for finding in findings[5:]] == [
+        "in process path: the live policy stops a wrong query",
+        "Gateway path: the live policy stops a wrong query",
+    ]

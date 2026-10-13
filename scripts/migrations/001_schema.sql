@@ -663,7 +663,7 @@ GRANT pellier_credit_writer TO CURRENT_USER;
 
 -- What the role may touch: the two customer tables, the catalog get_orders
 -- joins, and the two customer columns the policies read. INSERT on tickets is
--- there for Lab 4's proof that a write for another customer is refused; the
+-- there for Lab 3's proof that a write for another customer is refused; the
 -- application never writes tickets as this role.
 GRANT USAGE ON SCHEMA pellier TO pellier_agent;
 GRANT SELECT ON pellier.product_catalog TO pellier_agent;

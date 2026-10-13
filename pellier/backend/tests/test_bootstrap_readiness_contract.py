@@ -1252,7 +1252,7 @@ HIDDEN_FROM_PARTICIPANTS = (
 GUIDE_WORKSHEETS = (
     "workshop/lab-1-rrf.sql",
     "workshop/lab-1-hnsw.sql",
-    "workshop/lab-4-rls.sql",
+    "workshop/lab-3-rls.sql",
     "workshop/lab-4-absence.sql",
 )
 

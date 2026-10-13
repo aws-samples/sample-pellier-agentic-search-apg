@@ -45,7 +45,7 @@ Lab 4's deploys are inside their budgets. An unrun check stays incomplete.
 
 ## What participants use
 
-Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. One of the eight files, `labs/01-retrieve/1A-rrf.sql`, is a worksheet that changes nothing the app runs: it recomputes recorded scores. `labs/04-govern/4B-row-ownership.sql` deploys itself: it commits the participant's predicate as the live policy only when every probe matches. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. One of the eight files, `labs/01-retrieve/1A-rrf.sql`, is a worksheet that changes nothing the app runs: it recomputes recorded scores. `labs/03-deploy/3B-row-ownership.sql` deploys itself: it commits the participant's predicate as the live policy only when every probe matches. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
 To see where a stuck participant's files depart from the answer without overwriting them, run `python3 scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
@@ -190,7 +190,7 @@ credit, and the system must prove what moved.
 - **Task 4A:** write the final `unless` block of
   `policies/workshop_credit_limit.cedar` so one credit may be at most $100,
   then deploy it with `--mode participant`.
-- **Task 4B:** write the one ownership expression in `workshop/lab-4-rls.sql`,
+- **Task 4B:** write the one ownership expression in `workshop/lab-3-rls.sql`,
   used by USING and WITH CHECK on `orders` and `support_tickets`.
 - **Check:** `python3 scripts/lab4_policy_check.py` evaluates the rule with
   Cedar beside the deployed baseline (shopper $100 DENY, Nadia 10000 cents
@@ -201,7 +201,7 @@ credit, and the system must prove what moved.
   `psql`; the absence check prints 0 and 0 for the denied key and 1 for the
   allowed key, so a search that always returns zero cannot pass. A passing
   worksheet commits its predicate as the live policy, commented with its
-  sha256, after undoing its probe writes; `python3 scripts/lab4_rls_check.py`
+  sha256, after undoing its probe writes; `python3 scripts/lab3_rls_check.py`
   confirms both live policies carry the predicate in the file, then probes them
   through both binding paths, in process and the Gateway
   Lambda's Data API transaction: bound as Theo, a query for Jessica's rows

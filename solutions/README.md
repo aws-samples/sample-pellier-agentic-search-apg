@@ -94,8 +94,8 @@ deploy, also sends one over-limit credit of its own through the Gateway.
 Task 4B's recovery is the ownership predicate:
 
 ```bash
-cp solutions/the-concierge/sql/lab-4-rls-solution.sql workshop/lab-4-rls.sql
-psql -X -P pager=off -f workshop/lab-4-rls.sql
+cp solutions/the-ledger/sql/lab-3-rls-solution.sql workshop/lab-3-rls.sql
+psql -X -P pager=off -f workshop/lab-3-rls.sql
 ```
 
 The keyed absence check, `workshop/lab-4-absence.sql`, is supplied and has no

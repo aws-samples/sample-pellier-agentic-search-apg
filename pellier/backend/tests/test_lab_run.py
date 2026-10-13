@@ -170,7 +170,7 @@ def test_each_lab_installs_exactly_its_own_task_files() -> None:
         entries = lab_run.solution_files(lab)
         assert entries and all(e["alias"].startswith(f"labs/0{lab}-") for e in entries)
         assert all((REPO / e["solution"]).is_file() for e in entries)
-    assert len(lab_run.solution_files(3)) == 2
+    assert len(lab_run.solution_files(3)) == 3
 
 
 def _scratch_repo(tmp_path: Path) -> Path:
@@ -250,7 +250,7 @@ def test_diff_reports_a_finished_lab_and_writes_nothing(
     out = capsys.readouterr().out
     assert "--- expected" not in out
     assert "4A-credit-policy.cedar matches the solution" in out
-    assert "4B-row-ownership.sql matches the solution" in out
+    assert "4B-credit-writer.sql matches the solution" in out
     assert {s: (repo / s).read_bytes() for s in before} == before
 
 

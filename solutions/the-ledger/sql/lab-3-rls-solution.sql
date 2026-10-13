@@ -3,7 +3,7 @@
 \set VERBOSITY terse
 \pset footer off
 
--- Lab 4, Task 4B: the row-ownership predicate.
+-- Lab 3, Task 3B: the row-ownership predicate.
 --
 -- Ask Pellier and the Operator's Investigator read orders and support tickets
 -- as the pellier_agent role, with one customer's sign-in name bound on the
@@ -18,7 +18,7 @@
 -- pellier.customers maps each id to its cognito_username (theo).
 --
 -- Run with:
---   psql -X -P pager=off -f workshop/lab-4-rls.sql
+--   psql -X -P pager=off -f workshop/lab-3-rls.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it
 -- commits: your predicate becomes the live policy and the probe writes are
@@ -44,9 +44,9 @@ ALTER POLICY orders_owner ON pellier.orders
 ALTER POLICY support_tickets_owner ON pellier.support_tickets
     USING (:ownership_predicate) WITH CHECK (:ownership_predicate);
 
--- Stamp both policies with your predicate's sha256, so scripts/lab4_rls_check.py
+-- Stamp both policies with your predicate's sha256, so scripts/lab3_rls_check.py
 -- can tell the predicate you deployed from the one the database shipped with.
-SELECT 'Lab 4B predicate sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
+SELECT 'Lab 3B predicate sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
   FROM (SELECT encode(sha256(convert_to(:'ownership_predicate', 'UTF8')), 'hex') AS hash) h
 \gset
 COMMENT ON POLICY orders_owner ON pellier.orders IS :'stamp';
@@ -123,16 +123,16 @@ BEGIN
     FOREACH state IN ARRAY ARRAY['CUST-JESSICA', 'CUST-THEO'] LOOP
         BEGIN
             INSERT INTO pellier.support_tickets (ticket_id, customer_id, subject, status, channel)
-            VALUES ('TKT-LAB4-' || state, state, 'Lab 4 row-level security probe', 'open', 'chat');
-            PERFORM set_config('lab4.write_' || lower(replace(state, 'CUST-', '')), '00000', true);
+            VALUES ('TKT-LAB3-' || state, state, 'Lab 3 row-level security probe', 'open', 'chat');
+            PERFORM set_config('lab3.write_' || lower(replace(state, 'CUST-', '')), '00000', true);
         EXCEPTION WHEN insufficient_privilege THEN
-            PERFORM set_config('lab4.write_' || lower(replace(state, 'CUST-', '')), SQLSTATE, true);
+            PERFORM set_config('lab3.write_' || lower(replace(state, 'CUST-', '')), SQLSTATE, true);
         END;
     END LOOP;
 END
 $writes$;
-SELECT current_setting('lab4.write_jessica') AS write_jessica,
-       current_setting('lab4.write_theo') AS write_theo
+SELECT current_setting('lab3.write_jessica') AS write_jessica,
+       current_setting('lab3.write_theo') AS write_theo
 \gset as_theo_
 
 -- No one signed in: the role must see nothing.
@@ -174,21 +174,21 @@ BEGIN
             exact := exact + 1;
         END IF;
     END LOOP;
-    PERFORM set_config('lab4.customers', coalesce(array_length(names, 1), 0)::text, true);
-    PERFORM set_config('lab4.customers_exact', exact::text, true);
+    PERFORM set_config('lab3.customers', coalesce(array_length(names, 1), 0)::text, true);
+    PERFORM set_config('lab3.customers_exact', exact::text, true);
 END
 $every_customer$;
-SELECT current_setting('lab4.customers') AS customers,
-       current_setting('lab4.customers_exact') AS exact
+SELECT current_setting('lab3.customers') AS customers,
+       current_setting('lab3.customers_exact') AS exact
 \gset every_
 
 -- Undo the probe writes and settings; your policy edit stays in the transaction.
 ROLLBACK TO SAVEPOINT probes;
 
 -- A temporary table, dropped when the transaction ends either way.
-CREATE TEMP TABLE lab_4_probes (probe text, bound_as text, expected text, observed text)
+CREATE TEMP TABLE lab_3_probes (probe text, bound_as text, expected text, observed text)
     ON COMMIT DROP;
-INSERT INTO lab_4_probes VALUES
+INSERT INTO lab_3_probes VALUES
     ('Theo reads his own orders', 'theo', :'owner_theo_orders', :'as_theo_theo_orders'),
     ('Theo reads his own tickets', 'theo', :'owner_theo_tickets', :'as_theo_theo_tickets'),
     ('Theo reads Jessica''s orders', 'theo', '0', :'as_theo_jessica_orders'),
@@ -203,7 +203,7 @@ INSERT INTO lab_4_probes VALUES
     ('Customers who see exactly their own orders and tickets', 'each customer',
      :'every_customers', :'every_exact');
 
-\echo 'Lab 4B: your ownership predicate, probed as pellier_agent'
+\echo 'Lab 3B: your ownership predicate, probed as pellier_agent'
 \echo 'Evidence  policies orders_owner and support_tickets_owner, rewritten inside this transaction'
 \echo '          sign-in names in pellier.customers:' :owner_names
 \echo ''
@@ -211,27 +211,27 @@ SELECT probe, bound_as,
        expected,
        observed,
        CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS verdict
-  FROM lab_4_probes;
+  FROM lab_3_probes;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
-  FROM lab_4_probes
-\gset lab_4_
+  FROM lab_3_probes
+\gset lab_3_
 
 \echo 'Expected  every probe matches; then the transaction commits and your predicate is the live policy'
-SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
-\if :lab_4_passed
+SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
+\if :lab_3_passed
   COMMIT;
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; committed, your predicate is now the live policy'
+  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'probes match; committed, your predicate is now the live policy'
   \echo 'Deployed  your predicate on orders_owner and support_tickets_owner, sha256' :stamp_short
   \echo '          the probe writes were undone before the commit'
-  \echo 'Lab 4B check passed'
+  \echo 'Lab 3B predicate check passed'
 \else
   ROLLBACK;
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, the live policies are unchanged'
+  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'probes match; rolled back, the live policies are unchanged'
   \echo 'Next      read the rows marked differs. 0 where a number is expected means your'
   \echo '          expression matches nobody; a number where 0 is expected means it matches'
   \echo '          everybody. The bound name is current_setting(''pellier.principal_username'', true).'
   \echo '          If only the every-customer row differs, your expression names particular'
   \echo '          customers instead of the one bound on the session.'
-  \echo 'Lab 4B check failed'
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4B check failed; see the lines above'; END $fail$;
+  \echo 'Lab 3B predicate check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3B predicate check failed; see the lines above'; END $fail$;
 \endif

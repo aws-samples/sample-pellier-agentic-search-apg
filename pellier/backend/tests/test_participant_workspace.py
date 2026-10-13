@@ -50,12 +50,12 @@ def test_each_lab_lists_its_exercise_files_before_its_solution_folder():
 
 
 def test_task_3a_files_sort_in_the_order_the_guide_edits_them():
-    """Task 3A has two files and Task 3B none; the Explorer sorts by name, so the
+    """Task 3A has two files and Task 3B one; the Explorer sorts by name, so the
     numbers keep "publish the tool" above "bind the caller", as the guide edits them."""
     lab3 = [e for e in json.loads((ROOT / "workshop/participant-files.json").read_text())
             if e["alias"].startswith("labs/03-deploy/")]
     names = sorted(Path(e["alias"]).name for e in lab3)
-    assert names == ["3A-1-publish-tool.py", "3A-2-bind-caller.py"]
+    assert names == ["3A-1-publish-tool.py", "3A-2-bind-caller.py", "3B-row-ownership.sql"]
     by_name = {Path(e["alias"]).name: e["source"] for e in lab3}
     assert by_name["3A-1-publish-tool.py"] == "scripts/deploy/gateway_tool_schemas.py"
     assert by_name["3A-2-bind-caller.py"] == "pellier/backend/services/agentcore_gateway.py"

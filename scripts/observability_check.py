@@ -15,7 +15,7 @@ evidence for both, and never writes:
     O3  PostgreSQL log      a write that row-level security refused is in the
                             cluster's postgresql log group
 
-Run it after a turn in Ask Pellier and after python3 scripts/lab4_rls_check.py:
+Run it after a turn in Ask Pellier and after python3 scripts/lab3_rls_check.py:
 
     python3 scripts/observability_check.py
     python3 scripts/observability_check.py --minutes 120
@@ -215,7 +215,7 @@ def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, minutes: i
     if not events:
         return Finding("O3", "Refused writes in the PostgreSQL log", NOT_YET, expected,
                        "no refused write in the window",
-                       next_step="run python3 scripts/lab4_rls_check.py, wait about a minute "
+                       next_step="run python3 scripts/lab3_rls_check.py, wait about a minute "
                                  "and run this again")
     newest = max(events, key=lambda e: int(e.get("timestamp") or 0))
     when = datetime.fromtimestamp(int(newest.get("timestamp") or 0) / 1000,

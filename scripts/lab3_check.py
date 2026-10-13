@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Lab 3's checks: which build answered Theo, whose tickets ran, and what Cedar refused.
+"""Lab 3's checks: which build answered Theo, whose tickets ran, what Cedar refused,
+and what the database returned.
 
 Run after Theo's turns on the managed path (Task 3B):
 
     python3 scripts/lab3_check.py
 
-It prints four findings, each with Expected, Observed and Evidence:
+It prints seven findings, each with Expected, Observed and Evidence:
 
     build    the newest Gateway tool call in a shopper turn ran this checkout's
              build (``tool_audit.build_fingerprint`` beside the local digest)
@@ -20,6 +21,14 @@ It prints four findings, each with Expected, Observed and Evidence:
     probe    Theo's own token, asking the Gateway directly for Jessica's
              tickets, is denied by Cedar (the owner-only permit does not match,
              so nothing permits it) and leaves no ``tool_audit`` row
+    rows     the row-ownership predicate from ``workshop/lab-3-rls.sql`` is the
+             live policy, and bound as Theo on both database paths a wrong
+             query sees none of Jessica's rows and cannot write in her name
+             (``scripts/lab3_rls_check.py``, three findings)
+
+Together the household request's three layers: the server binds a forged call
+to Theo, Cedar refuses his direct read of Jessica's tickets, and the database
+returns none of her rows even to a query that asks for them.
 
 Task 3A's check is the doctor's prerequisites line
 (``scripts/workshop_doctor.py --lab 3 --phase prerequisites``); it and the
@@ -519,7 +528,9 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
                               "the check could not look", reason),
             ]
     build, tickets = rows_findings
-    return [build, memory_finding(), tickets, run_probe(cfg)]
+    import lab3_rls_check
+
+    return [build, memory_finding(), tickets, run_probe(cfg)] + lab3_rls_check.collect(env_path)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -528,7 +539,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
     findings = collect()
-    print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory and the Gateway")
+    print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory, the Gateway "
+          "and the row policies")
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PROVED for finding in findings)

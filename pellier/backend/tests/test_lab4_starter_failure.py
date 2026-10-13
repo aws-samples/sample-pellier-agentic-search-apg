@@ -38,8 +38,8 @@ lab4 = importlib.import_module("lab4_policy_check")
 
 STARTER_RULE = REPO / "workshop" / "starters" / "workshop_credit_limit.cedar"
 SOLUTION_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
-RLS_STARTER = REPO / "workshop" / "starters" / "lab-4-rls.sql"
-RLS_SOLUTION = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-rls-solution.sql"
+RLS_STARTER = REPO / "workshop" / "starters" / "lab-3-rls.sql"
+RLS_SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-rls-solution.sql"
 ABSENCE = REPO / "workshop" / "lab-4-absence.sql"
 FORENSIC = REPO / "solutions" / "the-ledger" / "sql" / "forensic_incident.sql"
 JESSICA = "CUST-JESSICA"
@@ -202,7 +202,7 @@ def _live_state(conn: Any) -> Dict[str, Any]:
     policies = conn.execute("SELECT policyname, qual, with_check FROM pg_policies "
                             "WHERE schemaname = 'pellier' ORDER BY policyname").fetchall()
     probes = conn.execute("SELECT count(*) AS n FROM pellier.support_tickets "
-                          "WHERE ticket_id LIKE 'TKT-LAB4-%'").fetchone()["n"]
+                          "WHERE ticket_id LIKE 'TKT-LAB3-%'").fetchone()["n"]
     return {"policies": policies, "stamps": conn.execute(STAMPS).fetchall(),
             "probe_tickets": probes}
 
@@ -210,7 +210,7 @@ def _live_state(conn: Any) -> Dict[str, Any]:
 def _stamp_for(worksheet: Path) -> str:
     """The comment a passing worksheet leaves on both policies: its predicate's sha256."""
     predicate = worksheet.read_bytes().decode("utf-8").split("$predicate$")[1]
-    return "Lab 4B predicate sha256 " + hashlib.sha256(predicate.encode("utf-8")).hexdigest()
+    return "Lab 3B predicate sha256 " + hashlib.sha256(predicate.encode("utf-8")).hexdigest()
 
 
 def _with_predicate(tmp_path: Path, name: str, predicate: str) -> Path:
@@ -238,7 +238,7 @@ def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
     before = _live_state(conn)
     done = _psql(fresh_db, RLS_STARTER)
     assert done.returncode != 0
-    assert "Lab 4B check failed" in done.stdout
+    assert "Lab 3B predicate check failed" in done.stdout
     for line in ("Theo reads his own orders", "Theo writes a ticket in his own name",
                  "The Investigator reads Jessica's orders"):
         assert next(row for row in done.stdout.splitlines() if line in row).rstrip().endswith(
@@ -253,7 +253,7 @@ def test_the_solution_passes_every_probe_and_becomes_the_live_policy(  # noqa: F
     assert done.returncode == 0, done.stdout + done.stderr
     assert "10 of 10 probes match" in done.stdout
     assert "your predicate is now the live policy" in done.stdout
-    assert "42501" in done.stdout and "Lab 4B check passed" in done.stdout
+    assert "42501" in done.stdout and "Lab 3B predicate check passed" in done.stdout
     after = _live_state(conn)
     stamp = _stamp_for(RLS_SOLUTION)
     owned = {row["policy"]: row["stamp"] for row in after["stamps"]}
@@ -269,7 +269,7 @@ def test_an_everyone_predicate_fails_and_changes_nothing(  # noqa: F811
     before = _live_state(conn)
     done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-true.sql", "true"))
     assert done.returncode != 0
-    assert "Theo reads Jessica's orders" in done.stdout and "Lab 4B check failed" in done.stdout
+    assert "Theo reads Jessica's orders" in done.stdout and "Lab 3B predicate check failed" in done.stdout
     assert _live_state(conn) == before
 
 
@@ -293,7 +293,7 @@ def test_a_failing_run_keeps_the_predicate_an_earlier_run_deployed(  # noqa: F81
     assert _psql(fresh_db, RLS_SOLUTION).returncode == 0
     deployed = _live_state(conn)
     done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-false.sql", "false"))
-    assert done.returncode != 0 and "Lab 4B check failed" in done.stdout
+    assert done.returncode != 0 and "Lab 3B predicate check failed" in done.stdout
     assert _live_state(conn) == deployed
 
 

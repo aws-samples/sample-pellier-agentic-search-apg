@@ -1,1 +1,0 @@
-../../../solutions/the-concierge/sql/lab-4-rls-solution.sql

@@ -217,7 +217,7 @@ def test_database_insights_reads_ask_for_the_writer_and_the_window() -> None:
 def test_postgresql_log_states() -> None:
     _, _, none_yet = _run(logs_events=[])
     assert none_yet.state == obs.NOT_YET
-    assert "lab4_rls_check.py" in none_yet.next_step
+    assert "lab3_rls_check.py" in none_yet.next_step
     _, _, not_exported = _run(cluster=_cluster(exports=[]))
     assert not_exported.state == obs.CONTRADICTED
     _, _, no_group = _run(missing=GROUP)

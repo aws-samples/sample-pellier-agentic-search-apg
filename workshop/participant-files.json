@@ -35,8 +35,13 @@
     "solution": "solutions/the-concierge/policies/workshop_credit_limit.cedar"
   },
   {
-    "alias": "labs/04-govern/4B-row-ownership.sql",
-    "source": "workshop/lab-4-rls.sql",
-    "solution": "solutions/the-concierge/sql/lab-4-rls-solution.sql"
+    "alias": "labs/03-deploy/3B-row-ownership.sql",
+    "source": "workshop/lab-3-rls.sql",
+    "solution": "solutions/the-ledger/sql/lab-3-rls-solution.sql"
+  },
+  {
+    "alias": "labs/04-govern/4B-credit-writer.sql",
+    "source": "workshop/lab-4-credit-writer.sql",
+    "solution": "solutions/the-concierge/sql/lab-4-credit-writer-solution.sql"
   }
 ]

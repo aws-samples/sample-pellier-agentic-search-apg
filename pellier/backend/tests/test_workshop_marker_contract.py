@@ -136,8 +136,8 @@ LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
 LAB4_STARTER = "policies/workshop_credit_limit.cedar"
 LAB4_REFERENCE = "solutions/the-concierge/policies/workshop_credit_limit.cedar"
-LAB4_RLS_PROOF = "workshop/lab-4-rls.sql"
-LAB4_RLS_REFERENCE = "solutions/the-concierge/sql/lab-4-rls-solution.sql"
+LAB4_RLS_PROOF = "workshop/lab-3-rls.sql"
+LAB4_RLS_REFERENCE = "solutions/the-ledger/sql/lab-3-rls-solution.sql"
 LAB4_RLS_MARKER = "WORKSHOP - Row ownership - predicate"
 
 # The policy provisioning deploys and the participant's step updates.
@@ -179,7 +179,7 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-3/support-reconcile.pyfrag",
         "pellier/backend/services/agentcore_gateway.py",
     ),
-    "lab-4-rls": ("workshop/starters/lab-4-rls.sql", "workshop/lab-4-rls.sql"),
+    "lab-3-rls": ("workshop/starters/lab-3-rls.sql", "workshop/lab-3-rls.sql"),
     "lab-4-cedar": (
         "workshop/starters/workshop_credit_limit.cedar",
         LAB4_STARTER,
@@ -610,7 +610,7 @@ def test_lab4_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
             "No one signed in reads orders",
             "Customers who see exactly their own orders and tickets",
             "ON COMMIT DROP",
-            "Lab 4B check passed", "Lab 4B check failed",
+            "Lab 3B predicate check passed", "Lab 3B predicate check failed",
             "Expected  ", "Observed ", "Evidence  ", "Next      ",
         ):
             assert fragment in text, f"{rel} lost {fragment!r}"
@@ -624,17 +624,17 @@ def test_lab4_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
         assert len(re.findall(r"^\s*ROLLBACK;", text, re.MULTILINE)) == 1
         order = ["BEGIN;", "ALTER POLICY", "COMMENT ON POLICY", "SAVEPOINT probes;",
                  "SET LOCAL ROLE pellier_agent", "ROLLBACK TO SAVEPOINT probes;",
-                 "\\if :lab_4_passed", "  COMMIT;", "Lab 4B check passed", "\\else",
-                 "  ROLLBACK;", "Lab 4B check failed", "\\endif"]
+                 "\\if :lab_3_passed", "  COMMIT;", "Lab 3B predicate check passed", "\\else",
+                 "  ROLLBACK;", "Lab 3B predicate check failed", "\\endif"]
         positions = [text.index(marker) for marker in order]
         assert positions == sorted(positions), list(zip(order, positions))
         after_probes = text[text.index("ROLLBACK TO SAVEPOINT probes;"):]
         writes = re.findall(r"\b(INSERT INTO|UPDATE|DELETE FROM)\s+(\S+)", after_probes)
-        assert writes == [("INSERT INTO", "lab_4_probes")], writes
+        assert writes == [("INSERT INTO", "lab_3_probes")], writes
 
 
 def test_lab4_rls_starter_is_false_and_the_reference_names_the_bound_customer() -> None:
-    starter = _read(PARTICIPANT_STARTERS["lab-4-rls"][0])
+    starter = _read(PARTICIPANT_STARTERS["lab-3-rls"][0])
     reference = _read(LAB4_RLS_REFERENCE)
     assert "SELECT $predicate$\n  false\n$predicate$ AS ownership_predicate" in starter
     assert "current_setting('pellier.principal_username', true)" in reference
@@ -689,7 +689,7 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     stock_agent = _read(PARTICIPANT_STARTERS["lab-2-stock-agent"][0])
     stock_tool = _read(PARTICIPANT_STARTERS["lab-2-check-stock"][0])
     lab1 = _read(PARTICIPANT_STARTERS["lab-1-rrf"][0])
-    rls = _read(PARTICIPANT_STARTERS["lab-4-rls"][0])
+    rls = _read(PARTICIPANT_STARTERS["lab-3-rls"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
 
     lab1_plan = _read(PARTICIPANT_STARTERS["lab-1-preserve-requirements"][0])

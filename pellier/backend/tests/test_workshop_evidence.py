@@ -302,7 +302,7 @@ def test_lab_one_and_two_lines_read_the_real_schema(
 # ---------------------------------------------------------------------------
 
 SOLVED_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
-SOLVED_RLS = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-rls-solution.sql"
+SOLVED_RLS = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-rls-solution.sql"
 
 
 def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(

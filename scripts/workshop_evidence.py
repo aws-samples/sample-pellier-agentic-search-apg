@@ -23,7 +23,7 @@ What each line reads:
     4A  policies/workshop_credit_limit.cedar, evaluated with Cedar here, then
         the stored Gateway denial and Jessica's credit in pellier.approvals,
         pellier.store_credits and pellier.tool_audit
-    4B  workshop/lab-4-rls.sql and the supplied workshop/lab-4-absence.sql, run
+    4B  workshop/lab-3-rls.sql and the supplied workshop/lab-4-absence.sql, run
         with psql; a passing worksheet commits its predicate again, unchanged
 
 Rows alone prove 1B, 2A, 2B and 3B, so those lines read no source and no
@@ -77,8 +77,8 @@ REGIONS: Dict[str, tuple] = {
     "3A-binding": (BACKEND / "services" / "agentcore_gateway.py",
                    "Managed catalogue - support reconcile",
                    STARTERS / "lab-3" / "support-reconcile.pyfrag"),
-    "4B": (REPO / "workshop" / "lab-4-rls.sql", "Row ownership - predicate",
-           STARTERS / "lab-4-rls.sql"),
+    "4B": (REPO / "workshop" / "lab-3-rls.sql", "Row ownership - predicate",
+           STARTERS / "lab-3-rls.sql"),
 }
 CEDAR_POLICY = REPO / "policies" / "workshop_credit_limit.cedar"
 CEDAR_STARTER = STARTERS / "workshop_credit_limit.cedar"
@@ -375,10 +375,10 @@ def task_4b(cfg: Config) -> check.Finding:
                 "visible, Jessica's 0, a write in her name 42501, every customer exactly their "
                 "own; the denied key 0 and 0, the allowed key 1")
     if source_state("4B") == check.STARTER:
-        return _starter_finding("4B", title, expected, "workshop/lab-4-rls.sql")
+        return _starter_finding("4B", title, expected, "workshop/lab-3-rls.sql")
     path = REGIONS["4B"][0]
     return _combine("4B", title, expected, [
-        _psql_verdict(cfg, path, "Lab 4B check passed", "4B", title, expected),
+        _psql_verdict(cfg, path, "Lab 3B predicate check passed", "4B", title, expected),
         _psql_verdict(cfg, ABSENCE_WORKSHEET, "Lab 4 absence check passed", "4B", title,
                       expected),
     ])

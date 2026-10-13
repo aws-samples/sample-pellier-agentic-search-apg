@@ -60,9 +60,9 @@ MARKER_EXERCISES = (
 
 FILE_EXERCISES = (
     FileExercise(
-        exercise_id="lab-4-rls",
-        starter="workshop/starters/lab-4-rls.sql",
-        destination="workshop/lab-4-rls.sql",
+        exercise_id="lab-3-rls",
+        starter="workshop/starters/lab-3-rls.sql",
+        destination="workshop/lab-3-rls.sql",
     ),
     FileExercise(
         exercise_id="lab-1-rrf",

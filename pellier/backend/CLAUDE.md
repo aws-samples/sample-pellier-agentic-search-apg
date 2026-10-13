@@ -9,10 +9,11 @@ mode before editing.
 
 ## Participant mode: governed Labs 1–4
 
-The root guidance lists all eight permitted regions. This module contains four:
+The root guidance lists all nine permitted regions. This module contains five:
 
 | Task | File | Marker |
 |---|---|---|
+| 1A | `services/store_tools.py` | `Vector branch - order by meaning` |
 | 1B | `services/search_plan.py` | `Search plan - preserve requirements` |
 | 2A | `services/agent_tools.py` | `Stock agent - check_stock` |
 | 2B | `agents/stock_agent.py` | `Stock agent - definition` |
