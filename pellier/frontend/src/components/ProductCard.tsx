@@ -29,6 +29,7 @@ import { stockLine } from '../utils/stockLine'
 import ResponsiveImage from './ResponsiveImage'
 import StatusTag from './turn/StatusTag'
 import '../styles/turn.css'
+import { formatPrice } from '../utils/money'
 
 interface ProductCardProps {
   product: PellierProduct
@@ -155,7 +156,7 @@ export default function ProductCard({ product, index, pick = false }: ProductCar
               {product.name}
             </Link>
           </h3>
-          <span className="pellier-card-price">${product.price}</span>
+          <span className="pellier-card-price">{formatPrice(product.price)}</span>
         </div>
         <StatusTag tone={stock.tone}>{stock.label}</StatusTag>
       </div>

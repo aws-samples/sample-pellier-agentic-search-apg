@@ -17,6 +17,7 @@ import { productQuickActions } from '../utils/catalogFollowUps'
 import StatusTag, { type TagTone } from './turn/StatusTag'
 import '../styles/product-artifact.css'
 import '../styles/turn.css'
+import { formatPrice } from '../utils/money'
 
 interface ProductArtifactCardProps {
   product: ChatProduct
@@ -131,7 +132,7 @@ export default function ProductArtifactCard({
         <div className="pa-name">{displayName}</div>
         <div className="pa-meta">
           <span className="pa-price">
-            ${product.price.toFixed(product.price % 1 === 0 ? 0 : 2)}
+            {formatPrice(product.price)}
           </span>
           {rating !== null && rating > 0 && (
             <span className="pa-rating">

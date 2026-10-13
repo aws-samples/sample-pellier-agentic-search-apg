@@ -40,6 +40,7 @@ import type {
   PellierProductDetail,
   ProductAvailability,
 } from '../services/types'
+import { formatPrice } from '../utils/money'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -424,7 +425,7 @@ export default function ProductDetailPage() {
               </div>
 
               <div className="flex items-center gap-4 border-y border-line py-4 font-sans">
-                <span className="text-[20px] font-medium text-ink tabular-nums">${view.price}</span>
+                <span className="text-[20px] font-medium text-ink tabular-nums">{formatPrice(view.price)}</span>
                 <span className="inline-flex items-center gap-1.5 text-sm text-ink-2">
                   <Star
                     size={13}
