@@ -62,7 +62,7 @@ Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its exercise boundary. This table grants access only to
 the task the participant names, never every file at once.
 
-- Ask for the prediction first. Explain the invariant, then ask one question
+- Ask for the prediction first. Name the invariant, then ask one question
   that helps the participant choose. Offer one hint at a time; do not reveal
   a finished implementation in the first response.
 - Read surrounding source patterns and the nearest module guidance.

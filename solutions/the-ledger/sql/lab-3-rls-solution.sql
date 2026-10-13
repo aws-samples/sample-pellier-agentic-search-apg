@@ -18,7 +18,7 @@
 -- pellier.customers maps each id to its cognito_username (theo).
 --
 -- Run with:
---   psql -X -P pager=off -f workshop/lab-3-rls.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it
 -- commits: your predicate becomes the live policy and the probe writes are
@@ -227,11 +227,12 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
 \else
   ROLLBACK;
   \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'probes match; rolled back, the live policies are unchanged'
-  \echo 'Next      read the rows marked differs. 0 where a number is expected means your'
-  \echo '          expression matches nobody; a number where 0 is expected means it matches'
-  \echo '          everybody. The bound name is current_setting(''pellier.principal_username'', true).'
-  \echo '          If only the every-customer row differs, your expression names particular'
-  \echo '          customers instead of the one bound on the session.'
+  \echo 'Next      whose rows should your predicate match? In the rows marked differs, 0 where'
+  \echo '          a number is expected means it matches nobody, and a number where 0 is'
+  \echo '          expected means it matches everybody. The bound name is'
+  \echo '          current_setting(''pellier.principal_username'', true). If only the'
+  \echo '          every-customer row differs, it names particular customers instead of the'
+  \echo '          one bound on the session.'
   \echo 'Lab 3B predicate check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3B predicate check failed; see the lines above'; END $fail$;
 \endif

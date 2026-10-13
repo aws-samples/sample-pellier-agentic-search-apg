@@ -60,18 +60,19 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 # Task 3A. Theo's support-ticket request routes to the Support agent. On the
 # managed rail the Router asks the Gateway for exactly the tools named here.
 # A tool the Gateway does not publish is left out: the agent tells Theo it
-# can't look up his support tickets here, and the Builder view names the tool
-# as not published. This tuple and the Gateway's published catalogue have to
-# agree.
+# can't look up his support tickets here. This tuple and the Gateway's
+# published catalogue have to agree; python3 scripts/lab3_check.py --task 3A
+# names any gap from source.
 #
 # SUPPORT_CALLER_BOUND_TOOLS names the tools whose `customer_id` the server
 # overwrites with the authenticated caller's id before execution. `get_orders`
 # is bound below, outside this region. Which other support tool would let the
 # model choose whose records to read?
 #
-# Verify in Task 3B: deploy, ask for Theo's support-ticket history in a new
-# session, and inspect the bound customer and executed build. Direct Gateway
-# probes separately check owned and foreign requests against Cedar.
+# Task 3B checks it on AgentCore: deploy, send Theo's requests with
+# python3 scripts/lab_run.py send --lab 3, then python3 scripts/lab3_check.py
+# reads the bound customer and the executed build. Its direct Gateway probe
+# checks a foreign request against Cedar separately.
 SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
     "get_orders",
     "get_return_policy",

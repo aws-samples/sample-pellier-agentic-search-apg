@@ -7,7 +7,7 @@
 -- denied attempt moved nothing." Every answer is read from the tables that
 -- own it; nothing here writes.
 --
---   psql -X -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql
 
 \echo '1. The lineage, from her request to the credit'
 -- A shopper's request carries no amount. The investigation that answered it

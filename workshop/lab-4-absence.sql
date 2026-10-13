@@ -13,9 +13,9 @@
 -- exactly 1: that positive control is what makes the two zeros an absence
 -- rather than a search that looked in the wrong place.
 --
--- This check is supplied; you write nothing here. Predict the three counts
--- first, then run:
---   psql -X -P pager=off -f workshop/lab-4-absence.sql
+-- This check is supplied; you write nothing here. Decide what the three counts
+-- should be before you run it:
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
 --
 -- It finds both keys itself and never writes. Both are derived the same way,
 -- from an approved review: operator-review:<review id>:<first 32 of its hash>.

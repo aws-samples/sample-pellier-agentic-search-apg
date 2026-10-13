@@ -3,7 +3,7 @@
 \set VERBOSITY terse
 \pset footer off
 
--- Lab 1, optional: does Aurora use the HNSW index, and what does a filter do to it?
+-- Lab 1, Go deeper: does Aurora use the HNSW index, and what does a filter do to it?
 --
 -- pellier.product_catalog carries an HNSW index on its embeddings
 -- (product_catalog_embedding_hnsw, scripts/migrations/001_schema.sql). An index
@@ -37,7 +37,7 @@ SELECT (SELECT count(*) FROM pellier.product_catalog
                 WHERE name = 'Linen Photo Album' AND embedding IS NOT NULL) AS has_query
 \gset lab_1_
 
-\echo 'Lab 1, optional: does Aurora use the HNSW index?'
+\echo 'Lab 1, Go deeper: does Aurora use the HNSW index?'
 \echo 'Search    gifts like the Linen Photo Album, $35 or less, no candles, top 20'
 \if :lab_1_has_query
 \else
