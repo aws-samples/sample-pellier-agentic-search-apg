@@ -83,6 +83,16 @@ MATERIALS = (
     "polyester", "rattan", "rubber", "seagrass", "silicone", "silk", "silver",
     "soy wax", "steel", "stone", "straw", "wood", "wool",
 )
+# Seed-time limits. The schema keeps these columns as unbounded text, so the seed is
+# where an over-long value is caught; the UI is laid out for values inside them.
+MAX_NAME = 120
+MAX_BRAND = 60
+MAX_COLOR = 60
+MAX_DESCRIPTION = 1000
+MAX_TAGS = 12
+MAX_TAG = 40
+MAX_PRICE = 99_999_999.99  # numeric(10,2)
+BADGES = (None, "EDITORS_PICK", "BESTSELLER", "JUST_IN")
 
 
 @dataclass
@@ -165,7 +175,28 @@ def load_catalog(path: str = CATALOG_JSON) -> List[Product]:
         unknown = sorted(set(p.materials) - set(MATERIALS))
         if unknown:
             raise SystemExit(f"Product {p.productId}: unknown materials {unknown}")
+    problems = [
+        f"Product {p.productId}: {problem}" for p in products for problem in limit_problems(p)
+    ]
+    if problems:
+        raise SystemExit("Catalog values outside the seed limits:\n  " + "\n  ".join(problems))
     return products
+
+
+def limit_problems(p: Product) -> List[str]:
+    """Each way one product breaks the seed limits, worded for the person fixing the catalog."""
+    checks = [
+        (len(p.name) > MAX_NAME, f"name is {len(p.name)} characters (limit {MAX_NAME})"),
+        (len(p.brand) > MAX_BRAND, f"brand is {len(p.brand)} characters (limit {MAX_BRAND})"),
+        (len(p.color) > MAX_COLOR, f"color is {len(p.color)} characters (limit {MAX_COLOR})"),
+        (len(p.description) > MAX_DESCRIPTION,
+         f"description is {len(p.description)} characters (limit {MAX_DESCRIPTION})"),
+        (len(p.tags) > MAX_TAGS, f"{len(p.tags)} tags (limit {MAX_TAGS})"),
+        (any(len(tag) > MAX_TAG for tag in p.tags), f"a tag is longer than {MAX_TAG} characters"),
+        (not 0 <= p.price <= MAX_PRICE, f"price {p.price} is outside 0 to {MAX_PRICE:,.2f}"),
+        (p.badge not in BADGES, f"unknown badge {p.badge!r}"),
+    ]
+    return [message for broken, message in checks if broken]
 
 
 # =========================================================================
