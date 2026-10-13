@@ -11,6 +11,8 @@
 //
 // The companion scanner lives at src/__tests__/copy.test.ts (or .mjs).
 
+import { formatCount } from './utils/count'
+
 // Announcement bar (Requirement 1.1.2) - rendered verbatim.
 export const ANNOUNCEMENT =
   "Complimentary shipping over $150. Returns within 30 days. Resort Edit No. 06 is now live";
@@ -153,9 +155,9 @@ export const ASK_BAR = {
 export const HOME_GRID = {
   TITLE: "This week at Pellier",
   MORE: "More from Pellier",
-  pieces: (total: number): string => `${total} ${total === 1 ? "piece" : "pieces"}`,
+  pieces: (total: number): string => `${formatCount(total)} ${total === 1 ? "piece" : "pieces"}`,
   /** The pieces this page shows, as a range: "13–24 of 100". */
-  range: (first: number, last: number, total: number): string => `${first}–${last} of ${total}`,
+  range: (first: number, last: number, total: number): string => `${formatCount(first)}–${formatCount(last)} of ${formatCount(total)}`,
   UNAVAILABLE_EYEBROW: "Collection unavailable",
   UNAVAILABLE_TITLE: "The collection is taking a moment.",
   UNAVAILABLE_BODY: "We couldn’t load the latest pieces. Please try again in a moment.",
@@ -199,7 +201,7 @@ export const ASK_PANEL = {
  */
 export const RESULTS = {
   title: (query: string): string => `Results for \u201c${query}\u201d`,
-  shown: (count: number): string => `${count} ${count === 1 ? "piece" : "pieces"}`,
+  shown: (count: number): string => `${formatCount(count)} ${count === 1 ? "piece" : "pieces"}`,
   FROM_EARLIER: "from earlier",
   ADDED_BY_PELLIER: "added by Pellier",
   LIMITS: "Limits",

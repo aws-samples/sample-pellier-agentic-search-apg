@@ -18,6 +18,7 @@ import StatusTag, { type TagTone } from './turn/StatusTag'
 import '../styles/product-artifact.css'
 import '../styles/turn.css'
 import { formatPrice } from '../utils/money'
+import { formatCount } from '../utils/count'
 
 interface ProductArtifactCardProps {
   product: ChatProduct
@@ -139,7 +140,7 @@ export default function ProductArtifactCard({
               <span className="pa-star">&#9733;</span>
               {' '}{rating.toFixed(1)}
               {product.reviews != null && (
-                <span className="pa-reviews">({product.reviews})</span>
+                <span className="pa-reviews">({formatCount(product.reviews)})</span>
               )}
             </span>
           )}

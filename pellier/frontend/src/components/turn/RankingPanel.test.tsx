@@ -45,6 +45,14 @@ describe('RankingPanel', () => {
     ])
   })
 
+  it('separates thousands in every count chip', () => {
+    const big = { ...RANKING, arms: { full_text: 0, vector: 1284, fused: 1284 },
+      filters: { kept: 1, of: 1284, removed: { budget: 1000, stock: 283, exclusions: 1200 }, excluded: [{ value: 'wool', count: 1200, noun: 'wool pieces' }] } }
+    render(<RankingPanel ranking={big} />)
+    const chips = screen.getAllByTestId('status-tag').map(chip => chip.textContent)
+    expect(chips).toEqual(expect.arrayContaining(['Kept 1 of 1,284', '1,000 over budget', '283 sold out', '1,200 wool pieces', 'Vector 1,284']))
+  })
+
   it('says how the order was made when rerank did not run', () => {
     render(<RankingPanel ranking={{ ...RANKING, method: 'hybrid (rerank fallback to RRF order)' }} />)
     expect(screen.getByText('fused with RRF (k=60); rerank was unavailable, so this is RRF order')).toBeInTheDocument()

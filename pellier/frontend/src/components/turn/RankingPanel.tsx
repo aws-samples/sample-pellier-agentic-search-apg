@@ -22,6 +22,7 @@ import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import StatusTag from './StatusTag'
 import type { RankingFilters, RankingPayload, RankingRow } from './turnTypes'
+import { formatCount } from '../../utils/count'
 
 export interface RankingPanelProps {
   ranking: RankingPayload
@@ -37,9 +38,9 @@ const RERANKED = 'hybrid+rerank'
 const RERANK_FALLBACK = 'hybrid (rerank fallback to RRF order)'
 
 const REMOVED_LABELS: Record<string, (n: number) => string> = {
-  budget: n => `${n} over budget`,
-  stock: n => `${n} sold out`,
-  department: n => `${n} in other departments`,
+  budget: n => `${formatCount(n)} over budget`,
+  stock: n => `${formatCount(n)} sold out`,
+  department: n => `${formatCount(n)} in other departments`,
 }
 
 function contribution(rank: number | null, k: number): number {
@@ -57,7 +58,7 @@ export function removalLabels(filters: RankingFilters): string[] {
     if (count <= 0) continue
     if (reason === 'exclusions' && filters.excluded) {
       for (const value of filters.excluded) {
-        if (value.count > 0) labels.push(`${value.count} ${value.noun}`)
+        if (value.count > 0) labels.push(`${formatCount(value.count)} ${value.noun}`)
       }
       continue
     }
@@ -143,12 +144,12 @@ export default function RankingPanel({ ranking, id, className, resultsNote }: Ra
         </span>
       </div>
       <div className="tn-rank-steps">
-        {filters && <StatusTag tone="pending">Kept {filters.kept} of {filters.of}</StatusTag>}
+        {filters && <StatusTag tone="pending">Kept {formatCount(filters.kept)} of {formatCount(filters.of)}</StatusTag>}
         {filters && removalLabels(filters).map(label => (
           <StatusTag key={label} tone="blocked">{label}</StatusTag>
         ))}
-        {ranking.arms && <StatusTag tone="pending">Full text {ranking.arms.full_text}</StatusTag>}
-        {ranking.arms && <StatusTag tone="pending">Vector {ranking.arms.vector}</StatusTag>}
+        {ranking.arms && <StatusTag tone="pending">Full text {formatCount(ranking.arms.full_text)}</StatusTag>}
+        {ranking.arms && <StatusTag tone="pending">Vector {formatCount(ranking.arms.vector)}</StatusTag>}
       </div>
       <div className="tn-rank-scroll">
         <div className="tn-rank-table" role="table" aria-label="How each product ranked">
@@ -178,7 +179,7 @@ export interface RankingSummaryProps {
 export function RankingSummary({ ranking, onPageId }: RankingSummaryProps) {
   const [open, setOpen] = useState(false)
   const kept = ranking.available && ranking.filters
-    ? `Kept ${ranking.filters.kept} of ${ranking.filters.of}`
+    ? `Kept ${formatCount(ranking.filters.kept)} of ${formatCount(ranking.filters.of)}`
     : null
   const where = onPageId
     ? 'see the table above the results'
