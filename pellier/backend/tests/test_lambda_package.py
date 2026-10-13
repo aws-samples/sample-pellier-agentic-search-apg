@@ -25,6 +25,7 @@ import importlib.util
 import io
 import re
 import shutil
+import sys
 import zipfile
 from pathlib import Path
 
@@ -126,3 +127,21 @@ def test_laying_the_zip_over_the_checkout_leaves_the_build_fingerprint_unchanged
     checkout = compute_fingerprint(BACKEND)
     assert checkout == package["fingerprint_before"], "building the zip changed the checkout"
     assert compute_fingerprint(tmp_path, skills_root=REPO) == checkout
+
+
+def test_lab_3b_proves_the_build_whatever_state_lab_1_is_in(tmp_path: Path) -> None:
+    """A participant's Lab 1 edits change the zip's twins, never the digest 3B compares."""
+    sys.path[:0] = [str(REPO / "scripts"), str(DEPLOY)]
+    import lab3_check
+    import render_agentcore_project
+
+    _, deployed = render_agentcore_project._render_runtime_source(tmp_path / "staged", BACKEND)
+    solved = tmp_path / "solved" / "pellier" / "backend"
+    shutil.copytree(BACKEND, solved, ignore=shutil.ignore_patterns(".venv", "__pycache__"))
+    for name, solution in SOLUTION_COPIES.items():
+        shutil.copyfile(solution, solved / name)
+    row = {"audit_id": 1, "turn_id": "turn-1", "tool": "get_tickets",
+           "deployed_fingerprint": deployed}
+    for checkout in (BACKEND, solved):
+        local = compute_fingerprint(checkout, skills_root=REPO)
+        assert lab3_check.judge_build(row, local).state == "PROVED", checkout

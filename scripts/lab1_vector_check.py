@@ -79,6 +79,14 @@ def _ordering_problem(name: str, rows: List[Dict[str, Any]], distances: List[flo
     return None
 
 
+def _first(rows: List[Dict[str, Any]]) -> Tuple[str, str]:
+    """The first row's name and similarity, as the table prints them."""
+    if not rows:
+        return "(none)", "none"
+    similarity = rows[0].get("similarity")
+    return str(rows[0]["name"]), "none" if similarity is None else f"{float(similarity):.3f}"
+
+
 def _self_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any, name: str,
                 size: int) -> Tuple[Sequence[Any], Optional[str]]:
     target = run(_EMBEDDING, (name,))[0]
@@ -90,10 +98,7 @@ def _self_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any, name
         place = names.index(name) + 1 if name in names else None
         problem = (f"{name} came back {place} of {len(rows)} for its own embedding"
                    if place else f"{name} did not come back for its own embedding")
-    first = names[0] if names else "(none)"
-    similarity = f"{float(rows[0]['similarity']):.3f}" if rows and rows[0].get(
-        "similarity") is not None else "-"
-    return (name, first, similarity, len(rows), "ok" if problem is None else "fails"), problem
+    return (name, *_first(rows), len(rows), "ok" if problem is None else "fails"), problem
 
 
 def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
@@ -117,9 +122,8 @@ def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
         ) if bad]
         if broken and problem is None:
             problem = f"{row['name']} came back under Anna's limits, and it is {broken[0]}"
-    first = str(rows[0]["name"]) if rows else "(none)"
-    label = f"{LIMITS_PROBE}, Anna's limits"
-    return (label, first, "-", len(rows), "ok" if problem is None else "fails"), problem
+    return (f"{LIMITS_PROBE}, Anna's limits", *_first(rows), len(rows),
+            "ok" if problem is None else "fails"), problem
 
 
 def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
