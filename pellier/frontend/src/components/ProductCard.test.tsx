@@ -37,4 +37,12 @@ describe('ProductCard', () => {
     renderCard({ ...PRODUCT, price: 1284 })
     expect(screen.getByText('$1,284')).toBeInTheDocument()
   })
+
+  it('shows the colour only when another card in the grid shares the name', () => {
+    const { container, rerender } = renderCard({ ...PRODUCT, name: 'Linen Overshirt', color: 'Olive' })
+    expect(container.querySelector('.pellier-card-color')).toBeNull()
+    rerender(<MemoryRouter><ProductCard product={{ ...PRODUCT, name: 'Linen Overshirt', color: 'Olive' }} index={0} showColor /></MemoryRouter>)
+    expect(container.querySelector('.pellier-card-color')).toHaveTextContent('Olive')
+  })
 })
+

@@ -25,6 +25,7 @@ import { usePersona } from '../contexts/PersonaContext'
 import { apiFetch } from '../services/apiBase'
 import type { PellierProduct } from '../services/types'
 import '../styles/search-results.css'
+import { nameKey, sharedNames } from '../utils/sharedNames'
 
 /** Twelve fills complete rows at two, three, four or six cards across. */
 export const HOME_PAGE_SIZE = 12
@@ -159,6 +160,7 @@ export default function HomeGrid() {
     ? HOME_GRID.MORE
     : signedIn && persona ? SHOPPER.edit(persona.display_name.split(' ')[0]) : HOME_GRID.TITLE
   const ready = load.status === 'ready' ? load.data : null
+  const homeShared = sharedNames(ready?.products ?? [])
 
   return (
     <div ref={shellRef} className="pellier-edit-shell pellier-home-grid pb-16 md:pb-20" data-testid="home-collection">
@@ -206,7 +208,7 @@ export default function HomeGrid() {
       {ready && ready.products.length > 0 ? (
         <div key={`${prefsVersion}-${edit}`} className="pellier-product-grid" data-testid="home-grid">
           {ready.products.map((product, index) => (
-            <ProductCard key={product.id} product={product} index={index % 3} />
+            <ProductCard key={product.id} product={product} index={index % 3} showColor={homeShared.has(nameKey(product.name))} />
           ))}
         </div>
       ) : null}

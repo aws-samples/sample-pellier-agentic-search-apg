@@ -561,6 +561,12 @@
   font-family: var(--dl-font-sans);
   font-size: 12px;
 }
+/* Shown only when another card in the grid has the same name. */
+.pellier-card-color {
+  color: var(--dl-muted);
+  font-family: var(--dl-font-sans);
+  font-size: 12px;
+}
 /* A piece with no brand keeps the line, so its name lines up with the rest of the row. */
 .pellier-card-brand:empty::before {
   content: '\00a0';

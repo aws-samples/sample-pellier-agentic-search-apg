@@ -37,6 +37,8 @@ interface ProductCardProps {
   index: number
   /** One of the pieces the answer recommended, in the results grid. */
   pick?: boolean
+  /** Another card in the same grid has this name: show the colour to tell them apart. */
+  showColor?: boolean
 }
 
 // Per-column stagger in ms. Columns within a row play at 0ms, 50ms, 100ms so
@@ -63,7 +65,7 @@ function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export default function ProductCard({ product, index, pick = false }: ProductCardProps) {
+export default function ProductCard({ product, index, pick = false, showColor = false }: ProductCardProps) {
   // Router `basename` prefixes this for the Workshop Studio /ports/8000/
   // proxy, so the path stays base-relative here.
   const detailPath = `/product/${product.id}`
@@ -163,6 +165,7 @@ export default function ProductCard({ product, index, pick = false }: ProductCar
           </h3>
           <span className="pellier-card-price">{formatPrice(product.price)}</span>
         </div>
+        {showColor && product.color ? <span className="pellier-card-color">{product.color}</span> : null}
         <StatusTag tone={stock.tone}>{stock.label}</StatusTag>
       </div>
     </article>

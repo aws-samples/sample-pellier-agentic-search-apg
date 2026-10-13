@@ -41,6 +41,7 @@ import type {
   ProductAvailability,
 } from '../services/types'
 import { formatPrice } from '../utils/money'
+import { nameKey, sharedNames } from '../utils/sharedNames'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -216,6 +217,7 @@ export default function ProductDetailPage() {
       .filter(p => p.id !== view.id)
       .slice(0, SIBLING_COUNT)
   }, [catalog, view])
+  const siblingShared = sharedNames(siblings)
 
   const handleNavigate = (item: NavItem) => {
     if (item === 'account') {
@@ -559,7 +561,7 @@ export default function ProductDetailPage() {
                 className="pellier-product-grid pellier-related-grid mt-8"
               >
                 {siblings.map((product, index) => (
-                  <ProductCard key={product.id} product={product} index={index % 3} />
+                  <ProductCard key={product.id} product={product} index={index % 3} showColor={siblingShared.has(nameKey(product.name))} />
                 ))}
               </div>
             </div>

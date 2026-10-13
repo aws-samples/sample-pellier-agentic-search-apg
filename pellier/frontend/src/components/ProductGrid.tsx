@@ -11,6 +11,7 @@
  */
 import type { PellierProduct } from '../services/types'
 import ProductCard from './ProductCard'
+import { nameKey, sharedNames } from '../utils/sharedNames'
 
 interface ProductGridProps {
   /** Products returned by the live catalog endpoint. */
@@ -18,6 +19,7 @@ interface ProductGridProps {
 }
 
 export default function ProductGrid({ products }: ProductGridProps) {
+  const shared = sharedNames(products)
   return (
     <section
       id="shop"
@@ -30,7 +32,7 @@ export default function ProductGrid({ products }: ProductGridProps) {
     >
       <div className="pellier-product-grid">
         {products.map((product, index) => (
-          <ProductCard key={product.id} product={product} index={index % 3} />
+          <ProductCard key={product.id} product={product} index={index % 3} showColor={shared.has(nameKey(product.name))} />
         ))}
       </div>
     </section>

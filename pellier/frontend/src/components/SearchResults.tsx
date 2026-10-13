@@ -28,6 +28,7 @@ import ProductCard from './ProductCard'
 import { RankingPanel, StatusLine, StatusTag, useBuilderView, type ResultLimit, type TagTone } from './turn'
 import { removalLabels } from './turn/RankingPanel'
 import '../styles/search-results.css'
+import { nameKey, sharedNames } from '../utils/sharedNames'
 
 /** Twelve fills complete rows at two, three, four or six cards across. */
 const FIRST_PIECES = 12
@@ -185,6 +186,7 @@ export default function SearchResults() {
   const limits = shown?.results.limits ?? []
   const picks = new Set(shown?.picks ?? [])
   const visible = ready && !expanded ? ready.slice(0, FIRST_PIECES) : ready
+  const shared = sharedNames(visible ?? [])
   const hidden = ready ? ready.length - (visible?.length ?? 0) : 0
 
   return (
@@ -230,7 +232,7 @@ export default function SearchResults() {
         {visible && visible.length > 0 ? (
           <div className="pellier-product-grid" data-testid="results-grid" ref={gridRef}>
             {visible.map((product, index) => (
-              <ProductCard key={product.id} product={product} index={index % 3} pick={picks.has(String(product.id))} />
+              <ProductCard key={product.id} product={product} index={index % 3} pick={picks.has(String(product.id))} showColor={shared.has(nameKey(product.name))} />
             ))}
           </div>
         ) : null}
