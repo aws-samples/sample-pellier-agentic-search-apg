@@ -535,6 +535,60 @@ class TestMain:
         assert "FAIL" not in capsys.readouterr().out
 
 
+
+def _psql_says(line: str):
+    def run(argv: list, **_kwargs: Any) -> Any:
+        assert argv == ["psql", "--version"]
+        return subprocess.CompletedProcess(argv, 0, stdout=line + "\n", stderr="")
+    return run
+
+
+class TestPsqlVersions:
+    def test_matching_majors_print_both_versions(self) -> None:
+        evidence = FakeEvidence({"SHOW server_version": {"server_version": "18.3"}})
+        found = doctor.psql_versions(evidence, run=_psql_says("psql (PostgreSQL) 18.6"))
+        assert found.passed is True
+        assert found.detail == "psql (PostgreSQL) 18.6, server_version 18.3"
+
+    def test_an_older_client_fails_and_names_the_package(self) -> None:
+        evidence = FakeEvidence({"SHOW server_version": {"server_version": "18.3"}})
+        found = doctor.psql_versions(evidence, run=_psql_says("psql (PostgreSQL) 17.6"))
+        assert found.passed is False
+        assert found.detail.startswith("psql (PostgreSQL) 17.6, server_version 18.3")
+        assert "install postgresql18" in found.detail
+
+    def test_a_server_version_with_a_suffix_reads_its_number(self) -> None:
+        evidence = FakeEvidence({"SHOW server_version": {"server_version": "18.0 (Homebrew)"}})
+        found = doctor.psql_versions(evidence, run=_psql_says("psql (PostgreSQL) 18.0 (Homebrew)"))
+        assert found.passed is True and found.detail.endswith("server_version 18.0")
+
+    def test_no_psql_fails_rather_than_passes(self) -> None:
+        def missing(argv: list, **_kwargs: Any) -> Any:
+            raise FileNotFoundError(2, "No such file or directory", "psql")
+        found = doctor.psql_versions(FakeEvidence(), run=missing)
+        assert found.passed is False and "install postgresql18" in found.detail
+
+    def test_an_unreachable_server_fails_with_the_reason(self) -> None:
+        found = doctor.psql_versions(FakeEvidence(reason="OperationalError: timeout"),
+                                     run=_psql_says("psql (PostgreSQL) 18.6"))
+        assert found.passed is False and "OperationalError: timeout" in found.detail
+
+    def test_environment_mode_prints_one_line_and_exits_on_the_verdict(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        evidence = FakeEvidence({"SHOW server_version": {"server_version": "18.3"}})
+        monkeypatch.setattr(doctor, "open_evidence", lambda env_path: evidence)
+        monkeypatch.setattr(doctor.subprocess, "run", _psql_says("psql (PostgreSQL) 17.6"))
+        assert doctor.main(["--environment"]) == 1
+        out = capsys.readouterr().out.splitlines()
+        assert len(out) == 1 and out[0].startswith("psql (PostgreSQL) 17.6, server_version 18.3")
+        assert evidence.closed is True
+
+    def test_a_run_without_a_lab_or_the_environment_is_refused(self) -> None:
+        with pytest.raises(SystemExit):
+            doctor.main([])
+
+
 BASH = shutil.which("bash")
 CURL = shutil.which("curl")
 
@@ -848,7 +902,8 @@ class TestWorkshopStart:
         result, psql_log = self._run(tmp_path, '{"status": "healthy"}')
         assert result.returncode == 0, result.stdout + result.stderr
         assert "Ready for Lab 1" in result.stdout
-        assert not psql_log.exists(), "workshop-start wrote to the database"
+        logged = psql_log.read_text(encoding="utf-8").splitlines() if psql_log.exists() else []
+        assert logged == ["--version"], "workshop-start ran psql for more than its version"
 
     def test_an_unhealthy_backend_fails_loudly(self, tmp_path: Path) -> None:
         result, _ = self._run(tmp_path, None)

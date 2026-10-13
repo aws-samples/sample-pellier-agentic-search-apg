@@ -5,7 +5,10 @@
 # Run once before Lab 1.
 #
 #   1. Check that the Pellier backend answers /api/health.
-#   2. Say hello to the deployed AgentCore Runtime and record the build id it
+#   2. Print the psql client's version beside the server's. A client older than
+#      the server prints a version warning at the top of every interactive psql
+#      session; this warns and never fails the start.
+#   3. Say hello to the deployed AgentCore Runtime and record the build id it
 #      reports. That is the predeployed baseline Lab 3 compares against, and it
 #      puts managed execution in front of the room during orientation rather
 #      than fifty minutes in. This step never fails the start: a box without a
@@ -22,6 +25,7 @@ export PATH="/opt/pellier/bin:$PATH"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 HEALTH_URL="${HEALTH_URL:-http://localhost:8000/api/health}"
+PYTHON="${PELLIER_PYTHON:-python3}"
 PERSONA="${1:-}"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
@@ -64,7 +68,14 @@ else
   exit 1
 fi
 
-# --- 2. one managed turn, so "deployed" is a thing they have seen ------------
+# --- 2. the psql client beside the server it talks to ----------------------
+if versions="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --environment 2>&1)"; then
+  pass "$versions"
+else
+  warn "$versions"
+fi
+
+# --- 3. one managed turn, so "deployed" is a thing they have seen ------------
 RUNTIME_HELLO="$SCRIPT_DIR/runtime_hello.sh"
 if [ -x "$RUNTIME_HELLO" ]; then
   echo "------------------------------------------------------------"

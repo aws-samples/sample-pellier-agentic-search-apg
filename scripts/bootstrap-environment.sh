@@ -76,7 +76,7 @@ dnf install --skip-broken -y -q \
     gcc \
     gcc-c++ \
     make \
-    postgresql17
+    postgresql18
 
 log "✅ System packages installed"
 

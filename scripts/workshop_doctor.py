@@ -29,10 +29,15 @@ a silent pass: the doctor exists to be believed.
 One workshop box serves one participant and a reset rebuilds its database, so
 every check reads the newest evidence on the box.
 
+``--environment`` prints the psql client's version beside the server's, which
+the session start shows: a client older than the server prints a version
+warning at the top of every interactive psql session.
+
 Usage::
 
     python3 scripts/workshop_doctor.py --lab 1
     python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites
+    python3 scripts/workshop_doctor.py --environment
 """
 
 from __future__ import annotations
@@ -41,9 +46,11 @@ import argparse
 import ast
 import os
 import pathlib
+import re
+import subprocess
 import sys
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 BACKEND = REPO / "pellier" / "backend"
@@ -179,6 +186,43 @@ def _db_reachable(evidence: Evidence) -> Check:
     except Exception as exc:  # noqa: BLE001 - the error is the finding
         return Check("database reachable", False, f"{type(exc).__name__}: {str(exc)[:120]}")
     return Check("database reachable", bool(row), "" if row else "SELECT 1 returned nothing")
+
+
+def psql_versions(evidence: Evidence, run: Optional[Callable[..., Any]] = None) -> Check:
+    """``psql --version`` beside ``SHOW server_version``; the client must not be the older major.
+
+    Args:
+        evidence: the read-only Aurora surface that answers ``SHOW server_version``.
+        run: runs ``psql --version``; ``subprocess.run`` unless a test injects one.
+
+    Returns:
+        A check whose detail is the client's version line and the server's version.
+    """
+    name = "psql client and server"
+    run = run or subprocess.run
+    try:
+        client = run(["psql", "--version"], capture_output=True, text=True, timeout=10).stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        return Check(name, False, f"psql --version failed ({exc}); install postgresql18")
+    client = client.strip()
+    if not client:
+        return Check(name, False, "psql --version printed nothing; install postgresql18")
+    if not evidence.available:
+        return Check(name, False, f"{client}; server unreachable: {evidence.reason}")
+    try:
+        row = evidence.one("SHOW server_version;") or {}
+    except Exception as exc:  # noqa: BLE001 - the error is the finding
+        return Check(name, False, f"{client}; SHOW server_version failed: {exc}")
+    server = str(row.get("server_version") or "").split()[0] if row else ""
+    detail = f"{client}, server_version {server}"
+    client_major = re.search(r"\(PostgreSQL\) (\d+)", client)
+    server_major = re.match(r"(\d+)", server)
+    if not client_major or not server_major:
+        return Check(name, False, f"{detail}: could not read both major versions")
+    if int(client_major.group(1)) < int(server_major.group(1)):
+        return Check(name, False, f"{detail}: the client is older than the server; install "
+                                  f"postgresql{server_major.group(1)}")
+    return Check(name, True, detail)
 
 
 def _newest_row(evidence: Evidence, *, name: str, sql: str, key: str, hint: str) -> Check:
@@ -521,7 +565,11 @@ def render(lab: int, checks: List[Check]) -> str:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Check one lab's prerequisites.")
-    parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
+    parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4))
+    parser.add_argument(
+        "--environment", action="store_true",
+        help="print psql --version beside SHOW server_version, and nothing else",
+    )
     parser.add_argument("--env", default=str(DEFAULT_ENV), help="backend .env path")
     parser.add_argument(
         "--run-env", default=str(DEFAULT_RUN_ENV), help="service run.env the unit sources"
@@ -531,8 +579,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="prerequisites checks authored code/config; proof also requires recorded outcomes",
     )
     args = parser.parse_args(argv)
+    if args.lab is None and not args.environment:
+        parser.error("name a lab with --lab, or pass --environment")
 
     env_path = pathlib.Path(args.env)
+    if args.environment:
+        with open_evidence(env_path) as evidence:
+            versions = psql_versions(evidence)
+        print(versions.detail)
+        return 0 if versions.passed else 1
     with open_evidence(env_path) as evidence:
         checks = run_lab(
             args.lab,

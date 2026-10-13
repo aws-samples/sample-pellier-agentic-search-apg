@@ -2025,3 +2025,44 @@ def test_policy_probe_id_is_legal_inside_a_lambda_turn_id() -> None:
     probe_id = provisioner._policy_probe_id("rc/2026.10")
     assert re.fullmatch(r"[A-Za-z0-9_-]+", probe_id)
     assert re.fullmatch(r"turn-[A-Za-z0-9_-]{6,}", f"turn-readiness-{probe_id}")
+
+
+def test_the_code_editor_installs_the_servers_psql_major() -> None:
+    """Aurora runs 18.3; a 17 client prints a version warning in every psql session."""
+    source = ENVIRONMENT_BOOTSTRAP.read_text(encoding="utf-8")
+    assert re.search(r"^\s+postgresql18\s*$", source, re.MULTILINE)
+    assert "postgresql17" not in source
+
+
+def _psql_major_block() -> str:
+    source = BOOTSTRAP.read_text(encoding="utf-8")
+    start = source.index("        local client_major server_num server_major\n")
+    end = source.index("        # ---- 1-3. The schema, the catalog", start)
+    return source[start:end]
+
+
+@pytest.mark.parametrize(("client", "server", "says"), [
+    ("psql (PostgreSQL) 18.6", "180003", "OK psql client 18 is at least the server's major (18)"),
+    ("psql (PostgreSQL) 17.6", "180003", "WARN psql 17 < server 18: install postgresql18"),
+    ("psql (PostgreSQL) 18.6", "", "WARN could not compare psql ('18') with the server ('')"),
+])
+def test_bootstrap_compares_the_psql_major_with_the_servers(
+    client: str, server: str, says: str, tmp_path: Path
+) -> None:
+    """Runs the bootstrap's own block with a stand-in psql on PATH, and reads its real output."""
+    bash = shutil.which("bash")
+    if bash is None:
+        pytest.skip("bash is not installed")
+    fake = tmp_path / "psql"
+    fake.write_text(f'#!/bin/sh\nif [ "$1" = --version ]; then echo "{client}"; '
+                    f'else printf "%s" "{server}"; fi\n', encoding="utf-8")
+    fake.chmod(0o755)
+    program = (
+        'log() { echo "OK ${1#✅ }"; }\nwarn() { echo "WARN $1"; }\n'
+        "DB_PASSWORD=x DB_HOST=h DB_PORT=5432 DB_USER=u DB_NAME=d\n"
+        f"check() {{\n{_psql_major_block()}}}\ncheck\n"
+    )
+    env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
+    done = subprocess.run([bash, "-c", program], capture_output=True, text=True, timeout=10,
+                          env=env)
+    assert done.stdout.strip() == says, done.stdout + done.stderr

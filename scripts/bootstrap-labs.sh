@@ -581,6 +581,23 @@ setup_database() {
             return 1
         fi
 
+        # A psql client older than the server prints a version warning at the top
+        # of every interactive session, and the guide's terminal captures show it.
+        local client_major server_num server_major
+        client_major="$(psql --version | sed -E 's/^psql \(PostgreSQL\) ([0-9]+).*/\1/')"
+        server_num="$(env PGPASSWORD="$DB_PASSWORD" psql -X -At -h "$DB_HOST" -p "$DB_PORT" \
+            -U "$DB_USER" -d "$DB_NAME" -c "SHOW server_version_num" 2>/dev/null || true)"
+        if [[ "$client_major" =~ ^[0-9]+$ ]] && [[ "$server_num" =~ ^[0-9]+$ ]]; then
+            server_major=$(( server_num / 10000 ))
+            if [ "$client_major" -ge "$server_major" ]; then
+                log "✅ psql client $client_major is at least the server's major ($server_major)"
+            else
+                warn "psql $client_major < server $server_major: install postgresql$server_major"
+            fi
+        else
+            warn "could not compare psql ('$client_major') with the server ('$server_num')"
+        fi
+
         # ---- 1-3. The schema, the catalog, then the seed that reads it.
         # scripts/setup/database-setup.sh owns the sequence and its ordering
         # rationale; the fresh-setup test harness runs the same script against
