@@ -55,6 +55,11 @@ export function foldSummary(count: number): string {
   return `How Pellier answered, ${count} ${count === 1 ? 'step' : 'steps'}`
 }
 
+/** What the fold adds when steps failed, so a folded turn never hides a failure behind a check. */
+export function failedSuffix(failed: number): string {
+  return failed > 0 ? `, ${failed} did not complete` : ''
+}
+
 export function earlierSummary(count: number): string {
   return `Show ${count} earlier ${count === 1 ? 'step' : 'steps'}`
 }
@@ -127,6 +132,7 @@ export default function StepList({
     </>
   )
   if (!folded) return list
+  const failed = steps.filter(step => step.status === 'failed').length
   return (
     <div className="tn-fold">
       <button
@@ -134,10 +140,13 @@ export default function StepList({
         className="tn-summary"
         aria-expanded={open}
         onClick={() => setOpen(value => !value)}
+        data-status={failed > 0 ? 'failed' : 'done'}
         data-testid="turn-fold"
       >
-        <Check size={14} strokeWidth={2} aria-hidden="true" />
-        <span>{summary ?? foldSummary(steps.length)}</span>
+        {failed > 0
+          ? <CircleAlert size={14} strokeWidth={2} aria-hidden="true" />
+          : <Check size={14} strokeWidth={2} aria-hidden="true" />}
+        <span>{(summary ?? foldSummary(steps.length)) + failedSuffix(failed)}</span>
         <ChevronRight size={12} strokeWidth={2} className="tn-chev" aria-hidden="true" />
       </button>
       {open && list}

@@ -2,7 +2,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import StepList, { HIDE_EARLIER, earlierSummary, foldSummary } from './StepList'
+import StepList, { HIDE_EARLIER, earlierSummary, failedSuffix, foldSummary } from './StepList'
 import type { TurnStep } from './turnTypes'
 
 const ROUTE: TurnStep = {
@@ -85,6 +85,28 @@ describe('StepList', () => {
     expect(fold).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByTestId('turn-steps')).toBeInTheDocument()
     expect(foldSummary(1)).toBe('How Pellier answered, 1 step')
+  })
+
+  it('does not fold failed steps behind a check', async () => {
+    // Two failed tool calls in a four-step turn: the folded line says so, with the alert icon.
+    const unknownTool: TurnStep = { id: 'step-2', label: 'Checking stock in three warehouses', status: 'failed', finding: 'Unknown tool: check_stock', tags: ['Aurora'] }
+    const throttled: TurnStep = { id: 'step-3', label: 'Reading your orders', status: 'failed', finding: 'Gateway unavailable', tags: ['Aurora'] }
+    render(<StepList steps={[ROUTE, SEARCH, unknownTool, throttled]} live={false} builderView folded />)
+    const fold = screen.getByTestId('turn-fold')
+    expect(fold).toHaveTextContent('How Pellier answered, 4 steps, 2 did not complete')
+    expect(fold).toHaveAttribute('data-status', 'failed')
+    expect(fold.querySelector('.lucide-circle-alert')).not.toBeNull()
+    expect(fold.querySelector('.lucide-check')).toBeNull()
+  })
+
+  it('keeps the plain check and summary when every step completed', () => {
+    render(<StepList steps={[ROUTE, SEARCH]} live={false} builderView folded />)
+    const fold = screen.getByTestId('turn-fold')
+    expect(fold).toHaveTextContent(/^How Pellier answered, 2 steps$/)
+    expect(fold).toHaveAttribute('data-status', 'done')
+    expect(fold.querySelector('.lucide-check')).not.toBeNull()
+    expect(failedSuffix(0)).toBe('')
+    expect(failedSuffix(1)).toBe(', 1 did not complete')
   })
 
   it('adds layer tags, the evidence line and the ranking panel with the Builder view on', () => {

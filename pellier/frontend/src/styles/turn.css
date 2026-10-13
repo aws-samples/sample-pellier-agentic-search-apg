@@ -162,6 +162,9 @@
 .tn-summary svg:first-child {
   color: var(--dl-ok);
 }
+.tn-summary[data-status='failed'] svg:first-child {
+  color: var(--dl-muted);
+}
 .tn-chev {
   transition: transform 200ms ease;
 }
