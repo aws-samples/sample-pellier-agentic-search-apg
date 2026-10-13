@@ -67,42 +67,41 @@ def create_iam_role(role_name, trust_policy, policy_document, tags=None):
 
       return response['Role']['Arn']
 
+def build_package(files, dependencies):
+  """Return the deployment zip's bytes: `files` (zip path -> source) plus `dependencies`."""
+  with tempfile.TemporaryDirectory() as temp_dir:
+    for target_name, source_path in files.items():
+      file_path = Path(temp_dir) / target_name
+      file_path.parent.mkdir(parents=True, exist_ok=True)
+      shutil.copyfile(source_path, file_path)
+      logger.info(f"Added file to package: {target_name}")
+
+    if dependencies:
+      logger.info(f"Installing dependencies: {', '.join(dependencies)}")
+      for dep in dependencies:
+        Run(['uv', 'pip', 'install', dep, '--target', temp_dir,
+             '--python-platform', 'linux', '--python-version', '3.13', '--quiet'], check=True)
+
+    zip_path = f"{temp_dir}_deployment.zip"
+    with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+      for root, dirs, files_in_dir in os.walk(temp_dir):
+        for file in files_in_dir:
+          file_path = os.path.join(root, file)
+          arcname = os.path.relpath(file_path, temp_dir)
+          zipf.write(file_path, arcname)
+
+    with open(zip_path, 'rb') as f:
+      zip_content = f.read()
+    os.remove(zip_path)
+    return zip_content
+
+
 def create_or_update_lambda_function(function_name, role_arn, handler, files, dependencies, env, region, s3_bucket=None, layers=None, tags=None):
   try:
-    # Create deployment package
-    with tempfile.TemporaryDirectory() as temp_dir:
-      # Copy source files
-      for target_name, source_path in files.items():
-        with open(source_path, 'r') as src:
-          file_path = Path(f"{temp_dir}/{target_name}")
-          file_path.parent.mkdir(parents=True, exist_ok=True)
-          with open(f"{temp_dir}/{target_name}", 'w') as dst:
-            dst.write(src.read())
-        logger.info(f"Added file to package: {target_name}")
-      
-      # Install dependencies if any
-      if dependencies:
-        logger.info(f"Installing dependencies: {', '.join(dependencies)}")
-        for dep in dependencies:
-          Run(['uv', 'pip', 'install', dep, '--target', temp_dir,
-               '--python-platform', 'linux', '--python-version', '3.13', '--quiet'], check=True)
-        
-      # Create ZIP file
-      zip_path = f"{temp_dir}_deployment.zip"
-      with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files_in_dir in os.walk(temp_dir):
-          for file in files_in_dir:
-            file_path = os.path.join(root, file)
-            arcname = os.path.relpath(file_path, temp_dir)
-            zipf.write(file_path, arcname)
-      
-      with open(zip_path, 'rb') as f:
-        zip_content = f.read()
-      
+      zip_content = build_package(files, dependencies)
       zip_size_mb = len(zip_content) / (1024 * 1024)
       logger.info(f"Created deployment package: {zip_size_mb:.1f} MB")
-      os.remove(zip_path)
-      
+
       # Use S3 if package > 50MB or bucket specified
       use_s3 = zip_size_mb > 50 or s3_bucket
       code_config = None
@@ -192,6 +191,18 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
     raise
 
 
+# Bootstrap packages this Lambda once, from the checkout participants start
+# with, and Lab 3's participant deploy reuses it rather than repackaging. So
+# Lab 1's search modules ship from their solution copies: each is its live
+# module plus the answers inside the marked regions, and the Gateway searches
+# the same way whatever state a participant's Lab 1 is in. Lab 3B's build
+# fingerprint digests the Runtime package, not this zip;
+# `tests/test_lambda_package.py` keeps the two apart.
+SOLUTION_COPIES = {
+  'services/store_tools.py': '../../solutions/the-quiet-search/retrieval/store_tools_solution.py',
+  'services/search_plan.py': '../../solutions/the-quiet-search/retrieval/search_plan_solution.py',
+}
+
 # Published zip path -> repository source, relative to the server entrypoint's
 # directory (scripts/deploy). `tests/test_lambda_shared_helpers.py` asserts
 # every module the server imports is listed here.
@@ -201,9 +212,9 @@ SHARED_MODULES = {
   'common/handler.py': 'common/handler.py',
   'gateway_tool_schemas.py': 'gateway_tool_schemas.py',
   'services/__init__.py': '../../pellier/backend/services/__init__.py',
-  'services/store_tools.py': '../../pellier/backend/services/store_tools.py',
+  'services/store_tools.py': SOLUTION_COPIES['services/store_tools.py'],
   'services/retrieval_receipt.py': '../../pellier/backend/services/retrieval_receipt.py',
-  'services/search_plan.py': '../../pellier/backend/services/search_plan.py',
+  'services/search_plan.py': SOLUTION_COPIES['services/search_plan.py'],
   'services/catalog_vocabulary.py': '../../pellier/backend/services/catalog_vocabulary.py',
 }
 
@@ -215,6 +226,22 @@ def shared_module_paths(mcp_server_path):
     target: os.path.normpath(os.path.join(shared_dir, source))
     for target, source in SHARED_MODULES.items()
   }
+
+
+def package_files(mcp_server_path, handler):
+  """The zip's file map: every shared module plus the server entrypoint.
+
+  Checked here rather than discovered at cold start: a missing entry is a
+  ModuleNotFoundError on the first Gateway call, long after the deploy
+  reported success.
+  """
+  files = {}
+  for module, module_path in shared_module_paths(mcp_server_path).items():
+    if not os.path.exists(module_path):
+      raise FileNotFoundError(f"Shared module not found: {module_path}")
+    files[module] = module_path
+  files[handler.split('.')[0] + '.py'] = mcp_server_path
+  return files
 
 
 def main():
@@ -340,17 +367,11 @@ def main():
         raise FileNotFoundError(f"MCP server file not found: {args.mcp_server_path}")
 
     # Every module the store-tools server imports, staged at the path it is
-    # imported from. Checked here rather than discovered at cold start: a
-    # missing entry is a ModuleNotFoundError on the first Gateway call, long
-    # after the deploy reported success. The `services/` entries are the one
-    # tool implementation the backend's @tool wrappers call too, plus the two
-    # pure retrieval modules it imports; none of them import the backend's
-    # settings, so they run unchanged in the zip.
-    shared_modules = {}
-    for module, module_path in shared_module_paths(args.mcp_server_path).items():
-        if not os.path.exists(module_path):
-            raise FileNotFoundError(f"Shared module not found: {module_path}")
-        shared_modules[module] = module_path
+    # imported from. The `services/` entries are the one tool implementation
+    # the backend's @tool wrappers call too, plus the two pure retrieval
+    # modules it imports; none of them import the backend's settings, so they
+    # run unchanged in the zip.
+    files = package_files(args.mcp_server_path, args.handler)
 
     # Build environment variables, only include DB vars if provided
     db_region = args.db_region or _region_from_arn(args.db_cluster_arn, args.region)
@@ -368,17 +389,11 @@ def main():
     if embed_model_id:
       env_vars['BEDROCK_EMBED_MODEL_ID'] = embed_model_id
 
-    # Determine the target filename from handler
-    target_filename = args.handler.split('.')[0] + '.py'
-
     lambda_function_arn = create_or_update_lambda_function(
       function_name=function_name,
       role_arn=lambda_role_arn,
       handler=args.handler,
-      files={
-        **shared_modules,
-        target_filename: args.mcp_server_path
-      },
+      files=files,
       dependencies=['mcp==1.28.1'] + args.extra_deps,
       env=env_vars,
       region=args.region,
