@@ -154,7 +154,7 @@ class TestLabsThreeAndFour:
     def _row_policies_hold(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Every region edited and the live row policies proved, unless a test says otherwise."""
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
-        rls = importlib.import_module("lab3_rls_check")
+        rls = importlib.import_module("lab3_row_ownership_check")
         monkeypatch.setattr(rls, "collect", lambda *args: [_finding("3B", PROVED)])
 
     def test_the_executed_build_and_reads_decide_3b(self) -> None:
@@ -190,7 +190,7 @@ class TestLabsThreeAndFour:
         assert evidence.task_3b(None, BUILD).state == UNCHECKED
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         finding = evidence.task_3b(rows, BUILD, _remembered())
-        assert finding.state == NOT_YET and "lab-3-rls.sql" in finding.observed
+        assert finding.state == NOT_YET and "lab-3-row-ownership.sql" in finding.observed
 
     def test_3b_needs_the_live_row_policies(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
@@ -335,7 +335,7 @@ def test_lab_4a_reads_the_real_schema(
 ) -> None:
     from tests.test_lab4_starter_failure import _jessicas_credit
 
-    lab4 = importlib.import_module("lab4_policy_check")
+    lab4 = importlib.import_module("lab4_policy")
     cfg = _cfg(fresh_db)
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", autocommit=True, row_factory=dict_row) as conn:

@@ -1250,9 +1250,9 @@ HIDDEN_FROM_PARTICIPANTS = (
 )
 # The worksheets the lab guide opens or runs.
 GUIDE_WORKSHEETS = (
-    "workshop/lab-1-rrf.sql",
-    "workshop/lab-1-hnsw.sql",
-    "workshop/lab-3-rls.sql",
+    "workshop/lab-1-fusion.sql",
+    "workshop/lab-1-index.sql",
+    "workshop/lab-3-row-ownership.sql",
     "workshop/lab-4-absence.sql",
 )
 

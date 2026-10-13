@@ -10,9 +10,9 @@
     "solution": "solutions/the-quiet-search/retrieval/search_plan_solution.py"
   },
   {
-    "alias": "labs/01-retrieve/go-deeper-rrf.sql",
-    "source": "workshop/lab-1-rrf.sql",
-    "solution": "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql",
+    "alias": "labs/01-retrieve/go-deeper-fusion.sql",
+    "source": "workshop/lab-1-fusion.sql",
+    "solution": "solutions/the-quiet-search/sql/lab-1-fusion-solution.sql",
     "optional": true
   },
   {
@@ -42,8 +42,8 @@
   },
   {
     "alias": "labs/03-deploy/3B-row-ownership.sql",
-    "source": "workshop/lab-3-rls.sql",
-    "solution": "solutions/the-ledger/sql/lab-3-rls-solution.sql"
+    "source": "workshop/lab-3-row-ownership.sql",
+    "solution": "solutions/the-ledger/sql/lab-3-row-ownership-solution.sql"
   },
   {
     "alias": "labs/04-govern/4B-credit-writer.sql",

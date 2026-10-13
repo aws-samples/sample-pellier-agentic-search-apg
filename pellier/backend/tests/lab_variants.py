@@ -22,8 +22,8 @@ STARTER = "starter"
 SOLUTION = "solution"
 
 LAB1_RRF = {
-    STARTER: STARTERS / "lab-1-rrf.sql",
-    SOLUTION: SOLUTIONS / "the-quiet-search" / "sql" / "lab-1-rrf-solution.sql",
+    STARTER: STARTERS / "lab-1-fusion.sql",
+    SOLUTION: SOLUTIONS / "the-quiet-search" / "sql" / "lab-1-fusion-solution.sql",
 }
 _PLAN = ("Search plan - preserve requirements",
          STARTERS / "lab-1" / "preserve-requirements.pyfrag",
@@ -41,8 +41,8 @@ _GRANT = ("Stock agent - definition",
 _PUBLISHED = ("Gateway catalogue - published tools",
               STARTERS / "lab-3" / "gateway-published-tools.pyfrag",
               SOLUTIONS / "the-ledger" / "gateway" / "gateway_tool_schemas_solution.py")
-_RECONCILE = ("Managed catalogue - support reconcile",
-              STARTERS / "lab-3" / "support-reconcile.pyfrag",
+_GATEWAY_TOOLS = ("Support agent - Gateway tools",
+              STARTERS / "lab-3" / "support-gateway-tools.pyfrag",
               SOLUTIONS / "the-ledger" / "services" / "agentcore_gateway.py")
 
 
@@ -68,12 +68,12 @@ def _function(source: str, name: str, namespace: Dict[str, Any]) -> Callable[...
 
 
 def plan_fallback(variant: str) -> Callable[..., Any]:
-    """``SearchPlan._with_relaxations`` as the starter or the solution writes it."""
+    """``SearchPlan._next_attempt`` as the starter or the solution writes it."""
     from services import search_plan
 
-    source = "def _with_relaxations(self, relaxations):\n" + textwrap.indent(
+    source = "def _next_attempt(self, relaxations):\n" + textwrap.indent(
         textwrap.dedent(body(_PLAN, variant)), "    ")
-    return _function(source, "_with_relaxations", vars(search_plan))
+    return _function(source, "_next_attempt", vars(search_plan))
 
 
 def vector_branch(variant: str) -> Callable[..., str]:
@@ -111,10 +111,11 @@ def _constants(spec: tuple, variant: str, *names: str) -> tuple:
 
 
 def deferred_tools(variant: str) -> frozenset:
-    """The ``WORKSHOP_DEFERRED_TOOLS`` the Gateway catalogue region names."""
-    return _constants(_PUBLISHED, variant, "WORKSHOP_DEFERRED_TOOLS")[0]
+    """The ``UNPUBLISHED_TOOLS`` the Gateway catalogue region names."""
+    return _constants(_PUBLISHED, variant, "UNPUBLISHED_TOOLS")[0]
 
 
 def support_contract(variant: str) -> tuple:
-    """``(SUPPORT_MANAGED_TOOLS, SUPPORT_CALLER_BOUND_TOOLS)`` from the reconcile region."""
-    return _constants(_RECONCILE, variant, "SUPPORT_MANAGED_TOOLS", "SUPPORT_CALLER_BOUND_TOOLS")
+    """``(SUPPORT_GATEWAY_TOOLS, SUPPORT_CALLER_BOUND_TOOLS)`` from the Gateway tools region."""
+    return _constants(_GATEWAY_TOOLS, variant, "SUPPORT_GATEWAY_TOOLS",
+                      "SUPPORT_CALLER_BOUND_TOOLS")

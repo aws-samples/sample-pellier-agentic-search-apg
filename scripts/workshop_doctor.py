@@ -452,7 +452,7 @@ def _managed_build(evidence: Evidence) -> Check:
 
 def _cedar_checks(repo: pathlib.Path) -> List[Check]:
     """The policy file is present, and its rule passes Lab 4A's Cedar check here."""
-    import lab4_policy_check
+    import lab4_policy
 
     missing = [rel for rel in POLICY_FILES if not (repo / rel).is_file()]
     pair = Check(
@@ -470,7 +470,7 @@ def _cedar_checks(repo: pathlib.Path) -> List[Check]:
         return [pair, Check(name, False, f"{CEDAR_POLICY} still holds its starter; "
                                           "complete the unless block")]
     try:
-        finding = lab4_policy_check.local_check(policy, starter).finding
+        finding = lab4_policy.local_check(policy, starter).finding
     except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
         return [pair, Check(name, False, f"the Cedar check could not run: {exc}")]
     if finding.state == workshop_check.PROVED:

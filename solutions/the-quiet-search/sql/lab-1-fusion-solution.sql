@@ -14,7 +14,7 @@
 -- are proving the recorded score can be derived from the ranks beside it.
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-rrf.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-fusion.sql
 --
 -- The receipt is the newest one written in Anna's session, which
 -- python3 scripts/lab_run.py send --lab 1 starts (persona-anna-...).
@@ -50,8 +50,8 @@ SELECT product_id,
        vector_rank,
        full_text_rank,
        -- === WORKSHOP - PostgreSQL RRF - fusion expression: START ===
-       1.0 / (60 + coalesce(vector_rank, 0))
-         + 1.0 / (60 + coalesce(full_text_rank, 0)) AS recomputed_rrf,
+       coalesce(1.0 / (60 + vector_rank), 0)
+         + coalesce(1.0 / (60 + full_text_rank), 0) AS recomputed_rrf,
        -- === WORKSHOP - PostgreSQL RRF - fusion expression: END ===
        recorded_rrf
   FROM lab_1_ranks;

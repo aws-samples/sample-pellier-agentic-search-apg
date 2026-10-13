@@ -60,7 +60,7 @@ def test_expected_discovery_counts_before_and_after_lab_three(monkeypatch) -> No
     assert len(discoverable_tools_for_claims(**shopper)) == 7
     assert len(discoverable_tools_for_claims(**staff)) == 7
 
-    monkeypatch.setattr(gateway_tool_schemas, "WORKSHOP_DEFERRED_TOOLS", frozenset())
+    monkeypatch.setattr(gateway_tool_schemas, "UNPUBLISHED_TOOLS", frozenset())
     assert len(workshop_published_tools()) == 9
     visible = discoverable_tools_for_claims(**shopper)
     assert len(visible) == 8

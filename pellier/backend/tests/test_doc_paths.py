@@ -8,7 +8,7 @@ the documents below, takes each token that looks like a repository path, and
 requires it to exist in this checkout.
 
 A token counts as a path when it contains a slash or ends in a known file
-suffix. Commands are read token by token, so `psql -f workshop/lab-1-rrf.sql`
+suffix. Commands are read token by token, so `psql -f workshop/lab-1-fusion.sql`
 checks the worksheet. URLs, routes (`/operator`), absolute and home paths,
 placeholders (`<file>`, `$PWD`, `{actorId}`) and globs are not repository
 paths and are skipped.
@@ -103,7 +103,7 @@ def test_every_named_path_exists() -> None:
 
 
 @pytest.mark.parametrize(("code", "expected"), [
-    ("psql -X -P pager=off -f workshop/lab-1-rrf.sql", ["workshop/lab-1-rrf.sql"]),
+    ("psql -X -P pager=off -f workshop/lab-1-fusion.sql", ["workshop/lab-1-fusion.sql"]),
     ("cp solutions/a.py \\\n  pellier/backend/b.py", ["solutions/a.py", "pellier/backend/b.py"]),
     ("/operator", []),
     ("https://example.com/x.md", []),
@@ -112,7 +112,7 @@ def test_every_named_path_exists() -> None:
     ("./.venv/bin/python -m pytest -q", []),
     ("pellier.tool_audit", []),
     ("cp .env.example .env", [".env.example"]),
-    ("run scripts/lab1_compare.py.", ["scripts/lab1_compare.py"]),
+    ("run scripts/lab1_check.py.", ["scripts/lab1_check.py"]),
 ])
 def test_path_tokens(code: str, expected: List[str]) -> None:
     assert list(_path_tokens(code)) == expected

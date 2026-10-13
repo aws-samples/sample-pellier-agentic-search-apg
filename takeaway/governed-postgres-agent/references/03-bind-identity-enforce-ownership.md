@@ -15,7 +15,7 @@ list of tools the agent may call, so the two are reviewed together:
 SUPPORT_TOOLS = ("get_orders", "get_tickets", "get_return_policy")
 CALLER_BOUND = ("get_orders", "get_tickets")   # the server overwrites customer_id on these
 
-def reconcile(call, principal):
+def bind_caller(call, principal):
     if call.name in CALLER_BOUND:
         asked = call.args.get("customer_id")
         call.args["customer_id"] = principal.customer_id

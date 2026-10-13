@@ -15,7 +15,7 @@ import pytest
 
 SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
-check = importlib.import_module("lab2_contract_check")
+check = importlib.import_module("lab2_check")
 
 VEST = {"product_id": "43", "name": "Quilted Silk Vest"}
 SHIRTS = [{"product_id": "2", "name": "Hadley Linen Shirt"},
@@ -117,13 +117,13 @@ def test_the_recorded_grant_is_read_from_the_turns_first_row() -> None:
 
 def test_the_check_reads_no_source() -> None:
     """2B is judged from the turn record, so an edit without a restart cannot pass."""
-    source = (SCRIPTS / "lab2_contract_check.py").read_text()
+    source = (SCRIPTS / "lab2_check.py").read_text()
     assert "import ast" not in source and "stock_agent.py\")" not in source
     assert "args->>'agent' = %s" in source
 
 
 def test_the_check_runs_the_participants_tool_body_not_the_logic_directly() -> None:
-    source = (SCRIPTS / "lab2_contract_check.py").read_text()
+    source = (SCRIPTS / "lab2_check.py").read_text()
     assert "return agent_tools.check_stock" in source
     assert "store_tools" not in source
 

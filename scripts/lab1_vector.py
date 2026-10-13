@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Lab 1A's check: the vector branch ranks Anna's eligible products by meaning.
 
 The search embeds the shopper's words and asks pgvector for the products
@@ -18,7 +17,7 @@ eligible before meaning decides the order.
 No model is called; every vector the check searches with is already in the
 catalog.
 
-    python3 scripts/lab1_vector_check.py
+    python3 scripts/lab1_check.py --task 1A
 """
 
 from __future__ import annotations
@@ -194,7 +193,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     passed = finding.state == check.PROVED
     print("Lab 1A check passed" if passed else "Lab 1A check failed")
     return 0 if passed else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

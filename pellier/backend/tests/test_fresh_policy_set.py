@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath("../../scripts"))
 
 from gateway_tool_schemas import (  # noqa: E402
     TOOL_SCHEMAS,
-    WORKSHOP_DEFERRED_TOOLS,
+    UNPUBLISHED_TOOLS,
     canonical_tool_names,
     schema_for,
     workshop_published_tools,
@@ -34,7 +34,7 @@ from gateway_tool_schemas import (  # noqa: E402
 )
 from render_agentcore_project import baseline_policies  # noqa: E402
 
-lab4 = importlib.import_module("lab4_policy_check")
+lab4 = importlib.import_module("lab4_policy")
 
 STORE = "pellier-store-tools"
 CREDIT_ACTION = f"{STORE}___give_store_credit"
@@ -98,12 +98,12 @@ def test_the_workshop_publishes_exactly_the_expected_eight() -> None:
 
 def test_the_deferred_set_is_the_lab_three_read() -> None:
     """`give_store_credit` is published for staff; `get_tickets` waits for Task 3A."""
-    assert WORKSHOP_DEFERRED_TOOLS == {"get_tickets"}
+    assert UNPUBLISHED_TOOLS == {"get_tickets"}
 
 
 def test_the_published_set_is_derived_not_hand_copied() -> None:
     """Catalogue minus deferred. A second literal list would drift on the next tool."""
-    assert workshop_published_tools() == canonical_tool_names() - WORKSHOP_DEFERRED_TOOLS
+    assert workshop_published_tools() == canonical_tool_names() - UNPUBLISHED_TOOLS
     assert canonical_tool_names() == EXPECTED_CANONICAL
     assert len(canonical_tool_names()) == 9
     assert len(workshop_published_tools()) == 8
@@ -123,7 +123,7 @@ def test_no_retired_name_is_published() -> None:
 
 
 def test_no_deferred_name_is_published() -> None:
-    assert workshop_published_tools() & WORKSHOP_DEFERRED_TOOLS == set()
+    assert workshop_published_tools() & UNPUBLISHED_TOOLS == set()
 
 
 def test_the_store_target_publishes_eight_and_the_full_catalogue_nine() -> None:
@@ -196,7 +196,7 @@ def test_every_policy_action_exists_in_the_published_schema() -> None:
         for action in _actions(policy["statement"]):
             assert action in published, (
                 f"{policy['name']} names {action}, which a fresh Gateway does not "
-                f"publish. Deferred tools: {sorted(WORKSHOP_DEFERRED_TOOLS)}"
+                f"publish. Deferred tools: {sorted(UNPUBLISHED_TOOLS)}"
             )
 
 
@@ -264,7 +264,7 @@ def test_give_store_credit_is_published_for_staff_and_unreachable_by_a_shopper()
     claim; named by no shopper permit, so a shopper token is denied by default.
     The staff permit carries no amount condition: the amount limit is Lab 4's forbid.
     """
-    assert "give_store_credit" not in WORKSHOP_DEFERRED_TOOLS
+    assert "give_store_credit" not in UNPUBLISHED_TOOLS
     published = {
         tool for tools in workshop_target_tools().values() for tool in tools
     }
@@ -627,7 +627,7 @@ def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> No
         "the application catalogue and the Gateway schemas disagree: "
         f"{sorted(catalogue ^ canonical_tool_names())}"
     )
-    assert catalogue - WORKSHOP_DEFERRED_TOOLS == workshop_published_tools()
+    assert catalogue - UNPUBLISHED_TOOLS == workshop_published_tools()
     assert GATEWAY_TARGET == STORE
 
 

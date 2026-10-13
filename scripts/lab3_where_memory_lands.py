@@ -15,7 +15,7 @@ then every session actor of his and the records extracted under each. Extraction
 is asynchronous; in our runs a stated preference became readable after about two
 to two and a half minutes. It only reads.
 
-    python3 scripts/lab3_memory_namespaces.py
+    python3 scripts/lab3_where_memory_lands.py
 """
 
 from __future__ import annotations

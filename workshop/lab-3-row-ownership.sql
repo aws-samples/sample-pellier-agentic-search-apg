@@ -18,7 +18,7 @@
 -- pellier.customers maps each id to its cognito_username (theo).
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it
 -- commits: your predicate becomes the live policy and the probe writes are
@@ -42,7 +42,7 @@ ALTER POLICY orders_owner ON pellier.orders
 ALTER POLICY support_tickets_owner ON pellier.support_tickets
     USING (:ownership_predicate) WITH CHECK (:ownership_predicate);
 
--- Stamp both policies with your predicate's sha256, so scripts/lab3_rls_check.py
+-- Stamp both policies with your predicate's sha256, so scripts/lab3_row_ownership_check.py
 -- can tell the predicate you deployed from the one the database shipped with.
 SELECT 'Lab 3B predicate sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
   FROM (SELECT encode(sha256(convert_to(:'ownership_predicate', 'UTF8')), 'hex') AS hash) h

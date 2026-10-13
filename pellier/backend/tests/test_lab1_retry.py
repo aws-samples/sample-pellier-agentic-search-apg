@@ -16,7 +16,7 @@ import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-lab1 = importlib.import_module("lab1_compare")
+lab1 = importlib.import_module("lab1_retry")
 
 ASKED = {"hard_constraints": {"price_max_usd": 100, "in_stock_only": True, "categories": []},
          "exclusions": ["candle"]}
@@ -51,7 +51,7 @@ def test_a_dropped_limit_is_named_and_blames_the_fallback() -> None:
     finding = _judge(_receipt(kept=lost, exclusions=[]))
     assert finding.state == "CONTRADICTED"
     assert finding.observed.endswith("dropped under $100, in stock, no candles")
-    assert "_with_relaxations" in finding.next_step
+    assert "_next_attempt" in finding.next_step
 
 
 @pytest.mark.parametrize("requested, observed", [
@@ -71,7 +71,7 @@ def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> Non
     finding = _judge(_receipt(relaxations=[]), ["80 Sunday Morning Candle is excluded candle"])
     assert finding.state == "NOT YET"
     assert finding.observed.startswith("the first search answered, so the fallback never ran")
-    assert "_with_relaxations" not in finding.next_step
+    assert "_next_attempt" not in finding.next_step
 
 
 def test_only_the_limits_asked_for_are_judged() -> None:

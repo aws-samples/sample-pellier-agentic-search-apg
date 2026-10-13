@@ -16,9 +16,9 @@ bash scripts/lab3-start.sh theo && \
   python3 scripts/lab_run.py solution --lab 3 && \
   python3 scripts/lab3_check.py --task 3A && \
   python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant && \
-  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql && \
+  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql && \
   python3 scripts/lab_run.py send --lab 3 && \
-  python3 scripts/lab3_check.py
+  python3 scripts/lab3_check.py --task 3B
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

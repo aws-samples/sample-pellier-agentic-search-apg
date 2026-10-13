@@ -15,7 +15,7 @@ from typing import Any, Dict, List
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-namespaces = importlib.import_module("lab3_memory_namespaces")
+namespaces = importlib.import_module("lab3_where_memory_lands")
 
 SUB = "34886418-50a1-70cd-9eab-89aabfa0efeb"
 LIVE = f"user-{SUB}-session-persona-theo-0001"
@@ -48,7 +48,8 @@ def test_the_customer_namespace_comes_first_and_each_session_actor_after_it() ->
     assert "the agent reads this one" in lines[1]
     assert "  mem-0  Prefers hand-thrown stoneware" in lines
     assert f"/pellier/preferences/{LIVE}/" in lines
-    assert "the agent never reads this one" in lines[lines.index(f"/pellier/preferences/{LIVE}/") + 1]
+    after_live = lines[lines.index(f"/pellier/preferences/{LIVE}/") + 1]
+    assert "the agent never reads this one" in after_live
     assert "  mem-0  Likes ash glazes" in lines
     assert memory.asked == ["/pellier/preferences/CUST-THEO/", f"/pellier/preferences/{LIVE}/"]
 

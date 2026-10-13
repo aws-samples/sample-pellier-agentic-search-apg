@@ -20,7 +20,7 @@ store's leadership would have, and each lab answers one:
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
 | 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
-| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." |
+| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
 Every task runs the same way: it fails in the terminal, the participant fixes
 the marked region, one command proves the fix, and then they look at it in the
@@ -40,7 +40,7 @@ Times are elapsed minutes from the start of the session.
 | 25-40 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
 | 40-55 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
 | 55-80 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
-| 80-105 | Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | 25 minutes |
+| 80-105 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 25 minutes |
 | 105-110 | Wrap-up: export the evidence | 5 minutes |
 | 110-120 | Unscheduled; recovery takes five of these minutes | 10 minutes |
 
@@ -50,7 +50,7 @@ worksheet task during the wait. An unrun check stays incomplete.
 
 ## What participants use
 
-Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files are worksheets that deploy themselves: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-rrf.sql` is Lab 1's optional worksheet; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` leaves it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files are worksheets that deploy themselves: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional worksheet; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` leaves it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
 To see where a stuck participant's files depart from the answer without overwriting them, run `python3 scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
@@ -125,9 +125,9 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
 - **Task 1A:** rank the eligible products by meaning in the `Vector branch -
   order by meaning` region of `pellier/backend/services/store_tools.py`: order
   by cosine distance to the query embedding and report similarity as 1 minus
-  it. `python3 scripts/lab1_vector_check.py` ends `Lab 1A check passed`.
+  it. `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.
 - **Task 1B:** after `python3 scripts/lab_run.py send --lab 1`,
-  `python3 scripts/lab1_compare.py` shows the retry dropped her limits. Keep
+  `python3 scripts/lab1_check.py --task 1B` shows the retry dropped her limits. Keep
   them in `pellier/backend/services/search_plan.py`: a retry may relax a
   preference, never the budget, the stock rule or the exclusions. The check
   ends `Lab 1B check passed`.
@@ -144,7 +144,7 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
 
 Marco needs reliable stock and dispatch facts before his trip.
 
-- **See it fail:** `python3 scripts/lab2_contract_check.py` shows
+- **See it fail:** `python3 scripts/lab2_check.py --task 2A` shows
   `check_stock` calling a piece Pellier does not carry sold out. After
   `python3 scripts/lab_run.py send --lab 2`, `--task 2B` shows the Stock agent
   that answered held only the catalog tools, so no step read
@@ -174,12 +174,12 @@ Theo wants his taste remembered and help with his own chipped bowl.
   for Jessica's tickets while Theo is signed in, and the call must leave as
   `CUST-THEO`. It ends `Lab 3A check passed`.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
-  row-ownership predicate in `workshop/lab-3-rls.sql`; its worksheet commits
+  row-ownership predicate in `workshop/lab-3-row-ownership.sql`; its worksheet commits
   the predicate as the live policy once every probe matches and ends `Lab 3B
   predicate check passed`. Then `python3 scripts/lab_run.py send --lab 3` sends
   Theo's three sentences, including the household request ("Jessica and I
   share an address... Can you check her ticket too?"), and
-  `python3 scripts/lab3_check.py` prints the executed build beside this
+  `python3 scripts/lab3_check.py --task 3B` prints the executed build beside this
   checkout's, the Memory record, every ticket read bound to Theo, Cedar's
   denial of his direct read of Jessica's tickets, and his row policies holding
   on both database paths. It ends `Lab 3B check passed`.
@@ -194,12 +194,12 @@ the caller is. In process, the customer comes from the signed token. On the
 Gateway, it is the customer Cedar's owner-only permit admitted. RLS contains a
 wrong query, not an untrusted session.
 
-### Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security
+### Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges
 
 Jessica sent two items back and has no credit yet. Nadia must approve the
 credit, and the system must prove what moved.
 
-- **See it fail:** `python3 scripts/lab4_policy_check.py` shows the starter
+- **See it fail:** `python3 scripts/lab4_check.py --task 4A` shows the starter
   forbid denying Nadia's approved credits. `python3 scripts/lab_run.py send
   --lab 4 --shopper-only` sends Jessica's request; in the Operator, Nadia
   approves her $100.00 credit and **Execute** reads DENY.
@@ -213,11 +213,11 @@ credit, and the system must prove what moved.
   and ends `Lab 4B privileges check passed`.
 - **The decision:** Nadia selects **Execute again** (ALLOW, recorded once),
   then **Retry execution** (nothing written twice).
-- **Proof, back in the terminal:** `python3 scripts/lab4_policy_check.py`
+- **Proof, back in the terminal:** `python3 scripts/lab4_check.py --task 4A`
   evaluates the rule with Cedar beside the deployed baseline (shopper $100 DENY,
   Nadia 10000 cents ALLOW, 10001 DENY), rejects eight wrong rules, then sends
   one over-limit credit through the Gateway: a Cedar DENY with no row for its
-  key, ending `Lab 4A check passed`. `python3 scripts/lab4_credit_check.py`
+  key, ending `Lab 4A check passed`. `python3 scripts/lab4_check.py --task 4B`
   confirms the live function carries the participant's statements, then probes
   the money role in process and through the Gateway Lambda's Data API: the
   function refuses a credit no one approved and a direct insert or update is

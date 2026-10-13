@@ -33,13 +33,13 @@ not: ``tests/test_lab1_vector.py``, ``tests/test_lab1_starter_failure.py`` and
 
 **Lab 3 - Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore.** Three marker
 regions and their fallback files. 3A publishes ``get_tickets`` on the Gateway and
-reconciles the tools the Runtime asks the Gateway for, binding that read to the caller.
+matches the tools the Runtime asks the Gateway for, binding that read to the caller.
 One of the two files is a packaged runtime source. Task 3B deploys those edits and checks
 the executed fingerprint, which is how the participant proves their own build answered,
 and writes the row-ownership predicate in an RLS worksheet whose one expression starts as
 ``false``. The OpenTelemetry trace contract is supplied, with no region to author.
 
-**Lab 4 - Govern Agent Actions with Cedar and PostgreSQL Row-Level Security.** A starter
+**Lab 4 - Govern Agent Actions with Cedar Policies and PostgreSQL Privileges.** A starter
 Cedar file that must NOT contain the answer, a reference rule that must (an amount rule on
 ``give_store_credit``, not an identity-pair match), and a credit-writer worksheet whose
 starter over-grants the money role. The keyed absence check is supplied, with no region to
@@ -96,7 +96,7 @@ LAB1_VECTOR_REGION = (
 LAB1_VECTOR_REFERENCE = "solutions/the-quiet-search/retrieval/store_tools_solution.py"
 LAB1_VECTOR_STARTER = "workshop/starters/lab-1/vector-branch.pyfrag"
 # Lab 1's Go deeper worksheet: a marker region and a starter, not a task.
-LAB1_FUSION_WORKSHEET = "workshop/lab-1-rrf.sql"
+LAB1_FUSION_WORKSHEET = "workshop/lab-1-fusion.sql"
 LAB1_PLAN_REGION = (
     "pellier/backend/services/search_plan.py",
     "WORKSHOP - Search plan - preserve requirements",
@@ -107,12 +107,12 @@ LAB1_PLAN_REFERENCE = (
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
 # in-stock Home at or under $100 tagged both `gift` and `home`.
 LAB1_GOLDEN_IDS = ("21", "23", "25", "27", "29", "80", "83")
-LAB1_FUSION_REFERENCE = "solutions/the-quiet-search/sql/lab-1-rrf-solution.sql"
+LAB1_FUSION_REFERENCE = "solutions/the-quiet-search/sql/lab-1-fusion-solution.sql"
 LAB1_FUSION_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
 
 # ---------------------------------------------------------------------------
 # Lab 3, two marker regions that together move the build onto the managed path.
-# 3A publishes a Gateway tool and reconciles what the Runtime asks the Gateway
+# 3A publishes a Gateway tool and matches what the Runtime asks the Gateway
 # for. `agentcore_gateway.py` is a packaged runtime source, so that edit changes
 # the deployed build fingerprint checked in Task 3B.
 # ---------------------------------------------------------------------------
@@ -121,7 +121,7 @@ LAB3_REGIONS: Tuple[Tuple[str, str], ...] = (
     ("scripts/deploy/gateway_tool_schemas.py",
      "WORKSHOP - Gateway catalogue - published tools"),
     ("pellier/backend/services/agentcore_gateway.py",
-     "WORKSHOP - Managed catalogue - support reconcile"),
+     "WORKSHOP - Support agent - Gateway tools"),
 )
 
 LAB3_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
@@ -143,13 +143,13 @@ LAB3_STAFF_ONLY_TOOL = "give_store_credit"
 # ---------------------------------------------------------------------------
 
 LAB4_ABSENCE_CHECK = "workshop/lab-4-absence.sql"
-LAB1_INDEX_CHECK = "workshop/lab-1-hnsw.sql"
+LAB1_INDEX_CHECK = "workshop/lab-1-index.sql"
 LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
 LAB4_STARTER = "policies/workshop_credit_limit.cedar"
 LAB4_REFERENCE = "solutions/the-concierge/policies/workshop_credit_limit.cedar"
-LAB3_RLS_PROOF = "workshop/lab-3-rls.sql"
-LAB3_RLS_REFERENCE = "solutions/the-ledger/sql/lab-3-rls-solution.sql"
+LAB3_RLS_PROOF = "workshop/lab-3-row-ownership.sql"
+LAB3_RLS_REFERENCE = "solutions/the-ledger/sql/lab-3-row-ownership-solution.sql"
 LAB3_RLS_MARKER = "WORKSHOP - Row ownership - predicate"
 LAB4_WRITER_WORKSHEET = "workshop/lab-4-credit-writer.sql"
 LAB4_WRITER_REFERENCE = "solutions/the-concierge/sql/lab-4-credit-writer-solution.sql"
@@ -182,8 +182,8 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-2/check-stock-tool.pyfrag",
         "pellier/backend/services/agent_tools.py",
     ),
-    "lab-1-rrf": (
-        "workshop/starters/lab-1-rrf.sql",
+    "lab-1-fusion": (
+        "workshop/starters/lab-1-fusion.sql",
         LAB1_FUSION_WORKSHEET,
     ),
     "lab-1-preserve-requirements": (
@@ -194,11 +194,14 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-3/gateway-published-tools.pyfrag",
         "scripts/deploy/gateway_tool_schemas.py",
     ),
-    "lab-3-support-reconcile": (
-        "workshop/starters/lab-3/support-reconcile.pyfrag",
+    "lab-3-support-gateway-tools": (
+        "workshop/starters/lab-3/support-gateway-tools.pyfrag",
         "pellier/backend/services/agentcore_gateway.py",
     ),
-    "lab-3-rls": ("workshop/starters/lab-3-rls.sql", "workshop/lab-3-rls.sql"),
+    "lab-3-row-ownership": (
+        "workshop/starters/lab-3-row-ownership.sql",
+        "workshop/lab-3-row-ownership.sql",
+    ),
     "lab-4-cedar": (
         "workshop/starters/workshop_credit_limit.cedar",
         LAB4_STARTER,
@@ -353,9 +356,9 @@ def test_the_absence_check_is_supplied_and_finds_both_keys_itself() -> None:
     assert "WORKSHOP -" not in text, "the absence check is supplied; it carries no build markers"
     assert ":{?deny_key}" not in text and "-v deny_key" not in text
     sys.path.insert(0, str(REPO / "scripts"))
-    import lab4_policy_check
+    import lab4_policy
 
-    assert f"a.issue = '{lab4_policy_check.PROBE_ISSUE}'" in text
+    assert f"a.issue = '{lab4_policy.PROBE_ISSUE}'" in text
     for fragment in (
         "args->>'idempotency_key' = :'lab_4_deny_key'",
         "WHERE idempotency_key = :'lab_4_deny_key'",
@@ -445,7 +448,7 @@ def test_lab3_starter_withholds_the_tool_theo_needs() -> None:
     assert LAB3_PUBLISHED_TOOL not in published, (
         f"{LAB3_PUBLISHED_TOOL} is already published; Lab 3a ships its own answer"
     )
-    assert gateway_tool_schemas.WORKSHOP_DEFERRED_TOOLS == frozenset({LAB3_PUBLISHED_TOOL}), (
+    assert gateway_tool_schemas.UNPUBLISHED_TOOLS == frozenset({LAB3_PUBLISHED_TOOL}), (
         "the starter defers exactly the tool the participant publishes, and no other"
     )
     assert LAB3_PUBLISHED_TOOL in gateway_tool_schemas.canonical_tool_names(), (
@@ -459,7 +462,7 @@ def test_lab3_reference_publishes_the_read_and_the_staff_only_tool() -> None:
         "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
     )
     published = solution.workshop_published_tools()
-    assert solution.WORKSHOP_DEFERRED_TOOLS == frozenset(), "the reference defers nothing"
+    assert solution.UNPUBLISHED_TOOLS == frozenset(), "the reference defers nothing"
     assert LAB3_PUBLISHED_TOOL in published
     assert LAB3_STAFF_ONLY_TOOL in published, (
         "give_store_credit is published for the operator desk under a staff-only permit"
@@ -476,7 +479,7 @@ def test_lab3_starter_leaves_the_support_agent_unserveable() -> None:
     from services import agentcore_gateway
 
     published = gateway_tool_schemas.workshop_published_tools()
-    unserveable = set(agentcore_gateway.SUPPORT_MANAGED_TOOLS) - published
+    unserveable = set(agentcore_gateway.SUPPORT_GATEWAY_TOOLS) - published
     assert unserveable, (
         "Lab 3 has nothing to fix: the starter Support agent is already serveable"
     )
@@ -485,7 +488,7 @@ def test_lab3_starter_leaves_the_support_agent_unserveable() -> None:
     )
 
 
-def test_lab3_reference_reconciles_the_runtime_with_the_gateway() -> None:
+def test_lab3_reference_matches_the_runtime_to_the_gateway() -> None:
     schemas = _load_module(
         "lab3_gateway_schemas_ref",
         "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
@@ -658,7 +661,7 @@ def test_lab3_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
 
 
 def test_lab3_rls_starter_is_false_and_the_reference_names_the_bound_customer() -> None:
-    starter = _read(PARTICIPANT_STARTERS["lab-3-rls"][0])
+    starter = _read(PARTICIPANT_STARTERS["lab-3-row-ownership"][0])
     reference = _read(LAB3_RLS_REFERENCE)
     assert "SELECT $predicate$\n  false\n$predicate$ AS ownership_predicate" in starter
     assert "current_setting('pellier.principal_username', true)" in reference
@@ -717,8 +720,8 @@ def test_participant_exercise_reset_declares_every_incomplete_artifact() -> None
 def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     stock_agent = _read(PARTICIPANT_STARTERS["lab-2-stock-agent"][0])
     stock_tool = _read(PARTICIPANT_STARTERS["lab-2-check-stock"][0])
-    lab1 = _read(PARTICIPANT_STARTERS["lab-1-rrf"][0])
-    rls = _read(PARTICIPANT_STARTERS["lab-3-rls"][0])
+    lab1 = _read(PARTICIPANT_STARTERS["lab-1-fusion"][0])
+    rls = _read(PARTICIPANT_STARTERS["lab-3-row-ownership"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
     vector = _read(PARTICIPANT_STARTERS["lab-1-vector-branch"][0])
     writer = _read(PARTICIPANT_STARTERS["lab-4-credit-writer"][0])
@@ -820,7 +823,7 @@ CANONICAL_LAB_TITLE_PARTS: Tuple[Tuple[str, str], ...] = (
     ("Lab 2", "Build a PostgreSQL-Grounded Agent"),
     ("Lab 1", "Build and Measure PostgreSQL Hybrid Retrieval"),
     ("Lab 3", "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore"),
-    ("Lab 4", "Govern Agent Actions with Cedar and PostgreSQL Row-Level Security"),
+    ("Lab 4", "Govern Agent Actions with Cedar Policies and PostgreSQL Privileges"),
 )
 
 # Titles the rename replaced. Present anywhere in the shipped product, they are drift.
@@ -833,6 +836,7 @@ RETIRED_LAB_TITLES: Tuple[str, ...] = (
     "Govern and Prove Agent Actions",
     "Deploy and Operate Agents with Amazon Bedrock AgentCore",
     "Build Governed Agent Actions with Cedar",
+    "Govern Agent Actions with Cedar and PostgreSQL Row-Level Security",
 )
 
 # Surfaces a participant actually reads a lab title on, plus the API that supplies one.

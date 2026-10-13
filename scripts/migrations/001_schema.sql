@@ -70,7 +70,7 @@ CREATE INDEX product_catalog_embedding_hnsw ON pellier.product_catalog
 -- in exact distance order, which RRF's ranks need. It is the default for every
 -- new session in this database: the app's pool, the Gateway Lambda's RDS Data
 -- API calls and psql. A user that does not own the database sets it for itself.
--- workshop/lab-1-hnsw.sql shows both behaviors on this catalog.
+-- workshop/lab-1-index.sql shows both behaviors on this catalog.
 DO $iterative_scan$
 BEGIN
     -- Load pgvector in this session, so hnsw.iterative_scan is a known setting a

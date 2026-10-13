@@ -23,13 +23,13 @@ cp solutions/the-quiet-search/retrieval/search_plan_solution.py \
 ```
 
 Restart the backend after the copies. The checks are unchanged:
-`python3 scripts/lab1_vector_check.py` runs the vector branch, and after
+`python3 scripts/lab1_check.py --task 1A` runs the vector branch, and after
 `python3 scripts/lab_run.py send --lab 1` writes a receipt,
-`python3 scripts/lab1_compare.py` reads that search's products.
+`python3 scripts/lab1_check.py --task 1B` reads that search's products.
 
 The optional Go deeper worksheet's answer is
-`solutions/the-quiet-search/sql/lab-1-rrf-solution.sql`; `scripts/lab_run.py solution`
-leaves `workshop/lab-1-rrf.sql` alone.
+`solutions/the-quiet-search/sql/lab-1-fusion-solution.sql`; `scripts/lab_run.py solution`
+leaves `workshop/lab-1-fusion.sql` alone.
 
 ## Lab 2: Build a PostgreSQL-Grounded Agent
 
@@ -50,8 +50,8 @@ cp solutions/waking-the-stock-keeper/agents/stock_agent_solution.py \
 
 Restart, send Marco's requests again with
 `python3 scripts/lab_run.py send --lab 2`, then run
-`python3 scripts/lab2_contract_check.py` and
-`python3 scripts/lab2_contract_check.py --task 2B`.
+`python3 scripts/lab2_check.py --task 2A` and
+`python3 scripts/lab2_check.py --task 2B`.
 
 ## Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
 
@@ -70,13 +70,13 @@ python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode part
 Task 3B's recovery is the ownership predicate:
 
 ```bash
-cp solutions/the-ledger/sql/lab-3-rls-solution.sql workshop/lab-3-rls.sql
-psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql
+cp solutions/the-ledger/sql/lab-3-row-ownership-solution.sql workshop/lab-3-row-ownership.sql
+psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql
 ```
 
 The checks are unchanged: `python3 scripts/lab3_check.py --task 3A` reads
 "9 tools published" and the forged call bound to Theo, and after
-`python3 scripts/lab_run.py send --lab 3`, `python3 scripts/lab3_check.py`
+`python3 scripts/lab_run.py send --lab 3`, `python3 scripts/lab3_check.py --task 3B`
 compares the executed build with this checkout's, asks Cedar to refuse his
 direct read of Jessica's tickets, and probes the live row policies. The managed
 Memory, Runtime, Gateway and JWT path has no local substitute; move a
@@ -90,7 +90,7 @@ Gateway answered, and what was paid. It only reads:
 psql -X -v ON_ERROR_STOP=1 -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql
 ```
 
-## Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security
+## Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges
 
 Task 4A's recovery is the $100 per-credit limit. Provisioning deployed the
 starter as the policy `workshop_credit_limit`, so the deploy updates it:
@@ -98,9 +98,9 @@ starter as the policy `workshop_credit_limit`, so the deploy updates it:
 ```bash
 cp solutions/the-concierge/policies/workshop_credit_limit.cedar \
   policies/workshop_credit_limit.cedar
-python3 scripts/lab4_policy_check.py
+python3 scripts/lab4_check.py --task 4A
 python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
-python3 scripts/lab4_policy_check.py
+python3 scripts/lab4_check.py --task 4A
 ```
 
 The first check evaluates the rule with Cedar here; the second, after the
@@ -113,7 +113,7 @@ probe matches; the check then reads the live function and probes both paths:
 cp solutions/the-concierge/sql/lab-4-credit-writer-solution.sql \
   workshop/lab-4-credit-writer.sql
 psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql
-python3 scripts/lab4_credit_check.py
+python3 scripts/lab4_check.py --task 4B
 ```
 
 The keyed absence check, `workshop/lab-4-absence.sql`, is supplied and has no

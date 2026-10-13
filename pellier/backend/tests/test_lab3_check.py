@@ -248,7 +248,7 @@ def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> 
     check reports: the four managed-turn findings, then the row-ownership
     check's deployed predicate and its two database paths.
     """
-    rls = importlib.import_module("lab3_rls_check")
+    rls = importlib.import_module("lab3_row_ownership_check")
     findings = lab3.collect(tmp_path / "missing.env")
     assert len(findings) == 7
     assert [finding.task for finding in findings] == ["3B"] * 7

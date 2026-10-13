@@ -1,1 +1,1 @@
-../../workshop/lab-3-rls.sql
+../../workshop/lab-3-row-ownership.sql

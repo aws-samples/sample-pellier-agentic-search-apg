@@ -1,6 +1,6 @@
 """Lab 3B, live: the shipped policies stop a wrong query on both database paths.
 
-``scripts/lab3_rls_check.py`` binds Theo through each path's own code, the
+``scripts/lab3_row_ownership_check.py`` binds Theo through each path's own code, the
 in-process ``DatabaseService.principal_session`` and the store-tools Lambda's
 ``bind_runtime_principal`` over the Data API, then asks for Jessica's rows and
 writes in her name. The cluster is a fresh one with the real migrations, so
@@ -27,7 +27,7 @@ from tests.test_operator_credit_postgres import _conninfo, _DataApiOnPostgres
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts" / "deploy"))
 sys.path.insert(0, str(REPO / "scripts"))
-rls = importlib.import_module("lab3_rls_check")
+rls = importlib.import_module("lab3_row_ownership_check")
 
 POLICIES = ("orders_owner ON pellier.orders", "support_tickets_owner ON pellier.support_tickets")
 
@@ -163,7 +163,7 @@ def test_the_data_api_module_is_pointed_at_the_box_cluster_even_if_already_impor
 # Deployed: the live policies carry the predicate in the participant's file
 # ---------------------------------------------------------------------------
 
-SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-rls-solution.sql"
+SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-row-ownership-solution.sql"
 
 
 def _stamp(worksheet: Path) -> str:
@@ -176,7 +176,7 @@ def test_a_starter_worksheet_is_not_yet_deployed() -> None:
     finding = rls.judge_deployed(_stamp(SOLUTION), is_starter=True, deployed={})
     assert finding.state == rls.check.NOT_YET
     assert "starter" in finding.observed
-    assert "workshop/lab-3-rls.sql" in finding.next_step
+    assert "workshop/lab-3-row-ownership.sql" in finding.next_step
 
 
 def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
@@ -184,7 +184,7 @@ def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
                                   deployed={"orders_owner": "", "support_tickets_owner": ""})
     assert finding.state == rls.check.NOT_YET
     assert "shipped" in finding.observed
-    assert "psql" in finding.next_step and "workshop/lab-3-rls.sql" in finding.next_step
+    assert "psql" in finding.next_step and "workshop/lab-3-row-ownership.sql" in finding.next_step
 
 
 def test_a_file_edited_after_it_was_deployed_is_named() -> None:
@@ -220,8 +220,8 @@ def test_the_solution_worksheet_deploys_a_predicate_the_check_recognises(
 
     before = deployed()
     try:
-        assert rls.judge_deployed(_stamp(SOLUTION), False, {k: v["stamp"] for k, v in
-                                                             before.items()}).state == rls.check.NOT_YET
+        stamps = {k: v["stamp"] for k, v in before.items()}
+        assert rls.judge_deployed(_stamp(SOLUTION), False, stamps).state == rls.check.NOT_YET
         done = subprocess.run(
             [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
              "-d", "postgres", "-P", "pager=off", "-f", str(SOLUTION)],

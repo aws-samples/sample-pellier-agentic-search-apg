@@ -142,4 +142,4 @@ def completed_search_plan(monkeypatch):
     from services.search_plan import SearchPlan
     from tests.lab_variants import SOLUTION, plan_fallback
 
-    monkeypatch.setattr(SearchPlan, "_with_relaxations", plan_fallback(SOLUTION))
+    monkeypatch.setattr(SearchPlan, "_next_attempt", plan_fallback(SOLUTION))

@@ -172,7 +172,7 @@ the gateway is something else.
 |---|---|---|---|
 | 1 Filter before ranking | partly | vector branch carries price predicate; FTS branch does not (search.py:88) | add the same WHERE to fts_branch_sql |
 | 2 Bounded facts | holds | check_stock returns not_found / ambiguous / success (store_tools.py:370) | none |
-| 3 Bind identity | missing | customer_id taken from model arguments (agent_tools.py:52) | overwrite from token in reconcile step; add RLS policy |
+| 3 Bind identity | missing | customer_id taken from model arguments (agent_tools.py:52) | overwrite from token in the binding step; add RLS policy |
 | 4 Approve + dedupe | partly | unique key present; no approval row required | require approval row in the write function |
 ```
 

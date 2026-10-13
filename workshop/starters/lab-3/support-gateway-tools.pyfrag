@@ -13,10 +13,10 @@
 # model choose whose records to read?
 #
 # Task 3B checks it on AgentCore: deploy, send Theo's requests with
-# python3 scripts/lab_run.py send --lab 3, then python3 scripts/lab3_check.py
+# python3 scripts/lab_run.py send --lab 3, then python3 scripts/lab3_check.py --task 3B
 # reads the bound customer and the executed build. Its direct Gateway probe
 # checks a foreign request against Cedar separately.
-SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
+SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
     "get_orders",
     "get_return_policy",
     "get_tickets",

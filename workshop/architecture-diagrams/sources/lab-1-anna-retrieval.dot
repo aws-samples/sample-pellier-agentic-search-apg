@@ -81,7 +81,7 @@ digraph Lab1AnnaRetrieval {
     width=3.6
   ];
   lab1a [
-    label="BUILD 2a · RECONSTRUCT AND VERIFY\nworkshop/lab-1-rrf.sql\nRecompute RRF from the recorded ranks\nand check it against recorded_rrf",
+    label="BUILD 2a · RECONSTRUCT AND VERIFY\nworkshop/lab-1-fusion.sql\nRecompute RRF from the recorded ranks\nand check it against recorded_rrf",
     color="#9a3412",
     fillcolor="#fff7ed",
     fontcolor="#7c2d12",

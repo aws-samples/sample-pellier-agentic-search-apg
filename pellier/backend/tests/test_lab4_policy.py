@@ -1,4 +1,4 @@
-"""``scripts/lab4_policy_check.py``: real Cedar here, and the Gateway's own answer on the box.
+"""``scripts/lab4_check.py --task 4A``: real Cedar here, and the Gateway's own answer on the box.
 
 Part 1 evaluates the participant's file with the Cedar engine beside the
 rendered baseline and the Gateway schema; a wrong rule must never pass, and
@@ -20,7 +20,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "scripts" / "deploy"))
-lab4 = importlib.import_module("lab4_policy_check")
+lab4 = importlib.import_module("lab4_policy")
 renderer = importlib.import_module("render_agentcore_project")
 check = lab4.check
 

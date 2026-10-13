@@ -5,7 +5,7 @@ and what the database returned.
 Run after Theo's turns on the managed path (Task 3B), which
 ``python3 scripts/lab_run.py send --lab 3`` sends:
 
-    python3 scripts/lab3_check.py
+    python3 scripts/lab3_check.py --task 3B
 
 It prints seven findings, each with Expected, Observed and Evidence:
 
@@ -22,10 +22,10 @@ It prints seven findings, each with Expected, Observed and Evidence:
     probe    Theo's own token, asking the Gateway directly for Jessica's
              tickets, is denied by Cedar (the owner-only permit does not match,
              so nothing permits it) and leaves no ``tool_audit`` row
-    rows     the row-ownership predicate from ``workshop/lab-3-rls.sql`` is the
+    rows     the row-ownership predicate from ``workshop/lab-3-row-ownership.sql`` is the
              live policy, and bound as Theo on both database paths a wrong
              query sees none of Jessica's rows and cannot write in her name
-             (``scripts/lab3_rls_check.py``, three findings)
+             (``scripts/lab3_row_ownership_check.py``, three findings)
 
 Together the household request's three layers: the server binds a forged call
 to Theo, Cedar refuses his direct read of Jessica's tickets, and the database
@@ -163,7 +163,7 @@ def judge_catalogue(
         return check.Finding(
             "3A", _CATALOGUE_TITLE, check.CONTRADICTED, _CATALOGUE_EXPECTED,
             f"the Support agent names the staff-only tool {', '.join(staff_only)}", evidence,
-            "which tool in SUPPORT_MANAGED_TOOLS is staff-only? Only the Operator calls it.")
+            "which tool in SUPPORT_GATEWAY_TOOLS is staff-only? Only the Operator calls it.")
     unpublished = sorted(set(managed) - published)
     if unpublished:
         return check.Finding(
@@ -181,7 +181,7 @@ def judge_catalogue(
         return check.Finding(
             "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED, observed, evidence,
             "which support tool lets the model choose whose records to read? See "
-            "SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - support reconcile block.")
+            "SUPPORT_CALLER_BOUND_TOOLS in the Support agent - Gateway tools block.")
     observed = f"{len(published)} tools published, get_tickets bound to the signed-in caller"
     if probe is not None:
         observed = f"{len(published)} tools published; a forged call for {JESSICA} leaves as {THEO}"
@@ -197,11 +197,11 @@ def source_catalogue() -> tuple:
     from gateway_tool_schemas import workshop_published_tools
     from services.agentcore_gateway import (
         SUPPORT_CALLER_BOUND_TOOLS,
-        SUPPORT_MANAGED_TOOLS,
+        SUPPORT_GATEWAY_TOOLS,
         _bind_server_tool_context,
     )
 
-    return (workshop_published_tools(), SUPPORT_MANAGED_TOOLS, SUPPORT_CALLER_BOUND_TOOLS,
+    return (workshop_published_tools(), SUPPORT_GATEWAY_TOOLS, SUPPORT_CALLER_BOUND_TOOLS,
             probe_binding(_bind_server_tool_context))
 
 
@@ -258,7 +258,7 @@ TICKETS_EXPECTED = ("at least one executed get_tickets call on the Gateway in Th
                     f"every one for {THEO}, none for another customer; a forged call for "
                     f"{JESSICA} leaves this checkout as {THEO}")
 _NEXT_BIND = ("which support tool lets the model choose whose records to read? See "
-              "SUPPORT_CALLER_BOUND_TOOLS in the Managed catalogue - support reconcile block, then "
+              "SUPPORT_CALLER_BOUND_TOOLS in the Support agent - Gateway tools block, then "
               "deploy with --mode participant.")
 
 
@@ -527,9 +527,10 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
                               "the check could not look", reason),
             ]
     build, tickets = rows_findings
-    import lab3_rls_check
+    import lab3_row_ownership_check
 
-    return [build, memory_finding(), tickets, run_probe(cfg)] + lab3_rls_check.collect(env_path)
+    ownership = lab3_row_ownership_check.collect(env_path)
+    return [build, memory_finding(), tickets, run_probe(cfg), *ownership]
 
 
 def main_3a() -> int:
@@ -548,9 +549,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--task", choices=("3A", "3B"), default="3B",
-                        help="3A checks the two Task 3A regions from source; 3B (the default) "
-                             "reads Theo's managed turns")
+    parser.add_argument("--task", choices=("3A", "3B"), required=True,
+                        help="3A checks the two Task 3A regions from source; 3B reads Theo's "
+                             "managed turns")
     if parser.parse_args(argv).task == "3A":
         return main_3a()
     findings = collect()

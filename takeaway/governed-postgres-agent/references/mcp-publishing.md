@@ -39,7 +39,7 @@ does not.
 - The shopper's Cognito access token is validated at Runtime and again at
   Gateway (AgentCore Identity). Both require a token.
 - The server binds `customer_id` on caller-bound tools before the call leaves
-  Runtime (`services/agentcore_gateway.py`, the reconcile step), so the
+  Runtime (`services/agentcore_gateway.py`, the binding step), so the
   Gateway sees the signed-in customer regardless of what the model asked.
 - Cedar policies (AgentCore Policy) evaluate every Gateway call, including the
   tool list: a shopper token cannot see `give_store_credit` because no shopper

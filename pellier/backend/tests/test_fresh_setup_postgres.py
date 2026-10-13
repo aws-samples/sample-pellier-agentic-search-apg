@@ -331,7 +331,7 @@ def test_the_lab1_index_check_shows_the_scan_the_short_list_and_the_full_list(fr
     done = subprocess.run(
         [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
          "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-P", "pager=off",
-         "-f", str(REPO / "workshop/lab-1-hnsw.sql")],
+         "-f", str(REPO / "workshop/lab-1-index.sql")],
         capture_output=True, text=True, timeout=120)
     out = done.stdout
     assert done.returncode == 0, done.stderr + out

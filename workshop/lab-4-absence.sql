@@ -19,7 +19,7 @@
 --
 -- It finds both keys itself and never writes. Both are derived the same way,
 -- from an approved review: operator-review:<review id>:<first 32 of its hash>.
---   denied   the over-limit review scripts/lab4_policy_check.py sent through
+--   denied   the over-limit review scripts/lab4_check.py --task 4A sent through
 --            the Gateway (its issue names it)
 --   allowed  Nadia's approved review of Jessica's case that wrote a credit
 -- Because the allowed key is derived, not copied from the credit, a
@@ -68,7 +68,7 @@ SELECT format('%s, %s and %s (the allowed key also has %s tool_audit row)',
 \else
   \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
   \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
-  \echo 'Next      run python3 scripts/lab4_policy_check.py after deploying your rule, then run this again.'
+  \echo 'Next      run python3 scripts/lab4_check.py --task 4A after deploying your rule, then run this again.'
   \echo 'Lab 4 absence check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif

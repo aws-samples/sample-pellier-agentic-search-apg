@@ -246,7 +246,7 @@ for _target in TOOL_SCHEMAS.values():
 # ticket history. Task 3A binds its `customer_id` to the authenticated caller,
 # so the read cannot cross customers, and the owner-only permit rendered at
 # deploy checks the same claim at the Gateway.
-WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset()
+UNPUBLISHED_TOOLS: frozenset[str] = frozenset()
 # === WORKSHOP - Gateway catalogue - published tools: END ===
 
 
@@ -294,7 +294,7 @@ def canonical_tool_names() -> frozenset[str]:
 
 def workshop_published_tools() -> frozenset[str]:
     """The exact tool names this workshop iteration publishes on the Gateway."""
-    return canonical_tool_names() - WORKSHOP_DEFERRED_TOOLS
+    return canonical_tool_names() - UNPUBLISHED_TOOLS
 
 
 def workshop_target_tools() -> dict[str, tuple[str, ...]]:
@@ -305,7 +305,7 @@ def workshop_target_tools() -> dict[str, tuple[str, ...]]:
     return {
         config["target_name"]: tuple(
             tool["name"] for tool in config["tools"]
-            if tool["name"] not in WORKSHOP_DEFERRED_TOOLS
+            if tool["name"] not in UNPUBLISHED_TOOLS
         )
         for config in TOOL_SCHEMAS.values()
     }
@@ -324,5 +324,5 @@ def schema_for(surface: str, *, workshop: bool) -> list[dict]:
     return [
         {**tool, "inputSchema": _sanitize_tool_schema(tool["inputSchema"])}
         for tool in config["tools"]
-        if not workshop or tool["name"] not in WORKSHOP_DEFERRED_TOOLS
+        if not workshop or tool["name"] not in UNPUBLISHED_TOOLS
     ]

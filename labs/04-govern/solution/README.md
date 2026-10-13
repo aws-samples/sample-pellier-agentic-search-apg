@@ -16,8 +16,8 @@ python3 scripts/lab_run.py solution --lab 4 && \
   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql && \
   python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant && \
   python3 scripts/lab_run.py send --lab 4 && \
-  python3 scripts/lab4_policy_check.py && \
-  python3 scripts/lab4_credit_check.py && \
+  python3 scripts/lab4_check.py --task 4A && \
+  python3 scripts/lab4_check.py --task 4B && \
   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
 ```
 

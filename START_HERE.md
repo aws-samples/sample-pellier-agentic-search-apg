@@ -33,7 +33,7 @@ copy to keep in sync. Python edits reach the running backend once it restarts; t
 edits and the Lab 4 Cedar rule reach AgentCore when you run the guide's deployment. Two
 files deploy themselves: `3B-row-ownership.sql` and `4B-credit-writer.sql`, run with
 `psql`, commit your statements to Aurora only when every probe they run matches.
-`go-deeper-rrf.sql`, last in 01 - Retrieve, is optional. Edit only between the `START`
+`go-deeper-fusion.sql`, last in 01 - Retrieve, is optional. Edit only between the `START`
 and `END` markers the guide names for your task.
 
 **05 - Explore Pellier source** is the whole repository, for when you want to see how a

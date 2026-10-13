@@ -17,7 +17,7 @@ The root guidance lists all nine permitted regions. This module contains five:
 | 1B | `services/search_plan.py` | `Search plan - preserve requirements` |
 | 2A | `services/agent_tools.py` | `Stock agent - check_stock` |
 | 2B | `agents/stock_agent.py` | `Stock agent - definition` |
-| 3A | `services/agentcore_gateway.py` | `Managed catalogue - support reconcile` |
+| 3A | `services/agentcore_gateway.py` | `Support agent - Gateway tools` |
 
 For SQL, Cedar and Gateway publication tasks, use the root map and the guide.
 Those tasks are not forbidden because their files are outside this module.

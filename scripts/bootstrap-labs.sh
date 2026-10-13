@@ -1208,7 +1208,7 @@ log "✅ Status marker created"
 #
 # Files we explicitly do NOT copy (participants build these):
 #   inside agent_tools.py            — the check_stock tool body only
-#   inside agentcore_gateway.py      — Lab 3b's support reconcile region
+#   inside agentcore_gateway.py      — Lab 3A's Support agent - Gateway tools region
 #   inside gateway_tool_schemas.py   — Lab 3a's published-tools decision
 if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" ]; then
     log "=========================================="

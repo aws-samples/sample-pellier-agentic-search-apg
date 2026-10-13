@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
 """Lab 4A's check: your Cedar rule, evaluated with Cedar, then enforced by the Gateway.
 
-    python3 scripts/lab4_policy_check.py
+    python3 scripts/lab4_check.py --task 4A
 
 Part 1 runs here and deploys nothing. It evaluates your
 ``policies/workshop_credit_limit.cedar`` with the real Cedar engine (the
@@ -707,7 +706,7 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
     if not row:
         return check.Finding("4A", title, check.NOT_YET, expected,
                              "no over-limit review has been sent yet", [],
-                             "deploy your rule, then run python3 scripts/lab4_policy_check.py.")
+                             "deploy your rule, then run python3 scripts/lab4_check.py --task 4A.")
     attempt = row.get("last_attempt")
     if isinstance(attempt, str):
         import json
@@ -724,11 +723,11 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
     if rows_left or attempt.get("outcome") == "allowed":
         return check.Finding("4A", title, check.CONTRADICTED, expected,
                              "the over-limit credit got past Cedar", evidence,
-                             "run python3 scripts/lab4_policy_check.py and read part 2.")
+                             "run python3 scripts/lab4_check.py --task 4A and read part 2.")
     if attempt.get("outcome") != "denied":
         return check.Finding("4A", title, check.NOT_YET, expected,
                              "no Gateway denial is stored for the over-limit review", evidence,
-                             "deploy your rule, then run python3 scripts/lab4_policy_check.py.")
+                             "deploy your rule, then run python3 scripts/lab4_check.py --task 4A.")
     return check.Finding("4A", title, check.PROVED, expected,
                          "the Gateway denied it and its key left no row", evidence)
 
@@ -907,7 +906,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     passed = local.finding.state == check.PROVED and managed.state == check.PROVED
     print("Lab 4A check passed" if passed else "Lab 4A check failed")
     return 0 if passed else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

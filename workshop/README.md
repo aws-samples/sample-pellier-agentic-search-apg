@@ -24,25 +24,25 @@ the same checks.
 
 | Lab and task | Work you do | Check |
 |---|---|---|
-| 1A, Anna | Search by what she means (`services/store_tools.py`) | `python3 scripts/lab1_vector_check.py` |
-| 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `python3 scripts/lab1_compare.py` |
-| 2A, Marco | Keep "not carried" distinct from sold out (`services/agent_tools.py`) | `python3 scripts/lab2_contract_check.py` |
-| 2B, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`) | `python3 scripts/lab2_contract_check.py --task 2B` |
+| 1A, Anna | Search by what she means (`services/store_tools.py`) | `python3 scripts/lab1_check.py --task 1A` |
+| 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `python3 scripts/lab1_check.py --task 1B` |
+| 2A, Marco | Keep "not carried" distinct from sold out (`services/agent_tools.py`) | `python3 scripts/lab2_check.py --task 2A` |
+| 2B, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`) | `python3 scripts/lab2_check.py --task 2B` |
 | 3A, Theo | Publish `get_tickets` and bind it to the caller | `python3 scripts/lab3_check.py --task 3A` |
-| 3B, Theo | Deploy, write the ownership rule (`workshop/lab-3-rls.sql`), then challenge it | `python3 scripts/lab3_check.py` |
-| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_policy_check.py` |
-| 4B, Jessica and Nadia | Let the money role write only through the function (`workshop/lab-4-credit-writer.sql`) | `python3 scripts/lab4_credit_check.py` |
+| 3B, Theo | Deploy, write the ownership rule (`workshop/lab-3-row-ownership.sql`), then challenge it | `python3 scripts/lab3_check.py --task 3B` |
+| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_check.py --task 4A` |
+| 4B, Jessica and Nadia | Let the money role write only through the function (`workshop/lab-4-credit-writer.sql`) | `python3 scripts/lab4_check.py --task 4B` |
 
 The two worksheets run during their labs' deploys and print their own lines:
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql` ends
+`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql` ends
 `Lab 3B predicate check passed` and
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql`
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql`.
 
-Optional in Lab 1: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-rrf.sql`
+Optional in Lab 1: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-fusion.sql`
 recomputes the fused scores Anna's search recorded from their two ranks, and
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-hnsw.sql` shows whether
+`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-index.sql` shows whether
 Aurora uses the HNSW index at this catalog's size, and what a filter does to the
 index when it is used. Both only read.
 

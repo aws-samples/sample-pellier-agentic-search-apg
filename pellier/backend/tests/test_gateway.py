@@ -49,7 +49,7 @@ def test_managed_agents_partition_the_shopper_catalogue() -> None:
         "search_products", "browse_department", "compare_products", "ask_a_person",
     )
     assert gateway.MANAGED_SPECIALIST_TOOLS["stock"] == ("check_stock",)
-    assert gateway.MANAGED_SPECIALIST_TOOLS["support"] == gateway.SUPPORT_MANAGED_TOOLS
+    assert gateway.MANAGED_SPECIALIST_TOOLS["support"] == gateway.SUPPORT_GATEWAY_TOOLS
     bound = set().union(*gateway.MANAGED_SPECIALIST_TOOLS.values())
     assert bound == NINE_TOOLS - {"give_store_credit"}
 
@@ -292,7 +292,7 @@ def test_the_managed_prompt_names_the_agent_and_binds_the_turn() -> None:
     intent, prompt, tools, skills = gateway._managed_specialist_spec(
         "support", turn_id="turn-" + ("d" * 32), customer_id="CUST-THEO",
     )
-    assert intent == "support" and tools == gateway.SUPPORT_MANAGED_TOOLS
+    assert intent == "support" and tools == gateway.SUPPORT_GATEWAY_TOOLS
     assert "Support agent" in prompt
     assert "turn_id='turn-" in prompt and "CUST-THEO" in prompt
 

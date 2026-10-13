@@ -54,19 +54,19 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
         )
 
 
-# === WORKSHOP - Managed catalogue - support reconcile: START ===
-# SOLUTION - the Support agent's managed contract, reconciled.
+# === WORKSHOP - Support agent - Gateway tools: START ===
+# SOLUTION - the Support agent's Gateway tools, matched and bound to the caller.
 #
 # `get_tickets` is bound to the caller, so the server sets `customer_id` from
 # the verified session and the model cannot choose whose tickets to read.
-SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
+SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
     "get_orders",
     "get_return_policy",
     "get_tickets",
     "ask_a_person",
 )
 SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_tickets"})
-# === WORKSHOP - Managed catalogue - support reconcile: END ===
+# === WORKSHOP - Support agent - Gateway tools: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
     "shopping": (
@@ -76,7 +76,7 @@ MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
         "ask_a_person",
     ),
     "stock": ("check_stock",),
-    "support": SUPPORT_MANAGED_TOOLS,
+    "support": SUPPORT_GATEWAY_TOOLS,
 }
 
 

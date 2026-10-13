@@ -26,7 +26,7 @@
 -- This check is supplied and read-only. Everything runs in one transaction that
 -- is rolled back, and enable_seqscan is turned off inside it only to force the
 -- index for the demonstration; an application should never do that. Run:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-hnsw.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-index.sql
 
 SET client_min_messages TO warning;
 BEGIN READ ONLY;

@@ -361,7 +361,7 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
     if not allowed:
         raise SystemExit(
             "refusing to render a baseline permit that permits nothing; "
-            "check WORKSHOP_DEFERRED_TOOLS"
+            "check UNPUBLISHED_TOOLS"
         )
     action_list = ",\n".join(
         f'    AgentCore::Action::"{action}"' for action in sorted(allowed)
@@ -446,7 +446,7 @@ def credit_limit_policy(*, gateway_arn: str, source: Path) -> dict[str, Any]:
     Schema checks always run on a policy. Semantic findings are ignored for
     this one: the starter forbids every credit, which the analyzer reports as
     overly restrictive. The provisioner assesses the rule with
-    ``scripts/lab4_policy_check.py`` and real Cedar before it deploys, and
+    ``scripts/lab4_check.py --task 4A`` and real Cedar before it deploys, and
     refuses one that check marks CONTRADICTED, or an edited one it could not
     check (``provision_agentcore_end_to_end._lab4_rule_gate``).
     """

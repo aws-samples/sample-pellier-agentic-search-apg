@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Lab 4B's check: your deployed privileges hold the money role to the credit function.
 
 ``workshop/lab-4-credit-writer.sql`` probes your statements for
@@ -20,7 +19,7 @@ approval_required, and both direct writes must be refused with SQLSTATE 42501, a
 privilege the role does not hold. Every probe ends in a rollback and the direct
 writes match no row, so nothing is kept.
 
-    python3 scripts/lab4_credit_check.py
+    python3 scripts/lab4_check.py --task 4B
 """
 
 from __future__ import annotations
@@ -379,7 +378,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     passed = all(finding.state == check.PROVED for finding in findings)
     print("Lab 4B check passed" if passed else "Lab 4B check failed")
     return 0 if passed else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

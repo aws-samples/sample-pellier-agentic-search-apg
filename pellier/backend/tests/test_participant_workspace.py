@@ -66,7 +66,7 @@ def test_lab_1s_go_deeper_worksheet_sorts_after_its_tasks():
     lab1 = [e for e in json.loads((ROOT / "workshop/participant-files.json").read_text())
             if e["alias"].startswith("labs/01-retrieve/")]
     assert [Path(e["alias"]).name for e in lab1] == [
-        "1A-vector-branch.py", "1B-search-plan.py", "go-deeper-rrf.sql"]
+        "1A-vector-branch.py", "1B-search-plan.py", "go-deeper-fusion.sql"]
     assert [bool(e.get("optional")) for e in lab1] == [False, False, True]
 
 def test_deployment_bookkeeping_stays_out_of_the_explorer():
@@ -90,9 +90,9 @@ def test_editing_numbered_file_edits_the_live_source_and_rerun_preserves_it(repo
 
 
 def test_zip_materialized_link_is_repaired_but_an_edited_file_is_not_overwritten(repo):
-    alias = repo / "labs/01-retrieve/go-deeper-rrf.sql"
+    alias = repo / "labs/01-retrieve/go-deeper-fusion.sql"
     alias.parent.mkdir(parents=True)
-    alias.write_text(os.path.relpath(repo / "workshop/lab-1-rrf.sql", alias.parent))
+    alias.write_text(os.path.relpath(repo / "workshop/lab-1-fusion.sql", alias.parent))
     workspace.configure(repo)
     assert alias.is_symlink()
     alias.unlink()

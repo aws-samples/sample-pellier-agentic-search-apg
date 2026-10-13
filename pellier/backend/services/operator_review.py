@@ -70,7 +70,7 @@ MATERIAL_PARAMETERS: Dict[str, tuple[str, ...]] = {
     "give_store_credit": ("customer_id", "amount_cents", "reason"),
 }
 
-# The Lab 4 policy check's over-limit review (scripts/lab4_policy_check.py):
+# The Lab 4 policy check's over-limit review (scripts/lab4_check.py --task 4A):
 # probe data on Jessica's account that covers no order. The check opens it and
 # confirms it itself, under its own name, to send one over-limit credit to
 # Cedar. No person asks for it or approves it, and the desk says so.

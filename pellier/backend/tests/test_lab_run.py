@@ -21,7 +21,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 lab_run = importlib.import_module("lab_run")
-lab1_compare = importlib.import_module("lab1_compare")
+lab1_retry = importlib.import_module("lab1_retry")
 
 PROPOSAL = {"reviewId": 41, "amount": "100.00", "orderIds": [7, 9], "actionHash": "a" * 64,
             "status": "pending"}
@@ -152,7 +152,7 @@ def test_every_lab_conversation_resolves_to_seeded_required_requests() -> None:
 
 
 def test_annas_request_is_the_one_the_lab_1_check_asks_for() -> None:
-    assert lab_run.required_requests("anna", ("establish",)) == [lab1_compare.ANNA_REQUEST]
+    assert lab_run.required_requests("anna", ("establish",)) == [lab1_retry.ANNA_REQUEST]
 
 
 def test_an_unknown_stage_names_what_is_missing() -> None:
@@ -178,9 +178,9 @@ def test_the_go_deeper_worksheet_is_not_a_task_file(tmp_path: Path) -> None:
     assert [Path(e["alias"]).name for e in lab_run.solution_files(1)] == [
         "1A-vector-branch.py", "1B-search-plan.py"]
     repo = _scratch_repo(tmp_path)
-    (repo / "workshop/lab-1-rrf.sql").write_text("my fusion attempt\n")
+    (repo / "workshop/lab-1-fusion.sql").write_text("my fusion attempt\n")
     lab_run.install_solution(1, repo)
-    assert (repo / "workshop/lab-1-rrf.sql").read_text() == "my fusion attempt\n"
+    assert (repo / "workshop/lab-1-fusion.sql").read_text() == "my fusion attempt\n"
 
 
 def _scratch_repo(tmp_path: Path) -> Path:
@@ -299,7 +299,7 @@ def test_lab_1_sends_annas_request_signed_in_on_her_persona_session(fake: FakeBa
     assert turn["auth"] == "Bearer token-anna"
     assert turn["body"]["session_id"].startswith("persona-anna-")
     assert turn["body"]["customer_id"] == "CUST-ANNA"
-    assert turn["body"]["message"] == lab1_compare.ANNA_REQUEST
+    assert turn["body"]["message"] == lab1_retry.ANNA_REQUEST
 
 
 def test_lab_2_sends_marcos_two_requests_in_one_conversation(fake: FakeBackend) -> None:

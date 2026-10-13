@@ -2217,7 +2217,7 @@ def _lab4_check() -> Any:
     scripts = str(REPO_ROOT / "scripts")
     if scripts not in sys.path:
         sys.path.insert(0, scripts)
-    return importlib.import_module("lab4_policy_check")
+    return importlib.import_module("lab4_policy")
 
 
 LAB4_SOLUTION = REPO_ROOT / "solutions/the-concierge/policies/workshop_credit_limit.cedar"

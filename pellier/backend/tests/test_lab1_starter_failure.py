@@ -9,7 +9,7 @@ its check in ``tests/test_lab1_vector.py``.
 Task 1B. The starter's fallback rebuilds the plan from the shopper's words and
 drops her limits: Anna's request, forced onto the fallback, returns a candle and
 the receipt records a search that kept none of her three limits.
-``scripts/lab1_compare.py`` says so. The solution keeps them.
+``scripts/lab1_check.py --task 1B`` says so. The solution keeps them.
 
 Both run on the real schema and the real search pipeline
 (``store_tools.search_products``); only the embedding and the reranker are
@@ -37,7 +37,7 @@ from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-lab1_compare = importlib.import_module("lab1_compare")
+lab1_retry = importlib.import_module("lab1_retry")
 
 QUERY = "A housewarming gift under $100, in stock, no candles; something for slow mornings."
 EXTRACTED = {
@@ -76,7 +76,7 @@ def _candle_embedding(conn: Any) -> List[float]:
 
 def _anna_search(conn: Any, monkeypatch: pytest.MonkeyPatch, variant: str) -> Dict[str, Any]:
     """Anna's request through the real pipeline, with the variant's fallback in place."""
-    monkeypatch.setattr(search_plan.SearchPlan, "_with_relaxations",
+    monkeypatch.setattr(search_plan.SearchPlan, "_next_attempt",
                         lab_variants.plan_fallback(variant))
     vector = _candle_embedding(conn)
     return store_tools.search_products(
@@ -110,7 +110,7 @@ def test_the_starter_fallback_returns_a_candle_and_drops_annas_limits(conn, monk
     assert payload["search_plan"]["hard_constraints"]["price_max_usd"] is None
     assert payload["search_plan"]["exclusions"] == []
 
-    finding, rows = lab1_compare.evaluate(conn)
+    finding, rows = lab1_retry.evaluate(conn)
     assert finding.state == "CONTRADICTED", finding
     assert "excluded candle" in finding.observed
     assert "dropped under $100, in stock, no candles" in finding.observed
@@ -126,7 +126,7 @@ def test_the_solution_fallback_keeps_annas_limits(conn, monkeypatch) -> None:
     assert payload["search_plan"]["hard_constraints"]["price_max_usd"] == 100
     assert payload["search_plan"]["exclusions"] == ["candle"]
 
-    finding, rows = lab1_compare.evaluate(conn)
+    finding, rows = lab1_retry.evaluate(conn)
     assert finding.state == "PROVED", finding
     assert "keep under $100, in stock, no candles after the fallback" in finding.observed
     assert rows and all(row[-1] == "ok" for row in rows)
@@ -146,7 +146,7 @@ def test_a_second_search_in_the_same_turn_does_not_hide_the_fallback(conn, monke
                  "session_id": f"persona-anna-{lab_variants.SOLUTION}", "rail": "in-process",
                  "embedding_model": "stand-in", "rerank_model": "stand-in"},
     )
-    finding, _rows = lab1_compare.evaluate(conn)
+    finding, _rows = lab1_retry.evaluate(conn)
     assert finding.state == "PROVED", finding
 
 
@@ -165,7 +165,7 @@ def test_the_receipt_records_what_was_asked_beside_what_answered(conn, monkeypat
 @pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
 def test_the_plan_contract_separates_the_starter_from_the_solution(monkeypatch, variant) -> None:
     """The local plan contract the retired lab1_plan_contract_check.py ran, per variant."""
-    monkeypatch.setattr(search_plan.SearchPlan, "_with_relaxations",
+    monkeypatch.setattr(search_plan.SearchPlan, "_next_attempt",
                         lab_variants.plan_fallback(variant))
     original = search_plan.build_plan(QUERY, dict(EXTRACTED))
     before = original.to_dict()

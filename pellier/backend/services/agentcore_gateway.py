@@ -54,7 +54,7 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
         )
 
 
-# === WORKSHOP - Managed catalogue - support reconcile: START ===
+# === WORKSHOP - Support agent - Gateway tools: START ===
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo's support-ticket request routes to the Support agent. On the
@@ -70,17 +70,17 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 # model choose whose records to read?
 #
 # Task 3B checks it on AgentCore: deploy, send Theo's requests with
-# python3 scripts/lab_run.py send --lab 3, then python3 scripts/lab3_check.py
+# python3 scripts/lab_run.py send --lab 3, then python3 scripts/lab3_check.py --task 3B
 # reads the bound customer and the executed build. Its direct Gateway probe
 # checks a foreign request against Cedar separately.
-SUPPORT_MANAGED_TOOLS: tuple[str, ...] = (
+SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
     "get_orders",
     "get_return_policy",
     "get_tickets",
     "ask_a_person",
 )
 SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset()
-# === WORKSHOP - Managed catalogue - support reconcile: END ===
+# === WORKSHOP - Support agent - Gateway tools: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
     "shopping": (
@@ -90,7 +90,7 @@ MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
         "ask_a_person",
     ),
     "stock": ("check_stock",),
-    "support": SUPPORT_MANAGED_TOOLS,
+    "support": SUPPORT_GATEWAY_TOOLS,
 }
 
 

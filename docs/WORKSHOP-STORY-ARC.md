@@ -17,7 +17,7 @@ persona-led scenario; keep the technical titles as the headings.
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
 | 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
-| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
+| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
 ## Every task: fail in the terminal, fix the region, prove it, then look
 
@@ -37,10 +37,10 @@ starter fails the way See it fail shows and the solution does not.
 
 | Lab | See it fail, in the terminal | The fix |
 |---|---|---|
-| 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector branch ranks nothing by meaning; after her request is sent, `lab1_compare.py` shows the retry dropped her limits | 1A: rank the eligible products by meaning. 1B: the fallback keeps her limits |
-| 2 | `lab2_contract_check.py` shows `check_stock` calling a piece Pellier does not carry sold out; after Marco's requests, `--task 2B` shows the answering Stock agent held only catalog tools | 2A: `check_stock` keeps "not carried" apart from sold out. 2B: connect `check_stock` to the Stock agent, alone |
-| 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway; `workshop/lab-3-rls.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, write the ownership rule, then challenge it |
-| 4 | `lab4_policy_check.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: the $100 per-credit limit in Cedar. 4B: the money role writes only through the credit function |
+| 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector branch ranks nothing by meaning; after her request is sent, `lab1_retry.py` shows the retry dropped her limits | 1A: rank the eligible products by meaning. 1B: the fallback keeps her limits |
+| 2 | `lab2_check.py` shows `check_stock` calling a piece Pellier does not carry sold out; after Marco's requests, `--task 2B` shows the answering Stock agent held only catalog tools | 2A: `check_stock` keeps "not carried" apart from sold out. 2B: connect `check_stock` to the Stock agent, alone |
+| 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway; `workshop/lab-3-row-ownership.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, write the ownership rule, then challenge it |
+| 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: the $100 per-credit limit in Cedar. 4B: the money role writes only through the credit function |
 
 ## Nine marked regions, one check per task
 
@@ -51,16 +51,16 @@ task letter.
 
 | Task | Region | Check | Pass token |
 |---|---|---|---|
-| 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `python3 scripts/lab1_vector_check.py` | `Lab 1A check passed` |
-| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_compare.py` | `Lab 1B check passed` |
-| 2A | `services/agent_tools.py`, `Stock agent - check_stock` | `python3 scripts/lab2_contract_check.py` | `Lab 2A check passed` |
-| 2B | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_contract_check.py --task 2B` | `Lab 2B check passed` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Managed catalogue - support reconcile` | `python3 scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
-| 3B | `workshop/lab-3-rls.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `python3 scripts/lab3_check.py` | `Lab 3B check passed` |
-| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_policy_check.py` | `Lab 4A check passed` |
-| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its worksheet prints `Lab 4B privileges check passed`) | `python3 scripts/lab4_credit_check.py` | `Lab 4B check passed` |
+| 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `python3 scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
+| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
+| 2A | `services/agent_tools.py`, `Stock agent - check_stock` | `python3 scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
+| 2B | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `python3 scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
+| 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `python3 scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
+| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
+| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its worksheet prints `Lab 4B privileges check passed`) | `python3 scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
 
-Lab 1's Go deeper keeps the RRF worksheet (`workshop/lab-1-rrf.sql`, region
+Lab 1's Go deeper keeps the RRF worksheet (`workshop/lab-1-fusion.sql`, region
 `PostgreSQL RRF - fusion expression`, `Lab 1 fusion check passed`); it is not a
 task. Lab 4's "What you proved" runs the supplied `workshop/lab-4-absence.sql`
 (`Lab 4 absence check passed`).

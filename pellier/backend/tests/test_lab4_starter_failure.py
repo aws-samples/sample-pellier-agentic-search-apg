@@ -34,12 +34,12 @@ from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-lab4 = importlib.import_module("lab4_policy_check")
+lab4 = importlib.import_module("lab4_policy")
 
 STARTER_RULE = REPO / "workshop" / "starters" / "workshop_credit_limit.cedar"
 SOLUTION_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
-RLS_STARTER = REPO / "workshop" / "starters" / "lab-3-rls.sql"
-RLS_SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-rls-solution.sql"
+RLS_STARTER = REPO / "workshop" / "starters" / "lab-3-row-ownership.sql"
+RLS_SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-row-ownership-solution.sql"
 ABSENCE = REPO / "workshop" / "lab-4-absence.sql"
 FORENSIC = REPO / "solutions" / "the-ledger" / "sql" / "forensic_incident.sql"
 JESSICA = "CUST-JESSICA"

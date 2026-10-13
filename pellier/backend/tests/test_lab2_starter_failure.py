@@ -9,7 +9,7 @@ it holds no tool that reads ``warehouse_inventory``: it can answer a stock
 question from a product listing, or not at all, even though its prompt names
 ``check_stock``. The solution connects ``check_stock`` alone. The built
 agent's own registry is what the audit row records and the Builder view shows;
-``scripts/lab2_contract_check.py --task 2B`` judges Marco's latest Stock-agent
+``scripts/lab2_check.py --task 2B`` judges Marco's latest Stock-agent
 turn by that recorded grant, its calls and its counts.
 
 The tool bodies run on the real schema and seed; the Stock agent is built by
@@ -36,7 +36,7 @@ from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-lab2 = importlib.import_module("lab2_contract_check")
+lab2 = importlib.import_module("lab2_check")
 
 NOT_CARRIED = "Velvet Opera Cape"
 CATALOG_TOOLS = {"search_products", "browse_department", "compare_products"}

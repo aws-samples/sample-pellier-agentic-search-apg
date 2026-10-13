@@ -14,8 +14,8 @@ runs both checks:
 python3 scripts/lab_run.py solution --lab 2 && \
   sudo systemctl restart pellier && \
   python3 scripts/lab_run.py send --lab 2 && \
-  python3 scripts/lab2_contract_check.py && \
-  python3 scripts/lab2_contract_check.py --task 2B
+  python3 scripts/lab2_check.py --task 2A && \
+  python3 scripts/lab2_check.py --task 2B
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

@@ -409,7 +409,7 @@ def execute_until_allowed(backend: Backend, token: str, review: int) -> Dict[str
             raise LabRunError(
                 f"review {review} has no Policy ALLOW after {POLICY_WAIT_SECONDS // 60} "
                 f"minutes; last: {why}. Check Task 4A with python3 "
-                "scripts/lab4_policy_check.py, deploy it, and rerun.")
+                "scripts/lab4_check.py --task 4A, deploy it, and rerun.")
         wait(f"{why}. Retrying in {RETRY_SECONDS} s.")
         time.sleep(RETRY_SECONDS)
 

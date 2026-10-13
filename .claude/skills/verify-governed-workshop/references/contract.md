@@ -42,4 +42,4 @@ agents (Shopping, Stock, Support).
 1. Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 2. Lab 2: Build a PostgreSQL-Grounded Agent
 3. Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
-4. Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security
+4. Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges

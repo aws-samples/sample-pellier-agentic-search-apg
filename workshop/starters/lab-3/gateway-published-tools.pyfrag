@@ -8,8 +8,8 @@
 # does not decide whose records a call may read: that is the caller binding in
 # agentcore_gateway.py plus the owner-only permit rendered at deploy.
 #
-# Reconcile the Runtime list and caller binding in Task 3A, then deploy in
-# Task 3B so the Runtime asks for the tools the Gateway now publishes:
+# Match the Support agent's Gateway tools and bind the caller in Task 3A, then
+# deploy in Task 3B so the Runtime asks for the tools the Gateway now publishes:
 #     python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" \
 #         --mode participant
 #
@@ -17,6 +17,6 @@
 # tool listing made with your own token names `get_tickets`. Visible counts
 # depend on the caller because the Gateway filters discovery by policy; a
 # published staff-only tool is not visible to a shopper.
-WORKSHOP_DEFERRED_TOOLS: frozenset[str] = frozenset({
+UNPUBLISHED_TOOLS: frozenset[str] = frozenset({
     "get_tickets",
 })

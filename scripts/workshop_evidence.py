@@ -20,7 +20,7 @@ What each line reads:
     3A  the source: the Gateway catalogue and the caller binding
     3B  pellier.tool_audit (the executed build beside this checkout's digest,
         and every get_tickets read), AgentCore Memory (Theo's record), and the
-        live row policies beside workshop/lab-3-rls.sql, probed on both paths
+        live row policies beside workshop/lab-3-row-ownership.sql, probed on both paths
     4A  policies/workshop_credit_limit.cedar, evaluated with Cedar here, then
         the stored Gateway denial and Jessica's credit in pellier.approvals,
         pellier.store_credits and pellier.tool_audit
@@ -74,10 +74,10 @@ REGIONS: Dict[str, tuple] = {
                      "Gateway catalogue - published tools",
                      STARTERS / "lab-3" / "gateway-published-tools.pyfrag"),
     "3A-binding": (BACKEND / "services" / "agentcore_gateway.py",
-                   "Managed catalogue - support reconcile",
-                   STARTERS / "lab-3" / "support-reconcile.pyfrag"),
-    "3B": (REPO / "workshop" / "lab-3-rls.sql", "Row ownership - predicate",
-           STARTERS / "lab-3-rls.sql"),
+                   "Support agent - Gateway tools",
+                   STARTERS / "lab-3" / "support-gateway-tools.pyfrag"),
+    "3B": (REPO / "workshop" / "lab-3-row-ownership.sql", "Row ownership - predicate",
+           STARTERS / "lab-3-row-ownership.sql"),
     "4B": (REPO / "workshop" / "lab-4-credit-writer.sql", "Credit writer - privileges",
            STARTERS / "lab-4-credit-writer.sql"),
 }
@@ -88,7 +88,7 @@ TITLES = {
     "1": "Lab 1: Build and Measure PostgreSQL Hybrid Retrieval",
     "2": "Lab 2: Build a PostgreSQL-Grounded Agent",
     "3": "Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore",
-    "4": "Lab 4: Govern Agent Actions with Cedar and PostgreSQL Row-Level Security",
+    "4": "Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges",
 }
 
 
@@ -110,7 +110,7 @@ def _starter_finding(task: str, title: str, expected: str, where: str) -> check.
 
 def task_1a(cfg: Config, connect: Connect) -> check.Finding:
     """Run the participant's vector branch with the Lab 1A check's probes."""
-    import lab1_vector_check as lab1
+    import lab1_vector as lab1
 
     if source_state("1A") == check.STARTER:
         return _starter_finding("1A", lab1.TITLE, lab1.EXPECTED,
@@ -125,10 +125,10 @@ def task_1a(cfg: Config, connect: Connect) -> check.Finding:
 
 def task_1b(cfg: Config, connect: Connect) -> check.Finding:
     """Lab 1B from Anna's newest receipt: what she asked, and what the answer kept."""
-    import lab1_compare
+    import lab1_retry
 
-    return _with_connection("1B", lab1_compare.TITLE, lab1_compare.EXPECTED, cfg, connect,
-                            lambda conn: lab1_compare.evaluate(conn)[0])
+    return _with_connection("1B", lab1_retry.TITLE, lab1_retry.EXPECTED, cfg, connect,
+                            lambda conn: lab1_retry.evaluate(conn)[0])
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ def task_1b(cfg: Config, connect: Connect) -> check.Finding:
 
 def task_2a(cfg: Config, connect: Connect) -> check.Finding:
     """Lab 2A from Marco's recorded check_stock calls; the checkout's code is never run."""
-    import lab2_contract_check as lab2
+    import lab2_check as lab2
 
     title = "check_stock keeps not carried, several and sold out apart"
     return _with_connection("2A", title, lab2.EXPECTED_2A_RECORDED, cfg, connect,
@@ -147,7 +147,7 @@ def task_2a(cfg: Config, connect: Connect) -> check.Finding:
 
 def task_2b(cfg: Config, connect: Connect) -> check.Finding:
     """Lab 2B from Marco's latest Stock-agent turn, with the grant that agent held."""
-    import lab2_contract_check as lab2
+    import lab2_check as lab2
 
     title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
     return _with_connection("2B", title, lab2.EXPECTED_2B, cfg, connect, lab2.judge_2b)
@@ -186,26 +186,26 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
             ownership: Optional[Callable[[], List[check.Finding]]] = None) -> check.Finding:
     """Lab 3B: Theo's managed turn ran this build, was given his remembered taste
     from AgentCore Memory, read only his own tickets, and the live row policies
-    are the predicate in workshop/lab-3-rls.sql.
+    are the predicate in workshop/lab-3-row-ownership.sql.
 
     ``memory`` reads AgentCore Memory (``lab3_check.memory_finding`` unless
     given); ``ownership`` reads and probes the live row policies
-    (``lab3_rls_check.collect``). The direct Cedar probe calls the Gateway, so it
+    (``lab3_row_ownership_check.collect``). The direct Cedar probe calls the Gateway, so it
     is ``scripts/lab3_check.py``'s alone.
     """
     import lab3_check
-    import lab3_rls_check
+    import lab3_row_ownership_check
 
     title = ("your build answered Theo, remembered his taste, read only his own tickets, and "
              "your row policies hold")
     expected = (f"{lab3_check.BUILD_EXPECTED}; {lab3_check.MEMORY_EXPECTED}; "
-                f"{lab3_check.TICKETS_EXPECTED}; {lab3_rls_check.DEPLOYED_EXPECTED}")
+                f"{lab3_check.TICKETS_EXPECTED}; {lab3_row_ownership_check.DEPLOYED_EXPECTED}")
     if rows is None:
         return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
     if source_state("3B") == check.STARTER:
-        owned = [_starter_finding("3B", title, expected, "workshop/lab-3-rls.sql")]
+        owned = [_starter_finding("3B", title, expected, "workshop/lab-3-row-ownership.sql")]
     else:
-        owned = (ownership or lab3_rls_check.collect)()
+        owned = (ownership or lab3_row_ownership_check.collect)()
     return _combine("3B", title, expected, [
         lab3_check.judge_build(rows.get("build"), local_build),
         (memory or lab3_check.memory_finding)(),
@@ -287,7 +287,7 @@ def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
 def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
     """Lab 4A: the rule passes Cedar here, the Gateway denied the over-limit
     credit with no row left, and Jessica's in-limit credit ran once."""
-    import lab4_policy_check as lab4
+    import lab4_policy as lab4
 
     title = "the $100 credit limit holds, in Cedar and on the Gateway"
     expected = ("your rule passes the Cedar matrix; the over-limit credit was denied and left "
@@ -313,8 +313,8 @@ def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
 
 def task_4b(writer: Optional[Callable[[], List[check.Finding]]] = None) -> check.Finding:
     """Lab 4B: the live credit function carries your statements, and the money role
-    writes only through it on both paths (``lab4_credit_check.collect`` unless given)."""
-    import lab4_credit_check as lab4b
+    writes only through it on both paths (``lab4_credit.collect`` unless given)."""
+    import lab4_credit as lab4b
 
     title = "the money role writes only through the credit function"
     expected = f"{lab4b.DEPLOYED_EXPECTED}; {lab4b.EXPECTED}"
@@ -349,13 +349,13 @@ def _rows(cfg: Config, connect: Connect) -> Dict[str, Any]:
     if cfg is None:
         return {"available": False}
     try:
-        import lab4_policy_check
+        import lab4_policy
 
         out: Dict[str, Any] = {"available": True, "lab3": lab3_check.read_rows(cfg, connect)}
         with connect(cfg) as conn, conn.cursor() as cur:
             cur.execute(LAB4_SQL)
             credit = cur.fetchone()
-            cur.execute(lab4_policy_check.PROBE_SQL)
+            cur.execute(lab4_policy.PROBE_SQL)
             out["lab4"] = {"credit": credit, "probe": cur.fetchone()}
         return out
     except Exception:  # noqa: BLE001 - reported as UNCHECKED on the lines that need it
@@ -372,8 +372,8 @@ def collect(
     cfg = check.db_config(env_path)
     rows = _rows(cfg, connect)
     available = bool(rows.get("available"))
-    import lab3_rls_check
-    import lab4_credit_check
+    import lab3_row_ownership_check
+    import lab4_credit
 
     return [
         task_1a(cfg, connect),
@@ -382,9 +382,9 @@ def collect(
         task_2b(cfg, connect),
         task_3a(),
         task_3b(rows.get("lab3") if available else None, lab3_check.local_fingerprint(),
-                ownership=lambda: lab3_rls_check.collect(env_path)),
+                ownership=lambda: lab3_row_ownership_check.collect(env_path)),
         task_4a(rows.get("lab4") if available else None),
-        task_4b(lambda: lab4_credit_check.collect(env_path)),
+        task_4b(lambda: lab4_credit.collect(env_path)),
     ]
 
 

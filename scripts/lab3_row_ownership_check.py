@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lab 3B, live: your deployed predicate stops a wrong query on both database paths.
 
-``workshop/lab-3-rls.sql`` probes your predicate and, when every probe matches,
+``workshop/lab-3-row-ownership.sql`` probes your predicate and, when every probe matches,
 commits it as the live policy on ``orders_owner`` and ``support_tickets_owner``,
 commented with its sha256. This check first confirms both live policies carry
 the predicate now in your file, so the policies it probes are yours and not the
@@ -22,7 +22,7 @@ Row-level security stops a wrong query; it does not choose the customer.
 On the Gateway path the Lambda binds the customer the call carries, which
 Cedar's owner-only permit has already matched to the caller's token (Task 3A).
 
-    python3 scripts/lab3_rls_check.py
+    python3 scripts/lab3_row_ownership_check.py
 """
 
 from __future__ import annotations
@@ -45,15 +45,15 @@ DEPLOY = SCRIPTS / "deploy"
 
 THEO_USERNAME, THEO = "theo", "CUST-THEO"
 
-WORKSHEET = REPO / "workshop" / "lab-3-rls.sql"
-STARTER = REPO / "workshop" / "starters" / "lab-3-rls.sql"
+WORKSHEET = REPO / "workshop" / "lab-3-row-ownership.sql"
+STARTER = REPO / "workshop" / "starters" / "lab-3-row-ownership.sql"
 REGION = "Row ownership - predicate"
 STAMP_PREFIX = "Lab 3B predicate sha256 "
 POLICY_NAMES = ("orders_owner", "support_tickets_owner")
-RUN_WORKSHEET = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql"
+RUN_WORKSHEET = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql"
 DEPLOYED_TITLE = "your predicate is the live policy on both tables"
 DEPLOYED_EXPECTED = ("orders_owner and support_tickets_owner carry the predicate now in "
-                     "workshop/lab-3-rls.sql, committed by its passing run")
+                     "workshop/lab-3-row-ownership.sql, committed by its passing run")
 DEPLOYED_SQL = """
 SELECT pol.polname AS policy,
        coalesce(obj_description(pol.oid, 'pg_policy'), '') AS stamp,
@@ -133,17 +133,18 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
     if stamp is None:
         return check.Finding("3B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
                              "the worksheet's predicate region could not be read",
-                             ["workshop/lab-3-rls.sql: no $predicate$ quotes"],
-                             "restore the region from workshop/starters/lab-3-rls.sql.")
+                             ["workshop/lab-3-row-ownership.sql: no $predicate$ quotes"],
+                             "restore the region from workshop/starters/lab-3-row-ownership.sql.")
     if is_starter:
         return check.Finding("3B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
                              "the worksheet still holds the starter predicate",
-                             ["workshop/lab-3-rls.sql: Row ownership - predicate is false"],
-                             "write the predicate in workshop/lab-3-rls.sql, then run "
+                             ["workshop/lab-3-row-ownership.sql: Row ownership - predicate "
+                              "is false"],
+                             "write the predicate in workshop/lab-3-row-ownership.sql, then run "
                              f"{RUN_WORKSHEET}.")
     short = stamp[len(STAMP_PREFIX):][:12]
     evidence = [_stamp_line(name, deployed.get(name, "")) for name in POLICY_NAMES]
-    evidence.append(f"workshop/lab-3-rls.sql: sha256 {short}...")
+    evidence.append(f"workshop/lab-3-row-ownership.sql: sha256 {short}...")
     if all(deployed.get(name) == stamp for name in POLICY_NAMES):
         return check.Finding("3B", DEPLOYED_TITLE, check.PROVED, DEPLOYED_EXPECTED,
                              f"both policies carry your predicate, sha256 {short}", evidence)

@@ -57,23 +57,23 @@ MARKER_EXERCISES = (
         marker="WORKSHOP - Gateway catalogue - published tools",
     ),
     MarkerExercise(
-        exercise_id="lab-3-support-reconcile",
-        starter="workshop/starters/lab-3/support-reconcile.pyfrag",
+        exercise_id="lab-3-support-gateway-tools",
+        starter="workshop/starters/lab-3/support-gateway-tools.pyfrag",
         destination="pellier/backend/services/agentcore_gateway.py",
-        marker="WORKSHOP - Managed catalogue - support reconcile",
+        marker="WORKSHOP - Support agent - Gateway tools",
     ),
 )
 
 FILE_EXERCISES = (
     FileExercise(
-        exercise_id="lab-3-rls",
-        starter="workshop/starters/lab-3-rls.sql",
-        destination="workshop/lab-3-rls.sql",
+        exercise_id="lab-3-row-ownership",
+        starter="workshop/starters/lab-3-row-ownership.sql",
+        destination="workshop/lab-3-row-ownership.sql",
     ),
     FileExercise(
-        exercise_id="lab-1-rrf",
-        starter="workshop/starters/lab-1-rrf.sql",
-        destination="workshop/lab-1-rrf.sql",
+        exercise_id="lab-1-fusion",
+        starter="workshop/starters/lab-1-fusion.sql",
+        destination="workshop/lab-1-fusion.sql",
     ),
     FileExercise(
         exercise_id="lab-4-cedar",

@@ -1,1 +1,0 @@
-../../workshop/lab-1-rrf.sql

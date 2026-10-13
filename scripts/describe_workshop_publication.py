@@ -41,7 +41,7 @@ sys.path.insert(0, str(DEPLOY))
 
 from gateway_tool_schemas import (  # noqa: E402
     TOOL_SCHEMAS,
-    WORKSHOP_DEFERRED_TOOLS,
+    UNPUBLISHED_TOOLS,
     canonical_tool_names,
     workshop_published_tools,
     workshop_target_tools,
@@ -66,7 +66,7 @@ def tools_view() -> Dict[str, Any]:
     return {
         "canonicalCount": len(canonical),
         "canonical": canonical,
-        "deferred": sorted(WORKSHOP_DEFERRED_TOOLS),
+        "deferred": sorted(UNPUBLISHED_TOOLS),
         "publishedCount": len(published),
         "published": published,
         "byTarget": {surface: sorted(tools) for surface, tools in sorted(targets.items())},

@@ -10,8 +10,8 @@ Every terminal starts at the repository root.
 
 | Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| 1A, search by what she means | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql` | [1A-vector-branch.py](1A-vector-branch.py), region `Vector branch - order by meaning`, then `sudo systemctl restart pellier` | `python3 scripts/lab1_vector_check.py` ends `Lab 1A check passed` |
-| 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1`, then `python3 scripts/lab1_compare.py` | [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then restart and send her request again | `python3 scripts/lab1_compare.py` ends `Lab 1B check passed` |
+| 1A, search by what she means | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql` | [1A-vector-branch.py](1A-vector-branch.py), region `Vector branch - order by meaning`, then `sudo systemctl restart pellier` | `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
+| 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1`, then `python3 scripts/lab1_check.py --task 1B` | [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then restart and send her request again | `python3 scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
 
 After the 1B token, open **PellierURL**, choose **Anna** in **Ask Pellier** with **Builder
 view** on, and read **How it ranked** for the turn the terminal sent: a **Vector** rank on
@@ -21,7 +21,7 @@ every row, her three limits, and no candles.
 
 `1A-vector-branch.py` and `1B-search-plan.py` are links to `pellier/backend/services/`, so
 saving here changes the code the backend runs once it restarts. Edit only the marked
-region. `go-deeper-rrf.sql` is the guide's optional Go deeper: a worksheet that recomputes
+region. `go-deeper-fusion.sql` is the guide's optional Go deeper: a worksheet that recomputes
 the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## If you need a solution

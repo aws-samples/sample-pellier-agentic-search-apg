@@ -248,13 +248,13 @@ class SearchPlan:
         Under ``strict`` policy the ladder is a single rung — a sparse
         result stays sparse rather than silently becoming a wider one.
         """
-        first = self._with_relaxations([])
+        first = self._next_attempt([])
         if self.relaxation_policy == RELAXATION_POLICY_STRICT:
             return [first]
         if not self.soft.tags:
             return [first]
 
-        widened = self._with_relaxations(
+        widened = self._next_attempt(
             [
                 Relaxation(
                     step="drop_tags",
@@ -269,7 +269,7 @@ class SearchPlan:
         widened.soft = SoftPreferences(tags=(), soft_signal=self.soft.soft_signal)
         return [first, widened]
 
-    def _with_relaxations(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
+    def _next_attempt(self, relaxations: Sequence[Relaxation]) -> "SearchPlan":
         # === WORKSHOP - Search plan - preserve requirements: START ===
         # Task 1B: build the next attempt from this validated request.
         if not relaxations:

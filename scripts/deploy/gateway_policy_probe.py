@@ -11,7 +11,7 @@ no rows); it also answers by hand when a deployment needs checking.
 The lab checks call the same two functions, ``_call_tool`` and
 ``classify_call``: ``scripts/lab3_check.py`` sends Theo's token for Jessica's
 tickets (the owner-only permit must deny it), and
-``scripts/lab4_policy_check.py`` sends Nadia's token for a 10001-cent credit
+``scripts/lab4_check.py --task 4A`` sends Nadia's token for a 10001-cent credit
 of its own approved review (``workshop_credit_limit`` must deny it).
 Classification (``gateway_client.is_policy_denial_text``) is shared: a 401, a
 validation failure or a transport error is ``error``, never a policy decision.

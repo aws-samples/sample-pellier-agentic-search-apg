@@ -14,7 +14,7 @@
 -- are proving the recorded score can be derived from the ranks beside it.
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-rrf.sql
+--   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-fusion.sql
 --
 -- The receipt is the newest one written in Anna's session, which
 -- python3 scripts/lab_run.py send --lab 1 starts (persona-anna-...).

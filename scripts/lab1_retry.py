@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Lab 1B's check: Anna's latest search kept every limit she asked for.
 
 When the first search is sparse, the fallback retries with fewer preferences;
@@ -16,7 +15,7 @@ relaxation never ran Task 1B's code, so it proves nothing either way. A
 request that stated no limit proves nothing either, so the check asks for the
 guide's request.
 
-    python3 scripts/lab1_compare.py
+    python3 scripts/lab1_check.py --task 1B
 """
 
 from __future__ import annotations
@@ -42,7 +41,7 @@ EXPECTED = (
     "for; every product it returned meets them"
 )
 NEXT_STEP = (
-    "open _with_relaxations in pellier/backend/services/search_plan.py: does the "
+    "open _next_attempt in pellier/backend/services/search_plan.py: does the "
     "next attempt keep the budget, the stock rule and the exclusions? Restart, "
     f"send Anna's request again ({SEND}), then rerun this check."
 )
@@ -289,7 +288,3 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     passed = finding.state == check.PROVED
     print("Lab 1B check passed" if passed else "Lab 1B check failed")
     return 0 if passed else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

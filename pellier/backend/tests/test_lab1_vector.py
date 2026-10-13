@@ -2,7 +2,7 @@
 
 The starter keeps the vector branch's SELECT, with the plan's limits applied, and
 stubs out the ranking, so the search answers from words alone. The participant
-writes the cosine-distance order and the similarity. ``scripts/lab1_vector_check.py``
+writes the cosine-distance order and the similarity. ``scripts/lab1_check.py --task 1A``
 judges the live ``vector_branch_sql`` with vectors whose nearest product is known
 (each product's own embedding), so these tests swap in each variant and read the
 verdict. The worksheet ``workshop/lab-1-words.sql`` is model-free; its rows are
@@ -30,7 +30,7 @@ from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-lab1_vector_check = importlib.import_module("lab1_vector_check")
+lab1_vector = importlib.import_module("lab1_vector")
 WORKSHEET = REPO / "workshop" / "lab-1-words.sql"
 LIVE = REPO / "pellier" / "backend" / "services" / "store_tools.py"
 LABEL = "Vector branch - order by meaning"
@@ -62,7 +62,7 @@ def _variant(replacements: Dict[str, str]) -> Callable[..., str]:
 
 def _verdict(conn: Any, monkeypatch: pytest.MonkeyPatch, branch: Callable[..., str]):
     monkeypatch.setattr(store_tools, "vector_branch_sql", branch)
-    return lab1_vector_check.evaluate(conn)
+    return lab1_vector.evaluate(conn)
 
 
 def test_the_live_region_is_the_starter() -> None:
@@ -81,7 +81,7 @@ def test_the_starter_ranks_nothing(conn, monkeypatch) -> None:
 def test_the_solution_ranks_by_meaning(conn, monkeypatch) -> None:
     finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_branch(lab_variants.SOLUTION))
     assert finding.state == "PROVED", finding
-    assert [row[1] for row in rows[:3]] == list(lab1_vector_check.SELF_PROBES)
+    assert [row[1] for row in rows[:3]] == list(lab1_vector.SELF_PROBES)
     assert all(row[4] == "ok" for row in rows)
 
 
@@ -107,7 +107,7 @@ def test_the_check_catches_a_realistic_mistake(conn, monkeypatch, mistake: str,
 
 def test_the_worksheet_query_is_the_one_the_search_builds() -> None:
     worksheet = WORKSHEET.read_text(encoding="utf-8")
-    expected = store_tools.or_tsquery(lab1_vector_check.ANNA_REQUEST)
+    expected = store_tools.or_tsquery(lab1_vector.ANNA_REQUEST)
     assert f"\\set words '{expected}'" in worksheet
 
 

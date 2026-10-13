@@ -1,6 +1,6 @@
 """Lab 4B's live check: the stamp it reads, and the money role on both paths.
 
-``scripts/lab4_credit_check.py`` first matches the live function's comment with
+``scripts/lab4_check.py --task 4B`` first matches the live function's comment with
 the statements in the participant's worksheet, then probes the role through the
 in-process session and through the Lambda's ``run_as_credit_writer``. These
 tests drive it against a fresh cluster after the solution worksheet commits; the
@@ -24,7 +24,7 @@ from tests.test_operator_credit_postgres import _conninfo, _DataApiOnPostgres, _
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
-credit_check = importlib.import_module("lab4_credit_check")
+credit_check = importlib.import_module("lab4_credit")
 SOLUTION = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-credit-writer-solution.sql"
 CLEAN = {"rights": credit_check.LIVE_RIGHTS, "execute": credit_check.LIVE_EXECUTE,
          "table_grants": 0, "policies": 0}
@@ -106,4 +106,5 @@ async def test_a_table_privilege_on_credits_is_caught_on_the_path(deployed: Any)
             conn.execute("REVOKE UPDATE ON pellier.store_credits FROM pellier_credit_writer")
     finding = credit_check.judge_path("in process", observed)
     assert observed[credit_check.UPDATE] == "00000"
-    assert finding.state == "CONTRADICTED" and "raise a credit's amount directly" in finding.observed
+    assert finding.state == "CONTRADICTED"
+    assert "raise a credit's amount directly" in finding.observed

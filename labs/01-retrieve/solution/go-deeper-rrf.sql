@@ -1,1 +1,0 @@
-../../../solutions/the-quiet-search/sql/lab-1-rrf-solution.sql

@@ -1407,7 +1407,7 @@ def run_search_plan(
         config: ``k_vector``, ``k_fts``, ``rrf_k``, ``top_n``,
             ``rerank_pool_k`` and ``rerank_max_documents``.
         relax: When the strict pass is short, walk the plan's relaxation
-            ladder. Each rung is built by ``SearchPlan._with_relaxations``
+            ladder. Each rung is built by ``SearchPlan._next_attempt``
             (Task 1B), which must carry the hard constraints unchanged.
 
     Returns:

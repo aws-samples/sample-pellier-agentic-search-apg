@@ -30,9 +30,9 @@ The evidence export judges 2A from the same rows (:func:`judge_recorded_2a`):
 Marco's latest ``check_stock`` call for each case, as recorded, against the
 catalog. It never runs the checkout's code.
 
-    python3 scripts/lab2_contract_check.py
-    python3 scripts/lab2_contract_check.py --unknown "..." --ambiguous "..." --sold-out "..."
-    python3 scripts/lab2_contract_check.py --task 2B
+    python3 scripts/lab2_check.py --task 2A
+    python3 scripts/lab2_check.py --task 2A --unknown "..." --ambiguous "..." --sold-out "..."
+    python3 scripts/lab2_check.py --task 2B
 """
 
 from __future__ import annotations
@@ -533,7 +533,7 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--task", choices=("2A", "2B"), default="2A")
+    parser.add_argument("--task", choices=("2A", "2B"), required=True)
     parser.add_argument("--unknown", help="A piece Pellier does not carry")
     parser.add_argument("--ambiguous", help="A query that names several pieces")
     parser.add_argument("--sold-out", dest="sold_out", help="A carried piece with no units")

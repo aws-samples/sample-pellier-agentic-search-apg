@@ -11,8 +11,8 @@ Every terminal starts at the repository root.
 
 | Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| 2A, keep "not carried" distinct from sold out | `python3 scripts/lab2_contract_check.py` | [2A-check-stock.py](2A-check-stock.py), region `Stock agent - check_stock` | `python3 scripts/lab2_contract_check.py` ends `Lab 2A check passed` |
-| 2B, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_contract_check.py --task 2B` | [2B-stock-agent.py](2B-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_contract_check.py --task 2B` ends `Lab 2B check passed` |
+| 2A, keep "not carried" distinct from sold out | `python3 scripts/lab2_check.py --task 2A` | [2A-check-stock.py](2A-check-stock.py), region `Stock agent - check_stock` | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
+| 2B, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_check.py --task 2B` | [2B-stock-agent.py](2B-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
 
 The 2A check runs your `check_stock` directly, so it needs no restart. The 2B check reads
 the grant the answering Stock agent actually held from its audit row, so it needs the

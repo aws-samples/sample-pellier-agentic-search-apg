@@ -80,7 +80,7 @@ def search(monkeypatch):
     monkeypatch.setattr(rerank, "get_rerank_service", lambda: ranker)
 
     def run(variant=lab_variants.STARTER):
-        monkeypatch.setattr(search_plan.SearchPlan, "_with_relaxations",
+        monkeypatch.setattr(search_plan.SearchPlan, "_next_attempt",
                             lab_variants.plan_fallback(variant))
         return json.loads(agent_tools.search_products(query=QUERY, limit=5))
 

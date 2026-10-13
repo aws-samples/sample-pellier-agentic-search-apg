@@ -45,19 +45,19 @@ participant's named task and prediction before proposing a change.
 |---|---|---|
 | 1A | `pellier/backend/services/store_tools.py` | `Vector branch - order by meaning` |
 | 1B | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
-| 1, Go deeper | `workshop/lab-1-rrf.sql` | `PostgreSQL RRF - fusion expression` |
+| 1, Go deeper | `workshop/lab-1-fusion.sql` | `PostgreSQL RRF - fusion expression` |
 | 2A | `pellier/backend/services/agent_tools.py` | `Stock agent - check_stock` |
 | 2B | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
 | 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
-| 3A | `pellier/backend/services/agentcore_gateway.py` | `Managed catalogue - support reconcile` |
-| 3B | `workshop/lab-3-rls.sql` | `Row ownership - predicate` |
+| 3A | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
+| 3B | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
 | 4A | `policies/workshop_credit_limit.cedar` | final `unless` block |
 | 4B | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
 
 Task 3B writes the row-ownership predicate while the Task 3A edits deploy, then challenges both.
-Lab 3's live row-level security check (`scripts/lab3_rls_check.py`), Lab 4's
+Lab 3's live row-level security check (`scripts/lab3_row_ownership_check.py`), Lab 4's
 keyed absence check (`workshop/lab-4-absence.sql`) and Task 4B's check
-(`scripts/lab4_credit_check.py`) are supplied; none has a region to author.
+(`scripts/lab4_check.py --task 4B`) are supplied; none has a region to author.
 Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its exercise boundary. This table grants access only to
 the task the participant names, never every file at once.
@@ -130,7 +130,7 @@ anchored to one person, in climbing order of difficulty:
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Search by what she means | Keep her limits on the retry |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | Keep "not carried" distinct from sold out | Connect `check_stock` to the Stock agent, alone |
 | 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
-| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the money role write only through the function |
+| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the money role write only through the function |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
 task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the

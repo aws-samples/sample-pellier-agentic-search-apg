@@ -1384,7 +1384,7 @@ def _lab4_rule_gate(repo: Path) -> str:
 
     Lab 4's policy deploys with ``IGNORE_ALL_FINDINGS`` (the starter's
     forbid-all is overly restrictive on purpose), so AWS's semantic analysis
-    does not assess the participant's rule. ``scripts/lab4_policy_check.py``
+    does not assess the participant's rule. ``scripts/lab4_check.py --task 4A``
     evaluates it with real Cedar beside the rendered baseline in about a
     second; a rule it marks CONTRADICTED would cost a redeploy and could deny
     every shopper tool, so it is refused here, before any AWS change. NOT YET
@@ -1407,9 +1407,9 @@ def _lab4_rule_gate(repo: Path) -> str:
     try:
         rule = (repo / CREDIT_LIMIT_SOURCE).read_text(encoding="utf-8")
         starter = (repo / CREDIT_LIMIT_STARTER).read_text(encoding="utf-8")
-        import lab4_policy_check
+        import lab4_policy
 
-        finding = lab4_policy_check.local_check(rule, starter).finding
+        finding = lab4_policy.local_check(rule, starter).finding
     except Exception as exc:  # noqa: BLE001 - an unrun check refuses an edit, never passes it
         reason = f"{type(exc).__name__}: {str(exc)[:160]}"
         _refuse_an_unchecked_edit(rule, starter, reason)
@@ -1417,10 +1417,10 @@ def _lab4_rule_gate(repo: Path) -> str:
               file=sys.stderr)
         return "UNCHECKED"
     if finding.state == "CONTRADICTED":
-        print(lab4_policy_check.check.render(finding), file=sys.stderr)
+        print(lab4_policy.check.render(finding), file=sys.stderr)
         raise RuntimeError(
             f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} fails the Cedar check, so it was not "
-            "deployed. Run python3 scripts/lab4_policy_check.py, fix the final unless "
+            "deployed. Run python3 scripts/lab4_check.py --task 4A, fix the final unless "
             "block, then deploy again."
         )
     if finding.state == "UNCHECKED":
@@ -1441,7 +1441,7 @@ def _refuse_an_unchecked_edit(rule: str | None, starter: str | None, reason: str
     raise RuntimeError(
         f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} differs from its starter, and the Cedar "
         f"check could not run ({reason}), so it was not deployed. Run python3 "
-        "scripts/lab4_policy_check.py to see why, then deploy again."
+        "scripts/lab4_check.py --task 4A to see why, then deploy again."
     )
 
 
@@ -2349,7 +2349,7 @@ def _live_policy_proof(
 
     The shopper's credit is denied by the supplied baseline, which has no
     shopper permit for it, and also by Lab 4's starter forbid, deployed with it.
-    This proof does not tell the two apart; ``scripts/lab4_policy_check.py``
+    This proof does not tell the two apart; ``scripts/lab4_check.py --task 4A``
     does, locally, by evaluating the baseline alone. The $100 rule belongs to
     that checker.
     """
