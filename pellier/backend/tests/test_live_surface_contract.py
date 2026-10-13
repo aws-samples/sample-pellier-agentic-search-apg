@@ -90,7 +90,6 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
         "anna": [
             "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
             "and no candles.",
-            "A gift with a watch, under $100, in stock, no candles.",
         ],
         "marco": [
             "Is the Velvet Opera Cape in stock?",

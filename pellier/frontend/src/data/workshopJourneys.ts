@@ -76,9 +76,10 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
 
 /**
  * The guide's required chat requests: each shopper's lab prompts, in order.
- * Anna's states the three limits her starter fallback drops, then the
- * challenge; Marco asks about a piece Pellier does not carry (Lab 2A's Spot),
- * then his Brooklyn stock question, last, because Lab 2B judges his latest
+ * Anna's states the three limits her starter fallback drops; her watch
+ * challenge is an optional Go deeper experiment the guide has her type.
+ * Marco asks about a piece Pellier does not carry (Lab 2A's Spot), then his
+ * Brooklyn stock question, last, because Lab 2B judges his latest
  * Stock-agent turn. SQL benchmarks, direct Gateway probes, Memory reads, and
  * human review actions remain separate guide steps. The home page's signed-in
  * suggestion row reads the same roles from `data/scenarios.json`
@@ -86,7 +87,7 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
  */
 export const WORKSHOP_REQUIRED_PROMPTS: Record<WorkshopAnchorId, readonly string[]> = {
   marco: ['Is the Velvet Opera Cape in stock?', WORKSHOP_JOURNEYS.marco.prompts[2]],
-  anna: [WORKSHOP_JOURNEYS.anna.prompts[0], WORKSHOP_JOURNEYS.anna.prompts[1]],
+  anna: [WORKSHOP_JOURNEYS.anna.prompts[0]],
   theo: [
     WORKSHOP_JOURNEYS.theo.prompts[0],
     'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',

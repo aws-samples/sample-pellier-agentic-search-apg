@@ -24,7 +24,6 @@ LAB_PROMPTS = {
     "anna": [
         "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
         "and no candles.",
-        "A gift with a watch, under $100, in stock, no candles.",
     ],
     "marco": [
         "Is the Velvet Opera Cape in stock?",

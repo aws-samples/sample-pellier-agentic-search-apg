@@ -59,7 +59,6 @@ describe('four-lab workshop journey contract', () => {
         ],
         anna: [
           'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
-          'A gift with a watch, under $100, in stock, no candles.',
         ],
         theo: [
           "Pick one piece you think I'd love.",
@@ -78,7 +77,8 @@ describe('four-lab workshop journey contract', () => {
       expect(nextJourneyPrompt('Is the Velvet Opera Cape in stock?')).toBe(WORKSHOP_JOURNEYS.marco.prompts[2])
       expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[2])).toBeUndefined()
       expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[0])).toBeUndefined()
-      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBe(WORKSHOP_JOURNEYS.anna.prompts[1])
+      // Anna's lab sends one request, twice; her watch challenge is optional and typed.
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBeUndefined()
     })
 
     it('ends each required chat sequence at the guide’s stopping point', () => {
