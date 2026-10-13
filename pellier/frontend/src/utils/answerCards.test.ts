@@ -41,4 +41,3 @@ describe('productsNamedInAnswer', () => {
     expect(mentionOf('see the hadley linen shirt.', 'Hadley Linen Shirt')).toBe(8)
   })
 })
-

@@ -214,4 +214,3 @@ describe('StepList evidence clamp', () => {
     expect(screen.getByTestId('turn-evidence-more')).toHaveTextContent(SHOW_LESS_EVIDENCE)
   })
 })
-

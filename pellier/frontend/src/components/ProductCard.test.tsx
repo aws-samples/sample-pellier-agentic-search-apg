@@ -45,4 +45,3 @@ describe('ProductCard', () => {
     expect(container.querySelector('.pellier-card-color')).toHaveTextContent('Olive')
   })
 })
-
