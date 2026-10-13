@@ -47,11 +47,10 @@ and runs the checks, so you can rejoin at the next lab; the guide's cheat sheet 
 ## The coding coach
 
 Claude Code is installed in this terminal and pointed at Amazon Bedrock through the
-workshop's instance role; nothing to sign in to. Start it with
-`claude --permission-mode plan` and paste the prompt from your task's **Stuck?** box. It is
-set up to ask for your prediction, give one hint at a time, and propose a patch inside your
-region only when you ask. You run the checks yourself. The guide's coaching page has the
-two-minute setup.
+workshop's instance role; nothing to sign in to. Start it with `claude` and paste the prompt
+from your task's **Stuck?** box. It asks before every edit and command, and it is set up to ask
+for your prediction, give one hint at a time, and propose a patch inside your region only when
+you ask. You run the checks yourself. The guide's coaching page has the two-minute setup.
 
 ## At the end
 
