@@ -69,6 +69,8 @@ export default function ProductCard({ product, index, pick = false }: ProductCar
   const detailPath = `/product/${product.id}`
   const stock = stockLine(product)
   const [isVisible, setIsVisible] = useState<boolean>(() => prefersReducedMotion())
+  // A photo that fails to load leaves the frame empty, never a broken-image icon and its alt text.
+  const [photoFailed, setPhotoFailed] = useState(false)
   const cardRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
@@ -133,17 +135,20 @@ export default function ProductCard({ product, index, pick = false }: ProductCar
           the accessibility tree and the tab order, so assistive tech and
           keyboard users get exactly one link per card. */}
       <Link to={detailPath} aria-hidden="true" tabIndex={-1} className="pellier-card-photo">
-        <ResponsiveImage
-          src={product.imageUrl}
-          alt={product.name}
-          widths={[480, 960, 1122]}
-          sizes="(min-width: 700px) 360px, 50vw"
-          loading="lazy"
-          decoding="async"
-          pictureClassName="block h-full w-full"
-          className="h-full w-full object-cover"
-          style={{ objectPosition: product.imagePosition ?? 'center center' }}
-        />
+        {photoFailed ? null : (
+          <ResponsiveImage
+            src={product.imageUrl}
+            alt={product.name}
+            widths={[480, 960, 1122]}
+            sizes="(min-width: 700px) 360px, 50vw"
+            loading="lazy"
+            decoding="async"
+            pictureClassName="block h-full w-full"
+            className="h-full w-full object-cover"
+            style={{ objectPosition: product.imagePosition ?? 'center center' }}
+            onError={() => setPhotoFailed(true)}
+          />
+        )}
       </Link>
       {/* Over the photo, but outside its hidden link, so it is read. */}
       {pick ? <span className="pellier-card-pick">{RESULTS.PICK}</span> : null}
