@@ -43,6 +43,11 @@ const REMOVED_LABELS: Record<string, (n: number) => string> = {
   department: n => `${formatCount(n)} in other departments`,
 }
 
+/** A row whose name the receipt did not record: say what the number is, so it never reads as a count. */
+export function unnamedProduct(productId: string): string {
+  return `Product ${productId}`
+}
+
 function contribution(rank: number | null, k: number): number {
   return rank ? 1 / (k + rank) : 0
 }
@@ -96,7 +101,7 @@ function Row({ row, k, maxFused }: { row: RankingRow; k: number; maxFused: numbe
         {row.after}
         <Movement moved={row.moved} />
       </span>
-      <span className="tn-rank-name" role="cell">{row.name ?? row.product_id}</span>
+      <span className="tn-rank-name" role="cell">{row.name ?? unnamedProduct(row.product_id)}</span>
       <span className="tn-rank-num" role="cell">{row.fts_rank ? `#${row.fts_rank}` : EMPTY}</span>
       <span className="tn-rank-num" role="cell">
         {row.vec_rank ? `#${row.vec_rank}` : EMPTY}

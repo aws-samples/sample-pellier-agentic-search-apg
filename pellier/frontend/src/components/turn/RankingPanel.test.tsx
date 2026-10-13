@@ -53,6 +53,13 @@ describe('RankingPanel', () => {
     expect(chips).toEqual(expect.arrayContaining(['Kept 1 of 1,284', '1,000 over budget', '283 sold out', '1,200 wool pieces', 'Vector 1,284']))
   })
 
+  it('names a row the receipt left unnamed as a product, not a bare number', () => {
+    const rows = [{ ...RANKING.rows![0], product_id: '940', name: null }]
+    render(<RankingPanel ranking={{ ...RANKING, rows }} />)
+    expect(screen.getByText('Product 940')).toBeInTheDocument()
+    expect(screen.queryByText(/^940$/)).not.toBeInTheDocument()
+  })
+
   it('says how the order was made when rerank did not run', () => {
     render(<RankingPanel ranking={{ ...RANKING, method: 'hybrid (rerank fallback to RRF order)' }} />)
     expect(screen.getByText('fused with RRF (k=60); rerank was unavailable, so this is RRF order')).toBeInTheDocument()
