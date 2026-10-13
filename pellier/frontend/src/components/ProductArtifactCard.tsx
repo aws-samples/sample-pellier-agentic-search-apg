@@ -77,7 +77,8 @@ export default function ProductArtifactCard({
   })()
 
   const brand = product.category || 'Pellier'
-  const rating = product.rating ?? product.reviews
+  // Only a real rating shows stars; a review count is never a rating.
+  const rating = typeof product.rating === 'number' && Number.isFinite(product.rating) ? product.rating : null
   const isOwned = product.ownership === 'owned'
 
   const matchLabel = (() => {
@@ -132,10 +133,10 @@ export default function ProductArtifactCard({
           <span className="pa-price">
             ${product.price.toFixed(product.price % 1 === 0 ? 0 : 2)}
           </span>
-          {rating != null && rating > 0 && (
+          {rating !== null && rating > 0 && (
             <span className="pa-rating">
               <span className="pa-star">&#9733;</span>
-              {' '}{typeof product.rating === 'number' ? product.rating.toFixed(1) : rating}
+              {' '}{rating.toFixed(1)}
               {product.reviews != null && (
                 <span className="pa-reviews">({product.reviews})</span>
               )}

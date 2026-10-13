@@ -64,6 +64,25 @@ describe('ProductArtifactCard shopping details', () => {
 })
 
 
+describe('ProductArtifactCard rating', () => {
+  it('never shows a review count as the star rating', () => {
+    // Reviews but no rating: the card used to print "★ 1284 (1284)".
+    const { container } = render(<ProductArtifactCard product={{ ...PRODUCT, reviews: 1284 }} />)
+    expect(container.querySelector('.pa-rating')).toBeNull()
+    expect(screen.queryByText('1284')).not.toBeInTheDocument()
+  })
+
+  it('shows a real rating to one decimal with its review count', () => {
+    const { container } = render(<ProductArtifactCard product={{ ...PRODUCT, rating: 4.8, reviews: 312 }} />)
+    expect(container.querySelector('.pa-rating')).toHaveTextContent('★ 4.8(312)')
+  })
+
+  it('shows no stars for a zero or missing rating', () => {
+    const { container } = render(<ProductArtifactCard product={{ ...PRODUCT, rating: 0, reviews: 0 }} />)
+    expect(container.querySelector('.pa-rating')).toBeNull()
+  })
+})
+
 describe('ProductArtifactCard stock tag', () => {
   it('is red for a sold-out piece and green for an in-stock one', () => {
     render(<ProductArtifactCard product={{ ...PRODUCT, quantity: 0, inStock: false }} />)
