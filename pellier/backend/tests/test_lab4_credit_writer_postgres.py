@@ -80,7 +80,10 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     differs = sorted(name for name, row in probes.items() if row[-1] == "differs")
     assert differs == sorted([
         "Insert a credit row directly", "Raise the approved credit to $500 directly",
-        "The function's rights", "The role's privileges on store_credits, orders, approvals"])
+        "The function's rights",
+        "The role's privileges and row policies on store_credits, orders, approvals"])
+    assert probes["The role's privileges and row policies on store_credits, orders, approvals"][1]\
+        .endswith("; policy orders_credit_writer on orders USING (true): every customer's rows")
     assert "rolled back, the live state is unchanged" in done.stdout
     assert "Lab 4B check failed" in done.stdout
     assert _state(fresh_db) == before

@@ -153,11 +153,20 @@ SELECT string_agg(r || ' ' || CASE WHEN has_function_privilege(r,
                  THEN 'yes' ELSE 'no' END, ', ' ORDER BY ord) AS execute
   FROM unnest(ARRAY['pellier_credit_writer', 'pellier_agent', 'public']) WITH ORDINALITY AS t (r, ord)
 \gset fn_
-SELECT coalesce(string_agg(table_name || ' ' || privilege_type, ', '
-                           ORDER BY table_name, privilege_type), 'none') AS tables
-  FROM (SELECT DISTINCT table_name, privilege_type FROM information_schema.role_table_grants
-         WHERE grantee = 'pellier_credit_writer'
-           AND table_name IN ('store_credits', 'orders', 'approvals')) g
+SELECT coalesce(nullif(concat_ws('; ', grants, policies), ''), 'none') AS tables
+  FROM (SELECT string_agg(table_name || ' ' || privilege_type, ', '
+                          ORDER BY table_name, privilege_type) AS grants
+          FROM (SELECT DISTINCT table_name, privilege_type
+                  FROM information_schema.role_table_grants
+                 WHERE grantee = 'pellier_credit_writer'
+                   AND table_name IN ('store_credits', 'orders', 'approvals')) d) g,
+       (SELECT string_agg(format('policy %s on %s USING (%s): %s', policyname, tablename, qual,
+                                 CASE WHEN qual = 'true' THEN 'every customer''s rows'
+                                      ELSE 'the rows it names' END), ', ' ORDER BY policyname)
+                 AS policies
+          FROM pg_policies
+         WHERE 'pellier_credit_writer' = ANY (roles)
+           AND tablename IN ('store_credits', 'orders', 'approvals')) p
 \gset writer_
 
 -- Undo the probe case and its credit; your statements stay in the transaction.
@@ -183,8 +192,8 @@ INSERT INTO lab_4_probes VALUES
      'pg_proc'),
     ('Who may execute the function',
      'pellier_credit_writer yes, pellier_agent no, public no', :'fn_execute', 'pg_proc ACL'),
-    ('The role''s privileges on store_credits, orders, approvals', 'none', :'writer_tables',
-     'information_schema.role_table_grants');
+    ('The role''s privileges and row policies on store_credits, orders, approvals', 'none',
+     :'writer_tables', 'role_table_grants and pg_policies');
 
 \echo 'Lab 4B: your privileges for pellier_credit_writer, probed'
 \echo 'Evidence  pellier.apply_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
