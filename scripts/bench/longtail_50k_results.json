@@ -1,0 +1,279 @@
+{
+ "run": {
+  "date": "2026-10-13",
+  "cluster": "Aurora PostgreSQL 18.3, Serverless v2 at 8 ACU (minimum = maximum), one writer, us-east-1, through the RDS Data API",
+  "script": "scripts/bench/longtail_50k.py",
+  "catalog_sha256": {
+   "catalog.jsonl": "ea279440d88f0d2e4054435ac369a2e376333fae5148a48b39559c7adc3ff09d",
+   "embeddings.npy": "820956ae2a1bf20467585ea15668a0faa147e17e6f96f9e61a5ed2762b04e444",
+   "ids.txt": "44969d026ed4164dbe77d48d4d359e98ac4057008cafd61723be72bff83e5fd4"
+  },
+  "order": [
+   "setup",
+   "load",
+   "build",
+   "anna",
+   "versions",
+   "lab_check",
+   "hybrid_warm",
+   "RebootDBInstance, then the hybrid queries again (hybrid_after_reboot)",
+   "cold_restart (StopDBCluster, then StartDBCluster)",
+   "hybrid_cold"
+  ]
+ },
+ "notes": [
+  "Cold means stop and start. After RebootDBInstance (postmaster started 15:15:21 UTC), every first query hit Aurora's buffer cache: hybrid_after_reboot shows shared hit and no read, so those numbers are warm. hybrid_cold ran after StopDBCluster and StartDBCluster: stopped after 527 s, available after 397 s, postmaster started 2026-10-13 15:29:15 UTC.",
+  "The cold fused query ran third, after the vector and full-text branches had read their pages (shared hit=5302 read=37), so it is not a cold figure; only the vector and full-text cold numbers are.",
+  "Timings are server-side Execution Time from EXPLAIN (ANALYZE, BUFFERS). lab_check times are medians of five runs; hybrid_warm is three runs in one session.",
+  "lab_check modes: exact orders by (embedding <=> reference) + 0, an expression no index serves; off sets enable_seqscan off, hnsw.ef_search 40 and hnsw.iterative_scan off; strict sets the same with hnsw.iterative_scan strict_order; planner sets nothing. Each mode runs in its own transaction, rolled back. The variants use the primary-key lookup of the Linen Photo Album (product 78); their sql field holds the exact settings and statement of each mode.",
+  "versions read hnsw.iterative_scan = off in its Data API session, and pg_database_size 8193 kB before the load. Every measured query sets hnsw.iterative_scan itself except lab_check's planner column. shared_buffers 1392640 is in 8 kB pages (10.6 GiB).",
+  "The selective-filter rows: at price <= 8 (905 matching products) a single HNSW pass with iterative scan off returns 0 rows and strict_order returns 20, the same 20 as the exact scan; at price <= 5 (67 matching) strict_order returns 20 rows but not the exact 20. hnsw.ef_search sets how many candidates one pass considers; iterative scan keeps scanning until the LIMIT is met or it has visited hnsw.max_scan_tuples tuples (pgvector's setting, not read in this run); neither promises the exact neighbours."
+ ],
+ "versions": {
+  "version": "PostgreSQL 18.3 on aarch64-unknown-linux-gnu, compiled by aarch64-unknown-linux-gnu-gcc (GCC) 10.5.0, 64-bit",
+  "pgvector": "0.8.1",
+  "shared_buffers": "1392640",
+  "db_size": "8193 kB",
+  "db_iterative_scan": "off",
+  "ef_search": "40"
+ },
+ "load": {
+  "rows": 50000,
+  "seconds": 118.0,
+  "chunks": 261
+ },
+ "build_seconds": {
+  "GIN (description_tsv)": 0.21,
+  "trigram lower(name)": 0.19,
+  "trigram lower(category)": 0.11,
+  "partial btree": 0.08,
+  "HNSW": 11.23
+ },
+ "index_sizes": [
+  {
+   "idx": "pellier.product_catalog_category_trgm",
+   "size": "1600 kB"
+  },
+  {
+   "idx": "pellier.product_catalog_description_tsv_gin",
+   "size": "4096 kB"
+  },
+  {
+   "idx": "pellier.product_catalog_embedding_hnsw",
+   "size": "391 MB"
+  },
+  {
+   "idx": "pellier.product_catalog_name_trgm",
+   "size": "4192 kB"
+  },
+  {
+   "idx": "pellier.product_catalog_pkey",
+   "size": "1480 kB"
+  },
+  {
+   "idx": "pellier.product_catalog_product_id_key",
+   "size": "1480 kB"
+  },
+  {
+   "idx": "pellier.product_catalog_storefront_edit",
+   "size": "8192 bytes"
+  }
+ ],
+ "lab_check": {
+  "eligible": 20058,
+  "plan_planner": "Limit\n  InitPlan 1\n    ->  Seq Scan on product_catalog product_catalog_1\n          Filter: (name = 'Linen Photo Album'::text)\n  ->  Index Scan using product_catalog_embedding_hnsw on product_catalog\n        Order By: (embedding <=> (InitPlan 1).col1)\n        Filter: ((price <= '35'::numeric) AND (NOT (tags ? 'candle'::text)))",
+  "rows_off": 20,
+  "rows_strict": 20,
+  "strict_equals_exact": true,
+  "name lookup": {
+   "exact_ms": 156.81,
+   "planner_ms": 8.21,
+   "off_ms": 8.1,
+   "strict_ms": 8.01
+  },
+  "pk lookup": {
+   "exact_ms": 148.57,
+   "planner_ms": 0.93,
+   "off_ms": 0.91,
+   "strict_ms": 0.94
+  },
+  "variants": {
+   "price <= 35": {
+    "matching": 20058,
+    "planner": "HNSW",
+    "off_rows": 20,
+    "strict_rows": 20,
+    "strict_equals_exact": true,
+    "exact_ms": 148.18,
+    "strict_ms": 0.95,
+    "sql": {
+     "exact": {
+      "settings": [],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 35 AND NOT tags ? 'candle' ORDER BY (embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78')) + 0 LIMIT 20"
+     },
+     "off": {
+      "settings": [
+       "SET LOCAL enable_seqscan = off",
+       "SET LOCAL hnsw.ef_search = 40",
+       "SET LOCAL hnsw.iterative_scan = off"
+      ],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 35 AND NOT tags ? 'candle' ORDER BY embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78') LIMIT 20"
+     },
+     "strict": {
+      "settings": [
+       "SET LOCAL enable_seqscan = off",
+       "SET LOCAL hnsw.ef_search = 40",
+       "SET LOCAL hnsw.iterative_scan = strict_order"
+      ],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 35 AND NOT tags ? 'candle' ORDER BY embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78') LIMIT 20"
+     }
+    }
+   },
+   "price <= 8": {
+    "matching": 905,
+    "planner": "exact (Sort over Seq Scan)",
+    "off_rows": 0,
+    "strict_rows": 20,
+    "strict_equals_exact": true,
+    "exact_ms": 15.88,
+    "strict_ms": 9.79,
+    "sql": {
+     "exact": {
+      "settings": [],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 8 AND NOT tags ? 'candle' ORDER BY (embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78')) + 0 LIMIT 20"
+     },
+     "off": {
+      "settings": [
+       "SET LOCAL enable_seqscan = off",
+       "SET LOCAL hnsw.ef_search = 40",
+       "SET LOCAL hnsw.iterative_scan = off"
+      ],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 8 AND NOT tags ? 'candle' ORDER BY embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78') LIMIT 20"
+     },
+     "strict": {
+      "settings": [
+       "SET LOCAL enable_seqscan = off",
+       "SET LOCAL hnsw.ef_search = 40",
+       "SET LOCAL hnsw.iterative_scan = strict_order"
+      ],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 8 AND NOT tags ? 'candle' ORDER BY embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78') LIMIT 20"
+     }
+    }
+   },
+   "price <= 5": {
+    "matching": 67,
+    "planner": "exact (Sort over Seq Scan)",
+    "off_rows": 0,
+    "strict_rows": 20,
+    "strict_equals_exact": false,
+    "exact_ms": 9.28,
+    "strict_ms": 35.03,
+    "sql": {
+     "exact": {
+      "settings": [],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 5 AND NOT tags ? 'candle' ORDER BY (embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78')) + 0 LIMIT 20"
+     },
+     "off": {
+      "settings": [
+       "SET LOCAL enable_seqscan = off",
+       "SET LOCAL hnsw.ef_search = 40",
+       "SET LOCAL hnsw.iterative_scan = off"
+      ],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 5 AND NOT tags ? 'candle' ORDER BY embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78') LIMIT 20"
+     },
+     "strict": {
+      "settings": [
+       "SET LOCAL enable_seqscan = off",
+       "SET LOCAL hnsw.ef_search = 40",
+       "SET LOCAL hnsw.iterative_scan = strict_order"
+      ],
+      "query": "SELECT \"productId\" FROM pellier.product_catalog WHERE price <= 5 AND NOT tags ? 'candle' ORDER BY embedding <=> (SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78') LIMIT 20"
+     }
+    }
+   }
+  }
+ },
+ "hybrid_sql": {
+  "vector": "\n            WITH query_embedding AS (\n                SELECT (SELECT emb FROM lt.q WHERE name = 'anna') AS emb\n            )\n            SELECT\n                \"productId\" AS product_id,\n                name,\n                brand,\n                color,\n                description,\n                \"imgUrl\"   AS img_url,\n                category,\n                price,\n                rating,\n                reviews,\n                badge,\n                tags,\n                materials,\n                quantity,\n                updated_at,\n                1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity\n            FROM pellier.product_catalog\n            WHERE \"imgUrl\" IS NOT NULL\n              AND price <= 100.0\n              AND quantity > 0\n              AND NOT (tags ?| ARRAY['candle'] OR materials ?| ARRAY['candle'])\n            ORDER BY embedding <=> (SELECT emb FROM query_embedding)\n            LIMIT 20\n        ",
+  "fts": "\n            WITH q AS (\n                SELECT to_tsquery('english', 'housewarming | gift | friend | slow | mornings | stock | under | 100 | candles') AS ts_q\n            )\n            SELECT\n                \"productId\" AS product_id,\n                name,\n                brand,\n                color,\n                description,\n                \"imgUrl\"   AS img_url,\n                category,\n                price,\n                rating,\n                reviews,\n                badge,\n                tags,\n                materials,\n                quantity,\n                updated_at,\n                ts_rank_cd(description_tsv, q.ts_q) AS fts_rank_score\n            FROM pellier.product_catalog\n            CROSS JOIN q\n            WHERE \"imgUrl\" IS NOT NULL\n              AND description_tsv @@ q.ts_q\n              AND price <= 100.0\n              AND quantity > 0\n              AND NOT (tags ?| ARRAY['candle'] OR materials ?| ARRAY['candle'])\n            ORDER BY fts_rank_score DESC\n            LIMIT 20\n        ",
+  "fused": "WITH query_embedding AS (SELECT emb FROM lt.q WHERE name = 'anna'),\nt AS (SELECT product_id, row_number() OVER () AS r FROM (SELECT \"productId\" AS product_id FROM pellier.product_catalog\n       WHERE \"imgUrl\" IS NOT NULL AND price <= 100.0 AND quantity > 0 AND NOT (tags ?| ARRAY['candle'] OR materials ?| ARRAY['candle']) ORDER BY embedding <=> (SELECT emb FROM query_embedding) LIMIT 20) v),\nf AS (SELECT product_id, row_number() OVER () AS r FROM (SELECT \"productId\" AS product_id FROM pellier.product_catalog,\n       to_tsquery('english', 'housewarming | gift | friend | slow | mornings | stock | under | 100 | candles') q WHERE \"imgUrl\" IS NOT NULL AND price <= 100.0 AND quantity > 0 AND NOT (tags ?| ARRAY['candle'] OR materials ?| ARRAY['candle']) AND description_tsv @@ q\n       ORDER BY ts_rank_cd(description_tsv, q) DESC LIMIT 20) w)\nSELECT coalesce(t.product_id, f.product_id) AS product_id, p.name,\n       coalesce(1.0 / (60 + t.r), 0) + coalesce(1.0 / (60 + f.r), 0) AS rrf_score\n  FROM t FULL JOIN f ON f.product_id = t.product_id\n  JOIN pellier.product_catalog p ON p.\"productId\" = coalesce(t.product_id, f.product_id)\n ORDER BY rrf_score DESC, coalesce(t.product_id, f.product_id) LIMIT 20"
+ },
+ "hybrid_warm_ms": {
+  "vector": [
+   1.438,
+   1.408,
+   1.415
+  ],
+  "fts": [
+   53.562,
+   53.729,
+   52.311
+  ],
+  "fused": [
+   53.797,
+   53.42,
+   54.024
+  ]
+ },
+ "fts_matches": 10363,
+ "hybrid_after_reboot": {
+  "vector": {
+   "execution_ms": 1.633,
+   "planning_ms": 1.338,
+   "buffers_first": [
+    "Buffers: shared hit=1227",
+    "Buffers: shared hit=2"
+   ]
+  },
+  "fts": {
+   "execution_ms": 56.313,
+   "planning_ms": 1.603,
+   "buffers_first": [
+    "Buffers: shared hit=4168",
+    "Buffers: shared hit=4168"
+   ]
+  },
+  "fused": {
+   "execution_ms": 52.097,
+   "planning_ms": 0.521,
+   "buffers_first": [
+    "Buffers: shared hit=5339",
+    "Buffers: shared hit=5339"
+   ]
+  },
+  "vector_second_ms": 1.296
+ },
+ "reboot_postmaster_start": "2026-10-13 15:15:21+00 (query at 15:16:27)",
+ "hybrid_cold": {
+  "vector": {
+   "execution_ms": 979.475,
+   "planning_ms": 56.293,
+   "buffers_first": [
+    "Buffers: shared hit=315 read=912",
+    "Buffers: shared read=2"
+   ]
+  },
+  "fts": {
+   "execution_ms": 187.332,
+   "planning_ms": 32.566,
+   "buffers_first": [
+    "Buffers: shared hit=39 read=4129",
+    "Buffers: shared hit=39 read=4129"
+   ]
+  },
+  "fused": {
+   "execution_ms": 89.952,
+   "planning_ms": 0.575,
+   "buffers_first": [
+    "Buffers: shared hit=5302 read=37",
+    "Buffers: shared hit=5302 read=37"
+   ]
+  },
+  "vector_second_ms": 1.03
+ },
+ "cold_restart": {
+  "stop_seconds": 527,
+  "start_seconds": 397,
+  "postmaster_started": "2026-10-13 15:29:15.036694+00"
+ }
+}
