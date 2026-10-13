@@ -1,16 +1,27 @@
 # Lab 4 solution
 
-Try the marked task first. These files are the supplied answers, not the files the application executes.
+Try the marked task first. These files are the supplied answers, not the files the
+application executes.
 
 - [4A-credit-policy.cedar](4A-credit-policy.cedar)
-- [4B-row-ownership.sql](4B-row-ownership.sql)
+- [4B-credit-writer.sql](4B-credit-writer.sql)
 
-To use the guide’s full recovery path, first save any edits you want to keep. Then run this **from the repository root**; it copies the lab’s answers over the corresponding exercise files:
+To catch up on the whole lab, save any edits you want to keep, then run this from the
+repository root. It installs both answers, commits the credit writer's privileges, deploys
+the Cedar rule, sends Jessica's request and does Nadia's approval and execution, then runs
+the checks:
 
 ```bash
-python3 scripts/lab_run.py solution --lab 4
+python3 scripts/lab_run.py solution --lab 4 && \
+  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql && \
+  python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant && \
+  python3 scripts/lab_run.py send --lab 4 && \
+  python3 scripts/lab4_policy_check.py && \
+  python3 scripts/lab4_credit_check.py && \
+  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
 ```
 
-Deploy the Cedar edit with the guide’s participant deployment. Then `python3 scripts/lab_run.py send --lab 4` makes Jessica’s request and does Nadia’s approval and execution for you. Run the RLS worksheet afterwards: with the solution every probe matches, so it commits the predicate as the live policy. Run `workshop/lab-4-absence.sql` for the final absence proof.
+The worksheet runs before `send`, so Nadia's credit is written under the privileges you
+committed.
 
-Return to the [lab README](../README.md), repeat its checks and continue in Workshop Studio.
+Return to the [lab README](../README.md) and continue in Workshop Studio.

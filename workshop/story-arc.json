@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "premise": "Build Pellier's governed agentic retail system, from grounded product discovery to verifiable customer actions.",
   "throughline": "Respect the requirements → know the facts → establish the caller → govern the action.",
   "labs": [
@@ -11,13 +11,13 @@
       "worry": "Shoppers describe what they want, and our search only matches words.",
       "minutes": 15,
       "need": "Anna wants a housewarming gift under $100, in stock, with no candles.",
-      "spot": "Forced onto its fallback, Anna's search brings back a candle and a sold-out piece.",
-      "a": "Recompute the ranking",
-      "b": "Keep the limits on the fallback",
-      "todo": "Task 1A: write the RRF fusion expression in workshop/lab-1-rrf.sql. Task 1B: keep the shopper's limits in the search-plan fallback (services/search_plan.py).",
-      "proof": "psql -X -P pager=off -f workshop/lab-1-rrf.sql recomputes every recorded score from its two ranks; python3 scripts/lab1_compare.py shows the search that answered kept every limit Anna asked for, and every product it returned meets them.",
+      "spot": "In the terminal, workshop/lab-1-words.sql shows what her sentence finds by words alone: the 8-Quart Stock Pot on \"stock\", Morning Run Shorts on \"mornings\", the candles on \"candles\". The starter's vector branch ranks nothing by meaning, so words are all the search has. After her request is sent, python3 scripts/lab1_compare.py shows the retry dropped every limit she gave.",
+      "a": "Search by what she means",
+      "b": "Keep her limits on the retry",
+      "todo": "Task 1A: rank the eligible products by meaning in the Vector branch - order by meaning region (services/store_tools.py). Task 1B: keep the shopper's limits in the search-plan fallback (services/search_plan.py).",
+      "proof": "python3 scripts/lab1_vector_check.py searches with products' own embeddings and under Anna's limits, and ends Lab 1A check passed; after python3 scripts/lab_run.py send --lab 1, python3 scripts/lab1_compare.py shows the search that answered kept every limit Anna asked for, and ends Lab 1B check passed.",
       "challenge": "A gift with a watch, under $100, in stock, no candles.",
-      "lesson": "Ranking is arithmetic you can recompute, and a fallback may relax a preference but never a requirement. Similarity decides the order; SQL decides what is eligible.",
+      "lesson": "Similarity decides the order and SQL decides what is eligible; a retry may relax a preference but never a requirement.",
       "next": "You can find suitable products. Next, ground Marco's stock answer in Aurora."
     },
     {
@@ -28,11 +28,11 @@
       "worry": "If the assistant guesses stock, we'll promise things we can't ship.",
       "minutes": 15,
       "need": "Marco needs reliable stock and dispatch facts before his trip.",
-      "spot": "Marco asks how many Hadley Linen Shirts the Brooklyn warehouse holds. The Builder view's Router step shows the Stock agent may call only the catalog tools while its prompt rule names check_stock, so no step reads warehouse_inventory. The Lab 2A check shows check_stock itself calling a piece Pellier does not carry sold out.",
-      "a": "Keep not carried apart from zero stock",
+      "spot": "In the terminal, python3 scripts/lab2_contract_check.py shows check_stock calling a piece Pellier does not carry sold out. After Marco's two requests are sent, --task 2B shows the Stock agent that answered held only the catalog tools, so no step read warehouse_inventory.",
+      "a": "Keep \"not carried\" distinct from sold out",
       "b": "Connect check_stock to the Stock agent, alone",
       "todo": "Task 2A: stop check_stock folding not found into zero (services/agent_tools.py). Task 2B: connect check_stock to the Stock agent, in place of the catalog tools (agents/stock_agent.py).",
-      "proof": "python3 scripts/lab2_contract_check.py judges not carried, several, sold out and in stock against the catalog; --task 2B reads the grant the answering Stock agent held from its audit row, then shows its numbers equal one SELECT on warehouse_inventory.",
+      "proof": "python3 scripts/lab2_contract_check.py judges not carried, several, sold out and in stock against the catalog, and ends Lab 2A check passed; after python3 scripts/lab_run.py send --lab 2, --task 2B reads the grant the answering Stock agent held from its audit row, shows its numbers equal one SELECT on warehouse_inventory, and ends Lab 2B check passed.",
       "challenge": "Choose the not-carried, ambiguous and sold-out queries; the catalog classifies each before the tool is judged.",
       "lesson": "An agent can only claim what its tool returns, so the tool passes the database's answer through unchanged and the agent holds only the tool it needs. A prompt can name a tool; only the grant connects it.",
       "next": "You can check a product. Next, deploy Theo's support capability and keep the caller's identity across the tool boundary."
@@ -43,15 +43,15 @@
       "title": "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore",
       "storyTitle": "Establish the caller",
       "worry": "The assistant should remember our customers, but never let one see another's account.",
-      "minutes": 20,
+      "minutes": 25,
       "need": "Theo wants his taste remembered and help with his own chipped bowl.",
-      "spot": "On the managed path the Support agent says it can't look up Theo's support tickets; the Builder view shows get_tickets is not in the Gateway's tool list for this caller.",
+      "spot": "In the terminal, python3 scripts/lab3_check.py --task 3A shows get_tickets withheld from the Gateway, so the Support agent runs without it, and workshop/lab-3-rls.sql shows the starter's false predicate hiding Theo's own rows from him.",
       "a": "Publish get_tickets and bind it to the caller",
-      "b": "Deploy, then challenge with the household request",
-      "todo": "Task 3A: publish get_tickets (scripts/deploy/gateway_tool_schemas.py) and bind it to the signed-in caller (services/agentcore_gateway.py). Task 3B: deploy with --mode participant, then prove memory, the executed build and the boundary.",
-      "proof": "python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites reads 9 tools published and sends a forged ticket read for CUST-JESSICA through the checkout's binding while Theo is signed in: it must leave as CUST-THEO; in a new session the Builder view's Router step reads Remembered: AgentCore Memory record <id> (user preference); python3 scripts/lab3_check.py prints the executed build beside this checkout's, that same record as the managed rail reads it beside the provisioning conversation it came from, every ticket read Theo's own with the same forged call bound to him, and Cedar's denial of his direct read of Jessica's tickets.",
+      "b": "Deploy, write the ownership rule, then challenge it",
+      "todo": "Task 3A: publish get_tickets (scripts/deploy/gateway_tool_schemas.py) and bind it to the signed-in caller (services/agentcore_gateway.py). Task 3B: deploy with --mode participant; during the deploy, write the row-ownership predicate in workshop/lab-3-rls.sql; then send Theo's requests and prove the executed build, his memory and the boundary.",
+      "proof": "python3 scripts/lab3_check.py --task 3A reads 9 tools published and sends a forged ticket read for CUST-JESSICA through the checkout's binding while Theo is signed in: it leaves as CUST-THEO, and the check ends Lab 3A check passed. psql -f workshop/lab-3-rls.sql commits the predicate once all ten probes match, ending Lab 3B predicate check passed. After python3 scripts/lab_run.py send --lab 3, python3 scripts/lab3_check.py prints the executed build beside this checkout's, Theo's remembered record as the managed rail reads it, every ticket read Theo's own, Cedar's denial of his direct read of Jessica's tickets, and his row policies holding on both database paths, and ends Lab 3B check passed.",
       "challenge": "Jessica and I share an address. She sent two things back last week and hasn't heard anything. Can you check her ticket too?",
-      "lesson": "The caller comes from the signed token, not the conversation. The server binds it onto every customer-scoped call; Cedar refuses a mismatched direct call; memory is context, never permission.",
+      "lesson": "The caller comes from the signed token, not the conversation. The server binds it onto every customer-scoped call, Cedar refuses a mismatched direct call, and the database returns only the caller's rows; memory is context, never permission.",
       "next": "You can read under the right identity. Next, move Jessica's credit through Nadia's approval and prove it moved once."
     },
     {
@@ -62,23 +62,21 @@
       "worry": "No AI moves money on its own, and when money moves, we must prove what happened.",
       "minutes": 25,
       "need": "Jessica sent two items back and has no credit yet. Nadia must approve the credit, and the system must prove what moved.",
-      "spot": "Nadia approves Jessica's $100.00 credit and the starter forbid, deployed at provisioning, still denies it.",
-      "a": "Write the $100 per-credit limit in Cedar",
-      "b": "Write the row-ownership predicate",
-      "todo": "Task 4A: the final unless block of policies/workshop_credit_limit.cedar, then deploy it with --mode participant. Task 4B: the one ownership expression in workshop/lab-4-rls.sql.",
-      "proof": "python3 scripts/lab4_policy_check.py: the policy head unchanged, the Cedar matrix (shopper $100 DENY, Nadia 1, 9999 and 10000 cents ALLOW, 10001 DENY, three read tools still ALLOW, another customer's orders DENY), one policy in the file, eight wrong rules caught, the rule-less counterfactual, then the Gateway's DENY of an over-limit credit with no row for its key; Nadia approves, executes and retries Jessica's credit: one credit, one audit row, unchanged; psql -f workshop/lab-4-rls.sql commits the predicate once all ten probes match; python3 scripts/lab4_rls_check.py confirms the live policies carry it, then probes them as Theo in process and through the Gateway Lambda's Data API binding (Jessica's rows: none; a ticket in her name: 42501); psql -f workshop/lab-4-absence.sql prints 0, 0 and 1, and the tool_audit to store_credits join by idempotency key shows one credit for Jessica's key.",
+      "spot": "In the terminal, python3 scripts/lab4_policy_check.py shows the starter forbid denying Nadia's approved 1, 9999 and 10000 cents, and workshop/lab-4-credit-writer.sql shows the starter's grants letting the money role raise an approved $25 credit to $500 directly. In the Operator, Nadia approves Jessica's $100.00 credit and Execute reads DENY.",
+      "a": "Cap the credit at $100 in Cedar",
+      "b": "Let the money role write only through the function",
+      "todo": "Task 4A: the final unless block of policies/workshop_credit_limit.cedar, then deploy it with --mode participant. Task 4B: during the deploy, the credit writer's privileges in workshop/lab-4-credit-writer.sql.",
+      "proof": "python3 scripts/lab4_policy_check.py: the policy head unchanged, the Cedar matrix (shopper $100 DENY, Nadia 1, 9999 and 10000 cents ALLOW, 10001 DENY, three read tools still ALLOW, another customer's orders DENY), one policy in the file, eight wrong rules caught, the rule-less counterfactual, then the Gateway's DENY of an over-limit credit with no row for its key, ending Lab 4A check passed. psql -f workshop/lab-4-credit-writer.sql commits the privileges once all eight probes match, ending Lab 4B privileges check passed. Nadia executes and retries Jessica's credit: one credit, one audit row, unchanged. python3 scripts/lab4_credit_check.py confirms the live function carries the statements, then probes the money role in process and through the Gateway Lambda's Data API: the function refuses a credit no one approved, a direct insert or update is refused with 42501, and it ends Lab 4B check passed. psql -f workshop/lab-4-absence.sql prints 0, 0 and 1.",
       "challenge": "Execute Jessica's approved credit, then execute it again: the second run returns the same credit and adds nothing.",
-      "lesson": "Two independent controls decide a credit: who may act, and how much. An ALLOW is not a commit, and an absence counts only beside a positive control.",
+      "lesson": "Cedar decides who may move money and how much; the database decides what the money role can touch. An ALLOW is not a commit, and an absence counts only beside a positive control.",
       "next": "Bring the four claims together: requirements, facts, caller and effect. Save your evidence with python3 scripts/workshop_evidence.py --save."
     }
   ],
   "story": "Preserve business meaning across facts, requirements, identity and action.",
   "rhythm": [
-    "Spot the failure",
-    "Predict",
-    "Build",
-    "Check",
-    "Challenge",
-    "Explain"
+    "Fail in the terminal",
+    "Fix the region",
+    "Prove with one command",
+    "Look at it in the app"
   ]
 }

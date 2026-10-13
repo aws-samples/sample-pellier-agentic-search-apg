@@ -1,16 +1,24 @@
 # Lab 3 solution
 
-Try the marked task first. These files are the supplied answers, not the files the application executes.
+Try the marked task first. These files are the supplied answers, not the files the
+application executes.
 
 - [3A-1-publish-tool.py](3A-1-publish-tool.py)
 - [3A-2-bind-caller.py](3A-2-bind-caller.py)
+- [3B-row-ownership.sql](3B-row-ownership.sql)
 
-To use the guide’s full recovery path, first save any edits you want to keep. Then run this **from the repository root**; it copies the lab’s answers over the corresponding exercise files:
+To catch up on the whole lab, save any edits you want to keep, then run this from the
+repository root. It moves Pellier onto AgentCore, installs the answers, deploys them, runs
+the row-ownership worksheet, sends Theo's requests and runs both checks:
 
 ```bash
-python3 scripts/lab_run.py solution --lab 3
+bash scripts/lab3-start.sh theo && \
+  python3 scripts/lab_run.py solution --lab 3 && \
+  python3 scripts/lab3_check.py --task 3A && \
+  python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant && \
+  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-rls.sql && \
+  python3 scripts/lab_run.py send --lab 3 && \
+  python3 scripts/lab3_check.py
 ```
 
-Task 3B deploys the two Task 3A edits. Run the guide’s participant deployment, start a new Theo conversation (`python3 scripts/lab_run.py send --lab 3` makes his requests for you), and then run `scripts/lab3_check.py`. Editing these files alone does not update Runtime or Gateway.
-
-Return to the [lab README](../README.md), repeat its checks and continue in Workshop Studio.
+Return to the [lab README](../README.md) and continue in Workshop Studio.

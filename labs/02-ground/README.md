@@ -1,29 +1,35 @@
 # Lab 2: Ground
 
-**Marco.** Keep the matching Workshop Studio guide open for the requests, the marked edit regions and the checks.
+**Marco.** He needs stock and dispatch facts he can rely on. The starter's `check_stock`
+calls a piece Pellier does not carry sold out, and the Stock agent holds only catalog
+tools, so no answer reads a warehouse row. Keep the Workshop Studio guide open beside this
+file.
 
-## Open the file
+## Run it in the terminal
 
-| File in this folder | Task | Region to edit | Application file |
+Every terminal starts at the repository root.
+
+| Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| [2A-check-stock.py](2A-check-stock.py) | Keep not carried apart from sold out | `Stock agent - check_stock` | `pellier/backend/services/agent_tools.py` |
-| [2B-stock-agent.py](2B-stock-agent.py) | Connect `check_stock` to the Stock agent | `Stock agent - definition` | `pellier/backend/agents/stock_agent.py` |
+| 2A, keep "not carried" distinct from sold out | `python3 scripts/lab2_contract_check.py` | [2A-check-stock.py](2A-check-stock.py), region `Stock agent - check_stock` | `python3 scripts/lab2_contract_check.py` ends `Lab 2A check passed` |
+| 2B, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_contract_check.py --task 2B` | [2B-stock-agent.py](2B-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_contract_check.py --task 2B` ends `Lab 2B check passed` |
 
-These are links to the actual application files. Saving here changes the file the app or deployment uses; there is no second copy to synchronize. Edit only the marked region named in the guide.
+The 2A check runs your `check_stock` directly, so it needs no restart. The 2B check reads
+the grant the answering Stock agent actually held from its audit row, so it needs the
+restart and Marco's requests sent again.
 
-## Check your work
+After the 2B token, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
+view** on, and read his Hadley turn: the Stock agent, one `check_stock` call, the Brooklyn
+warehouse row.
 
-Every prepared terminal starts at the repository root. Run the checks at the point specified in the guide:
+## The files
 
-```bash
-python3 scripts/lab2_contract_check.py
-python3 scripts/lab2_contract_check.py --task 2B
-```
-
-Restart the backend as the guide directs, then repeat Marco’s requests. The checks inspect the agent that actually answered.
+Both files are links to the application's own files, so there is no second copy to
+synchronize. Edit only the marked region.
 
 ## If you need a solution
 
-Open [solution/README.md](solution/README.md) when you choose the recovery path. Applying an answer does not complete the lab; repeat the same requests and checks.
+Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing
+an answer does not complete the task; its check still has to pass.
 
 [All labs](../../START_HERE.md)

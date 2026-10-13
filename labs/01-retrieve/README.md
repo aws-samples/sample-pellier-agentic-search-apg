@@ -1,29 +1,32 @@
 # Lab 1: Retrieve
 
-**Anna.** Keep the matching Workshop Studio guide open for the requests, the marked edit regions and the checks.
+**Anna.** She asks for a housewarming gift in one sentence, with a budget, a stock rule and
+no candles. The starter's search matches her words and ranks nothing by meaning, and its
+retry drops her limits. Keep the Workshop Studio guide open beside this file.
 
-## Open the file
+## Run it in the terminal
 
-| File in this folder | Task | Region to edit | Application file |
+Every terminal starts at the repository root.
+
+| Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| [1A-rrf.sql](1A-rrf.sql) | Recompute the RRF score | `PostgreSQL RRF - fusion expression` | `workshop/lab-1-rrf.sql` |
-| [1B-search-plan.py](1B-search-plan.py) | Keep the budget, stock and exclusions on the fallback | `Search plan - preserve requirements` | `pellier/backend/services/search_plan.py` |
+| 1A, search by what she means | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql` | [1A-vector-branch.py](1A-vector-branch.py), region `Vector branch - order by meaning`, then `sudo systemctl restart pellier` | `python3 scripts/lab1_vector_check.py` ends `Lab 1A check passed` |
+| 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1`, then `python3 scripts/lab1_compare.py` | [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then restart and send her request again | `python3 scripts/lab1_compare.py` ends `Lab 1B check passed` |
 
-Both are links to the application's own files, so there is no second copy to synchronize. Saving `1B-search-plan.py` changes the code the backend runs. `1A-rrf.sql` is a worksheet you run with `psql`: it recomputes the scores Anna's search recorded and changes nothing the app runs. Edit only the marked region named in the guide.
+After the 1B token, open **PellierURL**, choose **Anna** in **Ask Pellier** with **Builder
+view** on, and read **How it ranked** for the turn the terminal sent: a **Vector** rank on
+every row, her three limits, and no candles.
 
-## Check your work
+## The files
 
-Every prepared terminal starts at the repository root. Run the checks at the point specified in the guide:
-
-```bash
-psql -X -P pager=off -f workshop/lab-1-rrf.sql
-python3 scripts/lab1_compare.py
-```
-
-After editing Python, use the backend restart in the guide and repeat Anna’s request.
+`1A-vector-branch.py` and `1B-search-plan.py` are links to `pellier/backend/services/`, so
+saving here changes the code the backend runs once it restarts. Edit only the marked
+region. `go-deeper-rrf.sql` is the guide's optional Go deeper: a worksheet that recomputes
+the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## If you need a solution
 
-Open [solution/README.md](solution/README.md) when you choose the recovery path. Applying an answer does not complete the lab; repeat the same requests and checks.
+Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing
+an answer does not complete the task; its check still has to pass.
 
 [All labs](../../START_HERE.md)

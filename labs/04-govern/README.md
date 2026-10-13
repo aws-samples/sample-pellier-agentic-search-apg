@@ -1,30 +1,41 @@
 # Lab 4: Govern
 
-**Jessica and Nadia.** Keep the matching Workshop Studio guide open for the requests, the marked edit regions and the checks.
+**Jessica, with Nadia.** Jessica sent two items back and has no credit yet. Nadia must
+approve the credit, Cedar must cap it at $100, and the role that writes it must be able to
+write it only through the credit function. Keep the Workshop Studio guide open beside this
+file.
 
-## Open the file
+## Run it in the terminal
 
-| File in this folder | Task | Region to edit | Application file |
+Every terminal starts at the repository root.
+
+| Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| [4A-credit-policy.cedar](4A-credit-policy.cedar) | Authorize credits within the amount limit | the final `unless` block | `policies/workshop_credit_limit.cedar` |
-| [4B-row-ownership.sql](4B-row-ownership.sql) | Enforce row ownership | `Row ownership - predicate` | `workshop/lab-4-rls.sql` |
+| 4A, cap the credit at $100 in Cedar | `python3 scripts/lab4_policy_check.py` | [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, then deploy with `python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | `python3 scripts/lab4_policy_check.py` ends `Lab 4A check passed` |
+| 4B, let the money role write only through the function | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql` | [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, and the same `psql` run until it ends `Lab 4B privileges check passed` | `python3 scripts/lab4_credit_check.py` ends `Lab 4B check passed` |
 
-Both are links to the application's own files, so there is no second copy to synchronize. Saving `4A-credit-policy.cedar` changes the policy the guide's participant deployment publishes. `4B-row-ownership.sql` deploys itself: run it with `psql` and, when every probe matches, it commits your predicate as the live row-level security policy on both tables; when any probe differs, it rolls back and the live policies stay as they were. Edit only the marked region named in the guide.
-
-## Check your work
-
-Every prepared terminal starts at the repository root. Run the checks at the point specified in the guide:
+Jessica's request goes from the terminal:
 
 ```bash
-python3 scripts/lab4_policy_check.py
-psql -X -P pager=off -f workshop/lab-4-rls.sql
-python3 scripts/lab4_rls_check.py
+python3 scripts/lab_run.py send --lab 4 --shopper-only
 ```
 
-Deploy the Cedar edit with the guide’s participant deployment. `scripts/lab4_rls_check.py` then confirms the live policies carry the predicate in your file and probes them as Theo, in process and through the Gateway Lambda's Data API binding, rolling its own probes back. Run `workshop/lab-4-absence.sql` for the final absence proof. Afterwards, `python3 scripts/observability_check.py` reads the steps outside AgentCore's trace: the app's spans, Database Insights and the refused write in the PostgreSQL log.
+Nadia's decision is the one step that happens in the app. In **PellierURL**, select
+**Operator**, sign in as `nadia`, investigate Jessica's case, approve the proposed credit
+and select **Execute**: with the starter rule, Policy reads DENY. After the deploy, select
+**Execute again** and then **Retry execution**. Their proof comes back here: the two checks
+above, then the supplied absence check, which ends `Lab 4 absence check passed`:
+
+```bash
+psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
+```
+
+`4B-credit-writer.sql` deploys itself: when every probe matches, it commits your privileges
+for `pellier_credit_writer`; when any probe differs, it rolls back.
 
 ## If you need a solution
 
-Open [solution/README.md](solution/README.md) when you choose the recovery path. Applying an answer does not complete the lab; repeat the same requests and checks.
+Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing
+an answer does not complete the task; its check still has to pass.
 
 [All labs](../../START_HERE.md)

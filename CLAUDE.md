@@ -56,7 +56,7 @@ participant's named task and prediction before proposing a change.
 
 Task 3B writes the row-ownership predicate while the Task 3A edits deploy, then challenges both.
 Lab 3's live row-level security check (`scripts/lab3_rls_check.py`), Lab 4's
-keyed absence check (`workshop/lab-4-absence.sql`) and live credit-writer check
+keyed absence check (`workshop/lab-4-absence.sql`) and Task 4B's check
 (`scripts/lab4_credit_check.py`) are supplied; none has a region to author.
 Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its exercise boundary. This table grants access only to
@@ -77,6 +77,10 @@ the task the participant names, never every file at once.
 - Do not read credentials, tokens, environment secrets or unrelated customer data.
 - The participant runs the guide's checks, restarts, deployments and business
   actions. The coach does not run Git, install packages, deploy or approve actions.
+- Verification is the task's check command in the terminal and its pass token.
+  Never send the participant to Ask Pellier, the Operator or the AgentCore
+  console to verify; explain what the token establishes and what it does not.
+  The app comes after the token, to look at what the terminal proved.
 - On failure, discuss the evidence and one hint. The participant chooses the
   documented recovery and runs it themselves; an unrun check stays incomplete.
 
@@ -123,23 +127,27 @@ anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
 |---|---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Recompute the ranking | Keep the limits on the fallback |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | Keep not carried apart from zero stock | Connect `check_stock` to the Stock agent, alone |
-| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, then challenge with the household request |
-| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica, with Nadia | Write the $100 per-credit limit in Cedar | Write the row-ownership predicate |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Search by what she means | Keep her limits on the retry |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | Keep "not carried" distinct from sold out | Connect `check_stock` to the Stock agent, alone |
+| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
+| 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the money role write only through the function |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
 task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the
-eight marked regions, starter fragments, and recovery references behind the
-eight tasks.
+nine marked regions, starter fragments, and recovery references behind the
+eight tasks. Every task runs in the terminal first: See it fail is a command,
+Build is the region, Prove it is one check and one pass token, and the app
+comes after the token.
 Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the exercise to an
 unpackaged file or infer deployed completion from source inspection.
 
-Budget the presenter introduction separately at 15 minutes. Participant guides
-start their hands-on clock with Labs 1–4 at 15/15/20/25 minutes, then five for
-recovery and five for closing. Reading, deployment waits, and explanation share
-those allocations. These are targets pending a timed fresh-account rehearsal.
+The schedule is 15 minutes for the opening talk and 10 for the Introduction and
+Getting started. Participant guides then start their hands-on clock with Labs
+1-4 at 15/15/25/25 minutes (80), and the Wrap-up takes 5: 110 of the 120-minute
+slot, with recovery taking its five minutes from the remaining ten. Reading,
+deployment waits, and explanation share those allocations. These are targets
+pending a timed fresh-account rehearsal.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
 documentation.

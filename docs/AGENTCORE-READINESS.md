@@ -111,25 +111,26 @@ the same configuration.
 
 ## Exercises and recovery
 
-Four labs, eight tasks, eight marked regions. Recovery copies a reference into
+Four labs, eight tasks, nine marked regions. Recovery copies a reference into
 the region and converges on the same checks. It cannot produce AWS evidence,
 approve a credit or mark an unrun check complete.
 
 | Task | Region | Acceptance |
 |---|---|---|
-| **1A** | RRF expression in `workshop/lab-1-rrf.sql` | Every recorded score recomputed from its two ranks. |
+| **1A** | Vector branch in `pellier/backend/services/store_tools.py` | `scripts/lab1_vector_check.py`: products searched with their own embeddings come back first, similarity is 1 minus the distance, and Anna's limits keep the candle out. |
 | **1B** | Fallback in `pellier/backend/services/search_plan.py` | `scripts/lab1_compare.py`: the search that answered kept every limit the shopper asked for, and every product meets them. |
 | **2A** | `check_stock` in `pellier/backend/services/agent_tools.py` | `scripts/lab2_contract_check.py`: not carried, several, sold out and in stock stay distinct. |
 | **2B** | Stock agent grant in `pellier/backend/agents/stock_agent.py` | `--task 2B`: the answering Stock agent held `check_stock` alone, and its counts equal `warehouse_inventory`. |
-| **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | Nine tools published, `get_tickets` bound to the signed-in caller: a forged read for `CUST-JESSICA` leaves the checkout as `CUST-THEO`, and is refused with no signed-in customer. |
-| **3B** | No region: deploy with `--mode participant` | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo with the forged read bound too, Cedar's denial of his direct read of Jessica's tickets. |
+| **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | `scripts/lab3_check.py --task 3A`: nine tools published, `get_tickets` bound to the signed-in caller: a forged read for `CUST-JESSICA` leaves the checkout as `CUST-THEO`, and is refused with no signed-in customer. |
+| **3B** | Ownership predicate in `workshop/lab-3-rls.sql`, written during the `--mode participant` deploy | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo, Cedar's denial of his direct read of Jessica's tickets, and the live row policies stopping a wrong query as Theo in process and through the Gateway Lambda's Data API binding. |
 | **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_policy_check.py`: Cedar matrix, eight wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
-| **4B** | Ownership predicate in `workshop/lab-4-rls.sql`; `scripts/lab4_rls_check.py` and `workshop/lab-4-absence.sql` supplied | RLS probes in one rolled-back transaction; the live policies stop a wrong query as Theo in process and through the Gateway Lambda's Data API binding; the absence check prints 0, 0 and 1. |
+| **4B** | Credit writer privileges in `workshop/lab-4-credit-writer.sql`; `scripts/lab4_credit_check.py` and `workshop/lab-4-absence.sql` supplied | Eight probes in one transaction that commits only when all match; the money role writes only through `pellier.apply_store_credit`, in process and through the Gateway Lambda's Data API; the absence check prints 0, 0 and 1. |
 
-Labs 1 and 2 run in process; Lab 3 does not move those edits into the Lambda.
-The store tools themselves are one implementation (`services/store_tools.py`),
-so the Lambda runs the same search and stock code that is packaged with it at
-deploy time.
+The Gateway Lambda is packaged at provisioning from the finished copies of
+`services/store_tools.py` and `services/search_plan.py`, and Lab 3's deploy
+reuses it, so the Gateway's search runs the finished Lab 1 code whatever the
+participant's files hold. The store tools are one implementation, so the Lambda
+runs the same search and stock code as the in-process agents.
 
 ## Fresh-event acceptance
 

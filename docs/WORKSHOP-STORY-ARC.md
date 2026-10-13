@@ -2,8 +2,9 @@
 
 Pellier is a retail store building an agentic system for product discovery and
 customer support. Four customers each bring one leadership worry, and each lab
-answers one: it opens with the worry happening live, the participant fixes it,
-and a check proves the fix from the system of record.
+answers one: the participant sees the worry fail in the terminal, fixes the
+marked region, proves the fix with one command, and only then looks at it in
+the app.
 
 **Respect the requirements → know the facts → establish the caller → govern the action.**
 
@@ -18,46 +19,66 @@ persona-led scenario; keep the technical titles as the headings.
 | 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
 | 4. Govern Agent Actions with Cedar and PostgreSQL Row-Level Security | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
 
-## Every lab: spot the failure, then fix and prove it
+## Every task: fail in the terminal, fix the region, prove it, then look
 
-Each starter produces a visible, explainable failure in Ask Pellier or the
-Operator, never an exception or a missing feature. One starter-failure test
-per lab (`pellier/backend/tests/test_lab1_starter_failure.py` to
-`test_lab4_starter_failure.py`) asserts the starter shows exactly that failure
-and the solution does not.
+See it fail is a command in the Code Editor terminal that prints the failure as
+evidence: a worksheet, a check, or `python3 scripts/lab_run.py send`, which
+sends the customer's exact sentence. Build is the edit in the named region.
+Prove it is one command and one pass token. The Storefront's Builder view, the
+Operator and the AgentCore console come after the token and show what the
+terminal proved; nothing the proof depends on happens there. Lab 4's decisions
+are the exception: Nadia's approval and the Operator's **Execute**, **Execute
+again** and **Retry execution** happen in the Operator, and their proof comes
+back to the terminal.
 
-| Lab | The live failure | The fix |
+One starter-failure test per lab (`pellier/backend/tests/test_lab1_vector.py`,
+`test_lab1_starter_failure.py` to `test_lab4_starter_failure.py`) asserts the
+starter fails the way See it fail shows and the solution does not.
+
+| Lab | See it fail, in the terminal | The fix |
 |---|---|---|
-| 1 | Anna asks for a gift in stock, under $100, with no candles; her search, forced onto its fallback, returns a candle and a sold-out piece | 1A: the RRF expression. 1B: the fallback keeps her limits |
-| 2 | Marco asks for Brooklyn's Hadley count; the Builder view shows the Stock agent may call only the catalog tools while its prompt names `check_stock`, and the Lab 2A check shows `check_stock` calling a piece Pellier does not carry sold out | 2A: `check_stock` keeps not carried apart from zero. 2B: connect `check_stock` to the Stock agent, alone |
-| 3 | On the managed path the Support agent can't look up Theo's tickets; the Builder view names `get_tickets` as not published | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, then challenge |
-| 4 | Nadia approves Jessica's $100.00 credit and the starter forbid, deployed at provisioning, still denies it | 4A: the $100 per-credit limit in Cedar. 4B: the RLS ownership predicate |
+| 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector branch ranks nothing by meaning; after her request is sent, `lab1_compare.py` shows the retry dropped her limits | 1A: rank the eligible products by meaning. 1B: the fallback keeps her limits |
+| 2 | `lab2_contract_check.py` shows `check_stock` calling a piece Pellier does not carry sold out; after Marco's requests, `--task 2B` shows the answering Stock agent held only catalog tools | 2A: `check_stock` keeps "not carried" apart from sold out. 2B: connect `check_stock` to the Stock agent, alone |
+| 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway; `workshop/lab-3-rls.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: publish `get_tickets` and bind it to the caller. 3B: deploy, write the ownership rule, then challenge it |
+| 4 | `lab4_policy_check.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: the $100 per-credit limit in Cedar. 4B: the money role writes only through the credit function |
 
-## Eight marked regions, one check per task
+## Nine marked regions, one check per task
 
-Paths under `services/` and `agents/` are in `pellier/backend/`.
+Paths under `services/` and `agents/` are in `pellier/backend/`. A task's
+check prints `Lab NB check passed`; a worksheet a task's Build runs prints
+`Lab NB <thing> check passed`; a worksheet that belongs to no task carries no
+task letter.
 
-| Task | Region | Check |
-|---|---|---|
-| 1A | `workshop/lab-1-rrf.sql`, `PostgreSQL RRF - fusion expression` | `psql -X -P pager=off -f workshop/lab-1-rrf.sql` |
-| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_compare.py` |
-| 2A | `services/agent_tools.py`, `Stock agent - check_stock` | `python3 scripts/lab2_contract_check.py` |
-| 2B | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_contract_check.py --task 2B` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Managed catalogue - support reconcile` | `python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites`, which sends a forged ticket read for Jessica through the checkout's binding |
-| 3B | none: deploy with `--mode participant` | the Builder view's `Remembered: AgentCore Memory record <id>` line, then `python3 scripts/lab3_check.py` |
-| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_policy_check.py` |
-| 4B | `workshop/lab-4-rls.sql`, `Row ownership - predicate` | `psql -X -P pager=off -f workshop/lab-4-rls.sql`, then the supplied `python3 scripts/lab4_rls_check.py` (your deployed predicate, then both binding paths) and `workshop/lab-4-absence.sql` |
+| Task | Region | Check | Pass token |
+|---|---|---|---|
+| 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `python3 scripts/lab1_vector_check.py` | `Lab 1A check passed` |
+| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_compare.py` | `Lab 1B check passed` |
+| 2A | `services/agent_tools.py`, `Stock agent - check_stock` | `python3 scripts/lab2_contract_check.py` | `Lab 2A check passed` |
+| 2B | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_contract_check.py --task 2B` | `Lab 2B check passed` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Managed catalogue - support reconcile` | `python3 scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
+| 3B | `workshop/lab-3-rls.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `python3 scripts/lab3_check.py` | `Lab 3B check passed` |
+| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_policy_check.py` | `Lab 4A check passed` |
+| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its worksheet prints `Lab 4B privileges check passed`) | `python3 scripts/lab4_credit_check.py` | `Lab 4B check passed` |
+
+Lab 1's Go deeper keeps the RRF worksheet (`workshop/lab-1-rrf.sql`, region
+`PostgreSQL RRF - fusion expression`, `Lab 1 fusion check passed`); it is not a
+task. Lab 4's "What you proved" runs the supplied `workshop/lab-4-absence.sql`
+(`Lab 4 absence check passed`).
 
 Every check prints three things: what was expected, what was observed, and the
-evidence (the row, the decision, the key). A check that did not pass says what
-to look at next. `python3 scripts/workshop_evidence.py` exports all eight
-lines: 1B, 2A, 2B and 3B from rows alone, the others by running or reading the
-participant's source, where a region that still holds its starter is never
-proved.
+evidence (the row, the decision, the key). A check that did not pass asks one
+question that points at its region. `python3 scripts/workshop_evidence.py`
+exports all eight lines: 1B, 2A and 2B from rows alone, the others by running
+or reading the participant's source, where a region that still holds its
+starter is never proved.
 
 ## Acceptance and rejected implementations
 
-- **1A:** a missing rank contributes zero, never rank zero.
+- **1A:** the vector branch orders the eligible rows by cosine distance to the
+  query embedding, closest first, reports similarity as 1 minus that distance,
+  and returns as many rows as the search asked for. A product searched with its
+  own embedding comes back first; the Sunday Morning Candle, searched with its
+  own embedding under Anna's limits, does not come back at all.
 - **1B:** every fallback attempt keeps the budget, the stock rule and the
   exclusions; only a preference changes, and the receipt records it.
 - **2A / 2B:** not carried, several and sold out stay three answers; the
@@ -72,7 +93,12 @@ proved.
   beside this checkout's digest. Theo's own token, naming Jessica's customer
   directly at the Gateway, is denied by `get_tickets_owner_only`. Memory is
   context: Theo's provisioning conversation and the preference record
-  extracted from it, never permission.
+  extracted from it, never permission. One ownership expression serves USING
+  and WITH CHECK on `orders` and `support_tickets`: Theo's own rows are
+  visible, Jessica's return 0, a ticket written in her name fails with 42501,
+  and every customer sees exactly their own rows; only then does the worksheet
+  commit the predicate as the live policy, after undoing its probe writes.
+  The live check reads the policy's stamp and probes both database paths.
 - **4A:** the participant's rule is evaluated with the real Cedar engine
   (`cedarpy`) beside the rendered baseline: shopper $100 DENY (the baseline's
   doing, not the rule's), Nadia 1, 9999 and 10000 cents ALLOW, 10001 DENY, the
@@ -81,23 +107,25 @@ proved.
   unchanged and the file must hold one policy. The check rejects eight wrong
   rules (`false`, `true`, staff-only, `< 10000`, `<= 100`, one customer only,
   a lower bound, and the rule widened to every action) and shows that without
-  the rule Nadia's 10001 cents is allowed.
-  On the box it sends one over-limit credit of its own approved review through
-  the Gateway: a Cedar DENY with no row for its key. A 401 or a business
-  refusal is not Cedar evidence. Nadia's approval of Jessica's 10000-cent case
-  executes once and a retry adds nothing.
-- **4B:** one expression serves USING and WITH CHECK on `orders` and
-  `support_tickets`. Theo's own rows are visible, Jessica's return 0, a ticket
-  written in her name fails with 42501, the Investigator still reads her case,
-  and every customer sees exactly their own rows; only then does the worksheet
-  commit the predicate as the live policy, after undoing its probe writes. In process the customer comes from the token; on
-  the Gateway it is the customer Cedar admitted. RLS contains a wrong query.
-  The absence check is supplied: 0 and 0 for the denied key, 1 for the allowed
-  key, so a search that always returns zero cannot pass.
+  the rule Nadia's 10001 cents is allowed. On the box it sends one over-limit
+  credit of its own approved review through the Gateway: a Cedar DENY with no
+  row for its key. A 401 or a business refusal is not Cedar evidence. Nadia's
+  approval of Jessica's 10000-cent case executes once and a retry adds nothing.
+- **4B:** `pellier_credit_writer` may execute `pellier.apply_store_credit`,
+  which runs with its owner's rights and a pinned `search_path`, and nothing
+  else. The worksheet's probes, on a probe case of its own, show the function
+  refusing a credit no one approved and a direct insert or a direct `UPDATE` of
+  an approved $25 credit to $500 refused with 42501; only then does it commit
+  the privileges. The live check confirms the function carries the file's
+  statements, then probes the role in process and through the Gateway Lambda's
+  Data API. The absence check is supplied: 0 and 0 for the denied key, 1 for the
+  allowed key, so a search that always returns zero cannot pass.
 
 ## Timing
 
-The event budgets 15 minutes for the presenter introduction, then 15, 15, 20
-and 25 minutes for Labs 1 to 4, five for recovery and five for closing. These
-are targets until a timed fresh-account rehearsal confirms them. Lab 3's and
-Lab 4's deploy waits are inside their budgets.
+The schedule is 15 minutes for the opening talk, 10 for the Introduction and
+Getting started, then 15, 15, 25 and 25 minutes for Labs 1 to 4, and 5 for the
+Wrap-up: 110 of the 120-minute slot, with recovery taking its five minutes from
+the remaining ten. These are targets until a timed fresh-account rehearsal
+confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
+each of those labs runs its worksheet task during its wait.
