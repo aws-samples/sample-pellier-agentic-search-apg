@@ -44,6 +44,7 @@ docs/*
 # The maintainer docs that ship with the repository, and the release history.
 !docs/AGENTCORE-READINESS.md
 !docs/E2E-IDENTITIES.md
+!docs/MEMORY-ACTOR-SESSION.md
 !docs/WORKSHOP-STORY-ARC.md
 !docs/WORKSHOP-TRANSPORT.md
 !docs/release-readiness/
