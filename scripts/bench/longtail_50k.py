@@ -61,6 +61,10 @@ sys.path[:0] = [str(REPO / "pellier" / "backend"), str(REPO / "scripts")]
 ANNA = ("A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
         "and no candles.")
 ANNA_LIMITS = {"price_max_usd": 100, "in_stock_only": True, "exclusions": ["candle"]}
+# The tail has no images. The search keeps only rows with an imgUrl, so the tail carries a
+# marker that names no asset; the quoted run stored a placeholder image path instead, and
+# nothing it measured reads the value.
+TAIL_IMAGE = "longtail-no-image"
 ALBUM = "(SELECT embedding FROM pellier.product_catalog WHERE name = 'Linen Photo Album')"
 ALBUM_PK = "(SELECT embedding FROM pellier.product_catalog WHERE \"productId\" = '78')"
 LAB_FILTER = "price <= 35 AND NOT tags ? 'candle'"
@@ -190,7 +194,7 @@ class Bench:
             rows.append({**{k: r[k] for k in ("id", "name", "brand", "color", "price",
                                                "description", "department", "tags",
                                                "materials", "rating", "reviews", "quantity")},
-                         "embedding": vec(r["id"]), "img": "/products/longtail-placeholder.webp",
+                         "embedding": vec(r["id"]), "img": TAIL_IMAGE,
                          "badge": None, "persona": None})
         chunks = [rows[i:i + 192] for i in range(0, len(rows), 192)]
         started = time.time()
