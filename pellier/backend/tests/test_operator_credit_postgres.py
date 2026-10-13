@@ -92,7 +92,8 @@ class _PgDb:
     async def get_connection(self):
         yield self.conn
 
-    # The service's own money-path method, run on this connection.
+    # The service's own money-path methods, run on this connection.
+    credit_writer_session = DatabaseService.credit_writer_session
     fetch_all_as_credit_writer = DatabaseService.fetch_all_as_credit_writer
 
 

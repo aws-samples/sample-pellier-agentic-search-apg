@@ -529,20 +529,30 @@ class DatabaseService:
                 await cur.execute(query, params)
                 return await cur.fetchall() if cur.description else []
 
-    async def fetch_all_as_credit_writer(self, query: str, *params: Any) -> list[dict]:
-        """``fetch_all`` as ``pellier_credit_writer``, for the staff money path.
+    @asynccontextmanager
+    async def credit_writer_session(self) -> AsyncIterator[AsyncConnection]:
+        """Run statements as ``pellier_credit_writer``, the role that moves money.
 
         The role may only execute ``pellier.apply_store_credit``, which runs with
-        its owner's rights, so this statement can write a credit only through the
-        function's checks. ``SET LOCAL`` ends with the transaction, so the
-        connection goes back to the pool as the owner.
+        its owner's rights, so a credit written here passed the function's checks
+        and nothing here can change a credit row directly. ``SET LOCAL`` ends with
+        the transaction, so the connection goes back to the pool as the owner.
+
+        Yields:
+            AsyncConnection inside an open transaction with the role set.
         """
         async with self.get_connection() as conn:
             async with conn.transaction():
                 async with conn.cursor() as cur:
                     await cur.execute(f"SET LOCAL ROLE {CREDIT_WRITER_ROLE}")
-                    await cur.execute(query, params)
-                    return await cur.fetchall() if cur.description else []
+                yield conn
+
+    async def fetch_all_as_credit_writer(self, query: str, *params: Any) -> list[dict]:
+        """``fetch_all`` inside :meth:`credit_writer_session`, for the staff money path."""
+        async with self.credit_writer_session() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params)
+                return await cur.fetchall() if cur.description else []
 
     async def fetch_all(self, query: str, *params: Any) -> list[dict]:
         """
