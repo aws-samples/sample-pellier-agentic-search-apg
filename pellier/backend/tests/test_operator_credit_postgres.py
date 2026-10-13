@@ -44,6 +44,7 @@ from routes import operator as OP
 from services import governed_execution as ge
 from services import operator_graph
 from services import operator_review as rv
+from services.database import DatabaseService
 from services.turn_identity import new_turn_id
 from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
@@ -90,6 +91,9 @@ class _PgDb:
     @asynccontextmanager
     async def get_connection(self):
         yield self.conn
+
+    # The service's own money-path method, run on this connection.
+    fetch_all_as_credit_writer = DatabaseService.fetch_all_as_credit_writer
 
 
 def _sync_run(conn: psycopg.Connection) -> Callable[[str, Any], List[Dict[str, Any]]]:
@@ -811,3 +815,29 @@ def _rows_of(conn: psycopg.Connection, sql: str, *params: Any) -> List[Dict[str,
     with conn.cursor() as cur:
         cur.execute(sql, params)
         return _rows(cur)
+
+
+@pytest.mark.asyncio
+async def test_the_money_role_writes_only_through_the_credit_function(fresh_db) -> None:  # noqa: F811
+    """The in-process writer session runs as ``pellier_credit_writer``, which owns no way in.
+
+    The role can execute ``apply_store_credit`` (the either-rail tests write
+    through it) and nothing else: inserting a credit row or changing an
+    approved amount is a privilege the role never had, SQLSTATE 42501, before
+    any trigger runs.
+    """
+    async with await psycopg.AsyncConnection.connect(**_conninfo(fresh_db)) as aconn:
+        db = _PgDb(aconn)
+        rows = await db.fetch_all_as_credit_writer("SELECT current_user AS who")
+        assert [row["who"] for row in rows] == ["pellier_credit_writer"]
+        for statement in (
+            "INSERT INTO pellier.store_credits (approval_id, customer_id, amount_cents, reason, "
+            "idempotency_key) VALUES (1, 'CUST-JESSICA', 100, 'probe', 'probe-key')",
+            "UPDATE pellier.store_credits SET amount_cents = 50000",
+            "UPDATE pellier.orders SET store_credit_id = NULL",
+            "UPDATE pellier.approvals SET status = 'approved'",
+        ):
+            with pytest.raises(psycopg.errors.InsufficientPrivilege):
+                await db.fetch_all_as_credit_writer(statement)
+        who = await db.fetch_all("SELECT current_user AS who")
+        assert [row["who"] for row in who] == ["postgres"], "the role outlived its transaction"

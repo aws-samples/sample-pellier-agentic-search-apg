@@ -39,6 +39,9 @@ SCHEMA = "pellier"
 # The application role from scripts/migrations/001_schema.sql. It is
 # NOBYPASSRLS and not the table owner, which is what makes the policies bind.
 CUSTOMER_ROLE = "pellier_agent"
+# The money role, also from 001_schema.sql: it may execute
+# pellier.apply_store_credit and touch no table.
+CREDIT_WRITER_ROLE = "pellier_credit_writer"
 
 # Cohere Embed v4. MUST match the catalog seed and the in-process path
 # (`pellier/backend/services/embeddings.py`): the catalog was seeded with
@@ -347,6 +350,30 @@ def run_as_customer(customer_id: str, work: Callable[..., Result]) -> Result:
     transaction_id = begin_transaction()
     try:
         bind_runtime_principal(transaction_id, customer_id=customer_id)
+
+        def run(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+            return execute_in_transaction(transaction_id, *_named(sql, params))
+
+        result = work(run)
+    except Exception:
+        rollback_transaction(transaction_id)
+        raise
+    commit_transaction(transaction_id)
+    return result
+
+
+def run_as_credit_writer(work: Callable[..., Result]) -> Result:
+    """Run ``work(run)`` as ``pellier_credit_writer``, the role that moves money.
+
+    The role may only execute ``pellier.apply_store_credit``, which runs with
+    its owner's rights, so the credit this transaction writes is one the
+    function's checks admit, and nothing in it can change a credit row
+    directly. The role is transaction-local: the audit receipt the caller
+    writes after the commit or rollback runs outside it, as its own statement.
+    """
+    transaction_id = begin_transaction()
+    try:
+        execute_in_transaction(transaction_id, f"SET LOCAL ROLE {CREDIT_WRITER_ROLE};")
 
         def run(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
             return execute_in_transaction(transaction_id, *_named(sql, params))

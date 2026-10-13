@@ -129,15 +129,26 @@ def test_each_lambda_tool_dispatches_to_store_tools_with_the_data_api_runner(
         return work(scoped_run)
 
     monkeypatch.setattr(lambda_tools, "run_as_customer", as_customer)
+    writer_run = object()
+    writes: list[str] = []
+
+    def as_credit_writer(work: Any) -> Any:
+        writes.append(tool_name)
+        return work(writer_run)
+
+    monkeypatch.setattr(lambda_tools, "run_as_credit_writer", as_credit_writer)
 
     result = lambda_tools.TOOLS[tool_name]({"customer_id": "CUST-THEO"}, None)
 
     assert result == {"status": "success", "tool": tool_name}
     if tool_name in ("get_orders", "get_tickets"):
         # A customer's own read runs as pellier_agent with that customer named.
-        assert seen["run"] is scoped_run and bound == ["CUST-THEO"]
+        assert seen["run"] is scoped_run and bound == ["CUST-THEO"] and writes == []
+    elif tool_name == "give_store_credit":
+        # The money path runs as pellier_credit_writer, which may only call the function.
+        assert seen["run"] is writer_run and writes == ["give_store_credit"] and bound == []
     else:
-        assert seen["run"] is dataapi.run_store_sql and bound == []
+        assert seen["run"] is dataapi.run_store_sql and bound == [] and writes == []
 
 
 def test_search_products_hands_store_tools_the_gateway_pipeline_pieces(

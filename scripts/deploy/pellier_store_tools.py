@@ -42,6 +42,7 @@ from common.dataapi import (
     RERANK_MODEL_ID,
     query_embedding,
     rerank_documents,
+    run_as_credit_writer,
     run_as_customer,
     run_store_sql,
     write_tool_audit_independently,
@@ -190,13 +191,13 @@ def _give_store_credit(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str
     # operator token to read, and an attribution the caller supplied would be
     # worse than none. The Operator desk attributes credits in its own review
     # record, where ``require_operator`` has already produced a verified sub.
-    return store_tools.give_store_credit(
-        run_store_sql,
+    return run_as_credit_writer(lambda run: store_tools.give_store_credit(
+        run,
         customer_id=str(args.get("customer_id") or ""),
         amount_cents=args.get("amount_cents"),
         reason=str(args.get("reason") or ""),
         idempotency_key=str(args.get("idempotency_key") or ""),
-    )
+    ))
 
 
 def _ask_a_person(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:

@@ -741,18 +741,19 @@ def classify_evidence_for(policy: str, aurora: str, result: Mapping[str, Any]) -
 # ---------------------------------------------------------------------------
 
 
-async def _run_store_tool(db: Any, fn: Any, **arguments: Any) -> Dict[str, Any]:
+async def _run_store_tool(fetch: Any, fn: Any, **arguments: Any) -> Dict[str, Any]:
     """Run one synchronous ``store_tools`` function against the async pool.
 
     ``store_tools`` functions take a plain ``run(sql, params) -> rows`` so the
     Gateway Lambda can call them too. Here that runner hands each statement to
-    the pool on the event loop that owns it, from the worker thread the tool
-    runs on, exactly as ``services.agent_tools._run_sql`` does for the agents.
+    ``fetch`` on the event loop that owns the pool, from the worker thread the
+    tool runs on, exactly as ``services.agent_tools._run_sql`` does for the
+    agents.
     """
     loop = asyncio.get_running_loop()
 
     def run(sql: str, params: Any = ()) -> List[Dict[str, Any]]:
-        future = asyncio.run_coroutine_threadsafe(db.fetch_all(sql, *params), loop)
+        future = asyncio.run_coroutine_threadsafe(fetch(sql, *params), loop)
         return [dict(row) for row in future.result(timeout=30) or []]
 
     return await asyncio.to_thread(fn, run, **arguments)
@@ -790,7 +791,7 @@ async def _execute_in_process(
         raise ExecutionError(f"action_not_executable:{tool}", 422)
     try:
         return await _run_store_tool(
-            db,
+            db.fetch_all_as_credit_writer,
             store_tools.give_store_credit,
             customer_id=str(args["customer_id"]),
             amount_cents=int(args["amount_cents"]),

@@ -60,12 +60,22 @@ class _DataApi:
         self.statements: list[dict[str, Any]] = []
         self.commits: list[dict[str, Any]] = []
         self.rollbacks: list[dict[str, Any]] = []
+        # One label per call, in order: begin, role, credit, commit, rollback, receipt.
+        self.events: list[str] = []
 
     def begin_transaction(self, **kwargs: Any) -> dict[str, str]:
+        self.events.append("begin")
         return {"transactionId": "tx-governed-1"}
 
-    def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
+    def _record(self, kwargs: dict[str, Any]) -> None:
+        sql = kwargs.get("sql", "")
         self.statements.append(kwargs)
+        self.events.append("receipt" if "INSERT INTO pellier.tool_audit" in sql
+                           else "role" if "SET LOCAL ROLE" in sql
+                           else "credit" if "apply_store_credit" in sql else "other")
+
+    def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
+        self._record(kwargs)
         sql = kwargs.get("sql", "")
         if "INSERT INTO pellier.tool_audit" in sql:
             if self.fail_audit:
@@ -83,9 +93,11 @@ class _DataApi:
         }
 
     def commit_transaction(self, **kwargs: Any) -> None:
+        self.events.append("commit")
         self.commits.append(kwargs)
 
     def rollback_transaction(self, **kwargs: Any) -> None:
+        self.events.append("rollback")
         self.rollbacks.append(kwargs)
 
 
@@ -163,9 +175,15 @@ def test_the_credit_amount_travels_as_an_integer_and_the_issuer_is_not_wire_supp
     assert values["p4"] == {"isNull": True}, "an attribution the caller supplied is worse than none"
 
 
-def test_a_credit_runs_as_one_statement_and_writes_its_receipt_outside_a_transaction(
+def test_a_credit_runs_as_the_writer_in_one_transaction_and_its_receipt_after_the_commit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The credit and the role it runs as share one transaction; the receipt is its own.
+
+    ``SET LOCAL ROLE`` lasts until the transaction ends, so the credit statement
+    must carry the same transaction id or it would run as the owner. The receipt
+    must carry none, so it commits whatever the credit's transaction does.
+    """
     module = _load_server("pellier_store_tools.py", "store_credit_receipt")
     client = _DataApi({"status": "success", "credit_id": 7})
     monkeypatch.setattr(_dataapi(), "rds_client", client)
@@ -173,13 +191,18 @@ def test_a_credit_runs_as_one_statement_and_writes_its_receipt_outside_a_transac
     result = module.lambda_handler(_credit_event(), None)
 
     assert not result.get("isError")
+    assert client.events == ["begin", "role", "credit", "commit", "receipt"]
+    role, credit = (call for call in client.statements
+                    if "SET LOCAL ROLE" in call["sql"] or "apply_store_credit" in call["sql"])
+    assert role["sql"] == "SET LOCAL ROLE pellier_credit_writer;"
+    assert role["transactionId"] == credit["transactionId"] == "tx-governed-1"
     receipts = _audit_statements(client)
     assert len(receipts) == 1
     assert not receipts[0].get("transactionId")
     parameters = {p["name"]: p["value"] for p in receipts[0]["parameters"]}
     assert parameters["tool"] == {"stringValue": "give_store_credit"}
     assert parameters["session_id"] == {"stringValue": "gateway-CUST-THEO"}
-    assert not client.commits and not client.rollbacks
+    assert len(client.commits) == 1 and not client.rollbacks
 
 
 def test_a_refused_credit_still_leaves_one_attempt_receipt(
@@ -250,7 +273,7 @@ class _IdempotentDataApi(_DataApi):
     def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
         sql = kwargs.get("sql", "")
         if "apply_store_credit" in sql:
-            self.statements.append(kwargs)
+            self._record(kwargs)
             key = kwargs["parameters"][0]["value"]["stringValue"]
             if key in self.credits:
                 result = {**self.credits[key], "idempotent_replay": True}
@@ -289,6 +312,42 @@ def test_a_retry_of_the_unchanged_request_keeps_one_credit_and_one_receipt(
     assert '"idempotent_replay": true' in second["text"]
     assert len(client.credits) == 1, "the retry issued a second credit"
     assert len(_audit_statements(client)) == 1, "the replay wrote a second receipt"
+
+
+class _FailsOnceDataApi(_IdempotentDataApi):
+    """The first credit statement fails inside its transaction; later ones succeed."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.failed = False
+
+    def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
+        if "apply_store_credit" in kwargs.get("sql", "") and not self.failed:
+            self.failed = True
+            self._record(kwargs)
+            raise RuntimeError("connection reset between begin and commit")
+        return super().execute_statement(**kwargs)
+
+
+def test_a_failure_inside_the_writer_transaction_rolls_back_and_the_retry_writes_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An error between begin and commit: one rollback, one receipt, then one credit."""
+    module = _load_server("pellier_store_tools.py", "store_credit_fails_once")
+    client = _FailsOnceDataApi()
+    monkeypatch.setattr(_dataapi(), "rds_client", client)
+
+    first = module.lambda_handler(_credit_event(), None)
+    assert first.get("isError") is True
+    assert client.events == ["begin", "role", "credit", "rollback", "receipt"]
+    assert not client.credits and len(client.rollbacks) == 1 and not client.commits
+
+    second = module.lambda_handler(_credit_event(), None)
+    assert not second.get("isError")
+    assert client.events[5:] == ["begin", "role", "credit", "commit", "receipt"]
+    assert len(client.credits) == 1 and len(client.commits) == 1 and len(client.rollbacks) == 1
+    assert len(_audit_statements(client)) == 2, "one receipt per attempt"
+    assert all(not receipt.get("transactionId") for receipt in _audit_statements(client))
 
 
 def test_a_first_attempt_and_a_refusal_still_write_their_receipt(

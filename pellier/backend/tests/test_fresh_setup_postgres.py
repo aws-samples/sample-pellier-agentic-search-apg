@@ -62,9 +62,8 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
                            "WHERE schemaname = 'pellier' ORDER BY 1") == [
         "orders.orders_owner", "support_tickets.support_tickets_owner",
     ]
-    assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%'") == [
-        "pellier_agent"
-    ]
+    assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%' "
+                           "ORDER BY 1") == ["pellier_agent", "pellier_credit_writer"]
     assert _rows(fresh_db, "SELECT extname FROM pg_extension ORDER BY 1") == [
         "pg_trgm", "plpgsql", "vector",
     ]
@@ -367,3 +366,21 @@ def test_reset_rebuilds_the_same_dataset(fresh_db):
     test_jessicas_case_is_exactly_one_hundred_dollars_and_nothing_is_credited(fresh_db)
     test_three_rows_per_product_and_the_catalog_agrees(fresh_db)
     test_teaching_products_have_exact_stock(fresh_db)
+
+
+def test_the_credit_function_is_the_money_roles_only_way_in(fresh_db):  # noqa: F811
+    """Definer rights make EXECUTE the whole key, so who holds it is pinned here."""
+    assert _rows(fresh_db, "SELECT prosecdef::text || ' ' || array_to_string(proconfig, ',') "
+                           "FROM pg_proc WHERE proname = 'apply_store_credit'") == [
+        "true search_path=pg_catalog, pg_temp"
+    ]
+    signature = "'pellier.apply_store_credit(text, text, integer, text, text)'"
+    assert _rows(fresh_db, f"SELECT r || ' ' || has_function_privilege(r, {signature}, 'EXECUTE') "
+                           "FROM unnest(ARRAY['pellier_credit_writer', 'pellier_agent', 'public']) "
+                           "AS r") == [
+        "pellier_credit_writer true", "pellier_agent false", "public false",
+    ]
+    assert _rows(fresh_db, "SELECT count(*) FROM information_schema.role_table_grants "
+                           "WHERE grantee = 'pellier_credit_writer'") == ["0"]
+    assert _rows(fresh_db, "SELECT count(*) FROM information_schema.role_column_grants "
+                           "WHERE grantee = 'pellier_credit_writer'") == ["0"]

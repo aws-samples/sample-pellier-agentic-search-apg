@@ -78,6 +78,7 @@ class FakeDb:
         self.statements: List[str] = []
         self.claimed_turns: List[str] = []
         self.last_attempts: List[Dict[str, Any]] = []
+        self.writer_statements: List[str] = []
 
     async def fetch_one(self, query: str, *params: Any) -> Optional[Dict[str, Any]]:
         self.statements.append(query)
@@ -90,6 +91,11 @@ class FakeDb:
         if "SELECT execution_turn_id" in query:
             return {"execution_turn_id": self.existing_execution_turn}
         return None
+
+    async def fetch_all_as_credit_writer(self, query: str, *params: Any) -> List[Dict[str, Any]]:
+        """The money path, which the real service runs as ``pellier_credit_writer``."""
+        self.writer_statements.append(query)
+        return await self.fetch_all(query, *params)
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
         self.statements.append(query)
@@ -952,8 +958,24 @@ async def test_a_retry_on_the_in_process_rail_applies_the_credit_once(
     assert len(audits_after_first) == 1, "the executed credit must leave exactly one audit row"
     assert len(audits) == 1, "the idempotent replay must not write a second audit row"
     assert db.audit_rows[0]["args"]["idempotency_key"] == first.idempotency_key
+
     assert db.audit_rows[0]["caller"] == OPERATOR_SUBJECT
     assert "tool_audit row" in first.notes["audit"] and "replay" in second.notes["audit"]
+
+
+@pytest.mark.asyncio
+async def test_the_in_process_credit_runs_as_the_credit_writer() -> None:
+    """Both rails hold the same boundary: the credit statement goes through the writer session.
+
+    ``DatabaseService.fetch_all_as_credit_writer`` sets ``pellier_credit_writer``
+    for its transaction; ``test_operator_credit_postgres`` proves on a real
+    cluster that the role can write only through ``apply_store_credit``.
+    """
+    db = _IdempotentDb()
+    await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
+
+    assert [s for s in db.writer_statements if "apply_store_credit" in s], db.writer_statements
+    assert all("apply_store_credit" in s for s in db.writer_statements)
 
 
 @pytest.mark.asyncio

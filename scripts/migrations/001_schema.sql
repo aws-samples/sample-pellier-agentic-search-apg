@@ -598,9 +598,8 @@ CREATE TRIGGER retrieval_receipts_append_only
 --     customer (search_products, browse_department, compare_products,
 --     check_stock, get_return_policy);
 --   * the approvals writes: a shopper's credit request (ask_a_person), the
---     Planner's proposal and Nadia's decision;
---   * the staff money path, apply_store_credit, which is held by its own
---     checks above and by Cedar on the Gateway;
+--     Planner's proposal and Nadia's decision. They record decisions, not
+--     money; a role of their own is the next boundary a team would draw;
 --   * the evidence writes to tool_audit and retrieval_receipts;
 --   * a signed-in shopper's name and preferences, read at the start of a
 --     turn (pellier_agent may read only id and cognito_username);
@@ -628,9 +627,25 @@ CREATE TRIGGER retrieval_receipts_append_only
 -- customer's rows, even if the tool's own SQL asks for someone else's. With
 -- no name set, the role sees nothing.
 --
--- This contains a wrong query, not an untrusted session: a session running
--- as pellier_agent can set the name itself, so the name is only as good as
--- the code that binds it in those two places.
+-- The staff money path runs as pellier_credit_writer, the same way, on both
+-- rails:
+--
+--     SET LOCAL ROLE pellier_credit_writer;
+--     SELECT pellier.apply_store_credit(...);
+--
+-- The role may call apply_store_credit and nothing else. The function runs
+-- with its owner's rights and a pinned search_path, so the only credit the
+-- role can write is one the function's checks admit, and it cannot insert,
+-- change or delete a credit row, an order's credit or an approval itself. The
+-- trigger on store_credits covers inserts only; this is what stops a later
+-- UPDATE of an approved amount, which the owner could otherwise issue.
+--
+-- Both roles contain a wrong query, not an untrusted session. The
+-- application connects as the owner and sets the role per transaction, so a
+-- session that can run any SQL can set the name itself or reset the role:
+-- each role is only as good as the code that binds it in those two places.
+-- In production, give each role its own login and secret, so the money
+-- path's connection can be nothing but the writer.
 
 -- The role is shared by every database on the cluster, so it is created once.
 -- NOBYPASSRLS keeps the policies binding; the owner joins it to SET ROLE into it.
@@ -639,8 +654,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_agent') THEN
         CREATE ROLE pellier_agent NOLOGIN NOINHERIT NOBYPASSRLS;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_credit_writer') THEN
+        CREATE ROLE pellier_credit_writer NOLOGIN NOINHERIT NOBYPASSRLS;
+    END IF;
 END $$;
 GRANT pellier_agent TO CURRENT_USER;
+GRANT pellier_credit_writer TO CURRENT_USER;
 
 -- What the role may touch: the two customer tables, the catalog get_orders
 -- joins, and the two customer columns the policies read. INSERT on tickets is
@@ -652,7 +671,16 @@ GRANT SELECT (id, cognito_username) ON pellier.customers TO pellier_agent;
 GRANT SELECT ON pellier.orders TO pellier_agent;
 GRANT SELECT, INSERT ON pellier.support_tickets TO pellier_agent;
 
+-- What the money role may touch: the credit function, run with its owner's
+-- rights, and no table. EXECUTE is the whole key, so it is revoked from PUBLIC
+-- beside the grant. workshop/lab-4-credit-writer.sql is Lab 4's build of these
+-- three statements, and it proves each of them on every run.
+GRANT USAGE ON SCHEMA pellier TO pellier_credit_writer;
+ALTER FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+    SECURITY DEFINER SET search_path = pg_catalog, pg_temp;
 REVOKE ALL ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+    TO pellier_credit_writer;
 
 ALTER TABLE pellier.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pellier.support_tickets ENABLE ROW LEVEL SECURITY;
