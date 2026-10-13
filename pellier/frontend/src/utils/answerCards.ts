@@ -24,9 +24,7 @@ export function productsNamedInAnswer<T extends { name: string }>(products: read
     .map((product, index) => ({
       product,
       index,
-      mentionIndex: product.name
-        ? normalizedContent.indexOf(product.name.toLowerCase())
-        : -1,
+      mentionIndex: mentionOf(normalizedContent, product.name),
     }))
     .filter((item) => item.mentionIndex >= 0)
     .sort((a, b) =>
@@ -36,4 +34,37 @@ export function productsNamedInAnswer<T extends { name: string }>(products: read
     )
     .map((item) => item.product)
     .slice(0, ANSWER_CARDS_MAX)
+}
+
+const WORD_CHAR = /[\p{L}\p{N}]/u
+
+/**
+ * Where the answer first names a piece: the whole catalog name, or the part
+ * before an em-dash variant suffix ("Linen Throw — Sage" named as "Linen
+ * Throw"). A name matches as whole words, allowing a plain plural ("Hadley
+ * Linen Shirts"), so a short name never matches inside another word.
+ */
+export function mentionOf(normalizedContent: string, name: string): number {
+  if (!name) return -1
+  const forms = [name]
+  const base = name.split(' — ')[0].trim()
+  if (base && base !== name) forms.push(base)
+  for (const form of forms) {
+    const index = wholeNameIndex(normalizedContent, form.toLowerCase())
+    if (index >= 0) return index
+  }
+  return -1
+}
+
+function wholeNameIndex(content: string, name: string): number {
+  for (let from = 0; ; from += 1) {
+    const at = content.indexOf(name, from)
+    if (at < 0) return -1
+    const before = at === 0 ? '' : content[at - 1]
+    const rest = content.slice(at + name.length)
+    const plural = /^(es|s)(?![\p{L}\p{N}])/u.exec(rest)
+    const after = plural ? '' : rest.charAt(0)
+    if (!WORD_CHAR.test(before) && !WORD_CHAR.test(after)) return at
+    from = at
+  }
 }
