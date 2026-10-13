@@ -34,6 +34,7 @@ export interface RankingPanelProps {
 }
 
 const EMPTY = '–'
+export const NO_ROWS = 'No products were ranked for this search.'
 const RERANKED = 'hybrid+rerank'
 const RERANK_FALLBACK = 'hybrid (rerank fallback to RRF order)'
 
@@ -156,18 +157,22 @@ export default function RankingPanel({ ranking, id, className, resultsNote }: Ra
         {ranking.arms && <StatusTag tone="pending">Full text {formatCount(ranking.arms.full_text)}</StatusTag>}
         {ranking.arms && <StatusTag tone="pending">Vector {formatCount(ranking.arms.vector)}</StatusTag>}
       </div>
-      <div className="tn-rank-scroll">
-        <div className="tn-rank-table" role="table" aria-label="How each product ranked">
-          <div className="tn-rank-row tn-rank-hdr" role="row">
-            {['#', 'Product', 'Full text', 'Vector', 'Fused score', 'Rerank'].map(head => (
-              <span key={head} role="columnheader">{head}</span>
+      {rows.length === 0 ? (
+        <span className="tn-rank-note" data-testid="ranking-empty">{NO_ROWS}</span>
+      ) : (
+        <div className="tn-rank-scroll">
+          <div className="tn-rank-table" role="table" aria-label="How each product ranked">
+            <div className="tn-rank-row tn-rank-hdr" role="row">
+              {['#', 'Product', 'Full text', 'Vector', 'Fused score', 'Rerank'].map(head => (
+                <span key={head} role="columnheader">{head}</span>
+              ))}
+            </div>
+            {rows.map(row => (
+              <Row key={row.product_id} row={row} k={k} maxFused={maxFused} />
             ))}
           </div>
-          {rows.map(row => (
-            <Row key={row.product_id} row={row} k={k} maxFused={maxFused} />
-          ))}
         </div>
-      </div>
+      )}
       {ranking.note && <span className="tn-rank-note">{ranking.note}</span>}
       {footNote}
     </section>

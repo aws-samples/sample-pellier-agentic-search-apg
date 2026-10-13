@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import RankingPanel, { RankingSummary } from './RankingPanel'
+import RankingPanel, { NO_ROWS, RankingSummary } from './RankingPanel'
 import type { RankingPayload } from './turnTypes'
 
 const RANKING: RankingPayload = {
@@ -58,6 +58,13 @@ describe('RankingPanel', () => {
     render(<RankingPanel ranking={{ ...RANKING, rows }} />)
     expect(screen.getByText('Product 940')).toBeInTheDocument()
     expect(screen.queryByText(/^940$/)).not.toBeInTheDocument()
+  })
+
+  it('says nothing was ranked instead of drawing an empty table', () => {
+    render(<RankingPanel ranking={{ ...RANKING, rows: [], filters: { kept: 0, of: 100, removed: {} } }} />)
+    expect(screen.getByTestId('ranking-empty')).toHaveTextContent(NO_ROWS)
+    expect(screen.queryByRole('table')).toBeNull()
+    expect(screen.getAllByTestId('status-tag')[0]).toHaveTextContent('Kept 0 of 100')
   })
 
   it('says how the order was made when rerank did not run', () => {
