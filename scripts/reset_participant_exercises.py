@@ -27,6 +27,12 @@ class FileExercise:
 
 MARKER_EXERCISES = (
     MarkerExercise(
+        exercise_id="lab-1-vector-branch",
+        starter="workshop/starters/lab-1/vector-branch.pyfrag",
+        destination="pellier/backend/services/store_tools.py",
+        marker="WORKSHOP - Vector branch - order by meaning",
+    ),
+    MarkerExercise(
         exercise_id="lab-2-stock-agent",
         starter="workshop/starters/lab-2/stock-agent-definition.pyfrag",
         destination="pellier/backend/agents/stock_agent.py",
@@ -73,6 +79,11 @@ FILE_EXERCISES = (
         exercise_id="lab-4-cedar",
         starter="workshop/starters/workshop_credit_limit.cedar",
         destination="policies/workshop_credit_limit.cedar",
+    ),
+    FileExercise(
+        exercise_id="lab-4-credit-writer",
+        starter="workshop/starters/lab-4-credit-writer.sql",
+        destination="workshop/lab-4-credit-writer.sql",
     ),
 )
 

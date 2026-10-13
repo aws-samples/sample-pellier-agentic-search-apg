@@ -155,6 +155,10 @@ LAB4_AMOUNT_LIMIT_CENTS = "10000"
 
 PARTICIPANT_EXERCISE_RESET = "scripts/reset_participant_exercises.py"
 PARTICIPANT_STARTERS = {
+    "lab-1-vector-branch": (
+        "workshop/starters/lab-1/vector-branch.pyfrag",
+        "pellier/backend/services/store_tools.py",
+    ),
     "lab-2-stock-agent": (
         "workshop/starters/lab-2/stock-agent-definition.pyfrag",
         "pellier/backend/agents/stock_agent.py",
@@ -183,6 +187,10 @@ PARTICIPANT_STARTERS = {
     "lab-4-cedar": (
         "workshop/starters/workshop_credit_limit.cedar",
         LAB4_STARTER,
+    ),
+    "lab-4-credit-writer": (
+        "workshop/starters/lab-4-credit-writer.sql",
+        "workshop/lab-4-credit-writer.sql",
     ),
 }
 
@@ -691,6 +699,8 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     lab1 = _read(PARTICIPANT_STARTERS["lab-1-rrf"][0])
     rls = _read(PARTICIPANT_STARTERS["lab-3-rls"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
+    vector = _read(PARTICIPANT_STARTERS["lab-1-vector-branch"][0])
+    writer = _read(PARTICIPANT_STARTERS["lab-4-credit-writer"][0])
 
     lab1_plan = _read(PARTICIPANT_STARTERS["lab-1-preserve-requirements"][0])
 
@@ -708,6 +718,9 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     assert "SELECT $predicate$\n  false\n$predicate$" in rls
     assert re.search(r"unless\s*\{\s*false\s*\}", lab4)
     assert "CUST-JESSICA" not in lab4
+    assert "NULL::float AS similarity" in vector and "ORDER BY" not in vector
+    assert "GRANT SELECT, INSERT, UPDATE ON pellier.store_credits" in writer
+    assert "SECURITY DEFINER" not in writer
 
 
 def test_participant_exercise_reset_check_accepts_the_checked_in_starters() -> None:
@@ -850,7 +863,18 @@ def test_the_participant_path_is_eight_marked_regions() -> None:
     for rel, label in marked:
         assert _read(rel).count(f"{label}: START ===") == 1, rel
     assert len(marked) + 1 == 8, "seven marker regions and the Cedar unless block"
-    assert len(PARTICIPANT_STARTERS) == 8
+
+
+def test_every_checked_in_starter_is_under_the_reset_guard() -> None:
+    """A starter with no reset entry lets a solution sit in the working tree unnoticed.
+
+    The reset's ``--check`` compares each live region or worksheet with its starter, so a
+    tree that holds a solution fails the suite only if every starter is listed here.
+    """
+    on_disk = {path.relative_to(REPO).as_posix()
+               for path in (REPO / "workshop" / "starters").rglob("*") if path.is_file()}
+    listed = {starter for starter, _destination in PARTICIPANT_STARTERS.values()}
+    assert on_disk == listed
 
 
 @pytest.mark.parametrize(("source", "destination", "block"), REFERENCE_TWINS)
