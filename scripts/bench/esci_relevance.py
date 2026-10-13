@@ -8,7 +8,9 @@
 Pellier's own catalog has no relevance judgments, so it cannot say whether fusion or
 rerank helps. ESCI can: every judged query-product pair is labelled Exact, Substitute,
 Complement or Irrelevant. This script runs Pellier's retrieval arms over an ESCI sample
-and reports NDCG@10, Recall@10, Recall@50 and MRR for each arm.
+and reports NDCG@10, Recall@10, Recall@50 and MRR for each arm. Two checks sit beside the
+arms: full text with AND semantics first (plainto_tsquery, falling back to Pellier's OR query
+when AND matches nothing), and the recall HNSW gives up against an exact scan.
 
 Dataset
     Shopping Queries Dataset (ESCI), https://github.com/amazon-science/esci-data,
@@ -48,6 +50,7 @@ with Bedrock access to both Cohere models in the region:
     uv run scripts/bench/esci_relevance.py retrieve WORK_DIR "host=... dbname=esci"
     uv run scripts/bench/esci_relevance.py rerank WORK_DIR --region us-east-1
     uv run scripts/bench/esci_relevance.py score WORK_DIR
+    uv run scripts/bench/esci_relevance.py fulltext-check WORK_DIR "host=... dbname=esci"
     uv run scripts/bench/esci_relevance.py vector-check WORK_DIR "host=... dbname=esci"
 
 Delete WORK_DIR and the database afterwards: they hold dataset text.
@@ -106,6 +109,13 @@ CREATE TABLE product_catalog (
 """
 FTS_SQL = """
 WITH q AS (SELECT to_tsquery('english', %s) AS ts_q)
+SELECT product_id FROM product_catalog CROSS JOIN q
+WHERE description_tsv @@ q.ts_q
+ORDER BY ts_rank_cd(description_tsv, q.ts_q) DESC, product_id
+LIMIT %s
+"""
+AND_SQL = """
+WITH q AS (SELECT plainto_tsquery('english', %s) AS ts_q)
 SELECT product_id FROM product_catalog CROSS JOIN q
 WHERE description_tsv @@ q.ts_q
 ORDER BY ts_rank_cd(description_tsv, q.ts_q) DESC, product_id
@@ -258,6 +268,34 @@ def retrieve(work_dir: str, dsn: str) -> None:
             candidates[str(row.query_id)] = record
     (work / "candidates.json").write_text(json.dumps(candidates))
     print(f"retrieved candidates for {len(candidates)} queries")
+
+
+def fulltext_check(work_dir: str, dsn: str) -> None:
+    """The full-text arm with AND semantics first, falling back to Pellier's OR query."""
+    import psycopg
+
+    work = Path(work_dir)
+    candidates = json.loads((work / "candidates.json").read_text())
+    labels = load_labels(work)
+    asked = [q for q in candidates if any(v == "E" for v in labels[q].values())]
+    and_first, fell_back = [], 0
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        for query_id in asked:
+            record = candidates[query_id]
+            ranked = [r[0] for r in conn.execute(AND_SQL, (record["query"], 100)).fetchall()]
+            if not ranked:
+                fell_back += 1
+                ranked = full_text(conn, or_tsquery(record["query"]), 100)
+            and_first.append(query_metrics(ranked, labels[query_id]))
+    today = [query_metrics(candidates[q]["fts100"], labels[q]) for q in asked]
+    keys = ("ndcg10", "recall10", "recall50", "mrr")
+    print("| Full-text arm (100 rows) | NDCG@10 | Recall@10 | Recall@50 | MRR |")
+    print("|---|---|---|---|---|")
+    for name, rows in (("OR of every token (Pellier)", today),
+                       ("AND first, OR when AND matches nothing", and_first)):
+        means = [sum(r[k] for r in rows) / len(rows) for k in keys]
+        print(f"| {name} | " + " | ".join(f"{m:.4f}" for m in means) + " |")
+    print(f"\n{fell_back} of {len(asked)} queries matched nothing under AND and fell back to OR")
 
 
 def vector_check(work_dir: str, dsn: str) -> None:
@@ -428,7 +466,7 @@ def main() -> None:
         step = steps.add_parser(name)
         step.add_argument("work_dir")
         step.add_argument("--region", default="us-east-1")
-    for name in ("load", "retrieve", "vector-check"):
+    for name in ("load", "retrieve", "fulltext-check", "vector-check"):
         step = steps.add_parser(name)
         step.add_argument("work_dir")
         step.add_argument("dsn")
@@ -438,8 +476,9 @@ def main() -> None:
         prepare(args.data_dir, args.work_dir)
     elif args.step in ("embed", "rerank"):
         {"embed": embed, "rerank": rerank}[args.step](args.work_dir, args.region)
-    elif args.step in ("load", "retrieve", "vector-check"):
-        steps = {"load": load, "retrieve": retrieve, "vector-check": vector_check}
+    elif args.step in ("load", "retrieve", "fulltext-check", "vector-check"):
+        steps = {"load": load, "retrieve": retrieve, "fulltext-check": fulltext_check,
+                 "vector-check": vector_check}
         steps[args.step](args.work_dir, args.dsn)
     else:
         score(args.work_dir)
