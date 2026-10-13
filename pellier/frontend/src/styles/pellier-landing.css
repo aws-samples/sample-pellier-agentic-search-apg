@@ -561,6 +561,10 @@
   font-family: var(--dl-font-sans);
   font-size: 12px;
 }
+/* A piece with no brand keeps the line, so its name lines up with the rest of the row. */
+.pellier-card-brand:empty::before {
+  content: '\00a0';
+}
 
 .pellier-card-row {
   display: flex;
