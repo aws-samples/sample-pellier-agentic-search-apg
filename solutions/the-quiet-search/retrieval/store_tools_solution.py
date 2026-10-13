@@ -1044,6 +1044,8 @@ def vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
     Parameters, in order: the query embedding as a vector literal, the
     predicate parameters, and the branch size.
     """
+    # === WORKSHOP - Vector branch - order by meaning: START ===
+    # Task 1A: rank the eligible products by meaning, closest first.
     return f"""
             WITH query_embedding AS (
                 SELECT %s::vector AS emb
@@ -1055,6 +1057,7 @@ def vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
         """
+    # === WORKSHOP - Vector branch - order by meaning: END ===
 
 
 def fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:

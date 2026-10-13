@@ -21,6 +21,20 @@ from services.hybrid_search import HybridSearch
 from services.store_tools import or_tsquery, rrf_merge
 from services.sql_query_logger import SQLQueryLogger
 import services.sql_query_logger as sql_query_logger_module
+from services import hybrid_search, store_tools
+from tests import lab_variants
+
+
+@pytest.fixture(autouse=True)
+def _solved_vector_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests exercise the retrieval pipeline, not Lab 1A's region.
+
+    The live ``vector_branch_sql`` holds the participant's starter, which ranks
+    nothing, so the pipeline runs on the solution's vector branch here.
+    """
+    solved = lab_variants.vector_branch(lab_variants.SOLUTION)
+    monkeypatch.setattr(store_tools, "vector_branch_sql", solved)
+    monkeypatch.setattr(hybrid_search, "vector_branch_sql", solved)
 
 
 def _run(coro: Any) -> Any:

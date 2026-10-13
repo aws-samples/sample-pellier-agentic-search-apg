@@ -1,0 +1,12 @@
+    # Task 1A: rank the eligible products by meaning, closest first.
+    return f"""
+            WITH query_embedding AS (
+                SELECT %s::vector AS emb
+            )
+            SELECT{_CATALOG_COLUMNS},
+                NULL::float AS similarity
+            FROM pellier.product_catalog
+            WHERE "imgUrl" IS NOT NULL{_indent_clauses(extra_clauses)}
+              AND false  -- not built: nothing is ranked by meaning yet
+            LIMIT %s
+        """

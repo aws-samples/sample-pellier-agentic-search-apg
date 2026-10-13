@@ -28,6 +28,9 @@ LAB1_RRF = {
 _PLAN = ("Search plan - preserve requirements",
          STARTERS / "lab-1" / "preserve-requirements.pyfrag",
          SOLUTIONS / "the-quiet-search" / "retrieval" / "search_plan_solution.py")
+_VECTOR = ("Vector branch - order by meaning",
+           STARTERS / "lab-1" / "vector-branch.pyfrag",
+           SOLUTIONS / "the-quiet-search" / "retrieval" / "store_tools_solution.py")
 _CHECK_STOCK = ("Stock agent - check_stock",
                 STARTERS / "lab-2" / "check-stock-tool.pyfrag",
                 SOLUTIONS / "closing-marcos-gap" / "services"
@@ -71,6 +74,15 @@ def plan_fallback(variant: str) -> Callable[..., Any]:
     source = "def _with_relaxations(self, relaxations):\n" + textwrap.indent(
         textwrap.dedent(body(_PLAN, variant)), "    ")
     return _function(source, "_with_relaxations", vars(search_plan))
+
+
+def vector_branch(variant: str) -> Callable[..., str]:
+    """``store_tools.vector_branch_sql`` as the starter or the solution writes it."""
+    from services import store_tools
+
+    source = "def vector_branch_sql(extra_clauses=()):\n" + textwrap.indent(
+        textwrap.dedent(body(_VECTOR, variant)), "    ")
+    return _function(source, "vector_branch_sql", vars(store_tools))
 
 
 def check_stock_body(variant: str) -> Callable[..., str]:

@@ -1044,17 +1044,20 @@ def vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
     Parameters, in order: the query embedding as a vector literal, the
     predicate parameters, and the branch size.
     """
+    # === WORKSHOP - Vector branch - order by meaning: START ===
+    # Task 1A: rank the eligible products by meaning, closest first.
     return f"""
             WITH query_embedding AS (
                 SELECT %s::vector AS emb
             )
             SELECT{_CATALOG_COLUMNS},
-                1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
+                NULL::float AS similarity
             FROM pellier.product_catalog
             WHERE "imgUrl" IS NOT NULL{_indent_clauses(extra_clauses)}
-            ORDER BY embedding <=> (SELECT emb FROM query_embedding)
+              AND false  -- not built: nothing is ranked by meaning yet
             LIMIT %s
         """
+    # === WORKSHOP - Vector branch - order by meaning: END ===
 
 
 def fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:

@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import pytest
 
+from services import store_tools
 from services.planned_hybrid_retrieval import (
     SearchExecution,
     SearchStage,
@@ -27,6 +28,18 @@ from services.search_plan import (
     STRATEGY_VECTOR,
     build_plan,
 )
+from tests import lab_variants
+
+
+@pytest.fixture(autouse=True)
+def _solved_vector_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests exercise the retrieval pipeline, not Lab 1A's region.
+
+    The live ``vector_branch_sql`` holds the participant's starter, which ranks
+    nothing, so the pipeline runs on the solution's vector branch here.
+    """
+    solved = lab_variants.vector_branch(lab_variants.SOLUTION)
+    monkeypatch.setattr(store_tools, "vector_branch_sql", solved)
 
 
 def _normalized(sql: str) -> str:
