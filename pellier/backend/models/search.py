@@ -218,6 +218,14 @@ class ChatRequest(BaseModel):
             "rail always uses 'fixed'."
         ),
     )
+    source: Optional[Literal["terminal"]] = Field(
+        default=None,
+        description=(
+            "'terminal' when scripts/lab_run.py sent the turn. A verified shopper's "
+            "terminal turn is relayed to their own Ask Pellier panel through "
+            "GET /api/chat/watch; the browser never sets it."
+        ),
+    )
 
 
 class ChatResponse(BaseModel):

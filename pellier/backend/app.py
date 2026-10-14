@@ -33,6 +33,7 @@ from models.search import (
 )
 from services.database import DatabaseService
 from services.auth import get_current_user, require_operator
+from services import turn_relay
 from services.embeddings import EmbeddingService
 from services.chat import ChatService, attach_warehouse_units
 from services.chat_error_taxonomy import classify_chat_error
@@ -1352,14 +1353,45 @@ async def chat_stream(
                 f"{json.dumps(error, ensure_ascii=False)}\n\n"
             )
 
-    return StreamingResponse(
+    # A verified shopper's terminal turn (lab_run.py send) is also copied to
+    # their relay channel; the chunks this caller reads are unchanged.
+    relayed = turn_relay.relay_turn_chunks(
         event_generator(),
+        sub=turn_relay.terminal_sub(request.source, user),
+        session_id=request.session_id,
+        message=request.message,
+    )
+    return StreamingResponse(
+        relayed,
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no"
         }
+    )
+
+
+@app.get("/api/chat/watch")
+async def chat_watch(user=Depends(get_current_user)):
+    """The signed-in shopper's turns sent from the terminal: the recent ones, then live.
+
+    The channel is the verified Cognito ``sub``; nothing in the request can name
+    another. A heartbeat comment every 15 seconds keeps CloudFront and nginx open.
+    """
+    sub = str((user or {}).get("sub") or "")
+    if not sub:
+        raise HTTPException(status_code=401, detail="sign_in_required")
+    from fastapi.responses import StreamingResponse
+
+    return StreamingResponse(
+        turn_relay.watch_stream(sub),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
