@@ -19,9 +19,8 @@ the grant the answering Stock agent actually held from its audit row, so it need
 restart and Marco's requests sent again.
 
 After the 2B token, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
-view** on, and send his Hadley question again (paste it, or click it under **A few ideas to
-begin**). Builder view streams the turn's trace: the Stock agent, one `check_stock` call, the
-Brooklyn warehouse row.
+view** on. Both requests you sent are there, marked **Sent from the terminal**; the Hadley one
+shows the Stock agent, one `check_stock` call and the Brooklyn warehouse row.
 
 ## The files
 
