@@ -151,16 +151,19 @@ SELECT string_agg(r || ' ' || CASE WHEN has_function_privilege(r,
                  THEN 'yes' ELSE 'no' END, ', ' ORDER BY ord) AS execute
   FROM unnest(ARRAY['pellier_credit_writer', 'pellier_agent', 'public']) WITH ORDINALITY AS t (r, ord)
 \gset fn_
-SELECT coalesce(nullif(concat_ws('; ', grants, policies), ''), 'none') AS tables
-  FROM (SELECT string_agg(table_name || ' ' || privilege_type, ', '
-                          ORDER BY table_name, privilege_type) AS grants
-          FROM (SELECT DISTINCT table_name, privilege_type
-                  FROM information_schema.role_table_grants
-                 WHERE grantee = 'pellier_credit_writer'
-                   AND table_name IN ('store_credits', 'orders', 'approvals')) d) g,
+-- One line per table and per policy, so the result fits a laptop-size terminal.
+SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS tables
+  FROM (SELECT string_agg(table_name || ' ' || privileges, E'\n' ORDER BY table_name) AS grants
+          FROM (SELECT table_name, string_agg(privilege_type, ', ' ORDER BY privilege_type)
+                         AS privileges
+                  FROM (SELECT DISTINCT table_name, privilege_type
+                          FROM information_schema.role_table_grants
+                         WHERE grantee = 'pellier_credit_writer'
+                           AND table_name IN ('store_credits', 'orders', 'approvals')) d
+                 GROUP BY table_name) per_table) g,
        (SELECT string_agg(format('policy %s on %s USING (%s): %s', policyname, tablename, qual,
                                  CASE WHEN qual = 'true' THEN 'every customer''s rows'
-                                      ELSE 'the rows it names' END), ', ' ORDER BY policyname)
+                                      ELSE 'the rows it names' END), E'\n' ORDER BY policyname)
                  AS policies
           FROM pg_policies
          WHERE 'pellier_credit_writer' = ANY (roles)
@@ -170,9 +173,9 @@ SELECT coalesce(nullif(concat_ws('; ', grants, policies), ''), 'none') AS tables
 -- Undo the probe case and its credit; your statements stay in the transaction.
 ROLLBACK TO SAVEPOINT probes;
 
-CREATE TEMP TABLE lab_4_probes (probe text, expected text, observed text, source text)
-    ON COMMIT DROP;
-INSERT INTO lab_4_probes VALUES
+CREATE TEMP TABLE lab_4_probes (ord serial, probe text, expected text, observed text,
+                                 source text) ON COMMIT DROP;
+INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
     ('Insert a credit row directly', '42501', :'direct_insert', :'direct_insert_source'),
     ('Raise the approved credit to $500 directly', '42501', :'direct_update',
      :'direct_update_source'),
@@ -197,9 +200,17 @@ INSERT INTO lab_4_probes VALUES
 \echo 'Evidence  pellier.apply_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
 \echo '          a probe case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
 \echo ''
-SELECT probe, expected, observed, source,
-       CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS verdict
-  FROM lab_4_probes;
+-- One block per probe: the verdict and the probe, then what was expected, what was
+-- observed and where it came from, each value continuing on its own lines.
+\pset tuples_only on
+\pset format unaligned
+SELECT format(E'%s  %s\n         expected  %s\n         observed  %s\n         source    %s\n',
+              CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END, probe,
+              replace(expected, E'\n', E'\n                   '),
+              replace(observed, E'\n', E'\n                   '), source)
+  FROM lab_4_probes ORDER BY ord;
+\pset format aligned
+\pset tuples_only off
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes
 \gset lab_4_

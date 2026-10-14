@@ -12,6 +12,7 @@ stamp, never the probe credit.
 
 from __future__ import annotations
 
+import re
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List
@@ -36,9 +37,29 @@ def _run(cluster: Any, path: Path) -> subprocess.CompletedProcess:
 
 
 def _probes(stdout: str) -> Dict[str, List[str]]:
-    rows = [[cell.strip() for cell in line.split("|")] for line in stdout.splitlines()
-            if line.count("|") == 4 and not line.lstrip().startswith("probe")]
-    return {row[0]: row[1:] for row in rows}
+    """Each probe block as name -> [expected, observed, source, verdict].
+
+    A block is the verdict and the probe on one line, then expected, observed and source
+    indented under it; a value that continues keeps its lines, joined by newlines.
+    """
+    blocks: Dict[str, Dict[str, List[str]]] = {}
+    name = field = None
+    for line in stdout.splitlines():
+        head = re.match(r"^(matches|differs)  (.+)$", line)
+        value = re.match(r"^ {9}(expected|observed|source) +(.*)$", line)
+        if head:
+            name, field = head.group(2), None
+            blocks[name] = {"verdict": [head.group(1)], "expected": [], "observed": [],
+                            "source": []}
+        elif name and value:
+            field = value.group(1)
+            blocks[name][field].append(value.group(2))
+        elif name and field and line.startswith(" " * 19):
+            blocks[name][field].append(line.strip())
+        else:
+            field = None
+    return {name: ["\n".join(b[key]) for key in ("expected", "observed", "source", "verdict")]
+            for name, b in blocks.items()}
 
 
 def _state(cluster: Any) -> str:
@@ -82,8 +103,9 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
         "Insert a credit row directly", "Raise the approved credit to $500 directly",
         "The function's rights",
         "The role's privileges and row policies on store_credits, orders, approvals"])
-    assert probes["The role's privileges and row policies on store_credits, orders, approvals"][1]\
-        .endswith("; policy orders_credit_writer on orders USING (true): every customer's rows")
+    granted = probes["The role's privileges and row policies on store_credits, orders, approvals"][1]
+    assert granted.splitlines()[-1] == (
+        "policy orders_credit_writer on orders USING (true): every customer's rows")
     assert "rolled back, the live state is unchanged" in done.stdout
     assert "Lab 4B privileges check failed" in done.stdout
     assert _state(fresh_db) == before

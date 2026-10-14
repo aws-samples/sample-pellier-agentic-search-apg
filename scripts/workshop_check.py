@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
+import textwrap
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -60,17 +62,33 @@ class Finding:
     next_step: str = ""
 
 
+# A laptop-size Code Editor terminal is about 124 columns wide.
+WIDTH = 120
+_INDENT = " " * 12
+# A command a participant may copy stays on one line: from its first word to the next
+# clause break or the end of the sentence.
+_COMMAND = re.compile(r"\b(?:psql|python3|bash|sudo) .*?(?=, |; |\. |\.?$)")
+
+
+def _wrapped(label: str, text: str) -> List[str]:
+    """One field as lines no wider than WIDTH, the label on the first."""
+    kept = _COMMAND.sub(lambda match: match.group(0).replace(" ", "\0"), text)
+    lines = textwrap.wrap(kept, width=WIDTH - len(_INDENT), break_long_words=False,
+                          break_on_hyphens=False) or [""]
+    first = f"  {label:<8}  " if label else _INDENT
+    return [(first if index == 0 else _INDENT) + line.replace("\0", " ")
+            for index, line in enumerate(lines)]
+
+
 def render(finding: Finding) -> str:
-    """The finding as the lines a participant reads."""
-    lines = [
-        f"Task {finding.task}  {finding.state}  {finding.title}",
-        f"  Expected  {finding.expected}",
-        f"  Observed  {finding.observed}",
-    ]
+    """The finding as the lines a participant reads, wrapped to the terminal."""
+    lines = [f"Task {finding.task}  {finding.state}  {finding.title}"]
+    lines += _wrapped("Expected", finding.expected)
+    lines += _wrapped("Observed", finding.observed)
     for index, line in enumerate(finding.evidence or ["(none)"]):
-        lines.append(("  Evidence  " if index == 0 else "            ") + line)
+        lines += _wrapped("Evidence" if index == 0 else "", line)
     if finding.state != PROVED and finding.next_step:
-        lines.append(f"  Next      {finding.next_step}")
+        lines += _wrapped("Next", finding.next_step)
     return "\n".join(lines)
 
 
