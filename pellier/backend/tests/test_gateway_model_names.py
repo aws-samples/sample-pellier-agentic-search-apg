@@ -79,7 +79,10 @@ def test_invalid_model_name_fails_before_agent_construction(name):
         gateway._model_gateway_tools([tool(name)])
 
 
-def test_short_alias_still_binds_server_owned_customer_and_correlation():
+def test_short_alias_still_binds_server_owned_customer_and_correlation(monkeypatch):
+    """Task 3A done (get_orders bound): a model-facing alias still reaches the binding."""
+    monkeypatch.setattr(gateway, "_CUSTOMER_SCOPED_TOOL_NAMES",
+                        frozenset({"get_orders", "get_tickets"}))
     adapted, = gateway._model_gateway_tools([tool(
         gateway.gateway_action_id("get_orders"),
     )])

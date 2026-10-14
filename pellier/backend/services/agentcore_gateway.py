@@ -59,30 +59,29 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 #
 # Task 3A: assemble the Support agent for AgentCore. Its prompt and model are
 # supplied: _managed_specialist_prompt("support") below, and the Opus profile
-# that specialist_models.model_for_intent("support") names. You write the two
-# things that decide what it can do once it is deployed.
+# that specialist_models.model_for_intent("support") names. The starter agent
+# works: it answers a returns question with get_return_policy and hands off
+# with ask_a_person. Theo's household request needs more.
 #
 # SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. On the managed
-# rail the Router asks the Gateway for exactly these. A tool the Gateway does
-# not publish is left out, and the agent tells Theo it can't look up his
-# support tickets here, so this tuple and the Gateway's published catalogue
-# have to agree.
+# rail the Router asks the Gateway for exactly these, and a tool the Gateway
+# does not publish is left out, so this tuple and the published catalogue have
+# to agree.
 #
 # SUPPORT_CALLER_BOUND_TOOLS: the tools whose `customer_id` the server
-# overwrites with the authenticated caller's id before execution. `get_orders`
-# is bound below, outside this region. Which other support tool would let the
-# model choose whose records to read?
+# overwrites with the authenticated caller's id before execution, refusing the
+# call when nobody is signed in. Which of the nine tools take a customer_id?
+# ask_a_person's handoff is bound whenever the caller is known (below), and the
+# staff-only give_store_credit never belongs on a shopper agent.
 #
-# python3 scripts/lab3_check.py --task 3A names any gap from source. Task 3B
+# python3 scripts/lab3_check.py --task 3A prints one line per rule. Task 3B
 # deploys the agent and prints each agentcore command it runs; then send
 # Theo's requests with python3 scripts/lab_run.py send --lab 3, and
 # python3 scripts/lab3_check.py --task 3B reads the bound customer and the
 # executed build. Its direct Gateway probe checks a foreign request against
 # Cedar separately.
 SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
-    "get_orders",
     "get_return_policy",
-    "get_tickets",
     "ask_a_person",
 )
 SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset()
@@ -346,9 +345,9 @@ _SAFE_TOOL_INPUT_FIELDS = frozenset(
     }
 )
 # Tools whose `customer_id` the server binds to the verified caller before
-# execution, and that cannot run without one. Lab 3A adds the support read the
-# starter leaves unbound.
-_CUSTOMER_SCOPED_TOOL_NAMES = frozenset({"get_orders"}) | SUPPORT_CALLER_BOUND_TOOLS
+# execution, and that cannot run without one: the reads Lab 3A names in
+# SUPPORT_CALLER_BOUND_TOOLS.
+_CUSTOMER_SCOPED_TOOL_NAMES = SUPPORT_CALLER_BOUND_TOOLS
 # The handoff is bound to the caller when the caller is known and still runs
 # when nobody is signed in: anyone may ask for a person. The local rail does the
 # same (`store_tools.ask_a_person` completes the handoff and withholds only the

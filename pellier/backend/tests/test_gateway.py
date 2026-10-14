@@ -22,12 +22,20 @@ import pytest
 
 import services.agentcore_gateway as gateway
 from services import store_tools
+from tests import lab_variants
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "deploy"))
 from gateway_tool_schemas import TOOL_SCHEMAS  # noqa: E402
 
 NINE_TOOLS = set(store_tools.TOOL_NAMES)
 TARGET = "pellier-store-tools"
+SOLVED_BOUND = frozenset({"get_orders", "get_tickets"})
+
+
+@pytest.fixture
+def solved_binding(monkeypatch):
+    """Task 3A done: the Support agent's reads are bound, as in the solution."""
+    monkeypatch.setattr(gateway, "_CUSTOMER_SCOPED_TOOL_NAMES", SOLVED_BOUND)
 
 
 def test_the_nine_tools_are_the_catalogue() -> None:
@@ -50,8 +58,11 @@ def test_managed_agents_partition_the_shopper_catalogue() -> None:
     )
     assert gateway.MANAGED_SPECIALIST_TOOLS["stock"] == ("check_stock",)
     assert gateway.MANAGED_SPECIALIST_TOOLS["support"] == gateway.SUPPORT_GATEWAY_TOOLS
-    bound = set().union(*gateway.MANAGED_SPECIALIST_TOOLS.values())
-    assert bound == NINE_TOOLS - {"give_store_credit"}
+    starter = set().union(*gateway.MANAGED_SPECIALIST_TOOLS.values())
+    assert starter <= NINE_TOOLS - {"give_store_credit"}
+    solved_support, _bound = lab_variants.support_contract(lab_variants.SOLUTION)
+    solved = starter | set(solved_support)
+    assert solved == NINE_TOOLS - {"give_store_credit"}
 
 
 def test_the_cedar_action_id_embeds_the_one_target() -> None:
@@ -108,6 +119,7 @@ def test_logical_gateway_tool_name_strips_target_prefix(published: str, logical:
     assert gateway._logical_gateway_tool_name(published) == logical
 
 
+@pytest.mark.usefixtures("solved_binding")
 def test_server_context_overrides_model_identity_and_correlation() -> None:
     bound = gateway._bind_server_tool_context(
         {
@@ -126,6 +138,7 @@ def test_server_context_overrides_model_identity_and_correlation() -> None:
     }
 
 
+@pytest.mark.usefixtures("solved_binding")
 def test_customer_scope_records_what_the_model_asked_for_and_what_the_server_bound() -> None:
     """Theo signed in, the model asks for Jessica: the server overwrites, and says so."""
     scope = gateway._customer_scope(
@@ -142,6 +155,7 @@ def test_customer_scope_records_what_the_model_asked_for_and_what_the_server_bou
     }
 
 
+@pytest.mark.usefixtures("solved_binding")
 def test_customer_scope_matched_and_bound_verdicts() -> None:
     same = gateway._customer_scope(
         {"name": f"{TARGET}___get_orders", "input": {"customer_id": "CUST-THEO"}},
@@ -200,9 +214,10 @@ def test_customer_scope_is_empty_for_a_tool_with_no_customer() -> None:
     assert gateway._customer_scope(call, "CUST-MARCO") == {}
 
 
-def test_get_orders_is_bound_outside_the_lab_region() -> None:
-    assert "get_orders" in gateway._CUSTOMER_SCOPED_TOOL_NAMES
-    assert gateway._CUSTOMER_SCOPED_TOOL_NAMES >= gateway.SUPPORT_CALLER_BOUND_TOOLS
+def test_the_caller_bound_reads_are_the_lab_regions() -> None:
+    """Task 3A names every read the server binds; nothing is bound outside the region."""
+    assert gateway._CUSTOMER_SCOPED_TOOL_NAMES == gateway.SUPPORT_CALLER_BOUND_TOOLS
+    assert lab_variants.support_contract(lab_variants.SOLUTION)[1] == SOLVED_BOUND
     # The handoff is bound when the caller is known and never refused.
     assert "ask_a_person" not in gateway._CUSTOMER_SCOPED_TOOL_NAMES
     assert gateway._CUSTOMER_BOUND_WHEN_KNOWN_TOOL_NAMES == frozenset({"ask_a_person"})
@@ -256,6 +271,7 @@ def test_the_handoff_still_runs_for_an_unknown_caller() -> None:
     assert bound["input"] == {"reason": "I want a person.", "turn_id": "turn-" + ("e" * 32)}
 
 
+@pytest.mark.usefixtures("solved_binding")
 def test_customer_scoped_tool_requires_verified_customer_context() -> None:
     with pytest.raises(ValueError, match="verified Aurora customer context"):
         gateway._bind_server_tool_context(
@@ -325,6 +341,7 @@ def test_the_managed_shopping_prompt_carries_limits_across_the_conversation() ->
     assert "including limits the shopper stated earlier in this conversation" in prompt
 
 
+@pytest.mark.usefixtures("solved_binding")
 def test_a_requested_customer_is_emitted_only_in_the_customer_id_shape() -> None:
     """A model string that is not a customer id never becomes evidence."""
     scope = gateway._customer_scope(

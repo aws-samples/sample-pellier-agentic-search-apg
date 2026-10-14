@@ -13,8 +13,9 @@ a symptom.
            the Stock agent definition grants check_stock alone, and the Stock
            agent that answered Marco's latest stock turn held that grant too
            (a definition edited without a restart is named as such).
-    Lab 3  The Gateway publishes every tool the Support agent asks for and
-           get_tickets is bound to the signed-in caller ("9 tools published");
+    Lab 3  Task 3A's four rules: get_tickets published, the Support agent asking
+           for get_orders and get_tickets, both bound to the signed-in caller,
+           and give_store_credit refused on a shopper agent;
            the service environment carries the two settings resolve_rail
            reads (USE_AGENTCORE_RUNTIME, AGENTCORE_RUNTIME_ENDPOINT); a managed
            tool call left its tool_audit row with the build that made it.
@@ -394,12 +395,13 @@ def _managed_catalogues_agree() -> Check:
     names. A tool the Gateway does not publish is left out of the agent, which
     then tells Theo it can't look up his support tickets here: a turn that
     "works" and answers nothing. Naming the gap here is cheaper than finding it
-    in a trace. The verdict is ``lab3_check.judge_catalogue``, which the
-    evidence export reads too.
+    in a trace. The verdict is ``lab3_check.catalogue_verdict`` over Task 3A's
+    four rules, which the evidence export reads too.
     """
     name = "Gateway catalogue and Runtime support contract agree"
     try:
-        finding = lab3_check.judge_catalogue(*lab3_check.source_catalogue())
+        finding = lab3_check.catalogue_verdict(
+            lab3_check.judge_catalogue(*lab3_check.source_catalogue()))
     except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
         return Check(name, False, f"could not read the catalogues: {exc}")
     if finding.state == workshop_check.PROVED:

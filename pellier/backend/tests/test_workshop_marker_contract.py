@@ -472,17 +472,21 @@ def test_lab3_reference_publishes_the_read_and_the_staff_only_tool() -> None:
     assert solution.OWNER_SCOPED_GATEWAY_TOOLS == frozenset({"get_orders", "get_tickets"})
 
 
-def test_lab3_starter_leaves_the_support_agent_unserveable() -> None:
-    """The authentic failure Lab 3 fixes: the Runtime asks for unpublished tools."""
+def test_lab3_starter_is_a_working_agent_without_theos_reads() -> None:
+    """The failure Lab 3 fixes: a Support agent that works, but cannot read Theo's records."""
     sys.path.insert(0, str(REPO / "scripts" / "deploy"))
     import gateway_tool_schemas
 
     from services import agentcore_gateway
 
     published = gateway_tool_schemas.workshop_published_tools()
-    unserveable = set(agentcore_gateway.SUPPORT_GATEWAY_TOOLS) - published
-    assert unserveable, (
-        "Lab 3 has nothing to fix: the starter Support agent is already serveable"
+    starter = set(agentcore_gateway.SUPPORT_GATEWAY_TOOLS)
+    assert starter == {"get_return_policy", "ask_a_person"} and starter <= published, (
+        "the starter Support agent must still answer a returns question"
+    )
+    assert LAB3_PUBLISHED_TOOL not in published, "the starter must withhold get_tickets"
+    assert not starter & {"get_orders", LAB3_PUBLISHED_TOOL}, (
+        "Lab 3 has nothing to assemble: the starter already asks for Theo's reads"
     )
     assert agentcore_gateway.SUPPORT_CALLER_BOUND_TOOLS == frozenset(), (
         "the starter must not pre-bind the ownership condition"
@@ -502,7 +506,7 @@ def test_lab3_reference_matches_the_runtime_to_the_gateway() -> None:
     for agent, names in runtime.MANAGED_SPECIALIST_TOOLS.items():
         missing = sorted(set(names) - published)
         assert not missing, f"{agent} still asks for unpublished tools: {missing}"
-    assert runtime.SUPPORT_CALLER_BOUND_TOOLS == frozenset({LAB3_PUBLISHED_TOOL})
+    assert runtime.SUPPORT_CALLER_BOUND_TOOLS == frozenset({"get_orders", LAB3_PUBLISHED_TOOL})
     assert LAB3_PUBLISHED_TOOL in runtime.SUPPORT_CALLER_BOUND_TOOLS, (
         f"{LAB3_PUBLISHED_TOOL} must be bound to the authenticated caller"
     )

@@ -2,7 +2,8 @@
 
 **Theo.** He wants his taste remembered and help with his own chipped bowl, and must never
 see another customer's account. On AgentCore the starter's Gateway withholds `get_tickets`,
-and the starter's row-ownership predicate is `false`. Keep the Workshop Studio guide open
+the starter Support agent asks only for `get_return_policy` and `ask_a_person`, and the
+starter's row-ownership predicate is `false`. Keep the Workshop Studio guide open
 beside this file.
 
 ## Run it in the terminal

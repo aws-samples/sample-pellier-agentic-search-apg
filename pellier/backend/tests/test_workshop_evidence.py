@@ -229,7 +229,7 @@ class TestLabsThreeAndFour:
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
         monkeypatch.setattr(lab3, "source_catalogue", lambda: (
             frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"),
-            frozenset({"get_tickets"})))
+            frozenset({"get_orders", "get_tickets"})))
         assert evidence.task_3a().state == PROVED
         monkeypatch.setattr(lab3, "source_catalogue", lambda: (
             frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"), frozenset()))

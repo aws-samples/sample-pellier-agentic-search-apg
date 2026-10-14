@@ -31,12 +31,15 @@ Together the household request's three layers: the server binds a forged call
 to Theo, Cedar refuses his direct read of Jessica's tickets, and the database
 returns none of her rows even to a query that asks for them.
 
-Task 3A's check is ``python3 scripts/lab3_check.py --task 3A``. It, the
-doctor's prerequisites line and the evidence export judge the source with
-:func:`judge_catalogue` below, which runs the forged call through the
-checkout's own binding (:func:`probe_binding`). Theo's real turns rarely make
-that call, because the model seldom asks for another customer, so the probe
-makes it every time.
+Task 3A's check is ``python3 scripts/lab3_check.py --task 3A``. It reads the
+source before anything is deployed and prints four rules, one finding each:
+get_tickets is published; the Support agent's Gateway tools include get_orders
+and get_tickets; every tool that takes a customer_id is bound to the caller; and
+give_store_credit is refused on a shopper agent. The doctor's prerequisites line
+and the evidence export read the same rules through :func:`catalogue_verdict`.
+The binding rule runs a forged call for each read through the checkout's own
+binding (:func:`probe_binding`); Theo's real turns rarely make that call, because
+the model seldom asks for another customer, so the probe makes it every time.
 """
 
 from __future__ import annotations
@@ -56,6 +59,9 @@ DEPLOY = SCRIPTS / "deploy"
 
 THEO, JESSICA = "CUST-THEO", "CUST-JESSICA"
 PROBE_TOOL = "get_tickets"
+# The reads Theo's household request needs. Of the nine tools, these two and the staff-only
+# give_store_credit require a customer_id; ask_a_person takes one when the caller is known.
+SHOPPER_READS = ("get_orders", "get_tickets")
 SEND = "python3 scripts/lab_run.py send --lab 3"
 
 # The Gateway Lambda writes a shopper turn's call with the turn id as its
@@ -101,24 +107,26 @@ SELECT count(*) AS n
 # Task 3A: the published catalogue and the caller binding, read from source
 # ---------------------------------------------------------------------------
 
-_CATALOGUE_TITLE = "get_tickets is published and bound to the signed-in caller"
-_CATALOGUE_EXPECTED = ("the Gateway publishes every tool the Support agent asks for, and the "
-                       "server binds get_tickets to the signed-in caller")
+_CATALOGUE_TITLE = "the Support agent, assembled: published, given its reads, bound to the caller"
+_CATALOGUE_EXPECTED = ("get_tickets published, get_orders and get_tickets in the Support agent's "
+                       "Gateway tools and bound to the caller, and give_store_credit refused")
 STAFF_ONLY = frozenset({"give_store_credit"})
+_NEXT_CUSTOMER_ID = "which of the nine tools take a customer_id?"
 
 
-def probe_binding(bind: Callable[..., Dict[str, Any]]) -> Dict[str, str]:
-    """A forged ticket read through ``bind``, the server's binding, before it leaves Runtime.
+def probe_binding(bind: Callable[..., Dict[str, Any]], tool: str = PROBE_TOOL) -> Dict[str, str]:
+    """A forged read through ``bind``, the server's binding, before it leaves Runtime.
 
-    Theo is signed in and the model asks ``get_tickets`` for Jessica. ``sent``
-    is the customer the call would carry to the Gateway. ``unsigned`` is what
-    the same call does when no customer is verified: ``refused``, or the
-    customer it would still carry.
+    Theo is signed in and the model asks ``tool`` for Jessica. ``sent`` is the
+    customer the call would carry to the Gateway. ``unsigned`` is what the same
+    call does when no customer is verified: ``refused``, or the customer it would
+    still carry.
 
     Args:
         bind: ``services.agentcore_gateway._bind_server_tool_context``.
+        tool: the read to forge.
     """
-    forged = {"name": f"pellier-store-tools___{PROBE_TOOL}", "toolUseId": "lab3-forged",
+    forged = {"name": f"pellier-store-tools___{tool}", "toolUseId": "lab3-forged",
               "input": {"customer_id": JESSICA}}
     sent = bind(forged, customer_id=THEO, turn_id="")["input"].get("customer_id")
     try:
@@ -129,68 +137,136 @@ def probe_binding(bind: Callable[..., Dict[str, Any]]) -> Dict[str, str]:
     return {"sent": str(sent or "none"), "unsigned": unsigned}
 
 
-def _probe_lines(probe: Dict[str, str]) -> List[str]:
+def _probe_lines(probe: Dict[str, str], tool: str = PROBE_TOOL) -> List[str]:
     unsigned = "refused" if probe["unsigned"] == "refused" else f"sent as {probe['unsigned']}"
-    return [(f"forged call: Theo signed in, the model asks get_tickets for {JESSICA}; "
+    return [(f"forged call: Theo signed in, the model asks {tool} for {JESSICA}; "
              f"the server sends {probe['sent']}"),
-            f"the same call with no signed-in customer: {unsigned}"]
+            f"the same {tool} call with no signed-in customer: {unsigned}"]
 
 
 def _probe_binds(probe: Dict[str, str]) -> bool:
     return probe["sent"] == THEO and probe["unsigned"] == "refused"
 
 
-def judge_catalogue(
-    published: Iterable[str], managed: Sequence[str], bound: Iterable[str],
-    probe: Optional[Dict[str, str]] = None,
-) -> check.Finding:
-    """Task 3A's verdict from the two lists in its marked regions and the forged call.
+def _and(names: Sequence[str]) -> str:
+    return " and ".join(names) if len(names) < 3 else ", ".join(names[:-1]) + " and " + names[-1]
 
-    ``probe`` (:func:`probe_binding`) decides the binding when it is given: it
-    is what the server does, where ``bound`` is only what the region names.
-    """
-    published, bound = frozenset(published), frozenset(bound)
-    evidence = [
-        f"scripts/deploy/gateway_tool_schemas.py publishes {len(published)} tools",
-        f"services/agentcore_gateway.py: the Support agent asks for {', '.join(managed)}",
-        "services/agentcore_gateway.py binds to the caller: "
-        + (", ".join(sorted(bound)) or "none"),
-    ]
-    if probe is not None:
-        evidence += _probe_lines(probe)
-    staff_only = sorted(set(managed) & STAFF_ONLY)
-    if staff_only:
-        return check.Finding(
-            "3A", _CATALOGUE_TITLE, check.CONTRADICTED, _CATALOGUE_EXPECTED,
-            f"the Support agent names the staff-only tool {', '.join(staff_only)}", evidence,
-            "which tool in SUPPORT_GATEWAY_TOOLS is staff-only? Only the Operator calls it.")
+
+def _published_rule(published: frozenset, managed: Sequence[str]) -> check.Finding:
+    title = "get_tickets is published on the Gateway"
+    expected = "the Gateway publishes get_tickets and every tool the Support agent asks for"
+    evidence = [f"scripts/deploy/gateway_tool_schemas.py publishes {len(published)} of the nine "
+                f"tools: {', '.join(sorted(published))}"]
+    next_step = ("which tool does the Gateway catalogue - published tools block still "
+                 "withhold?")
+    if PROBE_TOOL not in published:
+        return check.Finding("3A", title, check.NOT_YET, expected,
+                             "get_tickets is not published: scripts/deploy/gateway_tool_schemas.py "
+                             "withholds it", evidence, next_step)
     unpublished = sorted(set(managed) - published)
     if unpublished:
-        return check.Finding(
-            "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED,
-            f"the Support agent asks for {', '.join(unpublished)}, which is not published "
-            "on the Gateway", evidence,
-            "which tool does the Support agent ask for that the Gateway catalogue - published "
-            "tools block still withholds?")
-    unbound = (not _probe_binds(probe)) if probe is not None else PROBE_TOOL not in bound
-    if PROBE_TOOL in managed and unbound:
-        observed = ("get_tickets is published but not bound to the signed-in caller, so the "
-                    "model chooses whose tickets to read")
-        if probe is not None and probe["sent"] != THEO:
-            observed += f"; a forged call for {JESSICA} would leave as {probe['sent']}"
-        return check.Finding(
-            "3A", _CATALOGUE_TITLE, check.NOT_YET, _CATALOGUE_EXPECTED, observed, evidence,
-            "which support tool lets the model choose whose records to read? See "
-            "SUPPORT_CALLER_BOUND_TOOLS in the Support agent - Gateway tools block.")
-    observed = f"{len(published)} tools published, get_tickets bound to the signed-in caller"
-    if probe is not None:
-        observed = f"{len(published)} tools published; a forged call for {JESSICA} leaves as {THEO}"
+        return check.Finding("3A", title, check.NOT_YET, expected,
+                             f"the Support agent asks for {_and(unpublished)}, which the Gateway "
+                             "does not publish", evidence, next_step)
+    return check.Finding("3A", title, check.PROVED, expected,
+                         f"{len(published)} of the nine tools published, get_tickets among them",
+                         evidence)
+
+
+def _reads_rule(managed: Sequence[str]) -> check.Finding:
+    title = "the Support agent's Gateway tools include get_orders and get_tickets"
+    expected = ("SUPPORT_GATEWAY_TOOLS holds the reads Theo's household request needs: "
+                "get_orders and get_tickets")
+    asks = _and(list(managed)) or "no tools"
+    evidence = [f"services/agentcore_gateway.py: SUPPORT_GATEWAY_TOOLS asks for {asks}"]
+    if any(read not in managed for read in SHOPPER_READS):
+        return check.Finding("3A", title, check.NOT_YET, expected,
+                             f"the Support agent asks for {asks}; Theo's household request needs "
+                             "get_orders and get_tickets", evidence,
+                             f"{_NEXT_CUSTOMER_ID} The reads among them are what his household "
+                             "request needs.")
+    return check.Finding("3A", title, check.PROVED, expected,
+                         f"the Support agent asks for {asks}", evidence)
+
+
+def _bound_rule(bound: frozenset,
+                probes: Optional[Dict[str, Dict[str, str]]]) -> check.Finding:
+    title = "every tool that takes a customer_id is bound to the caller"
+    expected = ("get_orders and get_tickets are in SUPPORT_CALLER_BOUND_TOOLS, so the server sets "
+                "their customer_id from the signed-in caller; ask_a_person's handoff is bound "
+                "whenever the caller is known")
+    evidence = ["services/agentcore_gateway.py binds to the caller: "
+                + (", ".join(sorted(bound)) or "none")]
+    for read in SHOPPER_READS:
+        if probes and read in probes:
+            evidence += _probe_lines(probes[read], read)
+    unbound = [read for read in SHOPPER_READS
+               if not (_probe_binds(probes[read]) if probes and read in probes
+                       else read in bound)]
+    if unbound:
+        verb = "takes" if len(unbound) == 1 else "take"
+        state = "is" if len(unbound) == 1 else "are"
+        observed = (f"{_and(unbound)} {verb} a customer_id and {state} not bound to the caller, "
+                    "so the model chooses whose records to read")
+        leaking = [read for read in unbound
+                   if probes and read in probes and probes[read]["sent"] != THEO]
+        if leaking:
+            observed += (f"; a forged {' or '.join(leaking)} call for {JESSICA} would leave as "
+                         f"{probes[leaking[0]]['sent']}")
+        return check.Finding("3A", title, check.NOT_YET, expected, observed, evidence,
+                             f"{_NEXT_CUSTOMER_ID} Name each read among them in "
+                             "SUPPORT_CALLER_BOUND_TOOLS; ask_a_person's handoff is bound for you.")
+    observed = "get_orders and get_tickets bound to the signed-in caller"
+    if probes and all(read in probes for read in SHOPPER_READS):
+        observed = f"get_orders and get_tickets bound; a forged call for {JESSICA} leaves as {THEO}"
+    return check.Finding("3A", title, check.PROVED, expected, observed, evidence)
+
+
+def _staff_rule(managed: Sequence[str]) -> check.Finding:
+    title = "give_store_credit is refused on a shopper agent"
+    expected = ("published is not permitted: give_store_credit is published for the Operator, and "
+                "no shopper agent names it")
+    evidence = ["give_store_credit moves money; Cedar decides each call, and the Router refuses to "
+                "build a shopper agent that names it"]
+    named = sorted(set(managed) & STAFF_ONLY)
+    if named:
+        return check.Finding("3A", title, check.CONTRADICTED, expected,
+                             "the Support agent names give_store_credit: published is not "
+                             "permitted, and the Router refuses to build this agent", evidence,
+                             "which of the nine tools moves money? Only the Operator calls it.")
+    return check.Finding("3A", title, check.PROVED, expected,
+                         "published is not permitted: the Support agent does not name "
+                         "give_store_credit", evidence)
+
+
+def judge_catalogue(
+    published: Iterable[str], managed: Sequence[str], bound: Iterable[str],
+    probes: Optional[Dict[str, Dict[str, str]]] = None,
+) -> List[check.Finding]:
+    """Task 3A's four rules from its two marked regions and the forged calls, one finding each.
+
+    ``probes`` (:func:`probe_binding` per read) decide the binding when they are
+    given: they are what the server does, where ``bound`` is only what the region
+    names.
+    """
+    published, bound = frozenset(published), frozenset(bound)
+    return [_published_rule(published, managed), _reads_rule(managed),
+            _bound_rule(bound, probes), _staff_rule(managed)]
+
+
+def catalogue_verdict(findings: Sequence[check.Finding]) -> check.Finding:
+    """One finding for the doctor and the evidence export: the first rule not met, or all four."""
+    for finding in findings:
+        if finding.state != check.PROVED:
+            return finding
+    published, reads, bound, _staff = findings
     return check.Finding("3A", _CATALOGUE_TITLE, check.PROVED, _CATALOGUE_EXPECTED,
-                         observed, evidence)
+                         f"{published.observed}; {reads.observed}; {bound.observed}",
+                         [line for finding in findings for line in finding.evidence])
 
 
 def source_catalogue() -> tuple:
-    """``(published, support tools, caller-bound tools, forged call)`` from the live source."""
+    """``(published, support tools, caller-bound tools, forged calls)`` from the live source."""
     for path in (DEPLOY, BACKEND):
         if str(path) not in sys.path:
             sys.path.insert(0, str(path))
@@ -201,8 +277,8 @@ def source_catalogue() -> tuple:
         _bind_server_tool_context,
     )
 
-    return (workshop_published_tools(), SUPPORT_GATEWAY_TOOLS, SUPPORT_CALLER_BOUND_TOOLS,
-            probe_binding(_bind_server_tool_context))
+    probes = {read: probe_binding(_bind_server_tool_context, read) for read in SHOPPER_READS}
+    return (workshop_published_tools(), SUPPORT_GATEWAY_TOOLS, SUPPORT_CALLER_BOUND_TOOLS, probes)
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +373,7 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
 def source_probe() -> tuple:
     """``(forged call, "")`` through this checkout's binding, or ``(None, the reason)``."""
     try:
-        return source_catalogue()[3], ""
+        return source_catalogue()[3][PROBE_TOOL], ""
     except Exception as exc:  # noqa: BLE001 - reported as the tickets finding's reason
         return None, f"{type(exc).__name__}: {str(exc)[:160]}"
 
@@ -533,14 +609,23 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
     return [build, memory_finding(), tickets, run_probe(cfg), *ownership]
 
 
-def main_3a() -> int:
-    """Task 3A from source: the catalogue, the caller binding and the forged call."""
-    import workshop_evidence
+def findings_3a() -> List[check.Finding]:
+    """Task 3A's four rules from this checkout's source, or one finding saying why not."""
+    try:
+        return judge_catalogue(*source_catalogue())
+    except Exception as exc:  # noqa: BLE001 - the reason is the finding
+        return [check.Finding("3A", _CATALOGUE_TITLE, check.UNCHECKED, _CATALOGUE_EXPECTED,
+                              "the check could not look", [f"{type(exc).__name__}: {exc}"],
+                              "run this from the repository root, with the backend's Python.")]
 
-    finding = workshop_evidence.task_3a()
-    print("Lab 3A: get_tickets published on the Gateway and bound to the signed-in caller")
-    print(check.render(finding))
-    passed = finding.state == check.PROVED
+
+def main_3a() -> int:
+    """Task 3A from source, before any deploy: one finding per rule."""
+    findings = findings_3a()
+    print("Lab 3A: the Support agent, assembled for AgentCore")
+    for finding in findings:
+        print(check.render(finding))
+    passed = all(finding.state == check.PROVED for finding in findings)
     print("Lab 3A check passed" if passed else "Lab 3A check failed")
     return 0 if passed else 1
 

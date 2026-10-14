@@ -260,21 +260,21 @@ def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> 
 
 
 class TestTask3AToken:
-    """``--task 3A`` is Task 3A's check: one finding from source and its own token."""
+    """``--task 3A`` is Task 3A's check: four rule findings from source and its own token."""
 
-    def test_the_starter_prints_the_failure_token(self, capsys, monkeypatch) -> None:
-        evidence = importlib.import_module("workshop_evidence")
-        monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
+    def test_the_starter_prints_four_rules_and_the_failure_token(self, capsys) -> None:
         assert lab3.main(["--task", "3A"]) == 1
         out = capsys.readouterr().out
+        assert out.count("Task 3A  ") == 4
+        assert "get_tickets is not published" in out
+        assert "Theo's household request needs get_orders and get_tickets" in " ".join(out.split())
         assert out.rstrip().endswith("Lab 3A check failed")
         assert "Lab 3B" not in out
 
-    def test_a_bound_published_read_prints_the_pass_token(self, capsys, monkeypatch) -> None:
-        evidence = importlib.import_module("workshop_evidence")
-        monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
+    def test_the_reads_asked_for_and_bound_print_the_pass_token(self, capsys, monkeypatch) -> None:
         monkeypatch.setattr(lab3, "source_catalogue", lambda: (
-            frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"),
-            frozenset({"get_tickets"})))
+            frozenset({"get_orders", "get_tickets", "get_return_policy"}),
+            ("get_orders", "get_return_policy", "get_tickets"),
+            frozenset({"get_orders", "get_tickets"})))
         assert lab3.main(["--task", "3A"]) == 0
         assert capsys.readouterr().out.rstrip().endswith("Lab 3A check passed")

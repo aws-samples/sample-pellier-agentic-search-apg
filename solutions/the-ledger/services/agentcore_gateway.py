@@ -55,18 +55,18 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 
 
 # === WORKSHOP - Support agent - Gateway tools: START ===
-# SOLUTION - the Support agent, assembled: its Gateway tools matched to the
-# published catalogue, and get_tickets bound to the caller.
+# SOLUTION - the Support agent, assembled: the reads Theo's household request
+# needs, published on the Gateway and bound to the caller.
 #
-# `get_tickets` is bound to the caller, so the server sets `customer_id` from
-# the verified session and the model cannot choose whose tickets to read.
+# get_orders and get_tickets take a customer_id, so the server sets it from the
+# verified session and the model cannot choose whose orders or tickets to read.
 SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
     "get_orders",
     "get_return_policy",
     "get_tickets",
     "ask_a_person",
 )
-SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_tickets"})
+SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_orders", "get_tickets"})
 # === WORKSHOP - Support agent - Gateway tools: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
@@ -327,9 +327,9 @@ _SAFE_TOOL_INPUT_FIELDS = frozenset(
     }
 )
 # Tools whose `customer_id` the server binds to the verified caller before
-# execution, and that cannot run without one. Lab 3A adds the support read the
-# starter leaves unbound.
-_CUSTOMER_SCOPED_TOOL_NAMES = frozenset({"get_orders"}) | SUPPORT_CALLER_BOUND_TOOLS
+# execution, and that cannot run without one: the reads Lab 3A names in
+# SUPPORT_CALLER_BOUND_TOOLS.
+_CUSTOMER_SCOPED_TOOL_NAMES = SUPPORT_CALLER_BOUND_TOOLS
 # The handoff is bound to the caller when the caller is known and still runs
 # when nobody is signed in: anyone may ask for a person. The local rail does the
 # same (`store_tools.ask_a_person` completes the handoff and withholds only the

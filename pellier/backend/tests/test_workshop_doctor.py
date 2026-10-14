@@ -933,30 +933,42 @@ class TestManagedCataloguesAgree:
             bound=set(),
         )
         assert not check.passed
-        assert "get_tickets, which is not published on the Gateway" in check.detail
+        assert "get_tickets is not published" in check.detail
         assert "Gateway catalogue - published tools" in check.detail
 
     def test_a_staff_only_tool_on_the_support_agent_fails(self, monkeypatch):
         check = self._check(
             monkeypatch,
-            published={"get_return_policy", "get_tickets", "give_store_credit"},
-            managed=("get_return_policy", "get_tickets", "give_store_credit"),
-            bound={"get_tickets"},
+            published={"get_orders", "get_return_policy", "get_tickets", "give_store_credit"},
+            managed=("get_orders", "get_return_policy", "get_tickets", "give_store_credit"),
+            bound={"get_orders", "get_tickets"},
         )
         assert not check.passed
-        assert "staff-only tool give_store_credit" in check.detail
+        assert "names give_store_credit: published is not permitted" in check.detail
 
     def test_an_unbound_read_is_its_own_failure(self, monkeypatch):
         """Published and reachable is not enough: the caller must be bound."""
         check = self._check(
             monkeypatch,
-            published={"get_return_policy", "get_tickets"},
-            managed=("get_return_policy", "get_tickets"),
+            published={"get_orders", "get_return_policy", "get_tickets"},
+            managed=("get_orders", "get_return_policy", "get_tickets"),
             bound=set(),
         )
         assert not check.passed
-        assert "not bound to the signed-in caller" in check.detail
+        assert "take a customer_id and are not bound to the caller" in check.detail
         assert "SUPPORT_CALLER_BOUND_TOOLS" in check.detail
+
+    def test_a_missing_read_is_its_own_failure(self, monkeypatch):
+        """Published and bound is not enough: the agent must ask for the reads."""
+        check = self._check(
+            monkeypatch,
+            published={"get_orders", "get_return_policy", "get_tickets", "ask_a_person"},
+            managed=("get_return_policy", "ask_a_person"),
+            bound={"get_orders", "get_tickets"},
+        )
+        assert not check.passed
+        assert "Theo's household request needs get_orders and get_tickets" in check.detail
+        assert "which of the nine tools take a customer_id?" in check.detail
 
     def test_both_builds_done_passes_with_the_published_count(self, monkeypatch):
         published = {"search_products", "browse_department", "compare_products", "check_stock",
@@ -966,10 +978,13 @@ class TestManagedCataloguesAgree:
             monkeypatch,
             published=published,
             managed=("get_orders", "get_return_policy", "get_tickets", "ask_a_person"),
-            bound={"get_tickets"},
+            bound={"get_orders", "get_tickets"},
         )
         assert check.passed
-        assert check.detail == "9 tools published, get_tickets bound to the signed-in caller"
+        assert check.detail == (
+            "9 of the nine tools published, get_tickets among them; the Support agent asks for "
+            "get_orders, get_return_policy, get_tickets and ask_a_person; get_orders and "
+            "get_tickets bound to the signed-in caller")
 
     def test_an_unreadable_catalogue_fails_rather_than_crashes(self, monkeypatch):
         """The doctor runs when things are broken. It must not be one of them."""

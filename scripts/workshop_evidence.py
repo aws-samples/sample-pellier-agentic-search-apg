@@ -175,7 +175,8 @@ def task_3a() -> check.Finding:
             for key, state in states.items() if state == check.STARTER)
         return _starter_finding("3A", title, "both Lab 3 marked regions edited", where)
     try:
-        return lab3_check.judge_catalogue(*lab3_check.source_catalogue())
+        return lab3_check.catalogue_verdict(
+            lab3_check.judge_catalogue(*lab3_check.source_catalogue()))
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
         return check.Finding("3A", title, UNCHECKED, "the catalogues are readable",
                              "the check could not look", [f"{type(exc).__name__}: {exc}"])

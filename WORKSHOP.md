@@ -166,15 +166,20 @@ Marco needs reliable stock and dispatch facts before his trip.
 Theo wants his taste remembered and help with his own chipped bowl.
 
 - **See it fail:** after `bash scripts/lab3-start.sh theo`,
-  `python3 scripts/lab3_check.py --task 3A` shows `get_tickets` withheld from
-  the Gateway, so the Support agent runs without it.
-- **Task 3A:** publish `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`)
-  and bind it to the signed-in caller
-  (`pellier/backend/services/agentcore_gateway.py`), so the server overwrites
-  the `customer_id` the model chose. The check reads nine tools published and
-  sends a forged ticket read through the checkout's binding: the model asks
-  for Jessica's tickets while Theo is signed in, and the call must leave as
-  `CUST-THEO`. It ends `Lab 3A check passed`.
+  `python3 scripts/lab3_check.py --task 3A` prints one line per rule before any
+  deploy: `get_tickets` is withheld from the Gateway, and the starter Support
+  agent, which answers returns questions with `get_return_policy` and hands off
+  with `ask_a_person`, lacks the reads Theo's household request needs.
+- **Task 3A:** assemble the Support agent. Publish `get_tickets`
+  (`scripts/deploy/gateway_tool_schemas.py`); in
+  `pellier/backend/services/agentcore_gateway.py`, add the reads his request
+  needs to `SUPPORT_GATEWAY_TOOLS` and bind every tool that takes a
+  `customer_id` in `SUPPORT_CALLER_BOUND_TOOLS`, so the server overwrites the
+  `customer_id` the model chose. The check's four rules: `get_tickets`
+  published; `get_orders` and `get_tickets` asked for; both bound, by a forged
+  read for Jessica that must leave as `CUST-THEO`; and `give_store_credit`
+  refused on a shopper agent (published is not permitted). It ends
+  `Lab 3A check passed`.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
   row-ownership predicate in `workshop/lab-3-row-ownership.sql`; its worksheet commits
   the predicate as the live policy once every probe matches and ends `Lab 3B

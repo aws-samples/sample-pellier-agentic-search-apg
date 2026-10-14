@@ -201,9 +201,11 @@ def test_theo_tools_are_the_support_agents_reads_and_the_handoff() -> None:
     """
     if str(BACKEND) not in sys.path:
         sys.path.insert(0, str(BACKEND))
-    from services.agentcore_gateway import MANAGED_SPECIALIST_TOOLS, mutation_tool_names
+    from services.agentcore_gateway import mutation_tool_names
+    from tests import lab_variants
 
-    support = set(MANAGED_SPECIALIST_TOOLS["support"])
+    # Task 3A assembles these reads; the solution is the Support agent Theo's turn meets.
+    support = set(lab_variants.support_contract(lab_variants.SOLUTION)[0])
     for tool in ARC["theo"]["tools"]:
         assert tool in support, f"{tool} is not granted to the Support agent"
     assert not support & set(mutation_tool_names())
