@@ -145,6 +145,21 @@ def test_cli_endpoint_alias_does_not_inherit_or_replace_application_arn(
     assert application_env["AGENTCORE_RUNTIME_ENDPOINT"].startswith("arn:")
 
 
+def test_each_cli_command_is_printed_as_typed_without_the_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    provisioner = _load_provisioner()
+    monkeypatch.setattr(provisioner, "_run", lambda args, *, cwd, env: subprocess.CompletedProcess(
+        args, 0, stdout=""))
+    provisioner._agentcore(tmp_path, "invoke", "--runtime", "pellier_orchestrator",
+                           "--bearer-token", "header.payload.signature", "--prompt", "hi",
+                           env={})
+    printed = capsys.readouterr().out
+    assert ("+ agentcore invoke --runtime pellier_orchestrator --bearer-token <redacted> "
+            "--prompt hi") in printed
+    assert "header.payload.signature" not in printed
+
+
 def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:
     root, project = _render(tmp_path, include_policies=False)
 
@@ -1963,6 +1978,7 @@ def test_participant_update_orders_new_actions_before_policies_without_dropping_
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     new_policy: bool,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """A fresh action cannot validate until the preceding deploy publishes it."""
     provisioner = _load_provisioner()
@@ -2025,6 +2041,7 @@ def test_participant_update_orders_new_actions_before_policies_without_dropping_
     assert render_calls[0]["include_policies"] is True
     assert render_calls[0]["gateway_arn"] == "arn:gateway"
     assert cli_calls == [("validate",), ("deploy", "--yes", "--json")] * (2 if new_policy else 1)
+    assert (provisioner.TWO_DEPLOYS in capsys.readouterr().out) is new_policy
     assert deployed_configs[-1] == desired
     assert json.loads((root / "agentcore/agentcore.json").read_text()) == desired
 

@@ -55,7 +55,8 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 
 
 # === WORKSHOP - Support agent - Gateway tools: START ===
-# SOLUTION - the Support agent's Gateway tools, matched and bound to the caller.
+# SOLUTION - the Support agent, assembled: its Gateway tools matched to the
+# published catalogue, and get_tickets bound to the caller.
 #
 # `get_tickets` is bound to the caller, so the server sets `customer_id` from
 # the verified session and the model cannot choose whose tickets to read.

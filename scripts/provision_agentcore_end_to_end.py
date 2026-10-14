@@ -28,7 +28,7 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 
 import boto3
 from botocore.config import Config
@@ -161,6 +161,22 @@ _SENSITIVE_TRACE_VALUE = re.compile(
 )
 
 
+_SECRET_FLAGS = frozenset({"--bearer-token", "--token", "--password", "--client-secret"})
+TWO_DEPLOYS = (
+    "Two deploys follow: a Cedar policy can name a Gateway tool only after that tool's "
+    "schema is published, so the schemas deploy first and the policies second."
+)
+
+
+def _redacted(cmd: Sequence[str]) -> list[str]:
+    """The command with the value after any secret-bearing flag replaced."""
+    redacted = list(cmd)
+    for index, value in enumerate(redacted[:-1]):
+        if value in _SECRET_FLAGS:
+            redacted[index + 1] = "<redacted>"
+    return redacted
+
+
 def _run(
     cmd: list[str],
     *,
@@ -202,12 +218,8 @@ def _run(
             check=False,
         )
     if proc.returncode != 0:
-        redacted = list(cmd)
-        for index, value in enumerate(redacted[:-1]):
-            if value in {"--bearer-token", "--token", "--password", "--client-secret"}:
-                redacted[index + 1] = "<redacted>"
         raise RuntimeError(
-            f"Command failed: {' '.join(redacted)}\n"
+            f"Command failed: {' '.join(_redacted(cmd))}\n"
             f"stdout:\n{proc.stdout}\n"
             f"stderr:\n{proc.stderr}"
         )
@@ -1205,6 +1217,9 @@ def _agentcore(
     # CloudWatch log-group name. Keep the CLI's DEFAULT alias in its child
     # process without replacing the application's ARN.
     cli_env = {**env, "AGENTCORE_RUNTIME_ENDPOINT": "DEFAULT"}
+    # Printed as a participant would type it: on the workshop box, `agentcore` is the
+    # shell function that runs this pinned CLI from the project folder.
+    print("+ agentcore " + " ".join(_redacted(args)), flush=True)
     return _run(
         ["npx", "-y", AGENTCORE_CLI, *args],
         cwd=root,
@@ -2559,6 +2574,7 @@ def _redeploy_participant_edits(
         staged = json.loads(json.dumps(desired))
         staged_engine = next(item for item in staged["policyEngines"] if item["name"] == identity.policy_engine_name)
         staged_engine["policies"] = [policy for policy in engine["policies"] if policy["name"] in active_policies]
+        print(TWO_DEPLOYS, flush=True)
         print("Publishing Gateway schemas with the active policy baseline retained", flush=True)
         try:
             config_path.write_text(json.dumps(staged, indent=2) + "\n")
