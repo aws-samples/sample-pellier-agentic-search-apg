@@ -94,6 +94,10 @@
   border-radius: 999px;
   background: var(--pellier-copper);
 }
+.ec-msg-user-terminal {
+  flex-shrink: 0;
+  color: var(--pellier-copper);
+}
 .ec-msg-user-text {
   padding: 9px 14px;
   border-radius: 16px 16px 4px 16px;

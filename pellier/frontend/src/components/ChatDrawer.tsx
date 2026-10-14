@@ -157,6 +157,7 @@ export default function ChatDrawer() {
     persistKey: 'pellier-drawer-storefront',
     sessionId: currentSessionId,
     onTurn: storeResults?.onTurn,
+    watchTerminal: true,
   })
 
   // The header's Ask Pellier dot pulses only while a turn runs.

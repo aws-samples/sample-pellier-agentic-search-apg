@@ -16,8 +16,10 @@ import {
   checkBackendHealth,
   normalizeChatError,
   sendChatMessageStreaming,
+  watchTerminalTurns,
   type ChatErrorCode,
   type ChatProduct,
+  type ChatResponse,
 } from '../services/chat'
 import type { WorkshopMode } from '../contexts/LayoutContext'
 import { usePersona } from '../contexts/PersonaContext'
@@ -98,6 +100,11 @@ export interface AgentChatMessage {
   /** Present only when the governed rail was requested and unavailable. */
   degradation?: RailDegradation
   /**
+   * Sent from the terminal (`lab_run.py send`) and relayed to this panel, not
+   * typed here. Relayed turns are not kept in the browser: the relay replays them.
+   */
+  source?: 'terminal'
+  /**
    * The governed boundary declined a mutation and a person has to confirm it.
    * Its own field rather than a sentence in `content`: the backend owns the
    * wording so a paraphrase cannot lose the guarantee.
@@ -144,6 +151,11 @@ export interface UseAgentChatOptions {
   sessionId?: string
   /** Hears each turn's start, status, steps and end. */
   onTurn?: (event: TurnEvent) => void
+  /**
+   * Show the turns the signed-in shopper sends from the terminal, relayed by
+   * `/api/chat/watch`, beside the ones typed here.
+   */
+  watchTerminal?: boolean
 }
 
 export interface UseAgentChatReturn {
@@ -202,8 +214,120 @@ function mapProduct(p: any): ChatProduct {
  * this page, from that turn's own `turn_start`. Restoring one from storage
  * would present a browser value as the server's verified identity.
  */
+/** A `step` event as the panel holds it. */
+export function toTurnStep(data: Record<string, any>): TurnStep {
+  return {
+    id: String(data.id),
+    label: String(data.label ?? ''),
+    status: data.status === 'running' || data.status === 'failed' ? data.status : 'done',
+    finding: typeof data.finding === 'string' ? data.finding : undefined,
+    tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
+    builder: data.builder ?? undefined,
+    results: data.results && typeof data.results === 'object' ? data.results : undefined,
+  }
+}
+
+/**
+ * One stream event applied to the answer of the turn it belongs to, or null
+ * when the event changes nothing there. A typed turn and a turn relayed from
+ * the terminal both go through it, so both render the same way. Pure: React
+ * StrictMode may call it twice.
+ */
+export function applyStreamEvent(
+  msg: AgentChatMessage,
+  data: Record<string, any>,
+): AgentChatMessage | null {
+  switch (data.type) {
+    case 'turn_start': {
+      const principal = readPrincipal(data.principal)
+      // The turn id arrives here first, so a turn that fails or is refused
+      // still names the key its evidence is filed under.
+      const turnId = typeof data.turn_id === 'string' ? data.turn_id : undefined
+      if (!principal && !turnId) return null
+      return { ...msg, ...(principal ? { principal } : {}), ...(turnId ? { turnId } : {}) }
+    }
+    case 'status':
+      if (typeof data.label !== 'string') return null
+      return { ...msg, status: { label: data.label, state: 'working' } }
+    case 'step':
+      return { ...msg, steps: upsertStep(msg.steps ?? [], toTurnStep(data)) }
+    case 'content_delta': {
+      const delta = typeof data.delta === 'string' ? data.delta : ''
+      if (!delta) return null
+      return { ...msg, content: (msg.content || '') + delta, agentStatus: 'streaming' }
+    }
+    case 'content_reset':
+      return { ...msg, content: '' }
+    case 'content': {
+      const content = typeof data.content === 'string' ? data.content : ''
+      // The managed rail and the Router's fast paths answer in one `content`.
+      // A streamed answer keeps its deltas when the final text is only a
+      // shortened reading of them.
+      if (
+        msg.agentStatus === 'streaming' &&
+        msg.content &&
+        (!content || content.length < msg.content.length * 0.5)
+      ) {
+        return msg
+      }
+      return { ...msg, content, agentStatus: 'streaming' }
+    }
+    case 'product': {
+      const existing = msg.products ?? []
+      const chatProduct = mapProduct(data.product)
+      const isDupe = existing.some(
+        p => (p.id && p.id === chatProduct.id) || (p.name && p.name === chatProduct.name),
+      )
+      return { ...msg, products: isDupe ? existing : [...existing, chatProduct] }
+    }
+    case 'escalation':
+      return { ...msg, escalation: data.escalation as StylistHandoff }
+    case 'credit_request_pending':
+      return { ...msg, creditRequestPending: data.creditRequestPending as CreditRequestPending }
+    default:
+      return null
+  }
+}
+
+/** The answer once the turn's `complete` response has arrived. Pure. */
+export function completeMessage(
+  msg: AgentChatMessage,
+  response: Pick<
+    ChatResponse,
+    'response' | 'products' | 'suggestions' | 'turn_id' | 'session_id' | 'railDecision' | 'degradation'
+  >,
+): AgentChatMessage {
+  // Prefer the streamed content over the complete event's parsed text when
+  // the streamed version is substantially richer: the parser can fall back to
+  // a generic line after stripping JSON blocks.
+  let nextContent = msg.content
+  if (response.response) {
+    const streamed = msg.content || ''
+    const final_ = response.response
+    const streamedIsRicher = streamed.length > 80 && streamed.length > final_.length * 1.5
+    if (!streamedIsRicher) {
+      nextContent = final_
+    }
+  } else if (!msg.content) {
+    nextContent = "I couldn't land on a clear answer. Try rephrasing or narrowing the ask."
+  }
+  return {
+    ...msg,
+    content: nextContent,
+    products: response.products?.length ? response.products.map(mapProduct) : msg.products,
+    suggestions: response.suggestions,
+    agentStatus: 'complete',
+    status: msg.status ? { ...msg.status, state: 'done' } : undefined,
+    failure: undefined,
+    turnId: response.turn_id ?? msg.turnId,
+    sessionId: response.session_id,
+    railDecision: response.railDecision,
+    degradation: response.degradation,
+  }
+}
+
 function forStorage(messages: AgentChatMessage[]): AgentChatMessage[] {
-  return messages.map(message => {
+  return messages.filter(message => message.source !== 'terminal').map(message => {
     const bound = message.steps?.some(step => step.builder?.identity)
     if (!bound && !message.principal) return message
     const { principal: _principal, ...kept } = message
@@ -266,6 +390,7 @@ export function useAgentChat(
     persistKey,
     sessionId,
     onTurn,
+    watchTerminal = false,
   } = options
 
   // The listener can change between renders; the running turn reads the latest.
@@ -343,6 +468,113 @@ export function useAgentChat(
       turnAbortRef.current?.abort()
     }
   }, [])
+
+  // Turns the signed-in shopper sends from the terminal, relayed live beside
+  // the ones typed here. One watch per shopper: a new shopper reconnects, and
+  // a dropped stream (a backend restart) reconnects with backoff and replays
+  // the recent turns, which reset and re-render rather than double.
+  const watchedShopper = watchTerminal && persona && persona.id !== 'fresh' ? persona.id : null
+  useEffect(() => {
+    if (!watchedShopper) return
+    const controller = new AbortController()
+    let stopped = false
+    let delayMs = 1000
+    const updateRelayed = (
+      turnId: string,
+      patch: (msg: AgentChatMessage) => AgentChatMessage | null,
+    ) => {
+      setMessages(prev => {
+        for (let i = prev.length - 1; i >= 0; i -= 1) {
+          const msg = prev[i]
+          if (msg.role !== 'assistant' || msg.source !== 'terminal' || msg.turnId !== turnId) continue
+          const next = patch(msg)
+          if (next === null || next === msg) return prev
+          const updated = prev.slice()
+          updated[i] = next
+          return updated
+        }
+        return prev
+      })
+    }
+    const onFrame = (frame: Record<string, any>) => {
+      if (!activeRef.current) return
+      delayMs = 1000
+      const turnId = typeof frame.turn_id === 'string' ? frame.turn_id : ''
+      if (!turnId) return
+      if (frame.type === 'relay_turn') {
+        const query = typeof frame.message === 'string' ? frame.message : ''
+        const at = typeof frame.started_at === 'string' ? new Date(frame.started_at) : new Date()
+        const fresh: AgentChatMessage = {
+          role: 'assistant',
+          content: '',
+          timestamp: at,
+          agentStatus: 'thinking',
+          status: SENDING,
+          steps: [],
+          live: frame.replay !== true,
+          source: 'terminal',
+          turnId,
+        }
+        setMessages(prev => {
+          const shown = prev.some(m => m.role === 'assistant' && m.source === 'terminal' && m.turnId === turnId)
+          if (shown) {
+            // A replay of a turn already on screen: start its answer over.
+            return prev.map(m =>
+              m.role === 'assistant' && m.source === 'terminal' && m.turnId === turnId ? fresh : m,
+            )
+          }
+          return [
+            ...settled(prev),
+            { role: 'user', content: query, timestamp: at, source: 'terminal', turnId },
+            fresh,
+          ]
+        })
+        report({ type: 'start', query })
+      } else if (frame.type === 'relay_event') {
+        const event = frame.event
+        if (!event || typeof event !== 'object') return
+        if (event.type === 'status' && typeof event.label === 'string') {
+          report({ type: 'status', label: event.label })
+        } else if (event.type === 'step') {
+          report({ type: 'step', step: toTurnStep(event) })
+        }
+        updateRelayed(turnId, msg =>
+          event.type === 'complete'
+            ? completeMessage(msg, event.response ?? {})
+            : applyStreamEvent(msg, event),
+        )
+      } else if (frame.type === 'relay_end') {
+        updateRelayed(turnId, msg =>
+          msg.agentStatus === 'complete'
+            ? null
+            : {
+              ...msg,
+              agentStatus: 'complete',
+              status: msg.status ? { ...msg.status, state: 'done' } : undefined,
+              steps: (msg.steps ?? []).filter(step => step.status !== 'running'),
+            },
+        )
+        report({ type: 'end', outcome: frame.outcome === 'error' ? 'failed' : 'complete' })
+      }
+    }
+    const watch = async () => {
+      while (!stopped) {
+        try {
+          await watchTerminalTurns(onFrame, controller.signal)
+        } catch {
+          // A dropped stream or a refused one: wait, then reconnect.
+        }
+        if (stopped) return
+        await new Promise(resolve => setTimeout(resolve, delayMs))
+        delayMs = Math.min(delayMs * 2, 10000)
+      }
+    }
+    void watch()
+    return () => {
+      stopped = true
+      controller.abort()
+    }
+  }, [watchedShopper, report])
 
   // Debounced persistence
   useEffect(() => {
@@ -446,90 +678,12 @@ export function useAgentChat(
           data => {
             // The hook unmounted mid-stream (see the mount effect above).
             if (!activeRef.current) return
-            if (data.type === 'turn_start') {
-              const principal = readPrincipal(data.principal)
-              // The turn id arrives here first, so a turn that fails or is
-              // refused still names the key its evidence is filed under.
-              const turnId = typeof data.turn_id === 'string' ? data.turn_id : undefined
-              if (principal || turnId) {
-                updateLast(lastMsg => ({
-                  ...lastMsg,
-                  ...(principal ? { principal } : {}),
-                  ...(turnId ? { turnId } : {}),
-                }))
-              }
-            } else if (data.type === 'status') {
-              if (typeof data.label !== 'string') return
+            if (data.type === 'status' && typeof data.label === 'string') {
               report({ type: 'status', label: data.label })
-              updateLast(lastMsg => ({
-                ...lastMsg,
-                status: { label: data.label, state: 'working' },
-              }))
             } else if (data.type === 'step') {
-              const step: TurnStep = {
-                id: String(data.id),
-                label: String(data.label ?? ''),
-                status: data.status === 'running' || data.status === 'failed' ? data.status : 'done',
-                finding: typeof data.finding === 'string' ? data.finding : undefined,
-                tags: Array.isArray(data.tags) ? data.tags.map(String) : [],
-                builder: data.builder ?? undefined,
-                results: data.results && typeof data.results === 'object' ? data.results : undefined,
-              }
-              report({ type: 'step', step })
-              updateLast(lastMsg => ({
-                ...lastMsg,
-                steps: upsertStep(lastMsg.steps ?? [], step),
-              }))
-            } else if (data.type === 'content_delta') {
-              const delta = typeof data.delta === 'string' ? data.delta : ''
-              if (!delta) return
-              updateLast(lastMsg => ({
-                ...lastMsg,
-                content: (lastMsg.content || '') + delta,
-                agentStatus: 'streaming',
-              }))
-            } else if (data.type === 'content_reset') {
-              updateLast(lastMsg => ({ ...lastMsg, content: '' }))
-            } else if (data.type === 'content') {
-              const content = typeof data.content === 'string' ? data.content : ''
-              updateLast(lastMsg => {
-                // The managed rail and the Router's fast paths answer in one
-                // `content`. A streamed answer keeps its deltas when the
-                // final text is only a shortened reading of them.
-                if (
-                  lastMsg.agentStatus === 'streaming' &&
-                  lastMsg.content &&
-                  (!content || content.length < lastMsg.content.length * 0.5)
-                ) {
-                  return lastMsg
-                }
-                return { ...lastMsg, content, agentStatus: 'streaming' }
-              })
-            } else if (data.type === 'product') {
-              updateLast(lastMsg => {
-                const existing = lastMsg.products ?? []
-                const chatProduct = mapProduct(data.product)
-                const isDupe = existing.some(
-                  p =>
-                    (p.id && p.id === chatProduct.id) ||
-                    (p.name && p.name === chatProduct.name),
-                )
-                return {
-                  ...lastMsg,
-                  products: isDupe ? existing : [...existing, chatProduct],
-                }
-              })
-            } else if (data.type === 'escalation') {
-              updateLast(lastMsg => ({
-                ...lastMsg,
-                escalation: data.escalation as StylistHandoff,
-              }))
-            } else if (data.type === 'credit_request_pending') {
-              updateLast(lastMsg => ({
-                ...lastMsg,
-                creditRequestPending: data.creditRequestPending as CreditRequestPending,
-              }))
+              report({ type: 'step', step: toTurnStep(data) })
             }
+            updateLast(lastMsg => applyStreamEvent(lastMsg, data))
           },
           workshopMode,
           guardrailsEnabled,
@@ -545,39 +699,7 @@ export function useAgentChat(
           setSessionCost(prev => prev + response.estimated_cost_usd!)
         }
 
-        updateLast(lastMsg => {
-          // Prefer the streamed content over the complete event's parsed text
-          // when the streamed version is substantially richer: the parser can
-          // fall back to a generic line after stripping JSON blocks.
-          let nextContent = lastMsg.content
-          if (response.response) {
-            const streamed = lastMsg.content || ''
-            const final_ = response.response
-            const streamedIsRicher =
-              streamed.length > 80 && streamed.length > final_.length * 1.5
-            if (!streamedIsRicher) {
-              nextContent = final_
-            }
-          } else if (!lastMsg.content) {
-            nextContent =
-              "I couldn't land on a clear answer. Try rephrasing or narrowing the ask."
-          }
-          return {
-            ...lastMsg,
-            content: nextContent,
-            products: response.products?.length
-              ? response.products.map(mapProduct)
-              : lastMsg.products,
-            suggestions: response.suggestions,
-            agentStatus: 'complete',
-            status: lastMsg.status ? { ...lastMsg.status, state: 'done' } : undefined,
-            failure: undefined,
-            turnId: response.turn_id ?? lastMsg.turnId,
-            sessionId: response.session_id,
-            railDecision: response.railDecision,
-            degradation: response.degradation,
-          }
-        })
+        updateLast(lastMsg => completeMessage(lastMsg, response))
         setBackendOnline(true)
         report({ type: 'end', outcome: 'complete', picks: answerPicks(answer) })
       } catch (error) {

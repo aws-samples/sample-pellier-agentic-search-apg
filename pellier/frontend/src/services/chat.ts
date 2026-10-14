@@ -474,3 +474,52 @@ export async function checkBackendHealth(
     return false
   }
 }
+
+/**
+ * The turns the signed-in shopper sent from the terminal (`lab_run.py send`),
+ * as the backend relays them: the recent ones first, then each new one live.
+ * Every `data:` frame is one of `relay_turn`, `relay_event` or `relay_end`;
+ * heartbeat comments carry no data. The shopper's sign-in cookie scopes the
+ * stream to their own turns. Resolves when the stream ends and rejects when
+ * the connection fails, so the caller decides when to reconnect.
+ */
+export async function watchTerminalTurns(
+  onFrame: (frame: Record<string, any>) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  const response = await apiFetch('/api/chat/watch', {
+    method: 'GET',
+    headers: { Accept: 'text/event-stream' },
+    credentials: 'include',
+    signal,
+  })
+  if (!response.ok) throw await errorFromResponse(response)
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new ChatServiceError('The response did not include a stream.', {
+      code: 'stream_interrupted',
+    })
+  }
+  const decoder = new TextDecoder()
+  const processLine = (line: string) => {
+    if (!line.startsWith('data:')) return
+    let frame: Record<string, any>
+    try {
+      frame = JSON.parse(line.slice(5).trimStart())
+    } catch {
+      return
+    }
+    onFrame(frame)
+  }
+  let buffer = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+    lines.forEach(processLine)
+  }
+  buffer += decoder.decode()
+  if (buffer.trim()) processLine(buffer)
+}

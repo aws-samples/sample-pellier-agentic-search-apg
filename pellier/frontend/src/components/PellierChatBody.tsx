@@ -12,6 +12,7 @@
  */
 import { useCallback, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
+import { Terminal } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { AgentChatMessage } from '../hooks/useAgentChat'
 import type { PersonaSnapshot } from '../contexts/PersonaContext'
@@ -178,11 +179,16 @@ export default function PellierChatBody({
 // ---------------------------------------------------------------------------
 
 function UserMessage({ message }: { message: AgentChatMessage }) {
+  const fromTerminal = message.source === 'terminal'
   return (
-    <div className="ec-msg-user">
+    <div className={fromTerminal ? 'ec-msg-user ec-msg-user--terminal' : 'ec-msg-user'}>
       <div className="ec-msg-user-eyebrow">
-        <span className="ec-msg-user-dot" aria-hidden="true" />
-        You, {relativeTime(message.timestamp)}
+        {fromTerminal ? (
+          <Terminal className="ec-msg-user-terminal" size={12} strokeWidth={2} aria-hidden="true" />
+        ) : (
+          <span className="ec-msg-user-dot" aria-hidden="true" />
+        )}
+        {fromTerminal ? 'Sent from the terminal' : 'You'}, {relativeTime(message.timestamp)}
       </div>
       <div className="ec-msg-user-text">{message.content}</div>
     </div>
