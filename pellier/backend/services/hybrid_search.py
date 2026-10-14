@@ -1,14 +1,17 @@
 """
 Hybrid Search Service — pgvector + Postgres full-text + RRF.
 
-Anna's anchor capability on the workshop's Aurora ladder:
-    Marco  → pgvector cosine similarity (foundation)
-    Anna   → vector + Postgres FTS in parallel → RRF merge → Cohere Rerank v3.5
-    Theo   → Aurora as agent system-of-record (writes + audit)
+Not on Ask Pellier's path. The agents search through ``search_products`` in
+``services/store_tools.py``, which runs the same ``vector_branch_sql`` and
+``fts_branch_sql`` this class runs, then fuses and reranks. The class stays for
+its tests. Where the workshop's labs sit:
+    Anna, Lab 1   → vector + full text in parallel → RRF → Cohere Rerank 3.5
+    Marco, Lab 2  → check_stock answers from warehouse rows
+    Theo, Lab 3   → the deployed agents read only his account
 
 Why hybrid? Pure cosine struggles when the query carries a mix of
-soft semantic intent and hard explicit constraints — e.g. Anna's T2
-"something beautiful under $100". The embedding sees "beautiful" as a
+soft semantic intent and hard explicit constraints — e.g. Anna's
+"under $100, in stock, no candles". The embedding sees "slow mornings" as a
 vibe and "$100" as a fuzzy number; Postgres full-text search over
 name/brand/category/tags catches literal tokens and the agent's
 max_price hint filters by the actual number. Each modality contributes

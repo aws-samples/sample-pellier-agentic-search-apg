@@ -202,7 +202,7 @@ async def _configure_connection(conn: AsyncConnection) -> None:
     problem that motivated the setting. They differ in ordering: pgvector
     documents that a relaxed scan may return results slightly out of order.
     That is harmless when the rows are the answer, and not harmless here --
-    ``services/hybrid_search.py`` enumerates this branch's rows into
+    ``store_tools.search_products`` enumerates this branch's rows into
     ``vec_rank`` and RRF weights that rank as ``1 / (k + rank)``. Under relaxed
     ordering an index artifact stops being an ordering detail and becomes a
     fusion input, recorded in ``retrieval_receipts.vector_ranks`` as the vector

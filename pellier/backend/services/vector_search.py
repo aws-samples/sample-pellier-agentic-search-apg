@@ -1,15 +1,14 @@
 """
 Vector Search Service — pgvector semantic search.
 
-This module is the pure pgvector cosine-similarity branch. Hybrid
-retrieval (vector + full-text + RRF) lives in ``hybrid_search.py`` and
-Cohere Rerank in ``rerank.py`` — both live, not removed; this module
+This module is the pure pgvector cosine-similarity branch. Ask Pellier's
+hybrid retrieval (vector + full-text + RRF) is ``search_products`` in
+``store_tools.py``, and Cohere Rerank is ``rerank.py``; this module
 deliberately excludes them so the semantic branch stays readable on its
 own.
 
-``VectorSearch.vector_search`` is the canonical pgvector reference
-called by ``agent_tools.search_products`` and covered by
-``tests/test_vector_search.py``.
+``VectorSearch.vector_search`` serves the Storefront's search box
+(``routes/search.py``) and is covered by ``tests/test_vector_search.py``.
 """
 import logging
 import time
