@@ -125,10 +125,36 @@ export function sweepContrast(): ContrastFinding[] {
     return opacity
   }
   const disabled = (el: Element) => el.closest(':disabled, [aria-disabled="true"]') !== null
-  /** Covered by something unrelated (a dialog, a scrim): not what a reader sees here. */
+  /**
+   * Outside the visible box of an overflow container between `el` and the
+   * body at (x, y). Computed overflow already turns `visible` beside a
+   * clipping axis into `auto`, so each axis is read as it is. The body's own
+   * overflow belongs to the viewport, which `inView` bounds.
+   */
+  const clippedAway = (el: Element, x: number, y: number) => {
+    for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+      const style = getComputedStyle(a)
+      const clipX = style.overflowX !== 'visible'
+      const clipY = style.overflowY !== 'visible'
+      if (!clipX && !clipY) continue
+      const r = a.getBoundingClientRect()
+      const left = r.left + a.clientLeft
+      const top = r.top + a.clientTop
+      if (clipX && (x < left || x > left + a.clientWidth)) return true
+      if (clipY && (y < top || y > top + a.clientHeight)) return true
+    }
+    return false
+  }
+  /**
+   * Not what a reader sees here: covered by something unrelated (a dialog, a
+   * scrim), or scrolled out of a panel that clips it. Hit-testing lands on an
+   * ancestor in that second case; an ancestor hit over an element that is
+   * still painted (pointer-events: none) is measured as before.
+   */
   const covered = (el: Element, x: number, y: number) => {
     const top = document.elementsFromPoint(x, y)[0]
-    return !!top && top !== el && !el.contains(top) && !top.contains(el)
+    if (!top || top === el || el.contains(top)) return false
+    return top.contains(el) ? clippedAway(el, x, y) : true
   }
   const path = (el: Element) => {
     const parts: string[] = []
