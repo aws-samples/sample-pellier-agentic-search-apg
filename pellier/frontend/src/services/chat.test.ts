@@ -372,3 +372,50 @@ describe('chat service auth transport', () => {
     })
   })
 })
+
+describe('watching turns sent from the terminal', () => {
+  let fetchMock: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    vi.resetModules()
+    fetchMock = vi.fn()
+    global.fetch = fetchMock as unknown as typeof fetch
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  const path = (call: unknown[]) => String(call[0])
+
+  it('refreshes an expired session once and opens the watch again', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{"detail":"expired"}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response('data: {"type":"relay_turn","turn_id":"turn-1"}\n\n', { status: 200 }))
+
+    const { watchTerminalTurns } = await import('./chat')
+    const frames: Record<string, unknown>[] = []
+    await watchTerminalTurns(frame => frames.push(frame), new AbortController().signal)
+
+    expect(fetchMock.mock.calls.map(path)).toEqual([
+      expect.stringContaining('/api/chat/watch'),
+      expect.stringContaining('/api/auth/refresh?surface=shopper'),
+      expect.stringContaining('/api/chat/watch'),
+    ])
+    expect(frames).toEqual([{ type: 'relay_turn', turn_id: 'turn-1' }])
+  })
+
+  it('stops after a refused refresh, without signing the shopper out', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{"detail":"expired"}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
+    const before = window.location.href
+
+    const { watchTerminalTurns } = await import('./chat')
+    await expect(watchTerminalTurns(vi.fn(), new AbortController().signal)).rejects.toBeTruthy()
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(window.location.href).toBe(before)
+  })
+})

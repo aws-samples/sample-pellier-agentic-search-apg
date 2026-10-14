@@ -4,6 +4,7 @@
  */
 
 import { API_BASE_URL, apiFetch } from './apiBase'
+import { refreshAuthTokens } from './authRefresh'
 import { productsNamedInAnswer } from '../utils/answerCards'
 
 export const CHAT_ERROR_CODES = [
@@ -487,12 +488,19 @@ export async function watchTerminalTurns(
   onFrame: (frame: Record<string, any>) => void,
   signal: AbortSignal,
 ): Promise<void> {
-  const response = await apiFetch('/api/chat/watch', {
+  const open = () => apiFetch('/api/chat/watch', {
     method: 'GET',
     headers: { Accept: 'text/event-stream' },
     credentials: 'include',
     signal,
   })
+  // The watch outlives the access token: an hour after sign-in its reconnect
+  // carries an expired one. Refresh the session once, as every other request
+  // does, and never send a background stream to the sign-in page.
+  let response = await open()
+  if (response.status === 401 && await refreshAuthTokens('shopper').catch(() => false)) {
+    response = await open()
+  }
   if (!response.ok) throw await errorFromResponse(response)
   const reader = response.body?.getReader()
   if (!reader) {
