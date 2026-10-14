@@ -519,6 +519,48 @@ export const COMMAND_PILL = {
   KEY_CAP_WIN: "Ctrl K",
 } as const;
 
+/**
+ * The tour after the first-visit welcome (components/SpotlightTour.tsx):
+ * where the labs run, then the controls a lab sends you to. The ids name the
+ * stops; the component maps each to the control it rings.
+ */
+export const TOUR = {
+  DIALOG_LABEL: "Pellier tour",
+  SKIP: "Skip",
+  BACK: "Back",
+  NEXT: "Next",
+  DONE: "Done",
+  REPLAY: "Show the tour",
+  progress: (step: number, total: number): string => `${step} of ${total}`,
+  STEPS: [
+    {
+      id: "code-editor",
+      title: "The labs run in Code Editor",
+      body: "Each task is an edit and a check in the Code Editor terminal. When a check passes, come back here to see what it proved.",
+    },
+    {
+      id: "ask-pellier",
+      title: "Ask Pellier",
+      body: "Ask in your own words. Pellier answers from the store's own records in Aurora PostgreSQL.",
+    },
+    {
+      id: "shoppers",
+      title: "Choose a shopper",
+      body: "Select Anna, Marco, Theo or Jessica to switch shoppers. Each lab follows one of them.",
+    },
+    {
+      id: "builder-view",
+      title: "Builder view",
+      body: "The ranking and the tool calls show here. Turn it on to see how the pieces were ranked and which tools ran for each answer.",
+    },
+    {
+      id: "operator",
+      title: "The Operator, for Lab 4",
+      body: "The staff desk. In Lab 4 a store credit waits here until a person approves or declines it.",
+    },
+  ],
+} as const;
+
 // Auth modal (storefront.md "Auth modal" section, Requirement 2.6.6)
 export const AUTH_MODAL = {
   HEADER: "Welcome to Pellier",

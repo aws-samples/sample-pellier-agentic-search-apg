@@ -2,6 +2,7 @@ import { useLayoutEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useUI } from '../contexts/UIContext'
 import ThemeControl from '../theme/ThemeControl'
+import { TourControl } from './SpotlightTour'
 import { BuilderViewToggle } from './turn'
 import Wordmark from './Wordmark'
 import '../styles/surface-navigation.css'
@@ -27,7 +28,9 @@ function surfaceFor(path: string): Surface {
  * when someone returns from the other surface.
  *
  * The Ask Pellier button opens the docked panel on storefront routes; its
- * copper dot pulses only while a turn runs (signature element 2).
+ * copper dot pulses only while a turn runs (signature element 2). The replay
+ * button beside the theme control opens the tour that follows the first-visit
+ * welcome; neither opens by itself on the Operator.
  *
  * The Builder view switch is global: it governs the storefront's "How it
  * ranked" panel, the dock's evidence and the Operator's investigation. On a
@@ -37,6 +40,7 @@ export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
   const { openModal, turnRunning } = useUI()
   const active = surfaceFor(pathname)
+  const onStorefront = active === 'storefront' && pathname !== '/signin'
   const [destinations, setDestinations] = useState<Record<Surface, string>>({
     storefront: '/',
     operator: '/operator/reviews',
@@ -64,6 +68,7 @@ export default function SurfaceNavigation() {
             className="pellier-surface-link"
             aria-current={active === surface.id ? 'page' : undefined}
             data-surface={surface.id}
+            data-tour={surface.id === 'operator' ? 'operator' : undefined}
             title={`${surface.purpose}. Return to your last ${surface.label} view.`}
           >
             <span>{surface.label}</span>
@@ -72,12 +77,14 @@ export default function SurfaceNavigation() {
       </nav>
       {pathname !== '/signin' ? <BuilderViewToggle className="pellier-builder-toggle" /> : null}
       <div className="pellier-surface-tools">
+        {onStorefront ? <TourControl /> : null}
         <ThemeControl />
-        {active === 'storefront' && pathname !== '/signin' ? (
+        {onStorefront ? (
           <button
             type="button"
             className="pellier-ask-button"
             data-testid="header-ask-pellier"
+            data-tour="ask-pellier"
             data-running={turnRunning ? 'true' : 'false'}
             onClick={() => openModal('drawer')}
           >

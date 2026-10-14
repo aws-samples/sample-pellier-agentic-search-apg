@@ -24,7 +24,7 @@ export default function AskShoppers() {
 
   return (
     <div className="cd-shoppers" data-testid="ask-shoppers">
-      <div className="cd-who" role="group" aria-label={ASK_PANEL.SIGNED_IN_AS}>
+      <div className="cd-who" role="group" aria-label={ASK_PANEL.SIGNED_IN_AS} data-tour="shoppers">
         <span className="cd-who-label" aria-hidden="true">{ASK_PANEL.SIGNED_IN_AS}</span>
         {SHOPPER_ORDER.map(id => {
           const selected = signedInAs === id

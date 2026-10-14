@@ -274,7 +274,7 @@ export default function Header({
             {/* Hidden while Ask Pellier is docked open on a desktop width: the
                 panel's "Signed in as" chips do the same job there
                 (chat-drawer.css). */}
-            <div className="pellier-header-chooser">
+            <div className="pellier-header-chooser" data-tour="shoppers">
               <PersonaAccountControl chooserOpen={chooserOpen} onOpenChooser={openChooser} />
             </div>
 

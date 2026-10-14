@@ -2,11 +2,12 @@
  * Pellier orientation shows a short welcome at most once per browser: a
  * dismissal in one tab holds in every other tab.
  */
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, it, beforeEach } from 'vitest';
+import { fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, beforeEach, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import PellierSpotlight from '../PellierSpotlight';
+import PellierSpotlight, { SPOTLIGHT_SEEN_KEY } from '../PellierSpotlight';
+import { TOUR_START_EVENT } from '../SpotlightTour';
 import { UIProvider, useUI } from '../../contexts/UIContext';
 
 const SRC = resolve(__dirname, '../..');
@@ -51,51 +52,34 @@ describe('first-visit orientation', () => {
     );
     // The welcome remains a deliberately short arrival sequence.
     const dots = screen.getAllByRole('button', { name: /Show / });
-    expect(dots).toHaveLength(3);
+    expect(dots).toHaveLength(2);
 
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     expect(
-      screen.getByRole('button', { name: 'Show Ask, step 2 of 3' }),
+      screen.getByRole('button', { name: 'Show Ask, step 2 of 2' }),
     ).toHaveAttribute('aria-current', 'step');
 
     fireEvent.keyDown(window, { key: 'ArrowLeft' });
     expect(
-      screen.getByRole('button', { name: 'Show Choose, step 1 of 3' }),
+      screen.getByRole('button', { name: 'Show Choose, step 1 of 2' }),
     ).toHaveAttribute('aria-current', 'step');
   });
 
-  it('closes on the separate governed evidence surfaces rather than a feature tour', async () => {
-    render(<PellierSpotlight />);
+  it('ends on asking and hands over to the tour when it closes', async () => {
+    const started = vi.fn();
+    window.addEventListener(TOUR_START_EVENT, started);
+    try {
+      render(<PellierSpotlight />);
+      fireEvent.click(screen.getByRole('button', { name: 'Show Ask, step 2 of 2' }));
+      expect(await screen.findByRole('heading', { name: 'Use your own words.' })).toBeInTheDocument();
+      expect(started).not.toHaveBeenCalled();
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Show Trace, step 3 of 3' }),
-    );
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole('heading', {
-          name: 'Follow the evidence.',
-        }),
-      ).toBeInTheDocument(),
-    );
-    expect(screen.getByRole('dialog')).toHaveTextContent(
-      'Turn on the Builder view to see the steps behind each answer.',
-    );
-    expect(screen.getByRole('dialog')).toHaveTextContent(
-      'it waits on the Operator desk until someone on the team approves or declines it.',
-    );
-    // The four people the evidence is followed for, not a screenshot of the
-    // surface that follows it. One accessible name covers the strip, and each
-    // portrait comes from LAB_EXERCISES so the names cannot drift from the
-    // Governed Lab Collection.
-    const strip = await screen.findByRole('img', {
-      name: /The four people each lab follows/i,
-    });
-    for (const anchor of ['Marco', 'Anna', 'Theo', 'Jessica']) {
-      expect(strip).toHaveAccessibleName(new RegExp(anchor));
-      expect(strip).toHaveTextContent(new RegExp(anchor, 'i'));
+      fireEvent.click(screen.getByRole('button', { name: 'Explore Pellier' }));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(started).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(TOUR_START_EVENT, started);
     }
-    expect(strip.querySelectorAll('img')).toHaveLength(4);
   });
 
   it('contains keyboard focus and restores it after dismissal', () => {
@@ -186,6 +170,17 @@ describe('spotlight session gate', () => {
 
     // Nothing rendered: the gate held.
     expect(container.textContent).toBe('');
+  });
+
+  it('stays closed with ?tour=off and remembers that for the tab', () => {
+    window.history.pushState({}, '', '/?tour=off');
+    try {
+      const { container } = render(<PellierSpotlight />);
+      expect(container.textContent).toBe('');
+      expect(window.sessionStorage.getItem(SPOTLIGHT_SEEN_KEY)).toBe('true');
+    } finally {
+      window.history.pushState({}, '', '/');
+    }
   });
 });
 

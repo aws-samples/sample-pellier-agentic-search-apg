@@ -1,10 +1,10 @@
 /**
- * PellierSpotlight - the first-visit orientation for the governed storefront.
+ * PellierSpotlight - the first-visit welcome for the governed storefront.
  *
- * It frames Pellier the way the architecture actually works: a Storefront
- * Dispatcher routing shopper turns to specialists, a separate two-agent
- * Operator Concierge graph, shared Aurora customer truth, and every
- * state-changing action behind a human confirmation.
+ * Two slides, choosing an edit and asking in your own words. However the
+ * welcome closes, it hands over to the tour (SpotlightTour), which rings the
+ * header controls and the shopper chips the labs use. `?tour=off` keeps both
+ * closed for the tab, for guide captures.
  *
  * Claims here are deliberately limited to what ships. Comparable retail-agent
  * architectures spread this across four engines (a vector index, a key-value
@@ -20,25 +20,14 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { X } from 'lucide-react'
 import { imageSrc } from '../utils/assetPath'
+import { TOUR_START_EVENT } from './SpotlightTour'
 
 
-/** The four people the labs follow, in lab order. */
-const LAB_PEOPLE = [
-  { id: 'anna', name: 'Anna', lab: 1, topic: 'search', image: '/assets/personas/anna-720.webp' },
-  { id: 'marco', name: 'Marco', lab: 2, topic: 'an agent with tools', image: '/assets/personas/marco-720.webp' },
-  { id: 'theo', name: 'Theo', lab: 3, topic: 'a managed agent', image: '/assets/personas/theo-720.webp' },
-  { id: 'jessica', name: 'Jessica', lab: 4, topic: 'an approved action', image: '/assets/personas/jessica-720.webp' },
-] as const
-
-/**
- * A slide's media.
- *
- * `photo` is one catalog photograph. `personas` is the four lab anchors as a
- * portrait strip of the four people the labs follow.
- */
-type SpotlightMedia =
-  | { kind: 'photo'; src: string; alt: string }
-  | { kind: 'personas' }
+/** A slide's media: one catalog photograph. */
+interface SpotlightMedia {
+  src: string
+  alt: string
+}
 
 interface SpotlightStep {
   label: string
@@ -58,7 +47,6 @@ const STEPS: SpotlightStep[] = [
     // `object-cover` on a portrait frame cropped away most of the bag and left
     // a hard zoom on its middle.
     media: {
-      kind: 'photo',
       src: '/products/landing-hero-weekender-1600.webp',
       alt: 'A leather weekender on an oak bench beside a linen throw, a wooden bowl and a stoneware vase of olive branches',
     },
@@ -70,20 +58,9 @@ const STEPS: SpotlightStep[] = [
     body: 'Ask for a piece or occasion. Pellier reads the current catalog and your chosen point of view before it recommends a place to start.',
     // The webp of the same frame: the PNG beside it is 1.8 MB for a 552px band.
     media: {
-      kind: 'photo',
       src: '/products/hero-anna-1600.webp',
       alt: 'A white gift box tied with a blush-pink ribbon, a blank kraft tag and a vase with one eucalyptus stem on a small oak side table',
     },
-  },
-  {
-    label: 'Trace',
-    eyebrow: 'Builder view and Operator',
-    headline: 'Follow the evidence.',
-    body: 'Turn on the Builder view to see the steps behind each answer. When a request needs a person, such as a store credit, it waits on the Operator desk until someone on the team approves or declines it.',
-    // The four people the evidence is followed for, rather than a screenshot of
-    // the surface that follows it. A cropped UI capture read as washed-out
-    // chrome at this size and dated the moment the panel changed.
-    media: { kind: 'personas' },
   },
 ]
 
@@ -101,10 +78,14 @@ const FOCUSABLE_SELECTOR = [
 // Seen once in this browser means seen in every tab: Lab 4 opens the
 // storefront in a second tab, where a tour reopening over the header blocked
 // the Operator link. sessionStorage is still read so a tab that set it keeps
-// working.
+// working. `?tour=off` counts as seen for the tab.
 function hasSeenSpotlight(): boolean {
   if (typeof window === 'undefined') return true
   try {
+    if (new URLSearchParams(window.location.search).get('tour') === 'off') {
+      window.sessionStorage.setItem(SPOTLIGHT_SEEN_KEY, 'true')
+      return true
+    }
     return (
       window.localStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
       || window.sessionStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
@@ -133,6 +114,7 @@ export default function PellierSpotlight() {
   const dismiss = useCallback(() => {
     markSpotlightSeen()
     setVisible(false)
+    window.dispatchEvent(new Event(TOUR_START_EVENT))
   }, [])
 
   const next = useCallback(() => {
@@ -261,63 +243,19 @@ export default function PellierSpotlight() {
 
           <div className="h-[194px] overflow-hidden bg-recessed sm:h-[208px]">
             <AnimatePresence initial={false} mode="wait">
-              {current.media.kind === 'photo' ? (
-                <motion.img
-                  key={current.media.src}
-                  src={imageSrc(current.media.src)}
-                  alt={current.media.alt}
-                  className="h-full w-full object-cover"
-                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.035 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
-                  transition={{
-                    duration: reduceMotion ? 0.1 : 0.28,
-                    ease: MOTION_EASE,
-                  }}
-                />
-              ) : (
-                /* One label for the whole strip: four portraits announced
-                   separately would read as four unrelated images between the
-                   headline and the controls. */
-                <motion.div
-                  key="personas"
-                  role="img"
-                  aria-label={`The four people each lab follows: ${LAB_PEOPLE.map(
-                    (person) => `${person.name}, lab ${person.lab}, ${person.topic}`,
-                  ).join('; ')}`}
-                  className="grid h-full w-full grid-cols-4 gap-2 p-2"
-                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.035 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
-                  transition={{
-                    duration: reduceMotion ? 0.1 : 0.28,
-                    ease: MOTION_EASE,
-                  }}
-                >
-                  {LAB_PEOPLE.map((person) => (
-                    <div
-                      key={person.id}
-                      className="relative overflow-hidden rounded-[var(--pellier-image-radius-sm)]"
-                    >
-                      <img
-                        src={imageSrc(person.image)}
-                        alt=""
-                        width={720}
-                        height={1080}
-                        className="h-full w-full object-cover"
-                      />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim to-transparent px-1.5 pb-1.5 pt-6 text-center">
-                        <span className="block font-mono text-[9px] uppercase leading-tight tracking-[0.12em] text-on-photo">
-                          {person.name}
-                        </span>
-                        <span className="block font-mono text-[9px] uppercase leading-tight tracking-[0.1em] text-on-photo/70">
-                          {`Lab ${person.lab}`}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
+              <motion.img
+                key={current.media.src}
+                src={imageSrc(current.media.src)}
+                alt={current.media.alt}
+                className="h-full w-full object-cover"
+                initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.035 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 1.02 }}
+                transition={{
+                  duration: reduceMotion ? 0.1 : 0.28,
+                  ease: MOTION_EASE,
+                }}
+              />
             </AnimatePresence>
           </div>
 
@@ -393,7 +331,7 @@ export default function PellierSpotlight() {
                 aria-hidden="true"
                 className="font-sans text-[10px] font-semibold tracking-[0.14em] text-muted"
               >
-                03
+                {String(STEPS.length).padStart(2, '0')}
               </span>
             </nav>
 
