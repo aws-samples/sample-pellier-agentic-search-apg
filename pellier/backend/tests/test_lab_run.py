@@ -38,6 +38,7 @@ class FakeBackend:
         self.policies: List[str] = ["ALLOW"]
         self.requests: List[Dict[str, Any]] = []
         self.sessions = 0
+        self.steps: List[Dict[str, Any]] = []
 
     def answer(self, path: str, body: Dict[str, Any]) -> Any:
         if path == "/api/health":
@@ -69,7 +70,8 @@ class FakeBackend:
         response = {"response": f"Answer to {body['message']}", "rail": self.rail,
                     "turn_id": f"turn-{len(self.requests)}",
                     "railDecision": {"reason": "managed rail selected"}}
-        return [(None, {"type": "turn_start"}), (None, {"type": "text", "text": "Ans"}),
+        return [(None, {"type": "turn_start"}), *[(None, step) for step in self.steps],
+                (None, {"type": "text", "text": "Ans"}),
                 (None, {"type": "complete", "response": response})]
 
 
@@ -456,3 +458,70 @@ def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_na
     assert not [r for r in fake.requests if r["path"].startswith("/api/operator/")]
     assert seen == ["jessica"], "Nadia's token is never minted"
     assert "as Nadia in the Operator" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# The live trace: each turn's steps, printed as they stream
+# ---------------------------------------------------------------------------
+RANKING = {"available": True, "filters": {"kept": 64, "of": 100}, "rows": [
+    {"name": "Stoneware Pour-Over Set", "fts_rank": None, "vec_rank": 1, "rrf_score": 0.0164},
+    {"name": "Ceramic Tumblers", "fts_rank": 17, "vec_rank": 2, "rrf_score": 0.0291},
+    {"name": "Linen Napkins, Set of 4", "fts_rank": 12, "vec_rank": 18, "rrf_score": 0.0267},
+    {"name": "Wabi-Sabi Bowl", "fts_rank": 13, "vec_rank": 4, "rrf_score": 0.0293},
+    {"name": "Olive Wood Cutting Board", "fts_rank": 14, "vec_rank": 11, "rrf_score": 0.0276},
+    {"name": "Stoneware Mugs, Set of 2", "fts_rank": 20, "vec_rank": 3, "rrf_score": 0.0284},
+]}
+ROUTE = {"type": "step", "id": "route", "label": "Understanding your request", "status": "done",
+         "finding": "Sent to the Shopping agent", "builder": {}}
+STEPS = [
+    ROUTE,
+    {"type": "step", "id": "step-1", "label": "Searching the catalog in Aurora", "status": "running",
+     "builder": {"tool": "search_products"}},
+    {"type": "step", "id": "step-1", "label": "Searching the catalog in Aurora", "status": "done",
+     "finding": "5 found from 64 that fit under $100 and in stock, candles left out",
+     "builder": {"tool": "search_products", "duration_ms": 731, "ranking": RANKING}},
+    {"type": "step", "id": "step-2", "label": "Reading your tickets", "status": "failed",
+     "finding": "The ticket read was refused", "builder": {"duration_ms": 12}},
+    ROUTE,
+]
+
+
+def test_send_marks_every_request_as_sent_from_the_terminal(fake: FakeBackend) -> None:
+    assert _run(fake, 1) == 0
+    assert all(turn["body"]["source"] == "terminal" for turn in _turns(fake))
+
+
+def test_send_prints_each_turns_trace_as_it_streams(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = STEPS
+    assert _run(fake, 1) == 0
+    out = capsys.readouterr().out
+    lines = out.splitlines()
+
+    assert '          Anna: "' in out
+    assert [line for line in lines if "Router" in line] == [
+        "          Router    Sent to the Shopping agent"]
+    done = lines.index("          done      Searching the catalog in Aurora (731 ms): 5 found from 64 that "
+                       "fit under $100 and in stock, candles")
+    assert lines[done + 1] == "                    left out"
+    assert "                    How it ranked, kept 64 of 100: full text, vector, fused" in lines
+    rows = [line for line in lines if line.startswith("                    ") and "  #" in line]
+    assert len(rows) == 5
+    assert rows[0].split() == ["1", "Stoneware", "Pour-Over", "Set", "-", "#1", "0.0164"]
+    assert "Stoneware Mugs" not in out
+    assert "          failed    Reading your tickets (12 ms): The ticket read was refused" in lines
+    assert out.count("Searching the catalog in Aurora") == 1
+    assert "  + OK    ran in process (turn " in out
+    assert all(len(line) <= 120 for line in lines)
+
+
+def test_quiet_keeps_the_one_line_output(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = STEPS
+    assert _run(fake, 1, None, "--quiet") == 0
+    out = capsys.readouterr().out
+    assert "Router" not in out and "How it ranked" not in out
+    assert '  + OK    Anna: "' in out and '" ran in process (turn ' in out
+    assert all(turn["body"]["source"] == "terminal" for turn in _turns(fake))

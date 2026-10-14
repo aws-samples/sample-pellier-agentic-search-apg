@@ -46,6 +46,7 @@ import os
 import pathlib
 import shutil
 import sys
+import textwrap
 import time
 import urllib.error
 import urllib.request
@@ -287,12 +288,72 @@ def required_requests(persona: str, stages: Sequence[str],
     return [by_stage[stage] for stage in stages]
 
 
-def send_turn(backend: Backend, token: str, body: Dict[str, Any]) -> Dict[str, Any]:
-    """One Ask Pellier turn; returns the complete event's response."""
+# The live trace: each step as Builder view shows it, printed as the turn streams.
+TRACE_WIDTH = 120
+TRACE_INDENT = " " * 10
+TRACE_LABEL = 10
+RANKING_ROWS = 5
+
+
+def _trace_line(label: str, text: str) -> None:
+    room = TRACE_WIDTH - len(TRACE_INDENT) - TRACE_LABEL
+    lines = textwrap.wrap(text, width=room) or [""]
+    print(f"{TRACE_INDENT}{label:<{TRACE_LABEL}}{lines[0]}", flush=True)
+    for line in lines[1:]:
+        print(f"{TRACE_INDENT}{'':<{TRACE_LABEL}}{line}", flush=True)
+
+
+def _rank(value: Any) -> str:
+    return "-" if value in (None, "") else f"#{value}"
+
+
+def _trace_ranking(ranking: Dict[str, Any]) -> None:
+    rows = ranking.get("rows") if ranking.get("available") else None
+    if not rows:
+        return
+    filters = ranking.get("filters") or {}
+    kept = (f", kept {filters['kept']} of {filters['of']}"
+            if filters.get("kept") is not None and filters.get("of") is not None else "")
+    pad = f"{TRACE_INDENT}{'':<{TRACE_LABEL}}"
+    print(f"{pad}How it ranked{kept}: full text, vector, fused", flush=True)
+    for index, row in enumerate(rows[:RANKING_ROWS], 1):
+        name = _one_line(str(row.get("name") or row.get("product_id") or "?"), 34)
+        score = float(row.get("rrf_score") or 0)
+        print(f"{pad}{index:<3}{name:<35}{_rank(row.get('fts_rank')):>4}  "
+              f"{_rank(row.get('vec_rank')):>4}  {score:.4f}", flush=True)
+
+
+def trace_event(event: Dict[str, Any], shown: set) -> None:
+    """Print a finished step once, in Builder view's words; running steps print nothing."""
+    if event.get("type") != "step" or event.get("status") == "running":
+        return
+    step_id, status = str(event.get("id") or ""), str(event.get("status") or "done")
+    if (step_id, status) in shown:
+        return
+    shown.add((step_id, status))
+    label = str(event.get("label") or "")
+    finding = str(event.get("finding") or "")
+    builder = event.get("builder") or {}
+    if step_id == "route":
+        _trace_line("Router", finding or label)
+        return
+    ms = builder.get("duration_ms")
+    timing = f" ({ms} ms)" if isinstance(ms, (int, float)) else ""
+    _trace_line("failed" if status == "failed" else "done",
+                f"{label}{timing}" + (f": {finding}" if finding else ""))
+    _trace_ranking(builder.get("ranking") or {})
+
+
+def send_turn(backend: Backend, token: str, body: Dict[str, Any],
+              trace: bool = False) -> Dict[str, Any]:
+    """One Ask Pellier turn; returns the complete event's response, printing its trace."""
+    shown: set = set()
     for name, event in backend.stream("/api/chat/stream", body, token):
         if name == "error" or event.get("type") == "error":
             reason = event.get("error") or event.get("message") or json.dumps(event)
             raise LabRunError(f"the turn failed: {reason}")
+        if trace:
+            trace_event(event, shown)
         if event.get("type") == "complete":
             return event.get("response") or {}
     raise LabRunError("the turn ended without a complete event")
@@ -319,24 +380,34 @@ def _one_line(text: str, width: int = 140) -> str:
 
 
 def converse(backend: Backend, lab: int, token: str, persona: str,
-             requests: Sequence[str]) -> None:
-    """Start a new conversation as this shopper and send the requests in order."""
+             requests: Sequence[str], trace: bool = True) -> None:
+    """Start a new conversation as this shopper and send the requests in order.
+
+    Each request is marked as sent from the terminal, so the shopper's own Ask
+    Pellier panel shows it live; with ``trace`` the steps print as they stream.
+    """
     session = backend.post_json("/api/persona/switch", {"persona_id": persona})["session_id"]
     history: List[Dict[str, str]] = []
     for message in requests:
+        if trace:
+            print(f'{TRACE_INDENT}{persona.title()}: "{message}"', flush=True)
         response = send_turn(backend, token, {
             "message": message,
             "session_id": session,
             "customer_id": f"CUST-{persona.upper()}",
             "conversation_history": history,
-        })
+            "source": "terminal",
+        }, trace=trace)
         served = str(response.get("rail") or "")
         if served != LAB_RAIL[lab]:
             raise LabRunError(_rail_problem(lab, served, response))
         answer = str(response.get("response") or "")
-        ok(f'{persona.title()}: "{message}" ran {RAIL_NAMES[served]} '
-           f"(turn {response.get('turn_id') or '?'})")
-        print(f"          Pellier: {_one_line(answer)}", flush=True)
+        turn = f"(turn {response.get('turn_id') or '?'})"
+        if trace:
+            ok(f"ran {RAIL_NAMES[served]} {turn}")
+        else:
+            ok(f'{persona.title()}: "{message}" ran {RAIL_NAMES[served]} {turn}')
+        print(f"{TRACE_INDENT}Pellier: {_one_line(answer, TRACE_WIDTH - 19)}", flush=True)
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
 
 
@@ -442,7 +513,7 @@ def mint_token(username: str) -> str:
 
 
 def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
-         shopper_only: bool = False) -> None:
+         shopper_only: bool = False, trace: bool = True) -> None:
     """Make the lab's requests on the lab's path, and for Lab 4 do Nadia's part unless
     ``shopper_only``."""
     wait_until_healthy(backend)
@@ -450,7 +521,8 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
     for persona, stages in CONVERSATIONS[lab]:
         if persona not in tokens:
             tokens[persona] = token_for(persona)
-        converse(backend, lab, tokens[persona], persona, required_requests(persona, stages))
+        converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
+                 trace=trace)
     if lab == 4 and shopper_only:
         print("  Next: as Nadia in the Operator, investigate Jessica's case, approve the "
               "proposed credit and select Execute.", flush=True)
@@ -465,6 +537,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
     parser.add_argument("--shopper-only", action="store_true",
                         help="send: stop before Nadia's part in the Operator (Lab 4)")
+    parser.add_argument("--quiet", action="store_true",
+                        help="send: one line per request, without each turn's trace")
     args = parser.parse_args(argv)
     titles = {"solution": "install the solution", "send": "send the requests",
               "diff": "compare your files with the solution"}
@@ -475,7 +549,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
         elif args.action == "solution":
             install_solution(args.lab)
         else:
-            send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only)
+            send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only,
+                 trace=not args.quiet)
     except (LabRunError, SystemExit) as exc:
         fail(str(exc))
         return 1
