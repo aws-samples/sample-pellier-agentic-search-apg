@@ -14,8 +14,9 @@ Every terminal starts at the repository root.
 | 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1`, then `python3 scripts/lab1_check.py --task 1B` | [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then restart and send her request again | `python3 scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
 
 After the 1B token, open **PellierURL**, choose **Anna** in **Ask Pellier** with **Builder
-view** on, and read **How it ranked** for the turn the terminal sent: a **Vector** rank on
-every row, her three limits, and no candles.
+view** on, and send her request again (paste it, or click it under **A few ideas to begin**).
+Builder view streams the turn's trace, and **How it ranked** shows a **Vector** rank on every
+row, her three limits, and no candles.
 
 ## The files
 

@@ -24,9 +24,10 @@ Editing the 3A files alone does not update Runtime or Gateway; the deployment do
 as the live row-level security policy on orders and support tickets; when any probe
 differs, it rolls back.
 
-After the 3B token, open **PellierURL** and read Theo's turns in **Ask Pellier** with
-**Builder view** on: the remembered record the check printed, his ticket read bound to
-`CUST-THEO`, and the household request staying on his account. The AgentCore console shows
+After the 3B token, open **PellierURL**, choose **Theo** in **Ask Pellier** with **Builder
+view** on, and send his sentences again (paste them, or click them under **A few ideas to
+begin**). Builder view streams each turn's trace: the remembered record the check printed, his
+ticket read bound to `CUST-THEO`, and the household request staying on his account. The AgentCore console shows
 the Runtime, the Gateway and the Memory record.
 
 ## If you need a solution
