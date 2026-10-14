@@ -379,7 +379,7 @@ def _grant_verdict(grant: Optional[List[str]]) -> Tuple[Optional[str], str]:
         return check.NOT_YET, "the turn's audit rows record no grant"
     text = ", ".join(grant) or "no store tools"
     if sorted(grant) == sorted(STARTER_GRANT):
-        return check.NOT_YET, ("the Stock agent that answered still held the starter's grant: "
+        return check.NOT_YET, ("the Stock agent that answered still held the tools it ships with: "
                                + text + ", none of which reads warehouse_inventory")
     return check.CONTRADICTED, f"the Stock agent that answered was granted {text}"
 
@@ -445,7 +445,7 @@ def judge_2b(conn: Any) -> check.Finding:
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
                              f"send Marco's requests with {SEND}, then rerun this check. "
-                             "The starter's Stock agent holds no tool that reads "
+                             "As shipped, the Stock agent holds no tool that reads "
                              "warehouse_inventory, so it may answer without calling one.")
     grant = recorded_grant(rows)
     evidence = [

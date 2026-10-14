@@ -59,9 +59,9 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 #
 # Task 3A: assemble the Support agent for AgentCore. Its prompt and model are
 # supplied: _managed_specialist_prompt("support") below, and the Opus profile
-# that specialist_models.model_for_intent("support") names. The starter agent
-# works: it answers a returns question with get_return_policy and hands off
-# with ask_a_person. Theo's household request needs more.
+# that specialist_models.model_for_intent("support") names. As shipped, the
+# agent works: it answers a returns question with get_return_policy and hands
+# off with ask_a_person. Theo's household request needs more.
 #
 # SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. On the managed
 # rail the Router asks the Gateway for exactly these, and a tool the Gateway
@@ -138,7 +138,7 @@ def unpublished_tools_note(agent: str, unpublished: Sequence[str]) -> str:
     """The Builder view's line for tools the routed agent asked for and was not given.
 
     Gateway discovery is filtered by policy for each caller, so a tool missing
-    from the list may be unpublished (Lab 3's starter) or published behind a
+    from the list may be unpublished (Lab 3 as shipped) or published behind a
     permit this caller cannot meet. The line says what was observed, not which.
     """
     names = ", ".join(unpublished)
@@ -622,7 +622,7 @@ class ManagedGatewayDispatcher:
             )
             # A tool the Gateway does not list for this caller is not an
             # error: the agent runs without it, says plainly what it cannot
-            # look up, and the Builder view names the tool (Lab 3's starter
+            # look up, and the Builder view names the tool (Lab 3 as shipped
             # shows this). Discovery is policy-filtered, so the tool may be
             # unpublished or published behind a permit this caller cannot meet.
             unpublished = tuple(sorted(set(allowed_tools) - set(selected_names)))

@@ -137,7 +137,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
                              "restore the region from workshop/starters/lab-3-row-ownership.sql.")
     if is_starter:
         return check.Finding("3B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
-                             "the worksheet still holds the starter predicate",
+                             "the worksheet still holds the predicate it ships with",
                              ["workshop/lab-3-row-ownership.sql: Row ownership - predicate "
                               "is false"],
                              "write the predicate in workshop/lab-3-row-ownership.sql, then run "

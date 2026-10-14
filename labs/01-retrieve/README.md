@@ -1,7 +1,7 @@
 # Lab 1: Retrieve
 
 **Anna.** She asks for a housewarming gift in one sentence, with a budget, a stock rule and
-no candles. The starter's search matches her words and ranks nothing by meaning, and its
+no candles. As shipped, the search matches her words and ranks nothing by meaning, and its
 retry drops her limits. Keep the Workshop Studio guide open beside this file.
 
 ## Run it in the terminal

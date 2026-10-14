@@ -1,6 +1,6 @@
 # Lab 2: Ground
 
-**Marco.** He needs stock and dispatch facts he can rely on. The starter's `check_stock`
+**Marco.** He needs stock and dispatch facts he can rely on. As shipped, `check_stock`
 calls a piece Pellier does not carry sold out, and the Stock agent holds only catalog
 tools, so no answer reads a warehouse row. Keep the Workshop Studio guide open beside this
 file.

@@ -204,7 +204,7 @@ def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
            grant=STARTER_GRANT)
     finding = lab2.judge_2b(conn)
     assert finding.state == "NOT YET", finding
-    assert "still held the starter's grant: search_products" in finding.observed
+    assert "still held the tools it ships with: search_products" in finding.observed
     assert "none of which reads warehouse_inventory" in finding.observed
     assert "restart the backend" in finding.next_step.lower()
     assert lab2.STARTER_GRANT == tuple(_names(lab_variants.stock_grant(lab_variants.STARTER)))

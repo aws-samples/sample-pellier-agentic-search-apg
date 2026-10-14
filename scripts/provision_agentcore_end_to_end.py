@@ -1296,7 +1296,7 @@ def _deploy_cli_project(
         _agentcore(root, "deploy", "--yes", "--json", env=env)
     finally:
         config_path.write_text(json.dumps(desired, indent=2) + "\n")
-    print("Adding the Lab 4 starter policy (forbids every credit until Lab 4)", flush=True)
+    print("Adding Lab 4's Cedar rule as shipped (it forbids every credit until Lab 4)", flush=True)
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
     return root, _read_deployed_state(root)
@@ -1454,7 +1454,7 @@ def _refuse_an_unchecked_edit(rule: str | None, starter: str | None, reason: str
     if rule is None or rule == starter:
         return
     raise RuntimeError(
-        f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} differs from its starter, and the Cedar "
+        f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} differs from the rule as shipped, and the Cedar "
         f"check could not run ({reason}), so it was not deployed. Run python3 "
         "scripts/lab4_check.py --task 4A to see why, then deploy again."
     )

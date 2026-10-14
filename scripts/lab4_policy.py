@@ -169,7 +169,7 @@ REQUESTS: Tuple[Request, ...] = MATRIX + MORE + READS
 # Wrong rules put in place of the participant's unless block. Each must fail
 # the matrix, or the matrix could not tell a right rule from a wrong one.
 MUTATIONS: Tuple[Tuple[str, str], ...] = (
-    ("unless { false }, the starter", "false"),
+    ("unless { false }, as shipped", "false"),
     ("unless { true }", "true"),
     ("staff-only", 'principal.hasTag("custom:staff_scope") && '
                    'principal.getTag("custom:staff_scope") == "returns"'),
@@ -472,7 +472,7 @@ def _decided(decision: Optional[Decision]) -> str:
 
 _LOCAL_TITLE = "your rule limits one credit to $100"
 _LOCAL_EXPECTED = ("Cedar accepts the rule, the file holds one policy and the lines before its "
-                   "unless block are the starter's; shopper $100 DENY, Nadia 1, 9999 and 10000 "
+                   "unless block are as shipped; shopper $100 DENY, Nadia 1, 9999 and 10000 "
                    "cents ALLOW, 10001 DENY, the same for a second staff member and other "
                    "customers; a shopper's return policy and own orders, and a staff stock "
                    "check, stay ALLOW, and another customer's orders stay DENY; the eight "
@@ -486,8 +486,8 @@ def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, policies: Opt
     digest = hashlib.sha256(rule.encode("utf-8")).hexdigest()
     evidence = [
         f"{CREDIT_LIMIT_SOURCE} sha256:{digest[:16]}, unless {{ {unless_body(rule_text)} }}",
-        "policy head: " + ("the starter's, unchanged" if head_kept
-                           else "differs from the starter's (principal, action or resource)"),
+        "policy head: " + ("as shipped, unchanged" if head_kept
+                           else "differs from the file as shipped (principal, action or resource)"),
         "policies in the file: " + (str(policies) if policies is not None
                                     else "Cedar cannot parse it"),
         f"evaluated with Cedar beside {len(baseline)} baseline policies "
@@ -515,7 +515,7 @@ def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, your
     if not head_kept:
         return check.CONTRADICTED, ("edit only the final unless block: the lines before it (the "
                                     "principal, the give_store_credit action and the Gateway) "
-                                    "stay as the starter wrote them.")
+                                    "stay as shipped.")
     if extra_policies:
         return check.CONTRADICTED, ("keep one policy in the file, the forbid: anything after its "
                                     "unless block would deploy beside your rule.")
@@ -744,7 +744,7 @@ def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: b
     if deployed is None:
         return _managed_finding(check.CONTRADICTED,
                                 f"{CREDIT_LIMIT_POLICY} is not on the policy engine", evidence,
-                                "provisioning deploys the starter; ask for the environment to "
+                                "provisioning deploys the rule as shipped; ask for the environment to "
                                 "be reprovisioned.")
     if not same_rule(deployed, local_rule):
         return _managed_finding(check.NOT_YET, "the deployed rule is not your file yet", evidence,
@@ -772,8 +772,8 @@ def _call_outcome(payload: Dict[str, Any], rows: Dict[str, int],
                                 "decision; read the Gateway's words above.")
     # The starter denies 10001 cents too, so a DENY read while the update is
     # still propagating cannot tell the two apart on its own.
-    evidence.append("the starter denies 10001 cents too, so this DENY alone cannot tell your rule "
-                    "from a starter still propagating; Jessica's $100.00 credit, which only your "
+    evidence.append("the rule as shipped denies 10001 cents too, so this DENY alone cannot tell your "
+                    "rule from the shipped one still propagating; Jessica's $100.00 credit, which only your "
                     "rule allows, is the other half (python3 scripts/workshop_evidence.py, 4A)")
     return _managed_finding(check.PROVED, "Cedar denied the over-limit credit before the tool "
                                           "ran; its key left no row", evidence)
@@ -883,7 +883,7 @@ def managed_check(
 
 
 def print_table(rows: List[List[str]]) -> None:
-    header = ["request", "baseline alone", "with the starter", "with your rule", "expected",
+    header = ["request", "baseline alone", "as shipped", "with your rule", "expected",
               "verdict"]
     print(check.table(header, rows))
 

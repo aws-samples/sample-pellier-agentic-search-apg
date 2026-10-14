@@ -37,7 +37,7 @@ def test_the_stamp_is_the_sha256_of_the_statements_psql_hashes() -> None:
 
 
 @pytest.mark.parametrize(("is_starter", "live", "state", "observed"), [
-    (True, {}, "NOT YET", "the worksheet still holds the starter's grants"),
+    (True, {}, "NOT YET", "the worksheet still holds the grants it ships with"),
     (False, {**CLEAN, "stamp": ""}, "NOT YET",
      "the live function still carries the privileges the database shipped with"),
     (False, {**CLEAN, "stamp": credit_check.STAMP_PREFIX + "0" * 64}, "NOT YET",
@@ -72,7 +72,7 @@ def test_the_live_function_carries_the_solutions_stamp(deployed: Any) -> None:
     finding = credit_check.deployed_finding(connect, worksheet=SOLUTION)
     assert finding.state == "PROVED", finding
     starter = credit_check.deployed_finding(connect)
-    assert starter.state == "NOT YET" and "starter" in starter.observed
+    assert starter.state == "NOT YET" and "ships with" in starter.observed
 
 
 @pytest.mark.asyncio

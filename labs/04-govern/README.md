@@ -22,7 +22,7 @@ python3 scripts/lab_run.py send --lab 4 --shopper-only
 
 Nadia's decision is the one step that happens in the app. In **PellierURL**, select
 **Operator**, sign in as `nadia`, investigate Jessica's case, approve the proposed credit
-and select **Execute**: with the starter rule, Policy reads DENY. After the deploy, select
+and select **Execute**: with the rule as shipped, Policy reads DENY. After the deploy, select
 **Execute again** and then **Retry execution**. Their proof comes back here: the two checks
 above, then the supplied absence check, which ends `Lab 4 absence check passed`:
 

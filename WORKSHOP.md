@@ -74,8 +74,8 @@ the participant edit regions.
 - **Router and three agents.** A deterministic Router, with no model call,
   sends each shopper request to the Shopping, Stock or Support agent
   (Strands). Shopping and Support run on Claude Opus 5, Stock on Claude
-  Sonnet 5. Each agent holds only its own tools; the Stock agent's starter
-  grant has the catalog tools and not `check_stock`, until Lab 2B connects
+  Sonnet 5. Each agent holds only its own tools; as shipped, the Stock
+  agent has the catalog tools and not `check_stock`, until Lab 2B connects
   `check_stock` alone.
 - **Nine store tools.** `search_products`, `browse_department`,
   `compare_products`, `check_stock`, `get_orders`, `get_return_policy`,
@@ -121,7 +121,7 @@ to become readable, so it is a Go deeper tab, not the proof.
 Anna wants a housewarming gift under $100, in stock, with no candles.
 
 - **See it fail:** `workshop/lab-1-words.sql` shows what her sentence finds by
-  words alone, because the starter's vector branch ranks nothing by meaning.
+  words alone, because the vector branch as shipped ranks nothing by meaning.
 - **Task 1A:** first run the supplied `workshop/lab-1-meaning.sql`, which ranks
   the catalog by meaning with the Stoneware Mugs' own embedding, the way the
   check does. Then rank the eligible products by meaning in the `Vector branch -
@@ -167,8 +167,8 @@ Theo wants his taste remembered and help with his own chipped bowl.
 
 - **See it fail:** after `bash scripts/lab3-start.sh theo`,
   `python3 scripts/lab3_check.py --task 3A` prints one line per rule before any
-  deploy: `get_tickets` is withheld from the Gateway, and the starter Support
-  agent, which answers returns questions with `get_return_policy` and hands off
+  deploy: `get_tickets` is withheld from the Gateway, and the Support agent as
+  shipped, which answers returns questions with `get_return_policy` and hands off
   with `ask_a_person`, lacks the reads Theo's household request needs.
 - **Task 3A:** assemble the Support agent. Publish `get_tickets`
   (`scripts/deploy/gateway_tool_schemas.py`); in
@@ -206,15 +206,15 @@ wrong query, not an untrusted session.
 Jessica sent two items back and has no credit yet. Nadia must approve the
 credit, and the system must prove what moved.
 
-- **See it fail:** `python3 scripts/lab4_check.py --task 4A` shows the starter
-  forbid denying Nadia's approved credits. `python3 scripts/lab_run.py send
+- **See it fail:** `python3 scripts/lab4_check.py --task 4A` shows the rule as
+  shipped, a forbid, denying Nadia's approved credits. `python3 scripts/lab_run.py send
   --lab 4 --shopper-only` sends Jessica's request; in the Operator, Nadia
   approves her $100.00 credit and **Execute** reads DENY.
 - **Task 4A:** write the final `unless` block of
   `policies/workshop_credit_limit.cedar` so one credit may be at most $100,
   then deploy it with `--mode participant`.
 - **Task 4B:** during the deploy, write the money role's privileges in
-  `workshop/lab-4-credit-writer.sql`. The starter over-grants: its probes show
+  `workshop/lab-4-credit-writer.sql`. As shipped it over-grants: its probes show
   `pellier_credit_writer` raising an approved $25 credit to $500 with a direct
   `UPDATE`. The worksheet commits the privileges once all eight probes match
   and ends `Lab 4B privileges check passed`.
@@ -240,7 +240,7 @@ credit, and the system must prove what moved.
 Exporting the evidence is the last action: `python3 scripts/workshop_evidence.py
 --save <file>` writes one line per task, eight in all. Lines 1B, 2A and 2B
 are read from rows alone; the others run or read the participant's source, so a
-region that still holds its starter is never proved. The guide has no
+region left as shipped is never proved. The guide has no
 participant cleanup step.
 
 Then ask: Memory says Theo prefers stoneware. Could that ever justify a store
@@ -262,8 +262,8 @@ explicitly, and keep the failed measurement.
 
 Give every dry run its own fresh provision. Do not reuse a box after a
 maintainer reset: `scripts/reset-governed-workshop.sh` rebuilds the database,
-restores the exercise files and restores Lab 4's starter policy, but it does
+restores the exercise files and Lab 4's Cedar rule as shipped, but it does
 not undo Lab 3's deploy. The Gateway still publishes `get_tickets` with its
 owner-only permit, and the Runtime still runs the last participant's build, so
 Lab 3's See it fail no longer fails and its build check compares the restored
-starter with that build.
+code, as shipped, with that build.

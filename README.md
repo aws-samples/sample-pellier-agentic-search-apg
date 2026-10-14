@@ -136,7 +136,7 @@ Then run `/governed-postgres-agent review <path>` on your own code. Its [README]
 | `skills/` | Five runtime skills: instructions the agents load, not code |
 | `policies/` | The Cedar policy you complete in Lab 4 |
 | `labs/` | The Code Editor lab groups: each lab's README, links to its two exercise files, and a solution folder |
-| `workshop/` | Lab SQL worksheets and a starter copy of each marked region |
+| `workshop/` | Lab SQL worksheets and a copy of each marked region as shipped |
 | `solutions/` | Reference solutions for the lab tasks |
 | `takeaway/` | `governed-postgres-agent`, the four contracts as an Agent Skill for your own code |
 | `scripts/` | Database setup and migrations, catalog seeding, AgentCore deployment and lab checks |

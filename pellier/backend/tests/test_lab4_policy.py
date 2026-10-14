@@ -146,7 +146,7 @@ class TestTheVerdicts:
         assert "decided by workshop_credit_limit" in evidence
         assert "without your rule, Nadia at 10001 cents: ALLOW" in evidence
         assert evidence.count(": caught,") == len(lab4.MUTATIONS) + 1 == 8
-        assert "policy head: the starter's, unchanged" in evidence
+        assert "policy head: as shipped, unchanged" in evidence
         assert "policies in the file: 1" in evidence
         assert table[4][:5] == ["Nadia, $0.01 (1 cent)", "ALLOW", "DENY", "ALLOW", "ALLOW"]
         assert table[8][:5] == ["A shopper (Jessica) reads the return policy", "ALLOW", "ALLOW",
@@ -256,8 +256,8 @@ class TestTheManagedVerdict:
         assert "tool_audit rows 0, store_credits rows 0" in evidence
         assert "opened and confirmed by the Lab 4 policy check (probe data)" in evidence
         assert "approved by" not in evidence, "no person approved the probe"
-        # The starter denies 10001 too: a DENY while the update propagates proves less.
-        assert "cannot tell your rule from a starter still propagating" in evidence
+        # The rule as shipped denies 10001 too: a DENY while the update propagates proves less.
+        assert "cannot tell your rule from the shipped one still propagating" in evidence
         assert "Jessica's $100.00 credit" in evidence
 
     def test_a_deployed_rule_that_is_not_the_file_is_not_yet(self) -> None:

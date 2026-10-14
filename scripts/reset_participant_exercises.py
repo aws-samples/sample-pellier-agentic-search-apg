@@ -135,7 +135,7 @@ def _check(repo: Path) -> list[str]:
         if _marker_body(destination, exercise.marker) != starter:
             mismatches.append(exercise.exercise_id)
         else:
-            print(f"starter {exercise.exercise_id}: ready")
+            print(f"{exercise.exercise_id}: as shipped, ready")
 
     for exercise in FILE_EXERCISES:
         starter = (repo / exercise.starter).read_bytes()
@@ -143,7 +143,7 @@ def _check(repo: Path) -> list[str]:
         if not destination_path.is_file() or destination_path.read_bytes() != starter:
             mismatches.append(exercise.exercise_id)
         else:
-            print(f"starter {exercise.exercise_id}: ready")
+            print(f"{exercise.exercise_id}: as shipped, ready")
     return mismatches
 
 
@@ -189,7 +189,7 @@ def main() -> int:
             mismatches = _check(repo)
             if mismatches:
                 print(
-                    "participant exercises are not at starter state: "
+                    "participant exercises are not as shipped: "
                     + ", ".join(mismatches),
                     file=sys.stderr,
                 )

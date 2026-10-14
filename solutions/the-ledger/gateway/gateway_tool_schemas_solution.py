@@ -234,7 +234,7 @@ for _target in TOOL_SCHEMAS.values():
 #
 #   get_tickets         reads a customer's support history. The read is only safe
 #                       under an ownership condition, and binding that condition is
-#                       Task 3A, so the starter withholds it.
+#                       Task 3A, so as shipped it is withheld.
 #
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.

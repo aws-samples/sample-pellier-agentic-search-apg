@@ -109,7 +109,7 @@ class TestLab2:
         checks = _by_name(doctor.lab2_checks(evidence, backend=backend))
         assert checks["database reachable"].passed is True
         assert checks["check_stock written"].passed is False
-        assert "still holds its starter" in checks["check_stock written"].detail
+        assert "is unchanged: your edit is not saved there yet" in checks["check_stock written"].detail
         grant = checks[GRANT]
         assert grant.passed is False
         assert grant.detail == ("stock_agent.py grants search_products, browse_department, "
@@ -397,7 +397,7 @@ class TestLab4:
         checks = _by_name(doctor.lab4_checks(FakeEvidence()))
         assert checks["Cedar policy present in policies/"].passed is True
         assert checks[self.NAME].passed is False
-        assert "starter" in checks[self.NAME].detail
+        assert "is unchanged" in checks[self.NAME].detail
 
     def _repo_with_rule(self, tmp_path: Path, body: str) -> Path:
         repo = tmp_path / "repo"

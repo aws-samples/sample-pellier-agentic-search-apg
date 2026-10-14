@@ -2296,7 +2296,7 @@ def test_a_deploy_refuses_an_edited_rule_the_cedar_check_cannot_run_on(
     provisioner = _load_provisioner()
     _cedar_unavailable(monkeypatch)
     repo = _lab4_repo(tmp_path, LAB4_SOLUTION.read_text(encoding="utf-8"))
-    with pytest.raises(RuntimeError, match="differs from its starter, and the Cedar check could"):
+    with pytest.raises(RuntimeError, match="differs from the rule as shipped, and the Cedar check could"):
         provisioner._lab4_rule_gate(repo)
 
 

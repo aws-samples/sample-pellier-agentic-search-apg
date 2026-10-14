@@ -99,7 +99,7 @@ def source_state(key: str) -> str:
 
 def _starter_finding(task: str, title: str, expected: str, where: str) -> check.Finding:
     return check.Finding(task, title, NOT_YET, expected,
-                         f"the marked region in {where} still holds its starter",
+                         f"the marked region in {where} is unchanged: your edit is not saved there yet",
                          [f"{where}: unchanged from workshop/starters"],
                          f"complete Task {task} in {where}, then run its check.")
 

@@ -249,7 +249,7 @@ def _region_built(name: str, path: pathlib.Path, region: str, starter: pathlib.P
     if state == workshop_check.MISSING:
         return Check(name, False, f"the {region} markers are missing from {path.name}")
     if state == workshop_check.STARTER:
-        return Check(name, False, f"the {region} block in {path.name} still holds its starter")
+        return Check(name, False, f"the {region} block in {path.name} is unchanged: your edit is not saved there yet")
     return Check(name, True, f"the {region} block in {path.name} is edited")
 
 
@@ -469,7 +469,7 @@ def _cedar_checks(repo: pathlib.Path) -> List[Check]:
     except OSError as exc:
         return [pair, Check(name, False, f"unreadable: {exc}")]
     if policy == starter:
-        return [pair, Check(name, False, f"{CEDAR_POLICY} still holds its starter; "
+        return [pair, Check(name, False, f"{CEDAR_POLICY} is unchanged: "
                                           "complete the unless block")]
     try:
         finding = lab4_policy.local_check(policy, starter).finding

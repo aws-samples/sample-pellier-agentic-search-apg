@@ -175,7 +175,7 @@ def _stamp(worksheet: Path) -> str:
 def test_a_starter_worksheet_is_not_yet_deployed() -> None:
     finding = rls.judge_deployed(_stamp(SOLUTION), is_starter=True, deployed={})
     assert finding.state == rls.check.NOT_YET
-    assert "starter" in finding.observed
+    assert "ships with" in finding.observed
     assert "workshop/lab-3-row-ownership.sql" in finding.next_step
 
 

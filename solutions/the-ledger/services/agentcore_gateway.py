@@ -120,7 +120,7 @@ def unpublished_tools_note(agent: str, unpublished: Sequence[str]) -> str:
     """The Builder view's line for tools the routed agent asked for and was not given.
 
     Gateway discovery is filtered by policy for each caller, so a tool missing
-    from the list may be unpublished (Lab 3's starter) or published behind a
+    from the list may be unpublished (Lab 3 as shipped) or published behind a
     permit this caller cannot meet. The line says what was observed, not which.
     """
     names = ", ".join(unpublished)
@@ -604,7 +604,7 @@ class ManagedGatewayDispatcher:
             )
             # A tool the Gateway does not list for this caller is not an
             # error: the agent runs without it, says plainly what it cannot
-            # look up, and the Builder view names the tool (Lab 3's starter
+            # look up, and the Builder view names the tool (Lab 3 as shipped
             # shows this). Discovery is policy-filtered, so the tool may be
             # unpublished or published behind a permit this caller cannot meet.
             unpublished = tuple(sorted(set(allowed_tools) - set(selected_names)))
