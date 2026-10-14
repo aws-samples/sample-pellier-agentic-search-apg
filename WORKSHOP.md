@@ -122,9 +122,9 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
 
 - **See it fail:** `workshop/lab-1-words.sql` shows what her sentence finds by
   words alone, because the vector branch as shipped ranks nothing by meaning.
-- **Task 1A:** first run the supplied `workshop/lab-1-meaning.sql`, which ranks
-  the catalog by meaning with the Stoneware Mugs' own embedding, the way the
-  check does. Then rank the eligible products by meaning in the `Vector branch -
+- **Task 1A:** first run the supplied `workshop/lab-1-meaning.sql`, which lists
+  eight products in name order with their distance from the Stoneware Mugs' own
+  embedding, the kind of vector the check searches with. Then rank the eligible products by meaning in the `Vector branch -
   order by meaning` region of `pellier/backend/services/store_tools.py`: order
   by cosine distance to the query embedding and report similarity as 1 minus
   it. `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.

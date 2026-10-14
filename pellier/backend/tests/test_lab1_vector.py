@@ -133,18 +133,21 @@ def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> Non
     assert rows["Sunday Morning Candle"][3] == "a candle"
 
 
-def test_the_meaning_worksheet_finds_the_probe_first(fresh_db) -> None:  # noqa: F811
-    rows = _worksheet_rows(fresh_db, MEANING)
-    ranked = [row for row in rows if row[0].isdigit()]
-    closest, furthest = ranked[:5], ranked[5:]
-    assert closest[0][1:] == ["Stoneware Mugs, Set of 2", "0.0000", "1.0000"]
-    distances = [float(row[2]) for row in closest]
-    assert distances == sorted(distances)
-    assert [float(row[2]) for row in furthest] == sorted(
-        (float(row[2]) for row in furthest), reverse=True)
-    assert float(furthest[0][2]) > distances[-1]
-    for row in closest + furthest:
-        assert abs(float(row[3]) - (1 - float(row[2]))) < 1e-4
+def test_the_meaning_worksheet_shows_distances_without_ranking_them(fresh_db) -> None:  # noqa: F811
+    rows = {row[0]: row[1:] for row in _worksheet_rows(fresh_db, MEANING)
+            if row[0] != "name"}
+    ranked = fresh_db.psql(
+        "WITH q AS (SELECT embedding AS emb FROM pellier.product_catalog "
+        "WHERE name = 'Stoneware Mugs, Set of 2') "
+        'SELECT p.name FROM pellier.product_catalog p CROSS JOIN q '
+        'WHERE p."imgUrl" IS NOT NULL ORDER BY p.embedding <=> q.emb').splitlines()
+    assert set(rows) == set(ranked[:5]) | set(ranked[-3:])
+    assert list(rows) == sorted(rows)
+    assert rows["Stoneware Mugs, Set of 2"] == ["0.0000", "1.0000"]
+    distances = [float(distance) for distance, _ in rows.values()]
+    assert distances != sorted(distances) and distances != sorted(distances, reverse=True)
+    for distance, similarity in rows.values():
+        assert abs(float(similarity) - (1 - float(distance))) < 1e-4
     index = [row for row in _worksheet_rows(fresh_db, MEANING, bars=1)
              if row[0] == "product_catalog_embedding_hnsw"]
     assert index and "vector_cosine_ops" in index[0][1]

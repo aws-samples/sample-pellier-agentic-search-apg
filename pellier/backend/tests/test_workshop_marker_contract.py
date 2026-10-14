@@ -688,12 +688,17 @@ def test_the_lab1_index_check_is_read_only_and_forces_the_index_only_inside_it()
 
 
 def test_the_lab1_meaning_worksheet_is_supplied_and_only_reads() -> None:
-    """Task 1A's discovery worksheet has no region to author and changes nothing."""
+    """Task 1A's discovery worksheet has no region to author and changes nothing.
+
+    It measures distances but never orders by one, so the order Task 1A writes
+    and its direction cannot be copied from it.
+    """
     sql = _read(LAB1_MEANING_WORKSHEET)
+    body = sql.split("Run:")[1]
     assert "=== WORKSHOP" not in sql
-    assert "embedding <=> q.emb" in sql and "vector_cosine_ops" in sql
-    assert not re.search(r"\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT)\b",
-                         sql.split("Run:")[1])
+    assert "p.embedding <=> q.emb" in body and "vector_cosine_ops" in sql
+    assert not re.search(r"\b(INSERT|UPDATE|DELETE|CREATE|ALTER|DROP|GRANT)\b", body)
+    assert not re.search(r"ORDER BY[^;]*<=>|\bDESC\b", body)
 
 
 def test_no_lab_anchor_is_a_broken_path() -> None:

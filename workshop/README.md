@@ -40,10 +40,10 @@ The two worksheets run during their labs' deploys and print their own lines:
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql`.
 
-Before Task 1A's edit, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql` ranks the catalog by meaning with
-a product's own stored embedding: that product comes back first at distance 0, the
-wrong direction puts the furthest meaning first, and the HNSW index names its
-operator class. It only reads.
+Before Task 1A's edit, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql` measures eight products against
+a product's own stored embedding: that product sits at distance 0, and the rows come
+in name order, so the ranking and its direction stay Task 1A's to write. The HNSW
+index names its operator class. It only reads.
 
 Optional in Lab 1: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-fusion.sql`
 recomputes the fused scores Anna's search recorded from their two ranks, and
