@@ -15,6 +15,13 @@ relaxation never ran Task 1B's code, so it proves nothing either way. A
 request that stated no limit proves nothing either, so the check asks for the
 guide's request.
 
+Run on the box, it also reads when search_plan.py last changed and when the
+backend last started. A backend started before the edit is still running the
+old code, and a search older than the edit was made by it, so neither is
+judged: the finding says to restart, or to send Anna's request again. A later
+restart for another lab does not date the search. Without that timeline (the
+Wrap-up summary reads rows alone) it judges the newest search as it is.
+
     python3 scripts/lab1_check.py --task 1B
 """
 
@@ -23,7 +30,10 @@ from __future__ import annotations
 import json
 import pathlib
 import re
+import subprocess
 import sys
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -46,6 +56,69 @@ NEXT_STEP = (
     f"send Anna's request again ({SEND}), then rerun this check."
 )
 NEXT_REQUEST = f"send Anna's request with {SEND}, then rerun this check."
+SEARCH_PLAN = check.REPO / "pellier" / "backend" / "services" / "search_plan.py"
+RESTART = "sudo systemctl restart pellier"
+
+
+@dataclass(frozen=True)
+class Timeline:
+    """When search_plan.py last changed and when the backend last started; None if unknown."""
+
+    edited_at: Optional[datetime]
+    started_at: Optional[datetime]
+
+
+def service_started(value: str) -> Optional[datetime]:
+    """systemd's ActiveEnterTimestamp (``Wed 2026-10-14 14:46:19 UTC``) as UTC; None otherwise."""
+    if not value.endswith((" UTC", " GMT")):
+        return None
+    try:
+        return datetime.strptime(value[:-4], "%a %Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def timeline() -> Timeline:
+    """This box's timeline: search_plan.py's modification time and pellier's systemd start."""
+    try:
+        edited: Optional[datetime] = datetime.fromtimestamp(SEARCH_PLAN.stat().st_mtime,
+                                                            tz=timezone.utc)
+    except OSError:
+        edited = None
+    try:
+        shown = subprocess.run(
+            ["systemctl", "show", "pellier", "-p", "ActiveEnterTimestamp", "--value"],
+            capture_output=True, text=True, timeout=5, check=False,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        shown = ""
+    return Timeline(edited, service_started(shown))
+
+
+def _clock(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).strftime("%H:%M:%S UTC")
+
+
+def stale(receipt: Dict[str, Any], when: Optional[Timeline]) -> Optional[Tuple[str, str]]:
+    """Why the newest search cannot show the code now running, and the next step; else None."""
+    if when is None:
+        return None
+    edited, started = when.edited_at, when.started_at
+    if edited and started and started < edited:
+        return (f"pellier last started at {_clock(started)}, before your last change to "
+                f"search_plan.py at {_clock(edited)}, so the code running is not your edit yet",
+                f"restart the backend ({RESTART}), send Anna's request again ({SEND}), then "
+                "rerun this check.")
+    created = receipt.get("created_at")
+    if not isinstance(created, datetime) or edited is None:
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    if created < edited:
+        return (f"Anna's newest search ran at {_clock(created)}, before your last change to "
+                f"search_plan.py at {_clock(edited)}, so the code before your edit made it",
+                f"send Anna's request again ({SEND}), then rerun this check.")
+    return None
 
 # Anna's newest turn, not just her newest receipt: a turn can run more than one
 # search, and the one that needed the fallback is the one Task 1B decides. A
@@ -186,10 +259,12 @@ def _evidence(receipt: Dict[str, Any], requested: Optional[Dict[str, Any]]) -> L
     ]
 
 
-def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
+def evaluate(conn: Any, when: Optional[Timeline] = None
+             ) -> Tuple[check.Finding, List[Sequence[Any]]]:
     """Judge the search of Anna's newest turn that needed the fallback (else its newest).
 
-    Returns the finding and one row per product.
+    Returns the finding and one row per product. With ``when``, a search older than
+    the last edit or restart is not judged, and no product rows are returned.
     """
     with conn.cursor() as cur:
         cur.execute(_LATEST_RECEIPT, {"session": ANNA_SESSION_PREFIX + "%"})
@@ -201,6 +276,15 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
                 ["pellier.retrieval_receipts has no row whose session starts persona-anna-"],
                 NEXT_REQUEST,
             ), []
+        reason = stale(receipt, when)
+        if reason:
+            edited = _clock(when.edited_at) if when.edited_at else "unknown"
+            started = _clock(when.started_at) if when.started_at else "unknown"
+            evidence = _evidence(receipt, requested_limits(receipt)) + [
+                f"search_plan.py last changed: {edited}", f"pellier last started: {started}",
+            ]
+            return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, reason[0], evidence,
+                                 reason[1]), []
         ids = [str(value) for value in _as_list(receipt.get("citation_ids"))]
         cur.execute(_PRODUCTS, (ids,))
         catalog = {str(row["product_id"]): row for row in cur.fetchall()}
@@ -271,7 +355,7 @@ def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List
                              [check.missing_settings_reason(env_path)]), []
     try:
         with check.connect(cfg) as conn:
-            return evaluate(conn)
+            return evaluate(conn, timeline())
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
         return check.Finding("1B", TITLE, check.UNCHECKED, EXPECTED, "the check could not look",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],

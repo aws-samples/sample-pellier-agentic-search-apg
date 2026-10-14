@@ -101,3 +101,137 @@ def test_the_guides_request_is_annas_first_suggestion() -> None:
     anna = sorted((p for p in prompts if p["persona"] == "anna"), key=lambda p: p["ordinal"])
     assert anna[0]["prompt"] == lab1.ANNA_REQUEST
     assert anna[0]["journey_role"] == "required"
+
+
+# --- A search older than the edit or the restart is never judged ---------------------------
+
+from datetime import datetime, timezone  # noqa: E402
+
+RAN = datetime(2026, 10, 14, 14, 45, 43, tzinfo=timezone.utc)
+EDITED = datetime(2026, 10, 14, 14, 46, 10, tzinfo=timezone.utc)
+RESTARTED = datetime(2026, 10, 14, 14, 46, 19, tzinfo=timezone.utc)
+CANDLE = {"product_id": "80", "name": "Sunday Morning Candle", "price": 28, "quantity": 24,
+          "category": "Home", "tags": ["candle"], "materials": []}
+
+
+class _Conn:
+    """The two queries evaluate() runs: Anna's newest receipt, then its products."""
+
+    def __init__(self, receipt: Dict[str, Any], catalog: List[Dict[str, Any]]) -> None:
+        self.receipt, self.catalog, self.queries = receipt, catalog, 0
+
+    def cursor(self) -> "_Conn":
+        return self
+
+    def __enter__(self) -> "_Conn":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def execute(self, sql: str, params: Any = None) -> None:
+        self.queries += 1
+
+    def fetchone(self) -> Dict[str, Any]:
+        return self.receipt
+
+    def fetchall(self) -> List[Dict[str, Any]]:
+        return self.catalog
+
+
+def _dropped_at(created: datetime) -> Dict[str, Any]:
+    """The receipt the code as shipped writes: every limit dropped, a candle returned."""
+    receipt = _receipt(kept={"price_max_usd": None, "in_stock_only": False, "categories": []},
+                       exclusions=[])
+    receipt.update(created_at=created, citation_ids=["80"])
+    return receipt
+
+
+def test_a_search_older_than_the_edit_is_not_judged() -> None:
+    """The tester's sequence: the solution installed and restarted, Anna not sent again."""
+    conn = _Conn(_dropped_at(RAN), [CANDLE])
+    finding, rows = lab1.evaluate(conn, lab1.Timeline(EDITED, RESTARTED))
+    assert finding.state == "NOT YET"
+    assert finding.observed == ("Anna's newest search ran at 14:45:43 UTC, before your last "
+                                "change to search_plan.py at 14:46:10 UTC, so the code before "
+                                "your edit made it")
+    assert finding.next_step == ("send Anna's request again (python3 scripts/lab_run.py send "
+                                 "--lab 1), then rerun this check.")
+    assert "pellier last started: 14:46:19 UTC" in finding.evidence
+    assert rows == [] and conn.queries == 1, "the stale search's products are not judged"
+
+
+def test_a_backend_started_before_the_edit_asks_for_a_restart() -> None:
+    finding, rows = lab1.evaluate(_Conn(_dropped_at(RAN), [CANDLE]),
+                                  lab1.Timeline(RESTARTED, EDITED))
+    assert finding.state == "NOT YET"
+    assert finding.observed.startswith("pellier last started at 14:46:10 UTC, before your last "
+                                       "change to search_plan.py at 14:46:19 UTC")
+    assert finding.next_step.startswith("restart the backend (sudo systemctl restart pellier)")
+    assert rows == []
+
+
+def test_a_later_restart_for_another_lab_does_not_date_the_search() -> None:
+    """Lab 2 restarts pellier; Anna's passing search from after her edit still proves 1B."""
+    sent = datetime(2026, 10, 14, 14, 47, 6, tzinfo=timezone.utc)
+    lab2 = datetime(2026, 10, 14, 14, 48, 30, tzinfo=timezone.utc)
+    receipt = _receipt()
+    receipt.update(created_at=sent, citation_ids=["65"])
+    mugs = {"product_id": "65", "name": "Stoneware Mugs, Set of 2", "price": 38, "quantity": 24,
+            "category": "Kitchen", "tags": ["stoneware"], "materials": []}
+    finding, _rows = lab1.evaluate(_Conn(receipt, [mugs]), lab1.Timeline(EDITED, lab2))
+    assert finding.state == "PROVED"
+
+
+def test_without_systemd_the_edit_alone_dates_the_search() -> None:
+    finding, _rows = lab1.evaluate(_Conn(_dropped_at(RAN), [CANDLE]), lab1.Timeline(EDITED, None))
+    assert finding.state == "NOT YET"
+    assert "before your last change to search_plan.py at 14:46:10 UTC" in finding.observed
+
+
+def test_a_search_after_the_restart_is_judged_as_before() -> None:
+    """A wrong edit still reads CONTRADICTED once Anna has been sent again."""
+    later = datetime(2026, 10, 14, 14, 47, 6, tzinfo=timezone.utc)
+    finding, rows = lab1.evaluate(_Conn(_dropped_at(later), [CANDLE]),
+                                  lab1.Timeline(EDITED, RESTARTED))
+    assert finding.state == "CONTRADICTED"
+    assert rows and rows[0][-1] == "breaks: excluded candle"
+
+
+def test_no_timeline_keeps_the_rows_only_reading() -> None:
+    """The Wrap-up summary has no timeline; it judges the newest search as it is."""
+    finding, _rows = lab1.evaluate(_Conn(_dropped_at(RAN), [CANDLE]))
+    assert finding.state == "CONTRADICTED"
+
+
+@pytest.mark.parametrize("value, expected", [
+    ("Wed 2026-10-14 14:46:19 UTC", RESTARTED),
+    ("", None),
+    ("n/a", None),
+    ("Wed 2026-10-14 16:46:19 CEST", None),
+])
+def test_systemds_start_time_is_read_only_in_utc(value: str, expected: Optional[datetime]) -> None:
+    assert lab1.service_started(value) == expected
+
+
+def test_the_timeline_reads_the_file_and_systemd(monkeypatch: pytest.MonkeyPatch,
+                                                 tmp_path: Path) -> None:
+    plan = tmp_path / "search_plan.py"
+    plan.write_text("# edited\n")
+    monkeypatch.setattr(lab1, "SEARCH_PLAN", plan)
+
+    class _Shown:
+        stdout = "Wed 2026-10-14 14:46:19 UTC\n"
+
+    monkeypatch.setattr(lab1.subprocess, "run", lambda *args, **kwargs: _Shown())
+    when = lab1.timeline()
+    assert when.started_at == RESTARTED
+    assert when.edited_at == datetime.fromtimestamp(plan.stat().st_mtime, tz=timezone.utc)
+
+
+def test_no_systemctl_leaves_the_start_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _missing(*args: Any, **kwargs: Any) -> None:
+        raise FileNotFoundError("systemctl")
+
+    monkeypatch.setattr(lab1.subprocess, "run", _missing)
+    assert lab1.timeline().started_at is None
