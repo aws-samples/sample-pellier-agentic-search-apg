@@ -706,6 +706,12 @@ def make_tool_audit_hooks(
         # Gateway.
         if not (tool_use_id and tool_name) or tool_name in AGENT_LOCAL_TOOLS:
             return
+        # A tool outside the agent's own registry never runs (Strands answers it
+        # "Unknown tool"), so it leaves no row: tool_audit records executed calls.
+        agent = getattr(event, "agent", None)
+        held = getattr(agent, "tool_names", None)
+        if held is not None and tool_name not in held:
+            return
         tool_t0[tool_use_id] = time.perf_counter()
         # Evidence spine, tool boundary. Strands' [otel] integration already
         # opened a span for this tool call, so annotate it rather than adding
@@ -737,7 +743,6 @@ def make_tool_audit_hooks(
             # The agent that called the tool, and every store tool it held
             # for this turn, from its own registry: Lab 2B's check reads the
             # grant the answering agent actually had from this row.
-            agent = getattr(event, "agent", None)
             if agent is not None:
                 audit_args["agent"] = str(agent.name)
                 audit_args["grant"] = granted_tools(agent.tool_names)

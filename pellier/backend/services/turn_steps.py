@@ -122,8 +122,20 @@ def parse_result(result_text: Any) -> Dict[str, Any]:
     return {"_text": text}
 
 
+# Strands answers a call to a tool outside the agent's registry with this text and
+# status "error"; the tool body never ran.
+_NOT_HELD_PREFIX = "Unknown tool:"
+
+
+def tool_not_held(parsed: Dict[str, Any]) -> bool:
+    """True when the agent called a tool it does not hold, so nothing ran."""
+    return str(parsed.get("_text") or "").strip().startswith(_NOT_HELD_PREFIX)
+
+
 def result_failed(tool: str, parsed: Dict[str, Any]) -> bool:
     """True when the tool reported an error rather than an answer."""
+    if tool_not_held(parsed):
+        return True
     if "error" in parsed and tool != "compare_products":
         return True
     if tool == "compare_products" and parsed.get("status") not in ("success", "not_found"):
@@ -360,6 +372,8 @@ def finding_for(
             the filter counts were taken.
         carried: The limit kinds kept from earlier in the conversation.
     """
+    if tool_not_held(parsed):
+        return f"{tool} is not one of this agent's tools; it did not run"
     if result_failed(tool, parsed):
         return ERROR_FINDINGS.get(tool, _GENERIC_ERROR_FINDING)
     if tool == "search_products":

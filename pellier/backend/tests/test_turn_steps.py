@@ -206,6 +206,17 @@ def test_an_error_result_uses_the_error_template_and_never_the_raw_text(tool: st
     assert "psycopg" not in finding
 
 
+@pytest.mark.parametrize("tool", ["check_stock", "get_tickets", "search_products"])
+def test_a_tool_the_agent_does_not_hold_did_not_run_and_the_step_says_so(tool: str) -> None:
+    """Strands answers a call to a tool outside the agent's registry with "Unknown tool"."""
+    refused = parse_result(f"Unknown tool: {tool}")
+    assert finding_for(tool, refused) == f"{tool} is not one of this agent's tools; it did not run"
+    assert turn_steps.result_failed(tool, refused)
+    step = TurnSteps().finished(tool, f"Unknown tool: {tool}", call_id="tu-1")
+    assert step["status"] == "failed"
+    assert "Sold out" not in step["finding"]
+
+
 def test_prose_results_parse_to_text() -> None:
     assert parse_result("Skill 'x' not found. Available skills: a") == {
         "_text": "Skill 'x' not found. Available skills: a"

@@ -777,7 +777,10 @@ class _NodeHooks:
         self._started[str(tool_use_id)] = time.perf_counter()
         if name in STEP_LABELS:
             self.case.emit(step_event(name, label=self._label(name), status="running", tool=name, agent=self.node))
-        if self.node == INVESTIGATOR_NODE:
+        names = getattr(getattr(event, "agent", None), "tool_names", None)
+        held = names is None or name in names
+        if self.node == INVESTIGATOR_NODE and held:
+            # A tool outside the agent's registry never runs, so it leaves no row.
             from services import tool_audit_writer
 
             tool_audit_writer.record_allow(

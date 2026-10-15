@@ -173,10 +173,32 @@ def test_the_audit_row_records_the_agent_and_the_grant_it_was_built_with(
     monkeypatch.setattr(tool_audit_writer, "record_allow", lambda **kw: rows.append(kw))
     before, _after = chat_module.make_tool_audit_hooks(session_id="persona-marco-x",
                                                        turn_id="turn-x")
+    held = _names(grant)[0]  # a call to a tool the agent does not hold writes no row
     before(SimpleNamespace(agent=agent, tool_use={
-        "name": "check_stock", "toolUseId": "tu-1", "input": {"product_query": "Hadley"}}))
+        "name": held, "toolUseId": "tu-1", "input": {"product_query": "Hadley"}}))
     assert rows[0]["args"]["agent"] == "stock"
     assert rows[0]["args"]["grant"] == _names(grant)
+
+
+def test_a_tool_the_running_agent_does_not_hold_leaves_no_audit_row(monkeypatch) -> None:
+    """The starter's prompt names check_stock; a call to it never runs, so no row is written."""
+    from agents import stock_agent
+    from services import chat as chat_module
+    from services import tool_audit_writer
+
+    monkeypatch.setattr(stock_agent, "_STOCK_TOOLS", lab_variants.stock_grant("starter"))
+    agent = stock_agent.build_stock_agent()
+    assert "check_stock" not in agent.tool_names
+    rows: list = []
+    monkeypatch.setattr(tool_audit_writer, "record_allow", lambda **kw: rows.append(kw))
+    before, _after = chat_module.make_tool_audit_hooks(session_id="persona-marco-x",
+                                                       turn_id="turn-x")
+    before(SimpleNamespace(agent=agent, tool_use={
+        "name": "check_stock", "toolUseId": "tu-1", "input": {"product_query": "Hadley"}}))
+    assert rows == []
+    before(SimpleNamespace(agent=agent, tool_use={
+        "name": "search_products", "toolUseId": "tu-2", "input": {"query": "Hadley"}}))
+    assert [row["tool_name"] for row in rows] == ["search_products"]
 
 
 def _audit(conn: Any, turn: str, tool: str, args: Dict[str, Any], result: Dict[str, Any], *,
