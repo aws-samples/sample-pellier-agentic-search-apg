@@ -12,9 +12,9 @@ A task that opens with its own request sends just that one with ``--task``:
     python3 scripts/lab_run.py send --lab 1 --task 1A
 
 ``solution --task`` installs one task's answer and nothing else. It prints the change
-from your file to the answer, keeps your file beside its editor link as ``.bak`` (the
-first version only: a second run never replaces it), restarts the backend when a backend
-file changed, and names the next command. A SQL or Cedar answer is only installed;
+from your file to the answer, keeps your file beside its editor link as ``.bak`` (a later,
+different attempt as ``.bak.2`` and on, so none is overwritten), restarts the backend when a
+backend file changed, and names the next command. A SQL or Cedar answer is only installed;
 running the exercise or deploying is that next command:
 
     python3 scripts/lab_run.py solution --lab 1 --task 1A
@@ -227,11 +227,11 @@ def _print_change(alias: str, yours: bytes, answer: bytes) -> None:
 
 def install_task(task: str, repo: pathlib.Path = REPO,
                  restart: Optional[Callable[[], None]] = None, next_line: bool = True) -> None:
-    """Put one task's answer in place and keep the participant's first version beside it.
+    """Put one task's answer in place and keep every version it replaces beside it.
 
     Only the task's own files change, so a later task's work and evidence stay as they
-    are. The backup sits next to the editor link as ``<link>.bak`` and is written once:
-    a second run keeps the first version rather than replacing it with the answer.
+    are. The first version is kept next to the editor link as ``<link>.bak``; a later,
+    different attempt goes to ``<link>.bak.2`` and on, so no attempt is ever overwritten.
     ``restart`` runs when a backend file changed, because the app serves what it loaded.
     """
     backend_changed = False
@@ -243,13 +243,7 @@ def install_task(task: str, repo: pathlib.Path = REPO,
             ok(f"{alias} already holds the answer")
             continue
         _print_change(alias, yours, finished)
-        backup = repo / f"{alias}.bak"
-        if backup.exists():
-            ok(f"your first version is still in {alias}.bak")
-        else:
-            backup.parent.mkdir(parents=True, exist_ok=True)
-            backup.write_bytes(yours)
-            ok(f"your version is kept in {alias}.bak")
+        ok(_keep(repo, alias, yours))
         shutil.copyfile(answer, target)
         ok(f"{alias} now holds the answer")
         backend_changed = backend_changed or entry["source"].startswith(BACKEND_DIR)
@@ -257,6 +251,21 @@ def install_task(task: str, repo: pathlib.Path = REPO,
         restart()
     if next_line:
         print("  Next: " + ", then ".join(NEXT_AFTER_TASK[task]), flush=True)
+
+
+def _keep(repo: pathlib.Path, alias: str, yours: bytes) -> str:
+    """Save the participant's version beside the link unless a backup already holds it."""
+    number = 1
+    while True:
+        name = f"{alias}.bak" if number == 1 else f"{alias}.bak.{number}"
+        backup = repo / name
+        if not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            backup.write_bytes(yours)
+            return f"your version is kept in {name}"
+        if backup.read_bytes() == yours:
+            return f"your version is already kept in {name}"
+        number += 1
 
 
 def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run) -> None:

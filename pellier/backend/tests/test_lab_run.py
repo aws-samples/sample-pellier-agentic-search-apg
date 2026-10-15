@@ -278,24 +278,30 @@ def test_reapplying_1a_keeps_a_1b_that_already_passed(tmp_path: Path) -> None:
     assert (repo / one_b["source"]).read_bytes() == (repo / one_b["solution"]).read_bytes()
 
 
-def test_the_participants_file_is_kept_once_and_never_replaced(
+def test_every_attempt_the_answer_replaces_is_kept_and_none_is_overwritten(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
     repo = _scratch_repo(tmp_path)
     (entry,) = _task_entries(repo, "1B")
-    source, backup = repo / entry["source"], repo / (entry["alias"] + ".bak")
+    source = repo / entry["source"]
+    first, second = (repo / (entry["alias"] + suffix) for suffix in (".bak", ".bak.2"))
     source.write_text("my first attempt\n")
 
     lab_run.install_task("1B", repo, restart=_restarts())
-    assert backup.read_text() == "my first attempt\n"
-    assert "labs/01-retrieve/1B-search-plan.py.bak" in capsys.readouterr().out
+    assert first.read_text() == "my first attempt\n"
+    assert "kept in labs/01-retrieve/1B-search-plan.py.bak" in capsys.readouterr().out
 
     source.write_text("my second attempt\n")
     lab_run.install_task("1B", repo, restart=_restarts())
-    assert backup.read_text() == "my first attempt\n"
+    assert first.read_text() == "my first attempt\n"
+    assert second.read_text() == "my second attempt\n"
     assert source.read_bytes() == (repo / entry["solution"]).read_bytes()
-    assert "your first version is still in labs/01-retrieve/1B-search-plan.py.bak" in (
-        capsys.readouterr().out)
+    assert "kept in labs/01-retrieve/1B-search-plan.py.bak.2" in capsys.readouterr().out
+
+    source.write_text("my first attempt\n")
+    lab_run.install_task("1B", repo, restart=_restarts())
+    assert not (repo / (entry["alias"] + ".bak.3")).exists()
+    assert "already kept in labs/01-retrieve/1B-search-plan.py.bak" in capsys.readouterr().out
 
 
 def test_a_file_that_already_holds_the_answer_is_left_alone(

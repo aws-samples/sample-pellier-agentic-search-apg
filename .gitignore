@@ -134,3 +134,4 @@ audit/
 
 # lab_run.py solution --task keeps a participant's own version beside its editor link.
 labs/*/*.bak
+labs/*/*.bak.*
