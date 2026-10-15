@@ -647,9 +647,6 @@ def execute_until_allowed(backend: Backend, token: str, review: int) -> Dict[str
         time.sleep(RETRY_SECONDS)
 
 
-LIVE_REVIEW = ("pending", "approved")
-
-
 def jessicas_reviews(backend: Backend, token: str) -> List[Dict[str, Any]]:
     """Jessica's credit reviews, newest first. The Lab 4 check's probe reviews are not hers."""
     reviews = backend.get_json("/api/operator/reviews", token).get("reviews") or []
@@ -669,8 +666,9 @@ def settle_credit(backend: Backend, token: str,
     """Nadia's part, at most once: return the review that holds Jessica's credit.
 
     A credited review is left as it is: nothing is investigated, approved or written. A
-    live review (pending or approved) is finished rather than reopened, so a person's own
-    approval stands. Only when Jessica has neither does Nadia investigate.
+    live review is finished rather than reopened, an approved one before a pending one, so a
+    person's own approval stands. A review a person rejected is not overruled. Only when
+    Jessica has no review at all does Nadia investigate.
     """
     if reviews is None:
         reviews = jessicas_reviews(backend, token)
@@ -679,7 +677,13 @@ def settle_credit(backend: Backend, token: str,
         ok(f"review {done['reviewId']} already credited Jessica; nothing is investigated, "
            "approved or written again")
         return int(done["reviewId"])
-    live = next((r for r in reviews if r.get("status") in LIVE_REVIEW), None)
+    live = (next((r for r in reviews if r.get("status") == "approved"), None)
+            or next((r for r in reviews if r.get("status") == "pending"), None))
+    if live is None and reviews:
+        raise LabRunError(f"review {reviews[0]['reviewId']} was rejected, and this command does "
+                          "not overrule a person's decision. To credit Jessica, investigate "
+                          "Jessica's case in the Operator to open a new review, then run this "
+                          "again.")
     proposal = live or investigate(backend, token, CREDIT_CLIENT)
     review = int(proposal["reviewId"])
     if live is not None:

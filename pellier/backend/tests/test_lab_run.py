@@ -638,6 +638,28 @@ def test_lab_4_finishes_the_review_a_person_approved_without_investigating_again
         "/api/operator/reviews", "/api/operator/reviews/41/execute"]
 
 
+def test_lab_4_finishes_the_approved_review_before_a_newer_pending_one(
+    fake: FakeBackend,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.reviews = [_review("pending", "NOT_REACHED", 52), _review("approved", "NOT_REACHED")]
+    assert _run(fake, 4) == 0
+    assert [r["path"] for r in _operator(fake)] == [
+        "/api/operator/reviews", "/api/operator/reviews/41/execute"]
+
+
+def test_lab_4_stops_rather_than_overrule_a_person_who_rejected_the_credit(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.reviews = [_review("rejected", "NOT_REACHED")]
+    assert _run(fake, 4) == 1
+    assert [r["path"] for r in _operator(fake)] == ["/api/operator/reviews"]
+    err = capsys.readouterr().err
+    assert "review 41 was rejected" in err
+    assert "investigate Jessica's case in the Operator" in err
+
+
 def test_lab_4_retries_while_the_new_cedar_rule_applies(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
