@@ -52,7 +52,6 @@ export default function CopyId({ value, noun }: CopyIdProps) {
       <button type="button" className="tn-copy" onClick={copy} aria-label={label} title={label}>
         {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
       </button>
-      <span className="gov-visually-hidden" role="status">{copied ? `Copied ${noun}` : ''}</span>
     </span>
   )
 }

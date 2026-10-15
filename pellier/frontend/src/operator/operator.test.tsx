@@ -585,7 +585,8 @@ describe('the execution actions and their outcomes', () => {
     const card = await screen.findByTestId('operator-proposed-credit')
     fireEvent.click(within(card).getByRole('button', { name: 'Copy write key' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(WRITE_KEY))
-    expect(await within(card).findByRole('button', { name: 'write key copied' })).toBeInTheDocument()
+    expect(await within(card).findByRole('status')).toHaveTextContent('write key copied')
+    expect(within(card).getByRole('button', { name: 'Copy write key' })).toBeInTheDocument()
   })
 })
 
@@ -599,6 +600,51 @@ describe('check details', () => {
     const denied = gatewayDetail(DENIED_ON_RELOAD.execution!.notes.policy!)
     expect(denied.verdict).toBe('The Gateway answered: denied. The tool never ran.')
     expect(denied.note).toContain('Forbid: credit_limit_forbid')
+  })
+
+  it('shows the LOG_ONLY caveat instead of a bare allowed', () => {
+    const logOnly = 'The Gateway answered: allowed, 2026-10-04 15:04 UTC. The call went through and the tool ran, '
+      + 'but the attachment read just before the call was LOG_ONLY, so that is not a decision. '
+      + 'tool_audit and store_credits show what ran and what was paid.'
+    expect(gatewayDetail(logOnly)).toEqual({
+      verdict: 'The Gateway answered: allowed.',
+      caveat: 'The call went through and the tool ran, but the attachment read just before the call was LOG_ONLY, '
+        + 'so that is not a decision.',
+      note: '2026-10-04 15:04 UTC. Evidence: tool_audit and store_credits.',
+    })
+    const unreadable = logOnly.replace('LOG_ONLY', 'unreadable').replace('2026-10-04 15:04 UTC', 'an earlier attempt')
+    expect(gatewayDetail(unreadable).caveat).toContain('unreadable, so that is not a decision')
+  })
+
+  it('keeps every other backend Policy and Recorded sentence', () => {
+    const notes = [
+      'AgentCore Policy evaluated the action and permitted it.',
+      'The gateway is LOG_ONLY, so the call returning is not a decision.',
+      'The policy engine state could not be read, so no verdict is claimed.',
+      'Cedar denied the action; the tool was never entered.',
+      'This execution ran in process, so AgentCore Policy was not consulted. Only the managed Gateway rail produces a Cedar verdict.',
+      'Refused by the desk: the governed rail was not ready, an earlier attempt. The desk sends nothing to the Gateway. '
+        + 'tool_audit and store_credits show what ran and what was paid.',
+      'Ran in process, 2026-10-04 15:04 UTC. No policy engine was asked. tool_audit and store_credits show what ran and what was paid.',
+    ]
+    for (const text of notes) {
+      const detail = gatewayDetail(text)
+      const shown = [detail.verdict, detail.caveat, detail.note].filter(Boolean).join(' ')
+      for (const word of text.split(/\s+/).map(w => w.replace(/^\(|[.,;:)]+$/g, ''))) expect(shown).toContain(word)
+    }
+  })
+
+  it('renders the caveat on the card beside an allowed verdict', async () => {
+    const logOnly = 'The Gateway answered: allowed, 2026-10-04 15:04 UTC. The call went through and the tool ran, '
+      + 'but the attachment read just before the call was LOG_ONLY, so that is not a decision. '
+      + 'tool_audit and store_credits show what ran and what was paid.'
+    api.fetchReview.mockResolvedValue(detail({
+      ...EXECUTED_REVIEW,
+      execution: { ...EXECUTED_REVIEW.execution!, notes: { policy: logOnly } },
+    }, RECORDED_ONCE))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const card = await screen.findByTestId('operator-proposed-credit')
+    expect(await within(card).findByTestId('operator-check-caveat')).toHaveTextContent('so that is not a decision')
   })
 
   it('splits text of any other shape on its first sentence', () => {

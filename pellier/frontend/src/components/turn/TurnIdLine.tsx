@@ -14,7 +14,7 @@ import LayerTag from './LayerTag'
 export default function TurnIdLine({ turnId }: { turnId: string }) {
   const { copied, copy, target } = useCopy(turnId)
 
-  const label = copied ? 'Turn id copied' : 'Copy turn id'
+  const label = 'Copy turn id'
   return (
     <p className="tn-turn" data-testid="turn-id">
       <LayerTag>Turn</LayerTag>

@@ -78,8 +78,8 @@ describe('the turn id in the Builder view', () => {
     renderBody([answer()], true)
     fireEvent.click(screen.getByRole('button', { name: 'Copy turn id' }))
     expect(writeText).toHaveBeenCalledWith(TURN)
-    expect(await screen.findByRole('button', { name: 'Turn id copied' })).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('Turn id copied')
+    expect(await screen.findByRole('status')).toHaveTextContent('Turn id copied')
+    expect(screen.getByRole('button', { name: 'Copy turn id' })).toBeInTheDocument()
   })
 
   it('selects the id when the clipboard refuses, so the shortcut still copies it', async () => {

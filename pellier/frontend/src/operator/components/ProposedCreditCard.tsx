@@ -57,9 +57,14 @@ export function presentIdentity(value: string | undefined | null): string {
 /** The Lab 4 policy check's over-limit probe, as the desk names it. */
 export const POLICY_CHECK_PROBE_LINE = 'Opened and confirmed by the Lab 4 policy check (probe data, covers no order)'
 
-/** A check's explanation: one verdict line, then a muted line for the rest. */
-interface CheckDetail {
+/**
+ * A check's explanation: one verdict line, a caveat the reader must not miss
+ * (text the desk does not recognise, such as "that is not a decision"), then a
+ * muted line for the facts.
+ */
+export interface CheckDetail {
   verdict: string
+  caveat?: string
   note?: string
 }
 
@@ -72,35 +77,68 @@ interface Check {
   detail: CheckDetail
 }
 
-const SENTENCE_BREAK = /(?<=[.!?])\s+(?=[A-Z])/
+/** A sentence ends at punctuation before a capital letter: prose written for people. */
+const PROSE_BREAK = '[.!?]\\s+(?=[A-Z])'
+/** The backend's stored note also starts a sentence with an identifier such as tool_audit. */
+const NOTE_BREAK = '[.!?]\\s+(?=\\S)'
+
+function splitSentences(text: string, breakPattern: string = PROSE_BREAK): string[] {
+  const sentences: string[] = []
+  const boundary = new RegExp(breakPattern, 'g')
+  let start = 0
+  for (let match = boundary.exec(text); match; match = boundary.exec(text)) {
+    sentences.push(text.slice(start, match.index + 1))
+    start = match.index + match[0].length
+  }
+  sentences.push(text.slice(start))
+  return sentences.filter(sentence => sentence.length > 0)
+}
 
 /** The first sentence as the verdict, whatever follows as the muted line. */
 export function splitDetail(text: string): CheckDetail {
-  const [verdict, ...rest] = text.trim().split(SENTENCE_BREAK)
+  const [verdict = '', ...rest] = splitSentences(text.trim())
   return rest.length > 0 ? { verdict, note: rest.join(' ') } : { verdict }
 }
 
-const GATEWAY_ANSWER = /^The Gateway answered: (allowed|denied)(?:, (\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC))?\./
+const GATEWAY_ANSWER = /^The Gateway answered: (allowed|denied)(?:, (\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC|an earlier attempt))?\./
+const ENFORCED_SENTENCE = /^The call went through and the tool ran, and the engine read just before the call was under ([A-Z_]+), so AgentCore Policy permitted it\.$/
+const DENIED_SENTENCE = /^AgentCore Policy denied it before the tool ran(?: \(forbid policies naming this action just before the call: ([^)]+)\))?\.$/
+const EVIDENCE_SENTENCE = /^tool_audit and store_credits show what ran and what was paid\.$/
+const STAMP = /^\d{4}-/
 
 /**
  * The Gateway's stored note as a verdict and a facts line: the answer, then
- * the mode, the time and where the evidence is. Text in any other shape is
- * split on its first sentence instead.
+ * the mode, the time and where the evidence is. A sentence in a shape the desk
+ * does not recognise is never dropped: it is shown as the caveat, so an
+ * "allowed" that the backend qualifies is never shown bare. Text that is not a
+ * Gateway answer is split on its first sentence instead.
  */
 export function gatewayDetail(text: string): CheckDetail {
   const answer = GATEWAY_ANSWER.exec(text)
   if (!answer) return splitDetail(text)
-  const [, outcome, when] = answer
-  const mode = /\bunder ([A-Z_]{4,})/.exec(text)?.[1]
-  const forbids = /forbid policies[^:]*: ([^)]+)\)/.exec(text)?.[1]
-  const neverRan = outcome === 'denied' && /before the tool ran/.test(text)
+  const [prefix, outcome, when] = answer
+  let mode: string | undefined
+  let forbids: string | undefined
+  let denied = false
+  let evidence = false
+  const unrecognised: string[] = []
+  for (const sentence of splitSentences(text.slice(prefix.length).trim(), NOTE_BREAK)) {
+    const enforced = ENFORCED_SENTENCE.exec(sentence)
+    const refused = DENIED_SENTENCE.exec(sentence)
+    if (enforced) mode = enforced[1]
+    else if (refused) { denied = true; forbids = refused[1] }
+    else if (EVIDENCE_SENTENCE.test(sentence)) evidence = true
+    else unrecognised.push(sentence)
+  }
   const facts = [
     forbids ? `Forbid: ${forbids}` : null,
-    [mode ? `Engine in ${mode}` : null, when].filter(Boolean).join(', ') || null,
-    /tool_audit/.test(text) ? 'Evidence: tool_audit and store_credits' : null,
+    [mode ? `Engine in ${mode}` : null, when && STAMP.test(when) ? when : null].filter(Boolean).join(', ') || null,
+    evidence ? 'Evidence: tool_audit and store_credits' : null,
   ].filter(Boolean)
+  const neverRan = outcome === 'denied' && denied
   return {
     verdict: `The Gateway answered: ${outcome}.${neverRan ? ' The tool never ran.' : ''}`,
+    caveat: unrecognised.length > 0 ? unrecognised.join(' ') : undefined,
     note: facts.length > 0 ? `${facts.join('. ')}.` : undefined,
   }
 }
@@ -259,6 +297,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
             {!compact || check.tone !== 'pending' ? (
               <span className="op-check-detail">
                 <span className="op-check-verdict">{check.detail.verdict}</span>
+                {check.detail.caveat ? <span className="op-check-caveat" data-testid="operator-check-caveat">{check.detail.caveat}</span> : null}
                 {check.detail.note ? <span className="op-check-note">{check.detail.note}</span> : null}
               </span>
             ) : null}

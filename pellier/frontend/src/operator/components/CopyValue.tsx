@@ -40,7 +40,7 @@ const CopyValue: React.FC<Props> = ({ value, noun }) => {
     }
   }
 
-  const label = copied ? `${noun} copied` : `Copy ${noun}`
+  const label = `Copy ${noun}`
   return (
     <span className="op-copy" data-testid="operator-copy-value">
       <code ref={valueRef} className="op-copy-value">{value}</code>

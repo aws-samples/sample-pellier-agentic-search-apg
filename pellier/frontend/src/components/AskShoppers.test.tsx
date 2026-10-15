@@ -4,6 +4,7 @@
  * sign-in followed by the edit, the shopper read from the verified session,
  * and Sign out back to the neutral store.
  */
+import { useReducer } from 'react'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -47,6 +48,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   state.username = ''
   state.persona = null
+  state.refresh = vi.fn(() => Promise.resolve())
 })
 
 describe('Choosing a shopper in the Ask Pellier panel', () => {
@@ -56,7 +58,7 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     const chips = within(group).getAllByRole('button')
     expect(chips.map(chip => chip.textContent)).toEqual(['Anna', 'Marco', 'Theo', 'Jessica'])
     for (const chip of chips) {
-      expect(chip).toHaveAttribute('aria-pressed', 'false')
+      expect(chip).not.toHaveAttribute('aria-pressed')
       expect(chip.querySelector('img')?.getAttribute('src')).toMatch(/\/assets\/personas\/\w+-720\.webp$/)
     }
     expect(screen.queryByTestId('ask-shopper-nadia')).not.toBeInTheDocument()
@@ -89,7 +91,7 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     expect(error).toHaveTextContent('That sign-in did not complete. Try again, or use the sign-in page.')
     expect(error).not.toHaveTextContent('workshop_sign_in_unavailable')
     expect(state.switchPersona).not.toHaveBeenCalled()
-    expect(screen.getByTestId('ask-shopper-theo')).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByTestId('ask-shopper-theo')).not.toHaveAttribute('aria-pressed')
     warn.mockRestore()
   })
 
@@ -98,6 +100,7 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     state.persona = { id: 'anna' }
     render(<ShopperBar />)
     expect(screen.getByTestId('ask-signed-in-name')).toHaveTextContent('Theo')
+    fireEvent.click(screen.getByTestId('ask-switch-shopper'))
     expect(screen.getByTestId('ask-shopper-theo')).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('ask-shopper-anna')).toHaveAttribute('aria-pressed', 'false')
   })
@@ -117,13 +120,13 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     state.username = 'anna'
     state.persona = { id: 'anna' }
     render(<ShopperBar />)
-    const chips = screen.getByTestId('ask-shopper-marco').parentElement as HTMLElement
     const toggle = screen.getByTestId('ask-switch-shopper')
     expect(toggle).toHaveTextContent('Switch shopper')
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
-    expect(chips).not.toBeVisible()
+    expect(screen.queryByTestId('ask-shopper-marco')).not.toBeInTheDocument()
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    const chips = screen.getByTestId('ask-shopper-marco').parentElement as HTMLElement
     expect(chips).toBeVisible()
     expect(within(chips).getAllByRole('button').map(chip => chip.textContent))
       .toEqual(['Anna', 'Marco', 'Theo', 'Jessica'])
@@ -137,6 +140,37 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     fireEvent.click(screen.getByTestId('ask-shopper-marco'))
     await waitFor(() => expect(state.switchPersona).toHaveBeenCalledWith('marco'))
     await waitFor(() => expect(screen.getByTestId('ask-switch-shopper')).toHaveAttribute('aria-expanded', 'false'))
+    expect(screen.queryByTestId('ask-shopper-marco')).not.toBeInTheDocument()
+    expect(screen.getByTestId('ask-switch-shopper')).toHaveFocus()
+  })
+
+  it('moves focus to Switch shopper when a card choice replaces the cards with the bar', async () => {
+    function Panel() {
+      const [, rerender] = useReducer((n: number) => n + 1, 0)
+      state.refresh = vi.fn(() => { rerender(); return Promise.resolve() })
+      return state.username ? <ShopperBar /> : <ShopperCards />
+    }
+    state.workshopSignIn.mockImplementationOnce(() => {
+      state.username = 'marco'
+      return Promise.resolve({ status: 'signed_in' })
+    })
+    render(<Panel />)
+    const card = screen.getByTestId('ask-shopper-marco')
+    card.focus()
+    fireEvent.click(card)
+    await waitFor(() => expect(screen.getByTestId('ask-switch-shopper')).toHaveFocus())
+  })
+
+  it('leaves focus alone when a card choice fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    state.workshopSignIn.mockRejectedValueOnce(new Error('workshop_sign_in_unavailable'))
+    render(<ShopperCards />)
+    fireEvent.click(screen.getByTestId('ask-shopper-theo'))
+    await screen.findByTestId('persona-sign-in-error')
+    state.username = 'anna'
+    render(<ShopperBar />)
+    expect(screen.getByTestId('ask-switch-shopper')).not.toHaveFocus()
+    warn.mockRestore()
   })
 
   it('does not sign the same shopper in again once their edit is open', () => {

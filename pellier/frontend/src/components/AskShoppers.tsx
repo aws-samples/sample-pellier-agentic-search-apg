@@ -12,13 +12,14 @@
  * the choice, is what Pellier trusts. Once a conversation has started the
  * cards give way to `ShopperBar`, one row: the verified shopper (or "Not
  * signed in"), "Switch shopper" (or "Choose a shopper") and, signed in, "Sign
- * out". Opening it unfolds the four chips beneath and folds again once a
- * sign-in completes.
+ * out". Opening it unfolds the four chips beneath (they exist only while it is
+ * open) and folds again once a sign-in completes. After a choice, on the
+ * cards or the chips, focus lands on "Switch shopper".
  *
  * Staff never appear: the list is the four demo shoppers, not the profile
  * read.
  */
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { ASK_PANEL, HERO_CONCIERGE, SHOPPER, STATUS_LINES } from '../copy'
 import { usePersona } from '../contexts/PersonaContext'
@@ -56,6 +57,13 @@ function SignInErrors({ error }: { error: string | null }) {
   )
 }
 
+/**
+ * A choice made on the cards replaces them with the bar, so the focused card
+ * is gone before the choice finishes. The cards leave this note and the bar
+ * reads it when it mounts, so keyboard focus lands on "Switch shopper".
+ */
+let focusBarAfterChoice = false
+
 /** The choice, shared by the cards and the chips. */
 function useChoice(onChosen?: () => void) {
   const { persona, switching } = usePersona()
@@ -63,8 +71,10 @@ function useChoice(onChosen?: () => void) {
   const pick = (id: WorkshopShopper) => {
     // A sign-in whose edit failed to open can be chosen again.
     if (signedInAs === id && persona?.id === id) return
+    if (!onChosen) focusBarAfterChoice = true
     void choose(id).then(ok => {
       if (ok) onChosen?.()
+      else focusBarAfterChoice = false
     })
   }
   return { pick, signOut, busy, error, switching, signedInAs }
@@ -82,7 +92,6 @@ export function ShopperCards() {
             type="button"
             className="cd-who-card"
             data-testid={`ask-shopper-${id}`}
-            aria-pressed={false}
             aria-busy={busy === id || undefined}
             disabled={Boolean(busy) || switching}
             onClick={() => pick(id)}
@@ -104,7 +113,17 @@ export function ShopperCards() {
 export function ShopperBar() {
   const [open, setOpen] = useState(false)
   const panelId = useId()
-  const { pick, signOut, busy, error, switching, signedInAs } = useChoice(() => setOpen(false))
+  const switchRef = useRef<HTMLButtonElement>(null)
+  const { pick, signOut, busy, error, switching, signedInAs } = useChoice(() => {
+    setOpen(false)
+    switchRef.current?.focus()
+  })
+
+  useEffect(() => {
+    if (!focusBarAfterChoice) return
+    focusBarAfterChoice = false
+    switchRef.current?.focus()
+  }, [])
 
   return (
     <div className="cd-shoppers" data-testid="ask-shoppers" data-tour="shoppers">
@@ -114,11 +133,12 @@ export function ShopperBar() {
           {signedInAs ? shopperName(signedInAs) : STATUS_LINES.NOT_SIGNED_IN}
         </span>
         <button
+          ref={switchRef}
           type="button"
           className="cd-who-switch"
           data-testid="ask-switch-shopper"
           aria-expanded={open}
-          aria-controls={panelId}
+          aria-controls={open ? panelId : undefined}
           onClick={() => setOpen(value => !value)}
         >
           {signedInAs ? ASK_PANEL.SWITCH : SHOPPER.CHOOSE}
@@ -135,23 +155,25 @@ export function ShopperBar() {
           </button>
         ) : null}
       </div>
-      <div id={panelId} className="cd-who" hidden={!open}>
-        {SHOPPER_ORDER.map(id => (
-          <button
-            key={id}
-            type="button"
-            className="cd-who-chip"
-            data-testid={`ask-shopper-${id}`}
-            aria-pressed={signedInAs === id}
-            aria-busy={busy === id || undefined}
-            disabled={Boolean(busy) || switching}
-            onClick={() => pick(id)}
-          >
-            <Portrait id={id} size={24} />
-            {busy === id ? HERO_CONCIERGE.SIGNING_IN : shopperName(id)}
-          </button>
-        ))}
-      </div>
+      {open ? (
+        <div id={panelId} className="cd-who">
+          {SHOPPER_ORDER.map(id => (
+            <button
+              key={id}
+              type="button"
+              className="cd-who-chip"
+              data-testid={`ask-shopper-${id}`}
+              aria-pressed={signedInAs === id}
+              aria-busy={busy === id || undefined}
+              disabled={Boolean(busy) || switching}
+              onClick={() => pick(id)}
+            >
+              <Portrait id={id} size={24} />
+              {busy === id ? HERO_CONCIERGE.SIGNING_IN : shopperName(id)}
+            </button>
+          ))}
+        </div>
+      ) : null}
       {!signedInAs && open ? (
         <p className="cd-who-note" data-testid="persona-identity-boundary">
           {HERO_CONCIERGE.IDENTITY_BOUNDARY}

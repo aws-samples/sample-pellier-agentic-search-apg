@@ -130,13 +130,10 @@ for (const theme of ['light', 'dark'] as const) {
         // with the four shoppers on its first screen.
         await page.getByTestId('header-ask-pellier').click()
         await expect(drawer).toBeVisible()
-        const chips = drawer.getByTestId('ask-shoppers')
-        await expect(chips).toBeInViewport()
-        const [panelTop, chipsTop] = await Promise.all([
-          drawer.evaluate(el => el.getBoundingClientRect().top),
-          chips.evaluate(el => el.getBoundingClientRect().top),
-        ])
-        expect(chipsTop - panelTop).toBeLessThan(300)
+        const cards = drawer.getByTestId('ask-shoppers')
+        await expect(cards).toBeInViewport()
+        const cardsBottom = await cards.evaluate(el => el.getBoundingClientRect().bottom)
+        expect(cardsBottom).toBeLessThanOrEqual(viewport.height)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width)
         await page.waitForTimeout(300)
         await page.screenshot({ path: shot('home-panel') })

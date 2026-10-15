@@ -147,7 +147,7 @@ test('choosing a shopper in the panel signs in, switching changes the principal,
   const reloaded = page.waitForEvent('load')
   await page.getByTestId('ask-sign-out').click()
   await reloaded
-  await expect(page.getByTestId('ask-shopper-anna')).toHaveAttribute('aria-pressed', 'false')
+  await expect(page.getByTestId('ask-shopper-anna')).not.toHaveAttribute('aria-pressed')
   await expect(page.getByTestId('ask-sign-out')).toHaveCount(0)
   expect(await askAndReadPrincipal(page)).toBe('Not signed in')
 })

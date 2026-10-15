@@ -694,6 +694,11 @@
   font-size: 13px;
 }
 
+.op-check-caveat {
+  color: var(--dl-ink);
+  font-size: 12px;
+}
+
 .op-check-note {
   color: var(--dl-muted);
   font-size: 12px;
