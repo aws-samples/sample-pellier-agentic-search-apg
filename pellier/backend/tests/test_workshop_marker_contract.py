@@ -371,7 +371,7 @@ def test_the_absence_check_is_supplied_and_finds_both_keys_itself() -> None:
         "a.customer_id = 'CUST-JESSICA'",
         # Both keys are derived the same way, so the positive control covers it.
         "WHERE c.approval_id = a.id",
-        ":lab_4_allowed_credit_rows = 1 AS lab_4_control_holds",
+        ":lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4_control_holds",
         "Expected  ", "Observed ", "Evidence  ", "Next      ",
     ):
         assert fragment in text, fragment

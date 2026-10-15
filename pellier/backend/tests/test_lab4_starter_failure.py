@@ -355,7 +355,7 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     assert done.returncode == 0, done.stdout + done.stderr
     assert f"denied key   {review['idempotency_key']}" in done.stdout
     assert f"allowed key  {allowed_key}" in done.stdout
-    assert "Observed  0, 0 and 1" in done.stdout
+    assert "Observed  0, 0, 1 and 1" in done.stdout
     assert "Lab 4 absence check passed" in done.stdout
 
     # Both keys are derived the same way, so a derivation that drifted from the

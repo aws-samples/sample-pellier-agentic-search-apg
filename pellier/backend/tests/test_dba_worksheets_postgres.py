@@ -123,6 +123,24 @@ def test_the_workload_waits_for_the_agent_then_shows_it_by_role(statements_db: C
     assert _counts(statements_db) == before
 
 
+def test_the_workload_fails_when_the_row_policy_shows_theo_another_customer(
+    statements_db: Cluster,
+) -> None:
+    """The plan's 0 rows is part of the verdict, not a remark beside it."""
+    _agent_reads(statements_db, "theo", "CUST-THEO")
+    statements_db.psql("ALTER POLICY orders_owner ON pellier.orders USING (true)")
+    try:
+        done = _worksheet(statements_db, WORKLOAD)
+    finally:
+        statements_db.psql(
+            "ALTER POLICY orders_owner ON pellier.orders USING (customer_id = (SELECT id "
+            "FROM pellier.customers WHERE cognito_username = "
+            "current_setting('pellier.principal_username', true)))")
+    assert done.returncode != 0
+    assert "of Jessica's orders were visible to Theo's session" in done.stdout
+    assert done.stdout.rstrip().endswith("Lab 3 workload check failed")
+
+
 def test_statements_after_set_local_role_are_recorded_under_that_role(
         statements_db: Cluster) -> None:
     """What the worksheet relies on: pg_stat_statements keys a statement by the

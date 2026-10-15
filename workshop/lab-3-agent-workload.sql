@@ -145,7 +145,8 @@ SET LOCAL ROLE pellier_agent;
 SELECT set_config('pellier.principal_username', 'theo', true) AS lab_3_probe \gset lab_3_bound_
 EXPLAIN (COSTS OFF) SELECT o.id AS lab_3_probe FROM pellier.orders o
                      WHERE o.customer_id = 'CUST-JESSICA';
-SELECT count(*) AS lab_3_probe FROM pellier.orders o WHERE o.customer_id = 'CUST-JESSICA'
+SELECT count(*) AS lab_3_probe, count(*) = 0 AS lab_3_none
+  FROM pellier.orders o WHERE o.customer_id = 'CUST-JESSICA'
 \gset lab_3_wrong_
 RESET ROLE;
 \echo 'Observed ' :lab_3_wrong_lab_3_probe 'rows: the row policy runs inside the plan, before any row is read'
@@ -153,13 +154,21 @@ RESET ROLE;
 ROLLBACK;
 
 \echo ''
-\echo 'Expected  at least one get_orders or get_tickets call recorded under pellier_agent'
+\echo 'Expected  at least one get_orders or get_tickets call recorded under pellier_agent, and'
+\echo '          0 of Jessica''s orders visible to a session bound to Theo'
+\if :lab_3_wrong_lab_3_none
 \if :lab_3_agent_tool_seen
   \echo 'Observed ' :lab_3_agent_tool_reads 'tool statement(s): the agent is a role with a workload and plans'
   \echo 'Lab 3 workload check passed'
 \else
   \echo 'Observed  none yet: no get_orders or get_tickets statement under pellier_agent'
   \echo 'Next      send Theo''s requests with python3 scripts/lab_run.py send --lab 3, then run this again.'
+  \echo 'Lab 3 workload check failed'
+  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
+\endif
+\else
+  \echo 'Observed ' :lab_3_wrong_lab_3_probe 'of Jessica''s orders were visible to Theo''s session'
+  \echo 'Next      the row policy did not hold; run workshop/lab-3-row-ownership.sql until it passes.'
   \echo 'Lab 3 workload check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
 \endif

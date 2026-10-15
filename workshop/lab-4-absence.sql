@@ -58,7 +58,7 @@ SELECT (SELECT count(*) FROM pellier.tool_audit
        :'lab_4_deny_key' <> '' AS has_deny_key,
        :'lab_4_allow_key' <> '' AS has_allow_key
 \gset lab_4_
-SELECT format('%s, %s and %s (the allowed key also has %s tool_audit row)',
+SELECT format('%s, %s, %s and %s',
               :lab_4_denied_audit_rows, :lab_4_denied_credit_rows,
               :lab_4_allowed_credit_rows, :lab_4_allowed_audit_rows) AS observed
 \gset lab_4_
@@ -87,17 +87,20 @@ SELECT format('%s, %s and %s (the allowed key also has %s tool_audit row)',
 SELECT * FROM (VALUES
     ('tool_audit rows for the denied key', '0', :'lab_4_denied_audit_rows'),
     ('store_credits rows for the denied key', '0', :'lab_4_denied_credit_rows'),
-    ('store_credits rows for the allowed key', '1', :'lab_4_allowed_credit_rows')
+    ('store_credits rows for the allowed key', '1', :'lab_4_allowed_credit_rows'),
+    ('tool_audit rows for the allowed key', '1', :'lab_4_allowed_audit_rows')
 ) AS counts(count, expected, observed);
 
-\echo 'Expected  0, 0 and 1: nothing ran or moved for the denied key, and the same search finds the one allowed credit'
+\echo 'Expected  0, 0, 1 and 1: nothing ran or moved for the denied key, and the same search finds'
+\echo '          the allowed credit and the one audit row its call left'
 \echo 'Observed ' :lab_4_observed
-SELECT :lab_4_allowed_credit_rows = 1 AS lab_4_control_holds,
+SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4_control_holds,
        :lab_4_denied_audit_rows = 0 AND :lab_4_denied_credit_rows = 0 AS lab_4_absence_holds
 \gset
 \if :lab_4_control_holds
 \else
-  \echo 'Next      the allowed key does not find exactly one credit, so this search cannot vouch for an absence.'
+  \echo 'Next      the allowed key does not find exactly one credit and one audit row, so this search'
+  \echo '          cannot vouch for an absence.'
   \echo 'Lab 4 absence check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif
