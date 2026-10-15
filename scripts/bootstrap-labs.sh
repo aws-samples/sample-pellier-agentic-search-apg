@@ -1799,6 +1799,26 @@ else
     warn "No health gate to run at $REPO_PATH/scripts/health-gate.sh; readiness is unproven"
 fi
 
+# ============================================================================
+# STEP 20: EVENT READINESS RECORD (for the facilitator; participants never see it)
+# ============================================================================
+# The same read-only checks as workshop-start.sh, Theo's AgentCore Memory included,
+# capped so they cannot hold provisioning, recorded with a UTC time in the
+# participant's ~/.pellier/readiness.json and in CloudWatch Logs
+# (/aws/pellier/readiness, one stream per instance). scripts/event_readiness.py reads
+# it back before the event. It runs before the governed failure below so a box that
+# is not ready still leaves a record, and a not-ready record is never a bootstrap
+# failure of its own: the health gate above decides that.
+log "Recording event readiness..."
+if sudo -u "$CODE_EDITOR_USER" -H env PELLIER_REPO="$REPO_PATH" AWS_REGION="$AWS_REGION" \
+    PATH="/opt/pellier/bin:$PATH" \
+    timeout 300 python3.14 "$REPO_PATH/scripts/event_readiness.py" --record \
+    2>&1 | tee /var/log/pellier-readiness.log; then
+    log "✅ Event readiness recorded: READY FOR LAB 1"
+else
+    warn "Event readiness recorded as NOT READY; see /var/log/pellier-readiness.log"
+fi
+
 log "=========================================="
 
 if [ "$HEALTH_GATE_OK" != true ] && [ "${WORKSHOP_FORMAT}" = "governed" ]; then
