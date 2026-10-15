@@ -319,11 +319,11 @@ def test_the_managed_agent_carries_the_same_fixed_skills_and_reports_them() -> N
     from skills import get_registry
 
     _, prompt, _, skills = gateway._managed_specialist_spec("support")
-    assert [skill["name"] for skill in skills] == ["the-care-card", "the-proof-counter"]
+    assert [skill["name"] for skill in skills] == ["care-and-returns", "evidence"]
     assert all(skill["loaded"] == "fixed" for skill in skills)
-    assert skills[0]["path"] == "skills/the-care-card/SKILL.md"
-    assert get_registry().get("the-care-card").body.strip() in prompt
-    assert get_registry().get("the-gift-table").body.strip() not in prompt
+    assert skills[0]["path"] == "skills/care-and-returns/SKILL.md"
+    assert get_registry().get("care-and-returns").body.strip() in prompt
+    assert get_registry().get("gifts").body.strip() not in prompt
 
 
 def test_the_managed_report_is_empty_when_the_bundle_carries_no_skills(monkeypatch) -> None:

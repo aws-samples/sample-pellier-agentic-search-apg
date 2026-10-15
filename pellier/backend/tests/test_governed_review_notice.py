@@ -140,7 +140,7 @@ def test_the_shopper_request_carries_no_amount_in_process() -> None:
     prompt = support_agent._SUPPORT_SYSTEM_PROMPT
     assert "store_credit_cents" not in prompt and "credit_request" in prompt
     assert "never name or suggest an amount" in prompt
-    care_card = (REPO / "skills" / "the-care-card" / "SKILL.md").read_text()
+    care_card = (REPO / "skills" / "care-and-returns" / "SKILL.md").read_text()
     assert "passes its amount" not in care_card and "names no amount" in care_card
 
 

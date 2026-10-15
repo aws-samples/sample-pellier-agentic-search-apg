@@ -3,7 +3,7 @@ Stock agent: reports how many of one product each warehouse holds, and the
 ship window it records.
 
 ``build_stock_agent()`` returns the configured Strands Agent the Router runs
-for the ``stock`` intent. The tools it is granted are the Lab 2B build: only
+for the ``stock`` intent. The tools it is granted are the Lab 2A build: only
 ``check_stock`` reads the warehouse rows a stock answer must come from.
 """
 from strands import Agent
@@ -11,7 +11,7 @@ from strands.models import BedrockModel
 from config import settings
 from pellier_copy import STOCK_OUTPUT_RULES
 from services import agent_tools
-# Named so the Lab 2B grant may list the tool by its bare name as well.
+# Named so the Lab 2A grant may list the tool by its bare name as well.
 from services.agent_tools import check_stock  # noqa: F401
 from skills import (
     SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for,
@@ -20,7 +20,7 @@ from services.persona_context import inject_persona_preamble
 
 
 # The prompt's one rule for where a stock answer comes from. The Builder view
-# prints it beside the tools the running agent may call (Lab 2B).
+# prints it beside the tools the running agent may call (Lab 2A).
 STOCK_PROMPT_RULE = "Every stock answer starts from check_stock"
 
 _STOCK_SYSTEM_PROMPT = (
@@ -54,7 +54,7 @@ _STOCK_SYSTEM_PROMPT = (
 )
 
 # === WORKSHOP - Stock agent - definition: START ===
-# Task 2B: connect the tool a stock answer must come from.
+# Task 2A: connect the tool a stock answer must come from.
 # Prompt and model configuration are supplied.
 
 # Provided: Stock agent system instructions.

@@ -9,9 +9,9 @@ This directory (`skills/`) is the source of Pellier's five runtime skills.
 - A skill is **not** a tool and **not** a database record.
 - Each agent carries a fixed set, with no model call
   (`pellier/backend/skills/assignments.py`): the Shopping agent
-  `the-gift-table`, `the-makers-shelf`, `the-packing-list` and
-  `the-proof-counter`; the Stock agent `the-proof-counter`; the Support agent
-  `the-care-card` and `the-proof-counter`.
+  `gifts`, `makers`, `travel` and
+  `evidence`; the Stock agent `evidence`; the Support agent
+  `care-and-returns` and `evidence`.
 - With the Builder view on, "Agent loads its skills" in the Ask Pellier panel
   switches an in-process agent to on-demand mode: it sees only each skill's
   name and description and opens a body with a local loader tool. The managed

@@ -1,5 +1,5 @@
 ---
-name: the-care-card
+name: care-and-returns
 persona: shared
 description: Care, return, repair, and post-purchase language for moments where the shopper needs clear handling rather than more discovery.
 display_name: The Care Card

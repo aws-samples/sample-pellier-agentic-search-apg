@@ -32,13 +32,13 @@ AGENT_LOCAL_TOOLS = frozenset({SKILL_LOAD_TOOL})
 
 FIXED_SKILLS: Dict[str, tuple[str, ...]] = {
     "shopping": (
-        "the-gift-table",
-        "the-makers-shelf",
-        "the-packing-list",
-        "the-proof-counter",
+        "gifts",
+        "makers",
+        "travel",
+        "evidence",
     ),
-    "stock": ("the-proof-counter",),
-    "support": ("the-care-card", "the-proof-counter"),
+    "stock": ("evidence",),
+    "support": ("care-and-returns", "evidence"),
 }
 
 _SKILL_DELIMITER = (

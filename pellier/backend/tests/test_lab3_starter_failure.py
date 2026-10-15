@@ -127,7 +127,7 @@ def _route_note(unpublished: List[str]) -> Any:
     from services.agentcore_runtime import ManagedRuntimeResult
 
     result = ManagedRuntimeResult(response="ok", intent="support", specialist="support",
-                                  skills=[{"name": "the-care-card"}],
+                                  skills=[{"name": "care-and-returns"}],
                                   unpublished_tools=unpublished)
     return app_module._managed_route_note(result, "fixed", "Support agent")
 

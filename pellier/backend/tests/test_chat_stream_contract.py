@@ -205,7 +205,7 @@ def test_status_and_steps_come_from_real_events_in_order(service, monkeypatch) -
     complete = _of(events, "complete")[0]["response"]
     assert complete["orchestration"]["skill_mode"] == "fixed"
     assert [skill["name"] for skill in complete["orchestration"]["skills"]] == [
-        "the-gift-table", "the-makers-shelf", "the-packing-list", "the-proof-counter",
+        "gifts", "makers", "travel", "evidence",
     ]
     assert [product["id"] for product in complete["products"]] == ["65", "22"]
     assert events[-2]["type"] == "complete"
@@ -342,8 +342,8 @@ def test_two_searches_at_once_are_two_steps_each_with_its_own_evidence(
 def test_on_demand_loads_are_one_step_no_tool_call_and_in_the_receipt(service, monkeypatch) -> None:
     agent = ScriptedAgent(
         [
-            {"tool": "skills", "input": {"skill_name": "the-gift-table"}, "result": "# The Gift Table\n..."},
-            {"tool": "skills", "input": {"skill_name": "the-proof-counter"}, "result": "# The Proof Counter"},
+            {"tool": "skills", "input": {"skill_name": "gifts"}, "result": "# The Gift Table\n..."},
+            {"tool": "skills", "input": {"skill_name": "evidence"}, "result": "# The Proof Counter"},
             {"tool": "search_products", "input": {"query": "gift"}, "result": SEARCH_RESULT},
         ],
         "Start with the Stoneware Mugs, Set of 2 at $38.",
@@ -353,7 +353,7 @@ def test_on_demand_loads_are_one_step_no_tool_call_and_in_the_receipt(service, m
     steps = _of(events, "step")
     skill_steps = [step for step in steps if step["builder"]["tool"] == "skills"]
     assert skill_steps[0]["label"] == "Opening The Gift Table"
-    assert skill_steps[1]["finding"] == "Loaded The Gift Table from skills/the-gift-table/SKILL.md"
+    assert skill_steps[1]["finding"] == "Loaded The Gift Table from skills/gifts/SKILL.md"
     assert skill_steps[-1]["finding"] == "Loaded The Gift Table and The Proof Counter from skills/"
     assert skill_steps[-1]["tags"] == ["Skills"]
     assert len({step["id"] for step in steps}) == 3
@@ -362,23 +362,23 @@ def test_on_demand_loads_are_one_step_no_tool_call_and_in_the_receipt(service, m
     receipt = _of(events, "complete")[0]["response"]["orchestration"]
     assert receipt["skill_mode"] == "on_demand"
     assert [(skill["name"], skill["loaded"]) for skill in receipt["skills"]] == [
-        ("the-gift-table", "on demand"), ("the-proof-counter", "on demand"),
+        ("gifts", "on demand"), ("evidence", "on demand"),
     ]
 
 
 def test_a_skill_opened_twice_is_one_load_in_the_step_and_the_receipt(service, monkeypatch) -> None:
     agent = ScriptedAgent(
         [
-            {"tool": "skills", "input": {"skill_name": "the-gift-table"}, "result": "# The Gift Table"},
-            {"tool": "skills", "input": {"skill_name": "the-gift-table"}, "result": "# The Gift Table"},
+            {"tool": "skills", "input": {"skill_name": "gifts"}, "result": "# The Gift Table"},
+            {"tool": "skills", "input": {"skill_name": "gifts"}, "result": "# The Gift Table"},
         ],
         "A gift.",
     )
     events = _run(service, agent, monkeypatch, skill_mode="on_demand")
     last = [step for step in _of(events, "step") if step["builder"]["tool"] == "skills"][-1]
-    assert last["finding"] == "Loaded The Gift Table from skills/the-gift-table/SKILL.md"
+    assert last["finding"] == "Loaded The Gift Table from skills/gifts/SKILL.md"
     receipt = _of(events, "complete")[0]["response"]["orchestration"]
-    assert [skill["name"] for skill in receipt["skills"]] == ["the-gift-table"]
+    assert [skill["name"] for skill in receipt["skills"]] == ["gifts"]
 
 
 def test_six_tool_uses_are_six_steps_each_with_its_own_evidence(service, monkeypatch) -> None:

@@ -68,9 +68,9 @@ class _Dispatcher:
         self.last_unpublished_tools = ("get_tickets",)
         self.last_skills = [
             {
-                "name": "the-gift-table",
+                "name": "gifts",
                 "display_name": "The Gift Table",
-                "path": "skills/the-gift-table/SKILL.md",
+                "path": "skills/gifts/SKILL.md",
                 "loaded": "fixed",
             }
         ]

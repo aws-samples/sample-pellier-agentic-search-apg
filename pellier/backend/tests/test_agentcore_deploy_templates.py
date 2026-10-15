@@ -243,7 +243,7 @@ def test_runtime_bundle_contains_only_managed_import_graph(tmp_path: Path) -> No
     assert Path("services/specialist_models.py") in actual
     # The skills ship inside the bundle's skills package, where the loader
     # looks when there is no repository root beside it.
-    assert Path("skills/the-gift-table/SKILL.md") in actual
+    assert Path("skills/gifts/SKILL.md") in actual
     assert not any("tests" in path.parts for path in actual)
 
 
@@ -280,8 +280,8 @@ def test_the_staged_bundle_loads_its_own_skills_into_the_managed_prompt(tmp_path
     )
     assert proc.returncode == 0, proc.stdout + proc.stderr
     report = json.loads(proc.stdout.strip().splitlines()[-1])
-    assert report["names"] == ["the-care-card", "the-proof-counter"]
-    assert report["paths"] == ["skills/the-care-card/SKILL.md", "skills/the-proof-counter/SKILL.md"]
+    assert report["names"] == ["care-and-returns", "evidence"]
+    assert report["paths"] == ["skills/care-and-returns/SKILL.md", "skills/evidence/SKILL.md"]
     assert report["in_prompt"] is True
     assert report["rules"] is True
 

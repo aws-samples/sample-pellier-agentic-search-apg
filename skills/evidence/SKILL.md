@@ -1,5 +1,5 @@
 ---
-name: the-proof-counter
+name: evidence
 persona: shared
 description: Governance and inspectability language for "why this", "how do you know", memory proof, tool receipts, audit rows, Gateway traces, and source-grounded explanations.
 display_name: The Proof Counter

@@ -216,10 +216,10 @@ const RESULTS = {
 const REQUIREMENTS = { applied: ['under $100', 'in stock', 'no candles'], carried: [] }
 
 const SKILLS = [
-  { name: 'the-gift-table', display_name: 'The Gift Table', path: 'skills/the-gift-table/SKILL.md', loaded: 'fixed' },
-  { name: 'the-makers-shelf', display_name: "The Maker's Shelf", path: 'skills/the-makers-shelf/SKILL.md', loaded: 'fixed' },
-  { name: 'the-packing-list', display_name: 'The Packing List', path: 'skills/the-packing-list/SKILL.md', loaded: 'fixed' },
-  { name: 'the-proof-counter', display_name: 'The Proof Counter', path: 'skills/the-proof-counter/SKILL.md', loaded: 'fixed' },
+  { name: 'gifts', display_name: 'The Gift Table', path: 'skills/gifts/SKILL.md', loaded: 'fixed' },
+  { name: 'makers', display_name: "The Maker's Shelf", path: 'skills/makers/SKILL.md', loaded: 'fixed' },
+  { name: 'travel', display_name: 'The Packing List', path: 'skills/travel/SKILL.md', loaded: 'fixed' },
+  { name: 'evidence', display_name: 'The Proof Counter', path: 'skills/evidence/SKILL.md', loaded: 'fixed' },
 ]
 
 function deltas(text: string): object[] {

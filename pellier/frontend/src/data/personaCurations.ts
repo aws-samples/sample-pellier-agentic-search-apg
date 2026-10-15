@@ -413,25 +413,25 @@ export interface PersonaTurnTrace {
 
 export const PERSONA_TURN_TRACES: Record<string, PersonaTurnTrace[]> = {
   marco: [
-    { skill: 'the-packing-list', tools: ['search_products'] },
-    { skill: 'the-packing-list', tools: ['search_products'] },
+    { skill: 'travel', tools: ['search_products'] },
+    { skill: 'travel', tools: ['search_products'] },
     { tools: ['check_stock'] },
     { tools: ['search_products'] },
-    { skill: 'the-packing-list', tools: ['ask_a_person'] },
+    { skill: 'travel', tools: ['ask_a_person'] },
   ],
   anna: [
-    { skill: 'the-gift-table', tools: ['search_products'] },
-    { skill: 'the-gift-table', tools: ['search_products'] },
-    { skill: 'the-gift-table', tools: ['search_products'] },
-    { skill: 'the-gift-table', tools: ['search_products'] },
-    { skill: 'the-gift-table', tools: ['ask_a_person'] },
+    { skill: 'gifts', tools: ['search_products'] },
+    { skill: 'gifts', tools: ['search_products'] },
+    { skill: 'gifts', tools: ['search_products'] },
+    { skill: 'gifts', tools: ['search_products'] },
+    { skill: 'gifts', tools: ['ask_a_person'] },
   ],
   theo: [
-    { skill: 'the-makers-shelf', tools: ['search_products'] },
-    { skill: 'the-makers-shelf', tools: ['search_products'] },
-    { skill: 'the-makers-shelf', tools: ['get_orders', 'get_return_policy', 'get_tickets'] },
-    { skill: 'the-makers-shelf', tools: [] },
-    { skill: 'the-makers-shelf', tools: ['ask_a_person'] },
+    { skill: 'makers', tools: ['search_products'] },
+    { skill: 'makers', tools: ['search_products'] },
+    { skill: 'makers', tools: ['get_orders', 'get_return_policy', 'get_tickets'] },
+    { skill: 'makers', tools: [] },
+    { skill: 'makers', tools: ['ask_a_person'] },
   ],
   fresh: PERSONA_HERO_PILLS.fresh.map(() => ({ tools: ['search_products'] })),
 }

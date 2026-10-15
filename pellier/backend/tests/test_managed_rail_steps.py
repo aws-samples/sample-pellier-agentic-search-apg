@@ -28,10 +28,10 @@ def _events(body: str) -> List[Dict[str, Any]]:
 
 # What the Runtime reports it loaded. The app renders this; it asserts nothing.
 RUNTIME_SKILLS = [
-    {"name": "the-care-card", "display_name": "The Care Card",
-     "path": "skills/the-care-card/SKILL.md", "loaded": "fixed"},
-    {"name": "the-proof-counter", "display_name": "The Proof Counter",
-     "path": "skills/the-proof-counter/SKILL.md", "loaded": "fixed"},
+    {"name": "care-and-returns", "display_name": "The Care Card",
+     "path": "skills/care-and-returns/SKILL.md", "loaded": "fixed"},
+    {"name": "evidence", "display_name": "The Proof Counter",
+     "path": "skills/evidence/SKILL.md", "loaded": "fixed"},
 ]
 
 

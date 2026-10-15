@@ -21,7 +21,7 @@ class Skill:
     mode to decide whether a skill applies.
 
     Attributes:
-        name: Canonical name from frontmatter, e.g. ``the-packing-list``.
+        name: Canonical name from frontmatter, e.g. ``travel``.
         description: What the skill is for, in one line.
         body: Full markdown body after the frontmatter.
         path: Filesystem path to the ``SKILL.md`` file.

@@ -90,11 +90,11 @@ RUNTIME_SOURCE_FILES: tuple[Path, ...] = (
 # bundle's ``skills`` package, where the loader finds them, and a skill edit
 # changes the fingerprint Lab 3 checks.
 RUNTIME_SKILL_FILES: tuple[Path, ...] = (
-    Path("skills/the-care-card/SKILL.md"),
-    Path("skills/the-gift-table/SKILL.md"),
-    Path("skills/the-makers-shelf/SKILL.md"),
-    Path("skills/the-packing-list/SKILL.md"),
-    Path("skills/the-proof-counter/SKILL.md"),
+    Path("skills/care-and-returns/SKILL.md"),
+    Path("skills/gifts/SKILL.md"),
+    Path("skills/makers/SKILL.md"),
+    Path("skills/travel/SKILL.md"),
+    Path("skills/evidence/SKILL.md"),
 )
 
 # Dependency manifests are staged alongside the sources and change what the

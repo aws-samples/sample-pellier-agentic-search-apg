@@ -50,7 +50,7 @@ def load_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
     Logs a summary line at INFO so the operator can confirm which
     skills boot picked up and at what token cost:
 
-        ✅ Loaded 5 skills from /path/to/skills: the-care-card (360t), the-gift-table (380t), ...
+        ✅ Loaded 5 skills from /path/to/skills: care-and-returns (360t), gifts (380t), ...
     """
     global _registry
 

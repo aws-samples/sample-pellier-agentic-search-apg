@@ -312,30 +312,30 @@ def test_findings_and_tags_share_one_pluralizer() -> None:
 
 
 def test_skill_loads_fold_into_one_step_with_one_finding() -> None:
-    names = {"the-gift-table": "The Gift Table", "the-proof-counter": "The Proof Counter"}
+    names = {"gifts": "The Gift Table", "evidence": "The Proof Counter"}
     paths = {
-        "the-gift-table": "skills/the-gift-table/SKILL.md",
-        "the-proof-counter": "skills/the-proof-counter/SKILL.md",
+        "gifts": "skills/gifts/SKILL.md",
+        "evidence": "skills/evidence/SKILL.md",
     }
     steps = TurnSteps(skill_names=names, skill_paths=paths)
-    running = steps.running(SKILL_LOAD_TOOL, {"skill_name": "the-gift-table"})
+    running = steps.running(SKILL_LOAD_TOOL, {"skill_name": "gifts"})
     assert running["label"] == "Opening The Gift Table"
-    done = steps.finished(SKILL_LOAD_TOOL, "# The Gift Table\n...", tool_input={"skill_name": "the-gift-table"})
-    assert done["finding"] == "Loaded The Gift Table from skills/the-gift-table/SKILL.md"
-    again = steps.finished(SKILL_LOAD_TOOL, "# The Proof Counter", tool_input={"skill_name": "the-proof-counter"})
+    done = steps.finished(SKILL_LOAD_TOOL, "# The Gift Table\n...", tool_input={"skill_name": "gifts"})
+    assert done["finding"] == "Loaded The Gift Table from skills/gifts/SKILL.md"
+    again = steps.finished(SKILL_LOAD_TOOL, "# The Proof Counter", tool_input={"skill_name": "evidence"})
     assert again["id"] == done["id"] == running["id"] == "step-1"
     assert again["finding"] == "Loaded The Gift Table and The Proof Counter from skills/"
     assert again["status"] == "done"
-    assert [skill["name"] for skill in steps.loaded_skills] == ["the-gift-table", "the-proof-counter"]
+    assert [skill["name"] for skill in steps.loaded_skills] == ["gifts", "evidence"]
 
 
 def test_a_skill_opened_twice_is_loaded_once() -> None:
-    names = {"the-gift-table": "The Gift Table"}
-    steps = TurnSteps(skill_names=names, skill_paths={"the-gift-table": "skills/the-gift-table/SKILL.md"})
-    steps.finished(SKILL_LOAD_TOOL, "# The Gift Table", tool_input={"skill_name": "the-gift-table"})
-    again = steps.finished(SKILL_LOAD_TOOL, "# The Gift Table", tool_input={"skill_name": "the-gift-table"})
-    assert [skill["name"] for skill in steps.loaded_skills] == ["the-gift-table"]
-    assert again["finding"] == "Loaded The Gift Table from skills/the-gift-table/SKILL.md"
+    names = {"gifts": "The Gift Table"}
+    steps = TurnSteps(skill_names=names, skill_paths={"gifts": "skills/gifts/SKILL.md"})
+    steps.finished(SKILL_LOAD_TOOL, "# The Gift Table", tool_input={"skill_name": "gifts"})
+    again = steps.finished(SKILL_LOAD_TOOL, "# The Gift Table", tool_input={"skill_name": "gifts"})
+    assert [skill["name"] for skill in steps.loaded_skills] == ["gifts"]
+    assert again["finding"] == "Loaded The Gift Table from skills/gifts/SKILL.md"
     assert again["builder"]["skills"] == steps.loaded_skills
 
 
@@ -353,14 +353,14 @@ def test_on_demand_mode_tags_the_router_step_before_any_load() -> None:
 
 
 def test_a_refused_skill_load_is_a_failed_step() -> None:
-    steps = TurnSteps(skill_names={"the-care-card": "The Care Card"})
+    steps = TurnSteps(skill_names={"care-and-returns": "The Care Card"})
     done = steps.finished(
         SKILL_LOAD_TOOL,
-        "Skill 'the-care-card' not found. Available skills: the-gift-table",
-        tool_input={"skill_name": "the-care-card"},
+        "Skill 'care-and-returns' not found. Available skills: gifts",
+        tool_input={"skill_name": "care-and-returns"},
     )
     assert done["status"] == "failed"
-    assert done["finding"] == "No skill named the-care-card for this agent"
+    assert done["finding"] == "No skill named care-and-returns for this agent"
     assert steps.loaded_skills == []
 
 
@@ -420,7 +420,7 @@ def test_route_step_names_the_agent_once_and_its_skills() -> None:
         intent="shopping",
         finding="Sent to the Shopping agent",
         model_id="global.anthropic.claude-opus-5",
-        skills=[{"name": "the-gift-table", "loaded": "fixed"}],
+        skills=[{"name": "gifts", "loaded": "fixed"}],
         skill_mode="fixed",
         memory={"facts": 3, "orders": 2, "source": "Aurora PostgreSQL"},
     )

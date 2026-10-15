@@ -1,5 +1,5 @@
 ---
-name: the-gift-table
+name: gifts
 persona: anna
 description: Expert guidance on gift-worthy pieces: wrapping, milestones, considered giving.
 display_name: The Gift Table

@@ -17,7 +17,7 @@ const ROUTE: TurnStep = {
     intent: 'shopping',
     agent: 'Shopping agent',
     model_id: 'global.anthropic.claude-opus-5',
-    skills: [{ name: 'the-gift-table', display_name: 'The Gift Table', path: 'skills/the-gift-table/SKILL.md', loaded: 'fixed' }],
+    skills: [{ name: 'gifts', display_name: 'The Gift Table', path: 'skills/gifts/SKILL.md', loaded: 'fixed' }],
     skill_mode: 'fixed',
   },
 }
@@ -128,7 +128,7 @@ describe('StepList', () => {
     expect(factRows(router)).toEqual({
       Intent: 'shopping',
       Model: 'global.anthropic.claude-opus-5',
-      Skills: 'the-gift-table(fixed)',
+      Skills: 'gifts(fixed)',
     })
     expect(factRows(search)).toMatchObject({ 'Audit row': '9031', Receipt: '412', Rail: 'in-process', Took: '184 ms' })
     expect(screen.getByTestId('ranking-panel')).toBeInTheDocument()
