@@ -159,9 +159,11 @@ Look for:
       is a forged call sent through the binding: it must leave as the caller.
 
 Template: `references/03-bind-identity-enforce-ownership.md`. Prove it: queries
-3a to 3c. The policy shows in the plan too: `EXPLAIN` a wrong query as the
-agent's role, bound as one customer, and the bound name is read in an InitPlan
-before any row is.
+3a to 3d. The policy shows in the plan too: `EXPLAIN ANALYZE` a wrong query as
+the agent's role, bound as one customer, and the bound name is read once in an
+InitPlan, a One-Time Filter compares it, and the table scan reads `(never
+executed)`. On PostgreSQL 18 the buffers print by default, so the plan shows
+that no page of the table was touched.
 
 ## Contract 4: approve and deduplicate writes
 
@@ -190,6 +192,17 @@ Look for:
 - [ ] Concurrency is handled in the database: lock the approval, then check
       for an existing row under the key, then write. A replay returns the
       first row; a replay with different arguments is a conflict, not a write.
+- [ ] That lock-then-read runs at `READ COMMITTED`, where each statement takes
+      a new snapshot, so a concurrent retry waits on the lock and then finds
+      the first row. Check what isolation level each caller sets: at
+      `REPEATABLE READ` or `SERIALIZABLE` the same retry keeps its old
+      snapshot and fails with `40001`, which the caller must then retry. A
+      stricter level is not a safer default here; it turns a replay into an
+      error.
+- [ ] What may be credited only once across keys (an order, an invoice line)
+      is locked `FOR UPDATE` too, and the write requires its "credited by"
+      column to be empty, so a second approval for the same item is refused
+      rather than paid.
 - [ ] A limit is enforced at the gateway (a `forbid ... unless` that lets
       through only a present, valid amount at or under the cap) and a safety
       ceiling is enforced in the database as a `CHECK` or in the function.
@@ -208,7 +221,7 @@ Look for:
       alone: request, approval, key, audit row, written row, affected rows.
 
 Template: `references/04-approve-and-deduplicate-writes.md`. Prove it: queries
-4a to 4g.
+4a to 4g, and the two-session race in 4h.
 
 ## Publishing tools over MCP
 

@@ -163,6 +163,21 @@ SELECT audit_id, session_id, args->>'customer_id' AS read_customer
  ORDER BY audit_id DESC
  LIMIT 1;
 
+-- 3d. The policy decides before the read. As the agent role, bound as one
+--     customer, explain a query for another customer's rows. Expect an
+--     InitPlan that reads the bound name once, a One-Time Filter comparing it
+--     with the customer asked for, and the table scan '(never executed)'.
+--     PostgreSQL 18 prints buffers by default: only the InitPlan's lookup
+--     touches pages. If the scan executes and filters rows instead, the
+--     predicate is evaluated row by row: still correct, but every row is read
+--     before it is discarded.
+BEGIN;
+SET LOCAL ROLE app_agent;
+SELECT set_config('app.principal_username', 'theo', true);
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY OFF)
+  SELECT * FROM orders WHERE customer_id = 'CUST-JESSICA';
+ROLLBACK;
+
 -- ---------------------------------------------------------------------------
 -- Contract 4: approve and deduplicate writes
 -- ---------------------------------------------------------------------------
@@ -245,3 +260,18 @@ SELECT q.source_turn_id                 AS asked_in_turn,
   FROM credit c
   JOIN review r ON true
   LEFT JOIN approvals q ON q.answered_by_review_id = r.id;
+
+-- 4h. Two sessions race one approved write. This needs two connections, so it
+--     is a procedure, not one query; run it on a copy, never on live money.
+--     Session A: BEGIN; call the write function for an approved review; do not
+--     commit. Session B, at READ COMMITTED: call it with the same key. B waits
+--     on A's lock. Commit A. Expect B to return the first row as a replay and
+--     the written table to hold exactly one row for the key. Repeat with B at
+--     REPEATABLE READ or SERIALIZABLE: expect SQLSTATE 40001 and still one row.
+--     From a third session, a waiting B shows as:
+SELECT pid, wait_event_type, wait_event, pg_blocking_pids(pid) AS blocked_by
+  FROM pg_stat_activity
+ WHERE cardinality(pg_blocking_pids(pid)) > 0;
+--     expect: Lock / transactionid, blocked by A's pid. Pellier runs this race
+--     as a test on a fresh PostgreSQL 18 cluster:
+--     pellier/backend/tests/test_credit_race_postgres.py

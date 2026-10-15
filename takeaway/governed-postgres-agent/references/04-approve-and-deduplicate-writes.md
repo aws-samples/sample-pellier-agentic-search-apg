@@ -91,6 +91,23 @@ lookup, *once* by the unique key plus the lock, *bounded* by the `CHECK`. All
 three hold only for writes that go through the function, which is what the
 next template makes the only way in.
 
+The lock-then-read is correct at `READ COMMITTED`, PostgreSQL's default, and
+only there. Each statement takes a new snapshot, so a retry that waited on
+the approval lock reads the key again and finds the first write. Under
+`REPEATABLE READ` or `SERIALIZABLE` the retry keeps the snapshot it started
+with, misses the first write, reaches the order lock and fails with `40001`.
+Measured on PostgreSQL 18.6 with Pellier's function:
+
+| Second session | Result | Rows for the key |
+|---|---|---|
+| `READ COMMITTED`, same key | waits, then returns the first write as a replay | 1 |
+| `REPEATABLE READ` or `SERIALIZABLE`, same key | `40001 could not serialize access due to concurrent update` | 1 |
+| `READ COMMITTED`, a second approval for the same orders | refused by the order lock | 1 |
+
+Each rule uses the narrowest mechanism that makes it true: a unique key for
+once per key, a row lock for once per order, a privilege for only through
+the function. None needs `SERIALIZABLE`.
+
 ## Template: the money role
 
 Whoever can write the table directly can skip every check above. A trigger
