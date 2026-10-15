@@ -22,6 +22,7 @@ import pathlib
 import re
 
 RESET = pathlib.Path("../../scripts/reset-governed-workshop.sh")
+RESTORE_LIB = pathlib.Path("../../scripts/lib/agentcore-reset.sh")
 BOOTSTRAP = pathlib.Path("../../scripts/bootstrap-labs.sh")
 DATABASE_SETUP = pathlib.Path("../../scripts/setup/database-setup.sh")
 DATABASE_RESET = pathlib.Path("../../scripts/setup/database-reset.sh")
@@ -438,12 +439,15 @@ def test_the_reset_explicitly_restarts_then_gates_the_full_workshop() -> None:
 
 def test_the_reset_quarantines_incomplete_memory_or_policy_restoration() -> None:
     body = _reset_body()
+    lib = RESTORE_LIB.read_text()
     assert "Could not clean AgentCore Memory runtime" in body
-    assert "Could not restore live Cedar enforcement mode" in body
+    assert "Could not restore live Cedar enforcement mode" in lib
     memory = body[body.index("reset_memory_runtime.py"):body.index("# ---------------------------------------------------------------------------\n# STEP 7")]
-    policy = body[body.index("policy_mode.py"):body.rindex("_restart_services_and_wait || exit 1")]
     assert "exit 1" in memory
-    assert "exit 1" in policy
+    # The shared function names the failed step; the whole reset turns it into a quarantine.
+    assert 'PELLIER_RESET_FAILED_STEP="policy-mode"' in lib
+    assert '_quarantine policy "Could not restore live Cedar enforcement mode"' in body
+    assert "pellier_restore_lab4_agentcore || { _quarantine_for_failed_step; exit 1; }" in body
 
 
 def test_the_reset_redeploys_the_starters_after_a_participant_deploy() -> None:
@@ -456,13 +460,15 @@ def test_the_reset_redeploys_the_starters_after_a_participant_deploy() -> None:
     runs before Lab 4's policy leg, and quarantines the box when it fails.
     """
     body = _reset_body()
+    lib = RESTORE_LIB.read_text()
     deploy = '--mode participant --reset-to-starters'
-    assert deploy in body
-    assert body.index(deploy) < body.index("declare_credit_limit")
-    leg = body[body.index("PARTICIPANT_RECEIPT="):body.index("declare_credit_limit")]
-    assert '-f "$PARTICIPANT_RECEIPT"' in leg
-    assert "_quarantine starter-deploy" in leg
-    assert "exit 1" in leg
+    assert deploy in lib
+    assert lib.index(deploy) < lib.index("declare_credit_limit")
+    leg = lib[lib.index("pellier_restore_lab3_agentcore() {"):lib.index("pellier_restore_lab4_policy() {")]
+    assert '-f "$receipt"' in leg
+    assert 'PELLIER_RESET_FAILED_STEP="starter-deploy"' in leg
+    assert '_quarantine starter-deploy' in body
+    assert body.index("pellier_restore_lab3_agentcore") < body.index("pellier_restore_lab4_agentcore")
 
 
 def test_the_reset_refuses_a_live_backend_it_cannot_stop() -> None:

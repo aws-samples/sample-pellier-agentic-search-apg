@@ -263,6 +263,7 @@ def test_reset_checks_the_enforce_pin_on_the_deployment_s_own_gateway():
     """A suffixed deployment's Gateway is pellier-<suffix>-gateway; a literal name
     made the reset fail its ENFORCE check on every isolated deployment."""
     source = (REPO / "scripts/reset-governed-workshop.sh").read_text()
+    source += (REPO / "scripts/lib/agentcore-reset.sh").read_text()
     assert "--arg name pellier-gateway" not in source
     assert '--field gateway-name' in source
     assert '--arg name "$GATEWAY_NAME"' in source

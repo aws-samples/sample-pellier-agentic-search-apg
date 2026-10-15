@@ -148,6 +148,7 @@ def test_participant_cedar_files_need_only_the_gateway_arn_substituted() -> None
 def test_reset_restores_the_starter_policy_through_cli() -> None:
     """The reset declares Lab 4's starter again; it never removes the policy."""
     source = RESET_GOVERNED.read_text()
+    source += (RESET_GOVERNED.parent / "lib" / "agentcore-reset.sh").read_text()
 
     assert "@aws/agentcore@0.29.0" in source
     assert "remove policy" not in source
@@ -157,7 +158,7 @@ def test_reset_restores_the_starter_policy_through_cli() -> None:
     assert "_agentcore deploy --yes --json" in source
     # A failed CLI call prints [FAIL] and exits, rather than set -e ending silently.
     for command in ("validate --json", "deploy --yes --json"):
-        guarded = f"_agentcore {command} >>/tmp/pellier-governed-reset-policy.log || {{\n    fail "
+        guarded = f"_agentcore {command} >>/tmp/pellier-governed-reset-policy.log || {{\n      fail "
         assert guarded in source, command
     assert "policy_name=workshop_credit_limit" in source
     assert "policyEngineConfiguration.mode" in source

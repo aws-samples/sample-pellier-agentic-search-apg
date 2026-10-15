@@ -1576,6 +1576,9 @@ def _run_reset(
     (repo / "scripts" / "setup").mkdir()
     shutil.copy2(DATABASE_RESET, repo / "scripts" / "setup" / DATABASE_RESET.name)
     shutil.copy2(DATABASE_SETUP, repo / "scripts" / "setup" / DATABASE_SETUP.name)
+    (repo / "scripts" / "lib").mkdir()
+    shutil.copy2(REPO / "scripts" / "lib" / "agentcore-reset.sh",
+                 repo / "scripts" / "lib" / "agentcore-reset.sh")
     _write_executable(repo / "scripts" / "health-gate.sh", "#!/bin/bash\nexit 0\n")
     _write_executable(
         repo / "pellier" / "backend" / ".venv" / "bin" / "python",
@@ -1730,8 +1733,11 @@ def test_the_reset_writes_a_quarantine_marker_when_memory_or_policy_cannot_be_re
     for key in ('"reason"', '"step"', '"at"'):
         assert key in reset, f"quarantine JSON lacks {key}"
     memory = reset[reset.index("reset_memory_runtime.py"):reset.index("# STEP 7")]
-    policy_end = reset.rindex("_restart_services_and_wait || exit 1")
-    policy = reset[reset.index("policy_mode.py"):policy_end]
+    lib = (REPO / "scripts" / "lib" / "agentcore-reset.sh").read_text(encoding="utf-8")
+    assert "policy_mode.py" in lib
+    assert 'PELLIER_RESET_FAILED_STEP="policy-mode"' in lib
+    policy = reset[reset.index("_quarantine_for_failed_step() {"):
+                   reset.rindex("_restart_services_and_wait || exit 1")]
     assert "_quarantine memory" in memory
     assert "_quarantine policy" in policy
     # A full success clears it, and only after both legs have actually run.

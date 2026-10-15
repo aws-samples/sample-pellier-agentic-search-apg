@@ -351,77 +351,54 @@ _assert_no_active_execution() {
 }
 
 # ---------------------------------------------------------------------------
-# Restore the STARTING execution path.
+# Repair, then shared restore functions.
 #
-# `lab3-start.sh` switches the storefront onto the managed Runtime by writing
-# USE_AGENTCORE_RUNTIME=true (run.env first, ENV_FILE on fallback), and
-# `services/execution_rail.py::resolve_rail` reads that setting and nothing
-# else. A reset that restores Lab 1's starter code but leaves the switch on
-# hands the next participant a box where their local edit cannot change the
-# answer: the storefront keeps executing the previously deployed Runtime
-# package. Source state and execution state are two different resets, and this
-# is the second one.
-_env_declares_managed_rail() {
-  local file="$1"
-  [[ -f "$file" ]] || return 1
-  grep -qiE '^[[:space:]]*(export[[:space:]]+)?USE_AGENTCORE_RUNTIME[[:space:]]*=[[:space:]]*"?(1|true|yes|on)"?[[:space:]]*$' "$file"
-}
-
-# Same contract as lab3-start.sh's `_upsert_env`: never evaluate, never widen the
-# mode, never truncate on a read failure. Falls back to `sudo -n` because run.env
-# lives under /etc and a participant shell may not own it.
-_reset_upsert_env() {
-  local file="$1" key="$2" value="$3" dir tmp status
-  dir="$(dirname "$file")"
-  [[ -d "$dir" ]] || mkdir -p "$dir" 2>/dev/null || sudo -n mkdir -p "$dir" 2>/dev/null || return 1
-  tmp="$(mktemp "${TMPDIR:-/tmp}/pellier-env.XXXXXX")" || return 1
-  if [[ -f "$file" ]]; then
-    grep -v -E "^[[:space:]]*(export[[:space:]]+)?${key}[[:space:]]*=" "$file" > "$tmp"
-    status=$?
-    if [[ "$status" -gt 1 ]]; then rm -f "$tmp"; return 1; fi
+# A workshop box has no git checkout, so a file a participant edited or deleted outside
+# the marked regions has nothing to be restored from. repair_workshop_files.py downloads
+# the revision the box was built from (.workshop-ref.json) and writes back what differs.
+# It runs after the application is quiet and BEFORE the database rebuild, so the
+# migrations, starters and these functions all come from the repaired tree.
+#
+# No network is not a reason to leave the box half reset: the repair says so and the rest
+# of the reset continues from the files as they are.
+_repair_workshop_files() {
+  local rc=0
+  if [[ ! -f "$REPO/scripts/repair_workshop_files.py" ]]; then
+    warn "scripts/repair_workshop_files.py is missing, so workshop files were NOT repaired"
+    return 0
   fi
-  printf '%s=%s\n' "$key" "$value" >> "$tmp" || { rm -f "$tmp"; return 1; }
-  chmod 600 "$tmp" 2>/dev/null
-  if cat "$tmp" > "$file" 2>/dev/null; then rm -f "$tmp"; return 0; fi
-  if sudo -n tee "$file" < "$tmp" >/dev/null 2>&1; then
-    sudo -n chmod 600 "$file" 2>/dev/null
-    rm -f "$tmp"; return 0
-  fi
-  rm -f "$tmp"; return 1
-}
-
-_restore_execution_rail() {
-  local file restored=0
-  for file in "$RUN_ENV_FILE" "$ENV_FILE"; do
-    [[ -f "$file" ]] || continue
-    if ! _reset_upsert_env "$file" "USE_AGENTCORE_RUNTIME" "false"; then
-      fail "Could not clear USE_AGENTCORE_RUNTIME in ${file}."
-      fail "The next participant would edit Lab 1 locally while the storefront answered from the deployed Runtime."
-      exit 1
-    fi
-    restored=$((restored + 1))
-  done
-  # Assert the RESULT, not the writes. A file this script never saw -- an
-  # operator's own copy, a path override -- would otherwise pass silently.
-  for file in "$RUN_ENV_FILE" "$ENV_FILE"; do
-    if _env_declares_managed_rail "$file"; then
-      fail "Baseline: ${file} still enables the managed rail after the reset wrote to it"
-      exit 1
-    fi
-  done
-  if [[ "$restored" -eq 0 ]]; then
-    warn "No env file found at $RUN_ENV_FILE or $ENV_FILE; execution rail left as configured"
+  "$PYTHON" "$REPO/scripts/repair_workshop_files.py" --repo "$REPO" \
+    >/tmp/pellier-governed-reset-repair.log 2>&1 || rc=$?
+  if [[ "$rc" -eq 0 ]]; then
+    pass "Workshop files: $(grep -E ' file\(s\) restored to the pin' /tmp/pellier-governed-reset-repair.log | head -1)"
+  elif [[ "$rc" -eq 3 ]]; then
+    warn "Workshop files NOT repaired (the pinned revision was unavailable): $(tail -1 /tmp/pellier-governed-reset-repair.log)"
+    warn "Continuing the reset from the files as they are"
   else
-    pass "Execution rail restored to in-process (USE_AGENTCORE_RUNTIME=false in ${restored} file(s))"
+    fail "Workshop file repair failed; see /tmp/pellier-governed-reset-repair.log"
+    exit 1
   fi
 }
+
+_load_restore_functions() {
+  if [[ ! -f "$REPO/scripts/lib/agentcore-reset.sh" ]]; then
+    fail "scripts/lib/agentcore-reset.sh is missing and the workshop files could not be repaired."
+    fail "Re-run once the box can reach GitHub, or run: python3 scripts/repair_workshop_files.py"
+    exit 1
+  fi
+  # shellcheck source=lib/agentcore-reset.sh
+  . "$REPO/scripts/lib/agentcore-reset.sh"
+}
+
 
 echo "Pellier governed reset - $(date '+%H:%M:%S')"
 echo "------------------------------------------------------------"
 
 _quiesce_services
 _assert_no_active_execution
-_restore_execution_rail
+_repair_workshop_files
+_load_restore_functions
+pellier_restore_execution_rail || exit 1
 
 if ! "$PYTHON" "$REPO/scripts/reset_participant_exercises.py" \
     --repo "$REPO" >/tmp/pellier-governed-reset-exercises.log 2>&1; then
@@ -443,6 +420,8 @@ fi
 pass "Schema rebuilt from scripts/migrations/001_schema.sql: ten tables, pellier_agent and its row-level security"
 pass "Catalog reloaded from the committed embedding cache"
 pass "Seed reloaded: stock, four customers and their orders, return policies, tickets"
+# The tables are empty again, so every lab's reset point (see workshop_check.py) is moot.
+rm -f "$REPO/.local/lab-reset-points.json"
 
 # The token claim is rendered from customers.cognito_username, the column row-level
 # security reads, so it is refreshed here rather than trusted to still match. It fails
@@ -557,131 +536,16 @@ if [[ "${PELLIER_RESET_SKIP_AGENTCORE:-0}" == "1" ]]; then
   exit 0
 fi
 
-IDENTITY_HELPER="$REPO/scripts/deploy/resolve_agentcore_identity.py"
-AGENTCORE_PROJECT="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field project-root)" || exit 1
-AGENTCORE_CONFIG="$AGENTCORE_PROJECT/agentcore/agentcore.json"
-POLICY_ENGINE_NAME="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field policy-engine-name)" || exit 1
-GATEWAY_NAME="$("$PYTHON" "$IDENTITY_HELPER" --repo "$REPO" --field gateway-name)" || exit 1
-
-if [[ ! -f "$AGENTCORE_CONFIG" ]]; then
-  fail "AgentCore CLI project missing: $AGENTCORE_CONFIG"
-  exit 1
-fi
-
-_agentcore() {
-  (
-    cd "$AGENTCORE_PROJECT"
-    # The CLI expects an endpoint alias; Pellier's parent environment stores an ARN.
-    export AGENTCORE_RUNTIME_ENDPOINT=DEFAULT
-    if command -v agentcore >/dev/null 2>&1; then
-      command agentcore "$@"
-    else
-      npx -y @aws/agentcore@0.29.0 "$@"
-    fi
-  )
+_quarantine_for_failed_step() {
+  case "$PELLIER_RESET_FAILED_STEP" in
+    starter-deploy) _quarantine starter-deploy "Could not redeploy the managed project from the starters" ;;
+    policy-mode) _quarantine policy "Could not restore live Cedar enforcement mode" ;;
+  esac
 }
 
-# Lab 3 goes back to its starter too. A participant deploy (Lab 3 or Lab 4) renders
-# the whole managed project from source - the Gateway's tool schemas, the Runtime
-# package and the Cedar policies - and records it in the participant receipt. The
-# files were restored above, but the live Gateway still publishes get_tickets with its
-# owner-only permit, and the receipt still names that catalogue, so lab3-start.sh
-# (Lab 3's first step) and the health gate both refused the reset box. The same deploy
-# from the restored starters puts the live project back to what provisioning built;
-# --reset-to-starters lets it retire the permit the starters no longer render, permit
-# first and schema second. Before any participant deploy there is no receipt, and the
-# live project is already provisioning's own render of these starters.
-PARTICIPANT_RECEIPT="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}"
-if [[ -f "$PARTICIPANT_RECEIPT" ]]; then
-  _starter_rc=0
-  (cd "$REPO" && "$PYTHON" "$REPO/scripts/provision_agentcore_end_to_end.py" \
-      --repo-path "$REPO" --mode participant --reset-to-starters \
-      --output-json "$PARTICIPANT_RECEIPT") \
-    >/tmp/pellier-governed-reset-starter-deploy.log 2>&1 || _starter_rc=$?
-  if [[ "$_starter_rc" -eq 0 ]]; then
-    pass "Managed project redeployed from the starters: Lab 3's tool and permit retired"
-  else
-    fail "Could not redeploy the managed project from the starters (see /tmp/pellier-governed-reset-starter-deploy.log)"
-    _quarantine starter-deploy "Could not redeploy the managed project from the starters"
-    exit 1
-  fi
-else
-  pass "No participant deploy since provisioning; the managed project is already the starters'"
-fi
-
-# Lab 4's policy goes back to its starter, not away: provisioning deployed the
-# starter forbid (`unless { false }`), and the next participant's Lab 4 opens
-# with its live DENY. The participant files were restored above, so the
-# starter is declared from workshop/starters and the CLI converges it.
-policy_changed=false
-policy_name=workshop_credit_limit
-if "$PYTHON" - "$AGENTCORE_CONFIG" "$POLICY_ENGINE_NAME" \
-    "$REPO/workshop/starters/workshop_credit_limit.cedar" "$REPO/scripts/deploy" <<'PY'
-import sys
-from pathlib import Path
-
-sys.path.insert(0, sys.argv[4])
-from render_agentcore_project import declare_credit_limit
-
-changed = declare_credit_limit(Path(sys.argv[1]), engine_name=sys.argv[2], source=Path(sys.argv[3]))
-raise SystemExit(0 if changed else 10)
-PY
-then
-  policy_changed=true
-elif [[ $? -ne 10 ]]; then
-  fail "Could not declare the Lab 4 starter policy ($policy_name) in $AGENTCORE_CONFIG"
-  exit 1
-fi
-
-if [[ "$policy_changed" == true ]]; then
-  _agentcore validate --json >>/tmp/pellier-governed-reset-policy.log || {
-    fail "Lab 4 starter policy did not validate; see /tmp/pellier-governed-reset-policy.log"
-    exit 1
-  }
-  _agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log || {
-    fail "Lab 4 starter policy did not deploy; see /tmp/pellier-governed-reset-policy.log"
-    exit 1
-  }
-  pass "Lab 4 policy $policy_name restored to its starter through AgentCore CLI"
-else
-  pass "Lab 4 policy $policy_name already declares its starter"
-fi
-
-if [[ "$(jq -r \
-    --arg name "$GATEWAY_NAME" \
-    '.agentCoreGateways[] | select(.name == $name) | .policyEngineConfiguration.mode' \
-    "$AGENTCORE_CONFIG")" != "ENFORCE" ]]; then
-  fail "AgentCore project no longer pins Gateway Policy mode to ENFORCE"
-  exit 1
-fi
-pass "Gateway Policy remains configured in ENFORCE mode"
-
-# The check above reads the CLI project file, which is the declared intent. The
-# live engine can disagree: a participant who switches a policy to LOG_ONLY
-# during the monitor-mode exercise leaves enforcement off while the file still
-# says ENFORCE. Restoring only the file would report a reset workshop whose
-# denials silently do not happen, so the live mode is restored at both scopes
-# (per-policy `enforcementMode`, gateway `policyEngineConfiguration.mode`).
-#
-# Non-fatal for a box with no AgentCore Policy engine provisioned: there the policy
-# leg is legitimately NOT_EVALUATED rather than broken, and `policy_mode.py` says so
-# with a dedicated exit code rather than in prose.
-_policy_rc=0
-"$PYTHON" "$REPO/scripts/policy_mode.py" --restore-shipped \
-  >/tmp/pellier-governed-reset-policy-mode.log 2>&1 || _policy_rc=$?
-if [[ "$_policy_rc" -eq 0 ]]; then
-  pass "Live Cedar enforcement mode restored at both scopes"
-elif [[ "$_policy_rc" -eq 2 ]]; then
-  # `policy_mode.py` reserves exit 2 for "AGENTCORE_POLICY_ENGINE_ID is not set, so
-  # there is no engine to read". Its other exit-2 path, a missing CLI project, cannot
-  # be reached here: this script already hard-failed above if $AGENTCORE_CONFIG were
-  # absent, and that is the same project directory.
-  pass "AgentCore Policy not provisioned here; live enforcement is NOT_EVALUATED"
-else
-  fail "Could not restore live Cedar enforcement mode (see /tmp/pellier-governed-reset-policy-mode.log)"
-  _quarantine policy "Could not restore live Cedar enforcement mode"
-  exit 1
-fi
+pellier_agentcore_init || exit 1
+pellier_restore_lab3_agentcore || { _quarantine_for_failed_step; exit 1; }
+pellier_restore_lab4_agentcore || { _quarantine_for_failed_step; exit 1; }
 
 # Both legs that can quarantine the box have now settled - each either succeeded or
 # is legitimately absent - so the marker is lifted before the gate runs; a gate that
