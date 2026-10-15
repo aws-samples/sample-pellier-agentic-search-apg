@@ -222,6 +222,160 @@ def test_solution_leaves_other_labs_untouched(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# solution --task: one task's answer, previewed, with the participant's file kept
+# ---------------------------------------------------------------------------
+
+
+def _task_entries(repo: Path, task: str) -> List[Dict[str, str]]:
+    return [e for e in lab_run.solution_files(int(task[0]), repo)
+            if Path(e["alias"]).name.startswith(task)]
+
+
+def _restarts() -> Any:
+    calls: List[str] = []
+
+    def restart() -> None:
+        calls.append("restart")
+    restart.calls = calls  # type: ignore[attr-defined]
+    return restart
+
+
+@pytest.mark.parametrize("task,later", [("1A", "1B"), ("2A", "2B"), ("3A", "3B"), ("4A", "4B")])
+def test_a_task_answer_leaves_the_next_tasks_file_alone(tmp_path: Path, task: str,
+                                                        later: str) -> None:
+    repo = _scratch_repo(tmp_path)
+    for entry in _task_entries(repo, later):
+        (repo / entry["source"]).write_text(f"my {later} work\n")
+    lab_run.install_task(task, repo, restart=_restarts())
+    for entry in _task_entries(repo, task):
+        assert (repo / entry["source"]).read_bytes() == (repo / entry["solution"]).read_bytes()
+    for entry in _task_entries(repo, later):
+        assert (repo / entry["source"]).read_text() == f"my {later} work\n"
+        assert not (repo / (entry["alias"] + ".bak")).exists()
+
+
+def test_3a_installs_both_of_its_files(tmp_path: Path) -> None:
+    repo = _scratch_repo(tmp_path)
+    assert [Path(e["alias"]).name for e in _task_entries(repo, "3A")] == [
+        "3A-1-publish-tool.py", "3A-2-bind-caller.py"]
+
+
+def test_reapplying_1a_keeps_a_1b_that_already_passed(tmp_path: Path) -> None:
+    repo = _scratch_repo(tmp_path)
+    (one_b,) = _task_entries(repo, "1B")
+    shutil.copyfile(repo / one_b["solution"], repo / one_b["source"])
+    for _ in range(2):
+        lab_run.install_task("1A", repo, restart=_restarts())
+    assert (repo / one_b["source"]).read_bytes() == (repo / one_b["solution"]).read_bytes()
+
+
+def test_the_participants_file_is_kept_once_and_never_replaced(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    (entry,) = _task_entries(repo, "1B")
+    source, backup = repo / entry["source"], repo / (entry["alias"] + ".bak")
+    source.write_text("my first attempt\n")
+
+    lab_run.install_task("1B", repo, restart=_restarts())
+    assert backup.read_text() == "my first attempt\n"
+    assert "labs/01-retrieve/1B-search-plan.py.bak" in capsys.readouterr().out
+
+    source.write_text("my second attempt\n")
+    lab_run.install_task("1B", repo, restart=_restarts())
+    assert backup.read_text() == "my first attempt\n"
+    assert source.read_bytes() == (repo / entry["solution"]).read_bytes()
+    assert "your first version is still in labs/01-retrieve/1B-search-plan.py.bak" in (
+        capsys.readouterr().out)
+
+
+def test_a_file_that_already_holds_the_answer_is_left_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    (entry,) = _task_entries(repo, "2A")
+    shutil.copyfile(repo / entry["solution"], repo / entry["source"])
+    restart = _restarts()
+    lab_run.install_task("2A", repo, restart=restart)
+    out = capsys.readouterr().out
+    assert "labs/02-ground/2A-stock-agent.py already holds the answer" in out
+    assert not (repo / (entry["alias"] + ".bak")).exists()
+    assert restart.calls == []
+
+
+def test_the_preview_shows_the_change_from_your_file_to_the_answer(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    (entry,) = _task_entries(repo, "2A")
+    lines = (repo / entry["solution"]).read_text().split("\n")
+    at = next(i for i, line in enumerate(lines) if line.strip() and lines.count(line) == 1)
+    finished, lines[at] = lines[at], "    my unfinished line"
+    (repo / entry["source"]).write_text("\n".join(lines))
+
+    lab_run.install_task("2A", repo, restart=_restarts())
+
+    out = capsys.readouterr().out
+    assert "--- yours (labs/02-ground/2A-stock-agent.py)" in out
+    assert "+++ answer (labs/02-ground/2A-stock-agent.py)" in out
+    assert "\n-    my unfinished line\n" in out
+    assert f"\n+{finished}\n" in out
+
+
+@pytest.mark.parametrize("task,restarted", [
+    ("1A", True), ("1B", True), ("2A", True), ("3A", True),
+    ("2B", False), ("3B", False), ("4A", False), ("4B", False)])
+def test_the_app_restarts_only_when_a_backend_file_changed(
+    tmp_path: Path, task: str, restarted: bool,
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    for entry in _task_entries(repo, task):
+        (repo / entry["source"]).write_text("starter\n")
+    restart = _restarts()
+    lab_run.install_task(task, repo, restart=restart)
+    assert restart.calls == (["restart"] if restarted else [])
+
+
+@pytest.mark.parametrize("task,expected", [
+    ("1A", ["python3 scripts/lab1_check.py --task 1A"]),
+    ("1B", ["python3 scripts/lab_run.py send --lab 1 --task 1B",
+            "python3 scripts/lab1_check.py --task 1B"]),
+    ("2A", ["python3 scripts/lab_run.py send --lab 2 --task 2A",
+            "python3 scripts/lab2_check.py --task 2A"]),
+    ("2B", ["psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql",
+            "python3 scripts/lab2_check.py --task 2B"]),
+    ("3A", ["python3 scripts/lab3_check.py --task 3A", lab_run.DEPLOY]),
+    ("3B", ["psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/03-deploy/3B-row-ownership.sql"]),
+    ("4A", ["python3 scripts/lab4_check.py --task 4A", lab_run.DEPLOY]),
+    ("4B", ["psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql",
+            "python3 scripts/lab4_check.py --task 4B"]),
+])
+def test_each_task_names_its_next_command(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], task: str, expected: List[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    lab_run.install_task(task, repo, restart=_restarts())
+    out = capsys.readouterr().out
+    assert all(command in out for command in expected), out
+
+
+def test_solution_with_a_task_from_another_lab_is_refused(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        lab_run.main(["solution", "--lab", "1", "--task", "2A"])
+    assert "--task 2A goes with solution --lab 2" in capsys.readouterr().err
+
+
+def test_send_still_refuses_a_task_without_its_own_request(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        lab_run.main(["send", "--lab", "4", "--task", "4A"])
+    assert "send --task takes one of" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
 # diff
 # ---------------------------------------------------------------------------
 

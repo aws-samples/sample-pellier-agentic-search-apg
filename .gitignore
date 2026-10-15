@@ -131,3 +131,6 @@ pellier/frontend/test-results/
 # not a runtime or release dependency: no code may require anything under audit/.
 # Promote stable handoff material into docs/ instead of committing the raw census.
 audit/
+
+# lab_run.py solution --task keeps a participant's own version beside its editor link.
+labs/*/*.bak

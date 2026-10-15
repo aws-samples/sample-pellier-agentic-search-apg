@@ -11,6 +11,14 @@ A task that opens with its own request sends just that one with ``--task``:
 
     python3 scripts/lab_run.py send --lab 1 --task 1A
 
+``solution --task`` installs one task's answer and nothing else. It prints the change
+from your file to the answer, keeps your file beside its editor link as ``.bak`` (the
+first version only: a second run never replaces it), restarts the backend when a backend
+file changed, and names the next command. A SQL or Cedar answer is only installed;
+running the exercise or deploying is that next command:
+
+    python3 scripts/lab_run.py solution --lab 1 --task 1A
+
 ``reset`` puts one lab back to its as-shipped start, leaving the other labs alone: its
 files, its database piece, its AgentCore state and the backend. It records a reset point so
 the lab's checks ignore turns from before it (scripts/lab_reset.py has the detail):
@@ -54,7 +62,9 @@ import difflib
 import json
 import os
 import pathlib
+import shlex
 import shutil
+import subprocess
 import sys
 import textwrap
 import time
@@ -96,6 +106,22 @@ TASK_CONVERSATIONS = {
     "3A": [("theo", ("exercise",))],
 }
 DEPLOY = 'python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
+TASKS = ("1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B")
+PSQL = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f"
+# What proves each task once its answer is in place, naming files by their editor link.
+NEXT_AFTER_TASK = {
+    "1A": ["python3 scripts/lab1_check.py --task 1A"],
+    "1B": ["python3 scripts/lab_run.py send --lab 1 --task 1B",
+           "python3 scripts/lab1_check.py --task 1B"],
+    "2A": ["python3 scripts/lab_run.py send --lab 2 --task 2A",
+           "python3 scripts/lab2_check.py --task 2A"],
+    "2B": [f"{PSQL} labs/02-ground/2B-check-stock.sql", "python3 scripts/lab2_check.py --task 2B"],
+    "3A": ["python3 scripts/lab3_check.py --task 3A", DEPLOY],
+    "3B": [f"{PSQL} labs/03-deploy/3B-row-ownership.sql"],
+    "4A": ["python3 scripts/lab4_check.py --task 4A", DEPLOY],
+    "4B": [f"{PSQL} labs/04-govern/4B-credit-writer.sql", "python3 scripts/lab4_check.py --task 4B"],
+}
+BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
     1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
     2: ("run the Task 2B worksheet (psql -X -v ON_ERROR_STOP=1 -P pager=off -f "
@@ -164,6 +190,72 @@ def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
         shutil.copyfile(answer, target)
         ok(f"{entry['alias']} now holds the solution ({entry['source']})")
     print(f"  Next: {NEXT_AFTER_SOLUTION[lab]}", flush=True)
+
+
+def task_files(task: str, repo: pathlib.Path = REPO) -> List[Dict[str, str]]:
+    """The files one task edits: its lab's entries whose editor link starts with the task."""
+    mine = [entry for entry in solution_files(int(task[0]), repo)
+            if pathlib.PurePosixPath(entry["alias"]).name.startswith(task)]
+    if not mine:
+        raise LabRunError(f"workshop/participant-files.json lists no file for Task {task}")
+    return mine
+
+
+def _print_change(alias: str, yours: bytes, answer: bytes) -> None:
+    """The change the answer makes to the participant's file: their lines '-', the answer's '+'."""
+    lines = difflib.unified_diff(
+        yours.decode("utf-8", "replace").splitlines(keepends=True),
+        answer.decode("utf-8", "replace").splitlines(keepends=True),
+        fromfile=f"yours ({alias})", tofile=f"answer ({alias})")
+    for line in lines:
+        print(line.rstrip("\n"), flush=True)
+
+
+def install_task(task: str, repo: pathlib.Path = REPO,
+                 restart: Optional[Callable[[], None]] = None) -> None:
+    """Put one task's answer in place and keep the participant's first version beside it.
+
+    Only the task's own files change, so a later task's work and evidence stay as they
+    are. The backup sits next to the editor link as ``<link>.bak`` and is written once:
+    a second run keeps the first version rather than replacing it with the answer.
+    ``restart`` runs when a backend file changed, because the app serves what it loaded.
+    """
+    backend_changed = False
+    for entry in task_files(task, repo):
+        alias = entry["alias"]
+        target, answer = repo / entry["source"], repo / entry["solution"]
+        yours, finished = target.read_bytes(), answer.read_bytes()
+        if yours == finished:
+            ok(f"{alias} already holds the answer")
+            continue
+        _print_change(alias, yours, finished)
+        backup = repo / f"{alias}.bak"
+        if backup.exists():
+            ok(f"your first version is still in {alias}.bak")
+        else:
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            backup.write_bytes(yours)
+            ok(f"your version is kept in {alias}.bak")
+        shutil.copyfile(answer, target)
+        ok(f"{alias} now holds the answer")
+        backend_changed = backend_changed or entry["source"].startswith(BACKEND_DIR)
+    if backend_changed and restart is not None:
+        restart()
+    print("  Next: " + ", then ".join(NEXT_AFTER_TASK[task]), flush=True)
+
+
+def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run) -> None:
+    """Restart the Pellier service the way the guide does, then wait until it is healthy."""
+    if shutil.which("systemctl") is None:
+        raise LabRunError("systemctl is not on this machine, so the backend was not restarted. "
+                          "Restart it yourself, then run the next command.")
+    command = (["systemctl", "restart", "pellier"] if os.geteuid() == 0
+               else ["sudo", "-n", "systemctl", "restart", "pellier"])
+    wait("restarting the backend so it serves the new code")
+    if run(command, check=False).returncode != 0:
+        raise LabRunError(f"{shlex.join(command)} failed. Restart the backend yourself "
+                          "(sudo systemctl restart pellier), then run the next command.")
+    wait_until_healthy(backend)
 
 
 # ---------------------------------------------------------------------------
@@ -568,11 +660,17 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                         help="send: stop before Nadia's part in the Operator (Lab 4)")
     parser.add_argument("--quiet", action="store_true",
                         help="send: one line per request, without each turn's trace")
-    parser.add_argument("--task", choices=sorted(TASK_CONVERSATIONS),
-                        help="send: only that task's request")
+    parser.add_argument("--task", choices=TASKS,
+                        help="solution: only that task's answer; send: only that task's request")
     args = parser.parse_args(argv)
-    if args.task and (args.action != "send" or not args.task.startswith(str(args.lab))):
-        parser.error(f"--task {args.task} goes with send --lab {args.task[0]}")
+    if args.task:
+        if args.action not in ("solution", "send"):
+            parser.error(f"--task goes with solution or send, not {args.action}")
+        if not args.task.startswith(str(args.lab)):
+            parser.error(f"--task {args.task} goes with {args.action} --lab {args.task[0]}")
+        if args.action == "send" and args.task not in TASK_CONVERSATIONS:
+            parser.error(f"send --task takes one of {', '.join(sorted(TASK_CONVERSATIONS))}; "
+                         f"Task {args.task} has no request of its own")
     titles = {"solution": "install the solution", "send": "send the requests",
               "diff": "compare your files with the solution",
               "reset": "start over from the as-shipped lab"}
@@ -580,6 +678,9 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     try:
         if args.action == "diff":
             show_diff(args.lab, color=sys.stdout.isatty() and "NO_COLOR" not in os.environ)
+        elif args.action == "solution" and args.task:
+            backend = Backend(base_url)
+            install_task(args.task, restart=lambda: restart_backend(backend))
         elif args.action == "solution":
             install_solution(args.lab)
         elif args.action == "reset":
