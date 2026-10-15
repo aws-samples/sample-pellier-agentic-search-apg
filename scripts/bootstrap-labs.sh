@@ -1596,7 +1596,7 @@ export PELLIER_TOKEN=\$(aws cognito-idp admin-initiate-auth \\
   --auth-parameters "\$_ap" \\
   --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null)
 if [ -n "\$PELLIER_TOKEN" ] && [ "\$PELLIER_TOKEN" != "None" ]; then
-  echo "✅ \$PELLIER_TOKEN minted for \$_u (use: -H \"Authorization: Bearer \\\$PELLIER_TOKEN\")"
+  echo "✅ \\\$PELLIER_TOKEN minted for \$_u (use: -H \"Authorization: Bearer \\\$PELLIER_TOKEN\")"
 else
   echo "✗ Token mint failed – check Cognito provisioning (/var/log/pellier-agentcore.log)"
 fi

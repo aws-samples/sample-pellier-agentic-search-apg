@@ -182,6 +182,26 @@ def test_governed_identity_bootstrap_covers_jessica_as_a_shopper_principal() -> 
     assert 'next((x for x in us if x["username"].lower()==w), us[0])' not in bootstrap
 
 
+def test_token_helper_names_the_token_without_printing_it(tmp_path: Path) -> None:
+    """A participant sources the helper in a terminal that may be on screen or shared."""
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    body = bootstrap.split('cat > "$_TOKEN_HELPER" <<TOKENEOF\n', 1)[1].split("\nTOKENEOF\n", 1)[0]
+    render = tmp_path / "render.sh"
+    render.write_text(f"cat <<TOKENEOF\n{body}\nTOKENEOF\n", encoding="utf-8")
+    helper = subprocess.run(
+        ["bash", str(render)], capture_output=True, text=True, check=True, env={"PATH": os.defpath}
+    ).stdout
+    success = next(line for line in helper.splitlines() if "minted for" in line).strip()
+
+    shown = subprocess.run(
+        ["bash", "-c", f"PELLIER_TOKEN=eyJ.fake.jwt; _u=theo; {success}"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+
+    assert "eyJ.fake.jwt" not in shown
+    assert "$PELLIER_TOKEN minted for theo" in shown
+
+
 def test_cloudformation_waits_for_stage2_readiness_not_only_the_editor() -> None:
     """A box is not ready until the app, managed rail, and receipt gate pass."""
     source = ENVIRONMENT_BOOTSTRAP.read_text(encoding="utf-8")
