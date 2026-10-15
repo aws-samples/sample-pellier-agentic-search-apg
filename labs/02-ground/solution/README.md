@@ -6,17 +6,18 @@ application executes.
 - [2A-stock-agent.py](2A-stock-agent.py)
 - [2B-check-stock.sql](2B-check-stock.sql)
 
-To catch up on the whole lab, save any edits you want to keep, then run this from the
-repository root. It installs both answers, commits the 2B exercise's function, restarts
-the backend, sends Marco's requests and runs both checks:
+Skip one task: the task's own apply command shows the change, installs that task's answer,
+keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-python3 scripts/lab_run.py solution --lab 2 && \
-  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql && \
-  sudo systemctl restart pellier && \
-  python3 scripts/lab_run.py send --lab 2 && \
-  python3 scripts/lab2_check.py --task 2A && \
-  python3 scripts/lab2_check.py --task 2B
+python3 scripts/lab_run.py solution --lab 2 --task 2A   # or 2B
+```
+
+Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
+requests and run every check, stopping at the first failure. It runs the 2B exercise, which commits the function.
+
+```bash
+python3 scripts/lab_run.py finish --lab 2
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

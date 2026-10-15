@@ -7,18 +7,18 @@ application executes.
 - [3A-2-bind-caller.py](3A-2-bind-caller.py)
 - [3B-row-ownership.sql](3B-row-ownership.sql)
 
-To catch up on the whole lab, save any edits you want to keep, then run this from the
-repository root. It moves Pellier onto AgentCore, installs the answers, deploys them, runs
-the row-ownership exercise, sends Theo's requests and runs both checks:
+Skip one task: the task's own apply command shows the change, installs that task's answer,
+keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-bash scripts/lab3-start.sh theo && \
-  python3 scripts/lab_run.py solution --lab 3 && \
-  python3 scripts/lab3_check.py --task 3A && \
-  python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant && \
-  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql && \
-  python3 scripts/lab_run.py send --lab 3 && \
-  python3 scripts/lab3_check.py --task 3B
+python3 scripts/lab_run.py solution --lab 3 --task 3A   # or 3B
+```
+
+Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
+requests and run every check, stopping at the first failure. It deploys to AgentCore, which takes about three minutes, and runs the row-ownership exercise.
+
+```bash
+python3 scripts/lab_run.py finish --lab 3
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

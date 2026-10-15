@@ -42,26 +42,30 @@ or runtime skills.
 Use participant mode for any governed lab or bounded workshop task. Read the
 participant's named task and prediction before proposing a change.
 
-| Task | Allowed file | Allowed marker |
-|---|---|---|
-| 1A | `pellier/backend/services/store_tools.py` | `Vector branch - order by meaning` |
-| 1B | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
-| 1, Go deeper | `workshop/lab-1-fusion.sql` | `PostgreSQL RRF - fusion expression` |
-| 2A | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
-| 2B | `workshop/lab-2-check-stock.sql` | `Stock check - not carried` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
-| 3A | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
-| 3B | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
-| 4A | `policies/workshop_credit_limit.cedar` | final `unless` block |
-| 4B | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
+| Task | How | Explorer name | File it links to | Allowed marker |
+|---|---|---|---|---|
+| 1A | Applied by command | `labs/01-retrieve/1A-vector-branch.py` | `pellier/backend/services/store_tools.py` | `Vector branch - order by meaning` |
+| 1B | Written | `labs/01-retrieve/1B-search-plan.py` | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
+| 1, Go deeper | Written | `labs/01-retrieve/go-deeper-fusion.sql` | `workshop/lab-1-fusion.sql` | `PostgreSQL RRF - fusion expression` |
+| 2A | Applied by command | `labs/02-ground/2A-stock-agent.py` | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
+| 2B | Written | `labs/02-ground/2B-check-stock.sql` | `workshop/lab-2-check-stock.sql` | `Stock check - not carried` |
+| 3A | Applied by command | `labs/03-deploy/3A-1-publish-tool.py` | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
+| 3A | Applied by command | `labs/03-deploy/3A-2-bind-caller.py` | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
+| 3B | Written | `labs/03-deploy/3B-row-ownership.sql` | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
+| 4A | Written | `labs/04-govern/4A-credit-policy.cedar` | `policies/workshop_credit_limit.cedar` | final `unless` block |
+| 4B | Written | `labs/04-govern/4B-credit-writer.sql` | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
 
-Task 3B writes the row-ownership predicate while the Task 3A edits deploy, then challenges both.
-Lab 1's meaning worksheet (`workshop/lab-1-meaning.sql`, run before Task 1A's edit), Lab 3's
+The `labs/` names are links to the application's own files. The participant writes 1B, 2B,
+3B, 4A and 4B in the marked region. 1A, 2A and 3A they apply by command after seeing the change
+(`python3 scripts/lab_run.py solution --lab N --task NX`); explain the change, do not write it
+for them. Task 3B writes the row-ownership predicate while the deploy runs, then challenges it.
+Lab 1's meaning query (`workshop/lab-1-meaning.sql`, run before Task 1A), Lab 3's
 live row-level security check (`scripts/lab3_row_ownership_check.py`), Lab 3's workload
-worksheet (`workshop/lab-3-agent-workload.sql`), Lab 4's keyed absence check
+query (`workshop/lab-3-agent-workload.sql`), Lab 4's keyed absence check
 (`workshop/lab-4-absence.sql`), Task 4B's check (`scripts/lab4_check.py --task 4B`) and the
 Wrap-up's reconstruction (`workshop/wrap-up-reconstruct.sql`) are supplied; none has a
-region to author.
+region to author. A SQL file a participant edits and runs is an exercise; one they only run is
+a query.
 Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its exercise boundary. This table grants access only to
 the task the participant names, never every file at once.
@@ -134,7 +138,7 @@ The required participant path is four labs, each with Tasks A and B
 anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
-|---|---|---|---|
+|---|---|---|---|---|
 | 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Search by what she means | Keep her limits on the retry |
 | 2. Build a PostgreSQL-Grounded Agent | Marco | Connect `check_stock` to the Stock agent, alone | Keep "not carried" distinct from sold out |
 | 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
@@ -150,11 +154,10 @@ Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the exercise to an
 unpackaged file or infer deployed completion from source inspection.
 
-The schedule is 20 minutes for the opening talk and 10 for the Introduction and
-Getting started. Participant guides then start their hands-on clock with Labs
-1-4 at 15/20/25/25 minutes (85) and the Wrap-up takes the last 5: all 120
-minutes of the slot, with no time held for recovery. Reading, deployment waits,
-and explanation share those allocations. These are targets pending a timed
+The schedule is 120 minutes. Getting started happens as people arrive, before the talk.
+Then the talk takes 20 minutes, Lab 1 15, Lab 2 15, Before Lab 3 (the one scheduled catch-up,
+then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 30 and the Wrap-up 10. Reading,
+deployment waits, and explanation share those allocations. These are targets pending a timed
 fresh-account rehearsal.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or

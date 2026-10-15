@@ -7,12 +7,15 @@ file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root.
+Every terminal starts at the repository root. You write both tasks; nothing in this lab is
+applied by command. Pellier is already on AgentCore from Lab 3.
 
-| Task | See it fail | Edit | Prove it |
+| Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 4A, cap the credit at $100 in Cedar | `python3 scripts/lab4_check.py --task 4A` | [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, then deploy with `python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | `python3 scripts/lab4_check.py --task 4A` ends `Lab 4A check passed` |
-| 4B, let the money role write only through the function | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql` | [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, and the same `psql` run until it ends `Lab 4B privileges check passed` | `python3 scripts/lab4_check.py --task 4B` ends `Lab 4B check passed` |
+| 4A, cap the credit at $100 in Cedar | `python3 scripts/lab_run.py send --lab 4 --shopper-only`, Nadia's **Execute** in the Operator, then `python3 scripts/lab4_check.py --task 4A` | Write: [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, then deploy with `python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | After 4B: **Execute again** and **Replay with the same key**, then `python3 scripts/lab4_check.py --task 4A` ends `Lab 4A check passed` |
+| 4B, let the money role write only through the function | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql` | Write: [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, then the same `psql` run until it ends `Lab 4B privileges check passed` | `python3 scripts/lab4_check.py --task 4B` ends `Lab 4B check passed` |
+
+The deploy ends `Pellier is already using AgentCore.`
 
 Jessica's request goes from the terminal:
 
@@ -20,11 +23,12 @@ Jessica's request goes from the terminal:
 python3 scripts/lab_run.py send --lab 4 --shopper-only
 ```
 
-Nadia's decision is the one step that happens in the app. In **PellierURL**, select
-**Operator**, sign in as `nadia`, investigate Jessica's case, approve the proposed credit
-and select **Execute**: with the rule as shipped, Policy reads DENY. After the deploy, select
-**Execute again** and then **Replay with the same key**. Their proof comes back here: the two checks
-above, then the supplied absence check, which ends `Lab 4 absence check passed`:
+Its last line prints Nadia's sign-in for the Operator. Nadia's decision is the one step that
+happens in the app. In **PellierURL**, select **Operator**, sign in as `nadia`, investigate
+Jessica's case, approve the proposed credit and select **Execute**: with the rule as shipped,
+Policy reads DENY. After the deploy, select **Execute again** and then **Replay with the same
+key**. Their proof comes back here: the two checks above, then the supplied absence check, which
+ends `Lab 4 absence check passed`:
 
 ```bash
 psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
@@ -39,7 +43,9 @@ In Code Editor choose **Terminal > Run Task > Reset Lab 4** (or run `python3 scr
 
 ## If you need a solution
 
-Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing
-an answer does not complete the task; its check still has to pass.
+To finish the whole lab, run `python3 scripts/lab_run.py finish --lab 4`. It backs up your
+files, applies both answers, deploys, performs Nadia's approval and execution once (a rerun only
+replays), runs every check and stops at the first failure. The answers are also in
+[solution/README.md](solution/README.md).
 
 [All labs](../../START_HERE.md)

@@ -24,19 +24,19 @@ the same checks.
 
 | Lab and task | Work you do | Check |
 |---|---|---|
-| 1A, Anna | Search by what she means (`services/store_tools.py`) | `python3 scripts/lab1_check.py --task 1A` |
+| 1A, Anna | Search by what she means (`services/store_tools.py`), applied with `scripts/lab_run.py solution --lab 1 --task 1A` | `python3 scripts/lab1_check.py --task 1A` |
 | 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `python3 scripts/lab1_check.py --task 1B` |
-| 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`) | `python3 scripts/lab2_check.py --task 2A` |
-| 2B, Marco | Keep "not carried" distinct from sold out (`workshop/lab-2-check-stock.sql`) | `python3 scripts/lab2_check.py --task 2B` |
-| 3A, Theo | Publish `get_tickets` and bind it to the caller | `python3 scripts/lab3_check.py --task 3A` |
-| 3B, Theo | Deploy, write the ownership rule (`workshop/lab-3-row-ownership.sql`), then challenge it | `python3 scripts/lab3_check.py --task 3B` |
+| 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`), applied with `scripts/lab_run.py solution --lab 2 --task 2A` | `python3 scripts/lab2_check.py --task 2A` |
+| 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `python3 scripts/lab2_check.py --task 2B` |
+| 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `python3 scripts/lab3_check.py --task 3A` |
+| 3B, Theo | Deploy, write the ownership rule (`labs/03-deploy/3B-row-ownership.sql`), then challenge it | `python3 scripts/lab3_check.py --task 3B` |
 | 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_check.py --task 4A` |
-| 4B, Jessica and Nadia | Let the money role write only through the function (`workshop/lab-4-credit-writer.sql`) | `python3 scripts/lab4_check.py --task 4B` |
+| 4B, Jessica and Nadia | Let the money role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `python3 scripts/lab4_check.py --task 4B` |
 
 The two exercises run during their labs' deploys and print their own lines:
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql` ends
+`psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/03-deploy/3B-row-ownership.sql` ends
 `Lab 3B predicate check passed` and
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql`
+`psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql`
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql`.
 

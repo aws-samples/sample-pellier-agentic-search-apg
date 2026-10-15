@@ -6,22 +6,20 @@ application executes.
 - [4A-credit-policy.cedar](4A-credit-policy.cedar)
 - [4B-credit-writer.sql](4B-credit-writer.sql)
 
-To catch up on the whole lab, save any edits you want to keep, then run this from the
-repository root. It installs both answers, commits the credit writer's privileges, deploys
-the Cedar rule, sends Jessica's request and does Nadia's approval and execution, then runs
-the checks:
+Skip one task: the task's own apply command shows the change, installs that task's answer,
+keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-python3 scripts/lab_run.py solution --lab 4 && \
-  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql && \
-  python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant && \
-  python3 scripts/lab_run.py send --lab 4 && \
-  python3 scripts/lab4_check.py --task 4A && \
-  python3 scripts/lab4_check.py --task 4B && \
-  psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
+python3 scripts/lab_run.py solution --lab 4 --task 4A   # or 4B
 ```
 
-The exercise runs before `send`, so Nadia's credit is written under the privileges you
-committed.
+Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
+requests and run every check, stopping at the first failure. It deploys the Cedar rule and also performs Nadia's approval and execution once; a rerun only replays.
+
+```bash
+python3 scripts/lab_run.py finish --lab 4
+```
+
+The credit writer's privileges are committed before Nadia's credit is written, so the credit is written under them.
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

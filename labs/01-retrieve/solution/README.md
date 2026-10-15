@@ -7,16 +7,18 @@ application executes.
 - [1B-search-plan.py](1B-search-plan.py)
 - [go-deeper-fusion.sql](go-deeper-fusion.sql), the optional exercise's answer
 
-To catch up on the whole lab, save any edits you want to keep, then run this from the
-repository root. It installs both tasks' answers, leaves the optional exercise alone,
-restarts the backend, sends Anna's request and runs both checks:
+Skip one task: the task's own apply command shows the change, installs that task's answer,
+keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-python3 scripts/lab_run.py solution --lab 1 && \
-  sudo systemctl restart pellier && \
-  python3 scripts/lab_run.py send --lab 1 && \
-  python3 scripts/lab1_check.py --task 1A && \
-  python3 scripts/lab1_check.py --task 1B
+python3 scripts/lab_run.py solution --lab 1 --task 1A   # or 1B
+```
+
+Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
+requests and run every check, stopping at the first failure. It leaves the optional Go deeper exercise alone.
+
+```bash
+python3 scripts/lab_run.py finish --lab 1
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

@@ -6,12 +6,14 @@ retry drops her limits. Keep the Workshop Studio guide open beside this file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root.
+Every terminal starts at the repository root. You apply 1A and write 1B.
 
-| Task | See it fail | Edit | Prove it |
+| Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 1A, search by what she means | `python3 scripts/lab_run.py send --lab 1 --task 1A`: her ranking has no vector rank | Read why first: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql`, then `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql`. Then [1A-vector-branch.py](1A-vector-branch.py), region `Vector branch - order by meaning` | `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
-| 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1 --task 1B`, her sentence with her limits, then `python3 scripts/lab1_check.py --task 1B` | [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then restart and send her request again | `python3 scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
+| 1A, search by what she means | `python3 scripts/lab_run.py send --lab 1 --task 1A`: her ranking has no vector rank | Apply: `python3 scripts/lab_run.py solution --lab 1 --task 1A`. It shows the change to [1A-vector-branch.py](1A-vector-branch.py), installs it, keeps your file as `.bak` and restarts the backend | `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
+| 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1 --task 1B`, her sentence with her limits, then the guide's receipt query | Write: [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then `sudo systemctl restart pellier && python3 scripts/lab_run.py send --lab 1 --task 1B` | `python3 scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
+
+Sends in this lab print `ran in process`: the agents run inside the app.
 
 After the 1B token, open **PellierURL**, choose **Anna** in **Ask Pellier** with **Builder
 view** on. The request you sent is there, marked **Sent from the terminal**, and **How it
@@ -30,7 +32,8 @@ In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `python3 scr
 
 ## If you need a solution
 
-Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing
-an answer does not complete the task; its check still has to pass.
+To skip one task, run its apply command above. To finish the whole lab, run
+`python3 scripts/lab_run.py finish --lab 1`. Either way the check still has to pass. The answers
+are also in [solution/README.md](solution/README.md).
 
 [All labs](../../START_HERE.md)

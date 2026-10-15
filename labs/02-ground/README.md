@@ -8,17 +8,17 @@ file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root.
+Every terminal starts at the repository root. You apply 2A and write 2B.
 
-| Task | See it fail | Edit | Prove it |
+| Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 2A, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2 --task 2A`, his Brooklyn count, then `python3 scripts/lab2_check.py --task 2A` | [2A-stock-agent.py](2A-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his Brooklyn count again | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
-| 2B, keep "not carried" distinct from sold out | `python3 scripts/lab_run.py send --lab 2 --task 2B`, the cape Pellier never carried, then `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql` | [2B-check-stock.sql](2B-check-stock.sql), region `Stock check - not carried`, then run the exercise again | the exercise ends `Lab 2B function check passed`, then `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
+| 2A, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2 --task 2A`, his Brooklyn count | Apply: `python3 scripts/lab_run.py solution --lab 2 --task 2A`. It shows the change to [2A-stock-agent.py](2A-stock-agent.py), installs it, keeps your file as `.bak` and restarts the backend. Then `python3 scripts/lab_run.py send --lab 2 --task 2A` | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
+| 2B, keep "not carried" distinct from sold out | `python3 scripts/lab_run.py send --lab 2 --task 2B`, the cape Pellier never carried, then the exercise: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql` | Write: [2B-check-stock.sql](2B-check-stock.sql), region `Stock check - not carried`, then run the exercise again | the exercise ends `Lab 2B function check passed`, then `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
 
-The 2A check reads the grant the answering Stock agent actually held from its audit row, so
-it needs Marco's requests sent again; the restart makes them run on your saved file. The 2B
-exercise changes the live `pellier.check_stock` only when its four probes match, and the
-2B check runs that live function, so it needs no restart.
+Sends in this lab print `ran in process`. The 2A check reads the grant the answering Stock
+agent actually held from its audit row, so it needs Marco's requests sent again after the
+change. The 2B exercise changes the live `pellier.check_stock` only when its four probes
+match, and the 2B check runs that live function, so it needs no restart.
 
 After the 2B token, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
 view** on, and send his requests again. Both are there, marked **Sent from the terminal**:
@@ -36,7 +36,8 @@ In Code Editor choose **Terminal > Run Task > Reset Lab 2** (or run `python3 scr
 
 ## If you need a solution
 
-Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing
-an answer does not complete the task; its check still has to pass.
+To skip one task, run its apply command above. To finish the whole lab, run
+`python3 scripts/lab_run.py finish --lab 2`. Either way the check still has to pass. The answers
+are also in [solution/README.md](solution/README.md).
 
 [All labs](../../START_HERE.md)
