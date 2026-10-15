@@ -56,7 +56,8 @@ then does Nadia's part in the Operator: investigate Jessica's case, approve
 the credit the Planner proposes, and execute it. A Cedar deployment takes a
 few minutes to apply, so an execution that Cedar still denies, or that the
 Gateway cannot yet answer, is retried. ``--shopper-only`` stops before
-Nadia's part, so the participant makes that decision in the Operator:
+Nadia's part, so the participant makes that decision in the Operator; its last line is
+Nadia's sign-in, read from the workshop's test-credentials file:
 
     python3 scripts/lab_run.py send --lab 4 --shopper-only
 
@@ -143,6 +144,9 @@ NEXT_AFTER_SOLUTION = {
 
 OPERATOR = "nadia"
 CREDIT_CLIENT = "CUST-JESSICA"
+# Bootstrap writes each workshop user's throwaway sign-in here as "Username:" then "Password:".
+CREDENTIALS_FILE = pathlib.Path(
+    os.environ.get("PELLIER_TEST_CREDENTIALS", "/workshop/test-credentials.txt"))
 POLICY_ALLOW, POLICY_DENY, POLICY_INCOMPLETE = "ALLOW", "DENY", "EVALUATION_INCOMPLETE"
 HEALTH_WAIT_SECONDS = 120
 POLICY_WAIT_SECONDS = 420
@@ -549,6 +553,22 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
 # ---------------------------------------------------------------------------
 
 
+def nadias_sign_in(path: Optional[pathlib.Path] = None) -> str:
+    """Nadia's Operator sign-in from the workshop credentials file, or where to get it."""
+    path = path or CREDENTIALS_FILE
+    try:
+        lines = [line.strip() for line in path.read_text("utf-8").splitlines()]
+    except OSError:
+        return f"Nadia's sign-in: {path} is missing, so ask a facilitator for her password."
+    for index, line in enumerate(lines[:-1]):
+        password = lines[index + 1]
+        if line.lower() == f"username: {OPERATOR}" and password.lower().startswith("password:"):
+            return (f"Nadia's sign-in for the Operator: username {OPERATOR}, "
+                    f"password {password.split(':', 1)[1].strip()}")
+    return (f"Nadia's sign-in: {path} has no entry for {OPERATOR}, so ask a facilitator "
+            "for her password.")
+
+
 def investigate(backend: Backend, token: str, client: str) -> Dict[str, Any]:
     """Run the Operator's investigation; returns the Planner's proposal."""
     for name, event in backend.stream(f"/api/operator/clients/{client}/investigate", {}, token):
@@ -707,6 +727,7 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
     if lab == 4 and shopper_only:
         print("  Next: as Nadia in the Operator, investigate Jessica's case, approve the "
               "proposed credit and select Execute.", flush=True)
+        print(f"  {nadias_sign_in()}", flush=True)
     elif lab == 4:
         settle_credit(backend, token_for(OPERATOR))
 

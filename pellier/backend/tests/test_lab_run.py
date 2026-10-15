@@ -710,6 +710,57 @@ def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_na
     assert "as Nadia in the Operator" in capsys.readouterr().out
 
 
+CREDENTIALS = """=============================================================
+Pellier Workshop Test Credentials
+=============================================================
+Username: jessica
+Password: Jess-only-1
+Workshop role: shopper
+
+Username: nadia
+Password: Nadia-Sign-In-7
+Workshop role: staff
+"""
+
+
+def test_shopper_only_ends_with_nadias_sign_in(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    credentials = tmp_path / "test-credentials.txt"
+    credentials.write_text(CREDENTIALS)
+    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", credentials)
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 4, None, "--shopper-only") == 0
+    last = capsys.readouterr().out.rstrip("\n").splitlines()[-1]
+    assert last == "  Nadia's sign-in for the Operator: username nadia, password Nadia-Sign-In-7"
+
+
+def test_a_missing_credentials_file_says_where_to_get_the_password(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    missing = tmp_path / "test-credentials.txt"
+    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", missing)
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 4, None, "--shopper-only") == 0
+    last = capsys.readouterr().out.rstrip("\n").splitlines()[-1]
+    assert str(missing) in last and "ask a facilitator for her password" in last
+
+
+def test_only_the_shopper_only_send_prints_the_password(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    credentials = tmp_path / "test-credentials.txt"
+    credentials.write_text(CREDENTIALS)
+    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", credentials)
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 4) == 0
+    assert _run(fake, 3) == 0
+    assert "Nadia-Sign-In-7" not in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # finish: the lab's "Running behind?" sequence as one command
 # ---------------------------------------------------------------------------
