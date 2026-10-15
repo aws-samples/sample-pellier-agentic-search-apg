@@ -225,6 +225,16 @@ def test_a_turn_after_the_edit_and_the_restart_is_judged(conn) -> None:
     assert finding.state == "PROVED", finding
 
 
+def test_a_ship_window_the_tables_do_not_hold_is_contradicted(conn) -> None:
+    """Marco asks for the recorded ship window, so the check holds it to the table too."""
+    envelope = _ask(conn, lab_variants.STARTER, "Hadley Linen Shirt")
+    envelope["warehouses"][0]["ship_window_max"] += 3
+    _audit(conn, "turn-window", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
+    finding = lab2.judge_2a(conn)
+    assert finding.state == "CONTRADICTED", finding
+    assert any("ship windows in business days" in line for line in finding.evidence)
+
+
 def test_the_2a_check_passes_one_grounded_turn(conn) -> None:
     envelope = _ask(conn, lab_variants.STARTER, "Hadley Linen Shirt")
     _audit(conn, "turn-grounded", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)

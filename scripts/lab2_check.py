@@ -98,7 +98,7 @@ _MATCH_SQL = """
      ORDER BY "productId"::int
 """
 _STOCK_SQL = """
-    SELECT warehouse_code, quantity
+    SELECT warehouse_code, quantity, ship_window_min, ship_window_max
       FROM pellier.warehouse_inventory
      WHERE product_id = %s
      ORDER BY warehouse_code
@@ -169,6 +169,16 @@ def _counts(rows: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     return {str(row.get("warehouse_code")): int(row.get("quantity") or 0) for row in rows}
 
 
+def _windows(rows: Sequence[Dict[str, Any]]) -> Dict[str, Tuple[Any, Any]]:
+    """Each warehouse's recorded ship window in business days, as (min, max)."""
+    return {str(row.get("warehouse_code")): (row.get("ship_window_min"), row.get("ship_window_max"))
+            for row in rows}
+
+
+def _windows_text(windows: Dict[str, Tuple[Any, Any]]) -> str:
+    return ", ".join(f"{code} {low}-{high}" for code, (low, high) in sorted(windows.items()))
+
+
 def _counts_text(counts: Dict[str, int]) -> str:
     return ", ".join(f"{code} {quantity}" for code, quantity in sorted(counts.items())) or "no rows"
 
@@ -219,8 +229,8 @@ def keeps_contract(case: str, envelope: Dict[str, Any], catalog: Dict[str, Any])
 # ---------------------------------------------------------------------------
 
 EXPECTED_2A = ("the Stock agent that answered Marco's latest stock question held check_stock "
-               "alone and called only check_stock; the count it was given for every piece "
-               "Pellier carries equals warehouse_inventory")
+               "alone and called only check_stock; the counts and ship windows it was given "
+               "for every piece Pellier carries equal warehouse_inventory")
 _NEXT_2A_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
                   "connect for a stock answer to come from a warehouse row, and what else may "
                   "it hold? Restart the backend so the running agent loads it, send Marco's "
@@ -295,11 +305,16 @@ def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[Optional[bool], st
                       f"catalog matches {len(catalog['matches'])}, which Task 2B judges")
     product = catalog["matches"][0]
     real = _counts(catalog.get("stock") or [])
+    told_windows = _windows(result.get("warehouses") or [])
+    real_windows = _windows(catalog.get("stock") or [])
     named = str((result.get("product") or {}).get("productId") or "")
-    ok = result.get("status") == "success" and named == str(product["product_id"]) and told == real
+    ok = (result.get("status") == "success" and named == str(product["product_id"])
+          and told == real and told_windows == real_windows)
     return ok, (f"audit {row['audit_id']}: check_stock(\"{query}\") gave "
                 f"{_counts_text(told) if told else str(result.get('total_units')) + ' units'}; "
-                f"warehouse_inventory for {product['product_id']}: {_counts_text(real)}")
+                f"warehouse_inventory for {product['product_id']}: {_counts_text(real)}; ship "
+                f"windows in business days, given {_windows_text(told_windows) or 'none'}, "
+                f"recorded {_windows_text(real_windows) or 'none'}")
 
 
 def _count_problems(conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[str]) -> List[str]:
@@ -372,12 +387,13 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
                              "; ".join(problems + counts), evidence, _NEXT_2A_GRANT)
     if counts:
         return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A, "; ".join(counts),
-                             evidence, "check_stock reported a count warehouse_inventory does "
-                             "not hold for a piece Pellier carries: rerun this check after "
+                             evidence, "check_stock reported a count or ship window "
+                             "warehouse_inventory does not hold for a piece Pellier carries: "
+                             "rerun this check after "
                              f"sending Marco's requests again ({SEND}).")
     calls = sum(1 for row in rows if row["tool"] == "check_stock")
-    observed = (f"held check_stock alone; {calls} check_stock call(s), every count for a piece "
-                "Pellier carries matches")
+    observed = (f"held check_stock alone; {calls} check_stock call(s), every count and ship "
+                "window for a piece Pellier carries matches")
     return check.Finding("2A", title, check.PROVED, EXPECTED_2A, observed, evidence)
 
 
