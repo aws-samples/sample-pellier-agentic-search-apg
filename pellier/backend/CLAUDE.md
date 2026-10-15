@@ -9,7 +9,7 @@ mode before editing.
 
 ## Participant mode: governed Labs 1–4
 
-The root guidance lists all nine permitted regions. This module contains five:
+The root guidance lists every permitted region. This module contains five:
 
 | Task | File | Marker |
 |---|---|---|

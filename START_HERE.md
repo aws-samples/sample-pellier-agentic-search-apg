@@ -29,7 +29,7 @@ collapsed `solution` folder.
 | [04 - Govern](labs/04-govern/README.md) | Jessica, with Nadia | A Cedar credit limit, and a money role that writes only through the credit function | `4A-credit-policy.cedar`, `4B-credit-writer.sql` |
 
 The files in these groups are links to the application's own files, so there is no second
-copy to keep in sync. Python edits reach the running backend once it restarts; the Lab 3
+copy to keep in sync. Python edits reach the running backend when you save, because it reloads; the Lab 3
 edits and the Lab 4 Cedar rule reach AgentCore when you run the guide's deployment. Two
 files deploy themselves: `3B-row-ownership.sql` and `4B-credit-writer.sql`, run with
 `psql`, commit your statements to Aurora only when every probe they run matches.

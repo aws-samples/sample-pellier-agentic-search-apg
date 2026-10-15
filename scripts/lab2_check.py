@@ -20,7 +20,7 @@ session is the one ``python3 scripts/lab_run.py send --lab 2`` starts,
 Each in-process audit row records the agent that called the tool and the store
 tools that running agent held (``args->>'agent'``, ``args->'grant'``), so the
 check reads the grant the answering Stock agent actually had, never the source:
-a definition edited without a restart stays NOT YET. The starter connects only
+a saved definition counts once Marco's requests have run on it. The starter connects only
 the catalog tools, so its Stock agent cannot read ``warehouse_inventory`` at
 all. Once connected, that agent may hold only ``check_stock``, the turn may
 call nothing else, and every count it was given must equal the warehouse rows.
@@ -445,8 +445,9 @@ def judge_2b(conn: Any) -> check.Finding:
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
                              f"send Marco's requests with {SEND}, then rerun this check. "
-                             "As shipped, the Stock agent holds no tool that reads "
-                             "warehouse_inventory, so it may answer without calling one.")
+                             "Already sent? As shipped, the Stock agent does not hold "
+                             "check_stock, so a call to it did not run and left no row: "
+                             "build Task 2B.")
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "

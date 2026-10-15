@@ -28,8 +28,8 @@ What each line reads:
         the money role probed on both paths; every probe rolls back
 
 Rows alone prove 1B, 2A and 2B, so those lines read no source and no code of
-yours runs: 2A and 2B need the backend restarted and the question asked again
-before they can pass, where the guide's 2A check runs your edited check_stock
+yours runs: 2A and 2B need Marco's requests sent again after the edit before
+they can pass, where the guide's 2A check runs your edited check_stock
 directly. The other lines run or read what you wrote, so a region that still
 holds its starter is NOT YET whatever the rows say; the summary's cleanup
 restores the Cedar starter, so run this export before it.

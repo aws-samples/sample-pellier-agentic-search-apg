@@ -15,8 +15,8 @@ Every terminal starts at the repository root.
 | 2B, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_check.py --task 2B` | [2B-stock-agent.py](2B-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
 
 The 2A check runs your `check_stock` directly, so it needs no restart. The 2B check reads
-the grant the answering Stock agent actually held from its audit row, so it needs the
-restart and Marco's requests sent again.
+the grant the answering Stock agent actually held from its audit row, so it needs Marco's
+requests sent again; the restart makes them run on your saved file.
 
 After the 2B token, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
 view** on. Both requests you sent are there, marked **Sent from the terminal**; the Hadley one

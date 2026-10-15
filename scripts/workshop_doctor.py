@@ -12,7 +12,7 @@ a symptom.
     Lab 2  Aurora reachable; the check_stock block no longer holds its starter;
            the Stock agent definition grants check_stock alone, and the Stock
            agent that answered Marco's latest stock turn held that grant too
-           (a definition edited without a restart is named as such).
+           (a definition saved after his latest turn is named as such).
     Lab 3  Task 3A's four rules: get_tickets published, the Support agent asking
            for get_orders and get_tickets, both bound to the signed-in caller,
            and give_store_credit refused on a shopper agent;

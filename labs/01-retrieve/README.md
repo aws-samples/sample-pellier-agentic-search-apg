@@ -10,7 +10,7 @@ Every terminal starts at the repository root.
 
 | Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| 1A, search by what she means | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql` | Read the distances first: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql`. Then [1A-vector-branch.py](1A-vector-branch.py), region `Vector branch - order by meaning`, then `sudo systemctl restart pellier` | `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
+| 1A, search by what she means | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql` | Read the distances first: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql`. Then [1A-vector-branch.py](1A-vector-branch.py), region `Vector branch - order by meaning` | `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
 | 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1`, then `python3 scripts/lab1_check.py --task 1B` | [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then restart and send her request again | `python3 scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
 
 After the 1B token, open **PellierURL**, choose **Anna** in **Ask Pellier** with **Builder
@@ -20,7 +20,7 @@ ranked** shows a **Vector** rank on every row, her three limits, and no candles.
 ## The files
 
 `1A-vector-branch.py` and `1B-search-plan.py` are links to `pellier/backend/services/`, so
-saving here changes the code the backend runs once it restarts. Edit only the marked
+saving here changes the code the backend runs: it reloads on save. Edit only the marked
 region. `go-deeper-fusion.sql` is the guide's optional Go deeper: a worksheet that recomputes
 the fused scores Anna's search recorded and changes nothing the app runs.
 
