@@ -1,7 +1,8 @@
 # Pellier - Claude Code project guidance
 
-This repository is the application behind the flagship 100-minute governed
-agentic search workshop. Read this file before editing.
+This repository is the application behind the flagship governed agentic search
+workshop. Read this file before editing. `AGENTS.md` is a link to this file, so
+Codex and other coding agents that read `AGENTS.md` follow the same contract.
 
 ## Instruction map
 

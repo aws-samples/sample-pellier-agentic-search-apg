@@ -23,3 +23,8 @@ def test_coach_scope_covers_every_marker_without_revealing_answers():
     assert 'Lab 2 only' not in backend
     assert 'prediction' in root and 'one hint' in root
     assert 'Never inspect `solutions/`' in backend
+
+
+def test_agents_md_is_claude_md_so_every_coding_agent_reads_one_contract():
+    agents = ROOT / 'AGENTS.md'
+    assert agents.is_symlink() and agents.readlink() == Path('CLAUDE.md')

@@ -138,6 +138,9 @@ ALLOWED: Dict[str, str] = {
     # The invariant has to name what it retires to be actionable.
     "CLAUDE.md":
         "states the one-name rule by naming both retired names",
+    # A link to CLAUDE.md, for agents that read AGENTS.md: the same file.
+    "AGENTS.md":
+        "is CLAUDE.md under the name other coding agents read",
     # This file names what it forbids.
     "pellier/backend/tests/test_surface_naming.py":
         "the guard itself",
