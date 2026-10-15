@@ -688,10 +688,11 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # with the code, so tests, docs, data, CI, the story arc, the starters and every
 # other file stay in the tree, in Quick Open and in editor search, which inherit
 # this list. Only three kinds of path are hidden: build and cache output (.git,
-# .vscode, .venv, __pycache__, .pytest_cache, node_modules, dist), runtime state
-# (logs, tmp, package.zip, .workshop-ref.json), and the files that hold the box's
-# configuration and credentials (.env, .env.*, .provision.env). Pellier.code-workspace
-# carries the same list.
+# .vscode, .venv, __pycache__, .pytest_cache, .ruff_cache, .DS_Store, node_modules,
+# dist), runtime and generated state (logs, tmp, package.zip, .workshop-ref.json,
+# .agentcore-project, .local, .worktrees), and the files that hold the box's
+# configuration and credentials at any depth (.env, .env.*, .provision.env), since
+# pellier/backend/.env is a fallback. Pellier.code-workspace carries the same list.
 # Room-tested Code Editor appearance, identical across the two Pellier formats
 # and Mosaic: 16/18 reads at arm's length on a laptop, zoomLevel 1 lifts the
 # whole chrome without breaking the layout, and the forced white terminal
@@ -767,15 +768,20 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         "**/.venv": true,
         "**/__pycache__": true,
         "**/.pytest_cache": true,
+        "**/.ruff_cache": true,
+        "**/.DS_Store": true,
         "**/node_modules": true,
         "**/dist": true,
         "logs": true,
         "tmp": true,
         "package.zip": true,
         ".workshop-ref.json": true,
-        ".env": true,
-        ".env.*": true,
-        ".provision.env": true
+        ".agentcore-project": true,
+        ".local": true,
+        ".worktrees": true,
+        "**/.env": true,
+        "**/.env.*": true,
+        "**/.provision.env": true
     }
 }
 VSCODE_SETTINGS

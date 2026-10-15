@@ -44,15 +44,20 @@
       "**/.venv": true,
       "**/__pycache__": true,
       "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
+      "**/.DS_Store": true,
       "**/node_modules": true,
       "**/dist": true,
       "logs": true,
       "tmp": true,
       "package.zip": true,
       ".workshop-ref.json": true,
-      ".env": true,
-      ".env.*": true,
-      ".provision.env": true
+      ".agentcore-project": true,
+      ".local": true,
+      ".worktrees": true,
+      "**/.env": true,
+      "**/.env.*": true,
+      "**/.provision.env": true
     }
   },
   "tasks": {

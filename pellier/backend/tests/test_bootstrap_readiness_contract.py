@@ -1295,8 +1295,9 @@ BOOTSTRAP_ENV = REPO / "scripts" / "bootstrap-environment.sh"
 # configuration and credentials. Nothing else.
 HIDDEN_NOISE_AND_SECRETS = {
     "**/.git", "**/.vscode", "**/.venv", "**/__pycache__", "**/.pytest_cache",
-    "**/node_modules", "**/dist", "logs", "tmp", "package.zip", ".provision.env",
-    ".workshop-ref.json", ".env", ".env.*",
+    "**/.ruff_cache", "**/.DS_Store", "**/node_modules", "**/dist", "logs", "tmp",
+    "package.zip", ".workshop-ref.json", ".agentcore-project", ".local", ".worktrees",
+    "**/.env", "**/.env.*", "**/.provision.env",
 }
 # Source a participant may want to read, which earlier versions hid.
 SHOWN_SOURCE = (
