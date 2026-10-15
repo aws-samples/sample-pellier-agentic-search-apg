@@ -894,7 +894,12 @@ class TestLab3Start:
 class TestWorkshopStart:
     """One command checks the box before Lab 1 and touches no table."""
 
-    def _run(self, tmp_path: Path, health_body: Optional[str]) -> Any:
+    MEMORY_OK = "Theo's AgentCore Memory holds 2 preference records for Lab 3"
+    MEMORY_MISSING = ("Facilitator: Theo's AgentCore Memory has no preference records, so Lab "
+                      "3's Memory finding will fail.")
+
+    def _run(self, tmp_path: Path, health_body: Optional[str], memory_line: str = MEMORY_OK,
+             memory_exit: int = 0) -> Any:
         repo = tmp_path / "repo"
         repo.mkdir()
         (repo / ".env").write_text("DB_HOST=h\nDB_NAME=n\nDB_USER=u\n", encoding="utf-8")
@@ -902,6 +907,13 @@ class TestWorkshopStart:
         if health_body is not None:
             health.write_text(health_body, encoding="utf-8")
         psql_log = tmp_path / "psql.log"
+        # The Memory read is AWS; everything else runs the real doctor.
+        python = tmp_path / "python-memory-stub"
+        python.write_text(
+            '#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = "--memory" ]; then\n'
+            '    printf "%s\\n" "$MEMORY_LINE"; exit "$MEMORY_EXIT"\n  fi\ndone\n'
+            f'exec "{sys.executable}" "$@"\n', encoding="utf-8")
+        python.chmod(0o755)
         result = subprocess.run(
             [BASH, str(REPO / "scripts/workshop-start.sh"), "anna"],
             capture_output=True,
@@ -912,9 +924,25 @@ class TestWorkshopStart:
                 HEALTH_URL=health.as_uri(),
                 PSQL_LOG=str(psql_log),
                 PATH=_stub_path(tmp_path),
+                PELLIER_PYTHON=str(python),
+                MEMORY_LINE=memory_line,
+                MEMORY_EXIT=str(memory_exit),
             ),
         )
         return result, psql_log
+
+    def test_theos_memory_is_checked_and_reported(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}')
+        assert f"+ OK    {self.MEMORY_OK}" in result.stdout.replace("\x1b[32m", "").replace(
+            "\x1b[0m", "")
+
+    def test_missing_memory_is_a_facilitator_warning_and_lab_one_can_still_start(
+        self, tmp_path: Path,
+    ) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', self.MEMORY_MISSING, 1)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert self.MEMORY_MISSING in result.stdout
+        assert "Ready for Lab 1" in result.stdout
 
     def test_a_healthy_backend_is_ready_for_lab_one(self, tmp_path: Path) -> None:
         result, psql_log = self._run(tmp_path, '{"status": "healthy"}')
@@ -1013,3 +1041,55 @@ class TestManagedCataloguesAgree:
         check = doctor._managed_catalogues_agree()
         assert not check.passed
         assert "could not read the catalogues" in check.detail
+
+
+# ---------------------------------------------------------------------------
+# --memory: Theo's remembered preferences, read once and never seeded
+# ---------------------------------------------------------------------------
+
+
+class TestTheosMemory:
+    """Lab 3's Memory finding reads Theo's preference records; the box should hold them first."""
+
+    def test_records_present_pass_with_the_count(self):
+        check = doctor.memory_ready(lambda: [{"record_id": "mem-1", "preference": "stoneware"},
+                                             {"record_id": "mem-2", "preference": "linen"}])
+        assert check.passed
+        assert check.detail == "Theo's AgentCore Memory holds 2 preference records for Lab 3"
+
+    def test_no_records_is_a_facilitator_issue_and_nothing_is_seeded(self):
+        calls = []
+
+        def read():
+            calls.append("read")
+            return []
+
+        check = doctor.memory_ready(read)
+        assert not check.passed
+        assert check.detail.startswith("Facilitator: Theo's AgentCore Memory has no preference "
+                                       "records")
+        assert "scripts/deploy/seed_agentcore_memory.py" in check.detail
+        assert calls == ["read"], "one read, no retry and no seeding"
+
+    def test_an_unreadable_memory_names_the_error(self):
+        def read():
+            raise RuntimeError("AGENTCORE_MEMORY_ID is not configured")
+
+        check = doctor.memory_ready(read)
+        assert not check.passed
+        assert "could not be read (RuntimeError: AGENTCORE_MEMORY_ID is not configured)" in (
+            check.detail)
+
+    def test_a_slow_read_is_cut_off_rather_than_waited_for(self):
+        import time
+
+        started = time.monotonic()
+        check = doctor.memory_ready(lambda: time.sleep(5) or [], timeout=0.2)
+        assert time.monotonic() - started < 2
+        assert not check.passed
+        assert "did not answer within 0.2 s" in check.detail
+
+    def test_the_flag_prints_one_line_and_sets_the_exit_status(self, monkeypatch, capsys):
+        monkeypatch.setattr(doctor, "read_theo_preferences", lambda: [])
+        assert doctor.main(["--memory"]) == 1
+        assert capsys.readouterr().out.startswith("Facilitator: Theo's AgentCore Memory")

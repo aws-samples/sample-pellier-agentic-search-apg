@@ -35,11 +35,17 @@ every check reads the newest evidence on the box.
 the session start shows: a client older than the server prints a version
 warning at the top of every interactive psql session.
 
+``--memory`` reads Theo's AgentCore Memory preference records once, with a time
+cap. Lab 3's Memory finding needs them, so their absence is a facilitator issue
+named before the event; the doctor never seeds them and never waits for
+extraction.
+
 Usage::
 
     python3 scripts/workshop_doctor.py --lab 1
     python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites
     python3 scripts/workshop_doctor.py --environment
+    python3 scripts/workshop_doctor.py --memory
 """
 
 from __future__ import annotations
@@ -588,12 +594,74 @@ def render(lab: int, checks: List[Check]) -> str:
     return "\n".join(lines)
 
 
+THEO = "CUST-THEO"
+MEMORY_TIMEOUT_SECONDS = 10.0
+SEED_MEMORY = "scripts/deploy/seed_agentcore_memory.py"
+
+
+def read_theo_preferences() -> List[Dict[str, str]]:
+    """Theo's preference records, read the way the managed rail reads them at turn start."""
+    import asyncio
+
+    for path in (BACKEND, SCRIPTS / "deploy"):
+        if str(path) not in sys.path:
+            sys.path.insert(0, str(path))
+    from gateway_client import _load_env
+
+    _load_env()
+    from config import settings
+    from services.agentcore_memory import AgentCoreMemory
+
+    memory_id = settings.AGENTCORE_MEMORY_ID
+    if not memory_id:
+        raise RuntimeError("AGENTCORE_MEMORY_ID is not configured")
+    strict = AgentCoreMemory(memory_id=memory_id, region=settings.aws_region_resolved,
+                             strict=True)
+    return asyncio.run(strict.get_semantic_memories(THEO))
+
+
+def memory_ready(read: Callable[[], List[Dict[str, str]]],
+                 timeout: float = MEMORY_TIMEOUT_SECONDS) -> Check:
+    """One bounded read of Theo's records; never a seed, a retry or a wait for extraction."""
+    import threading
+
+    outcome: Dict[str, Any] = {}
+
+    def attempt() -> None:
+        try:
+            outcome["records"] = read()
+        except Exception as exc:  # noqa: BLE001 - reported with its type, never raised
+            outcome["error"] = f"{type(exc).__name__}: {str(exc)[:160]}"
+
+    worker = threading.Thread(target=attempt, daemon=True)
+    worker.start()
+    worker.join(timeout)
+    name = "Theo's AgentCore Memory"
+    if worker.is_alive():
+        return Check(name, False, f"Facilitator: {name} did not answer within {timeout:g} s; "
+                                  "check the Memory resource before Lab 3.")
+    if "error" in outcome:
+        return Check(name, False, f"Facilitator: {name} could not be read "
+                                  f"({outcome['error']}); check it before Lab 3.")
+    count = len(outcome.get("records") or [])
+    if not count:
+        return Check(name, False, f"Facilitator: {name} has no preference records, so Lab 3's "
+                                  f"Memory finding will fail. Run {SEED_MEMORY} on this box "
+                                  "before Lab 3.")
+    noun = "record" if count == 1 else "records"
+    return Check(name, True, f"{name} holds {count} preference {noun} for Lab 3")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Check one lab's prerequisites.")
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4))
     parser.add_argument(
         "--environment", action="store_true",
         help="print psql --version beside SHOW server_version, and nothing else",
+    )
+    parser.add_argument(
+        "--memory", action="store_true",
+        help="read Theo's AgentCore Memory preference records once, and nothing else",
     )
     parser.add_argument("--env", default=str(DEFAULT_ENV), help="backend .env path")
     parser.add_argument(
@@ -604,8 +672,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="prerequisites checks authored code/config; proof also requires recorded outcomes",
     )
     args = parser.parse_args(argv)
-    if args.lab is None and not args.environment:
-        parser.error("name a lab with --lab, or pass --environment")
+    if args.lab is None and not (args.environment or args.memory):
+        parser.error("name a lab with --lab, or pass --environment or --memory")
+    if args.memory:
+        memory = memory_ready(read_theo_preferences)
+        print(memory.detail)
+        return 0 if memory.passed else 1
 
     env_path = pathlib.Path(args.env)
     if args.environment:

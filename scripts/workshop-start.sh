@@ -13,6 +13,12 @@
 #      puts managed execution in front of the room during orientation rather
 #      than fifty minutes in. This step never fails the start: a box without a
 #      token helper or a deployed Runtime is still a box that can start Lab 1.
+#   4. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
+#      --memory, capped at 10 s). Lab 3 needs them; their absence is a facilitator
+#      issue, printed as a warning. Nothing is seeded and nothing waits.
+#
+# Participants no longer run this: bootstrap records the same checks for the
+# facilitator (scripts/event_readiness.py). It stays the manual live re-check.
 #
 # Exit status: 0 when the backend is healthy, 1 when it is not. bash 3.2 syntax
 # only.
@@ -85,6 +91,13 @@ if [ -x "$RUNTIME_HELLO" ]; then
   else
     warn "Runtime hello skipped. Labs 1 and 2 do not need it; Lab 3 sets it up."
   fi
+fi
+
+# --- 4. Theo's remembered preferences, which Lab 3's Memory finding reads ------
+if memory="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --memory 2>&1)"; then
+  pass "$memory"
+else
+  warn "$memory"
 fi
 
 echo "------------------------------------------------------------"
