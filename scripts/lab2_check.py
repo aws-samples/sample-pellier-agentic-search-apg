@@ -264,8 +264,8 @@ EXPECTED_2A_RECORDED = (
     "catalog's answer")
 _NEXT_2A_RECORDED = (
     "when the shared check_stock answers not_found, what should the Stock agent - check_stock "
-    "block in pellier/backend/services/agent_tools.py pass on? Restart the backend, send "
-    f"Marco's requests again ({SEND}), then rerun this.")
+    "block in pellier/backend/services/agent_tools.py pass on? Save it, send Marco's "
+    f"requests again ({SEND}), then rerun this.")
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -335,9 +335,9 @@ def with_restart_hint(guide: check.Finding, recorded: check.Finding) -> check.Fi
     """
     if guide.state != check.PROVED or recorded.state == check.PROVED:
         return guide
-    hint = ("this ran your check_stock in this process; Marco's recorded turns do not show it "
-            f"yet. Restart the backend and send his requests again ({SEND}) before you "
-            "export the evidence.")
+    hint = ("this ran your check_stock in this process; Marco's recorded turns were sent "
+            f"before your edit. Send his requests again ({SEND}) before you export the "
+            "evidence; the backend reloaded when you saved the file.")
     return replace(guide, evidence=[*guide.evidence, hint])
 
 
@@ -531,6 +531,23 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
                              "check that the database in pellier/backend/.env is reachable."), []
 
 
+def cases_table(rows: Sequence[Sequence[str]]) -> str:
+    """The 2A cases, narrow enough for a laptop terminal.
+
+    Each case is one line (case, query, chosen by, verdict); what the catalog expects
+    and what your check_stock said go on the two lines beneath it.
+    """
+    head = check.table(("case", "query", "chosen by", "verdict"),
+                       [(case, query, chosen_by, verdict)
+                        for case, query, chosen_by, _expected, _observed, verdict in rows])
+    lines = head.split("\n")
+    indent = " " * (4 + max(len("case"), *(len(row[0]) for row in rows)))
+    out = [lines[0]]
+    for line, row in zip(lines[1:], rows):
+        out += [line, f"{indent}expected  {row[3]}", f"{indent}observed  {row[4]}"]
+    return "\n".join(out)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--task", choices=("2A", "2B"), required=True)
@@ -542,8 +559,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.task == "2A":
         print("Lab 2A: check_stock answers from the catalog and warehouse_inventory")
         if rows:
-            print(check.table(("case", "query", "chosen by", "expected (catalog)",
-                               "observed (your check_stock)", "verdict"), rows))
+            print(cases_table(rows))
     else:
         print("Lab 2B: Marco's latest stock answer comes from warehouse_inventory alone")
     print(check.render(finding))

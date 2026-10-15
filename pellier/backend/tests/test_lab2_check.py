@@ -133,13 +133,34 @@ def _finding(state: str) -> object:
 
 
 @pytest.mark.parametrize("recorded", ["NOT YET", "CONTRADICTED"])
-def test_a_pass_the_running_backend_has_not_recorded_names_the_restart(recorded) -> None:
-    """The guide's check runs the checkout; the storefront and the export read Marco's turns."""
+def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(recorded) -> None:
+    """The guide's check runs the checkout; the storefront and the export read Marco's turns.
+
+    The backend reloads when the file is saved, so the hint asks for his requests again and
+    never for a restart.
+    """
     finding = check.with_restart_hint(_finding("PROVED"), _finding(recorded))
     assert finding.state == "PROVED"
     assert finding.evidence[0] == "row"
-    assert "Restart the backend" in finding.evidence[-1]
     assert "python3 scripts/lab_run.py send --lab 2" in finding.evidence[-1]
+    assert "restart" not in finding.evidence[-1].lower()
+
+
+def test_the_2a_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
+    """The event's rows ran to about 150 columns and wrapped at 133; each now fits in 100."""
+    rows = [
+        ("not carried", "Velvet Opera Cape", "default", "not_found: no product matches",
+         "success, 0 units (no rows)", "differs"),
+        ("sold out", "Quilted Silk Vest", "default", "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)",
+         "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)", "matches"),
+        ("in stock", "Hadley Linen Shirt", "fixed", "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)",
+         "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)", "matches"),
+    ]
+    lines = check.cases_table(rows).splitlines()
+    assert max(len(line) for line in lines) <= 100
+    assert lines[0].split() == ["case", "query", "chosen", "by", "verdict"]
+    assert lines[1].split()[:2] == ["not", "carried"] and lines[1].rstrip().endswith("differs")
+    assert lines[2].split()[:1] == ["expected"] and lines[3].split()[:1] == ["observed"]
 
 
 @pytest.mark.parametrize("guide, recorded", [("PROVED", "PROVED"), ("CONTRADICTED", "NOT YET")])
