@@ -224,7 +224,7 @@ def test_the_timeline_reads_the_file_and_systemd(monkeypatch: pytest.MonkeyPatch
     class _Shown:
         stdout = "Wed 2026-10-14 14:46:19 UTC\n"
 
-    monkeypatch.setattr(lab1.subprocess, "run", lambda *args, **kwargs: _Shown())
+    monkeypatch.setattr(lab1.check.subprocess, "run", lambda *args, **kwargs: _Shown())
     when = lab1.timeline()
     assert when.started_at == RESTARTED
     assert when.edited_at == datetime.fromtimestamp(plan.stat().st_mtime, tz=timezone.utc)
@@ -234,5 +234,5 @@ def test_no_systemctl_leaves_the_start_unknown(monkeypatch: pytest.MonkeyPatch) 
     def _missing(*args: Any, **kwargs: Any) -> None:
         raise FileNotFoundError("systemctl")
 
-    monkeypatch.setattr(lab1.subprocess, "run", _missing)
+    monkeypatch.setattr(lab1.check.subprocess, "run", _missing)
     assert lab1.timeline().started_at is None

@@ -46,6 +46,7 @@ import os
 import pathlib
 import sys
 from dataclasses import replace
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
@@ -61,6 +62,9 @@ STOCK_AGENT_NAME = "stock"
 # yet, not a wrong answer.
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 SEND = "python3 scripts/lab_run.py send --lab 2"
+SEND_2A = "python3 scripts/lab_run.py send --lab 2 --task 2A"
+RESTART = "sudo systemctl restart pellier"
+STOCK_AGENT_FILE = BACKEND / "agents" / "stock_agent.py"
 WORKSHEET = REPO / "workshop" / "lab-2-check-stock.sql"
 WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
 WORKSHEET_RUN = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql"
@@ -108,7 +112,7 @@ SELECT args->>'turn_id' AS turn_id
  LIMIT 1
 """
 _TURN_ROWS = """
-SELECT audit_id, tool, args, result
+SELECT audit_id, tool, args, result, created_at
   FROM pellier.tool_audit
  WHERE session_id LIKE %(session)s AND args->>'turn_id' = %(turn)s
  ORDER BY audit_id
@@ -310,7 +314,32 @@ def _count_problems(conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[st
     return problems
 
 
-def judge_2a(conn: Any) -> check.Finding:
+def stale_2a(created: Any, when: Optional[check.Timeline]) -> Optional[Tuple[str, str]]:
+    """Why Marco's newest recorded Stock-agent turn cannot show the agent now running, and
+    the next step; else None. A refused call leaves no row, so without this an older turn
+    answered before the edit would stand in for the one just sent."""
+    if when is None:
+        return None
+    edited, started = when.edited_at, when.started_at
+    if edited and started and started < edited:
+        return (f"pellier last started at {check.clock(started)}, before your last change to "
+                f"stock_agent.py at {check.clock(edited)}, so the running agent is not your "
+                "edit yet",
+                f"restart the backend ({RESTART}), send Marco's Brooklyn count again "
+                f"({SEND_2A}), then rerun this check.")
+    if not isinstance(created, datetime) or edited is None:
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    if created < edited:
+        return (f"Marco's newest recorded Stock-agent turn ran at {check.clock(created)}, "
+                f"before your last change to stock_agent.py at {check.clock(edited)}, so the "
+                "agent before your edit answered it",
+                f"send Marco's Brooklyn count again ({SEND_2A}), then rerun this check.")
+    return None
+
+
+def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     """Marco's latest Stock-agent turn: its recorded grant, its calls and its counts."""
     title = "the Stock agent holds check_stock alone"
     rows = latest_stock_turn(conn)
@@ -330,6 +359,9 @@ def judge_2a(conn: Any) -> check.Finding:
         f"audit {rows[0]['audit_id']}: the Stock agent that answered held "
         + (", ".join(grant) if grant is not None else "no recorded grant"),
     ]
+    late = stale_2a(rows[0].get("created_at"), when)
+    if late is not None:
+        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A, late[0], evidence, late[1])
     state, observed = _grant_verdict(grant)
     if state is not None:
         return check.Finding("2A", title, state, EXPECTED_2A, observed, evidence, _NEXT_2A_GRANT)
@@ -586,7 +618,7 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
         with check.connect(cfg) as conn:
             conn.autocommit = True
             if task == "2A":
-                return judge_2a(conn), []
+                return judge_2a(conn, check.edit_timeline(STOCK_AGENT_FILE)), []
             finding, rows = judge_2b(conn, live_tool(conn, cfg), inputs)
             return with_resend_hint(finding, judge_recorded_2b(conn)), rows
     except Exception as exc:  # noqa: BLE001 - the reason is the finding

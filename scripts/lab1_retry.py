@@ -30,9 +30,7 @@ from __future__ import annotations
 import json
 import pathlib
 import re
-import subprocess
 import sys
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
@@ -60,43 +58,14 @@ SEARCH_PLAN = check.REPO / "pellier" / "backend" / "services" / "search_plan.py"
 RESTART = "sudo systemctl restart pellier"
 
 
-@dataclass(frozen=True)
-class Timeline:
-    """When search_plan.py last changed and when the backend last started; None if unknown."""
-
-    edited_at: Optional[datetime]
-    started_at: Optional[datetime]
-
-
-def service_started(value: str) -> Optional[datetime]:
-    """systemd's ActiveEnterTimestamp (``Wed 2026-10-14 14:46:19 UTC``) as UTC; None otherwise."""
-    if not value.endswith((" UTC", " GMT")):
-        return None
-    try:
-        return datetime.strptime(value[:-4], "%a %Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-    except ValueError:
-        return None
+Timeline = check.Timeline
+service_started = check.service_started
+_clock = check.clock
 
 
 def timeline() -> Timeline:
     """This box's timeline: search_plan.py's modification time and pellier's systemd start."""
-    try:
-        edited: Optional[datetime] = datetime.fromtimestamp(SEARCH_PLAN.stat().st_mtime,
-                                                            tz=timezone.utc)
-    except OSError:
-        edited = None
-    try:
-        shown = subprocess.run(
-            ["systemctl", "show", "pellier", "-p", "ActiveEnterTimestamp", "--value"],
-            capture_output=True, text=True, timeout=5, check=False,
-        ).stdout.strip()
-    except (OSError, subprocess.SubprocessError):
-        shown = ""
-    return Timeline(edited, service_started(shown))
-
-
-def _clock(moment: datetime) -> str:
-    return moment.astimezone(timezone.utc).strftime("%H:%M:%S UTC")
+    return check.edit_timeline(SEARCH_PLAN)
 
 
 def stale(receipt: Dict[str, Any], when: Optional[Timeline]) -> Optional[Tuple[str, str]]:

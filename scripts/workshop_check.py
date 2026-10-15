@@ -23,6 +23,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -189,6 +190,45 @@ RESET_POINTS_ENV = "PELLIER_LAB_RESET_POINTS"
 RESET_POINTS_FILE = REPO / ".local" / "lab-reset-points.json"
 # Bind this as ``since``: no reset point (None) admits every row.
 SINCE_SQL = "coalesce(%(since)s::timestamptz, '-infinity'::timestamptz)"
+
+
+@dataclass(frozen=True)
+class Timeline:
+    """When a task's file last changed and when the backend last started; None if unknown."""
+
+    edited_at: Optional[datetime]
+    started_at: Optional[datetime]
+
+
+def service_started(value: str) -> Optional[datetime]:
+    """systemd's ActiveEnterTimestamp (``Wed 2026-10-14 14:46:19 UTC``) as UTC; None otherwise."""
+    if not value.endswith((" UTC", " GMT")):
+        return None
+    try:
+        return datetime.strptime(value[:-4], "%a %Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def edit_timeline(edited_file: pathlib.Path) -> Timeline:
+    """This box's timeline: the task file's modification time and pellier's systemd start."""
+    try:
+        edited: Optional[datetime] = datetime.fromtimestamp(edited_file.stat().st_mtime,
+                                                            tz=timezone.utc)
+    except OSError:
+        edited = None
+    try:
+        shown = subprocess.run(
+            ["systemctl", "show", "pellier", "-p", "ActiveEnterTimestamp", "--value"],
+            capture_output=True, text=True, timeout=5, check=False,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        shown = ""
+    return Timeline(edited, service_started(shown))
+
+
+def clock(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).strftime("%H:%M:%S UTC")
 
 
 def reset_points_path() -> pathlib.Path:

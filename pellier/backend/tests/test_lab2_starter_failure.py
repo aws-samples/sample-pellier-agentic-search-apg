@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from datetime import datetime, timedelta, timezone
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -191,6 +192,37 @@ def test_a_wider_grant_than_check_stock_is_contradicted(conn) -> None:
     finding = lab2.judge_2a(conn)
     assert finding.state == "CONTRADICTED"
     assert "was granted search_products, check_stock" in finding.observed
+
+
+def _grounded_turn(conn: Any, turn: str) -> None:
+    envelope = _ask(conn, lab_variants.STARTER, "Hadley Linen Shirt")
+    _audit(conn, turn, "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
+
+
+def test_a_turn_from_before_the_edit_cannot_vouch_for_it(conn) -> None:
+    """A refused call leaves no row, so an older answer must not stand in for the new edit."""
+    _grounded_turn(conn, "turn-before-edit")
+    later = datetime.now(timezone.utc) + timedelta(minutes=1)
+    finding = lab2.judge_2a(conn, lab2.check.Timeline(later, later + timedelta(minutes=1)))
+    assert finding.state == "NOT YET", finding
+    assert "before your last change to stock_agent.py" in finding.observed
+    assert "send --lab 2 --task 2A" in finding.next_step
+
+
+def test_a_backend_started_before_the_edit_is_not_yet(conn) -> None:
+    _grounded_turn(conn, "turn-old-backend")
+    now = datetime.now(timezone.utc)
+    finding = lab2.judge_2a(conn, lab2.check.Timeline(now, now - timedelta(minutes=1)))
+    assert finding.state == "NOT YET", finding
+    assert "the running agent is not your edit yet" in finding.observed
+    assert "sudo systemctl restart pellier" in finding.next_step
+
+
+def test_a_turn_after_the_edit_and_the_restart_is_judged(conn) -> None:
+    past = datetime.now(timezone.utc) - timedelta(minutes=5)
+    _grounded_turn(conn, "turn-after-edit")
+    finding = lab2.judge_2a(conn, lab2.check.Timeline(past, past + timedelta(minutes=1)))
+    assert finding.state == "PROVED", finding
 
 
 def test_the_2a_check_passes_one_grounded_turn(conn) -> None:
