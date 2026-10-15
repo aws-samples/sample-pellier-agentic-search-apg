@@ -44,7 +44,7 @@ and the participant's file as '+' lines.
 ``solution`` copies the lab's supplied answers over the files its tasks edit,
 using the map in ``workshop/participant-files.json`` (the files the
 ``labs/0N-*/solution/`` folders link to). An entry marked ``optional`` is a Go
-deeper worksheet, not a task, so ``solution`` and ``diff`` leave it alone. It
+deeper exercise, not a task, so ``solution`` and ``diff`` leave it alone. It
 neither restarts the backend nor deploys; the block's next command does that.
 
 ``send`` makes the lab's requests through the local backend, the way Ask
@@ -135,7 +135,7 @@ NEXT_AFTER_TASK = {
 BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
     1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
-    2: ("run the Task 2B worksheet (psql -X -v ON_ERROR_STOP=1 -P pager=off -f "
+    2: ("run the Task 2B exercise (psql -X -v ON_ERROR_STOP=1 -P pager=off -f "
         "workshop/lab-2-check-stock.sql), restart the backend (sudo systemctl restart "
         "pellier), then send the lab's requests."),
     3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",

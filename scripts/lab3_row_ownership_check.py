@@ -132,12 +132,12 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
     """
     if stamp is None:
         return check.Finding("3B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
-                             "the worksheet's predicate region could not be read",
+                             "the exercise's predicate region could not be read",
                              ["workshop/lab-3-row-ownership.sql: no $predicate$ quotes"],
                              "restore the region from workshop/starters/lab-3-row-ownership.sql.")
     if is_starter:
         return check.Finding("3B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
-                             "the worksheet still holds the predicate it ships with",
+                             "the exercise still holds the predicate it ships with",
                              ["workshop/lab-3-row-ownership.sql: Row ownership - predicate "
                               "is false"],
                              "write the predicate in workshop/lab-3-row-ownership.sql, then run "
@@ -219,7 +219,7 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
     return check.Finding(
         "3B", title, check.CONTRADICTED, EXPECTED, "; ".join(differs), evidence,
         "read the live policies with: SELECT tablename, qual, with_check FROM pg_policies "
-        "WHERE schemaname = 'pellier'. Compare them with the predicate your worksheet passed.")
+        "WHERE schemaname = 'pellier'. Compare them with the predicate your exercise passed.")
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:

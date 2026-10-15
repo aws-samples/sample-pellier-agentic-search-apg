@@ -8,7 +8,7 @@
 -- To Aurora an agent is an application user. Every tool call is a SQL statement
 -- run by a role, and pg_stat_statements has been counting them since the cluster
 -- started: how often each statement ran, how many rows it returned and how long
--- it took. This worksheet reads that record role by role, then shows one plan.
+-- it took. This query reads that record role by role, then shows one plan.
 --
 --   pellier_agent          the customer-scoped tools (orders, tickets). The app
 --                          and the Gateway Lambda switch into it for each call.
@@ -55,7 +55,7 @@ SELECT current_setting('lab3.workload') = 'ok' AS ready,
 \endif
 
 -- Each role reads its own statements: pg_stat_statements shows a statement's
--- text to the role that ran it, so the worksheet switches role for each one.
+-- text to the role that ran it, so the query switches role for each one.
 -- Transaction control, SET and SHOW are left out; the caller's binding,
 -- set_config, stays in, because every customer-scoped call starts with it.
 

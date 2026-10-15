@@ -125,15 +125,15 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
     """
     if stamp is None:
         return check.Finding("4B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
-                             "the worksheet's privileges region could not be read",
+                             "the exercise's privileges region could not be read",
                              ["workshop/lab-4-credit-writer.sql: no $privileges$ quotes"],
                              "restore the region from workshop/starters/lab-4-credit-writer.sql.")
     if is_starter:
         return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
-                             "the worksheet still holds the grants it ships with",
+                             "the exercise still holds the grants it ships with",
                              ["workshop/lab-4-credit-writer.sql: Credit writer - privileges is "
                               "as shipped"],
-                             f"write the role's privileges in the worksheet, then run "
+                             f"write the role's privileges in the exercise, then run "
                              f"{RUN_WORKSHEET}.")
     short = stamp[len(STAMP_PREFIX):][:12]
     deployed = str(live.get("stamp") or "")

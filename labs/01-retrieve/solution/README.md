@@ -5,10 +5,10 @@ application executes.
 
 - [1A-vector-branch.py](1A-vector-branch.py)
 - [1B-search-plan.py](1B-search-plan.py)
-- [go-deeper-fusion.sql](go-deeper-fusion.sql), the optional worksheet's answer
+- [go-deeper-fusion.sql](go-deeper-fusion.sql), the optional exercise's answer
 
 To catch up on the whole lab, save any edits you want to keep, then run this from the
-repository root. It installs both tasks' answers, leaves the optional worksheet alone,
+repository root. It installs both tasks' answers, leaves the optional exercise alone,
 restarts the backend, sends Anna's request and runs both checks:
 
 ```bash

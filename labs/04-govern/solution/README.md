@@ -21,7 +21,7 @@ python3 scripts/lab_run.py solution --lab 4 && \
   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
 ```
 
-The worksheet runs before `send`, so Nadia's credit is written under the privileges you
+The exercise runs before `send`, so Nadia's credit is written under the privileges you
 committed.
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

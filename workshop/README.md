@@ -33,14 +33,14 @@ the same checks.
 | 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_check.py --task 4A` |
 | 4B, Jessica and Nadia | Let the money role write only through the function (`workshop/lab-4-credit-writer.sql`) | `python3 scripts/lab4_check.py --task 4B` |
 
-The two worksheets run during their labs' deploys and print their own lines:
+The two exercises run during their labs' deploys and print their own lines:
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql` ends
 `Lab 3B predicate check passed` and
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql`
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql`.
 
-Two more supplied worksheets read the agent from the database's side and change nothing.
+Two more supplied queries read the agent from the database's side and change nothing.
 After Lab 3's token, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-agent-workload.sql`
 lists the statements each role ran, from `pg_stat_statements`, and one plan with the row
 policy inside it; it ends `Lab 3 workload check passed`. At the Wrap-up,

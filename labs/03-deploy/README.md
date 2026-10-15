@@ -30,7 +30,7 @@ the remembered record the check printed, his ticket read bound to `CUST-THEO`, a
 request staying on his account. The AgentCore console shows the Runtime, the Gateway and the
 Memory record.
 
-Then look from the database's side. This supplied worksheet reads `pg_stat_statements` and
+Then look from the database's side. This supplied query reads `pg_stat_statements` and
 lists what each role ran: the agent's reads as `pellier_agent`, the app's own login, and one
 plan with the row policy inside it. It only reads.
 

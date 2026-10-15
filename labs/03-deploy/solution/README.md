@@ -9,7 +9,7 @@ application executes.
 
 To catch up on the whole lab, save any edits you want to keep, then run this from the
 repository root. It moves Pellier onto AgentCore, installs the answers, deploys them, runs
-the row-ownership worksheet, sends Theo's requests and runs both checks:
+the row-ownership exercise, sends Theo's requests and runs both checks:
 
 ```bash
 bash scripts/lab3-start.sh theo && \

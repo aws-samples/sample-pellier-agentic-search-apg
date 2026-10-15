@@ -7,7 +7,7 @@ application executes.
 - [2B-check-stock.sql](2B-check-stock.sql)
 
 To catch up on the whole lab, save any edits you want to keep, then run this from the
-repository root. It installs both answers, commits the 2B worksheet's function, restarts
+repository root. It installs both answers, commits the 2B exercise's function, restarts
 the backend, sends Marco's requests and runs both checks:
 
 ```bash

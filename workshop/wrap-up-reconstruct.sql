@@ -11,7 +11,7 @@
 --   the review (approvals, give_store_credit)     its id and hash make the write key
 --   the write key                                  is on the audit row and the credit
 --   the credit (store_credits)                     is the id her returned orders carry
--- This worksheet follows those links with joins only, prints the story in time
+-- This query follows those links with joins only, prints the story in time
 -- order, and checks that every link finds the row it should.
 --
 -- Supplied and read-only; it never writes:

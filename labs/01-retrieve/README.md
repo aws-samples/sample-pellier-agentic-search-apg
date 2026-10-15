@@ -21,7 +21,7 @@ ranked** shows a **Vector** rank on every row, her three limits, and no candles.
 
 `1A-vector-branch.py` and `1B-search-plan.py` are links to `pellier/backend/services/`, so
 saving here changes the code the backend runs: it reloads on save. Edit only the marked
-region. `go-deeper-fusion.sql` is the guide's optional Go deeper: a worksheet that recomputes
+region. `go-deeper-fusion.sql` is the guide's optional Go deeper: an exercise that recomputes
 the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## Start this lab over

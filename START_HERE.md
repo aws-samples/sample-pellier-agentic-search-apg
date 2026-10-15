@@ -42,7 +42,7 @@ tool, an agent or a check is built.
 
 ## How every task runs
 
-Each task fails in the terminal first: a worksheet, a check, or
+Each task fails in the terminal first: an exercise, a check, or
 `python3 scripts/lab_run.py send`, which sends the customer's exact sentence. You fix the
 marked region. One command proves the fix and ends with one pass token, such as
 `Lab 1A check passed`; a fluent answer in the chat is not the proof. Then you look at the
@@ -62,7 +62,7 @@ Gateway and Memory.
 Each task on the guide has a **Stuck?** box with three tabs: hints, a prompt for the coding
 coach, and the solution. The `solution` folder in each group holds the same answers as
 files. Every lab ends with a one-paste catch-up that installs the answers, runs the
-worksheets and the checks, so you can rejoin at the next lab; the guide's cheat sheet has
+exercises and the checks, so you can rejoin at the next lab; the guide's cheat sheet has
 all four.
 
 ## Start a lab over
@@ -84,7 +84,7 @@ you ask. You run the checks yourself. The guide's coaching page has the two-minu
 ## At the end
 
 The guide's **Wrap-up** page rebuilds Jessica's credit from her request to the row with one
-read-only worksheet, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql`
+read-only query, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql`
 (`Wrap-up reconstruction passed`), hands you the four contracts as `governed-postgres-agent`, a
 skill for reviewing your own team's agents the way a DBA would, and exports your evidence:
 
@@ -95,4 +95,4 @@ python3 scripts/workshop_evidence.py --save workshop-evidence.txt
 If this opened as a plain folder rather than a workspace, choose **File → Open Workspace
 from File… → Pellier.code-workspace**; the same groups are under `labs/`. For how the
 repository is put together, see [README.md](README.md) and the
-[worksheet and check map](workshop/README.md).
+[exercise and check map](workshop/README.md).
