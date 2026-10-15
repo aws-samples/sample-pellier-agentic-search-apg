@@ -43,16 +43,23 @@ def check_stock(run, *, product_query: str) -> dict:
             "warehouses": list(warehouses)}
 ```
 
-The defect to look for, in the wrapper the agent calls:
+The defect to look for, in the SQL that answers (Pellier's own, in
+`pellier.check_stock` as shipped): a total over whatever matched, with no test
+that anything did.
 
-```python
-result = store_tools.check_stock(run, product_query=q)
-if result["status"] == "not_found":
-    return {"status": "success", "total_units": 0}   # unknown has become sold out
+```sql
+SELECT coalesce(sum(w.quantity), 0) AS total_units
+  FROM warehouse_inventory w
+ WHERE w.product_id = (SELECT product_id FROM catalog WHERE lower(name) LIKE $1);
+-- No product matches: the aggregate still returns one row, sum() is NULL,
+-- COALESCE makes it 0, and "we don't carry that" reads as "sold out".
 ```
 
-Pass the shared result through unchanged. If the agent needs a friendlier
-message, add a message; do not change the status.
+A missing product is a missing row, not a zero, so test for the product before
+you aggregate: no product, no row. The same defect can live in the wrapper the
+agent calls (`if status == "not_found": return {"total_units": 0}`). Pass the
+shared result through unchanged; if the agent needs a friendlier message, add a
+message, and do not change the status.
 
 ## Template: the grant is the tool list
 
