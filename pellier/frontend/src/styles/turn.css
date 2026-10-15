@@ -526,7 +526,7 @@
 }
 .tn-rank-sw-vec,
 .tn-rank-bar-vec {
-  background: var(--pellier-copper);
+  background: var(--dl-bar-copper);
 }
 .tn-rank-note {
   font-size: 12px;

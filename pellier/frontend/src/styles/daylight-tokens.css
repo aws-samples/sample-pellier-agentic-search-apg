@@ -53,6 +53,9 @@
      dark theme's copper. */
   --dl-on-photo:        #fbf8f2;
   --dl-accent-on-photo: #da9562;
+  /* The copper segment of the "How it ranked" score bars: a livelier copper than
+     --dl-accent, which also sets type. 4.2:1 on the bar track, 4.6:1 on the panel. */
+  --dl-bar-copper:   #b85a22;
 
   /* ---------- Color: semantic ---------- */
   --dl-ok:           #3f6212;
@@ -153,6 +156,8 @@
   --dl-accent-soft:  #2a1d14;
   --dl-accent-ink:   #da9562;
   --dl-accent-on-ink: #9a4d20;
+  /* 8.0:1 on the bar track, 8.9:1 on the panel. */
+  --dl-bar-copper:   #f79a50;
 
   --dl-ok:           #a5c87a;
   --dl-ok-soft:      #14240e;
