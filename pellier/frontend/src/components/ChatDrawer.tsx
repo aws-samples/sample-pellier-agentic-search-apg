@@ -19,17 +19,22 @@
  * for state, streaming, and persistence. Operator does not mount it.
  *
  * On a desktop width it is docked open by default (UIContext), and closing
- * it is remembered until the page reloads. It opens for anyone. Its top row,
- * "Signed in as", is where a shopper is chosen: the four demo shoppers in lab
- * order (AskShoppers). Signed out, it is the neutral new-visitor store and
- * the empty panel points at the home bar and the chips; a chosen shopper is
- * signed in with their demo account, the subtitle names the shopper the
- * server verified, and the session details say how.
+ * it is remembered until the page reloads. It opens for anyone. Signed in, the
+ * row under the title is one line: the verified shopper with "Switch shopper" and "Sign out"
+ * (AskShoppers). Signed out, it is the neutral new-visitor store and the
+ * empty panel points at the home bar and shows the four demo shoppers as
+ * cards in lab order; once a conversation has started the same choice is one
+ * "Choose a shopper" row; a chosen shopper is signed in with their demo account,
+ * the subtitle names the shopper the server verified, and the session
+ * details say how.
  *
  * Each turn is reported to the storefront's results view, so a question
  * typed here fills the page grid exactly as one typed in the home bar. The
  * Builder view switch lives in the shared header; only the skills switch
- * stays here.
+ * stays here, inside Session details.
+ *
+ * The panel's own element carries no `ref`: AnimatePresence reads its direct
+ * child's `props.ref`, which React 18.3 warns about whenever one is set.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -52,7 +57,7 @@ import {
   type AgentChatMessage,
 } from '../hooks/useAgentChat'
 import PellierChatBody from './PellierChatBody'
-import AskShoppers from './AskShoppers'
+import { ShopperBar, ShopperCards } from './AskShoppers'
 import { PellierMark } from './Wordmark'
 import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
@@ -188,7 +193,6 @@ export default function ChatDrawer() {
 
   // While docked, the page leaves the panel its column. On a phone the panel
   // is the last thing in the document, so opening it scrolls it into view.
-  const drawerRef = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const root = document.documentElement
     if (isOpen) root.setAttribute('data-ask-docked', 'true')
@@ -203,7 +207,7 @@ export default function ChatDrawer() {
     if (!isOpen || !drawerOpenedByShopper?.()) return
     openerRef.current = document.activeElement as HTMLElement
     if (!docksBesideStore()) {
-      drawerRef.current?.scrollIntoView({
+      bodyRef.current?.closest('aside')?.scrollIntoView({
         behavior: reducedMotion ? 'instant' : 'smooth',
         block: 'start',
       })
@@ -313,7 +317,6 @@ export default function ChatDrawer() {
     <AnimatePresence>
       {isOpen && (
         <motion.aside
-          ref={drawerRef}
           className="cd-drawer"
           data-testid="chat-drawer"
           aria-label="Ask Pellier"
@@ -334,7 +337,6 @@ export default function ChatDrawer() {
                 {signedInAs ? ASK_PANEL.signedIn(shopperName(signedInAs)) : ASK_PANEL.PICK}
               </p>
             </div>
-            <SkillModeToggle />
             <button
               type="button"
               className="cd-close"
@@ -345,12 +347,14 @@ export default function ChatDrawer() {
             </button>
           </div>
 
-          <AskShoppers />
+          {signedInAs || hasUserMessages ? <ShopperBar /> : null}
 
-          {/* Who the server verified and which rail served the last turn. */}
+          {/* Who the server verified and which rail served the last turn;
+              the Builder view's skills switch sits with them. */}
           <details className="cd-session-details">
             <summary>Session details <ChevronDown size={14} aria-hidden="true" /></summary>
             <StatusLines messages={messages} />
+            <SkillModeToggle />
           </details>
 
           {/* Body */}
@@ -361,9 +365,12 @@ export default function ChatDrawer() {
           }}>
             <div className="cd-messages" ref={contentRef}>
             {!hasUserMessages && !signedInAs ? (
-              <p className="cd-empty" data-testid="ask-panel-empty">
-                {docked ? ASK_PANEL.EMPTY_DOCKED : ASK_PANEL.EMPTY_STACKED}
-              </p>
+              <div className="cd-empty">
+                <p className="cd-empty-text" data-testid="ask-panel-empty">
+                  {docked ? ASK_PANEL.EMPTY_DOCKED : ASK_PANEL.EMPTY_STACKED}
+                </p>
+                <ShopperCards />
+              </div>
             ) : null}
             {!hasUserMessages && signedInAs ? (
               <PellierWelcome

@@ -127,7 +127,7 @@ for (const theme of ['light', 'dark'] as const) {
 
       if (!desktop) {
         // The panel stacks under the page; opening it brings it on screen
-        // with the chips at its top.
+        // with the four shoppers on its first screen.
         await page.getByTestId('header-ask-pellier').click()
         await expect(drawer).toBeVisible()
         const chips = drawer.getByTestId('ask-shoppers')
@@ -136,7 +136,7 @@ for (const theme of ['light', 'dark'] as const) {
           drawer.evaluate(el => el.getBoundingClientRect().top),
           chips.evaluate(el => el.getBoundingClientRect().top),
         ])
-        expect(chipsTop - panelTop).toBeLessThan(80)
+        expect(chipsTop - panelTop).toBeLessThan(300)
         expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width)
         await page.waitForTimeout(300)
         await page.screenshot({ path: shot('home-panel') })
@@ -157,7 +157,7 @@ for (const theme of ['light', 'dark'] as const) {
 
       if (desktop) {
         const drawer = page.getByTestId('chat-drawer')
-        await expect(drawer.getByTestId('ask-shopper-anna')).toHaveAttribute('aria-pressed', 'true')
+        await expect(drawer.getByTestId('ask-signed-in-name')).toHaveText('Anna')
         await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Anna, signed in')
         await expect(drawer.getByTestId('ask-sign-out')).toBeVisible()
         await expect(page.getByTestId('persona-pill')).toBeHidden()

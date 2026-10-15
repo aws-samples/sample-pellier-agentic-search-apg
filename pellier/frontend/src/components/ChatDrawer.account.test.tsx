@@ -60,7 +60,7 @@ describe('identity in the Ask Pellier panel', () => {
     vi.clearAllMocks()
   })
 
-  it('chooses a shopper at the top of the panel, and offers no other way in', () => {
+  it('chooses a shopper in the empty panel, and offers no other way in', () => {
     render(<ChatDrawer />)
     const group = screen.getByRole('group', { name: 'Signed in as' })
     expect(within(group).getAllByRole('button').map(chip => chip.textContent)).toEqual([
@@ -76,8 +76,15 @@ describe('identity in the Ask Pellier panel', () => {
     render(<ChatDrawer />)
     expect(screen.getByTestId('ask-panel-subtitle')).toHaveTextContent('Pick a customer to start')
     expect(screen.getByTestId('ask-panel-empty')).toHaveTextContent(
-      'choose Anna, Marco, Theo or Jessica above to follow their story: finding, checking stock, remembering, then asking a person before money moves.',
+      'choose a shopper below to follow their story: finding, checking stock, remembering, then asking a person before money moves.',
     )
+  })
+
+  it('puts the four shoppers in the empty state, not in a strip above the thread', () => {
+    render(<ChatDrawer />)
+    const body = screen.getByTestId('ask-panel-empty').closest('.cd-body') as HTMLElement
+    expect(body).toContainElement(screen.getByTestId('ask-shoppers'))
+    expect(body).toContainElement(screen.getByTestId('persona-identity-boundary'))
   })
 
   it('closes when the shopper asks, and remembers it', () => {

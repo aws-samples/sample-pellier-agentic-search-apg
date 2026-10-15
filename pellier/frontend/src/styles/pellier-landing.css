@@ -186,7 +186,7 @@
   line-height: 1.55;
 }
 
-/* The ask bar: the one surface with a resting shadow. */
+/* The ask bar: a hairline border and the system's lightest shadow. */
 .pellier-askbar {
   display: flex;
   width: 100%;
@@ -203,7 +203,7 @@
   border: 1px solid var(--dl-line);
   border-radius: var(--dl-r-field);
   background: var(--dl-paper);
-  box-shadow: var(--dl-sh-ask);
+  box-shadow: var(--dl-sh-paper);
   transition: border-color var(--gov-motion-base, 200ms) ease;
 }
 

@@ -198,7 +198,7 @@ function Disclaimer() {
   return (
     <p
       data-testid="footer-disclaimer"
-      className="font-sans text-xs leading-relaxed text-muted m-0 max-w-[720px] pt-8 border-t border-line"
+      className="font-sans text-xs leading-relaxed text-muted m-0 max-w-[70ch] pt-8 border-t border-line"
     >
       {FOOTER.DISCLAIMER}
     </p>

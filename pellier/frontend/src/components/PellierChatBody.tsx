@@ -27,6 +27,7 @@ import {
   StatusLine,
   StepList,
   TurnIdLine,
+  parseProse,
   principalLine,
   sentenceEndAfter,
   type RankingPayload,
@@ -82,6 +83,13 @@ function relativeTime(ts: Date): string {
  * there is one; catalog actions fill the remaining slots. Capped at three.
  */
 const MAX_FOLLOWUPS = 3
+
+/** The answer as a screen reader should hear it: no markdown marks. */
+function plainAnswer(content: string): string {
+  return parseProse(content)
+    .map((block) => block.runs.map((run) => run.text).join(''))
+    .join(' ')
+}
 
 /**
  * Short by design: a turn shows its latest four steps, and any earlier ones
@@ -265,11 +273,15 @@ function AgentMessage({
     : message.status?.label ?? 'Sending your request'
 
   return (
-    <div
-      className="ec-msg-agent"
-      aria-live={!streamDone ? 'polite' : undefined}
-      aria-atomic={!streamDone ? 'false' : undefined}
-    >
+    <div className="ec-msg-agent">
+      {/* The answer is announced once, whole, when it has finished revealing.
+          The status line below speaks the steps as they change; neither the
+          per-character reveal nor a history load is announced. */}
+      {message.live ? (
+        <div className="gov-visually-hidden" role="status" aria-live="polite" aria-atomic="true">
+          {revealFinished && !message.failure ? plainAnswer(message.content) : ''}
+        </div>
+      ) : null}
       <div className="ec-msg-agent-eyebrow">
         <PellierMark size={18} />
         Pellier
@@ -337,7 +349,7 @@ function AgentMessage({
       )}
 
       {visibleProducts.length > 0 && !message.creditRequestPending && (
-        <div className="ec-artifacts">
+        <div className="ec-artifacts" data-settled={revealFinished}>
           {visibleProducts.map((product, pIdx) => (
             <motion.div
               key={product.id || pIdx}
@@ -369,7 +381,7 @@ function AgentMessage({
           <div id="collection-pieces-heading" className="ec-owned-artifacts-label">
             Already in your collection
           </div>
-          <div className="ec-artifacts">
+          <div className="ec-artifacts" data-settled="true">
             {ownedProducts.map((product, pIdx) => (
               <motion.div
                 key={product.id || pIdx}

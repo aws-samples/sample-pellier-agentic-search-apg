@@ -61,12 +61,6 @@
   flex-direction: column;
   gap: 2px;
 }
-/* The Builder view switches take their own row under the title. */
-.cd-head .tn-switches {
-  order: 3;
-  width: 100%;
-  justify-content: flex-start;
-}
 .cd-head-title {
   margin: 0;
   color: var(--dl-ink);
@@ -103,25 +97,65 @@
   color: var(--dl-ink);
 }
 
-/* ---- Signed in as: the four shoppers, in lab order ---- */
+/* ---- Shoppers: one row once signed in, four cards while signed out ---- */
 .cd-shoppers {
   flex-shrink: 0;
-  padding: 10px 16px 11px;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--dl-line);
 }
+.cd-who-row {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+}
+.cd-who-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--dl-ink);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-who-row .cd-who-av {
+  width: 28px;
+  height: 28px;
+}
+.cd-who-switch {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--dl-ink-2);
+  font: 400 12.5px/1.4 var(--dl-font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.cd-who-switch:hover {
+  color: var(--dl-ink);
+}
+.cd-who-switch svg {
+  transition: transform 160ms ease-out;
+}
+.cd-who-switch[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+/* The chips the switch unfolds. */
 .cd-who {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
+  padding: 2px 0 6px;
 }
-/* The label takes its own line above the chips. */
-.cd-who-label {
-  flex-basis: 100%;
-  margin-bottom: 2px;
-  color: var(--dl-muted);
-  font-size: 12px;
-  line-height: 1.4;
+.cd-who[hidden] {
+  display: none;
 }
 .cd-who-chip {
   display: inline-flex;
@@ -147,10 +181,12 @@
   background: var(--dl-ink);
   color: var(--dl-on-ink);
 }
-.cd-who-chip:disabled {
+.cd-who-chip:disabled,
+.cd-who-card:disabled {
   cursor: wait;
 }
-.cd-who-chip:disabled:not([aria-busy='true']):not([aria-pressed='true']) {
+.cd-who-chip:disabled:not([aria-busy='true']):not([aria-pressed='true']),
+.cd-who-card:disabled:not([aria-busy='true']) {
   opacity: 0.6;
 }
 .cd-who-av {
@@ -164,21 +200,51 @@
 }
 /* Quiet, at the end of the row: back to the neutral store. */
 .cd-who-signout {
-  margin-left: auto;
-  padding: 4px 0;
+  min-height: 40px;
+  padding: 0 2px;
   border: 0;
   background: none;
   color: var(--dl-ink-2);
   font: 400 12.5px/1.4 var(--dl-font-sans);
   text-decoration: underline;
   text-underline-offset: 3px;
+  white-space: nowrap;
   cursor: pointer;
 }
 .cd-who-signout:hover {
   color: var(--dl-ink);
 }
+
+/* Signed out: the four shoppers as cards under the one-line explainer. */
+.cd-who-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cd-who-card {
+  display: flex;
+  min-height: 56px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-card);
+  background: var(--dl-paper);
+  color: var(--dl-ink);
+  font: 500 14px/1.3 var(--dl-font-sans);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease-out;
+}
+.cd-who-card:hover:not(:disabled) {
+  border-color: var(--dl-line-strong);
+}
+.cd-who-card .cd-who-av {
+  width: 40px;
+  height: 40px;
+}
 .cd-who-note {
-  margin: 6px 0 0;
+  margin: 10px 0 0;
   color: var(--dl-muted);
   font-size: 12px;
   line-height: 1.45;
@@ -200,19 +266,17 @@
   scrollbar-width: thin;
   scrollbar-color: var(--dl-line-strong) transparent;
 }
-/* Signed out and nothing asked yet: one quiet paragraph, centered in the
-   thread, pointing at the home bar and the chips. */
-.cd-body:has(.cd-empty) {
-  display: grid;
-  align-items: center;
-}
+/* Signed out and nothing asked yet: the explainer, then the four shoppers. */
 .cd-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cd-empty-text {
   margin: 0;
-  padding: 0 20px;
-  color: var(--dl-muted);
+  color: var(--dl-ink-2);
   font-size: 14px;
   line-height: 1.6;
-  text-align: center;
 }
 
 /* The step list masks its own rail with the panel's ground. */
@@ -399,6 +463,10 @@
   list-style: none;
 }
 .cd-session-details > summary::-webkit-details-marker { display: none; }
+.cd-session-details .tn-switches {
+  justify-content: flex-start;
+  padding: 0 16px 12px;
+}
 .cd-session-details[open] > summary svg { transform: rotate(180deg); }
 .cd-drawer :is(button, summary):focus-visible {
   outline: 2px solid var(--dl-accent);
@@ -455,6 +523,7 @@
 @media (max-width: 767.98px) {
   .cd-head { padding: 12px 14px; }
   .cd-shoppers { padding-inline: 14px; }
+  .cd-session-details .tn-switches { padding-inline: 14px; }
   .cd-body { padding: 16px 14px; }
   .cd-session-details > summary { padding-inline: 14px; }
   .cd-status-lines { grid-template-columns: minmax(0, 1fr); gap: 6px; }
@@ -469,7 +538,9 @@
   .cd-send,
   .cd-input-row,
   .cd-close,
-  .cd-who-chip {
+  .cd-who-chip,
+  .cd-who-card,
+  .cd-who-switch svg {
     animation: none;
     transition: none;
   }

@@ -186,12 +186,14 @@ export const ASK_PANEL = {
   PICK: "Pick a customer to start",
   signedIn: (name: string): string => `${name}, signed in`,
   SIGNED_IN_AS: "Signed in as",
+  /** Opens the other three shoppers beside the signed-in one. */
+  SWITCH: "Switch shopper",
   /** Signed out, docked beside the page: the home bar is to the left. */
   EMPTY_DOCKED:
-    "Search from the box on the left, or choose Anna, Marco, Theo or Jessica above to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb
+    "Search from the box on the left, or choose a shopper below to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb
   /** Signed out, stacked under the page on a phone: the home bar is at the top. */
   EMPTY_STACKED:
-    "Search from the box at the top of the page, or choose Anna, Marco, Theo or Jessica above to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb
+    "Search from the box at the top of the page, or choose a shopper below to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb
 } as const;
 
 /**

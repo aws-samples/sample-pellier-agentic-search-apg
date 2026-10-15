@@ -125,8 +125,9 @@ test('choosing a shopper in the panel signs in, switching changes the principal,
 
   // Choosing Theo in the panel signs Theo in; the next turn runs as Theo.
   await page.getByTestId('header-ask-pellier').click()
+  await page.getByTestId('ask-switch-shopper').click()
   await page.getByTestId('ask-shopper-theo').click()
-  await expect(page.getByTestId('ask-shopper-theo')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Theo')
   await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Theo, signed in')
   expect(await askAndReadPrincipal(page)).toBe('Workshop sign-in, CUST-THEO')
 
@@ -138,11 +139,11 @@ test('choosing a shopper in the panel signs in, switching changes the principal,
   await expect(page.getByTestId('persona-pill')).toContainText('Anna')
   expect(await askAndReadPrincipal(page)).toBe('Workshop sign-in, CUST-ANNA')
 
-  // Sign out at the end of the panel's chips returns to the neutral store,
+  // Sign out in the panel's signed-in row returns to the neutral store,
   // with no principal. Sign-out reloads the page once the server cleared the
   // session, and the panel docks open again.
   await page.getByTestId('header-ask-pellier').click()
-  await expect(page.getByTestId('ask-shopper-anna')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Anna')
   const reloaded = page.waitForEvent('load')
   await page.getByTestId('ask-sign-out').click()
   await reloaded

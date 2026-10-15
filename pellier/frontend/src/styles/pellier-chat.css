@@ -177,6 +177,27 @@
 .ec-artifacts .pa-card {
   height: 100%;
 }
+/* Once the answer has settled, an odd last card takes the whole row, laid out
+   as photograph beside details, instead of leaving half the row empty. While
+   the answer is still revealing, the empty cell is the next card's place. */
+@media (min-width: 360px) {
+  .ec-artifacts[data-settled='true'] > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+  .ec-artifacts[data-settled='true'] > :last-child:nth-child(odd) .pa-card {
+    display: grid;
+    grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    column-gap: 4px;
+  }
+  .ec-artifacts[data-settled='true'] > :last-child:nth-child(odd) .pa-eyebrow {
+    grid-column: 1 / -1;
+  }
+  .ec-artifacts[data-settled='true'] > :last-child:nth-child(odd) .pa-image {
+    height: auto;
+    min-height: 150px;
+  }
+}
 .ec-owned-artifacts {
   display: flex;
   flex-direction: column;

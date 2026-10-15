@@ -69,7 +69,6 @@
 
   /* ---------- Shadow and frame ---------- */
   /* The ask field is the one surface with a resting shadow. */
-  --dl-sh-ask:   0 1px 2px rgb(17 17 16 / 5%), 0 14px 34px -22px rgb(17 17 16 / 30%);
   --dl-sh-paper: 0 1px 2px rgb(17 17 16 / 5%);
   --dl-sh-lift:  0 12px 30px -12px rgb(17 17 16 / 18%);
   --dl-sh-deep:  0 30px 60px -30px rgb(17 17 16 / 35%);
@@ -167,7 +166,6 @@
   --dl-tag-blocked-bg:  #2b1110;
 
   /* Soft and low on black. */
-  --dl-sh-ask:   0 1px 2px rgb(0 0 0 / 50%), 0 14px 34px -22px rgb(0 0 0 / 80%);
   --dl-sh-paper: 0 1px 2px rgb(0 0 0 / 40%);
   --dl-sh-lift:  0 12px 30px -12px rgb(0 0 0 / 60%);
   --dl-sh-deep:  0 30px 60px -30px rgb(0 0 0 / 80%);
