@@ -2627,6 +2627,75 @@ def _retire_policies(
         config_path.write_text(json.dumps(desired, indent=2) + "\n")
 
 
+# A ready participant deploy moves the storefront onto the agents it just deployed. The move
+# is lab3-start.sh, which re-validates the receipts, writes USE_AGENTCORE_RUNTIME, restarts
+# the service and proves one managed turn; this only decides whether it is still needed.
+MOVED_ONTO_AGENTCORE = "Pellier is now using AgentCore. Continue with Theo's requests."
+ALREADY_ON_AGENTCORE = "Pellier is already using AgentCore."
+RUN_ENV_FILE = Path(os.environ.get("PELLIER_RUN_ENV", "/etc/pellier/run.env"))
+
+
+def _rail_is_managed(repo: Path, run_env: Path = RUN_ENV_FILE) -> bool:
+    """USE_AGENTCORE_RUNTIME as the service reads it: the service file over the repository's."""
+    scripts = str(Path(__file__).resolve().parent)
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    from workshop_check import parse_dotenv
+
+    values: dict[str, str] = {}
+    for env_file in (repo / ".env", repo / "pellier" / "backend" / ".env"):
+        if env_file.is_file():
+            values.update(parse_dotenv(env_file))
+            break
+    try:
+        values.update(parse_dotenv(run_env))
+    except OSError:
+        pass  # unreadable to this user: the repository's value stands, and a rerun is harmless
+    return values.get("USE_AGENTCORE_RUNTIME", "").strip().lower() == "true"
+
+
+def move_onto_agentcore(
+    repo: Path,
+    *,
+    run: Callable[..., Any] = subprocess.run,
+    run_env: Path = RUN_ENV_FILE,
+) -> int:
+    """Switch the storefront onto AgentCore unless it already is; return the exit status."""
+    if _rail_is_managed(repo, run_env):
+        print(ALREADY_ON_AGENTCORE, flush=True)
+        return 0
+    completed = run(
+        ["bash", str(repo / "scripts" / "lab3-start.sh"), "theo"], cwd=str(repo), check=False
+    )
+    if completed.returncode != 0:
+        print(
+            "The deploy is ready, but Pellier did not move onto AgentCore; the lines above "
+            "say why. Fix that, then run: bash scripts/lab3-start.sh theo",
+            file=sys.stderr,
+            flush=True,
+        )
+        return completed.returncode
+    print(MOVED_ONTO_AGENTCORE, flush=True)
+    return 0
+
+
+def _participant_then_move(
+    update: Callable[[], int],
+    move: Callable[[], int],
+    *,
+    reset_to_starters: bool,
+) -> int:
+    """Run the participant update, then the move, only when the update reported ready.
+
+    A failed update raises or returns non-zero and leaves the rail as it was. A workshop
+    reset deploys the starters and is no reason to change the rail either.
+    """
+    status = update()
+    if status != 0 or reset_to_starters:
+        return status
+    return move()
+
+
 def _participant_update(
     *,
     repo: Path,
@@ -2948,20 +3017,24 @@ def main() -> int:
         # A participant update creates no log group and activates no telemetry,
         # so the readiness that governs those resources is not its gate.
         if args.mode == "participant":
-            return _participant_update(
-                repo=repo,
-                deploy_dir=deploy_dir,
-                output_path=output_path,
-                region=region,
-                required=required,
-                opus_model_id=opus_model_id,
-                sonnet_model_id=sonnet_model_id,
-                client_secret_arn=client_secret_arn,
-                account_id=account_id,
-                identity=identity,
-                env=deploy_env,
-                result=result,
-                checkpoint=checkpoint,
+            return _participant_then_move(
+                lambda: _participant_update(
+                    repo=repo,
+                    deploy_dir=deploy_dir,
+                    output_path=output_path,
+                    region=region,
+                    required=required,
+                    opus_model_id=opus_model_id,
+                    sonnet_model_id=sonnet_model_id,
+                    client_secret_arn=client_secret_arn,
+                    account_id=account_id,
+                    identity=identity,
+                    env=deploy_env,
+                    result=result,
+                    checkpoint=checkpoint,
+                    reset_to_starters=args.reset_to_starters,
+                ),
+                lambda: move_onto_agentcore(repo),
                 reset_to_starters=args.reset_to_starters,
             )
 

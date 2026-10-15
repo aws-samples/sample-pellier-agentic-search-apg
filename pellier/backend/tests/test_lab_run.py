@@ -532,8 +532,19 @@ def test_a_managed_lab_refuses_an_in_process_turn(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
     assert _run(fake, 3) == 1
-    assert "Run bash scripts/lab3-start.sh" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    deploy = err.index(lab_run.DEPLOY)
+    assert "Lab 3's deploy moves Pellier onto AgentCore" in err
+    assert err.index("bash scripts/lab3-start.sh theo") > deploy
     assert len(_turns(fake)) == 1
+
+
+def test_a_managed_turn_says_it_ran_on_agentcore(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 3, None, "--task", "3A") == 0
+    assert "  + OK    ran on AgentCore Runtime and Gateway (turn " in capsys.readouterr().out
 
 
 def test_lab_3_starts_a_new_conversation_before_the_ticket_requests(fake: FakeBackend) -> None:

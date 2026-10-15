@@ -88,7 +88,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 IN_PROCESS, MANAGED = "in-process", "gateway-mcp"
-RAIL_NAMES = {IN_PROCESS: "in process", MANAGED: "AgentCore Runtime and Gateway"}
+RAIL_NAMES = {IN_PROCESS: "in process", MANAGED: "on AgentCore Runtime and Gateway"}
 LAB_RAIL = {1: IN_PROCESS, 2: IN_PROCESS, 3: MANAGED, 4: MANAGED}
 
 # Each lab's conversations, in order: the shopper and the journey stages of the
@@ -498,12 +498,13 @@ def _rail_problem(lab: int, served: str, response: Dict[str, Any]) -> str:
     observed = f"this turn ran on {served or 'no reported path'}"
     observed += f" ({reason})" if reason else ""
     if wanted == IN_PROCESS:
-        return (f"Lab {lab} runs in process, but {observed}. Lab 3's start has moved the "
-                "storefront to AgentCore, so this turn did not run the code you edited. To "
+        return (f"Lab {lab} runs in process, but {observed}. Lab 3's deploy has moved "
+                "Pellier onto AgentCore, so this turn did not run the code you edited. To "
                 "rerun it, set USE_AGENTCORE_RUNTIME=false in .env, restart the backend and "
-                "rerun this command; bash scripts/lab3-start.sh switches back.")
-    return (f"Lab {lab} runs on AgentCore Runtime and Gateway, but {observed}. "
-            "Run bash scripts/lab3-start.sh, then rerun this command.")
+                "rerun this command; bash scripts/lab3-start.sh theo moves it back.")
+    return (f"Lab {lab} runs on AgentCore Runtime and Gateway, but {observed}. Lab 3's "
+            f"deploy moves Pellier onto AgentCore: run {DEPLOY}. If that deploy already "
+            "reported ready, run bash scripts/lab3-start.sh theo, then rerun this command.")
 
 
 def _one_line(text: str, width: int = 140) -> str:
