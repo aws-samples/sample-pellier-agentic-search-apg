@@ -1290,16 +1290,22 @@ def test_the_runtime_role_never_requests_bypassrls() -> None:
 # ---------------------------------------------------------------------------
 
 BOOTSTRAP_ENV = REPO / "scripts" / "bootstrap-environment.sh"
-# The facilitator brief and the workshop/ files only scripts and tests read.
-HIDDEN_FROM_PARTICIPANTS = (
-    "WORKSHOP.md",
-    "workshop/architecture-diagrams",
-    "workshop/starters",
-    "workshop/participant-files.json",
-    "workshop/story-arc.json",
-    "workshop/lab-3-otel-contract.jq",
+# Participants like to go deep with the code, so the Explorer shows the whole source. These
+# stay hidden: build and cache output, runtime state, and the files that hold the box's
+# configuration and credentials. Nothing else.
+HIDDEN_NOISE_AND_SECRETS = {
+    "**/.git", "**/.vscode", "**/.venv", "**/__pycache__", "**/.pytest_cache",
+    "**/node_modules", "**/dist", "logs", "tmp", "package.zip", ".provision.env",
+    ".workshop-ref.json", ".env", ".env.*",
+}
+# Source a participant may want to read, which earlier versions hid.
+SHOWN_SOURCE = (
+    "tests", "docs", "data", ".github", ".claude", "LICENSE", "NOTICE", "VOICE.md",
+    "WORKSHOP.md", "package.json", "package-lock.json", ".gitignore",
+    "workshop/architecture-diagrams", "workshop/starters", "workshop/participant-files.json",
+    "workshop/story-arc.json", "workshop/lab-3-otel-contract.jq",
 )
-# The worksheets the lab guide opens or runs.
+# The exercises and queries the lab guide opens or runs.
 GUIDE_WORKSHEETS = (
     "workshop/lab-1-fusion.sql",
     "workshop/lab-1-index.sql",
@@ -1380,31 +1386,31 @@ def test_source_control_is_hidden_from_the_editor() -> None:
     assert user_settings["scm.diffDecorations"] == "none"
 
 
-def test_explorer_hides_repo_meta_but_keeps_the_lab_folders() -> None:
-    """Lab 4 opens policies/, the documented fallback lane opens solutions/,
-    the runtime skills live in skills/, and Lab 3A opens
-    scripts/deploy/gateway_tool_schemas.py - hiding any of them strands a
-    participant step, because Quick Open and search inherit files.exclude.
-    The Wrap-up page sends participants to takeaway/, and every lab opens a
-    worksheet in workshop/. Repo meta, the facilitator brief and the workshop/
-    files only scripts read stay on disk for Claude Code and the terminal but
-    out of the Explorer and editor search."""
+def test_the_explorer_shows_the_whole_source_and_hides_only_noise_and_secrets() -> None:
+    """Participants like to go deep with the code. Both the user settings and the workspace
+    hide exactly build and cache output, runtime state and the files that hold the box's
+    configuration and credentials; tests, docs, data, CI, the story arc and every other
+    source file stay in the Explorer and in Quick Open and search, which inherit
+    files.exclude."""
     user_settings, _workspace = _settings_blocks()
     excludes = user_settings["files.exclude"]
-    for hidden in (".claude", ".gitignore", "LICENSE", "NOTICE", "VOICE.md", "data",
-                   *HIDDEN_FROM_PARTICIPANTS):
-        assert excludes.get(hidden) is True, f"{hidden} should be hidden from the Explorer"
     workspace_excludes = json.loads(
         (REPO / "Pellier.code-workspace").read_text(encoding="utf-8"))["settings"]["files.exclude"]
-    for hidden in HIDDEN_FROM_PARTICIPANTS:
-        assert workspace_excludes.get(hidden) is True, f"{hidden} should be hidden in the workspace"
-    for visible in ("policies", "skills", "solutions", "pellier", "pellier/frontend",
-                    "takeaway", "workshop", *GUIDE_WORKSHEETS):
-        for listing in (excludes, workspace_excludes):
-            assert visible not in listing, f"{visible} must stay visible in the Explorer"
-    for pattern, hidden in excludes.items():
-        if hidden and pattern.rstrip("/").split("/")[-1] == "scripts":
-            raise AssertionError(f"{pattern} hides scripts/, where Lab 3A's marked region lives")
+    for listing in (excludes, workspace_excludes):
+        assert {pattern for pattern, hidden in listing.items() if hidden} == (
+            HIDDEN_NOISE_AND_SECRETS)
+        for shown in (*SHOWN_SOURCE, "policies", "skills", "solutions", "pellier",
+                      "pellier/frontend", "takeaway", "workshop", "scripts",
+                      *GUIDE_WORKSHEETS):
+            assert shown not in listing, f"{shown} must stay visible in the Explorer"
+
+
+def test_the_settings_comment_says_why_so_little_is_hidden() -> None:
+    source = BOOTSTRAP_ENV.read_text(encoding="utf-8")
+    comment = source[source.index("# files.exclude"):source.index("cat > \"$SETTINGS_DIR")]
+    assert "whole source" in comment
+    for stale in ("Repo meta", "facilitator brief (WORKSHOP.md)", "hidden from the tree"):
+        assert stale not in comment
 
 
 def test_the_workspace_is_detached_from_git_on_every_path() -> None:

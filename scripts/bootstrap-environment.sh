@@ -684,16 +684,14 @@ log "Configuring VS Code settings..."
 SETTINGS_DIR="/home/$CODE_EDITOR_USER/.code-editor-server/data/User"
 sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 
-# files.exclude keeps the Explorer on what the flagship lab guide actually
-# opens: pellier/, policies/, skills/, solutions/, README.md, and CLAUDE.md.
-# Repo meta (licenses, VOICE.md, .claude/, data/) stays on disk for Claude
-# Code and the terminal but is hidden from the tree and from editor search.
-# So do the facilitator brief (WORKSHOP.md) and the workshop/ files only
-# scripts and tests read (starters, the story arc, the participant file map,
-# diagram sources and the trace contract). Keep takeaway/ visible: the
-# Wrap-up page sends participants to the skill there.
-# Do NOT hide policies/, skills/, or solutions/ here - Lab 4 and the
-# documented fallback lane direct participants to files inside them.
+# files.exclude: the Explorer shows the whole source. Participants like to go deep
+# with the code, so tests, docs, data, CI, the story arc, the starters and every
+# other file stay in the tree, in Quick Open and in editor search, which inherit
+# this list. Only three kinds of path are hidden: build and cache output (.git,
+# .vscode, .venv, __pycache__, .pytest_cache, node_modules, dist), runtime state
+# (logs, tmp, package.zip, .workshop-ref.json), and the files that hold the box's
+# configuration and credentials (.env, .env.*, .provision.env). Pellier.code-workspace
+# carries the same list.
 # Room-tested Code Editor appearance, identical across the two Pellier formats
 # and Mosaic: 16/18 reads at arm's length on a laptop, zoomLevel 1 lifts the
 # whole chrome without breaking the layout, and the forced white terminal
@@ -765,36 +763,19 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "files.autoSaveDelay": 1000,
     "files.exclude": {
         "**/.git": true,
-        "**/.github": true,
         "**/.vscode": true,
         "**/.venv": true,
         "**/__pycache__": true,
         "**/.pytest_cache": true,
         "**/node_modules": true,
         "**/dist": true,
-        "tests": true,
-        "archive": true,
-        "docs": true,
-        "infrastructure": true,
         "logs": true,
         "tmp": true,
-        "package.json": true,
-        "package-lock.json": true,
-        ".claude": true,
-        ".gitignore": true,
-        "LICENSE": true,
-        "NOTICE": true,
-        "VOICE.md": true,
-        "data": true,
-        "WORKSHOP.md": true,
-        "workshop/architecture-diagrams": true,
-        "workshop/starters": true,
-        "workshop/participant-files.json": true,
-        "workshop/story-arc.json": true,
-        "workshop/lab-3-otel-contract.jq": true,
-        ".provision.env": true,
+        "package.zip": true,
         ".workshop-ref.json": true,
-        "package.zip": true
+        ".env": true,
+        ".env.*": true,
+        ".provision.env": true
     }
 }
 VSCODE_SETTINGS
