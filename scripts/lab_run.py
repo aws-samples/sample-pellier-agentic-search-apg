@@ -7,7 +7,7 @@ restart or deployment and its checks:
     python3 scripts/lab_run.py solution --lab 1
     python3 scripts/lab_run.py send --lab 1
 
-Lab 1's two tasks each open with one of Anna's requests, so ``--task`` sends just that one:
+A task that opens with its own request sends just that one with ``--task``:
 
     python3 scripts/lab_run.py send --lab 1 --task 1A
 
@@ -81,12 +81,19 @@ CONVERSATIONS = {
     3: [("theo", ("establish",)), ("theo", ("exercise", "prove"))],
     4: [("jessica", ("establish",))],
 }
-# Lab 1's tasks each open with one of Anna's requests: 1A her first sentence, which shows
-# what the search ranks by meaning, and 1B the same sentence with her limits, which needs
-# the fallback. ``send --lab 1`` sends both in that order, so her newest turn is 1B's.
+# A task can open with its own request, sent alone with ``--task``; each builds on the one
+# before. 1A is Anna's first sentence, whose ranking shows the vector branch, and 1B the same
+# sentence with her limits, which needs the fallback. 2A is Marco's Brooklyn count, which
+# only check_stock can answer, and 2B the cape Pellier never carried, which check_stock
+# misreads once 2A connects it. 3A is Theo's ticket question on the managed starter, which
+# cannot read tickets until get_tickets is published. Without ``--task`` a lab sends all of
+# its requests, so the newest turn is still the one each check judges.
 TASK_CONVERSATIONS = {
     "1A": [("anna", ("establish",))],
     "1B": [("anna", ("exercise",))],
+    "2A": [("marco", ("prove",))],
+    "2B": [("marco", ("exercise",))],
+    "3A": [("theo", ("exercise",))],
 }
 DEPLOY = 'python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
 NEXT_AFTER_SOLUTION = {
@@ -562,7 +569,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     parser.add_argument("--quiet", action="store_true",
                         help="send: one line per request, without each turn's trace")
     parser.add_argument("--task", choices=sorted(TASK_CONVERSATIONS),
-                        help="send: only that task's request (Lab 1)")
+                        help="send: only that task's request")
     args = parser.parse_args(argv)
     if args.task and (args.action != "send" or not args.task.startswith(str(args.lab))):
         parser.error(f"--task {args.task} goes with send --lab {args.task[0]}")

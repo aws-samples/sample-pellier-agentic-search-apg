@@ -12,8 +12,8 @@ Every terminal starts at the repository root.
 
 | Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| 2A, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_check.py --task 2A` | [2A-stock-agent.py](2A-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
-| 2B, keep "not carried" distinct from sold out | `python3 scripts/lab_run.py send --lab 2`, then `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql` | [2B-check-stock.sql](2B-check-stock.sql), region `Stock check - not carried`, then run the worksheet again | the worksheet ends `Lab 2B function check passed`, then `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
+| 2A, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2 --task 2A`, his Brooklyn count, then `python3 scripts/lab2_check.py --task 2A` | [2A-stock-agent.py](2A-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his Brooklyn count again | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
+| 2B, keep "not carried" distinct from sold out | `python3 scripts/lab_run.py send --lab 2 --task 2B`, the cape Pellier never carried, then `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql` | [2B-check-stock.sql](2B-check-stock.sql), region `Stock check - not carried`, then run the worksheet again | the worksheet ends `Lab 2B function check passed`, then `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
 
 The 2A check reads the grant the answering Stock agent actually held from its audit row, so
 it needs Marco's requests sent again; the restart makes them run on your saved file. The 2B

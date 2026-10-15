@@ -16,7 +16,7 @@ bash scripts/lab3-start.sh theo
 
 | Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| 3A, publish `get_tickets` and bind it to the caller | `python3 scripts/lab3_check.py --task 3A` | [3A-1-publish-tool.py](3A-1-publish-tool.py), region `Gateway catalogue - published tools`; [3A-2-bind-caller.py](3A-2-bind-caller.py), region `Support agent - Gateway tools` | `python3 scripts/lab3_check.py --task 3A` ends `Lab 3A check passed` |
+| 3A, publish `get_tickets` and bind it to the caller | `python3 scripts/lab_run.py send --lab 3 --task 3A`, his ticket question, then `python3 scripts/lab3_check.py --task 3A` | [3A-1-publish-tool.py](3A-1-publish-tool.py), region `Gateway catalogue - published tools`; [3A-2-bind-caller.py](3A-2-bind-caller.py), region `Support agent - Gateway tools` | `python3 scripts/lab3_check.py --task 3A` ends `Lab 3A check passed` |
 | 3B, deploy, write the ownership rule, then challenge it | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql` | deploy with `python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant`; while it runs, [3B-row-ownership.sql](3B-row-ownership.sql), region `Row ownership - predicate`, and the same `psql` run until it ends `Lab 3B predicate check passed`; then `python3 scripts/lab_run.py send --lab 3` | `python3 scripts/lab3_check.py --task 3B` ends `Lab 3B check passed` |
 
 Editing the 3A files alone does not update Runtime or Gateway; the deployment does.

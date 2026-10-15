@@ -320,6 +320,22 @@ def test_a_lab_1_task_sends_only_its_own_request(fake: FakeBackend, task: str,
     assert turn["body"]["message"] == message
 
 
+def test_lab_2_tasks_send_the_brooklyn_count_then_the_cape(fake: FakeBackend) -> None:
+    assert _run(fake, 2, None, "--task", "2A") == 0
+    assert _run(fake, 2, None, "--task", "2B") == 0
+    hadley, cape = _turns(fake)
+    assert "Hadley Linen Shirts" in hadley["body"]["message"]
+    assert cape["body"]["message"] == "Is the Velvet Opera Cape in stock?"
+
+
+def test_lab_3a_sends_theos_ticket_question_alone_on_agentcore(fake: FakeBackend) -> None:
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 3, None, "--task", "3A") == 0
+    (turn,) = _turns(fake)
+    assert turn["body"]["message"] == (
+        "My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?")
+
+
 def test_a_task_from_another_lab_is_refused_before_anything_is_sent(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
