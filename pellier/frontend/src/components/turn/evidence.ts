@@ -3,7 +3,7 @@
  * backend emitted. Nothing here is parsed back out of prose.
  */
 import { TURN_PRINCIPAL } from '../../copy'
-import type { IdentityBinding, TurnPrincipal, TurnStep } from './turnTypes'
+import type { IdentityBinding, StepBuilder, TurnPrincipal, TurnStep } from './turnTypes'
 
 /** "Workshop sign-in, CUST-THEO": who the server verified for one turn. */
 export function principalLine(principal: TurnPrincipal): string {
@@ -96,4 +96,102 @@ export function evidenceLine(step: TurnStep): string {
   if (builder.rail) parts.push(`rail ${builder.rail}`)
   if (builder.duration_ms != null) parts.push(`${builder.duration_ms} ms`)
   return parts.join('; ')
+}
+
+/** One piece of a fact's value: plain words, a code chip, or an id chip with a copy control. */
+export type FactPart =
+  | { kind: 'text'; text: string }
+  | { kind: 'code'; text: string }
+  | { kind: 'id'; text: string; noun: string }
+
+/** One labelled row of a step's Builder evidence. */
+export interface EvidenceFact {
+  label: string
+  parts: FactPart[]
+}
+
+const text = (value: string): FactPart => ({ kind: 'text', text: value })
+const code = (value: string): FactPart => ({ kind: 'code', text: value })
+const id = (value: string | number, noun: string): FactPart => ({ kind: 'id', text: String(value), noun })
+const codes = (values: string[]): FactPart[] => values.map(code)
+
+function routerMemoryFacts(builder: StepBuilder): EvidenceFact[] {
+  const facts: EvidenceFact[] = []
+  if (builder.memory) {
+    const { facts: count, orders, source } = builder.memory
+    facts.push({ label: 'Customer record', parts: [text(`${count} facts, ${orders} orders from ${source}`)] })
+  }
+  const remembered = builder.remembered
+  if (!remembered) return facts
+  if (remembered.error) {
+    facts.push({ label: 'Memory', parts: [text(`AgentCore Memory read failed (${remembered.error}); none given`)] })
+  } else if (remembered.records.length > 0) {
+    const noun = remembered.records.length === 1 ? 'record' : 'records'
+    facts.push({
+      label: 'Memory',
+      parts: [
+        text(`AgentCore Memory ${noun}, user preference`),
+        ...remembered.records.map(record => id(record, 'memory record id')),
+      ],
+    })
+  } else {
+    facts.push({ label: 'Memory', parts: [text('No AgentCore Memory record (user preference)')] })
+  }
+  return facts
+}
+
+function routerFacts(builder: StepBuilder): EvidenceFact[] {
+  const facts: EvidenceFact[] = []
+  if (builder.intent) facts.push({ label: 'Intent', parts: [text(builder.intent)] })
+  if (builder.model_id) facts.push({ label: 'Model', parts: [code(builder.model_id)] })
+  if (builder.grant) {
+    const { tools, rule } = builder.grant
+    const who = text(`${builder.agent || 'The agent'}:`)
+    facts.push({ label: 'May call', parts: [who, ...(tools.length ? codes(tools) : [text('no store tools')])] })
+    if (rule) facts.push({ label: 'Prompt rule', parts: [text(`"${rule}"`)] })
+  }
+  facts.push(...routerMemoryFacts(builder))
+  if (builder.skills && builder.skills.length > 0) {
+    facts.push({
+      label: 'Skills',
+      parts: [...codes(builder.skills.map(skill => skill.name)), text(`(${builder.skills[0].loaded})`)],
+    })
+  } else if (builder.skill_mode === 'on_demand') {
+    facts.push({ label: 'Skills', parts: [text('Loaded on demand')] })
+  }
+  if (builder.note) facts.push({ label: 'Note', parts: [text(builder.note)] })
+  if (builder.stop_reason === 'max_tokens') {
+    facts.push({ label: 'Stop', parts: [text('Answer cut short (max_tokens)')] })
+  } else if (builder.stop_reason && builder.stop_reason !== 'end_turn') {
+    facts.push({ label: 'Stop', parts: [code(builder.stop_reason)] })
+  }
+  return facts
+}
+
+function toolFacts(builder: StepBuilder): EvidenceFact[] {
+  const facts: EvidenceFact[] = []
+  if (builder.query) facts.push({ label: 'Searched', parts: [text(`"${builder.query}"`)] })
+  if (builder.identity) facts.push({ label: 'Identity', parts: [text(identitySentence(builder.identity))] })
+  if (builder.requirements?.carried?.length) {
+    facts.push({ label: 'Kept from earlier', parts: [text(builder.requirements.carried.join(', '))] })
+  }
+  if (builder.audit_id != null) facts.push({ label: 'Audit row', parts: [id(builder.audit_id, 'audit row id')] })
+  if (builder.receipt_id != null) facts.push({ label: 'Receipt', parts: [id(builder.receipt_id, 'receipt id')] })
+  if (builder.tool === 'skills' && builder.skills?.length) {
+    facts.push({ label: 'Files', parts: codes(builder.skills.map(skill => skill.path)) })
+  }
+  if (builder.rail) facts.push({ label: 'Rail', parts: [code(builder.rail)] })
+  if (builder.duration_ms != null) facts.push({ label: 'Took', parts: [text(`${builder.duration_ms} ms`)] })
+  return facts
+}
+
+/**
+ * The same evidence `evidenceLine` joins with semicolons, as labelled rows: what the
+ * Builder view draws. Both read the backend's structured fields; nothing is parsed
+ * back out of the joined line.
+ */
+export function evidenceFacts(step: TurnStep): EvidenceFact[] {
+  const builder = step.builder
+  if (!builder) return []
+  return builder.tool === null ? routerFacts(builder) : toolFacts(builder)
 }

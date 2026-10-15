@@ -1,8 +1,9 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import StepList, { HIDE_EARLIER, SHOW_ALL_EVIDENCE, SHOW_LESS_EVIDENCE, earlierSummary, failedSuffix, foldSummary } from './StepList'
+import StepList, { HIDE_EARLIER, earlierSummary, failedSuffix, foldSummary } from './StepList'
+import { SHOW_RAW_STEP } from './StepFacts'
 import type { TurnStep } from './turnTypes'
 
 const ROUTE: TurnStep = {
@@ -61,6 +62,16 @@ const TICKETS: TurnStep = {
 
 const RUNNING: TurnStep = { id: 'step-3', label: 'Checking stock in three warehouses', status: 'running', tags: ['Aurora'] }
 
+/** A step's evidence rows as { label: value text }. */
+function factRows(list: HTMLElement): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(list.querySelectorAll('.tn-fact')).map(row => [
+      row.querySelector('dt')?.textContent ?? '',
+      row.querySelector('dd')?.textContent ?? '',
+    ]),
+  )
+}
+
 describe('StepList', () => {
   it('shows each step with its finding and keeps tool names and ids out of the shopper view', () => {
     render(<StepList steps={[ROUTE, SEARCH, RUNNING]} live builderView={false} />)
@@ -113,19 +124,22 @@ describe('StepList', () => {
     render(<StepList steps={[ROUTE, SEARCH]} live={false} builderView />)
     const tags = screen.getAllByTestId('layer-tag').map(tag => tag.textContent)
     expect(tags).toEqual(['Router', 'Skills', 'Aurora'])
-    const evidence = screen.getAllByTestId('turn-evidence').map(line => line.textContent)
-    expect(evidence[0]).toContain('intent shopping')
-    expect(evidence[0]).toContain('skills the-gift-table (fixed)')
-    expect(evidence[1]).toContain('audit row 9031')
-    expect(evidence[1]).toContain('receipt 412')
+    const [router, search] = screen.getAllByTestId('turn-evidence')
+    expect(factRows(router)).toEqual({
+      Intent: 'shopping',
+      Model: 'global.anthropic.claude-opus-5',
+      Skills: 'the-gift-table(fixed)',
+    })
+    expect(factRows(search)).toMatchObject({ 'Audit row': '9031', Receipt: '412', Rail: 'in-process', Took: '184 ms' })
     expect(screen.getByTestId('ranking-panel')).toBeInTheDocument()
   })
 
   it('renders the identity binding from structured fields, never from prose', () => {
     render(<StepList steps={[TICKETS]} live={false} builderView />)
-    expect(screen.getByTestId('turn-evidence')).toHaveTextContent(
-      'model asked for CUST-JESSICA, server bound CUST-THEO (overwritten); audit row 9032; rail in-process',
-    )
+    expect(factRows(screen.getByTestId('turn-evidence'))).toMatchObject({
+      Identity: 'model asked for CUST-JESSICA, server bound CUST-THEO (overwritten)',
+      'Audit row': '9032',
+    })
   })
 
   it('shows the latest steps and collapses the earlier ones, never merging them', async () => {
@@ -151,8 +165,7 @@ describe('StepList', () => {
     expect(earlier).toHaveAttribute('aria-expanded', 'true')
     expect(rows()).toEqual(['Sent to the Shopping agent', ...searches.map(step => step.finding)])
     // Every step keeps its own evidence: six receipts, one each.
-    const receipts = screen.getAllByTestId('turn-evidence').slice(1)
-      .map(line => line.textContent?.match(/receipt (\d+)/)?.[1])
+    const receipts = screen.getAllByTestId('turn-evidence').slice(1).map(line => factRows(line).Receipt)
     expect(receipts).toEqual(['601', '602', '603', '604', '605', '606'])
 
     await user.click(earlier)
@@ -191,26 +204,53 @@ describe('StepList', () => {
   })
 })
 
-describe('StepList evidence clamp', () => {
-  afterEach(() => vi.restoreAllMocks())
+describe('StepList evidence rows', () => {
+  const GRANTED: TurnStep = {
+    ...ROUTE,
+    builder: {
+      ...ROUTE.builder!,
+      grant: { tools: ['search_products', 'check_stock'], rule: 'Every stock answer starts from check_stock' },
+      remembered: { source: 'AgentCore Memory', strategy: 'USER_PREFERENCE', records: ['mem-923e37b1-4c2a'] },
+    },
+  }
 
-  it('shows no control and no change for evidence that fits in ten lines', () => {
-    render(<StepList steps={[ROUTE]} live={false} builderView />)
-    expect(screen.queryByTestId('turn-evidence-more')).toBeNull()
-    expect(screen.getByTestId('turn-evidence')).toHaveAttribute('data-clamped', 'true')
+  it('lists the tools the agent may call as chips and the memory record as an id', () => {
+    render(<StepList steps={[GRANTED]} live={false} builderView />)
+    const evidence = screen.getByTestId('turn-evidence')
+    const row = (label: string) => within(evidence).getByText(label).closest('.tn-fact') as HTMLElement
+    const chips = Array.from(row('May call').querySelectorAll('.tn-chip-code')).map(chip => chip.textContent)
+    expect(chips).toEqual(['search_products', 'check_stock'])
+    expect(row('May call')).toHaveTextContent('Shopping agent:')
+    expect(row('Prompt rule')).toHaveTextContent('"Every stock answer starts from check_stock"')
+    expect(within(row('Memory')).getByText('mem-923e37b1-4c2a').tagName).toBe('CODE')
   })
 
-  it('offers "Show all" once the evidence runs past ten lines, and "Show less" after', async () => {
-    // jsdom lays nothing out: report the evidence as taller than its ten-line box.
-    vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(400)
-    vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(172)
+  it('keeps the whole raw line behind a disclosure', () => {
+    render(<StepList steps={[GRANTED]} live={false} builderView />)
+    const raw = screen.getByTestId('turn-evidence-raw')
+    expect(raw).not.toHaveAttribute('open')
+    expect(within(raw).getByText(SHOW_RAW_STEP)).toBeInTheDocument()
+    expect(raw).toHaveTextContent('intent shopping; model global.anthropic.claude-opus-5; Shopping agent may call:')
+    expect(raw).toHaveTextContent('Remembered: AgentCore Memory record mem-923e37b1-4c2a (user preference)')
+  })
+
+  it('draws no evidence rows with the Builder view off', () => {
+    render(<StepList steps={[GRANTED]} live={false} builderView={false} />)
+    expect(screen.queryByTestId('turn-evidence')).toBeNull()
+    expect(screen.queryByTestId('turn-evidence-raw')).toBeNull()
+  })
+
+  it('copies an id from its chip', async () => {
     const user = userEvent.setup()
-    render(<StepList steps={[ROUTE]} live={false} builderView />)
-    const more = screen.getByTestId('turn-evidence-more')
-    expect(more).toHaveTextContent(SHOW_ALL_EVIDENCE)
-    expect(more).toHaveAttribute('aria-expanded', 'false')
-    await user.click(more)
-    expect(screen.getByTestId('turn-evidence')).not.toHaveAttribute('data-clamped')
-    expect(screen.getByTestId('turn-evidence-more')).toHaveTextContent(SHOW_LESS_EVIDENCE)
+    const writes: string[] = []
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: async (text: string) => { writes.push(text) } },
+      configurable: true,
+    })
+    render(<StepList steps={[SEARCH]} live={false} builderView />)
+    await user.click(screen.getByRole('button', { name: 'Copy audit row id' }))
+    expect(writes).toEqual(['9031'])
+    expect(screen.getByRole('button', { name: 'Copied audit row id' })).toBeInTheDocument()
+    Reflect.deleteProperty(navigator, 'clipboard')
   })
 })

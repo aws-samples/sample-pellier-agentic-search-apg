@@ -49,6 +49,7 @@ const TEXT_PAIRS: Array<[string, string]> = [
   ['--dl-ink', '--dl-dock'], ['--dl-ink-2', '--dl-dock'], ['--dl-muted', '--dl-dock'],
   ['--dl-ink', '--dl-paper'], ['--dl-ink-2', '--dl-paper'], ['--dl-muted', '--dl-paper'],
   ['--dl-ink', '--dl-paper-2'], ['--dl-ink-2', '--dl-paper-2'], ['--dl-muted', '--dl-paper-2'],
+  ['--dl-faint', '--dl-dock'], ['--dl-faint', '--dl-paper'], ['--dl-faint', '--dl-paper-2'],
   ['--dl-accent', '--dl-bg'], ['--dl-accent', '--dl-dock'], ['--dl-accent', '--dl-paper-2'],
   ['--dl-accent-ink', '--dl-accent-soft'],
   ['--dl-on-ink', '--dl-ink'],

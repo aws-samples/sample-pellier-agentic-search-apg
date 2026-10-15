@@ -3,7 +3,7 @@
  *
  * Each step shows its plain label, a ring while it runs, a check when its
  * tool returns, and the one-line finding the backend computed. With the
- * Builder view on, every step adds its layer tags and a mono evidence line,
+ * Builder view on, every step adds its layer tags and its evidence as labelled rows,
  * and a search adds "How it ranked": the full panel by default, or whatever
  * `renderRanking` draws (the storefront dock draws a one-line summary that
  * points at the page's panel). After the answer, the list folds to one line
@@ -15,11 +15,11 @@
  * ones behind "Show N earlier steps". It collapses, never merges: each step
  * keeps its own finding and evidence.
  */
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { Check, ChevronRight, CircleAlert } from 'lucide-react'
 import LayerTag from './LayerTag'
 import RankingPanel from './RankingPanel'
-import { evidenceLine } from './evidence'
+import StepFacts from './StepFacts'
 import type { RankingPayload, TurnStep } from './turnTypes'
 
 export interface StepListProps {
@@ -49,47 +49,6 @@ function statusWord(status: TurnStep['status']): string {
   if (status === 'running') return 'in progress'
   if (status === 'failed') return 'did not complete'
   return 'done'
-}
-
-export const SHOW_ALL_EVIDENCE = 'Show all'
-export const SHOW_LESS_EVIDENCE = 'Show less'
-
-/**
- * A step's Builder evidence, clamped at ten lines (`.tn-evidence[data-clamped]`) with
- * "Show all" once it runs longer. Shorter lines render exactly as before, with no control.
- */
-function EvidenceLine({ text }: { text: string }) {
-  const ref = useRef<HTMLSpanElement | null>(null)
-  const [overflows, setOverflows] = useState(false)
-  const [expanded, setExpanded] = useState(false)
-  useLayoutEffect(() => {
-    const node = ref.current
-    if (!node) return
-    const measure = () => setOverflows(node.scrollHeight > node.clientHeight + 1)
-    measure()
-    if (typeof ResizeObserver === 'undefined') return
-    const observer = new ResizeObserver(measure)
-    observer.observe(node)
-    return () => observer.disconnect()
-  }, [text, expanded])
-  return (
-    <>
-      <span ref={ref} className="tn-evidence" data-clamped={expanded ? undefined : 'true'} data-testid="turn-evidence">
-        {text}
-      </span>
-      {(overflows || expanded) && (
-        <button
-          type="button"
-          className="tn-evidence-more"
-          aria-expanded={expanded}
-          onClick={() => setExpanded(value => !value)}
-          data-testid="turn-evidence-more"
-        >
-          {expanded ? SHOW_LESS_EVIDENCE : SHOW_ALL_EVIDENCE}
-        </button>
-      )}
-    </>
-  )
 }
 
 export function foldSummary(count: number): string {
@@ -148,7 +107,6 @@ export default function StepList({
       >
         {shown.map(step => {
           const ranking = step.builder?.ranking
-          const evidence = builderView ? evidenceLine(step) : ''
           return (
             <li key={step.id} className="tn-step" data-status={step.status} data-testid="turn-step">
               <span className="tn-step-ico" data-status={step.status}>
@@ -161,7 +119,7 @@ export default function StepList({
                   {builderView && step.tags.map(tag => <LayerTag key={tag}>{tag}</LayerTag>)}
                 </span>
                 {step.finding && <span className="tn-finding">{step.finding}</span>}
-                {evidence && <EvidenceLine text={evidence} />}
+                {builderView && <StepFacts step={step} />}
                 {builderView && ranking && step.status !== 'running' && renderRanking(ranking)}
               </span>
             </li>

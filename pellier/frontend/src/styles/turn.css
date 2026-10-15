@@ -130,27 +130,129 @@
 .tn-step[data-status='failed'] .tn-finding {
   color: var(--dl-ink-2);
 }
-.tn-evidence {
-  display: block;
-  font: 400 11.5px/1.5 var(--dl-font-mono);
-  color: var(--dl-faint);
+/* The Builder view's evidence: labelled rows, then the raw line one disclosure away. */
+.tn-facts {
+  display: grid;
+  gap: 6px;
+  margin: 2px 0 0;
+}
+.tn-fact {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+}
+.tn-fact[data-stacked] {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+}
+.tn-fact dt {
+  font: 500 12px/1.5 var(--dl-font-sans);
+  color: var(--dl-muted);
+}
+.tn-fact dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+  margin: 0;
+}
+.tn-fact-text {
+  font: 400 12.5px/1.5 var(--dl-font-sans);
+  color: var(--dl-ink-2);
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+/* A name or id is one chip. A row wraps between chips; only an id too long for
+   a line of its own breaks inside. */
+.tn-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+  border: 1px solid var(--dl-line);
+  border-radius: 6px;
+  background: var(--dl-paper-2);
+  color: var(--dl-ink-2);
+  font: 400 12px/1.5 var(--dl-font-mono);
+}
+.tn-chip-code {
+  padding: 0 6px;
   overflow-wrap: anywhere;
 }
-/* Ten lines at most until "Show all": no step in the guide runs past eight. */
-.tn-evidence[data-clamped='true'] {
-  max-height: calc(1.5em * 10);
-  overflow: hidden;
+.tn-chip-id {
+  gap: 2px;
+  padding-left: 6px;
 }
-.tn-evidence-more {
-  align-self: flex-start;
+.tn-chip-id .tn-chip-code {
+  padding: 0;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.tn-copy {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 0;
-  background: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--dl-ink-2);
+  cursor: pointer;
+}
+.tn-copy:hover {
+  color: var(--pellier-copper);
+  background: var(--pellier-copper-tint);
+}
+.tn-copy:focus-visible {
+  outline: 2px solid var(--pellier-copper);
+  outline-offset: 1px;
+}
+.tn-raw {
+  margin-top: 2px;
+}
+.tn-raw summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 24px;
   font: 400 12px/1.4 var(--dl-font-sans);
   color: var(--dl-muted);
-  text-decoration: underline;
-  text-underline-offset: 2px;
   cursor: pointer;
+  list-style: none;
+}
+.tn-raw summary::-webkit-details-marker {
+  display: none;
+}
+.tn-raw summary:hover {
+  color: var(--dl-ink-2);
+}
+.tn-raw summary:focus-visible {
+  outline: 2px solid var(--pellier-copper);
+  outline-offset: 2px;
+}
+.tn-raw[open] .tn-chev {
+  transform: rotate(90deg);
+}
+.tn-raw-text {
+  display: block;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: var(--dl-r-sm);
+  background: var(--dl-paper-2);
+  font: 400 12px/1.5 var(--dl-font-mono);
+  color: var(--dl-ink-2);
+  overflow-wrap: anywhere;
+}
+@media (max-width: 520px) {
+  .tn-fact {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+  }
 }
 @keyframes tn-rise {
   from { opacity: 0; transform: translateY(4px); }
@@ -222,7 +324,7 @@
   margin: 0 0 8px;
 }
 .tn-principal-text {
-  font: 400 11.5px/1.5 var(--dl-font-mono);
+  font: 400 12px/1.5 var(--dl-font-mono);
   color: var(--dl-ink-2);
   overflow-wrap: anywhere;
 }
@@ -236,7 +338,7 @@
   margin: 10px 0 0;
 }
 .tn-turn-id {
-  font: 400 11.5px/1.5 var(--dl-font-mono);
+  font: 400 12px/1.5 var(--dl-font-mono);
   color: var(--dl-ink-2);
   overflow-wrap: anywhere;
   user-select: all;
@@ -265,7 +367,7 @@
 
 /* ---- Layer tags (Builder view) ---- */
 .tn-layer {
-  font: 500 10.5px/1 var(--dl-font-mono);
+  font: 500 11px/1 var(--dl-font-mono);
   letter-spacing: 0.02em;
   color: var(--pellier-copper);
   background: var(--pellier-copper-tint);
@@ -279,7 +381,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 9px;
+  padding: 4px 9px;
   border-radius: var(--dl-r-pill);
   font: 500 12px/1.3 var(--dl-font-sans);
   white-space: nowrap;
@@ -476,7 +578,7 @@
 .tn-rank-hdr {
   padding-top: 0;
   border-top: 0;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--dl-muted);
 }
 .tn-rank-pos {
@@ -489,7 +591,7 @@
 }
 .tn-rank-move {
   padding: 1px 6px;
-  font-size: 10.5px;
+  font-size: 11px;
 }
 .tn-rank-name {
   min-width: 0;
@@ -556,7 +658,8 @@
 /* ---- Phone widths: only the active step shows its detail while live ---- */
 @media (max-width: 767.98px) {
   .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-finding,
-  .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-evidence,
+  .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-facts,
+  .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-raw,
   .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-rank,
   .tn-steps[data-live='true'] .tn-step:not([data-status='running']) .tn-rank-summary {
     display: none;
