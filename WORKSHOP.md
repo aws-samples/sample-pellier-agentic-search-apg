@@ -75,7 +75,7 @@ the participant edit regions.
   sends each shopper request to the Shopping, Stock or Support agent
   (Strands). Shopping and Support run on Claude Opus 5, Stock on Claude
   Sonnet 5. Each agent holds only its own tools; as shipped, the Stock
-  agent has the catalog tools and not `check_stock`, until Lab 2B connects
+  agent has the catalog tools and not `check_stock`, until Lab 2A connects
   `check_stock` alone.
 - **Nine store tools.** `search_products`, `browse_department`,
   `compare_products`, `check_stock`, `get_orders`, `get_return_policy`,
@@ -146,20 +146,24 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
 
 Marco needs reliable stock and dispatch facts before his trip.
 
-- **See it fail:** `python3 scripts/lab2_check.py --task 2A` shows
-  `check_stock` calling a piece Pellier does not carry sold out. After
-  `python3 scripts/lab_run.py send --lab 2`, `--task 2B` shows the Stock agent
-  that answered held only the catalog tools, so no step read
-  `warehouse_inventory`.
-- **Task 2A:** stop `check_stock` folding not found into zero
-  (`pellier/backend/services/agent_tools.py`); the check ends `Lab 2A check
-  passed`.
-- **Task 2B:** connect `check_stock` to the Stock agent, and only `check_stock`
+- **See it fail:** `python3 scripts/lab_run.py send --lab 2` sends Marco's two
+  requests; the Stock agent holds only the catalog tools, so its call to
+  `check_stock` is refused and no step reads `warehouse_inventory`. Once it
+  holds `check_stock`, the same request about the Velvet Opera Cape comes back
+  0 in stock, and `workshop/lab-2-check-stock.sql` prints why: the function's
+  aggregate over no rows returns one row, with a NULL sum that COALESCE makes 0.
+- **Task 2A:** connect `check_stock` to the Stock agent, and only `check_stock`
   (`pellier/backend/agents/stock_agent.py`). A prompt can name a tool; only
   the grant decides what the agent can call. The check reads the grant from the
-  answering agent's audit row, so an edit without a backend restart is not yet
-  done; it ends `Lab 2B check passed`.
-- **Lesson:** an agent can only claim what its tool returns.
+  answering agent's audit row, so a definition no turn has run with is not yet
+  done; it ends `Lab 2A check passed`.
+- **Task 2B:** write the not-carried test in `pellier.check_stock`
+  (`workshop/lab-2-check-stock.sql`, region `Stock check - not carried`). The
+  worksheet commits the function only when its four probes match and ends
+  `Lab 2B function check passed`; `python3 scripts/lab2_check.py --task 2B`
+  then runs the live function and ends `Lab 2B check passed`.
+- **Lesson:** an agent can only claim what its tool returns, and a missing
+  product is a missing row, not a zero.
 
 ### Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
 

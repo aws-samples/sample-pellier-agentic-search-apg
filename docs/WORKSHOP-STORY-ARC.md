@@ -38,7 +38,7 @@ starter fails the way See it fail shows and the solution does not.
 | Lab | See it fail, in the terminal | The fix |
 |---|---|---|
 | 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector branch ranks nothing by meaning; after her request is sent, `lab1_retry.py` shows the retry dropped her limits | 1A: read the distances in `workshop/lab-1-meaning.sql`, then rank the eligible products by meaning. 1B: the fallback keeps her limits |
-| 2 | `lab2_check.py` shows `check_stock` calling a piece Pellier does not carry sold out; after Marco's requests, `--task 2B` shows the answering Stock agent held only catalog tools | 2A: `check_stock` keeps "not carried" apart from sold out. 2B: connect `check_stock` to the Stock agent, alone |
+| 2 | After Marco's requests, `lab2_check.py --task 2A` shows the answering Stock agent held only catalog tools, so its `check_stock` call never ran; once it does, the cape reads 0 in stock and `workshop/lab-2-check-stock.sql` shows the aggregate's NULL sum | 2A: connect `check_stock` to the Stock agent, alone. 2B: `pellier.check_stock` keeps "not carried" apart from sold out |
 | 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway and the starter Support agent without the reads Theo's household request needs; `workshop/lab-3-row-ownership.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: assemble the Support agent: publish `get_tickets`, ask for `get_orders` and `get_tickets`, and bind every tool that takes a `customer_id`. 3B: deploy, write the ownership rule, then challenge it |
 | 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: the $100 per-credit limit in Cedar. 4B: the money role writes only through the credit function |
 
@@ -53,8 +53,8 @@ task letter.
 |---|---|---|---|
 | 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `python3 scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
 | 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
-| 2A | `services/agent_tools.py`, `Stock agent - check_stock` | `python3 scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
-| 2B | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
+| 2A | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
+| 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its worksheet prints `Lab 2B function check passed`) | `python3 scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
 | 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `python3 scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
 | 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `python3 scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
 | 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
@@ -85,12 +85,14 @@ starter is never proved.
   own embedding under Anna's limits, does not come back at all.
 - **1B:** every fallback attempt keeps the budget, the stock rule and the
   exclusions; only a preference changes, and the receipt records it.
-- **2A / 2B:** not carried, several and sold out stay three answers; the
-  Stock agent's numbers equal one SELECT on `warehouse_inventory`. 2B is least
-  privilege: the risk is what the agent can call. Its prompt, not its grant, is
-  what keeps today's model on `check_stock`, so the grant is read from the
-  answering agent's audit row, never from the source, and an edit without a
-  restart is not yet done.
+- **2A / 2B:** the Stock agent's numbers equal one SELECT on
+  `warehouse_inventory`, and not carried, several and sold out stay three
+  answers. 2A is least privilege: the risk is what the agent can call. Its
+  prompt, not its grant, is what keeps today's model on `check_stock`, so the
+  grant is read from the answering agent's audit row, never from the source,
+  and a definition no turn has run with is not yet done. 2B is the database's
+  answer: `pellier.check_stock` tests for the product before it aggregates, so
+  a piece Pellier does not carry returns no row instead of a total of nothing.
 - **3A / 3B:** the Support agent asks only for published tools, and the server
   overwrites the model's `customer_id` on `get_tickets`. A model refusal is not
   a control. The deployed build is read from `tool_audit.build_fingerprint`

@@ -1,8 +1,9 @@
-"""Lab 2's check grades the participant's test inputs, then the tool, against the catalog.
+"""Lab 2's checks: 2A judges the grant from the turn record; 2B grades the participant's
+test inputs, then the live function's answers, against the catalog.
 
 The judging is pure over a catalog answer and a tool envelope, so the edge cases
-run offline here. ``tests/test_lab2_starter_failure.py`` runs the whole check on
-the real schema against the starter and the solution.
+run offline here. ``tests/test_lab2_starter_failure.py`` runs both checks on the
+real schema against the starters and the solutions.
 """
 from __future__ import annotations
 
@@ -115,38 +116,56 @@ def test_the_recorded_grant_is_read_from_the_turns_first_row() -> None:
     assert check.recorded_grant([]) is None
 
 
-def test_the_check_reads_no_source() -> None:
-    """2B is judged from the turn record, so an edit without a restart cannot pass."""
+def test_the_grant_check_reads_no_source() -> None:
+    """2A is judged from the turn record, so a definition no turn ran with cannot pass."""
     source = (SCRIPTS / "lab2_check.py").read_text()
     assert "import ast" not in source and "stock_agent.py\")" not in source
     assert "args->>'agent' = %s" in source
 
 
-def test_the_check_runs_the_participants_tool_body_not_the_logic_directly() -> None:
+def test_the_function_check_runs_the_live_function_through_the_shared_shaping() -> None:
+    """2B runs store_tools.check_stock, so it judges the rows both rails are given."""
     source = (SCRIPTS / "lab2_check.py").read_text()
-    assert "return agent_tools.check_stock" in source
-    assert "store_tools" not in source
+    assert "store_tools.check_stock(run_sql, product_query=product_query)" in source
+    assert "agent_tools" not in source
+
+
+def test_the_worksheet_body_is_the_text_between_its_dollar_quotes() -> None:
+    assert check.function_body("CREATE ... AS $check_stock$\nBEGIN\nEND\n$check_stock$;") == (
+        "\nBEGIN\nEND\n")
+    assert check.function_body("no function here") is None
+
+
+def test_marcos_cape_sentence_comes_from_the_scenarios() -> None:
+    assert check.marco_cape_request() == "Is the Velvet Opera Cape in stock?"
+    line = check.marco_line([("not carried", "Velvet Opera Cape", "default",
+                              "not_found: no product matches", "success, 0 units (no rows)",
+                              "differs")], check.marco_cape_request())
+    assert line.splitlines() == [
+        'Marco asks "Is the Velvet Opera Cape in stock?"',
+        '  check_stock("Velvet Opera Cape") answers success, 0 units (no rows); the catalog: '
+        "not_found: no product matches"]
 
 
 def _finding(state: str) -> object:
-    return check.check.Finding("2A", "title", state, "expected", "observed", ["row"])
+    return check.check.Finding("2B", "title", state, "expected", "observed", ["row"])
 
 
 @pytest.mark.parametrize("recorded", ["NOT YET", "CONTRADICTED"])
 def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(recorded) -> None:
-    """The guide's check runs the checkout; the storefront and the export read Marco's turns.
+    """The check runs the live function; Marco's chat and the export read his turns.
 
-    The backend reloads when the file is saved, so the hint asks for his requests again and
+    A committed function is live at once, so the hint asks for his requests again and
     never for a restart.
     """
-    finding = check.with_restart_hint(_finding("PROVED"), _finding(recorded))
+    finding = check.with_resend_hint(_finding("PROVED"), _finding(recorded))
     assert finding.state == "PROVED"
     assert finding.evidence[0] == "row"
     assert "python3 scripts/lab_run.py send --lab 2" in finding.evidence[-1]
     assert "restart" not in finding.evidence[-1].lower()
 
 
-def test_the_2a_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
+def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
     """The event's rows ran to about 150 columns and wrapped at 133; each now fits in 100."""
     rows = [
         ("not carried", "Velvet Opera Cape", "default", "not_found: no product matches",
@@ -164,6 +183,6 @@ def test_the_2a_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
 
 
 @pytest.mark.parametrize("guide, recorded", [("PROVED", "PROVED"), ("CONTRADICTED", "NOT YET")])
-def test_no_restart_line_when_the_turns_agree_or_the_check_fails(guide, recorded) -> None:
-    finding = check.with_restart_hint(_finding(guide), _finding(recorded))
+def test_no_resend_line_when_the_turns_agree_or_the_check_fails(guide, recorded) -> None:
+    finding = check.with_resend_hint(_finding(guide), _finding(recorded))
     assert finding.evidence == ["row"]

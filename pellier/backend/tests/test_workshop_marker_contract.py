@@ -18,9 +18,10 @@ What each lab needs from the source tree
 ----------------------------------------
 
 **Lab 2 - Build a PostgreSQL-Grounded Agent.** Two marker regions to fix and two
-fallback files to copy. A missing marker breaks the primary lane; a missing fallback
-breaks the recovery lane, which is worse, because it only fails for the participant who
-is already behind.
+fallback files to copy: 2A connects ``check_stock`` to the Stock agent in Python, and 2B
+writes the not-carried test in the ``pellier.check_stock`` worksheet. A missing marker
+breaks the primary lane; a missing fallback breaks the recovery lane, which is worse,
+because it only fails for the participant who is already behind.
 
 **Lab 1 - Build and Measure PostgreSQL Hybrid Retrieval.** Two marker regions: the
 vector branch, which starts ranking nothing by meaning, and a search-plan fallback that
@@ -69,11 +70,14 @@ REPO = Path(__file__).resolve().parents[3]
 # Lab 2, "10-ground-answers-in-live-data", steps 1 and 2 plus the pacing fallback.
 # ---------------------------------------------------------------------------
 
+LAB2_CHECK_STOCK_WORKSHEET = "workshop/lab-2-check-stock.sql"
+LAB2_CHECK_STOCK_REFERENCE = "solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql"
+LAB2_CHECK_STOCK_MARKER = "WORKSHOP - Stock check - not carried"
+
 LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
     ("pellier/backend/agents/stock_agent.py",
      "WORKSHOP - Stock agent - definition"),
-    ("pellier/backend/services/agent_tools.py",
-     "WORKSHOP - Stock agent - check_stock"),
+    (LAB2_CHECK_STOCK_WORKSHEET, LAB2_CHECK_STOCK_MARKER),
 )
 
 # The exact `cp` sources in the guide's pacing fallback. A participant runs these
@@ -81,8 +85,7 @@ LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
 LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
     ("solutions/waking-the-stock-keeper/agents/stock_agent_solution.py",
      "pellier/backend/agents/stock_agent.py"),
-    ("solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py",
-     "pellier/backend/services/agent_tools.py"),
+    (LAB2_CHECK_STOCK_REFERENCE, LAB2_CHECK_STOCK_WORKSHEET),
 )
 
 # ---------------------------------------------------------------------------
@@ -180,8 +183,8 @@ PARTICIPANT_STARTERS = {
         "pellier/backend/agents/stock_agent.py",
     ),
     "lab-2-check-stock": (
-        "workshop/starters/lab-2/check-stock-tool.pyfrag",
-        "pellier/backend/services/agent_tools.py",
+        "workshop/starters/lab-2-check-stock.sql",
+        LAB2_CHECK_STOCK_WORKSHEET,
     ),
     "lab-1-fusion": (
         "workshop/starters/lab-1-fusion.sql",
@@ -317,6 +320,7 @@ def test_lab2_fallback_copy_keeps_the_markers(source: str, destination: str) -> 
     "starter,reference,label",
     (
         (LAB1_FUSION_WORKSHEET, LAB1_FUSION_REFERENCE, LAB1_FUSION_MARKER),
+        (LAB2_CHECK_STOCK_WORKSHEET, LAB2_CHECK_STOCK_REFERENCE, LAB2_CHECK_STOCK_MARKER),
         (LAB3_RLS_PROOF, LAB3_RLS_REFERENCE, LAB3_RLS_MARKER),
         (LAB4_WRITER_WORKSHEET, LAB4_WRITER_REFERENCE, LAB4_WRITER_MARKER),
     ),
@@ -752,11 +756,14 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     assert "agent_tools.search_products," in stock_agent
     assert "check_stock" not in stock_agent.split("_STOCK_TOOLS = [", 1)[1].split("]", 1)[0]
     assert "_STOCK_SYSTEM_PROMPT_FOR_AGENT = _STOCK_SYSTEM_PROMPT" in stock_agent
-    assert 'if result.get("status") == "not_found":' in stock_tool
-    assert '"total_units": 0' in stock_tool
+    # The not-carried region holds only its comment; the aggregate below it is supplied.
+    region = stock_tool.split(f"{LAB2_CHECK_STOCK_MARKER}: START ===", 1)[1].split(
+        f"{LAB2_CHECK_STOCK_MARKER}: END ===", 1)[0]
+    assert all(line.strip().startswith("--") for line in region.splitlines()[1:] if line.strip())
+    assert "coalesce(sum(w.quantity), 0)::integer" in stock_tool
     assert "return SearchPlan(" in lab1_plan and "hard=" not in lab1_plan
     assert "1.0 / (60 + coalesce(vector_rank, 0))" in lab1
-    for starter in (stock_agent, stock_tool, lab1_plan):
+    for starter in (stock_agent, lab1_plan):
         assert "WORKSHOP_EXERCISE_STUB" not in starter
         assert "raise" not in starter
     assert "SELECT $predicate$\n  false\n$predicate$" in rls
@@ -891,7 +898,7 @@ _SQL_MARKER_BLOCK = re.compile(
 )
 
 REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
-    (source, destination, _PY_MARKER_BLOCK)
+    (source, destination, _SQL_MARKER_BLOCK if destination.endswith(".sql") else _PY_MARKER_BLOCK)
     for source, destination in LAB2_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
 ) + (
     (LAB1_VECTOR_REFERENCE, LAB1_VECTOR_REGION[0], _PY_MARKER_BLOCK),
@@ -903,7 +910,7 @@ REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
 
 
 def test_the_participant_path_is_nine_marked_regions() -> None:
-    """Six marker regions in source, the two worksheets' regions, and the Cedar block.
+    """Five marker regions in source, three worksheets' regions, and the Cedar block.
 
     The RRF worksheet's region is Lab 1's Go deeper and is not counted.
     """

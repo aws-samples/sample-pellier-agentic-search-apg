@@ -554,20 +554,12 @@ def check_stock(product_query: str) -> str:
     Args:
         product_query: Product name, or part of it, to check stock for.
     """
-    # === WORKSHOP - Stock agent - check_stock: START ===
-    # Task 2A: report the stock of the piece the shopper named.
     if not _db_service:
         return _DB_NOT_READY
     try:
-        result = store_tools.check_stock(_run_sql, product_query=product_query)
-        if result.get("status") == "not_found":
-            # Nothing matched the name, so there is nothing on hand to sell.
-            result = {"status": "success", "product": {"name": product_query},
-                      "total_units": 0, "warehouses": []}
-        return _reply(result)
+        return _reply(store_tools.check_stock(_run_sql, product_query=product_query))
     except Exception as e:
         return json.dumps({"error": str(e)})
-    # === WORKSHOP - Stock agent - check_stock: END ===
 
 
 # ---------------------------------------------------------------------------

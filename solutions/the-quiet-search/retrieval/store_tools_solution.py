@@ -351,41 +351,36 @@ def compare_products(run: Run, *, product_id_1: Any, product_id_2: Any) -> Dict[
 # check_stock
 # ---------------------------------------------------------------------------
 
-_STOCK_PRODUCT_SQL = """
-    SELECT "productId", name, brand, color, price
-      FROM pellier.product_catalog
-     WHERE {clause}
-     ORDER BY rating DESC NULLS LAST, "productId"
-     LIMIT 5
-"""
+# The answer lives in the database: pellier.check_stock (scripts/migrations/001_schema.sql,
+# replaced by Task 2B's worksheet, workshop/lab-2-check-stock.sql). Both rails run this
+# one statement; this module only shapes its rows.
+_CHECK_STOCK_SQL = "SELECT * FROM pellier.check_stock(%s)"
 
-_STOCK_WAREHOUSE_SQL = """
-    SELECT warehouse_code, warehouse_name, city, ship_window_min, ship_window_max, quantity
-      FROM pellier.warehouse_inventory
-     WHERE product_id = %s
-     ORDER BY quantity DESC, warehouse_code ASC
-"""
+
+def _stock_product(row: Dict[str, Any]) -> Dict[str, Any]:
+    product_id = row.get("product_id")
+    return {
+        "productId": None if product_id is None else str(product_id),
+        "name": row.get("name"),
+        "brand": row.get("brand"),
+        "color": row.get("color"),
+    }
 
 
 def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
     """Warehouse, quantity and ship window for one named product.
 
-    Unknown and zero are different answers. A piece the catalog does not
-    carry is ``not_found``; a piece it carries with no units is ``success``
-    with ``total_units`` 0 and its warehouse rows. More than one match is
-    ``ambiguous`` with the candidates, so the agent asks which one is meant.
+    ``pellier.check_stock`` decides; this shapes its rows the way the agents and
+    the trace read them. No row is ``not_found``; two or more rows are
+    ``ambiguous`` with the candidates, so the agent asks which one is meant; one
+    row is ``success`` with that row's ``total_units`` and warehouse rows. The
+    row is passed on as the function returned it, so what the database says is
+    what the agent is told.
     """
-    tokens = [token for token in str(product_query or "").split() if token]
-    if not tokens:
+    if not str(product_query or "").split():
         return {"status": "not_found", "query": product_query, "message": "Empty product query."}
-
-    # One LIKE per word, so "Hadley shirt" matches "Hadley ... Linen Shirt".
-    clause = " AND ".join([f"lower(name) LIKE %s {LIKE_ESCAPE}"] * len(tokens))
-    candidates = run(
-        _STOCK_PRODUCT_SQL.format(clause=clause),
-        tuple(prepare_like_pattern(token) for token in tokens),
-    )
-    if not candidates:
+    rows = run(_CHECK_STOCK_SQL, (str(product_query),))
+    if not rows:
         return {
             "status": "not_found",
             "query": product_query,
@@ -394,48 +389,33 @@ def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
                 "Stock can only be reported for products in the catalog."
             ),
         }
-    if len(candidates) > 1:
+    if len(rows) > 1:
         return {
             "status": "ambiguous",
             "query": product_query,
-            "candidates": [
-                {
-                    "productId": str(row.get("productId")),
-                    "name": row.get("name"),
-                    "brand": row.get("brand"),
-                    "color": row.get("color"),
-                }
-                for row in candidates
-            ],
+            "candidates": [_stock_product(row) for row in rows],
             "message": (
                 f"Multiple products match '{product_query}'. "
                 "Ask the customer which one they mean before reporting stock."
             ),
         }
-
-    product = candidates[0]
-    product_id = str(product.get("productId"))
+    row = rows[0]
     warehouses = [
         {
-            "warehouse_code": row.get("warehouse_code"),
-            "warehouse_name": row.get("warehouse_name"),
-            "city": row.get("city"),
-            "ship_window_min": _integer(row.get("ship_window_min")),
-            "ship_window_max": _integer(row.get("ship_window_max")),
-            "quantity": _integer(row.get("quantity")),
+            "warehouse_code": item.get("warehouse_code"),
+            "warehouse_name": item.get("warehouse_name"),
+            "city": item.get("city"),
+            "ship_window_min": _integer(item.get("ship_window_min")),
+            "ship_window_max": _integer(item.get("ship_window_max")),
+            "quantity": _integer(item.get("quantity")),
         }
-        for row in run(_STOCK_WAREHOUSE_SQL, (product_id,))
+        for item in _as_list(row.get("warehouses"))
+        if isinstance(item, dict)
     ]
     return {
         "status": "success",
-        "product": {
-            "productId": product_id,
-            "name": product.get("name"),
-            "brand": product.get("brand"),
-            "color": product.get("color"),
-            "price": as_number(product.get("price")),
-        },
-        "total_units": sum(row["quantity"] for row in warehouses),
+        "product": {**_stock_product(row), "price": as_number(row.get("price"))},
+        "total_units": _integer(row.get("total_units")),
         "warehouses": warehouses,
     }
 

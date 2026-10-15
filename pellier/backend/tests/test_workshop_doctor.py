@@ -74,24 +74,33 @@ def _by_name(checks: list) -> Dict[str, Any]:
 
 
 STARTERS = REPO / "workshop" / "starters" / "lab-2"
+WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
+WORKSHEET_SOLUTION = (REPO / "solutions" / "closing-marcos-gap" / "sql"
+                      / "lab-2-check-stock-solution.sql")
 GRANT = "Stock agent granted check_stock alone"
-TOOL_MARKER = "    # === WORKSHOP - Stock agent - check_stock: {} ===\n"
+FUNCTION = "check_stock committed"
 AGENT_MARKER = "# === WORKSHOP - Stock agent - definition: {} ===\n"
 
 
-def _scratch_backend(tmp_path: Path, *, tool_body: str, agent_body: str) -> Path:
-    backend = tmp_path / "backend"
-    (backend / "services").mkdir(parents=True)
-    (backend / "agents").mkdir()
-    (backend / "services" / "agent_tools.py").write_text(
-        TOOL_MARKER.format("START") + tool_body + TOOL_MARKER.format("END"), encoding="utf-8")
+def _scratch(tmp_path: Path, *, agent_body: str, worksheet: Path) -> Dict[str, Path]:
+    backend, workshop = tmp_path / "backend", tmp_path / "workshop"
+    (backend / "agents").mkdir(parents=True)
+    workshop.mkdir()
     (backend / "agents" / "stock_agent.py").write_text(
         AGENT_MARKER.format("START") + agent_body + AGENT_MARKER.format("END"), encoding="utf-8")
-    return backend
+    (workshop / "lab-2-check-stock.sql").write_text(worksheet.read_text(encoding="utf-8"),
+                                                    encoding="utf-8")
+    return {"backend": backend, "workshop": workshop}
 
 
 def _starter(name: str) -> str:
     return (STARTERS / name).read_text(encoding="utf-8")
+
+
+def _live(worksheet: Path) -> Dict[str, Any]:
+    """The pg_proc row a database holding ``worksheet``'s function returns."""
+    body = doctor.lab2_check.function_body(worksheet.read_text(encoding="utf-8"))
+    return {"to_regprocedure": {"source_sha": doctor.lab2_check._sha(body), "stamp": ""}}
 
 
 class TestLab2:
@@ -102,34 +111,43 @@ class TestLab2:
         assert "connection refused" in db.detail
 
     def test_the_starters_are_named_as_unfinished(self, tmp_path: Path) -> None:
-        backend = _scratch_backend(
-            tmp_path, tool_body=_starter("check-stock-tool.pyfrag"),
-            agent_body=_starter("stock-agent-definition.pyfrag"))
-        evidence = FakeEvidence({"SELECT 1": {"ok": 1}})
-        checks = _by_name(doctor.lab2_checks(evidence, backend=backend))
+        paths = _scratch(tmp_path, agent_body=_starter("stock-agent-definition.pyfrag"),
+                         worksheet=WORKSHEET_STARTER)
+        evidence = FakeEvidence({"SELECT 1": {"ok": 1}, **_live(WORKSHEET_STARTER)})
+        checks = _by_name(doctor.lab2_checks(evidence, **paths))
         assert checks["database reachable"].passed is True
-        assert checks["check_stock written"].passed is False
-        assert "is unchanged: your edit is not saved there yet" in checks["check_stock written"].detail
+        assert checks[FUNCTION].passed is False
+        assert "is unchanged: your edit is not saved there yet" in checks[FUNCTION].detail
         grant = checks[GRANT]
         assert grant.passed is False
         assert grant.detail == ("stock_agent.py grants search_products, browse_department, "
-                                "compare_products; Task 2B connects check_stock alone, the one "
+                                "compare_products; Task 2A connects check_stock alone, the one "
                                 "tool that reads warehouse_inventory")
 
     @pytest.mark.parametrize("body", [
         "_STOCK_TOOLS = [agent_tools.check_stock]\n",
         "_STOCK_TOOLS = [check_stock]\n",
     ])
-    def test_edited_blocks_pass(self, tmp_path: Path, body: str) -> None:
-        backend = _scratch_backend(
-            tmp_path,
-            tool_body="    return _reply(store_tools.check_stock(_run_sql, product_query=q))\n",
-            agent_body=body)
-        evidence = FakeEvidence({"SELECT 1": {"ok": 1}})
-        checks = _by_name(doctor.lab2_checks(evidence, backend=backend))
-        assert checks["check_stock written"].passed is True
+    def test_edited_and_committed_pass(self, tmp_path: Path, body: str) -> None:
+        paths = _scratch(tmp_path, agent_body=body, worksheet=WORKSHEET_SOLUTION)
+        evidence = FakeEvidence({"SELECT 1": {"ok": 1}, **_live(WORKSHEET_SOLUTION)})
+        checks = _by_name(doctor.lab2_checks(evidence, **paths))
+        assert checks[FUNCTION].passed is True
+        assert checks[FUNCTION].detail == (
+            "the live pellier.check_stock is the one lab-2-check-stock.sql holds")
         assert checks[GRANT].passed is True
         assert checks[GRANT].detail == "stock_agent.py grants check_stock alone"
+
+    def test_an_edited_worksheet_that_has_not_committed_names_the_command(
+        self, tmp_path: Path,
+    ) -> None:
+        paths = _scratch(tmp_path, agent_body="_STOCK_TOOLS = [agent_tools.check_stock]\n",
+                         worksheet=WORKSHEET_SOLUTION)
+        evidence = FakeEvidence({"SELECT 1": {"ok": 1}, **_live(WORKSHEET_STARTER)})
+        check = _by_name(doctor.lab2_checks(evidence, **paths))[FUNCTION]
+        assert check.passed is False
+        assert check.detail.endswith(
+            "run psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql")
 
     @pytest.mark.parametrize("body", [
         "_STOCK_TOOLS = [agent_tools.check_stock, agent_tools.search_products]\n",
@@ -139,35 +157,35 @@ class TestLab2:
     def test_an_edit_that_is_not_check_stock_alone_fails_and_names_the_grant(
         self, tmp_path: Path, body: str,
     ) -> None:
-        backend = _scratch_backend(tmp_path, tool_body="    pass\n", agent_body=body)
-        check = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))[GRANT]
+        paths = _scratch(tmp_path, agent_body=body, worksheet=WORKSHEET_STARTER)
+        check = _by_name(doctor.lab2_checks(FakeEvidence(), **paths))[GRANT]
         assert check.passed is False
         assert check.detail.startswith("stock_agent.py grants ")
         assert check.detail.endswith(
-            "Task 2B connects check_stock alone, the one tool that reads warehouse_inventory")
+            "Task 2A connects check_stock alone, the one tool that reads warehouse_inventory")
 
     def test_an_edit_the_running_agent_has_not_loaded_says_restart(self, tmp_path: Path) -> None:
-        backend = _scratch_backend(tmp_path, tool_body="    pass\n",
-                                   agent_body="_STOCK_TOOLS = [agent_tools.check_stock]\n")
+        paths = _scratch(tmp_path, agent_body="_STOCK_TOOLS = [agent_tools.check_stock]\n",
+                         worksheet=WORKSHEET_STARTER)
         evidence = FakeEvidence({"args->>'agent' = 'stock'": {
             "audit_id": 41, "grant": ["search_products", "browse_department",
                                       "compare_products", "check_stock"]}})
-        check = _by_name(doctor.lab2_checks(evidence, backend=backend))[GRANT]
+        check = _by_name(doctor.lab2_checks(evidence, **paths))[GRANT]
         assert check.passed is False
         assert "(audit 41) held search_products" in check.detail
         assert check.detail.endswith("restart the backend, then ask again")
         loaded = FakeEvidence({"args->>'agent' = 'stock'": {"audit_id": 42,
                                                             "grant": ["check_stock"]}})
-        assert _by_name(doctor.lab2_checks(loaded, backend=backend))[GRANT].passed is True
+        assert _by_name(doctor.lab2_checks(loaded, **paths))[GRANT].passed is True
 
     def test_missing_markers_fail_rather_than_pass(self, tmp_path: Path) -> None:
-        backend = _scratch_backend(tmp_path, tool_body="", agent_body="")
-        (backend / "services" / "agent_tools.py").write_text("def x(): pass\n", encoding="utf-8")
-        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
-        assert checks["check_stock written"].passed is False
-        assert "markers are missing" in checks["check_stock written"].detail
-        (backend / "agents" / "stock_agent.py").write_text("x = 1\n", encoding="utf-8")
-        checks = _by_name(doctor.lab2_checks(FakeEvidence(), backend=backend))
+        paths = _scratch(tmp_path, agent_body="", worksheet=WORKSHEET_STARTER)
+        (paths["workshop"] / "lab-2-check-stock.sql").write_text("SELECT 1;\n", encoding="utf-8")
+        checks = _by_name(doctor.lab2_checks(FakeEvidence(), **paths))
+        assert checks[FUNCTION].passed is False
+        assert "markers are missing" in checks[FUNCTION].detail
+        (paths["backend"] / "agents" / "stock_agent.py").write_text("x = 1\n", encoding="utf-8")
+        checks = _by_name(doctor.lab2_checks(FakeEvidence(), **paths))
         assert "markers are missing" in checks[GRANT].detail
 
 

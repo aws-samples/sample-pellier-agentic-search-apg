@@ -135,8 +135,6 @@ def test_in_process_and_recovery_files_match_the_managed_contract() -> None:
         REPO / "pellier" / "backend" / "services" / "agent_tools.py",
         REPO / "solutions" / "closing-marcos-gap" / "services"
         / "agent_tools_builders_preapply.py",
-        REPO / "solutions" / "closing-marcos-gap" / "services"
-        / "agent_tools_check_stock_solution.py",
     ]
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

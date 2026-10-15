@@ -9,14 +9,13 @@ mode before editing.
 
 ## Participant mode: governed Labs 1–4
 
-The root guidance lists every permitted region. This module contains five:
+The root guidance lists every permitted region. This module contains four:
 
 | Task | File | Marker |
 |---|---|---|
 | 1A | `services/store_tools.py` | `Vector branch - order by meaning` |
 | 1B | `services/search_plan.py` | `Search plan - preserve requirements` |
-| 2A | `services/agent_tools.py` | `Stock agent - check_stock` |
-| 2B | `agents/stock_agent.py` | `Stock agent - definition` |
+| 2A | `agents/stock_agent.py` | `Stock agent - definition` |
 | 3A | `services/agentcore_gateway.py` | `Support agent - Gateway tools` |
 
 For SQL, Cedar and Gateway publication tasks, use the root map and the guide.
@@ -31,7 +30,7 @@ and its pass token, in the terminal. Never send them to the app to verify;
 explain what the result establishes and what it does not. A passing
 in-process check is not managed execution proof.
 
-Model and prompt configuration are supplied in Task 2B. Do not add temperature;
+Model and prompt configuration are supplied in Task 2A. Do not add temperature;
 the configured profile does not support that argument. Task 3B's direct
 Gateway probe tests Cedar separately from the managed caller binding.
 

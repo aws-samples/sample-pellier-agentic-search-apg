@@ -33,19 +33,21 @@ leaves `workshop/lab-1-fusion.sql` alone.
 
 ## Lab 2: Build a PostgreSQL-Grounded Agent
 
-Task 2A's recovery restores a `check_stock` that passes the shared answer on
-unchanged, so not_found stays not_found:
-
-```bash
-cp solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py \
-  pellier/backend/services/agent_tools.py
-```
-
-Task 2B's recovery connects `check_stock` to the Stock agent, alone:
+Task 2A's recovery connects `check_stock` to the Stock agent, alone:
 
 ```bash
 cp solutions/waking-the-stock-keeper/agents/stock_agent_solution.py \
   pellier/backend/agents/stock_agent.py
+```
+
+Task 2B's recovery restores a worksheet whose `pellier.check_stock` tests for
+the product before it aggregates, so a piece Pellier does not carry returns no
+row. Run it to commit the function:
+
+```bash
+cp solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql \
+  workshop/lab-2-check-stock.sql
+psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql
 ```
 
 Restart, send Marco's requests again with

@@ -149,24 +149,25 @@ def test_a_raised_exception_returns_the_error_envelope(monkeypatch: pytest.Monke
 def test_check_stock_reads_a_carried_piece_from_its_warehouse_rows(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """True of the Lab 2A starter and the solution alike; not_found is where they differ."""
+    """The tool passes pellier.check_stock's row on: the function decides, Task 2B."""
     agent_tools._db_service = _SentinelDB()
-    monkeypatch.setattr(agent_tools, "_run_sql", _FakeRun({
-        "pellier.warehouse_inventory": [
-            {"warehouse_code": "BK-01", "warehouse_name": "Brooklyn", "city": "Brooklyn, NY",
-             "ship_window_min": 1, "ship_window_max": 2, "quantity": 0},
-            {"warehouse_code": "PDX-01", "warehouse_name": "Portland", "city": "Portland, OR",
-             "ship_window_min": 3, "ship_window_max": 5, "quantity": 14},
+    run = _FakeRun({
+        "pellier.check_stock": [
+            {"product_id": "2", "name": "Hadley Linen Shirt", "brand": "Hadley", "color": None,
+             "price": 88, "total_units": 14, "warehouses": [
+                 {"warehouse_code": "PDX-01", "warehouse_name": "Portland", "city": "Portland, OR",
+                  "ship_window_min": 3, "ship_window_max": 5, "quantity": 14},
+                 {"warehouse_code": "BK-01", "warehouse_name": "Brooklyn", "city": "Brooklyn, NY",
+                  "ship_window_min": 1, "ship_window_max": 2, "quantity": 0}]},
         ],
-        "pellier.product_catalog": [
-            {"productId": "2", "name": "Hadley Linen Shirt", "brand": "Hadley", "price": 88},
-        ],
-    }))
+    })
+    monkeypatch.setattr(agent_tools, "_run_sql", run)
     parsed = _call(agent_tools.check_stock, product_query="Hadley shirt")
     assert parsed["status"] == "success"
     assert parsed["product"]["productId"] == "2"
     assert parsed["total_units"] == 14
-    assert [row["quantity"] for row in parsed["warehouses"]] == [0, 14]
+    assert [row["quantity"] for row in parsed["warehouses"]] == [14, 0]
+    assert run.calls == [("SELECT * FROM pellier.check_stock(%s)", ("Hadley shirt",))]
 
 
 @pytest.mark.parametrize("tool", ["get_orders", "get_tickets"])

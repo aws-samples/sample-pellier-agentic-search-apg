@@ -134,10 +134,10 @@ def test_facilitator_dry_run_covers_both_lab2_build_sites() -> None:
     source = FACILITATOR_DRY_RUN.read_text(encoding="utf-8")
     assert "agents/stock_agent.py" in source
     assert "stock_agent_solution.py" in source
-    assert "services/agent_tools.py" in source
-    assert "agent_tools_check_stock_solution.py" in source
     assert "WORKSHOP - Stock agent - definition" in source
-    assert "WORKSHOP - Stock agent - check_stock" in source
+    assert "sql/lab-2-check-stock-solution.sql" in source
+    assert "Lab 2B function check passed" in source
+    assert "workshop/starters/lab-2-check-stock.sql" in source
 
 
 def test_governed_bootstrap_restores_all_participant_starters() -> None:

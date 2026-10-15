@@ -24,15 +24,16 @@ collapsed `solution` folder.
 | Group | Customer | What you build | You edit |
 |---|---|---|---|
 | [01 - Retrieve](labs/01-retrieve/README.md) | Anna | A search that ranks by meaning, and a retry that keeps her limits | `1A-vector-branch.py`, `1B-search-plan.py` |
-| [02 - Ground](labs/02-ground/README.md) | Marco | A stock tool that answers from a warehouse row, held by one agent | `2A-check-stock.py`, `2B-stock-agent.py` |
+| [02 - Ground](labs/02-ground/README.md) | Marco | A stock tool that answers from a warehouse row, held by one agent | `2A-stock-agent.py`, `2B-check-stock.sql` |
 | [03 - Deploy](labs/03-deploy/README.md) | Theo | A published ticket tool bound to the caller on AgentCore, and a row-ownership policy in Aurora | `3A-1-publish-tool.py`, `3A-2-bind-caller.py`, `3B-row-ownership.sql` |
 | [04 - Govern](labs/04-govern/README.md) | Jessica, with Nadia | A Cedar credit limit, and a money role that writes only through the credit function | `4A-credit-policy.cedar`, `4B-credit-writer.sql` |
 
 The files in these groups are links to the application's own files, so there is no second
 copy to keep in sync. Python edits reach the running backend when you save, because it reloads; the Lab 3
-edits and the Lab 4 Cedar rule reach AgentCore when you run the guide's deployment. Two
-files deploy themselves: `3B-row-ownership.sql` and `4B-credit-writer.sql`, run with
-`psql`, commit your statements to Aurora only when every probe they run matches.
+edits and the Lab 4 Cedar rule reach AgentCore when you run the guide's deployment. Three
+files deploy themselves: `2B-check-stock.sql`, `3B-row-ownership.sql` and
+`4B-credit-writer.sql`, run with `psql`, commit your statements to Aurora only when every
+probe they run matches.
 `go-deeper-fusion.sql`, last in 01 - Retrieve, is optional. Edit only between the `START`
 and `END` markers the guide names for your task.
 

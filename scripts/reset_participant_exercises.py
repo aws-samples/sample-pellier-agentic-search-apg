@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Restore the governed workshop exercises to their incomplete starters."""
+"""Restore the governed workshop exercises to their incomplete starters.
+
+This restores files. The live database state the SQL worksheets commit (Task 2B's
+pellier.check_stock, Task 3B's row policies, Task 4B's credit-writer privileges) is
+restored by the schema rebuild in scripts/setup/database-reset.sh, which
+reset-governed-workshop.sh runs first: scripts/migrations/001_schema.sql installs each
+as shipped.
+"""
 
 from __future__ import annotations
 
@@ -39,12 +46,6 @@ MARKER_EXERCISES = (
         marker="WORKSHOP - Stock agent - definition",
     ),
     MarkerExercise(
-        exercise_id="lab-2-check-stock",
-        starter="workshop/starters/lab-2/check-stock-tool.pyfrag",
-        destination="pellier/backend/services/agent_tools.py",
-        marker="WORKSHOP - Stock agent - check_stock",
-    ),
-    MarkerExercise(
         exercise_id="lab-1-preserve-requirements",
         starter="workshop/starters/lab-1/preserve-requirements.pyfrag",
         destination="pellier/backend/services/search_plan.py",
@@ -65,6 +66,11 @@ MARKER_EXERCISES = (
 )
 
 FILE_EXERCISES = (
+    FileExercise(
+        exercise_id="lab-2-check-stock",
+        starter="workshop/starters/lab-2-check-stock.sql",
+        destination="workshop/lab-2-check-stock.sql",
+    ),
     FileExercise(
         exercise_id="lab-3-row-ownership",
         starter="workshop/starters/lab-3-row-ownership.sql",

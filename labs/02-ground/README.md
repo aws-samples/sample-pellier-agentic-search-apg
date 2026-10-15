@@ -1,8 +1,9 @@
 # Lab 2: Ground
 
-**Marco.** He needs stock and dispatch facts he can rely on. As shipped, `check_stock`
-calls a piece Pellier does not carry sold out, and the Stock agent holds only catalog
-tools, so no answer reads a warehouse row. Keep the Workshop Studio guide open beside this
+**Marco.** He needs stock and dispatch facts he can rely on. As shipped, the Stock agent
+holds only catalog tools, so its call to `check_stock` is refused and no answer reads a
+warehouse row; and once it holds `check_stock`, the database function behind it calls a
+piece Pellier does not carry 0 in stock. Keep the Workshop Studio guide open beside this
 file.
 
 ## Run it in the terminal
@@ -11,16 +12,18 @@ Every terminal starts at the repository root.
 
 | Task | See it fail | Edit | Prove it |
 |---|---|---|---|
-| 2A, keep "not carried" distinct from sold out | `python3 scripts/lab2_check.py --task 2A` | [2A-check-stock.py](2A-check-stock.py), region `Stock agent - check_stock` | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
-| 2B, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_check.py --task 2B` | [2B-stock-agent.py](2B-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
+| 2A, connect `check_stock` to the Stock agent, alone | `python3 scripts/lab_run.py send --lab 2`, then `python3 scripts/lab2_check.py --task 2A` | [2A-stock-agent.py](2A-stock-agent.py), region `Stock agent - definition`, then `sudo systemctl restart pellier` and send his requests again | `python3 scripts/lab2_check.py --task 2A` ends `Lab 2A check passed` |
+| 2B, keep "not carried" distinct from sold out | `python3 scripts/lab_run.py send --lab 2`, then `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql` | [2B-check-stock.sql](2B-check-stock.sql), region `Stock check - not carried`, then run the worksheet again | the worksheet ends `Lab 2B function check passed`, then `python3 scripts/lab2_check.py --task 2B` ends `Lab 2B check passed` |
 
-The 2A check runs your `check_stock` directly, so it needs no restart. The 2B check reads
-the grant the answering Stock agent actually held from its audit row, so it needs Marco's
-requests sent again; the restart makes them run on your saved file.
+The 2A check reads the grant the answering Stock agent actually held from its audit row, so
+it needs Marco's requests sent again; the restart makes them run on your saved file. The 2B
+worksheet changes the live `pellier.check_stock` only when its four probes match, and the
+2B check runs that live function, so it needs no restart.
 
 After the 2B token, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
-view** on. Both requests you sent are there, marked **Sent from the terminal**; the Hadley one
-shows the Stock agent, one `check_stock` call and the Brooklyn warehouse row.
+view** on, and send his requests again. Both are there, marked **Sent from the terminal**:
+the cape now reads **Not a piece Pellier carries**, and the Hadley one shows the Stock agent,
+one `check_stock` call and the Brooklyn warehouse row.
 
 ## The files
 

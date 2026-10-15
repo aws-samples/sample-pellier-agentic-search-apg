@@ -13,10 +13,10 @@ What each line reads:
         pellier.product_catalog with embeddings whose nearest product is known
     1B  pellier.retrieval_receipts and pellier.product_catalog: what Anna asked
         for, what the search that answered kept, and every product it returned
-    2A  pellier.tool_audit: Marco's latest recorded check_stock call per case,
-        against pellier.product_catalog and pellier.warehouse_inventory
-    2B  pellier.tool_audit: Marco's latest Stock-agent turn, the grant that
+    2A  pellier.tool_audit: Marco's latest Stock-agent turn, the grant that
         agent held, and its counts against pellier.warehouse_inventory
+    2B  pellier.tool_audit: Marco's latest recorded check_stock call per case,
+        against pellier.product_catalog and pellier.warehouse_inventory
     3A  the source: the Gateway catalogue and the caller binding
     3B  pellier.tool_audit (the executed build beside this checkout's digest,
         and every get_tickets read), AgentCore Memory (Theo's record), and the
@@ -29,7 +29,7 @@ What each line reads:
 
 Rows alone prove 1B, 2A and 2B, so those lines read no source and no code of
 yours runs: 2A and 2B need Marco's requests sent again after the edit before
-they can pass, where the guide's 2A check runs your edited check_stock
+they can pass, where the guide's 2B check runs the live pellier.check_stock
 directly. The other lines run or read what you wrote, so a region that still
 holds its starter is NOT YET whatever the rows say; the summary's cleanup
 restores the Cedar starter, so run this export before it.
@@ -137,20 +137,20 @@ def task_1b(cfg: Config, connect: Connect) -> check.Finding:
 
 
 def task_2a(cfg: Config, connect: Connect) -> check.Finding:
-    """Lab 2A from Marco's recorded check_stock calls; the checkout's code is never run."""
+    """Lab 2A from Marco's latest Stock-agent turn, with the grant that agent held."""
     import lab2_check as lab2
 
-    title = "check_stock keeps not carried, several and sold out apart"
-    return _with_connection("2A", title, lab2.EXPECTED_2A_RECORDED, cfg, connect,
-                            lab2.judge_recorded_2a)
+    title = "the Stock agent holds check_stock alone"
+    return _with_connection("2A", title, lab2.EXPECTED_2A, cfg, connect, lab2.judge_2a)
 
 
 def task_2b(cfg: Config, connect: Connect) -> check.Finding:
-    """Lab 2B from Marco's latest Stock-agent turn, with the grant that agent held."""
+    """Lab 2B from Marco's recorded check_stock calls; no code is run."""
     import lab2_check as lab2
 
-    title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
-    return _with_connection("2B", title, lab2.EXPECTED_2B, cfg, connect, lab2.judge_2b)
+    title = "check_stock keeps not carried, several and sold out apart"
+    return _with_connection("2B", title, lab2.EXPECTED_2B_RECORDED, cfg, connect,
+                            lab2.judge_recorded_2b)
 
 
 # ---------------------------------------------------------------------------

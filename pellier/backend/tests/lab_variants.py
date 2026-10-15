@@ -31,10 +31,10 @@ _PLAN = ("Search plan - preserve requirements",
 _VECTOR = ("Vector branch - order by meaning",
            STARTERS / "lab-1" / "vector-branch.pyfrag",
            SOLUTIONS / "the-quiet-search" / "retrieval" / "store_tools_solution.py")
-_CHECK_STOCK = ("Stock agent - check_stock",
-                STARTERS / "lab-2" / "check-stock-tool.pyfrag",
-                SOLUTIONS / "closing-marcos-gap" / "services"
-                / "agent_tools_check_stock_solution.py")
+LAB2_FUNCTION = {
+    STARTER: STARTERS / "lab-2-check-stock.sql",
+    SOLUTION: SOLUTIONS / "closing-marcos-gap" / "sql" / "lab-2-check-stock-solution.sql",
+}
 _GRANT = ("Stock agent - definition",
           STARTERS / "lab-2" / "stock-agent-definition.pyfrag",
           SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py")
@@ -85,13 +85,12 @@ def vector_branch(variant: str) -> Callable[..., str]:
     return _function(source, "vector_branch_sql", vars(store_tools))
 
 
-def check_stock_body(variant: str) -> Callable[..., str]:
-    """The ``check_stock`` tool body, run in ``services.agent_tools``."""
-    from services import agent_tools
-
-    source = "def check_stock(product_query):\n" + textwrap.indent(
-        textwrap.dedent(body(_CHECK_STOCK, variant)), "    ")
-    return _function(source, "check_stock", vars(agent_tools))
+def check_stock_function(variant: str) -> str:
+    """The ``CREATE OR REPLACE FUNCTION pellier.check_stock`` statement the worksheet runs."""
+    text = LAB2_FUNCTION[variant].read_text(encoding="utf-8")
+    start = text.index("CREATE OR REPLACE FUNCTION pellier.check_stock(")
+    end = text.index("$check_stock$;", start) + len("$check_stock$;")
+    return text[start:end]
 
 
 def stock_grant(variant: str) -> List[Any]:

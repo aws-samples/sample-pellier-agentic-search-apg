@@ -14,11 +14,12 @@ contract.
 Workshop solution contract
 --------------------------
 
-Lab 2 has two starters that run and fail visibly: the Stock agent
+Lab 2 has one Python starter that runs and fails visibly: the Stock agent
 definition in ``agents/stock_agent.py`` connects only the catalog tools, none
-of which reads ``warehouse_inventory``, and ``check_stock`` in
-``services/agent_tools.py`` folds not_found into zero. The copy solutions are drop-ins that make each stage
-safe to recover during a live room.
+of which reads ``warehouse_inventory``. Its other task is SQL: the
+``pellier.check_stock`` worksheet, proved on real PostgreSQL by
+``tests/test_lab2_check_stock_postgres.py``. The copy solutions are drop-ins
+that make each stage safe to recover during a live room.
 
 What this test enforces
 -----------------------
@@ -27,15 +28,10 @@ For every ``(live_path, solution_path)`` pair:
 
   1. Both files exist.
   2. Both files parse as valid Python (``ast.parse`` smoke).
-  3. Builder-preapply matches the live starter module outside the marked
-     ``check_stock`` challenge block.
-  4. Both recovery files expose the same public ``@tool`` functions and
-     signatures as the live module.
-  5. The wired solution differs from live only inside the marked
-     ``check_stock`` challenge block.
-  6. The starter fragments are the shipped starters' regions.
-  7. The wired solution keeps the ``product_query`` signature and returns
-     ``store_tools.check_stock(_run_sql, product_query=...)`` unchanged.
+  3. The live file carries a WORKSHOP marker.
+
+Every bootstrap auto-applied file, the builders ``agent_tools`` copy among
+them, is byte-identical to its backend twin.
 
 Scope table
 -----------
@@ -47,9 +43,7 @@ Pairs are hard-coded below. Add new workshop challenges by extending
 from __future__ import annotations
 
 import ast
-import importlib.util
 import re
-import sys
 from pathlib import Path
 
 import pytest
@@ -76,16 +70,6 @@ _PAIRS = [
         _BACKEND / "agents" / "stock_agent.py",
         _SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py",
     ),
-    (
-        "stock-tool",
-        _BACKEND / "services" / "agent_tools.py",
-        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_stock_solution.py",
-    ),
-    (
-        "stock-tool-builders-preapply",
-        _BACKEND / "services" / "agent_tools.py",
-        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_builders_preapply.py",
-    ),
 ]
 
 
@@ -105,11 +89,9 @@ _PAIRS = [
 # still enforced here because the builders format runs from this same
 # branch and the files double as documented recovery drop-ins.
 #
-# ``agent_tools_builders_preapply.py`` is checked separately below. It is a
-# full-module bootstrap replacement and must match the live starter file
-# everywhere *outside* the ``check_stock`` markers. The body itself is the
-# exercise, so it is masked out — a participant who completes the lab must
-# not turn the suite red.
+# ``agent_tools_builders_preapply.py`` is one of them: ``check_stock``'s answer
+# lives in the database function ``pellier.check_stock``, so the module holds
+# no exercise and its builders copy is the module itself.
 #
 # Direction of truth: the BACKEND file is canonical (the full test suite runs
 # against it). If this test fails, re-sync with:
@@ -122,6 +104,8 @@ _PAIRS = [
 # copy it here; `reset_participant_exercises.py` owns its starter state, and
 # `tests/test_workshop_marker_contract.py` asserts both ends of that contract.
 _AUTO_APPLIED_IDENTICAL = [
+    ("agent_tools_builders_preapply", _BACKEND / "services" / "agent_tools.py",
+     _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_builders_preapply.py"),
     ("agentcore_runtime", _BACKEND / "services" / "agentcore_runtime.py",
      _SOLUTIONS / "the-ledger" / "services" / "agentcore_runtime.py"),
     ("agentcore_memory", _BACKEND / "services" / "agentcore_memory.py",
@@ -237,131 +221,3 @@ def test_live_file_has_workshop_markers(
         f"{live_path.relative_to(_REPO_ROOT)}. Participants need a "
         f"visual anchor to find the build site."
     )
-
-
-def _function_source(path: Path, function_name: str) -> str:
-    tree = ast.parse(path.read_text())
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name == function_name:
-            return ast.get_source_segment(path.read_text(), node) or ""
-    raise AssertionError(f"{function_name} not found in {path.relative_to(_REPO_ROOT)}")
-
-
-def _tool_signatures(path: Path) -> dict[str, str]:
-    """Return every public ``@tool`` function and its AST-normalized signature."""
-    tree = ast.parse(path.read_text())
-    signatures = {}
-    for node in tree.body:
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        if node.name.startswith("_"):
-            continue
-        is_tool = any(
-            isinstance(decorator, ast.Name) and decorator.id == "tool"
-            for decorator in node.decorator_list
-        )
-        if is_tool:
-            signatures[node.name] = ast.dump(node.args, include_attributes=False)
-    return signatures
-
-
-def _outside_check_stock_block(path: Path) -> str:
-    """Mask the only participant-editable block so all other bytes can compare."""
-    source = path.read_text()
-    start = "# === WORKSHOP - Stock agent - check_stock: START ==="
-    end = "# === WORKSHOP - Stock agent - check_stock: END ==="
-    assert source.count(start) == 1, f"{path} must contain exactly one START marker"
-    assert source.count(end) == 1, f"{path} must contain exactly one END marker"
-    before, remainder = source.split(start, 1)
-    _challenge, after = remainder.split(end, 1)
-    return f"{before}{start}\n<check_stock challenge block>\n    {end}{after}"
-
-
-def test_builder_preapply_matches_live_starter() -> None:
-    """Bootstrap replaces the live module with this file on every fresh box.
-
-    Compared with the ``check_stock`` body masked out, for the same reason
-    ``test_check_stock_builder_contract`` skips once the tool is wired: the
-    body is the exercise. A raw byte comparison turns a *completed* exercise
-    into a failing suite, which lands on whoever debugs a box mid-workshop.
-    Everything outside the markers must still match byte for byte — that is
-    the drift this guard exists to catch.
-    """
-    live_path = _BACKEND / "services" / "agent_tools.py"
-    preapply_path = (
-        _SOLUTIONS
-        / "closing-marcos-gap"
-        / "services"
-        / "agent_tools_builders_preapply.py"
-    )
-    assert _outside_check_stock_block(preapply_path) == _outside_check_stock_block(
-        live_path
-    ), (
-        "Builder bootstrap would replace services/agent_tools.py with a stale "
-        "module. Re-sync agent_tools_builders_preapply.py from the live starter."
-    )
-
-
-def test_agent_tools_recovery_files_keep_public_tool_parity() -> None:
-    """A full-module recovery copy cannot add, remove, or reshape public tools."""
-    live_path = _BACKEND / "services" / "agent_tools.py"
-    recovery_paths = [
-        _SOLUTIONS
-        / "closing-marcos-gap"
-        / "services"
-        / "agent_tools_builders_preapply.py",
-        _SOLUTIONS
-        / "closing-marcos-gap"
-        / "services"
-        / "agent_tools_check_stock_solution.py",
-    ]
-    expected = _tool_signatures(live_path)
-    for recovery_path in recovery_paths:
-        assert _tool_signatures(recovery_path) == expected, (
-            f"{recovery_path.relative_to(_REPO_ROOT)} has drifted from the live "
-            "public @tool contract."
-        )
-
-
-def test_check_stock_solution_diff_is_scoped_to_challenge_block() -> None:
-    """The escape hatch may wire ``check_stock`` and change nothing else."""
-    live_path = _BACKEND / "services" / "agent_tools.py"
-    solution_path = (
-        _SOLUTIONS
-        / "closing-marcos-gap"
-        / "services"
-        / "agent_tools_check_stock_solution.py"
-    )
-    assert _outside_check_stock_block(solution_path) == _outside_check_stock_block(
-        live_path
-    ), "The check_stock escape hatch differs outside its marked challenge block."
-
-
-def test_check_stock_solution_passes_the_shared_answer_on_unchanged() -> None:
-    """The ``cp`` escape hatch: the solution returns store_tools' envelope as is.
-
-    The starter's own failure (not_found folded into zero) and the solution's
-    fix are asserted on the real schema by ``tests/test_lab2_starter_failure.py``.
-    """
-    solution_src = _function_source(
-        _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_check_stock_solution.py",
-        "check_stock",
-    )
-    assert "product_query: str" in solution_src
-    assert "return _reply(store_tools.check_stock(_run_sql, product_query=product_query))" in (
-        solution_src)
-    assert '.get("status")' not in solution_src, "the solution must not rewrite the status"
-
-
-def test_the_starter_fragments_are_the_shipped_starters() -> None:
-    """``reset_participant_exercises.py`` restores these; they must be what ships.
-
-    Compared with the builder pre-apply copy, which mirrors the shipped starter
-    whatever a participant has done to the live file.
-    """
-    starters = _REPO_ROOT / "workshop" / "starters" / "lab-2"
-    preapply = (_SOLUTIONS / "closing-marcos-gap" / "services"
-                / "agent_tools_builders_preapply.py").read_text()
-    fragment = (starters / "check-stock-tool.pyfrag").read_text()
-    assert fragment.strip() in preapply
-    assert 'if result.get("status") == "not_found":' in fragment

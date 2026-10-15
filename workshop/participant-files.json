@@ -16,14 +16,14 @@
     "optional": true
   },
   {
-    "alias": "labs/02-ground/2A-check-stock.py",
-    "source": "pellier/backend/services/agent_tools.py",
-    "solution": "solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py"
-  },
-  {
-    "alias": "labs/02-ground/2B-stock-agent.py",
+    "alias": "labs/02-ground/2A-stock-agent.py",
     "source": "pellier/backend/agents/stock_agent.py",
     "solution": "solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
+  },
+  {
+    "alias": "labs/02-ground/2B-check-stock.sql",
+    "source": "workshop/lab-2-check-stock.sql",
+    "solution": "solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql"
   },
   {
     "alias": "labs/03-deploy/3A-1-publish-tool.py",

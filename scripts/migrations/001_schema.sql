@@ -126,6 +126,72 @@ CREATE TABLE pellier.warehouse_inventory (
     CHECK (ship_window_min >= 0 AND ship_window_max >= ship_window_min)
 );
 
+-- check_stock, as shipped: the one implementation both rails call (store_tools.py
+-- runs SELECT * FROM pellier.check_stock(name) in process and in the Gateway
+-- Lambda). Task 2B's worksheet, workshop/lab-2-check-stock.sql, replaces it; this
+-- statement is byte-identical to that worksheet's starter, so a fresh or reset
+-- database ships the same function the participant starts from. As shipped, a piece
+-- Pellier does not carry returns one row with 0 units.
+CREATE OR REPLACE FUNCTION pellier.check_stock(product_query text)
+RETURNS TABLE (product_id text, name text, brand text, color text, price numeric,
+               total_units integer, warehouses jsonb)
+LANGUAGE plpgsql STABLE
+AS $check_stock$
+#variable_conflict use_column
+DECLARE
+    matched text[];
+    piece pellier.product_catalog%ROWTYPE;
+BEGIN
+    -- The pieces whose name holds every word asked for, best rated first, at most
+    -- five. The shopper's %, _ and \ match only themselves.
+    SELECT array_agg(hit."productId" ORDER BY hit.rating DESC, hit."productId")
+      INTO matched
+      FROM (SELECT p."productId", p.rating
+              FROM pellier.product_catalog p
+             WHERE regexp_replace(product_query, '[[:space:]]', '', 'g') <> ''
+               AND NOT EXISTS (
+                   SELECT 1
+                     FROM regexp_split_to_table(lower(product_query), '[[:space:]]+') AS word
+                    WHERE lower(p.name) NOT LIKE '%' || replace(replace(replace(word,
+                              chr(92), chr(92) || chr(92)), '%', chr(92) || '%'),
+                              '_', chr(92) || '_') || '%' ESCAPE chr(92))
+             ORDER BY p.rating DESC, p."productId"
+             LIMIT 5) AS hit;
+
+    -- Several pieces match: one row each and no count, so the agent asks which.
+    IF cardinality(matched) > 1 THEN
+        RETURN QUERY
+            SELECT p."productId", p.name, p.brand, p.color, p.price,
+                   NULL::integer, NULL::jsonb
+              FROM unnest(matched) WITH ORDINALITY AS m(id, ord)
+              JOIN pellier.product_catalog p ON p."productId" = m.id
+             ORDER BY m.ord;
+        RETURN;
+    END IF;
+
+    SELECT * INTO piece FROM pellier.product_catalog p WHERE p."productId" = matched[1];
+
+    -- === WORKSHOP - Stock check - not carried: START ===
+    -- Task 2B: what should a piece Pellier does not carry return?
+    -- === WORKSHOP - Stock check - not carried: END ===
+
+    -- One piece: its units at each warehouse, and their total.
+    RETURN QUERY
+        SELECT piece."productId", piece.name, piece.brand, piece.color, piece.price,
+               coalesce(sum(w.quantity), 0)::integer,
+               coalesce(jsonb_agg(jsonb_build_object(
+                            'warehouse_code', w.warehouse_code,
+                            'warehouse_name', w.warehouse_name,
+                            'city', w.city,
+                            'ship_window_min', w.ship_window_min,
+                            'ship_window_max', w.ship_window_max,
+                            'quantity', w.quantity)
+                        ORDER BY w.quantity DESC, w.warehouse_code), '[]'::jsonb)
+          FROM pellier.warehouse_inventory w
+         WHERE w.product_id = piece."productId";
+END
+$check_stock$;
+
 
 -- ===========================================================================
 -- 3. Customers: Anna, Marco, Theo and Jessica

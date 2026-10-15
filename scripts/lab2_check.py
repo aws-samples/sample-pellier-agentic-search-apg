@@ -1,43 +1,46 @@
 #!/usr/bin/env python3
-"""Lab 2's checks: the Stock agent's numbers come from one SELECT on warehouse_inventory.
+"""Lab 2's checks: the Stock agent holds one tool, and that tool answers from the rows.
 
-Task 2A runs your ``check_stock`` body through the same ``@tool`` wrapper the
-Stock agent calls, once per case, and compares each answer with the catalog
-and the warehouse rows read directly:
+Task 2A reads Marco's latest Stock-agent turn from ``pellier.tool_audit`` (his
+session is the one ``python3 scripts/lab_run.py send --lab 2`` starts,
+``persona-marco-...``). Each in-process audit row records the agent that called
+the tool and the store tools that running agent held (``args->>'agent'``,
+``args->'grant'``), so the check reads the grant the answering Stock agent
+actually had, never the source: a saved definition counts once Marco's requests
+have run on it. As shipped, the Stock agent holds only the catalog tools, so its
+call to ``check_stock`` is refused and does not run. Once connected, that agent
+may hold only ``check_stock``, the turn may call nothing else, and the count it
+was given for every piece Pellier carries must equal the warehouse rows. What it
+was told about a piece Pellier does not carry is Task 2B's to judge.
+
+Task 2B judges ``pellier.check_stock``, the database function both rails call,
+as it is live. It runs four cases through ``services.store_tools.check_stock``
+on this connection and compares each answer with the catalog and the warehouse
+rows read directly:
 
     not carried   a piece the catalog does not carry  -> not_found, no count
     several       a query that names several pieces   -> ambiguous, no count
     sold out      a carried piece with no units       -> success, total_units 0
     in stock      the Hadley Linen Shirt              -> success, the warehouse rows
 
-You choose the first three queries; a query that is not what it claims to be
-fails as a test input, so a weak test cannot pass. A blank choice uses the
-default and the report says so.
+It also reads the live function's source: it must be the one
+``workshop/lab-2-check-stock.sql`` committed. You choose the first three queries;
+a query that is not what it claims to be fails as a test input, so a weak test
+cannot pass. A blank choice uses the default and the report says so.
 
-Task 2B reads Marco's latest Stock-agent turn from ``pellier.tool_audit`` (his
-session is the one ``python3 scripts/lab_run.py send --lab 2`` starts,
-``persona-marco-...``).
-Each in-process audit row records the agent that called the tool and the store
-tools that running agent held (``args->>'agent'``, ``args->'grant'``), so the
-check reads the grant the answering Stock agent actually had, never the source:
-a saved definition counts once Marco's requests have run on it. The starter connects only
-the catalog tools, so its Stock agent cannot read ``warehouse_inventory`` at
-all. Once connected, that agent may hold only ``check_stock``, the turn may
-call nothing else, and every count it was given must equal the warehouse rows.
-A Shopping-agent turn of Marco's is not judged.
-
-The evidence export judges 2A from the same rows (:func:`judge_recorded_2a`):
-Marco's latest ``check_stock`` call for each case, as recorded, against the
-catalog. It never runs the checkout's code.
+The evidence export judges 2B from the rows Marco's turns left
+(:func:`judge_recorded_2b`): his latest ``check_stock`` call for each case, as
+recorded, against the catalog.
 
     python3 scripts/lab2_check.py --task 2A
-    python3 scripts/lab2_check.py --task 2A --unknown "..." --ambiguous "..." --sold-out "..."
     python3 scripts/lab2_check.py --task 2B
+    python3 scripts/lab2_check.py --task 2B --unknown "..." --ambiguous "..." --sold-out "..."
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import pathlib
@@ -58,6 +61,12 @@ STOCK_AGENT_NAME = "stock"
 # yet, not a wrong answer.
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 SEND = "python3 scripts/lab_run.py send --lab 2"
+WORKSHEET = REPO / "workshop" / "lab-2-check-stock.sql"
+WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
+WORKSHEET_RUN = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql"
+FUNCTION_REGION = "Stock check - not carried"
+STAMP_PREFIX = "Lab 2B function sha256 "
+_DOLLAR = "$check_stock$"
 
 CASES = ("unknown", "several", "sold_out", "in_stock")
 CHOSEN = ("unknown", "several", "sold_out")
@@ -69,12 +78,12 @@ DEFAULT_INPUTS = {
 }
 _CASE_LABEL = {"unknown": "not carried", "several": "several", "sold_out": "sold out",
                "in_stock": "in stock"}
-EXPECTED_2A = ("not carried -> not_found with no count; several -> ambiguous with the "
-                "candidates; sold out -> success with 0 units; in stock -> success with "
-                "the warehouse rows")
-_NEXT_2A = ("when the shared check_stock answers not_found, what should the Stock agent - "
-            "check_stock block in pellier/backend/services/agent_tools.py pass on? Save the file "
-            "and rerun this check; it calls your check_stock directly, so no restart is needed.")
+EXPECTED_2B = ("not carried -> not_found with no count; several -> ambiguous with the "
+               "candidates; sold out -> success with 0 units; in stock -> success with "
+               "the warehouse rows; the live pellier.check_stock is your worksheet's")
+_NEXT_2B = ("what should a piece Pellier does not carry return? Write that test in the "
+            f"{FUNCTION_REGION} region of workshop/lab-2-check-stock.sql, then run it "
+            f"({WORKSHEET_RUN}): it commits your function only when its four probes match.")
 
 # The catalog's own answer to "which pieces does this query name?": every word
 # of the query in the name, the matching rule check_stock documents.
@@ -102,6 +111,12 @@ SELECT audit_id, tool, args, result
   FROM pellier.tool_audit
  WHERE session_id LIKE %s AND args->>'turn_id' = %s
  ORDER BY audit_id
+"""
+_LIVE_FUNCTION = """
+SELECT encode(sha256(convert_to(prosrc, 'UTF8')), 'hex') AS source_sha,
+       coalesce(obj_description(oid, 'pg_proc'), '') AS stamp
+  FROM pg_proc
+ WHERE oid = to_regprocedure('pellier.check_stock(text)')
 """
 _MARCO_STOCK_CALLS = """
 SELECT audit_id, args, result
@@ -194,78 +209,16 @@ def keeps_contract(case: str, envelope: Dict[str, Any], catalog: Dict[str, Any])
 
 
 # ---------------------------------------------------------------------------
-# Task 2A
+# Task 2A: the grant the answering Stock agent held, and what it was told
 # ---------------------------------------------------------------------------
 
-
-def judge_2a(
-    conn: Any, tool: Callable[..., str], inputs: Dict[str, Tuple[str, str]]
-) -> Tuple[check.Finding, List[Sequence[Any]]]:
-    """Run ``tool`` once per case and judge each answer against the catalog."""
-    rows: List[Sequence[Any]] = []
-    evidence: List[str] = []
-    bad_inputs: List[str] = []
-    differs: List[str] = []
-    for case in CASES:
-        query, chosen_by = inputs[case]
-        catalog = catalog_answer(conn, query)
-        actual_case = classify(catalog)
-        try:
-            envelope = json.loads(tool(product_query=query))
-        except (TypeError, ValueError):
-            envelope = {"error": "the tool did not return JSON"}
-        if not isinstance(envelope, dict):
-            envelope = {"error": "the tool did not return an object"}
-        if actual_case != case:
-            verdict = f"not a {_CASE_LABEL[case]} query (it is {actual_case.replace('_', ' ')})"
-            actual = actual_case.replace("_", " ")
-            bad_inputs.append(f"{_CASE_LABEL[case]}: \"{query}\" is {actual}")
-        elif keeps_contract(case, envelope, catalog):
-            verdict = "matches"
-        else:
-            verdict = "differs"
-            answer = describe_envelope(envelope)
-            differs.append(f"{_CASE_LABEL[case]}: \"{query}\" came back {answer}")
-        rows.append((_CASE_LABEL[case], query[:24], chosen_by, describe_catalog(catalog),
-                     describe_envelope(envelope), verdict))
-        evidence.append(_catalog_evidence(query, catalog))
-    title = "check_stock keeps not carried, several and sold out apart"
-    matched = sum(1 for row in rows if row[-1] == "matches")
-    observed = f"{matched} of {len(CASES)} cases match" + (
-        "; " + "; ".join(differs + bad_inputs) if differs or bad_inputs else "")
-    if bad_inputs:
-        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A, observed, evidence,
-                             "choose a query that is what its case says: run the check again "
-                             "with another --unknown, --ambiguous or --sold-out."), rows
-    if differs:
-        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A, observed,
-                             evidence, _NEXT_2A), rows
-    return check.Finding("2A", title, check.PROVED, EXPECTED_2A, observed, evidence), rows
-
-
-def _catalog_evidence(query: str, catalog: Dict[str, Any]) -> str:
-    matches = catalog.get("matches") or []
-    if len(matches) != 1:
-        names = ", ".join(f"{row['product_id']} {row['name']}" for row in matches[:4])
-        listed = f": {names}" if names else ""
-        return f"product_catalog: \"{query}\" matches {len(matches)}{listed}"
-    product = matches[0]
-    return (f"warehouse_inventory for {product['product_id']} {product['name']}: "
-            f"{_counts_text(_counts(catalog.get('stock') or []))}")
-
-
-# ---------------------------------------------------------------------------
-# Task 2A, as recorded: what Marco's turns were told
-# ---------------------------------------------------------------------------
-
-EXPECTED_2A_RECORDED = (
-    "Marco's latest check_stock call about a piece the catalog does not carry recorded "
-    "not_found with no count, and his latest call of every other case recorded the "
-    "catalog's answer")
-_NEXT_2A_RECORDED = (
-    "when the shared check_stock answers not_found, what should the Stock agent - check_stock "
-    "block in pellier/backend/services/agent_tools.py pass on? Save it, send Marco's "
-    f"requests again ({SEND}), then rerun this.")
+EXPECTED_2A = ("the Stock agent that answered Marco's latest stock question held check_stock "
+               "alone and called only check_stock; the count it was given for every piece "
+               "Pellier carries equals warehouse_inventory")
+_NEXT_2A_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
+                  "connect for a stock answer to come from a warehouse row, and what else may "
+                  "it hold? Restart the backend so the running agent loads it, send Marco's "
+                  f"requests again ({SEND}), then rerun this check.")
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -275,82 +228,6 @@ def _as_dict(value: Any) -> Dict[str, Any]:
         except ValueError:
             return {}
     return value if isinstance(value, dict) else {}
-
-
-def recorded_cases(conn: Any) -> Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]]:
-    """Marco's latest recorded check_stock call for each case, with the catalog's answer."""
-    with conn.cursor() as cur:
-        cur.execute(_MARCO_STOCK_CALLS, (MARCO_SESSION_PREFIX + "%",))
-        rows = [dict(row) for row in cur.fetchall()]
-    found: Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]] = {}
-    for row in rows:
-        catalog = catalog_answer(conn, str(_as_dict(row["args"]).get("product_query") or ""))
-        case = classify(catalog)
-        if case in CASES and case not in found:
-            found[case] = (row, catalog)
-        if len(found) == len(CASES):
-            break
-    return found
-
-
-def judge_recorded_2a(conn: Any) -> check.Finding:
-    """Task 2A from the rows Marco's turns left: the not-carried case decides."""
-    title = "check_stock keeps not carried, several and sold out apart"
-    found = recorded_cases(conn)
-    if "unknown" not in found:
-        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A_RECORDED,
-                             "no check_stock call of Marco's asked about a piece Pellier does "
-                             "not carry", ["pellier.tool_audit: no such row in a persona-marco- "
-                                           "session"],
-                             f"send Marco's requests with {SEND}, then rerun this.")
-    evidence: List[str] = []
-    differs: List[str] = []
-    for case in CASES:
-        if case not in found:
-            continue
-        row, catalog = found[case]
-        envelope = _as_dict(row["result"])
-        query = str(_as_dict(row["args"]).get("product_query") or "")
-        evidence.append(f"audit {row['audit_id']}: check_stock(\"{query}\") recorded "
-                        f"{describe_envelope(envelope)}; the catalog: {describe_catalog(catalog)}")
-        if not keeps_contract(case, envelope, catalog):
-            differs.append(f"{_CASE_LABEL[case]}: \"{query}\" recorded "
-                           f"{describe_envelope(envelope)}")
-    unasked = [_CASE_LABEL[case] for case in CASES if case not in found]
-    observed = f"{len(found) - len(differs)} of {len(found)} recorded cases match" + (
-        f" (not asked yet: {', '.join(unasked)})" if unasked else "")
-    if differs:
-        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A_RECORDED,
-                             observed + "; " + "; ".join(differs), evidence, _NEXT_2A_RECORDED)
-    return check.Finding("2A", title, check.PROVED, EXPECTED_2A_RECORDED, observed, evidence)
-
-
-def with_restart_hint(guide: check.Finding, recorded: check.Finding) -> check.Finding:
-    """The guide's 2A finding, with a restart line when Marco's recorded turns disagree.
-
-    The guide's check runs the checkout's ``check_stock`` in its own process, so
-    it can pass while the running backend still answers with the code it started
-    with. The storefront and the evidence export read Marco's recorded turns, so
-    they show the change only after a restart and his requests sent again.
-    """
-    if guide.state != check.PROVED or recorded.state == check.PROVED:
-        return guide
-    hint = ("this ran your check_stock in this process; Marco's recorded turns were sent "
-            f"before your edit. Send his requests again ({SEND}) before you export the "
-            "evidence; the backend reloaded when you saved the file.")
-    return replace(guide, evidence=[*guide.evidence, hint])
-
-
-# ---------------------------------------------------------------------------
-# Task 2B: the grant the answering Stock agent held, and what it was told
-# ---------------------------------------------------------------------------
-
-EXPECTED_2B = ("the Stock agent that answered Marco's latest stock question held check_stock "
-               "alone and called only check_stock; every count equals warehouse_inventory")
-_NEXT_2B_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
-                  "connect for a stock answer to come from a warehouse row, and what else may "
-                  "it hold? Restart the backend so the running agent loads it, send Marco's "
-                  f"requests again ({SEND}), then rerun this check.")
 
 
 def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
@@ -395,32 +272,27 @@ def _call_problems(rows: Sequence[Dict[str, Any]]) -> List[str]:
     return problems
 
 
-def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[bool, str]:
+def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[Optional[bool], str]:
+    """Whether one recorded check_stock answer about a carried piece matches its rows.
+
+    Returns ``(None, line)`` for a query that names no piece or several: what the
+    function says about those is Task 2B's to judge, not the grant's.
+    """
     args, result = _as_dict(row.get("args")), _as_dict(row.get("result"))
     query = str(args.get("product_query") or "")
     catalog = catalog_answer(conn, query)
-    status = result.get("status")
-    if status == "not_found":
-        ok = not catalog["matches"]
-        return ok, (f"audit {row['audit_id']}: check_stock(\"{query}\") said not carried; "
-                    f"the catalog matches {len(catalog['matches'])}")
-    if status == "ambiguous":
-        return len(catalog["matches"]) > 1, (
-            f"audit {row['audit_id']}: check_stock(\"{query}\") asked which; "
-            f"the catalog matches {len(catalog['matches'])}")
-    product = result.get("product") or {}
-    product_id = str(product.get("productId") or "")
-    real: Dict[str, int] = {}
-    if product_id:
-        with conn.cursor() as cur:
-            cur.execute(_STOCK_SQL, (product_id,))
-            real = _counts([dict(r) for r in cur.fetchall()])
     told = _counts(result.get("warehouses") or [])
-    ok = bool(product_id) and told == real
+    said = describe_envelope(result)
+    if len(catalog["matches"]) != 1:
+        return None, (f"audit {row['audit_id']}: check_stock(\"{query}\") said {said}; the "
+                      f"catalog matches {len(catalog['matches'])}, which Task 2B judges")
+    product = catalog["matches"][0]
+    real = _counts(catalog.get("stock") or [])
+    named = str((result.get("product") or {}).get("productId") or "")
+    ok = result.get("status") == "success" and named == str(product["product_id"]) and told == real
     return ok, (f"audit {row['audit_id']}: check_stock(\"{query}\") gave "
                 f"{_counts_text(told) if told else str(result.get('total_units')) + ' units'}; "
-                + (f"warehouse_inventory for {product_id}: {_counts_text(real)}" if product_id
-                   else "no catalog product carries that name"))
+                f"warehouse_inventory for {product['product_id']}: {_counts_text(real)}")
 
 
 def _count_problems(conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[str]) -> List[str]:
@@ -430,24 +302,24 @@ def _count_problems(conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[st
             continue
         ok, line = _judge_stock_row(conn, row)
         evidence.append(line)
-        if not ok:
+        if ok is False:
             problems.append(f"audit {row['audit_id']} does not match the catalog")
     return problems
 
 
-def judge_2b(conn: Any) -> check.Finding:
+def judge_2a(conn: Any) -> check.Finding:
     """Marco's latest Stock-agent turn: its recorded grant, its calls and its counts."""
-    title = "the Stock agent's numbers equal one SELECT on warehouse_inventory"
+    title = "the Stock agent holds check_stock alone"
     rows = latest_stock_turn(conn)
     if not rows:
-        return check.Finding("2B", title, check.NOT_YET, EXPECTED_2B,
+        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A,
                              "no tool call by Marco's Stock agent recorded yet",
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
                              f"send Marco's requests with {SEND}, then rerun this check. "
                              "Already sent? As shipped, the Stock agent does not hold "
                              "check_stock, so a call to it did not run and left no row: "
-                             "build Task 2B.")
+                             "build Task 2A.")
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "
@@ -457,19 +329,202 @@ def judge_2b(conn: Any) -> check.Finding:
     ]
     state, observed = _grant_verdict(grant)
     if state is not None:
-        return check.Finding("2B", title, state, EXPECTED_2B, observed, evidence, _NEXT_2B_GRANT)
+        return check.Finding("2A", title, state, EXPECTED_2A, observed, evidence, _NEXT_2A_GRANT)
     problems = _call_problems(rows)
     counts = _count_problems(conn, rows, evidence)
     if problems:
-        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B,
-                             "; ".join(problems + counts), evidence, _NEXT_2B_GRANT)
+        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A,
+                             "; ".join(problems + counts), evidence, _NEXT_2A_GRANT)
     if counts:
-        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B, "; ".join(counts),
-                             evidence, "check_stock reported something warehouse_inventory does "
-                             "not hold: finish Task 2A, restart, ask again, then rerun this check.")
+        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A, "; ".join(counts),
+                             evidence, "check_stock reported a count warehouse_inventory does "
+                             "not hold for a piece Pellier carries: rerun this check after "
+                             f"sending Marco's requests again ({SEND}).")
     calls = sum(1 for row in rows if row["tool"] == "check_stock")
-    observed = f"held check_stock alone; {calls} check_stock call(s), every count matches"
-    return check.Finding("2B", title, check.PROVED, EXPECTED_2B, observed, evidence)
+    observed = (f"held check_stock alone; {calls} check_stock call(s), every count for a piece "
+                "Pellier carries matches")
+    return check.Finding("2A", title, check.PROVED, EXPECTED_2A, observed, evidence)
+
+
+# ---------------------------------------------------------------------------
+# Task 2B: pellier.check_stock, as it is live
+# ---------------------------------------------------------------------------
+
+
+def function_body(text: str) -> Optional[str]:
+    """The function source between the worksheet's ``$check_stock$`` quotes, or None."""
+    parts = text.split(_DOLLAR)
+    return parts[1] if len(parts) == 3 else None
+
+
+def _sha(text: Optional[str]) -> Optional[str]:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest() if text is not None else None
+
+
+def judge_function(conn: Any, worksheet: pathlib.Path = WORKSHEET,
+                   starter: pathlib.Path = WORKSHEET_STARTER) -> Tuple[Optional[str], str, str]:
+    """(state, observed, evidence) for the live function's source; state None when it is yours."""
+    with conn.cursor() as cur:
+        cur.execute(_LIVE_FUNCTION)
+        live = cur.fetchone()
+    if not live:
+        return (check.CONTRADICTED, "pellier.check_stock is missing from the database",
+                "pg_proc: no pellier.check_stock(text)")
+    try:
+        yours = _sha(function_body(worksheet.read_text(encoding="utf-8")))
+        shipped = _sha(function_body(starter.read_text(encoding="utf-8")))
+    except OSError:
+        yours = shipped = None
+    evidence = (f"pg_proc: pellier.check_stock source sha256 {check.short(live['source_sha'])}, "
+                f"comment '{live['stamp'] or 'none'}'")
+    if yours and live["source_sha"] == yours and live["stamp"] == STAMP_PREFIX + yours:
+        return None, "the live function is the one your worksheet committed", evidence
+    if shipped and live["source_sha"] == shipped:
+        return (check.NOT_YET, "the live function is the one Pellier shipped; your worksheet has "
+                               "not committed", evidence)
+    return (check.NOT_YET, "the live function is not the one in your worksheet: run it again",
+            evidence)
+
+
+def judge_2b(
+    conn: Any, tool: Callable[..., str], inputs: Dict[str, Tuple[str, str]],
+    worksheet: pathlib.Path = WORKSHEET,
+) -> Tuple[check.Finding, List[Sequence[Any]]]:
+    """Run ``tool`` once per case, judge each answer, then read the live function's source."""
+    rows: List[Sequence[Any]] = []
+    evidence: List[str] = []
+    bad_inputs: List[str] = []
+    differs: List[str] = []
+    for case in CASES:
+        query, chosen_by = inputs[case]
+        catalog = catalog_answer(conn, query)
+        actual_case = classify(catalog)
+        try:
+            envelope = json.loads(tool(product_query=query))
+        except (TypeError, ValueError):
+            envelope = {"error": "the tool did not return JSON"}
+        if not isinstance(envelope, dict):
+            envelope = {"error": "the tool did not return an object"}
+        if actual_case != case:
+            verdict = f"not a {_CASE_LABEL[case]} query (it is {actual_case.replace('_', ' ')})"
+            actual = actual_case.replace("_", " ")
+            bad_inputs.append(f"{_CASE_LABEL[case]}: \"{query}\" is {actual}")
+        elif keeps_contract(case, envelope, catalog):
+            verdict = "matches"
+        else:
+            verdict = "differs"
+            answer = describe_envelope(envelope)
+            differs.append(f"{_CASE_LABEL[case]}: \"{query}\" came back {answer}")
+        rows.append((_CASE_LABEL[case], query[:24], chosen_by, describe_catalog(catalog),
+                     describe_envelope(envelope), verdict))
+        evidence.append(_catalog_evidence(query, catalog))
+    function_state, function_observed, function_evidence = judge_function(conn, worksheet)
+    evidence.append(function_evidence)
+    title = "check_stock keeps not carried, several and sold out apart"
+    matched = sum(1 for row in rows if row[-1] == "matches")
+    observed = f"{matched} of {len(CASES)} cases match" + (
+        "; " + "; ".join(differs + bad_inputs) if differs or bad_inputs else "")
+    if bad_inputs:
+        return check.Finding("2B", title, check.NOT_YET, EXPECTED_2B, observed, evidence,
+                             "choose a query that is what its case says: run the check again "
+                             "with another --unknown, --ambiguous or --sold-out."), rows
+    if differs:
+        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B, observed,
+                             evidence, _NEXT_2B), rows
+    if function_state is not None:
+        return check.Finding("2B", title, function_state, EXPECTED_2B,
+                             f"{observed}; {function_observed}", evidence,
+                             f"run your worksheet so its function is the live one: {WORKSHEET_RUN}"
+                             ), rows
+    return check.Finding("2B", title, check.PROVED, EXPECTED_2B,
+                         f"{observed}; {function_observed}", evidence), rows
+
+
+def _catalog_evidence(query: str, catalog: Dict[str, Any]) -> str:
+    matches = catalog.get("matches") or []
+    if len(matches) != 1:
+        names = ", ".join(f"{row['product_id']} {row['name']}" for row in matches[:4])
+        listed = f": {names}" if names else ""
+        return f"product_catalog: \"{query}\" matches {len(matches)}{listed}"
+    product = matches[0]
+    return (f"warehouse_inventory for {product['product_id']} {product['name']}: "
+            f"{_counts_text(_counts(catalog.get('stock') or []))}")
+
+
+# ---------------------------------------------------------------------------
+# Task 2B, as recorded: what Marco's turns were told
+# ---------------------------------------------------------------------------
+
+EXPECTED_2B_RECORDED = (
+    "Marco's latest check_stock call about a piece the catalog does not carry recorded "
+    "not_found with no count, and his latest call of every other case recorded the "
+    "catalog's answer")
+_NEXT_2B_RECORDED = (
+    "what should pellier.check_stock return for a piece Pellier does not carry? Commit your "
+    f"worksheet ({WORKSHEET_RUN}), send Marco's requests again ({SEND}), then rerun this.")
+
+
+def recorded_cases(conn: Any) -> Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Marco's latest recorded check_stock call for each case, with the catalog's answer."""
+    with conn.cursor() as cur:
+        cur.execute(_MARCO_STOCK_CALLS, (MARCO_SESSION_PREFIX + "%",))
+        rows = [dict(row) for row in cur.fetchall()]
+    found: Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]] = {}
+    for row in rows:
+        catalog = catalog_answer(conn, str(_as_dict(row["args"]).get("product_query") or ""))
+        case = classify(catalog)
+        if case in CASES and case not in found:
+            found[case] = (row, catalog)
+        if len(found) == len(CASES):
+            break
+    return found
+
+
+def judge_recorded_2b(conn: Any) -> check.Finding:
+    """Task 2B from the rows Marco's turns left: the not-carried case decides."""
+    title = "check_stock keeps not carried, several and sold out apart"
+    found = recorded_cases(conn)
+    if "unknown" not in found:
+        return check.Finding("2B", title, check.NOT_YET, EXPECTED_2B_RECORDED,
+                             "no check_stock call of Marco's asked about a piece Pellier does "
+                             "not carry", ["pellier.tool_audit: no such row in a persona-marco- "
+                                           "session"],
+                             f"send Marco's requests with {SEND}, then rerun this.")
+    evidence: List[str] = []
+    differs: List[str] = []
+    for case in CASES:
+        if case not in found:
+            continue
+        row, catalog = found[case]
+        envelope = _as_dict(row["result"])
+        query = str(_as_dict(row["args"]).get("product_query") or "")
+        evidence.append(f"audit {row['audit_id']}: check_stock(\"{query}\") recorded "
+                        f"{describe_envelope(envelope)}; the catalog: {describe_catalog(catalog)}")
+        if not keeps_contract(case, envelope, catalog):
+            differs.append(f"{_CASE_LABEL[case]}: \"{query}\" recorded "
+                           f"{describe_envelope(envelope)}")
+    unasked = [_CASE_LABEL[case] for case in CASES if case not in found]
+    observed = f"{len(found) - len(differs)} of {len(found)} recorded cases match" + (
+        f" (not asked yet: {', '.join(unasked)})" if unasked else "")
+    if differs:
+        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B_RECORDED,
+                             observed + "; " + "; ".join(differs), evidence, _NEXT_2B_RECORDED)
+    return check.Finding("2B", title, check.PROVED, EXPECTED_2B_RECORDED, observed, evidence)
+
+
+def with_resend_hint(live: check.Finding, recorded: check.Finding) -> check.Finding:
+    """The live 2B finding, with a line when Marco's recorded turns predate the commit.
+
+    The check runs the live function, so it passes the moment the worksheet
+    commits. Marco's chat and the evidence export read his recorded turns, so they
+    show the change only once his requests are sent again.
+    """
+    if live.state != check.PROVED or recorded.state == check.PROVED:
+        return live
+    hint = ("Marco's recorded turns were answered before your function was live. Send his "
+            f"requests again ({SEND}) to see the cape answered as not carried; the evidence "
+            "export reads those turns.")
+    return replace(live, evidence=[*live.evidence, hint])
 
 
 # ---------------------------------------------------------------------------
@@ -477,27 +532,31 @@ def judge_2b(conn: Any) -> check.Finding:
 # ---------------------------------------------------------------------------
 
 
-class _RowsOn:
-    """The pool interface ``agent_tools`` calls, answered on one psycopg connection."""
-
-    def __init__(self, conn: Any) -> None:
-        self._conn = conn
-
-    async def fetch_all(self, sql: str, *params: Any) -> List[Dict[str, Any]]:
-        with self._conn.cursor() as cur:
-            cur.execute(sql, params)
-            return [dict(row) for row in cur.fetchall()]
-
-
-def participant_tool(conn: Any, cfg: Dict[str, str]) -> Callable[..., str]:
-    """Your check_stock, through its ``@tool`` wrapper, on this connection."""
+def live_tool(conn: Any, cfg: Dict[str, str]) -> Callable[..., str]:
+    """``services.store_tools.check_stock``, the shaping both rails use, on this connection."""
     for key, value in cfg.items():
         os.environ.setdefault(key, value)
     sys.path.insert(0, str(BACKEND))
-    from services import agent_tools
+    from services import store_tools
 
-    agent_tools.set_db_service(_RowsOn(conn))
-    return agent_tools.check_stock
+    def run_sql(sql: str, params: Sequence[Any] = ()) -> List[Dict[str, Any]]:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
+    def tool(product_query: str) -> str:
+        return json.dumps(store_tools.check_stock(run_sql, product_query=product_query),
+                          default=str)
+
+    return tool
+
+
+def marco_cape_request(repo: pathlib.Path = REPO) -> str:
+    """Marco's required request about the piece Pellier does not carry."""
+    scenarios = json.loads((repo / "data" / "scenarios.json").read_text("utf-8"))
+    return next(str(row["prompt"]) for row in scenarios
+                if row.get("persona") == "marco" and row.get("journey_role") == "required"
+                and row.get("journey_stage") == "exercise")
 
 
 def _inputs(args: argparse.Namespace) -> Dict[str, Tuple[str, str]]:
@@ -521,10 +580,10 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
     try:
         with check.connect(cfg) as conn:
             conn.autocommit = True
-            if task == "2B":
-                return judge_2b(conn), []
-            finding, rows = judge_2a(conn, participant_tool(conn, cfg), inputs)
-            return with_restart_hint(finding, judge_recorded_2a(conn)), rows
+            if task == "2A":
+                return judge_2a(conn), []
+            finding, rows = judge_2b(conn, live_tool(conn, cfg), inputs)
+            return with_resend_hint(finding, judge_recorded_2b(conn)), rows
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
         return check.Finding(task, title, check.UNCHECKED, "a reachable database",
                              "the check could not look",
@@ -533,10 +592,10 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
 
 
 def cases_table(rows: Sequence[Sequence[str]]) -> str:
-    """The 2A cases, narrow enough for a laptop terminal.
+    """The 2B cases, narrow enough for a laptop terminal.
 
     Each case is one line (case, query, chosen by, verdict); what the catalog expects
-    and what your check_stock said go on the two lines beneath it.
+    and what check_stock said go on the two lines beneath it.
     """
     head = check.table(("case", "query", "chosen by", "verdict"),
                        [(case, query, chosen_by, verdict)
@@ -549,20 +608,31 @@ def cases_table(rows: Sequence[Sequence[str]]) -> str:
     return "\n".join(out)
 
 
+def marco_line(rows: Sequence[Sequence[str]], request: str) -> str:
+    """Marco's sentence about the cape, and what check_stock answers for its piece."""
+    unknown = next((row for row in rows if row[0] == _CASE_LABEL["unknown"]), None)
+    if unknown is None:
+        return ""
+    return (f'Marco asks "{request}"\n'
+            f'  check_stock("{unknown[1]}") answers {unknown[4]}; the catalog: {unknown[3]}')
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--task", choices=("2A", "2B"), required=True)
-    parser.add_argument("--unknown", help="A piece Pellier does not carry")
-    parser.add_argument("--ambiguous", help="A query that names several pieces")
-    parser.add_argument("--sold-out", dest="sold_out", help="A carried piece with no units")
+    parser.add_argument("--unknown", help="A piece Pellier does not carry (Task 2B)")
+    parser.add_argument("--ambiguous", help="A query that names several pieces (Task 2B)")
+    parser.add_argument("--sold-out", dest="sold_out",
+                        help="A carried piece with no units (Task 2B)")
     args = parser.parse_args(argv)
     finding, rows = run(args.task, _inputs(args))
     if args.task == "2A":
-        print("Lab 2A: check_stock answers from the catalog and warehouse_inventory")
-        if rows:
-            print(cases_table(rows))
+        print("Lab 2A: Marco's latest stock answer comes from check_stock alone")
     else:
-        print("Lab 2B: Marco's latest stock answer comes from warehouse_inventory alone")
+        print("Lab 2B: pellier.check_stock answers from the catalog and warehouse_inventory")
+        if rows:
+            print(marco_line(rows, marco_cape_request()))
+            print(cases_table(rows))
     print(check.render(finding))
     passed = finding.state == check.PROVED
     print(f"Lab {args.task} check {'passed' if passed else 'failed'}")

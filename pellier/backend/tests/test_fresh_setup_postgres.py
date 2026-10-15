@@ -49,7 +49,8 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     assert _rows(fresh_db, "SELECT p.proname FROM pg_proc p JOIN pg_namespace n "
                            "ON n.oid = p.pronamespace WHERE n.nspname = 'pellier' "
                            "ORDER BY 1") == [
-        "apply_store_credit", "retrieval_receipts_append_only", "set_updated_at",
+        "apply_store_credit", "check_stock", "retrieval_receipts_append_only",
+        "set_updated_at",
         "store_credits_require_approval", "tool_audit_fill_once",
     ]
     assert _rows(fresh_db, "SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "

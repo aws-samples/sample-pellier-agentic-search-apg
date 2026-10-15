@@ -176,7 +176,7 @@ def test_browse_department_escapes_like_metacharacters(
     assert _parameter_value(parameters, "p0") == r"%home\_100\% \\ decor%"
 
 
-def test_check_stock_escapes_like_metacharacters_per_word(
+def test_check_stock_hands_the_shopper_text_to_the_function(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     server = _load_server()
@@ -187,6 +187,5 @@ def test_check_stock_escapes_like_metacharacters_per_word(
     )
 
     sql, parameters = calls[0]
-    assert sql.count("ESCAPE") == 2
-    assert _parameter_value(parameters, "p0") == r"%studio\_100\%%"
-    assert _parameter_value(parameters, "p1") == "%edition%"
+    assert sql == "SELECT * FROM pellier.check_stock(:p0)"
+    assert _parameter_value(parameters, "p0") == "Studio_100% Edition"

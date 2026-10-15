@@ -9,10 +9,11 @@ a symptom.
 
     Lab 1  retrieval_receipts records citation snapshots; Anna's session has a
            search receipt.
-    Lab 2  Aurora reachable; the check_stock block no longer holds its starter;
-           the Stock agent definition grants check_stock alone, and the Stock
-           agent that answered Marco's latest stock turn held that grant too
-           (a definition saved after his latest turn is named as such).
+    Lab 2  Aurora reachable; the Stock agent definition grants check_stock alone,
+           and the Stock agent that answered Marco's latest stock turn held that
+           grant too (a definition saved after his latest turn is named as such);
+           the worksheet's not-carried test is written and its pellier.check_stock
+           is the live one.
     Lab 3  Task 3A's four rules: get_tickets published, the Support agent asking
            for get_orders and get_tickets, both bound to the signed-in caller,
            and give_store_credit refused on a shopper agent;
@@ -61,6 +62,7 @@ DEFAULT_RUN_ENV = pathlib.Path("/etc/pellier/run.env")
 
 sys.path.insert(0, str(SCRIPTS))
 import workshop_check  # noqa: E402  (sibling module: database settings, region state)
+import lab2_check  # noqa: E402  (sibling script: Lab 2B's live-function reading)
 import lab3_check  # noqa: E402  (sibling script: Lab 3's catalogue verdict and build query)
 import workshop_evidence  # noqa: E402  (sibling script: the Lab 4 evidence query)
 
@@ -68,7 +70,7 @@ PASS = "PASS"
 FAIL = "FAIL"
 
 STARTERS = REPO / "workshop" / "starters"
-TOOL_REGION = "Stock agent - check_stock"
+FUNCTION_REGION = lab2_check.FUNCTION_REGION
 AGENT_REGION = "Stock agent - definition"
 
 CEDAR_POLICY = "policies/workshop_credit_limit.cedar"
@@ -289,7 +291,7 @@ def _grant_check(evidence: Evidence, path: pathlib.Path) -> Check:
     grant = source_grant(path)
     if grant != ["check_stock"]:
         listed = ", ".join(grant) if grant else "no readable _STOCK_TOOLS list"
-        return Check(name, False, f"{path.name} grants {listed}; Task 2B connects check_stock "
+        return Check(name, False, f"{path.name} grants {listed}; Task 2A connects check_stock "
                                   "alone, the one tool that reads warehouse_inventory")
     running = _running_stock_grant(evidence)
     held = (running or {}).get("grant")
@@ -301,12 +303,33 @@ def _grant_check(evidence: Evidence, path: pathlib.Path) -> Check:
     return Check(name, True, f"{path.name} grants check_stock alone")
 
 
-def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND) -> List[Check]:
+def _function_check(evidence: Evidence, worksheet: pathlib.Path,
+                    starter: pathlib.Path) -> Check:
+    """The not-carried test is written, and the function the worksheet holds is live."""
+    name = "check_stock committed"
+    built = _region_built(name, worksheet, FUNCTION_REGION, starter)
+    if not built.passed:
+        return built
+    if not evidence.available:
+        return Check(name, False, evidence.reason or "database unavailable")
+    try:
+        row = evidence.one(lab2_check._LIVE_FUNCTION) or {}
+    except Exception as exc:  # noqa: BLE001 - the error is the finding
+        return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
+    body = lab2_check.function_body(worksheet.read_text(encoding="utf-8"))
+    if body is not None and row.get("source_sha") == lab2_check._sha(body):
+        return Check(name, True, f"the live pellier.check_stock is the one {worksheet.name} holds")
+    return Check(name, False, (f"{worksheet.name} is edited, but the live pellier.check_stock is "
+                               f"not its function: run {lab2_check.WORKSHEET_RUN}"))
+
+
+def lab2_checks(evidence: Evidence, *, backend: pathlib.Path = BACKEND,
+                workshop: pathlib.Path = REPO / "workshop") -> List[Check]:
     return [
         _db_reachable(evidence),
-        _region_built("check_stock written", backend / "services" / "agent_tools.py",
-                      TOOL_REGION, STARTERS / "lab-2" / "check-stock-tool.pyfrag"),
         _grant_check(evidence, backend / "agents" / "stock_agent.py"),
+        _function_check(evidence, workshop / "lab-2-check-stock.sql",
+                        STARTERS / "lab-2-check-stock.sql"),
     ]
 
 

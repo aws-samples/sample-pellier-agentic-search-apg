@@ -1,0 +1,1 @@
+../../workshop/lab-2-check-stock.sql

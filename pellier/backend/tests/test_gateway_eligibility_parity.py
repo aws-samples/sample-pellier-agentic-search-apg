@@ -286,7 +286,7 @@ def test_browse_department_escapes_like_metacharacters_on_the_lambda(
     assert bound["p0"] == {"stringValue": store_tools.prepare_like_pattern(r"Home_100% \ Decor")}
 
 
-def test_check_stock_escapes_like_metacharacters_on_the_lambda(
+def test_check_stock_reaches_the_function_unchanged_on_the_lambda(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake = _DataApiFake()
@@ -295,8 +295,8 @@ def test_check_stock_escapes_like_metacharacters_on_the_lambda(
     lambda_tools.TOOLS["check_stock"]({"product_query": r"100%_deal"}, None)
 
     sql, bound = fake.statements[-1]
-    assert "ESCAPE" in sql
-    assert bound["p0"] == {"stringValue": r"%100\%\_deal%"}
+    assert sql == "SELECT * FROM pellier.check_stock(:p0)"
+    assert bound["p0"] == {"stringValue": r"100%_deal"}
 
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ Every check prints what was expected, what was observed, and the evidence behind
 it. `python3 scripts/workshop_evidence.py` exports that proof for all four labs.
 Tasks 1B, 2A and 2B are read from rows alone (`pellier.retrieval_receipts`,
 `pellier.tool_audit`, the catalog and warehouse tables), so no code of yours
-runs: Lab 2's lines pass only after the restart and Marco's requests sent again.
+runs: Lab 2's lines pass only after Marco's requests are sent again on the finished lab.
 1A runs your vector branch, 3A reads the Gateway catalogue and binding in
 source, 3B reads Theo's turns, his Memory record and your live row policies, 4A
 evaluates your Cedar rule beside its stored Gateway denial and Jessica's credit,
@@ -26,8 +26,8 @@ the same checks.
 |---|---|---|
 | 1A, Anna | Search by what she means (`services/store_tools.py`) | `python3 scripts/lab1_check.py --task 1A` |
 | 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `python3 scripts/lab1_check.py --task 1B` |
-| 2A, Marco | Keep "not carried" distinct from sold out (`services/agent_tools.py`) | `python3 scripts/lab2_check.py --task 2A` |
-| 2B, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`) | `python3 scripts/lab2_check.py --task 2B` |
+| 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`) | `python3 scripts/lab2_check.py --task 2A` |
+| 2B, Marco | Keep "not carried" distinct from sold out (`workshop/lab-2-check-stock.sql`) | `python3 scripts/lab2_check.py --task 2B` |
 | 3A, Theo | Publish `get_tickets` and bind it to the caller | `python3 scripts/lab3_check.py --task 3A` |
 | 3B, Theo | Deploy, write the ownership rule (`workshop/lab-3-row-ownership.sql`), then challenge it | `python3 scripts/lab3_check.py --task 3B` |
 | 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_check.py --task 4A` |

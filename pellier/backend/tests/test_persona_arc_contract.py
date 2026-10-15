@@ -127,11 +127,13 @@ def test_marco_warehouse_and_ship_window_exist_in_the_schema() -> None:
     assert "ship_window_min" in logic and "ship_window_max" in logic
 
 
-def test_marco_tool_is_the_lab_one_build_target() -> None:
+def test_marco_tool_is_the_lab_two_build_target() -> None:
     tools = (BACKEND / "services" / "agent_tools.py").read_text()
     assert f"def {ARC['marco']['tool']}(" in tools
-    # The guided exercise markers name the same tool.
-    assert "WORKSHOP - Stock agent - check_stock: START" in tools
+    # Task 2B's worksheet writes the function the same tool runs.
+    worksheet = (REPO / "workshop" / "lab-2-check-stock.sql").read_text()
+    assert f"FUNCTION pellier.{ARC['marco']['tool']}(product_query text)" in worksheet
+    assert "WORKSHOP - Stock check - not carried: START" in worksheet
 
 
 # ---------------------------------------------------------------------------

@@ -71,7 +71,9 @@ CONVERSATIONS = {
 DEPLOY = 'python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
 NEXT_AFTER_SOLUTION = {
     1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
-    2: "restart the backend (sudo systemctl restart pellier), then send the lab's requests.",
+    2: ("run the Task 2B worksheet (psql -X -v ON_ERROR_STOP=1 -P pager=off -f "
+        "workshop/lab-2-check-stock.sql), restart the backend (sudo systemctl restart "
+        "pellier), then send the lab's requests."),
     3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",
     4: f"deploy the Cedar rule ({DEPLOY}), then send the lab's requests.",
 }

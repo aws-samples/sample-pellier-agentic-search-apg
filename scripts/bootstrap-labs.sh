@@ -180,7 +180,7 @@ fi
 # Studio box shipped with a live detached checkout at the pinned SHA and the
 # workspace stayed on live git. `"git.enabled": false` hides the Source Control
 # panel, but the terminal is untouched: `git checkout -- .` silently reverts the
-# check_stock exercise a participant is midway through, and `git stash` loses it
+# exercise a participant is midway through, and `git stash` loses it
 # with no visible trace. Neither is a thing anyone does on purpose; both are
 # things people type out of habit.
 #
@@ -1190,8 +1190,8 @@ log "✅ Status marker created"
 # STEP 16: WORKSHOP FORMAT — Pre-apply everything participants don't build
 # ============================================================================
 #
-# The required path wires the check_stock tool body in
-# services/agent_tools.py and then proves the same production path
+# The required path connects check_stock to the Stock agent and writes the
+# not-carried test in pellier.check_stock, then proves the same production path
 # through retrieval, memory, Runtime, Gateway, Policy, and the Aurora
 # audit ledger. The Stock agent's system prompt and the Router are
 # already in place before participants arrive.
@@ -1203,11 +1203,11 @@ log "✅ Status marker created"
 #
 # Solutions directory layout:
 #   solutions/the-quiet-search/   — retrieval reference (observe-only)
-#   solutions/closing-marcos-gap/ — the required-path (the only edited module)
+#   solutions/closing-marcos-gap/ — Lab 2's check_stock answer and builders tool module
 #   solutions/the-ledger/    — governance reference (observe-only)
 #
 # Files we explicitly do NOT copy (participants build these):
-#   inside agent_tools.py            — the check_stock tool body only
+#   inside lab-2-check-stock.sql     — Lab 2B's not-carried test in pellier.check_stock
 #   inside agentcore_gateway.py      — Lab 3A's Support agent - Gateway tools region
 #   inside gateway_tool_schemas.py   — Lab 3a's published-tools decision
 if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" ]; then
@@ -1228,8 +1228,8 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     if [ "${WORKSHOP_FORMAT}" = "builders" ]; then
 
     # ---- agent_tools.py builders variant ----
-    # Every tool except check_stock itself. Participants will edit this file in
-    # the required-path to add the check_stock body — and only that body.
+    # Byte-identical to the governed module: check_stock's answer lives in the
+    # database function pellier.check_stock, so this file holds no exercise.
     copy_solution "solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py" \
                   "pellier/backend/services/agent_tools.py" "Agent tools (builders variant)"
 

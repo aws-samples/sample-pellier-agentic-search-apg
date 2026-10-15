@@ -230,7 +230,7 @@ def test_diff_shows_the_finished_lines_as_minus_and_the_participants_as_plus(
     repo = _scratch_repo(tmp_path)
     lab_run.install_solution(2, repo)
     capsys.readouterr()
-    entry = next(e for e in lab_run.solution_files(2, repo) if e["alias"].endswith("2B-stock-agent.py"))
+    entry = next(e for e in lab_run.solution_files(2, repo) if e["alias"].endswith("2A-stock-agent.py"))
     lines = (repo / entry["solution"]).read_text().split("\n")
     at = next(i for i, line in enumerate(lines) if line.strip() and lines.count(line) == 1)
     finished, lines[at] = lines[at], "    my unfinished line"
@@ -244,7 +244,7 @@ def test_diff_shows_the_finished_lines_as_minus_and_the_participants_as_plus(
     assert f"+++ yours ({entry['source']})" in out
     assert f"\n-{finished}\n" in out
     assert "\n+    my unfinished line\n" in out
-    assert "2A-check-stock.py matches the solution" in out
+    assert "2B-check-stock.sql matches the solution" in out
     assert "python3 scripts/lab_run.py solution --lab 2" in out
     assert "\x1b[" not in out
 

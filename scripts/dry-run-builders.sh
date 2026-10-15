@@ -7,17 +7,19 @@
 #
 #   1. Preconditions  — health gate must be READY
 #   1b. Claude Code   — CLI present + pinned Bedrock model reachable
-#   2. Apply solutions — complete the Stock agent and wire check_stock
+#   2. Apply solutions — connect check_stock and commit its not-carried test
 #   3. Build + trace  — POST /api/chat/stream; assert Brooklyn, count, ship window
 #   4. Retrieval      — run the exact five-strategy Lab 1 request
 #   5. Audit ledger   — query the check_stock execution rows this run left
 #   6. SQL claims     — Beeswax 40/30/30 split (pin run-of-show number) +
 #                       pg_trgm index presence/plan
 #
-# This applies both Lab 2 marker-scoped solutions temporarily and creates the
-# same audit evidence rows as a participant. It backs both source
-# files up and restores them on exit unless --keep is passed. Run it on a
-# workshop environment, not a production database.
+# This applies both Lab 2 solutions temporarily and creates the same audit
+# evidence rows as a participant: the Stock agent definition block in its source
+# file, and the check_stock worksheet's function in the database. On exit it
+# restores the source file from its backup and reinstalls the as-shipped
+# pellier.check_stock from the worksheet starter, unless --keep is passed. Run it
+# on a workshop environment, not a production database.
 #
 # Usage:
 #   scripts/dry-run-builders.sh            # apply solution, test, restore the starter
@@ -31,14 +33,16 @@ export PATH="/opt/pellier/bin:$PATH"
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 BASE="${PELLIER_BASE_URL:-http://localhost:8000}"
-TOOLS="${REPO}/pellier/backend/services/agent_tools.py"
-TOOLS_REFERENCE="${REPO}/solutions/closing-marcos-gap/services/agent_tools_check_stock_solution.py"
+WORKSHEET_REFERENCE="${REPO}/solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql"
+WORKSHEET_STARTER="${REPO}/workshop/starters/lab-2-check-stock.sql"
+FUNCTION_APPLIED=false
 AGENT="${REPO}/pellier/backend/agents/stock_agent.py"
 AGENT_REFERENCE="${REPO}/solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
 BACKUP_SUFFIX=".dryrun.$$.bak"
-# Participants edit only the two START/END blocks. The rehearsal mirrors that
-# contract by copying each reference block into the live file; it never swaps a
-# whole module or changes code outside the workshop markers.
+# Participants edit only the START/END blocks. The rehearsal mirrors that
+# contract by copying the reference block into the live file and running the
+# reference worksheet; it never swaps a whole module or changes code outside the
+# workshop markers.
 KEEP=false
 [[ "${1:-}" == "--keep" ]] && KEEP=true
 
@@ -63,22 +67,34 @@ _psql() {
     -U "${DB_USER:-postgres}" -d "${DB_NAME:-postgres}" -tAc "$1" 2>/dev/null
 }
 
+_psql_file() {
+  PGPASSWORD="${DB_PASSWORD:-}" psql -X -v ON_ERROR_STOP=1 -q -P pager=off \
+    -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" \
+    -U "${DB_USER:-postgres}" -d "${DB_NAME:-postgres}" -f "$1"
+}
+
+# The as-shipped function: the CREATE statement in the worksheet starter, which
+# scripts/migrations/001_schema.sql holds byte for byte.
+reinstall_shipped_function() {
+  sed -n '/^CREATE OR REPLACE FUNCTION pellier.check_stock(/,/^\$check_stock\$;$/p' \
+    "$WORKSHEET_STARTER" | _psql_file - >/dev/null
+}
+
 restore() {
-  local restored=false
   if $KEEP; then
-    rm -f "${AGENT}${BACKUP_SUFFIX}" "${TOOLS}${BACKUP_SUFFIX}"
+    rm -f "${AGENT}${BACKUP_SUFFIX}"
     return
   fi
   if [[ -f "${AGENT}${BACKUP_SUFFIX}" ]]; then
     mv "${AGENT}${BACKUP_SUFFIX}" "$AGENT"
-    restored=true
+    info "Restored the Stock agent definition. Backend will reload."
   fi
-  if [[ -f "${TOOLS}${BACKUP_SUFFIX}" ]]; then
-    mv "${TOOLS}${BACKUP_SUFFIX}" "$TOOLS"
-    restored=true
-  fi
-  if $restored; then
-    info "Restored both Lab 2 source files. Backend will reload."
+  if $FUNCTION_APPLIED; then
+    if reinstall_shipped_function; then
+      info "Reinstalled the as-shipped pellier.check_stock."
+    else
+      printf "  ${RED}✗${NC} %s\n" "Could not reinstall the as-shipped pellier.check_stock"
+    fi
   fi
 }
 trap restore EXIT
@@ -191,7 +207,7 @@ else
 fi
 
 # --- 2. Apply the solutions (simulate both participant edits) ----------------
-echo "[2/6] Complete the Stock agent and wire check_stock"
+echo "[2/6] Connect check_stock and commit its not-carried test"
 # The starters run, so there is no stub to detect: the reference regions are
 # applied either way, and patching a finished region with its answer changes
 # nothing.
@@ -201,11 +217,15 @@ patch_marker_block \
   "# === WORKSHOP - Stock agent - definition: END ===" \
   "Stock agent definition" || exit 1
 
-patch_marker_block \
-  "$TOOLS" "$TOOLS_REFERENCE" \
-  "# === WORKSHOP - Stock agent - check_stock: START ===" \
-  "# === WORKSHOP - Stock agent - check_stock: END ===" \
-  "check_stock body" || exit 1
+if _psql_file "$WORKSHEET_REFERENCE" >/tmp/dryrun-check-stock.log 2>&1 \
+   && grep -q "Lab 2B function check passed" /tmp/dryrun-check-stock.log; then
+  FUNCTION_APPLIED=true
+  pass "Committed the reference pellier.check_stock (Lab 2B function check passed)"
+else
+  FUNCTION_APPLIED=true
+  fail "The reference check_stock worksheet did not pass — see /tmp/dryrun-check-stock.log"
+  exit 1
+fi
 info "Waiting 4s for uvicorn --reload to pick up the change…"
 sleep 4
 
