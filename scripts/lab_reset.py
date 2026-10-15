@@ -99,9 +99,6 @@ RESTARTS_BACKEND = frozenset({1, 2, 3})
 
 LAB_DIRECTORY = {1: "01-retrieve", 2: "02-ground", 3: "03-deploy", 4: "04-govern"}
 START_TASK = {1: "1A", 2: "2A", 3: "3A", 4: "4A"}
-NEXT_COMMAND = {
-    3: "bash scripts/lab3-start.sh theo",
-}
 NOT_RESET = {
     1: "retrieval_receipts rows from earlier searches stay (append-only); Lab 1's check ignores "
        "them now.",
@@ -296,12 +293,9 @@ def reset_lab(
 
 
 def next_step(lab: int) -> str:
-    """The command or page that starts the lab again."""
-    first = NEXT_COMMAND.get(lab)
-    page = f"labs/{LAB_DIRECTORY[lab]}/README.md"
-    if first:
-        return f"run {first}, then start Task {START_TASK[lab]} from {page}."
-    return f"start Task {START_TASK[lab]} again from {page}."
+    """The page that starts the lab again. Lab 3 needs no switch first: its deploy moves
+    Pellier onto AgentCore when it is not there yet."""
+    return f"start Task {START_TASK[lab]} again from labs/{LAB_DIRECTORY[lab]}/README.md."
 
 
 def _open(connect: Optional[Callable[[], Any]]) -> Any:

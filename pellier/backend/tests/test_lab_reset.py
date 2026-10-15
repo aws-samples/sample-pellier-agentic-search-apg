@@ -305,8 +305,9 @@ def test_a_backend_that_cannot_be_restarted_is_reported_not_waited_for(tmp_path:
     assert any("restart it yourself" in line for line in lines)
 
 
-def test_lab_three_next_step_starts_with_the_managed_switch() -> None:
-    assert lab_reset.next_step(3).startswith("run bash scripts/lab3-start.sh theo")
+def test_lab_three_starts_again_at_task_3a_because_its_deploy_moves_the_rail() -> None:
+    assert lab_reset.next_step(3) == "start Task 3A again from labs/03-deploy/README.md."
+    assert "lab3-start" not in lab_reset.next_step(3)
     assert "Task 1A" in lab_reset.next_step(1)
 
 
