@@ -736,7 +736,8 @@ def _finish(fake: FakeBackend, lab: int, repo: Path, commands: Commands) -> int:
 
 
 RESTART = "sudo -n systemctl restart pellier"
-DEPLOY_RUN = "python3 scripts/provision_agentcore_end_to_end.py --repo-path {repo} --mode participant"
+DEPLOY_RUN = ("python3 scripts/provision_agentcore_end_to_end.py --repo-path {repo} "
+              "--mode participant")
 
 
 @pytest.mark.usefixtures("box")

@@ -128,7 +128,8 @@ NEXT_AFTER_TASK = {
     "3A": ["python3 scripts/lab3_check.py --task 3A", DEPLOY],
     "3B": [f"{PSQL} labs/03-deploy/3B-row-ownership.sql"],
     "4A": ["python3 scripts/lab4_check.py --task 4A", DEPLOY],
-    "4B": [f"{PSQL} labs/04-govern/4B-credit-writer.sql", "python3 scripts/lab4_check.py --task 4B"],
+    "4B": [f"{PSQL} labs/04-govern/4B-credit-writer.sql",
+           "python3 scripts/lab4_check.py --task 4B"],
 }
 BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
