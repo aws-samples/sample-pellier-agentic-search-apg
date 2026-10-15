@@ -138,12 +138,16 @@ SELECT sum(calls) AS calls, sum(rows) AS rows,
 
 -- One plan: Theo is bound, and the query asks for Jessica's orders. The policy
 -- is part of the plan: an InitPlan reads the bound name, and a one-time filter
--- compares the customer it maps to with the one the query asked for.
+-- compares the customer it maps to with the one the query asked for. ANALYZE
+-- runs it, so the plan shows what was read: on PostgreSQL 18 the buffers by
+-- default, the InitPlan's lookup of the bound name, and an orders scan that was
+-- never executed.
 \echo ''
 \echo 'One plan: as pellier_agent, Theo bound, a query for Jessica''s orders'
 SET LOCAL ROLE pellier_agent;
 SELECT set_config('pellier.principal_username', 'theo', true) AS lab_3_probe \gset lab_3_bound_
-EXPLAIN (COSTS OFF) SELECT o.id AS lab_3_probe FROM pellier.orders o
+EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY OFF)
+  SELECT o.id AS lab_3_probe FROM pellier.orders o
                      WHERE o.customer_id = 'CUST-JESSICA';
 SELECT count(*) AS lab_3_probe, count(*) = 0 AS lab_3_none
   FROM pellier.orders o WHERE o.customer_id = 'CUST-JESSICA'
