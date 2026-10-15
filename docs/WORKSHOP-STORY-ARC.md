@@ -1,8 +1,8 @@
 # Pellier: the four-lab workshop contract
 
 Pellier is a retail store building an agentic system for product discovery and
-customer support. Four customers each bring one leadership worry, and each lab
-answers one: the participant sees the worry fail in the terminal, fixes the
+customer support. Four customers each bring one leadership question, and each lab
+answers one: the participant sees the starter fail it in the terminal, fixes the
 marked region, proves the fix with one command, and only then looks at it in
 the app.
 
@@ -12,12 +12,12 @@ The source contract is `workshop/story-arc.json`. Workshop Studio owns the full
 exercises. In `story-arc.json`, `title` is the lab name and `storyTitle` the
 persona-led scenario; keep the technical titles as the headings.
 
-| Lab | Customer | Worry |
+| Lab | Customer | Leadership question |
 |---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
-| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
-| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica and Nadia | "No AI moves money on its own, and when money moves, we must prove what happened." |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Can we recommend what shoppers mean without breaking what they require?" |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | "Can we rely on the assistant's answers when we make promises to customers?" |
+| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "Once the agent runs on AgentCore, does every request carry the right identity and access?" |
+| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica and Nadia | "Can the assistant act within approved limits, with proof of exactly what changed?" |
 
 ## Every task: fail in the terminal, fix the region, prove it, then look
 

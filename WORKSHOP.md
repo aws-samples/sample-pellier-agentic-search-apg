@@ -12,15 +12,15 @@ plan. The schedule is a target until a timed fresh-account rehearsal confirms it
 ## The outcome
 
 Participants make a retail assistant answer from data, act under the right
-identity, and prove what happened. Four customers each bring one worry a
-store's leadership would have, and each lab answers one:
+identity, and prove what happened. Four customers each bring one question a
+store's leadership would ask, and each lab answers one:
 
-| Lab | Customer | Worry |
+| Lab | Customer | Leadership question |
 |---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Shoppers describe what they want, and our search only matches words." |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | "If the assistant guesses stock, we'll promise things we can't ship." |
-| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "The assistant should remember our customers, but never let one see another's account." |
-| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Can we recommend what shoppers mean without breaking what they require?" |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | "Can we rely on the assistant's answers when we make promises to customers?" |
+| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "Once the agent runs on AgentCore, does every request carry the right identity and access?" |
+| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia (staff) | "Can the assistant act within approved limits, with proof of exactly what changed?" |
 
 Every task runs the same way: it fails in the terminal, the participant fixes
 the marked region, one command proves the fix, and then they look at it in the

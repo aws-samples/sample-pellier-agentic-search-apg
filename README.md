@@ -14,14 +14,14 @@ Pellier is a small retail store, invented for this workshop. Its assistant, Ask 
 
 ## The four labs
 
-Each lab follows one customer and answers one worry a store's leadership would have. You edit a few marked regions of code, then check the result against Aurora, the deployed services and the app.
+Each lab follows one customer and answers one question a store's leadership would ask. You edit a few marked regions of code, then check the result against Aurora, the deployed services and the app.
 
-| Lab | Customer | Leadership worry | What you build | What proves it |
+| Lab | Customer | Leadership question | What you build | What proves it |
 |---|---|---|---|---|
-| 1. Retrieve | Anna | "Shoppers describe what they want, and our search only matches words." | The vector branch that ranks her eligible products by meaning, and a search fallback that keeps her budget, stock and exclusions | A product searched with its own embedding comes back first, the candle stays out under her limits, and every product returned meets her limits in Aurora |
-| 2. Ground | Marco | "If the assistant guesses stock, we'll promise things we can't ship." | The `check_stock` tool body and the Stock agent's tool grant | The agent's counts match the warehouse rows in Aurora, and a piece Pellier does not carry is "not found", never zero |
-| 3. Deploy | Theo | "The assistant should remember our customers, but never let one see another's account." | Publish `get_tickets` on AgentCore Gateway, bind it to the signed-in caller, deploy to AgentCore Runtime, and the row-ownership predicate for customer rows | His own tickets come back and another customer's do not, a new session recalls his taste from AgentCore Memory, the audit rows name the build that ran, and another customer's rows return nothing |
-| 4. Govern | Jessica, with Nadia (staff) | "No AI moves money on its own, and when money moves, we must prove what happened." | A Cedar rule that caps a staff store credit at $100, and the money role's privileges, so it writes only through the credit function | Nadia's approved credit of up to $100 is allowed and recorded once, even on retry; $100.01 is denied and leaves no audit or credit row; the money role cannot insert or change a credit directly |
+| 1. Retrieve | Anna | "Can we recommend what shoppers mean without breaking what they require?" | The vector branch that ranks her eligible products by meaning, and a search fallback that keeps her budget, stock and exclusions | A product searched with its own embedding comes back first, the candle stays out under her limits, and every product returned meets her limits in Aurora |
+| 2. Ground | Marco | "Can we rely on the assistant's answers when we make promises to customers?" | The `check_stock` tool body and the Stock agent's tool grant | The agent's counts match the warehouse rows in Aurora, and a piece Pellier does not carry is "not found", never zero |
+| 3. Deploy | Theo | "Once the agent runs on AgentCore, does every request carry the right identity and access?" | Publish `get_tickets` on AgentCore Gateway, bind it to the signed-in caller, deploy to AgentCore Runtime, and the row-ownership predicate for customer rows | His own tickets come back and another customer's do not, a new session recalls his taste from AgentCore Memory, the audit rows name the build that ran, and another customer's rows return nothing |
+| 4. Govern | Jessica, with Nadia (staff) | "Can the assistant act within approved limits, with proof of exactly what changed?" | A Cedar rule that caps a staff store credit at $100, and the money role's privileges, so it writes only through the credit function | Nadia's approved credit of up to $100 is allowed and recorded once, even on retry; $100.01 is denied and leaves no audit or credit row; the money role cannot insert or change a credit directly |
 
 ## Architecture
 
