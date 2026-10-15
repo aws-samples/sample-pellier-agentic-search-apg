@@ -260,6 +260,27 @@ class TestTheManagedVerdict:
         assert "cannot tell your rule from the shipped one still propagating" in evidence
         assert "Jessica's $100.00 credit" in evidence
 
+    def test_the_gateway_words_print_whole_and_a_guardrail_field_is_explained(self) -> None:
+        """2026-10-14: the verbatim line stopped at 160 characters on "contex" and named the
+        output guardrail's field, which reads like the reason for the denial."""
+        words = ("Tool Execution Denied: Tool call not allowed due to policy enforcement "
+                 "[Authorization denied: request missing field(s) required for guardrail "
+                 "evaluation: context.output.text.]")
+        finding = _judge(payload={**DENY_PAYLOAD, "error": words})
+        assert finding.state == check.PROVED
+        assert any(line.endswith("context.output.text.]") for line in finding.evidence)
+        explained = [line for line in finding.evidence if "output guardrail" in line]
+        assert explained and "workshop_credit_limit" in explained[0]
+
+    def test_the_explained_field_is_the_one_the_guardrail_reads(self) -> None:
+        import importlib.util
+
+        path = Path(lab4.__file__).parent / "deploy" / "output_guardrail.py"
+        spec = importlib.util.spec_from_file_location("output_guardrail", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        assert lab4.OUTPUT_GUARDRAIL_FIELD == module.OUTPUT_PATH
+
     def test_a_deployed_rule_that_is_not_the_file_is_not_yet(self) -> None:
         finding = _judge(deployed=lab4.render_rule(STARTER))
         assert finding.state == check.NOT_YET

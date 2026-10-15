@@ -76,6 +76,8 @@ STARTER_FILE = REPO / CREDIT_LIMIT_STARTER
 LOCAL_GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/pellier-local-check"
 ALLOW, DENY = "ALLOW", "DENY"
 LIMIT_CENTS, PROBE_CENTS = 10000, 10001
+# Read by the credit tool's managed output guardrail; a denied call has no output.
+OUTPUT_GUARDRAIL_FIELD = "context.output.text"
 
 # The isolated over-limit review Part 2 sends. It names Jessica's account but
 # covers no order, so even a wrongly allowed call could pay nothing, and it is
@@ -794,15 +796,22 @@ def judge_managed(*, deployed: Optional[str], local_rule: str, local_proved: boo
         return _managed_finding(check.UNCHECKED, "the over-limit call could not be made",
                                 evidence + ([failure] if failure else []),
                                 "run this again on the workshop box; the reason is above.")
+    # The Gateway's words, whole: cut short they stopped mid-field.
+    words = str(payload.get("error") or payload.get("result") or "")[:600]
     evidence += [
         f"review {review['id']} for {PROBE_CUSTOMER}, {PROBE_CENTS} cents, covers no order, "
         "opened and confirmed by the Lab 4 policy check (probe data)",
         f"idempotency key {review['idempotency_key']}",
-        "Gateway diagnostic, verbatim: "
-        f"{str(payload.get('error') or payload.get('result') or '')[:160]}",
-        f"tool_audit rows {rows['audit_rows']}, store_credits rows {rows['credit_rows']} "
-        "for that key",
+        f"Gateway diagnostic, verbatim: {words}",
     ]
+    if OUTPUT_GUARDRAIL_FIELD in words:
+        forbids = ", ".join(engine.get("matching") or []) or "unread"
+        evidence.append(f"{OUTPUT_GUARDRAIL_FIELD} is read by the credit tool's output guardrail "
+                        "(scripts/deploy/output_guardrail.py); a call denied before it runs has "
+                        "no output, so AgentCore names that field. The forbid naming this action "
+                        f"just before the call: {forbids}")
+    evidence.append(f"tool_audit rows {rows['audit_rows']}, store_credits rows "
+                    f"{rows['credit_rows']} for that key")
     return _call_outcome(payload, rows, evidence)
 
 
