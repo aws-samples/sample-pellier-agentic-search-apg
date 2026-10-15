@@ -72,7 +72,7 @@ def test_lab_1s_go_deeper_worksheet_sorts_after_its_tasks():
 def test_deployment_bookkeeping_stays_out_of_the_explorer():
     """Provisioning writes these beside the source; scripts read them, participants do not."""
     excludes = json.loads((ROOT / "Pellier.code-workspace").read_text())["settings"]["files.exclude"]
-    for name in (".provision.env", ".workshop-ref.json", "package.zip"):
+    for name in ("**/.provision.env", ".workshop-ref.json", "package.zip"):
         assert excludes.get(name) is True, f"{name} should be hidden from the Explorer"
 
 def test_editing_numbered_file_edits_the_live_source_and_rerun_preserves_it(repo):
