@@ -202,6 +202,37 @@ def test_token_helper_names_the_token_without_printing_it(tmp_path: Path) -> Non
     assert "$PELLIER_TOKEN minted for theo" in shown
 
 
+def test_the_participants_agentcore_function_runs_in_their_own_shell(tmp_path: Path) -> None:
+    """The .bashrc block runs in the participant's shell, where bootstrap's helpers do not exist."""
+    bootstrap = BOOTSTRAP.read_text(encoding="utf-8")
+    start = bootstrap.index("printf '%s\\n' \"$BASHRC_BEGIN\"\ncat << 'EOF'\n") + len(
+        "printf '%s\\n' \"$BASHRC_BEGIN\"\ncat << 'EOF'\n")
+    block = bootstrap[start:bootstrap.index("\nEOF\n", start)]
+    (tmp_path / "bashrc").write_text(block, encoding="utf-8")
+    repo = tmp_path / "repo"
+    (repo / "scripts" / "deploy").mkdir(parents=True)
+    (repo / "scripts" / "deploy" / "resolve_agentcore_identity.py").write_text(
+        f"print({str(tmp_path)!r})\n", encoding="utf-8")
+    stubs = tmp_path / "bin"
+    stubs.mkdir()
+    for name, body in (("python3.14", f'exec {sys.executable} "$@"'), ("npx", 'echo "npx $*"')):
+        (stubs / name).write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
+        (stubs / name).chmod(0o755)
+    # Only what the block needs: macOS has a /usr/bin/log the workshop's Linux box does not.
+    (stubs / "cut").symlink_to(shutil.which("cut"))
+
+    done = subprocess.run(
+        [shutil.which("bash"), "--norc", "--noprofile", "-c",
+         f"source {tmp_path / 'bashrc'}; agentcore --version"],
+        capture_output=True, text=True, timeout=30,
+        env={"PATH": str(stubs), "HOME": str(tmp_path), "PELLIER_REPO": str(repo)},
+    )
+
+    assert "command not found" not in done.stderr, done.stderr
+    assert "AgentCore CLI: pinned" in done.stderr
+    assert done.stdout.strip() == "npx -y @aws/agentcore@0.29.0 --version"
+
+
 def test_cloudformation_waits_for_stage2_readiness_not_only_the_editor() -> None:
     """A box is not ready until the app, managed rail, and receipt gate pass."""
     source = ENVIRONMENT_BOOTSTRAP.read_text(encoding="utf-8")

@@ -822,7 +822,9 @@ agentcore() {
     resolution="$(_agentcore_resolve)"
     source="$(printf '%s' "$resolution" | cut -f1)"
     effective="$(printf '%s' "$resolution" | cut -f3-)"
-    log "AgentCore CLI: ${source} — ${effective}"
+    # stderr, so `agentcore ... --json` output stays parseable; the bootstrap's log()
+    # does not exist in the participant's shell.
+    printf 'AgentCore CLI: %s %s\n' "$source" "$effective" >&2
     (
       # Pellier uses this variable for an ARN; the CLI requires an endpoint alias.
       export AGENTCORE_RUNTIME_ENDPOINT=DEFAULT
