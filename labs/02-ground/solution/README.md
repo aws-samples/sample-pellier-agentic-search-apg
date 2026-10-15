@@ -14,7 +14,8 @@ python3 scripts/lab_run.py solution --lab 2 --task 2A   # or 2B
 ```
 
 Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
-requests and run every check, stopping at the first failure. It runs the 2B exercise, which commits the function.
+requests and run every check, stopping at the first failure. It runs the 2B exercise, which
+commits the function.
 
 ```bash
 python3 scripts/lab_run.py finish --lab 2

@@ -136,7 +136,7 @@ BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
     1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
     2: ("run the Task 2B exercise (psql -X -v ON_ERROR_STOP=1 -P pager=off -f "
-        "workshop/lab-2-check-stock.sql), restart the backend (sudo systemctl restart "
+        "labs/02-ground/2B-check-stock.sql), restart the backend (sudo systemctl restart "
         "pellier), then send the lab's requests."),
     3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",
     4: f"deploy the Cedar rule ({DEPLOY}), then send the lab's requests.",

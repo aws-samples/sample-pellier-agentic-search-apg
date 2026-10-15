@@ -15,7 +15,8 @@ python3 scripts/lab_run.py solution --lab 1 --task 1A   # or 1B
 ```
 
 Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
-requests and run every check, stopping at the first failure. It leaves the optional Go deeper exercise alone.
+requests and run every check, stopping at the first failure. It leaves the optional Go deeper
+exercise alone.
 
 ```bash
 python3 scripts/lab_run.py finish --lab 1
