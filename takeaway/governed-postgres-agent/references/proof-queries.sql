@@ -25,7 +25,7 @@ SELECT userid::regrole AS role, calls, rows, round(mean_exec_time::numeric, 2) A
 ROLLBACK;
 
 -- ---------------------------------------------------------------------------
--- Contract 1: filter before ranking
+-- Contract 1: filter, then rank
 -- ---------------------------------------------------------------------------
 
 -- 1a. Recompute a recorded fused ranking from its two ranks (RRF, k = 60).
@@ -99,7 +99,7 @@ SELECT count(*) FROM (SELECT 1 FROM catalog WHERE price <= 35 AND category <> 'c
 ROLLBACK;
 
 -- ---------------------------------------------------------------------------
--- Contract 2: return bounded facts
+-- Contract 2: bounded facts
 -- ---------------------------------------------------------------------------
 
 -- 2a. The agent's answer equals the rows. Compare the counts a tool returned
@@ -121,7 +121,7 @@ SELECT session_id, args->>'agent' AS agent, args->'grant' AS tools_granted
   FROM tool_audit WHERE args->>'agent' = 'stock' ORDER BY audit_id DESC LIMIT 5;
 
 -- ---------------------------------------------------------------------------
--- Contract 3: bind identity, enforce ownership
+-- Contract 3: ownership
 -- ---------------------------------------------------------------------------
 
 -- 3a. Preconditions for a denial to mean anything.
@@ -179,7 +179,7 @@ EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF, SUMMARY OFF)
 ROLLBACK;
 
 -- ---------------------------------------------------------------------------
--- Contract 4: approve and deduplicate writes
+-- Contract 4: write once
 -- ---------------------------------------------------------------------------
 
 -- 4a. The absence proof with its positive control. For the denied key both

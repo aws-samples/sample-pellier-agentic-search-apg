@@ -1,4 +1,4 @@
-# Contract 3: bind identity, enforce ownership
+# Contract 3: ownership
 
 The caller comes from the verified token. The server sets the customer on
 every scoped call. The database enforces ownership on its own.
@@ -71,7 +71,7 @@ result), writes fail loudly. An empty result therefore has two possible causes,
 out-of-scope rows or an unbound principal; log which.
 
 Preconditions, or a denial proves nothing (Pellier checks these in the lab
-worksheet before trusting a result):
+exercise before trusting a result):
 
 - the agent role has no `BYPASSRLS` and is not superuser;
 - the agent role does not own the tables, or `FORCE ROW LEVEL SECURITY` is on;

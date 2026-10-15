@@ -1,4 +1,4 @@
-# Contract 4: approve and deduplicate writes
+# Contract 4: write once
 
 No agent writes money, inventory or commitments on its own. A person approves
 the exact terms; a policy caps the amount before the tool runs; a unique key

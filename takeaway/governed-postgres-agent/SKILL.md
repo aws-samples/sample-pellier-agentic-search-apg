@@ -1,6 +1,6 @@
 ---
 name: governed-postgres-agent
-description: How a DBA reviews an agent. The review a database engineer brings to an application team's AI agent pull request when the agent reads or writes PostgreSQL (Aurora or RDS) - four contracts (filter before ranking, return bounded facts, bind identity and enforce ownership, approve and deduplicate writes), the questions to ask, the template from the source, and one proof query per claim. Use when reviewing an agent's tools, retrieval or write path, when an agent gets a database role, or when asking "what would prove this agent did the right thing?"
+description: How a DBA reviews an agent. The review a database engineer brings to an application team's AI agent pull request when the agent reads or writes PostgreSQL (Aurora or RDS) - four contracts (filter, then rank; bounded facts; ownership; write once), the questions to ask, the template from the source, and one proof query per claim. Use when reviewing an agent's tools, retrieval or write path, when an agent gets a database role, or when asking "what would prove this agent did the right thing?"
 ---
 
 # How a DBA reviews an agent
@@ -53,7 +53,7 @@ When the team asks how to build it rather than how you will review it, point
 them to the matching reference file and its template. Keep their schema's
 names; the pattern is what transfers, not Pellier's tables.
 
-## Contract 1: filter before ranking
+## Contract 1: filter, then rank
 
 Hard constraints (budget, availability, exclusions, tenant, date range) are SQL
 predicates applied to every candidate list *before* `LIMIT`. Similarity and
@@ -84,7 +84,7 @@ Look for:
 
 Template: `references/01-filter-before-ranking.md`. Prove it: queries 1a to 1c.
 
-## Contract 2: return bounded facts
+## Contract 2: bounded facts
 
 Each tool answers one bounded question with one query, and returns the
 database's answer unchanged. Distinct states stay distinct: not found, zero,
@@ -117,7 +117,7 @@ Look for:
 
 Template: `references/02-bounded-facts.md`. Prove it: queries 2a and 2b.
 
-## Contract 3: bind identity, enforce ownership
+## Contract 3: ownership
 
 The caller comes from the verified token, never from the conversation. The
 server sets the customer or tenant on every scoped call before it leaves the
@@ -165,7 +165,7 @@ InitPlan, a One-Time Filter compares it, and the table scan reads `(never
 executed)`. On PostgreSQL 18 the buffers print by default, so the plan shows
 that no page of the table was touched.
 
-## Contract 4: approve and deduplicate writes
+## Contract 4: write once
 
 No agent writes money, inventory or commitments on its own. A person approves
 the exact terms; the approval row is the thing the write references. A policy
@@ -237,7 +237,7 @@ the gateway is something else.
 ```
 | Contract | Status | Evidence | Smallest change |
 |---|---|---|---|
-| 1 Filter before ranking | partly | vector branch carries price predicate; FTS branch does not (search.py:88) | add the same WHERE to fts_branch_sql |
+| 1 Filter, then rank | partly | vector branch carries price predicate; FTS branch does not (search.py:88) | add the same WHERE to fts_branch_sql |
 | 2 Bounded facts | holds | check_stock returns not_found / ambiguous / success (store_tools.py:370) | none |
 | 3 Bind identity | missing | customer_id taken from model arguments (agent_tools.py:52) | overwrite from token in the binding step; add RLS policy |
 | 4 Approve + dedupe | partly | unique key present; no approval row required | require approval row in the write function |

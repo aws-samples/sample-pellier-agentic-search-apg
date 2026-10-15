@@ -1,4 +1,4 @@
-# Contract 2: return bounded facts
+# Contract 2: bounded facts
 
 A tool answers one bounded question with one query and returns the database's
 answer unchanged. The agent repeats what the tool returned. It holds only the

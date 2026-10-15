@@ -118,7 +118,7 @@ To deploy the managed path to your own account, `scripts/provision_agentcore_end
 
 ## Take it home
 
-`takeaway/governed-postgres-agent` packages the four contracts the labs build (filter before ranking, bounded facts, bind identity and enforce ownership, approve and deduplicate writes) as an Agent Skill for how a DBA reviews an agent: the questions to ask an application team, a checklist for each contract, templates lifted from this source, and the SQL that proves each one holds. To use it in Claude Code on any project:
+`takeaway/governed-postgres-agent` packages the four contracts the labs build (filter, then rank; bounded facts; ownership; write once) as an Agent Skill for how a DBA reviews an agent: the questions to ask an application team, a checklist for each contract, templates lifted from this source, and the SQL that proves each one holds. To use it in Claude Code on any project:
 
 ```bash
 mkdir -p ~/.claude/skills
@@ -136,7 +136,7 @@ Then run `/governed-postgres-agent review <path>` on your team's agent code. Its
 | `skills/` | Five runtime skills: instructions the agents load, not code |
 | `policies/` | The Cedar policy you complete in Lab 4 |
 | `labs/` | The Code Editor lab groups: each lab's README, links to its two exercise files, and a solution folder |
-| `workshop/` | Lab SQL worksheets and a copy of each marked region as shipped |
+| `workshop/` | Lab SQL exercises and queries, and a copy of each marked region as shipped |
 | `solutions/` | Reference solutions for the lab tasks |
 | `takeaway/` | `governed-postgres-agent`, how a DBA reviews an agent: the four contracts as an Agent Skill |
 | `scripts/` | Database setup and migrations, catalog seeding, AgentCore deployment and lab checks |

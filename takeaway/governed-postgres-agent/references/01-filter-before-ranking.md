@@ -1,4 +1,4 @@
-# Contract 1: filter before ranking
+# Contract 1: filter, then rank
 
 Hard constraints are SQL predicates on every candidate branch, before `LIMIT`.
 Ranking orders eligible rows; it never decides eligibility.
