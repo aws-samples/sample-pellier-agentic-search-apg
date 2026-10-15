@@ -88,6 +88,7 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
             required.setdefault(prompt["persona"], []).append(prompt["prompt"])
     assert required == {
         "anna": [
+            "A housewarming gift for a friend who loves slow mornings.",
             "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
             "and no candles.",
         ],

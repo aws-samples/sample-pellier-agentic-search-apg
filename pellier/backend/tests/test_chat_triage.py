@@ -180,6 +180,7 @@ def test_price_compare_and_browse_stay_with_shopping(query):
 # sends a request to the wrong agent fails the lab silently (Anna's limits on
 # the Stock agent, or Marco's cape on the Shopping agent).
 GUIDE_SENTENCES = (
+    ("A housewarming gift for a friend who loves slow mornings.", "shopping"),
     ("A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
      "and no candles.", "shopping"),
     ("A gift with a watch, under $100, in stock, no candles.", "shopping"),

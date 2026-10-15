@@ -14,9 +14,9 @@ const EXPECTED = {
     'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
   ],
   anna: [
+    'A housewarming gift for a friend who loves slow mornings.',
     'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
     'A gift with a watch, under $100, in stock, no candles.',
-    'Wrap-ready gifts with no extra effort',
   ],
   theo: [
     "Pick one piece you think I'd love.",
@@ -58,6 +58,7 @@ describe('four-lab workshop journey contract', () => {
           'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
         ],
         anna: [
+          'A housewarming gift for a friend who loves slow mornings.',
           'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
         ],
         theo: [
@@ -77,8 +78,9 @@ describe('four-lab workshop journey contract', () => {
       expect(nextJourneyPrompt('Is the Velvet Opera Cape in stock?')).toBe(WORKSHOP_JOURNEYS.marco.prompts[2])
       expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[2])).toBeUndefined()
       expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.marco.prompts[0])).toBeUndefined()
-      // Anna's lab sends one request, twice; her watch challenge is optional and typed.
-      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBeUndefined()
+      // Anna's first sentence, then the same with her limits; her watch challenge is typed.
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[0])).toBe(WORKSHOP_JOURNEYS.anna.prompts[1])
+      expect(nextJourneyPrompt(WORKSHOP_JOURNEYS.anna.prompts[1])).toBeUndefined()
     })
 
     it('ends each required chat sequence at the guide’s stopping point', () => {

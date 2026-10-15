@@ -96,11 +96,12 @@ def test_a_department_the_answer_widened_is_dropped() -> None:
     assert lab1.product_breaks(away, requested) == ["in Bath and body"]
 
 
-def test_the_guides_request_is_annas_first_suggestion() -> None:
+def test_the_guides_1b_request_is_annas_first_sentence_with_her_limits() -> None:
     prompts = json.loads((REPO / "data" / "scenarios.json").read_text(encoding="utf-8"))
     anna = sorted((p for p in prompts if p["persona"] == "anna"), key=lambda p: p["ordinal"])
-    assert anna[0]["prompt"] == lab1.ANNA_REQUEST
-    assert anna[0]["journey_role"] == "required"
+    assert anna[1]["prompt"] == lab1.ANNA_REQUEST
+    assert lab1.ANNA_REQUEST.startswith(anna[0]["prompt"])
+    assert [p["journey_role"] for p in anna[:2]] == ["required", "required"]
 
 
 # --- A search older than the edit or the restart is never judged ---------------------------
@@ -156,7 +157,7 @@ def test_a_search_older_than_the_edit_is_not_judged() -> None:
                                 "change to search_plan.py at 14:46:10 UTC, so the code before "
                                 "your edit made it")
     assert finding.next_step == ("send Anna's request again (python3 scripts/lab_run.py send "
-                                 "--lab 1), then rerun this check.")
+                                 "--lab 1 --task 1B), then rerun this check.")
     assert "pellier last started: 14:46:19 UTC" in finding.evidence
     assert rows == [] and conn.queries == 1, "the stale search's products are not judged"
 

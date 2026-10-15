@@ -7,6 +7,10 @@ restart or deployment and its checks:
     python3 scripts/lab_run.py solution --lab 1
     python3 scripts/lab_run.py send --lab 1
 
+Lab 1's two tasks each open with one of Anna's requests, so ``--task`` sends just that one:
+
+    python3 scripts/lab_run.py send --lab 1 --task 1A
+
 ``reset`` puts one lab back to its as-shipped start, leaving the other labs alone: its
 files, its database piece, its AgentCore state and the backend. It records a reset point so
 the lab's checks ignore turns from before it (scripts/lab_reset.py has the detail):
@@ -72,10 +76,17 @@ LAB_RAIL = {1: IN_PROCESS, 2: IN_PROCESS, 3: MANAGED, 4: MANAGED}
 # required requests they send. Theo's ticket and household requests share one
 # conversation because the second refers to the first.
 CONVERSATIONS = {
-    1: [("anna", ("establish",))],
+    1: [("anna", ("establish",)), ("anna", ("exercise",))],
     2: [("marco", ("exercise", "prove"))],
     3: [("theo", ("establish",)), ("theo", ("exercise", "prove"))],
     4: [("jessica", ("establish",))],
+}
+# Lab 1's tasks each open with one of Anna's requests: 1A her first sentence, which shows
+# what the search ranks by meaning, and 1B the same sentence with her limits, which needs
+# the fallback. ``send --lab 1`` sends both in that order, so her newest turn is 1B's.
+TASK_CONVERSATIONS = {
+    "1A": [("anna", ("establish",))],
+    "1B": [("anna", ("exercise",))],
 }
 DEPLOY = 'python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
 NEXT_AFTER_SOLUTION = {
@@ -524,12 +535,12 @@ def mint_token(username: str) -> str:
 
 
 def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
-         shopper_only: bool = False, trace: bool = True) -> None:
-    """Make the lab's requests on the lab's path, and for Lab 4 do Nadia's part unless
-    ``shopper_only``."""
+         shopper_only: bool = False, trace: bool = True, task: Optional[str] = None) -> None:
+    """Make the lab's requests on the lab's path, or one task's with ``task``, and for Lab 4
+    do Nadia's part unless ``shopper_only``."""
     wait_until_healthy(backend)
     tokens: Dict[str, str] = {}
-    for persona, stages in CONVERSATIONS[lab]:
+    for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
         if persona not in tokens:
             tokens[persona] = token_for(persona)
         converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
@@ -550,7 +561,11 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                         help="send: stop before Nadia's part in the Operator (Lab 4)")
     parser.add_argument("--quiet", action="store_true",
                         help="send: one line per request, without each turn's trace")
+    parser.add_argument("--task", choices=sorted(TASK_CONVERSATIONS),
+                        help="send: only that task's request (Lab 1)")
     args = parser.parse_args(argv)
+    if args.task and (args.action != "send" or not args.task.startswith(str(args.lab))):
+        parser.error(f"--task {args.task} goes with send --lab {args.task[0]}")
     titles = {"solution": "install the solution", "send": "send the requests",
               "diff": "compare your files with the solution",
               "reset": "start over from the as-shipped lab"}
@@ -565,7 +580,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                 Backend(base_url)))
         else:
             send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only,
-                 trace=not args.quiet)
+                 trace=not args.quiet, task=args.task)
     except (LabRunError, lab_reset.LabResetError, SystemExit) as exc:
         fail(str(exc))
         return 1

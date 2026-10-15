@@ -40,7 +40,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import workshop_check as check  # noqa: E402  (sibling module)
 
 ANNA_SESSION_PREFIX = "persona-anna-"
-SEND = "python3 scripts/lab_run.py send --lab 1"
+SEND = "python3 scripts/lab_run.py send --lab 1 --task 1B"
 # The guide's request, the one Anna's first suggestion sends: three limits the
 # first search cannot fill, so the fallback has to run.
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "

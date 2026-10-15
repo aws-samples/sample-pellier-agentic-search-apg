@@ -153,13 +153,15 @@ def test_every_lab_conversation_resolves_to_seeded_required_requests() -> None:
             assert len(requests) == len(stages) and all(requests), (lab, persona)
 
 
-def test_annas_request_is_the_one_the_lab_1_check_asks_for() -> None:
-    assert lab_run.required_requests("anna", ("establish",)) == [lab1_retry.ANNA_REQUEST]
+def test_annas_requests_are_her_sentence_then_the_one_the_lab_1b_check_asks_for() -> None:
+    first, full = lab_run.required_requests("anna", ("establish", "exercise"))
+    assert full == lab1_retry.ANNA_REQUEST
+    assert full.startswith(first) and len(full) > len(first)
 
 
 def test_an_unknown_stage_names_what_is_missing() -> None:
     with pytest.raises(lab_run.LabRunError, match="no required anna request for encore"):
-        lab_run.required_requests("anna", ("establish", "encore"))
+        lab_run.required_requests("anna", ("exercise", "encore"))
 
 
 # ---------------------------------------------------------------------------
@@ -295,13 +297,36 @@ def test_sse_events_refuses_data_that_is_not_json() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_lab_1_sends_annas_request_signed_in_on_her_persona_session(fake: FakeBackend) -> None:
+def test_lab_1_sends_annas_two_requests_each_in_a_new_persona_session(fake: FakeBackend) -> None:
     assert _run(fake, 1) == 0
+    first, full = _turns(fake)
+    for turn in (first, full):
+        assert turn["auth"] == "Bearer token-anna"
+        assert turn["body"]["session_id"].startswith("persona-anna-")
+        assert turn["body"]["customer_id"] == "CUST-ANNA"
+    assert first["body"]["session_id"] != full["body"]["session_id"]
+    assert full["body"]["message"] == lab1_retry.ANNA_REQUEST
+    assert first["body"]["message"] == "A housewarming gift for a friend who loves slow mornings."
+
+
+@pytest.mark.parametrize("task,message", [
+    ("1A", "A housewarming gift for a friend who loves slow mornings."),
+    ("1B", lab1_retry.ANNA_REQUEST),
+])
+def test_a_lab_1_task_sends_only_its_own_request(fake: FakeBackend, task: str,
+                                                  message: str) -> None:
+    assert _run(fake, 1, None, "--task", task) == 0
     (turn,) = _turns(fake)
-    assert turn["auth"] == "Bearer token-anna"
-    assert turn["body"]["session_id"].startswith("persona-anna-")
-    assert turn["body"]["customer_id"] == "CUST-ANNA"
-    assert turn["body"]["message"] == lab1_retry.ANNA_REQUEST
+    assert turn["body"]["message"] == message
+
+
+def test_a_task_from_another_lab_is_refused_before_anything_is_sent(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit):
+        _run(fake, 2, None, "--task", "1A")
+    assert "--task 1A goes with send --lab 1" in capsys.readouterr().err
+    assert _turns(fake) == []
 
 
 def test_lab_2_sends_marcos_two_requests_in_one_conversation(fake: FakeBackend) -> None:
@@ -495,7 +520,7 @@ def test_send_prints_each_turns_trace_as_it_streams(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
     fake.steps = STEPS
-    assert _run(fake, 1) == 0
+    assert _run(fake, 1, None, "--task", "1B") == 0
     out = capsys.readouterr().out
     lines = out.splitlines()
 

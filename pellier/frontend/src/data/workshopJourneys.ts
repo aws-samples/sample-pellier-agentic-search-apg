@@ -43,9 +43,9 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
     labId: 'retrieval-acceptance',
     surface: 'storefront',
     prompts: [
+      'A housewarming gift for a friend who loves slow mornings.',
       'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
       'A gift with a watch, under $100, in stock, no candles.',
-      'Wrap-ready gifts with no extra effort',
     ],
   },
   theo: {
@@ -87,7 +87,7 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
  */
 export const WORKSHOP_REQUIRED_PROMPTS: Record<WorkshopAnchorId, readonly string[]> = {
   marco: ['Is the Velvet Opera Cape in stock?', WORKSHOP_JOURNEYS.marco.prompts[2]],
-  anna: [WORKSHOP_JOURNEYS.anna.prompts[0]],
+  anna: [WORKSHOP_JOURNEYS.anna.prompts[0], WORKSHOP_JOURNEYS.anna.prompts[1]],
   theo: [
     WORKSHOP_JOURNEYS.theo.prompts[0],
     'My Wabi-Sabi Bowl arrived chipped. What is happening with my ticket?',
