@@ -655,3 +655,45 @@ def test_append_session_turns_reports_agentcore_when_the_sdk_write_lands(
     assert backend == mem_module.BACKEND_AGENTCORE
     assert len(manager.session.messages) == 1
     assert mem_module._SESSION_STORE == {}
+
+
+def test_a_slow_memory_call_never_blocks_the_event_loop() -> None:
+    """The SDK client is synchronous; the backend runs one event loop for every
+    request, so a slow Memory call SHALL run off the loop. On 2026-10-14 one
+    preference read took about 13 s on the loop and stalled every other request.
+    """
+    import time
+
+    class _SlowSession:
+        def add_turns(self, **kwargs):
+            time.sleep(0.3)
+
+    class _SlowManager:
+        def list_long_term_memory_records(self, **kwargs):
+            time.sleep(0.3)
+            return []
+
+        def create_memory_session(self, **kwargs):
+            return _SlowSession()
+
+    mem = AgentCoreMemory(memory_id="mem-test")
+    mem._sdk_manager = _SlowManager()
+
+    async def ticks_during(call: Any) -> int:
+        ticks = 0
+
+        async def ticker() -> None:
+            nonlocal ticks
+            while True:
+                await asyncio.sleep(0.02)
+                ticks += 1
+
+        task = asyncio.create_task(ticker())
+        await asyncio.sleep(0)
+        await call
+        task.cancel()
+        return ticks
+
+    assert _run(ticks_during(mem.get_user_preferences("user-1"))) >= 5
+    assert _run(ticks_during(mem.get_semantic_memories("CUST-THEO"))) >= 5
+    assert _run(ticks_during(mem.set_user_preferences("user-1", Preferences()))) >= 5

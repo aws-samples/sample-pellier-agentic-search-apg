@@ -47,6 +47,7 @@ because ``app.py`` imports them directly for older memory demo endpoints.
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -370,11 +371,13 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
-                session = mgr.create_memory_session(
+                session = await asyncio.to_thread(
+                    mgr.create_memory_session,
                     actor_id=actor_id,
                     session_id=session_id,
                 )
-                session.add_turns(
+                await asyncio.to_thread(
+                    session.add_turns,
                     messages=[self._to_conversational(turn) for turn in turns]
                 )
                 return BACKEND_AGENTCORE
@@ -418,11 +421,13 @@ class AgentCoreMemory:
                 # actor_id so anon-{sid} and user-{uid}-session-{sid}
                 # land in separate AgentCore actors and Req 4.3.3 holds
                 # end-to-end.
-                session = mgr.create_memory_session(
+                session = await asyncio.to_thread(
+                    mgr.create_memory_session,
                     actor_id=session_ns,
                     session_id=session_ns,
                 )
-                session.add_turns(
+                await asyncio.to_thread(
+                    session.add_turns,
                     messages=[self._to_conversational(turn) for turn in turns]
                 )
                 return BACKEND_AGENTCORE
@@ -489,7 +494,8 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
-                session = mgr.create_memory_session(
+                session = await asyncio.to_thread(
+                    mgr.create_memory_session,
                     actor_id=actor_id,
                     session_id=session_id,
                 )
@@ -508,7 +514,8 @@ class AgentCoreMemory:
                 # and the frontend expect a chronological timeline, so
                 # reverse after flattening. The in-memory fallback below
                 # already stores in insertion (chronological) order.
-                flat = self._normalize_sdk_turns(session.get_last_k_turns(k=100))
+                recent = await asyncio.to_thread(session.get_last_k_turns, k=100)
+                flat = self._normalize_sdk_turns(recent)
                 flat.reverse()
                 return flat, BACKEND_AGENTCORE
             except Exception as exc:  # pragma: no cover - SDK error path
@@ -609,7 +616,8 @@ class AgentCoreMemory:
                 # Long-term records are created by Pellier's USER_PREFERENCE
                 # strategy. Typed onboarding and extracted semantic preferences
                 # remain separate contracts and namespaces.
-                records = mgr.list_long_term_memory_records(
+                records = await asyncio.to_thread(
+                    mgr.list_long_term_memory_records,
                     namespace_prefix=key,
                     max_results=1,
                 )
@@ -663,7 +671,8 @@ class AgentCoreMemory:
         if mgr is not None:
             try:
                 import json as _json
-                session = mgr.create_memory_session(
+                session = await asyncio.to_thread(
+                    mgr.create_memory_session,
                     actor_id=user_id,
                     session_id="preferences",
                 )
@@ -671,7 +680,8 @@ class AgentCoreMemory:
                 # Serialize the prefs payload to JSON text so get_user_preferences
                 # can json.loads(content.text) symmetrically. Role "system" maps
                 # to MessageRole.OTHER.
-                session.add_turns(
+                await asyncio.to_thread(
+                    session.add_turns,
                     messages=[self._to_conversational(
                         {"role": "system", "content": _json.dumps(payload)}
                     )]
@@ -737,7 +747,8 @@ class AgentCoreMemory:
         namespace = f"/pellier/preferences/{customer_id}/"
         try:
             # 1.6.3 param is ``namespace_prefix`` (NOT ``namespace``).
-            records = mgr.list_long_term_memory_records(
+            records = await asyncio.to_thread(
+                mgr.list_long_term_memory_records,
                 namespace_prefix=namespace,
                 max_results=20,
             )
