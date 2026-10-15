@@ -143,10 +143,10 @@ Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the exercise to an
 unpackaged file or infer deployed completion from source inspection.
 
-The schedule is 15 minutes for the opening talk and 10 for the Introduction and
+The schedule is 20 minutes for the opening talk and 10 for the Introduction and
 Getting started. Participant guides then start their hands-on clock with Labs
-1-4 at 15/15/25/25 minutes (80), and the Wrap-up takes 5: 110 of the 120-minute
-slot, with recovery taking its five minutes from the remaining ten. Reading,
+1-4 at 15/15/25/25 minutes (80), five minutes are held for recovery, and the
+Wrap-up takes the last 5: all 120 minutes of the slot. Reading,
 deployment waits, and explanation share those allocations. These are targets
 pending a timed fresh-account rehearsal.
 

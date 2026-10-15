@@ -123,9 +123,8 @@ starter is never proved.
 
 ## Timing
 
-The schedule is 15 minutes for the opening talk, 10 for the Introduction and
-Getting started, then 15, 15, 25 and 25 minutes for Labs 1 to 4, and 5 for the
-Wrap-up: 110 of the 120-minute slot, with recovery taking its five minutes from
-the remaining ten. These are targets until a timed fresh-account rehearsal
+The schedule is 20 minutes for the opening talk, 10 for the Introduction and
+Getting started, then 15, 15, 25 and 25 minutes for Labs 1 to 4, five held for
+recovery, and 5 for the Wrap-up: all 120 minutes of the slot. These are targets until a timed fresh-account rehearsal
 confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
 each of those labs runs its worksheet task during its wait.

@@ -35,14 +35,14 @@ Times are elapsed minutes from the start of the session.
 
 | Workshop minutes | Activity | Duration |
 |---|---|---|
-| 0-15 | Opening talk | 15 minutes |
-| 15-25 | Introduction and Getting started | 10 minutes |
-| 25-40 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
-| 40-55 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
-| 55-80 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
-| 80-105 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 25 minutes |
-| 105-110 | Wrap-up: export the evidence | 5 minutes |
-| 110-120 | Unscheduled; recovery takes five of these minutes | 10 minutes |
+| 0-20 | Opening talk | 20 minutes |
+| 20-30 | Introduction and Getting started | 10 minutes |
+| 30-45 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
+| 45-60 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
+| 60-85 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
+| 85-110 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 25 minutes |
+| 110-115 | Held for recovery | 5 minutes |
+| 115-120 | Wrap-up: export the evidence | 5 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
 Lab 4's deploys are inside their budgets, and each of those labs runs its
