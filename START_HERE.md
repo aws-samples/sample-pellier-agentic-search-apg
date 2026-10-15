@@ -74,8 +74,10 @@ you ask. You run the checks yourself. The guide's coaching page has the two-minu
 
 ## At the end
 
-The guide's **Wrap-up** page hands you the four contracts you built as a skill for your own
-code, `governed-postgres-agent`, and exports your evidence:
+The guide's **Wrap-up** page rebuilds Jessica's credit from her request to the row with one
+read-only worksheet, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql`
+(`Wrap-up reconstruction passed`), hands you the four contracts as `governed-postgres-agent`, a
+skill for reviewing your own team's agents the way a DBA would, and exports your evidence:
 
 ```bash
 python3 scripts/workshop_evidence.py --save workshop-evidence.txt

@@ -2,6 +2,29 @@
 -- Each proves one claim from rows, not from logs or UI state.
 
 -- ---------------------------------------------------------------------------
+-- Start here: what did the agent do to the database?
+-- ---------------------------------------------------------------------------
+
+-- 0. The agent's workload by role, from pg_stat_statements (preloaded through
+--    shared_preload_libraries; CREATE EXTENSION pg_stat_statements once). A
+--    statement is recorded under the role in force when it ran, so a tool that
+--    switches with SET LOCAL ROLE shows up under that role. Each role sees its
+--    own statements' text, so read each role's while switched to it (the
+--    application login sees its own; pg_read_all_stats sees everyone's).
+--    Expect the agent's reads under app_agent, its writes under credit_writer,
+--    and nothing wide or unbounded under either.
+BEGIN;
+SET LOCAL ROLE app_agent;
+SELECT userid::regrole AS role, calls, rows, round(mean_exec_time::numeric, 2) AS mean_ms,
+       left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
+  FROM pg_stat_statements
+ WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+   AND userid = current_user::regrole
+ ORDER BY calls DESC
+ LIMIT 10;
+ROLLBACK;
+
+-- ---------------------------------------------------------------------------
 -- Contract 1: filter before ranking
 -- ---------------------------------------------------------------------------
 
@@ -198,3 +221,27 @@ EXCEPTION WHEN insufficient_privilege THEN
   RAISE NOTICE 'refused with %', SQLSTATE;   -- 42501
 END $$;
 ROLLBACK;
+
+-- 4g. Rebuild one write from the request to the row with joins alone. Each
+--     link names the next: the request names the review that answered it, the
+--     review's id and hash make the key, the key is on the audit row and the
+--     written row, and the written row's id is on the rows it changed. Expect
+--     one audit row and one credit for the key; a missing link is the finding.
+WITH credit AS (
+  SELECT * FROM store_credits WHERE customer_id = :'customer' ORDER BY credit_id DESC LIMIT 1
+), review AS (
+  SELECT a.*, 'operator-review:' || a.id || ':' || left(a.action_hash, 32) AS write_key
+    FROM approvals a JOIN credit c ON c.approval_id = a.id
+)
+SELECT q.source_turn_id                 AS asked_in_turn,
+       r.id                             AS review, r.decided_by_name AS approved_by,
+       r.write_key,
+       (SELECT count(*) FROM tool_audit t
+         WHERE t.tool = 'give_store_credit'
+           AND t.args->>'idempotency_key' = r.write_key) AS audit_rows,   -- expect 1
+       c.credit_id, c.amount_cents,
+       (SELECT array_agg(o.id ORDER BY o.id) FROM orders o
+         WHERE o.store_credit_id = c.credit_id)         AS orders_credited
+  FROM credit c
+  JOIN review r ON true
+  LEFT JOIN approvals q ON q.answered_by_review_id = r.id;

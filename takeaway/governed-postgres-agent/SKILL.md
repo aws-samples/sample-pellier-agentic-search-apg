@@ -1,57 +1,73 @@
 ---
 name: governed-postgres-agent
-description: Review or build an AI agent that reads and writes business data in PostgreSQL (Aurora or RDS) against four contracts - filter before ranking, return bounded facts, bind identity and enforce ownership, approve and deduplicate writes. Use when designing agent tools over a database, reviewing a retrieval or tool-calling path, adding an agent-initiated write, or asking "what would prove this agent did the right thing?"
+description: How a DBA reviews an agent. The review a database engineer brings to an application team's AI agent pull request when the agent reads or writes PostgreSQL (Aurora or RDS) - four contracts (filter before ranking, return bounded facts, bind identity and enforce ownership, approve and deduplicate writes), the questions to ask, the template from the source, and one proof query per claim. Use when reviewing an agent's tools, retrieval or write path, when an agent gets a database role, or when asking "what would prove this agent did the right thing?"
 ---
 
-# Governed PostgreSQL agent
+# How a DBA reviews an agent
 
-An agent that answers from a database and acts on it is only as trustworthy as
-the contract between the agent and the database. This skill encodes four such
-contracts, each with a review checklist, an implementation template and the
-query that proves it holds. They come from Pellier, the retail assistant built
-for the AWS re:Invent workshop *Build governed agentic AI search with Aurora,
-RDS, & Bedrock AgentCore*, and they hold on Aurora PostgreSQL and Amazon RDS
-for PostgreSQL alike.
+An agent is an application user that writes queries you did not review. Your
+instincts already apply: which role it connects as, which rows that role can
+see, which statements it can run, what a retry does, and what the audit trail
+shows afterwards. This skill turns those instincts into the review you bring to
+an agent pull request: four contracts, the questions to put to the team, the
+template each one should match, and the query that proves it holds.
 
-The principle behind all four: **the agent proposes, PostgreSQL decides, and
-the row is the proof.** A model's output is a proposal. SQL predicates,
-policies, constraints and keys decide what is eligible, who may read what, and
-what gets written. Evidence is a row you can query, never a chat transcript or
-a UI state.
+The contracts come from Pellier, the retail assistant built for the AWS
+re:Invent workshop *Build governed agentic AI search with Aurora, RDS, &
+Bedrock AgentCore* (DAT416), and they hold on Aurora PostgreSQL and Amazon RDS
+for PostgreSQL alike. The principle behind all four: **the agent proposes,
+PostgreSQL decides, and the row is the proof.** A model's output is a proposal.
+Predicates, policies, privileges, constraints and keys decide what happens, and
+evidence is a row you can query, never a chat transcript or a screen.
 
-## When to use this skill
+## The agent, in terms you already use
 
-- Designing or reviewing tools an agent calls against PostgreSQL.
-- Adding retrieval (full-text, vector, hybrid) that an agent will answer from.
-- Giving an agent a write path: refunds, credits, work orders, limit changes.
-- Deploying an agent behind a gateway where identity crosses a boundary.
-- Answering "how do we know the agent did the right thing?" with a query.
+| Agent term | What it is to the database |
+|---|---|
+| A tool | A function with a contract: one bounded query, a status for every outcome |
+| The agent's tool list | Its grant. A prompt can name a tool; only the list connects it |
+| Caller binding | `SET LOCAL ROLE` plus a session setting the server fills from the token |
+| A gateway policy (Cedar) | Authorization before the statement ever reaches you |
+| Row-level security | The last line, when the application's own SQL is wrong |
+| An idempotency key | A unique constraint that makes a retry find the first write |
+| The tool audit table | Application audit: what ran, with which arguments, how long it took |
+| Agent memory | Session state. It shapes an answer and authorizes nothing |
 
-## How to run a review
+## Before you read the diff
 
-1. **Map the paths.** Find the retrieval SQL, the tool functions the agent can
-   call, where identity enters (token, session, header) and where it reaches
-   the database, and every statement that writes. List them before judging.
-2. **Score each contract** with its checklist below: *holds*, *partly*, or
-   *missing*. Quote the line of code or SQL that makes it hold, or the gap.
-3. **Name the proof.** For every contract that holds, write the query that
-   would show it (see `references/proof-queries.sql`). If no query can show
-   it, it does not hold yet.
-4. **Report** as one table: contract, status, evidence, the smallest change
-   that closes the gap. Lead with the write path; it is where damage happens.
+1. **Map the paths.** List the role or roles the agent's sessions run as, each
+   tool and the SQL it runs, where identity enters (token, session, header) and
+   where it reaches the database, and every statement that writes.
+2. **Watch it run.** Ask for a test run, then read its workload by role from
+   `pg_stat_statements` (`references/proof-queries.sql`, query 0). An agent that
+   claims a narrow job but runs wide statements, or runs as the owner, shows up
+   here before it shows up in the code.
+3. **Review each contract below**: *holds*, *partly* or *missing*, quoting the
+   line of code or SQL that makes it hold, or the gap.
+4. **Ask for the proof.** For every contract that holds, the team should be able
+   to run its query. If no query can show it, it does not hold yet.
+5. **Report** one table: contract, status, evidence, the smallest change that
+   closes the gap. Lead with the write path; it is where the damage happens.
 
-When implementing rather than reviewing, read the matching reference file
-first and adapt its template. Keep the names of the person's own schema; the
-pattern is what transfers, not Pellier's tables.
+When the team asks how to build it rather than how you will review it, point
+them to the matching reference file and its template. Keep their schema's
+names; the pattern is what transfers, not Pellier's tables.
 
 ## Contract 1: filter before ranking
 
-Hard constraints (budget, availability, exclusions, tenant, date range) are
-SQL predicates applied to every candidate list *before* `LIMIT`. Similarity
-and ranking decide order among eligible rows; they never decide eligibility.
-A retry or a fallback may relax a preference; it may never drop a constraint.
+Hard constraints (budget, availability, exclusions, tenant, date range) are SQL
+predicates applied to every candidate list *before* `LIMIT`. Similarity and
+ranking decide order among eligible rows; they never decide eligibility. A retry
+or a fallback may relax a preference; it may never drop a constraint.
 
-Review checklist:
+Ask the team:
+
+- Where do the customer's limits live: in the `WHERE` clause of every branch, or
+  in code after the search returns?
+- When the strict search comes back sparse, what exactly does the retry change?
+- Can you recompute a result's fused score from what you recorded?
+
+Look for:
 
 - [ ] Every candidate branch (vector, full-text, keyword) carries the same
       hard predicates, inside the query, before its `LIMIT`.
@@ -66,46 +82,66 @@ Review checklist:
       `SET hnsw.iterative_scan = strict_order` keeps scanning until `LIMIT`
       is met, in distance order.
 
-Reference: `references/01-filter-before-ranking.md`.
+Template: `references/01-filter-before-ranking.md`. Prove it: queries 1a to 1c.
 
 ## Contract 2: return bounded facts
 
 Each tool answers one bounded question with one query, and returns the
 database's answer unchanged. Distinct states stay distinct: not found, zero,
-ambiguous and success are four different answers, never collapsed into one.
-An agent holds only the tools its job needs, so it cannot answer a question
-from the wrong source.
+ambiguous and success are four different answers, never collapsed into one. An
+agent holds only the tools its job needs, so it cannot answer a question from
+the wrong source.
 
-Review checklist:
+Ask the team:
+
+- What does the tool return when the row does not exist, and is that different
+  from what it returns for zero?
+- Which tools does this agent hold, and could any of them answer its question
+  from the wrong table?
+- How many rows can one call return, and who sets that limit?
+
+Look for:
 
 - [ ] The tool's result has an explicit `status` (`success`, `not_found`,
       `ambiguous`, `error`) and the agent repeats it rather than interpreting
       it. "No rows" is not "zero".
-- [ ] No tool coerces an absence into a value (`not_found` into `0`,
-      `NULL` into an empty string that reads as a fact).
+- [ ] No tool coerces an absence into a value (`not_found` into `0`, a `NULL`
+      sum into `0` with `coalesce`, `NULL` into an empty string that reads as a
+      fact). An aggregate with no `GROUP BY` returns one row even when nothing
+      matched: test for the row before you aggregate.
 - [ ] Row counts are bounded (`LIMIT`, a clamp on caller-supplied limits).
 - [ ] The agent that answers stock questions is granted the stock tool and
       not the catalog tools; a prompt that *names* a tool does not grant it.
       Only the tool list the agent is constructed with does.
 - [ ] A name lookup is a lookup (`LIKE`, trigram), not a semantic search.
 
-Reference: `references/02-bounded-facts.md`.
+Template: `references/02-bounded-facts.md`. Prove it: queries 2a and 2b.
 
 ## Contract 3: bind identity, enforce ownership
 
 The caller comes from the verified token, never from the conversation. The
 server sets the customer or tenant on every scoped call before it leaves the
 agent runtime, overwriting whatever the model supplied. The database then
-enforces ownership on its own, with row-level security bound to a principal
-set per transaction, so a wrong query from any path still returns only that
+enforces ownership on its own, with row-level security bound to a principal set
+per transaction, so a wrong query from any path still returns only that
 principal's rows and refuses writes in anyone else's name.
 
-Review checklist:
+Ask the team:
+
+- Where does `customer_id` come from on a scoped call: the token, or the
+  model's arguments?
+- Which role do the agent's queries run as, and can it bypass row-level
+  security, or does it own the tables?
+- What does an unbound session see?
+- Show me a forged call: the model asks for another customer's rows. What
+  leaves the runtime, and what comes back from the database?
+
+Look for:
 
 - [ ] Customer-scoped tool arguments (`customer_id`, `tenant_id`) are set by
       the server from the token, after the model proposes the call.
-- [ ] A principal is bound per transaction (`set_config(..., true)` on a
-      GUC the policy reads with `current_setting(name, true)`), so an unbound
+- [ ] A principal is bound per transaction (`set_config(..., true)` on a GUC
+      the policy reads with `current_setting(name, true)`), so an unbound
       session matches nobody rather than everybody.
 - [ ] Row-level security is enabled on every customer-owned table, with one
       permissive policy per table using the same expression for `USING` and
@@ -114,23 +150,38 @@ Review checklist:
 - [ ] At a gateway, authorization (Cedar or equivalent) refuses a direct call
       whose customer does not match the token: policy stops a wrong call, RLS
       stops a wrong query. Both are needed.
+- [ ] The roles contain a wrong query, not an untrusted session: anyone who
+      connects as the owner can reset the role. In production each role gets
+      its own login and secret.
 - [ ] Remembered context (preferences, history) can shape an answer; it
       carries no authority. Only the token does.
 - [ ] A model refusing to read someone else's data proves nothing. The test
       is a forged call sent through the binding: it must leave as the caller.
 
-Reference: `references/03-bind-identity-enforce-ownership.md`.
+Template: `references/03-bind-identity-enforce-ownership.md`. Prove it: queries
+3a to 3c. The policy shows in the plan too: `EXPLAIN` a wrong query as the
+agent's role, bound as one customer, and the bound name is read in an InitPlan
+before any row is.
 
 ## Contract 4: approve and deduplicate writes
 
 No agent writes money, inventory or commitments on its own. A person approves
 the exact terms; the approval row is the thing the write references. A policy
-caps the write before the tool runs. A unique idempotency key derived from
-the approval makes a retry find the first write instead of making a second.
-Every executed call leaves one append-only audit row, and a denied call leaves
-none. An ALLOW decision is not proof that anything happened; the row is.
+caps the write before the tool runs. A unique idempotency key derived from the
+approval makes a retry find the first write instead of making a second. Every
+executed call leaves one append-only audit row, and a denied call leaves none.
+An ALLOW decision is not proof that anything happened; the row is.
 
-Review checklist:
+Ask the team:
+
+- What row does a person approve, and does the write function refuse anything
+  that row does not name exactly?
+- Where does the idempotency key come from, and what happens on a retry?
+- Which privileges does the role that writes hold on the tables it writes?
+- After an incident, which query tells you who asked, who approved, what ran
+  and what changed?
+
+Look for:
 
 - [ ] The write function requires an approval row for these exact arguments
       (customer, amount, reason), and refuses otherwise.
@@ -153,8 +204,11 @@ Review checklist:
 - [ ] The proof is three questions with three sources: *Was it permitted?*
       (policy decision) *Did it run?* (audit row) *Did it change state?*
       (the written row). An absence proof needs a positive control beside it.
+- [ ] One query rebuilds a write from the request to the row with joins
+      alone: request, approval, key, audit row, written row, affected rows.
 
-Reference: `references/04-approve-and-deduplicate-writes.md`.
+Template: `references/04-approve-and-deduplicate-writes.md`. Prove it: queries
+4a to 4g.
 
 ## Publishing tools over MCP
 
@@ -165,7 +219,7 @@ before the call leaves the runtime. `references/mcp-publishing.md` shows how
 Pellier does this with Amazon Bedrock AgentCore Gateway and what to keep when
 the gateway is something else.
 
-## Output of a review
+## The review you hand back
 
 ```
 | Contract | Status | Evidence | Smallest change |
@@ -176,4 +230,5 @@ the gateway is something else.
 | 4 Approve + dedupe | partly | unique key present; no approval row required | require approval row in the write function |
 ```
 
-Then the proof queries for every row marked *holds*.
+Then the proof query for every row marked *holds*, and the workload by role
+from query 0 for the run you watched.
