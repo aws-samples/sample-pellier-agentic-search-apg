@@ -24,6 +24,10 @@ saving here changes the code the backend runs: it reloads on save. Edit only the
 region. `go-deeper-fusion.sql` is the guide's optional Go deeper: a worksheet that recomputes
 the fused scores Anna's search recorded and changes nothing the app runs.
 
+## Start this lab over
+
+In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `python3 scripts/lab_run.py reset --lab 1`). It puts this lab back as shipped and leaves the other labs alone.
+
 ## If you need a solution
 
 Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing

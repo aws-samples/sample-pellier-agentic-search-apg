@@ -30,6 +30,10 @@ one `check_stock` call and the Brooklyn warehouse row.
 Both files are links to the application's own files, so there is no second copy to
 synchronize. Edit only the marked region.
 
+## Start this lab over
+
+In Code Editor choose **Terminal > Run Task > Reset Lab 2** (or run `python3 scripts/lab_run.py reset --lab 2`). It puts this lab back as shipped and leaves the other labs alone.
+
 ## If you need a solution
 
 Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing

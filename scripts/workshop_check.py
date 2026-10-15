@@ -19,11 +19,13 @@ the environment overrides the file.
 
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import re
 import textwrap
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Sequence
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -173,6 +175,70 @@ def psql_environment(cfg: Dict[str, str]) -> Dict[str, str]:
     if cfg.get("DB_PASSWORD"):
         env["PGPASSWORD"] = cfg["DB_PASSWORD"]
     return env
+
+
+# ---------------------------------------------------------------------------
+# Reset points: evidence from before a lab was reset no longer counts
+# ---------------------------------------------------------------------------
+# tool_audit and retrieval_receipts are append-only, so a reset cannot delete the turns a
+# lab left behind. `python3 scripts/lab_run.py reset --lab N` instead records the
+# database's own clock in a small file, and each lab's checks read only the evidence
+# created at or after it. The file lives under .local/, which a repair never touches and
+# the full reset removes (it empties the tables anyway).
+RESET_POINTS_ENV = "PELLIER_LAB_RESET_POINTS"
+RESET_POINTS_FILE = REPO / ".local" / "lab-reset-points.json"
+# Bind this as ``since``: no reset point (None) admits every row.
+SINCE_SQL = "coalesce(%(since)s::timestamptz, '-infinity'::timestamptz)"
+
+
+def reset_points_path() -> pathlib.Path:
+    """Where the reset points live; the environment overrides it for tests."""
+    override = os.environ.get(RESET_POINTS_ENV)
+    return pathlib.Path(override) if override else RESET_POINTS_FILE
+
+
+def _read_points(path: pathlib.Path) -> Dict[str, str]:
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+
+
+def reset_point(lab: int) -> Optional[datetime]:
+    """When the lab was last reset (timezone-aware), or None if it never was."""
+    raw = _read_points(reset_points_path()).get(str(lab))
+    if not raw:
+        return None
+    try:
+        moment = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    return moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
+
+
+def record_reset_point(lab: int, moment: datetime) -> None:
+    """Remember that the lab was reset at ``moment``, keeping the other labs' points."""
+    path = reset_points_path()
+    points = _read_points(path)
+    points[str(lab)] = moment.astimezone(timezone.utc).isoformat()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(points, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def clear_reset_points() -> None:
+    """Forget every reset point, as a full reset does when it empties the tables."""
+    reset_points_path().unlink(missing_ok=True)
+
+
+def since_note(lab: int, send_again: str) -> str:
+    """The sentence a NOT YET finding adds when the lab was reset, else an empty string."""
+    moment = reset_point(lab)
+    if moment is None:
+        return ""
+    clock = moment.strftime("%H:%M:%S UTC")
+    return (f" You reset Lab {lab} at {clock}, so turns from before that no longer count: "
+            f"send the requests again since your reset ({send_again}).")
 
 
 def region_body(text: str, label: str) -> Optional[str]:

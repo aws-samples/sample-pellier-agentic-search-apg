@@ -123,11 +123,12 @@ def stale(receipt: Dict[str, Any], when: Optional[Timeline]) -> Optional[Tuple[s
 # Anna's newest turn, not just her newest receipt: a turn can run more than one
 # search, and the one that needed the fallback is the one Task 1B decides. A
 # receipt with no turn id stands alone.
-_LATEST_RECEIPT = """
+_LATEST_RECEIPT = f"""
 WITH newest AS (
   SELECT receipt_id, turn_id
     FROM pellier.retrieval_receipts
    WHERE session_id LIKE %(session)s
+     AND created_at >= {check.SINCE_SQL}
    ORDER BY receipt_id DESC
    LIMIT 1
 )
@@ -135,6 +136,7 @@ SELECT r.receipt_id, r.session_id, r.created_at, r.query_preview, r.citation_ids
        r.relaxations, r.hard_constraints, r.exclusions, r.retrieval_config
   FROM pellier.retrieval_receipts r, newest
  WHERE r.session_id LIKE %(session)s
+   AND r.created_at >= {check.SINCE_SQL}
    AND (r.receipt_id = newest.receipt_id OR r.turn_id = newest.turn_id)
  ORDER BY jsonb_array_length(r.relaxations) > 0 DESC, r.receipt_id DESC
  LIMIT 1
@@ -267,14 +269,15 @@ def evaluate(conn: Any, when: Optional[Timeline] = None
     the last edit or restart is not judged, and no product rows are returned.
     """
     with conn.cursor() as cur:
-        cur.execute(_LATEST_RECEIPT, {"session": ANNA_SESSION_PREFIX + "%"})
+        cur.execute(_LATEST_RECEIPT, {"session": ANNA_SESSION_PREFIX + "%",
+                                      "since": check.reset_point(1)})
         receipt = cur.fetchone()
         if not receipt:
             return check.Finding(
                 "1B", TITLE, check.NOT_YET, EXPECTED,
                 "no search receipt in a session of Anna's yet",
                 ["pellier.retrieval_receipts has no row whose session starts persona-anna-"],
-                NEXT_REQUEST,
+                NEXT_REQUEST + check.since_note(1, SEND),
             ), []
         reason = stale(receipt, when)
         if reason:

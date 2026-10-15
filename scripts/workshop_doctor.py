@@ -456,7 +456,7 @@ def _managed_build(evidence: Evidence) -> Check:
     if not evidence.available:
         return Check(name, False, evidence.reason or "database unavailable")
     try:
-        row = evidence.one(lab3_check.BUILD_SQL)
+        row = evidence.one(lab3_check.BUILD_SQL, {"since": workshop_check.reset_point(3)})
     except Exception as exc:  # noqa: BLE001
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
     if not row:

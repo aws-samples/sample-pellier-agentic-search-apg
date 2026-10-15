@@ -40,6 +40,10 @@ psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-agent-workload.sql
 
 It ends `Lab 3 workload check passed` once Theo's requests have run.
 
+## Start this lab over
+
+In Code Editor choose **Terminal > Run Task > Reset Lab 3** (or run `python3 scripts/lab_run.py reset --lab 3`). It puts this lab back as shipped and leaves the other labs alone.
+
 ## If you need a solution
 
 Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing

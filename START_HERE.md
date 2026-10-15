@@ -65,6 +65,14 @@ files. Every lab ends with a one-paste catch-up that installs the answers, runs 
 worksheets and the checks, so you can rejoin at the next lab; the guide's cheat sheet has
 all four.
 
+## Start a lab over
+
+Choose **Terminal > Run Task** and pick **Reset Lab 1** to **Reset Lab 4**: the lab's files,
+its database piece and its AgentCore state go back to the start, the other labs stay as they
+are, and that lab's checks ignore turns from before the reset. **Reset the whole workshop**
+starts everything over, and **Repair workshop files** restores any file you changed or deleted
+outside the marked regions. Each task asks you to confirm and defaults to Cancel.
+
 ## The coding coach
 
 Claude Code is installed in this terminal and pointed at Amazon Bedrock through the

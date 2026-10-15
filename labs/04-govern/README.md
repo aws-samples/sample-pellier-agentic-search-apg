@@ -33,6 +33,10 @@ psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
 `4B-credit-writer.sql` deploys itself: when every probe matches, it commits your privileges
 for `pellier_credit_writer`; when any probe differs, it rolls back.
 
+## Start this lab over
+
+In Code Editor choose **Terminal > Run Task > Reset Lab 4** (or run `python3 scripts/lab_run.py reset --lab 4`). It puts this lab back as shipped and leaves the other labs alone. Once a credit has been written it stops and points you to **Reset the whole workshop**.
+
 ## If you need a solution
 
 Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing

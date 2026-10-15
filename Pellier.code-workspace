@@ -69,5 +69,168 @@
       ".workshop-ref.json": true,
       "package.zip": true
     }
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Reset Lab 1",
+        "type": "shell",
+        "command": "if [ '${input:confirmResetLab1}' = 'Yes, reset Lab 1' ]; then python3 scripts/lab_run.py reset --lab 1; else echo 'Cancelled. Nothing was changed.'; fi",
+        "options": {
+          "cwd": "${workspaceFolder:05 - Explore Pellier source}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true,
+          "clear": true,
+          "showReuseMessage": false
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Reset Lab 2",
+        "type": "shell",
+        "command": "if [ '${input:confirmResetLab2}' = 'Yes, reset Lab 2' ]; then python3 scripts/lab_run.py reset --lab 2; else echo 'Cancelled. Nothing was changed.'; fi",
+        "options": {
+          "cwd": "${workspaceFolder:05 - Explore Pellier source}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true,
+          "clear": true,
+          "showReuseMessage": false
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Reset Lab 3",
+        "type": "shell",
+        "command": "if [ '${input:confirmResetLab3}' = 'Yes, reset Lab 3' ]; then python3 scripts/lab_run.py reset --lab 3; else echo 'Cancelled. Nothing was changed.'; fi",
+        "options": {
+          "cwd": "${workspaceFolder:05 - Explore Pellier source}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true,
+          "clear": true,
+          "showReuseMessage": false
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Reset Lab 4",
+        "type": "shell",
+        "command": "if [ '${input:confirmResetLab4}' = 'Yes, reset Lab 4' ]; then python3 scripts/lab_run.py reset --lab 4; else echo 'Cancelled. Nothing was changed.'; fi",
+        "options": {
+          "cwd": "${workspaceFolder:05 - Explore Pellier source}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true,
+          "clear": true,
+          "showReuseMessage": false
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Reset the whole workshop",
+        "type": "shell",
+        "command": "if [ '${input:confirmResetWholeWorkshop}' = 'Yes, reset the whole workshop' ]; then bash scripts/reset-governed-workshop.sh; else echo 'Cancelled. Nothing was changed.'; fi",
+        "options": {
+          "cwd": "${workspaceFolder:05 - Explore Pellier source}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true,
+          "clear": true,
+          "showReuseMessage": false
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Repair workshop files",
+        "type": "shell",
+        "command": "if [ '${input:confirmRepairWorkshopFiles}' = 'Yes, repair the files' ]; then python3 scripts/repair_workshop_files.py; else echo 'Cancelled. Nothing was changed.'; fi",
+        "options": {
+          "cwd": "${workspaceFolder:05 - Explore Pellier source}"
+        },
+        "presentation": {
+          "reveal": "always",
+          "panel": "dedicated",
+          "focus": true,
+          "clear": true,
+          "showReuseMessage": false
+        },
+        "problemMatcher": []
+      }
+    ],
+    "inputs": [
+      {
+        "id": "confirmResetLab1",
+        "type": "pickString",
+        "description": "Reset Lab 1 to its as-shipped start. Other labs are not touched. Choose Cancel to do nothing.",
+        "options": [
+          "Cancel",
+          "Yes, reset Lab 1"
+        ],
+        "default": "Cancel"
+      },
+      {
+        "id": "confirmResetLab2",
+        "type": "pickString",
+        "description": "Reset Lab 2 to its as-shipped start. Other labs are not touched. Choose Cancel to do nothing.",
+        "options": [
+          "Cancel",
+          "Yes, reset Lab 2"
+        ],
+        "default": "Cancel"
+      },
+      {
+        "id": "confirmResetLab3",
+        "type": "pickString",
+        "description": "Reset Lab 3 to its as-shipped start. Other labs are not touched. Choose Cancel to do nothing.",
+        "options": [
+          "Cancel",
+          "Yes, reset Lab 3"
+        ],
+        "default": "Cancel"
+      },
+      {
+        "id": "confirmResetLab4",
+        "type": "pickString",
+        "description": "Reset Lab 4 to its as-shipped start. Other labs are not touched. Choose Cancel to do nothing.",
+        "options": [
+          "Cancel",
+          "Yes, reset Lab 4"
+        ],
+        "default": "Cancel"
+      },
+      {
+        "id": "confirmResetWholeWorkshop",
+        "type": "pickString",
+        "description": "Reset the WHOLE workshop: every lab, the database and AgentCore. This takes several minutes. Choose Cancel to do nothing.",
+        "options": [
+          "Cancel",
+          "Yes, reset the whole workshop"
+        ],
+        "default": "Cancel"
+      },
+      {
+        "id": "confirmRepairWorkshopFiles",
+        "type": "pickString",
+        "description": "Restore every workshop file to the version this workshop was built from. Your lab edits in the marked regions are overwritten too. Choose Cancel to do nothing.",
+        "options": [
+          "Cancel",
+          "Yes, repair the files"
+        ],
+        "default": "Cancel"
+      }
+    ]
   }
 }

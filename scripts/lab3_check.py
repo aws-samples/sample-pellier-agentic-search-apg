@@ -67,12 +67,13 @@ SEND = "python3 scripts/lab_run.py send --lab 3"
 # The Gateway Lambda writes a shopper turn's call with the turn id as its
 # session and the build the Runtime reported. Rows carrying a build come first,
 # because only they can be compared with this checkout.
-BUILD_SQL = """
+BUILD_SQL = f"""
 SELECT audit_id, session_id AS turn_id, tool, build_fingerprint AS deployed_fingerprint,
        created_at
   FROM pellier.tool_audit
  WHERE caller = 'gateway'
-   AND session_id LIKE 'turn-%'
+   AND session_id LIKE 'turn-%%'
+   AND created_at >= {check.SINCE_SQL}
  ORDER BY (build_fingerprint IS NOT NULL) DESC, audit_id DESC
  LIMIT 1;
 """
@@ -82,11 +83,12 @@ SELECT audit_id, session_id AS turn_id, tool, build_fingerprint AS deployed_fing
 # own ticket read is not Theo's. The owner-only permit matches only a read whose
 # customer is the token's; Cedar denies by default otherwise, so an executed read
 # for another customer can only come from that customer's own turn.
-TICKETS_SQL = """
+TICKETS_SQL = f"""
 SELECT t.audit_id, t.session_id AS turn_id, t.args->>'customer_id' AS customer_id, t.created_at
   FROM pellier.tool_audit t
  WHERE t.tool = 'get_tickets'
    AND t.caller = 'gateway'
+   AND t.created_at >= {check.SINCE_SQL}
    AND EXISTS (SELECT 1
                  FROM pellier.tool_audit o
                 WHERE o.caller = 'gateway'
@@ -307,7 +309,8 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
     if not row:
         return check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
                              "no Gateway tool call in a shopper turn yet", [],
-                             f"run bash scripts/lab3-start.sh theo, then {SEND}.")
+                             f"run bash scripts/lab3-start.sh theo, then {SEND}."
+                             + check.since_note(3, SEND))
     deployed = str(row.get("deployed_fingerprint") or "").strip()
     evidence = [
         f"pellier.tool_audit audit {row.get('audit_id')}: {row.get('tool')} in turn "
@@ -354,7 +357,8 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
     if not rows:
         return check.Finding("3B", _TICKETS_TITLE, check.NOT_YET, TICKETS_EXPECTED,
                              "no get_tickets call has run on the Gateway yet", evidence,
-                             f"send Theo's ticket question on the managed path: {SEND}.")
+                             f"send Theo's ticket question on the managed path: {SEND}."
+                             + check.since_note(3, SEND))
     others = [r for r in rows if r.get("customer_id") != THEO]
     observed = (f"{len(rows)} executed call(s), {len(rows) - len(others)} for {THEO}, "
                 f"{len(others)} for anyone else")
@@ -572,9 +576,10 @@ def _probe_rows(cfg: Optional[Dict[str, str]], turn_id: str) -> Optional[int]:
 def read_rows(cfg: Dict[str, str], connect: Any = check.connect) -> Dict[str, Any]:
     """The build row and every executed Gateway ticket read."""
     with connect(cfg) as conn, conn.cursor() as cur:
-        cur.execute(BUILD_SQL)
+        since = {"since": check.reset_point(3)}
+        cur.execute(BUILD_SQL, since)
         build = cur.fetchone()
-        cur.execute(TICKETS_SQL)
+        cur.execute(TICKETS_SQL, since)
         tickets = list(cur.fetchall())
     return {"build": build, "tickets": tickets}
 

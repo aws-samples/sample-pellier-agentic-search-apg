@@ -405,7 +405,7 @@ class TestLab3ManagedBuild:
         doctor._managed_build(evidence)
         sql = evidence.queries[0][0]
         assert "FROM pellier.tool_audit" in sql
-        assert "session_id LIKE 'turn-%'" in sql
+        assert "session_id LIKE 'turn-%%'" in sql
 
 
 class TestLab4:

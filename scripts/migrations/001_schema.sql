@@ -132,6 +132,7 @@ CREATE TABLE pellier.warehouse_inventory (
 -- statement is byte-identical to that worksheet's starter, so a fresh or reset
 -- database ships the same function the participant starts from. As shipped, a piece
 -- Pellier does not carry returns one row with 0 units.
+-- === SHIPPED STATE - Lab 2 check_stock: START ===
 CREATE OR REPLACE FUNCTION pellier.check_stock(product_query text)
 RETURNS TABLE (product_id text, name text, brand text, color text, price numeric,
                total_units integer, warehouses jsonb)
@@ -191,6 +192,7 @@ BEGIN
          WHERE w.product_id = piece."productId";
 END
 $check_stock$;
+-- === SHIPPED STATE - Lab 2 check_stock: END ===
 
 
 -- ===========================================================================
@@ -742,12 +744,14 @@ GRANT SELECT, INSERT ON pellier.support_tickets TO pellier_agent;
 -- rights, and no table. EXECUTE is the whole key, so it is revoked from PUBLIC
 -- beside the grant. workshop/lab-4-credit-writer.sql is Lab 4's build of these
 -- three statements, and it proves each of them on every run.
+-- === SHIPPED STATE - Lab 4 credit writer: START ===
 GRANT USAGE ON SCHEMA pellier TO pellier_credit_writer;
 ALTER FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
     SECURITY DEFINER SET search_path = pg_catalog, pg_temp;
 REVOKE ALL ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
     TO pellier_credit_writer;
+-- === SHIPPED STATE - Lab 4 credit writer: END ===
 
 ALTER TABLE pellier.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pellier.support_tickets ENABLE ROW LEVEL SECURITY;
@@ -755,6 +759,7 @@ ALTER TABLE pellier.support_tickets ENABLE ROW LEVEL SECURITY;
 -- A row belongs to the customer whose sign-in name the session carries.
 -- The same expression decides which rows the role sees (USING) and which rows
 -- it may write (WITH CHECK).
+-- === SHIPPED STATE - Lab 3 row ownership: START ===
 CREATE POLICY orders_owner ON pellier.orders TO pellier_agent
     USING (customer_id = (SELECT id FROM pellier.customers
                            WHERE cognito_username = current_setting('pellier.principal_username', true)))
@@ -766,3 +771,4 @@ CREATE POLICY support_tickets_owner ON pellier.support_tickets TO pellier_agent
                            WHERE cognito_username = current_setting('pellier.principal_username', true)))
     WITH CHECK (customer_id = (SELECT id FROM pellier.customers
                                 WHERE cognito_username = current_setting('pellier.principal_username', true)));
+-- === SHIPPED STATE - Lab 3 row ownership: END ===

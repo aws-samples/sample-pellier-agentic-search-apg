@@ -120,7 +120,7 @@ def test_the_grant_check_reads_no_source() -> None:
     """2A is judged from the turn record, so a definition no turn ran with cannot pass."""
     source = (SCRIPTS / "lab2_check.py").read_text()
     assert "import ast" not in source and "stock_agent.py\")" not in source
-    assert "args->>'agent' = %s" in source
+    assert "args->>'agent' = %(agent)s" in source
 
 
 def test_the_function_check_runs_the_live_function_through_the_shared_shaping() -> None:

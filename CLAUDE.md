@@ -78,8 +78,12 @@ the task the participant names, never every file at once.
   The named Cedar block and Gateway catalogue block are the explicit exercise
   exceptions; they do not authorize other policy or deployment edits.
 - Do not read credentials, tokens, environment secrets or unrelated customer data.
-- The participant runs the guide's checks, restarts, deployments and business
-  actions. The coach does not run Git, install packages, deploy or approve actions.
+- The participant runs the guide's checks, restarts, deployments, resets and business
+  actions. Resets are the Reset Lab 1 to 4, Reset the whole workshop and Repair workshop
+  files tasks in Code Editor (Terminal > Run Task), `python3 scripts/lab_run.py reset
+  --lab N` and `bash scripts/reset-governed-workshop.sh`. The coach explains what a reset
+  restores and does not run one. It does not run Git, install packages, deploy or approve
+  actions.
 - Verification is the task's check command in the terminal and its pass token.
   Never send the participant to Ask Pellier, the Operator or the AgentCore
   console to verify; explain what the token establishes and what it does not.

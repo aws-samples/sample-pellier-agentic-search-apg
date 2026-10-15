@@ -99,17 +99,18 @@ _STOCK_SQL = """
      WHERE product_id = %s
      ORDER BY warehouse_code
 """
-_LATEST_STOCK_TURN = """
+_LATEST_STOCK_TURN = f"""
 SELECT args->>'turn_id' AS turn_id
   FROM pellier.tool_audit
- WHERE session_id LIKE %s AND args->>'agent' = %s
+ WHERE session_id LIKE %(session)s AND args->>'agent' = %(agent)s
+   AND created_at >= {check.SINCE_SQL}
  ORDER BY audit_id DESC
  LIMIT 1
 """
 _TURN_ROWS = """
 SELECT audit_id, tool, args, result
   FROM pellier.tool_audit
- WHERE session_id LIKE %s AND args->>'turn_id' = %s
+ WHERE session_id LIKE %(session)s AND args->>'turn_id' = %(turn)s
  ORDER BY audit_id
 """
 _LIVE_FUNCTION = """
@@ -118,10 +119,11 @@ SELECT encode(sha256(convert_to(prosrc, 'UTF8')), 'hex') AS source_sha,
   FROM pg_proc
  WHERE oid = to_regprocedure('pellier.check_stock(text)')
 """
-_MARCO_STOCK_CALLS = """
+_MARCO_STOCK_CALLS = f"""
 SELECT audit_id, args, result
   FROM pellier.tool_audit
- WHERE session_id LIKE %s AND tool = 'check_stock' AND result IS NOT NULL
+ WHERE session_id LIKE %(session)s AND tool = 'check_stock' AND result IS NOT NULL
+   AND created_at >= {check.SINCE_SQL}
  ORDER BY audit_id DESC
 """
 
@@ -234,11 +236,12 @@ def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
     """Every audit row of Marco's latest turn the Stock agent answered, in call order."""
     pattern = MARCO_SESSION_PREFIX + "%"
     with conn.cursor() as cur:
-        cur.execute(_LATEST_STOCK_TURN, (pattern, STOCK_AGENT_NAME))
+        cur.execute(_LATEST_STOCK_TURN, {"session": pattern, "agent": STOCK_AGENT_NAME,
+                                         "since": check.reset_point(2)})
         latest = cur.fetchone()
         if not latest or not latest.get("turn_id"):
             return []
-        cur.execute(_TURN_ROWS, (pattern, latest["turn_id"]))
+        cur.execute(_TURN_ROWS, {"session": pattern, "turn": latest["turn_id"]})
         return [dict(row) for row in cur.fetchall()]
 
 
@@ -319,7 +322,7 @@ def judge_2a(conn: Any) -> check.Finding:
                              f"send Marco's requests with {SEND}, then rerun this check. "
                              "Already sent? As shipped, the Stock agent does not hold "
                              "check_stock, so a call to it did not run and left no row: "
-                             "build Task 2A.")
+                             "build Task 2A." + check.since_note(2, SEND))
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "
@@ -467,7 +470,8 @@ _NEXT_2B_RECORDED = (
 def recorded_cases(conn: Any) -> Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]]:
     """Marco's latest recorded check_stock call for each case, with the catalog's answer."""
     with conn.cursor() as cur:
-        cur.execute(_MARCO_STOCK_CALLS, (MARCO_SESSION_PREFIX + "%",))
+        cur.execute(_MARCO_STOCK_CALLS, {"session": MARCO_SESSION_PREFIX + "%",
+                                         "since": check.reset_point(2)})
         rows = [dict(row) for row in cur.fetchall()]
     found: Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]] = {}
     for row in rows:
@@ -489,7 +493,8 @@ def judge_recorded_2b(conn: Any) -> check.Finding:
                              "no check_stock call of Marco's asked about a piece Pellier does "
                              "not carry", ["pellier.tool_audit: no such row in a persona-marco- "
                                            "session"],
-                             f"send Marco's requests with {SEND}, then rerun this.")
+                             f"send Marco's requests with {SEND}, then rerun this."
+                             + check.since_note(2, SEND))
     evidence: List[str] = []
     differs: List[str] = []
     for case in CASES:

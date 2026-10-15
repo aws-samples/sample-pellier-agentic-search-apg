@@ -7,6 +7,12 @@ restart or deployment and its checks:
     python3 scripts/lab_run.py solution --lab 1
     python3 scripts/lab_run.py send --lab 1
 
+``reset`` puts one lab back to its as-shipped start, leaving the other labs alone: its
+files, its database piece, its AgentCore state and the backend. It records a reset point so
+the lab's checks ignore turns from before it (scripts/lab_reset.py has the detail):
+
+    python3 scripts/lab_run.py reset --lab 2
+
 A third action is for whoever is helping a stuck participant, and the guide
 does not show it. ``diff`` prints what ``solution`` would change, without
 changing it: a unified diff per task file, the finished version as '-' lines
@@ -51,6 +57,9 @@ import time
 import urllib.error
 import urllib.request
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import lab_reset  # noqa: E402  (sibling module)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
@@ -535,7 +544,7 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("action", choices=("solution", "send", "diff"))
+    parser.add_argument("action", choices=("solution", "send", "diff", "reset"))
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
     parser.add_argument("--shopper-only", action="store_true",
                         help="send: stop before Nadia's part in the Operator (Lab 4)")
@@ -543,17 +552,21 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                         help="send: one line per request, without each turn's trace")
     args = parser.parse_args(argv)
     titles = {"solution": "install the solution", "send": "send the requests",
-              "diff": "compare your files with the solution"}
+              "diff": "compare your files with the solution",
+              "reset": "start over from the as-shipped lab"}
     print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
     try:
         if args.action == "diff":
             show_diff(args.lab, color=sys.stdout.isatty() and "NO_COLOR" not in os.environ)
         elif args.action == "solution":
             install_solution(args.lab)
+        elif args.action == "reset":
+            lab_reset.reset_lab(args.lab, wait_healthy=lambda: wait_until_healthy(
+                Backend(base_url)))
         else:
             send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only,
                  trace=not args.quiet)
-    except (LabRunError, SystemExit) as exc:
+    except (LabRunError, lab_reset.LabResetError, SystemExit) as exc:
         fail(str(exc))
         return 1
     return 0
