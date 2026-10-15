@@ -357,6 +357,14 @@ def _money(dollars: Any) -> str:
     return f"${amount:g}" if amount == int(amount) else f"${amount:.2f}"
 
 
+def same_ceiling(stated: float, applied: float) -> bool:
+    """Whether ``applied`` is the shopper's ``stated`` ceiling: equal, or one cent under it.
+
+    Prices are in cents, so "under $100" applied as at most $99.99 is the same limit.
+    """
+    return -1e-9 <= stated - applied <= 0.01 + 1e-9
+
+
 def result_limits(
     plan: Optional[Dict[str, Any]],
     *,
@@ -394,11 +402,13 @@ def result_limits(
     price = _float(hard.get("price_max_usd"))
     if price is not None:
         shopper = _float(shopper_price)
-        if known and (shopper is None or abs(shopper - price) > 1e-9):
+        hers = shopper is not None and same_ceiling(shopper, price)
+        if known and not hers:
             budget_origin: Optional[str] = ORIGIN_AGENT
         else:
             budget_origin = origin("budget" in kinds)
-        tags.append({"kind": "budget", "label": f"Under {_money(price)}", "origin": budget_origin})
+        shown = shopper if hers else price
+        tags.append({"kind": "budget", "label": f"Under {_money(shown)}", "origin": budget_origin})
     if hard.get("in_stock_only"):
         tags.append({"kind": "stock", "label": "In stock", "origin": origin("stock" in kinds)})
     kept_values = {str(value).lower() for value in carried_exclusions}

@@ -240,6 +240,18 @@ def test_a_ceiling_the_shopper_never_stated_is_the_agents() -> None:
     assert tags[0]["origin"] == "agent"
 
 
+def test_a_ceiling_a_cent_under_the_shoppers_is_her_own_limit() -> None:
+    """"Under $100" applied as at most $99.99 is her limit: shown in her figure, never Pellier's."""
+    tags = result_limits(
+        {"hard_constraints": {"price_max_usd": 99.99}}, carried=[], shopper_price=100.0,
+    )
+    assert tags == [{"kind": "budget", "label": "Under $100", "origin": "stated"}]
+    tags = result_limits(
+        {"hard_constraints": {"price_max_usd": 99.0}}, carried=[], shopper_price=100.0,
+    )
+    assert tags[0] == {"kind": "budget", "label": "Under $99", "origin": "agent"}
+
+
 def test_a_rail_with_no_record_places_no_limit() -> None:
     assert {tag["origin"] for tag in result_limits(PLAN)} == {None}
 
@@ -298,6 +310,21 @@ def test_a_budget_written_in_an_earlier_message_is_not_added_by_pellier(
         max_price=300.0,
     )
     assert tag["origin"] is None
+
+
+def test_anna_under_100_applied_as_99_99_is_not_added_by_pellier(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2026-10-14: the agent passed max_price 99.99 for her "under $100"."""
+    tag = _budget_tag(
+        monkeypatch,
+        message="A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
+                "and no candles.",
+        reading={"price_max_usd": 100.0},
+        max_price=99.99,
+    )
+    assert tag["label"] == "Under $100"
+    assert tag["origin"] != "agent"
 
 
 def test_a_ceiling_the_shopper_never_wrote_is_added_by_pellier(

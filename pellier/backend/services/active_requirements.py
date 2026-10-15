@@ -410,7 +410,9 @@ def shopper_never_said(kind: str, value: Any) -> bool:
             return False
         if any(_AMOUNT_WORDS.search(text) for text in texts):
             return False
-        return all(abs(amount - ceiling) >= 0.005 for text in texts for amount in _amounts(text))
+        # "under $100" applied as at most $99.99 names the same limit.
+        return not any(-0.005 < amount - ceiling < 0.015
+                       for text in texts for amount in _amounts(text))
     word = str(value or "").strip()
     if kind == KIND_EXCLUSIONS and word:
         named = re.compile(rf"\b{re.escape(word)}(?:s|es)?\b", re.I)
