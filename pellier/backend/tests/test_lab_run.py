@@ -39,10 +39,15 @@ class FakeBackend:
         self.requests: List[Dict[str, Any]] = []
         self.sessions = 0
         self.steps: List[Dict[str, Any]] = []
+        self.reviews: List[Dict[str, Any]] = []
+        self.credited = False
+        self.replay_writes_again = False
 
     def answer(self, path: str, body: Dict[str, Any]) -> Any:
         if path == "/api/health":
             return {"status": self.health}
+        if path == "/api/operator/reviews":
+            return {"reviews": self.reviews}
         if path == "/api/persona/switch":
             self.sessions += 1
             return {"session_id": f"persona-{body['persona_id']}-{self.sessions:032x}"}
@@ -58,8 +63,12 @@ class FakeBackend:
             policy = self.policies.pop(0) if len(self.policies) > 1 else self.policies[0]
             if policy == "502":
                 return 502, {"detail": "gateway_unavailable:ReadTimeout"}
+            replay = self.credited and not self.replay_writes_again
+            if policy == "ALLOW":
+                self.credited = True
             return {"assurance": {"policy": policy}, "idempotencyKey": "credit-41-abc",
                     "notes": {"policy": "engine state unreadable"},
+                    "result": {"idempotent_replay": replay},
                     "record": {"creditRows": 1 if policy == "ALLOW" else 0}}
         raise AssertionError(f"unexpected path {path}")
 
@@ -563,18 +572,53 @@ def test_an_unhealthy_backend_stops_before_any_turn(
     assert not _turns(fake)
 
 
+def _operator(fake: FakeBackend) -> List[Dict[str, Any]]:
+    return [r for r in fake.requests if r["path"].startswith("/api/operator/")]
+
+
 def test_lab_4_has_nadia_approve_and_execute_the_proposed_credit(fake: FakeBackend) -> None:
     fake.rail = lab_run.MANAGED
     assert _run(fake, 4) == 0
     (jessica,) = _turns(fake)
     assert jessica["auth"] == "Bearer token-jessica"
-    operator = [r for r in fake.requests if r["path"].startswith("/api/operator/")]
+    operator = _operator(fake)
     assert [r["path"] for r in operator] == [
+        "/api/operator/reviews",
         "/api/operator/clients/CUST-JESSICA/investigate",
         "/api/operator/reviews/41/confirm",
         "/api/operator/reviews/41/execute"]
-    assert operator[1]["body"] == {"actionHash": "a" * 64}
+    assert operator[2]["body"] == {"actionHash": "a" * 64}
     assert {r["auth"] for r in operator} == {"Bearer token-nadia"}
+
+
+def _review(status: str, aurora: str, review_id: int = 41, **extra: Any) -> Dict[str, Any]:
+    return {"reviewId": review_id, "customerId": "CUST-JESSICA", "status": status,
+            "actionHash": "a" * 64, "amount": "100.00", "orderIds": [7, 9],
+            "assurance": {"aurora": aurora}, "policyCheckProbe": False, **extra}
+
+
+def test_lab_4_never_opens_a_second_credit_when_jessica_was_already_credited(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.credited = True
+    fake.reviews = [_review("approved", "PERMITTED"),
+                    _review("approved", "PERMITTED", 77, customerId="CUST-THEO"),
+                    _review("approved", "NOT_REACHED", 90, policyCheckProbe=True)]
+    assert _run(fake, 4) == 0
+    paths = [r["path"] for r in _operator(fake)]
+    assert paths == ["/api/operator/reviews"]
+    assert "review 41 already credited Jessica" in capsys.readouterr().out
+
+
+def test_lab_4_finishes_the_review_a_person_approved_without_investigating_again(
+    fake: FakeBackend,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.reviews = [_review("approved", "NOT_REACHED")]
+    assert _run(fake, 4) == 0
+    assert [r["path"] for r in _operator(fake)] == [
+        "/api/operator/reviews", "/api/operator/reviews/41/execute"]
 
 
 def test_lab_4_retries_while_the_new_cedar_rule_applies(
@@ -653,6 +697,199 @@ def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_na
     assert not [r for r in fake.requests if r["path"].startswith("/api/operator/")]
     assert seen == ["jessica"], "Nadia's token is never minted"
     assert "as Nadia in the Operator" in capsys.readouterr().out
+
+
+# ---------------------------------------------------------------------------
+# finish: the lab's "Running behind?" sequence as one command
+# ---------------------------------------------------------------------------
+
+
+class Commands:
+    """Every command finish runs, with exit statuses scripted by a command's last words."""
+
+    def __init__(self, failing: str = "") -> None:
+        self.ran: List[str] = []
+        self.failing = failing
+
+    def __call__(self, argv: List[str], **kwargs: Any) -> Any:
+        shown = " ".join("python3" if part == sys.executable else part for part in argv)
+        self.ran.append(shown)
+        failed = bool(self.failing) and shown.endswith(self.failing)
+        return type("Completed", (), {"returncode": 1 if failed else 0})()
+
+
+@pytest.fixture
+def box(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A workshop box: systemctl is installed and the participant is not root."""
+    monkeypatch.setattr(lab_run.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(lab_run.os, "geteuid", lambda: 1000)
+
+
+def _finish(fake: FakeBackend, lab: int, repo: Path, commands: Commands) -> int:
+    try:
+        lab_run.finish(lab, lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                       run=commands, repo=repo)
+    except lab_run.LabRunError as exc:
+        lab_run.fail(str(exc))
+        return 1
+    return 0
+
+
+RESTART = "sudo -n systemctl restart pellier"
+DEPLOY_RUN = "python3 scripts/provision_agentcore_end_to_end.py --repo-path {repo} --mode participant"
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_1_installs_restarts_sends_and_checks(fake: FakeBackend, tmp_path: Path) -> None:
+    repo = _scratch_repo(tmp_path)
+    for entry in lab_run.solution_files(1, repo):
+        (repo / entry["source"]).write_text("starter\n")
+    commands = Commands()
+    assert _finish(fake, 1, repo, commands) == 0
+    assert commands.ran == [RESTART, "python3 scripts/lab1_check.py --task 1A",
+                            "python3 scripts/lab1_check.py --task 1B"]
+    assert len(_turns(fake)) == 2
+    for entry in lab_run.solution_files(1, repo):
+        assert (repo / entry["source"]).read_bytes() == (repo / entry["solution"]).read_bytes()
+        assert (repo / (entry["alias"] + ".bak")).read_text() == "starter\n"
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_keeps_a_finished_task_and_backs_up_only_the_unfinished_one(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    (one_a,) = _task_entries(repo, "1A")
+    (one_b,) = _task_entries(repo, "1B")
+    shutil.copyfile(repo / one_a["solution"], repo / one_a["source"])
+    (repo / one_b["source"]).write_text("half of 1B\n")
+    assert _finish(fake, 1, repo, Commands()) == 0
+    assert not (repo / (one_a["alias"] + ".bak")).exists()
+    assert (repo / (one_b["alias"] + ".bak")).read_text() == "half of 1B\n"
+
+
+@pytest.mark.usefixtures("box")
+def test_a_second_finish_keeps_the_first_backup_and_runs_the_proof_again(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    (one_b,) = _task_entries(repo, "1B")
+    (repo / one_b["source"]).write_text("my 1B\n")
+    commands = Commands()
+    assert _finish(fake, 1, repo, commands) == 0
+    assert _finish(fake, 1, repo, commands) == 0
+    assert (repo / (one_b["alias"] + ".bak")).read_text() == "my 1B\n"
+    assert commands.ran.count("python3 scripts/lab1_check.py --task 1B") == 2
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_stops_at_the_first_failed_check(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    commands = Commands(failing="lab1_check.py --task 1A")
+    assert _finish(fake, 1, repo, commands) == 1
+    assert commands.ran[-1] == "python3 scripts/lab1_check.py --task 1A"
+    err = capsys.readouterr().err
+    assert "python3 scripts/lab1_check.py --task 1A exited 1" in err
+    assert "python3 scripts/lab_run.py finish --lab 1" in err
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_2_commits_the_exercise_before_the_restart_and_requests(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    commands = Commands()
+    assert _finish(fake, 2, repo, commands) == 0
+    assert commands.ran == [
+        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql",
+        RESTART, "python3 scripts/lab2_check.py --task 2A",
+        "python3 scripts/lab2_check.py --task 2B"]
+    assert len(_turns(fake)) == 2
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_3_deploys_writes_the_rule_then_sends_on_agentcore(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    repo = _scratch_repo(tmp_path)
+    commands = Commands()
+    assert _finish(fake, 3, repo, commands) == 0
+    assert commands.ran == [
+        "python3 scripts/lab3_check.py --task 3A", DEPLOY_RUN.format(repo=repo),
+        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/03-deploy/3B-row-ownership.sql",
+        "python3 scripts/lab3_check.py --task 3B"]
+    assert len(_turns(fake)) == 3
+
+
+@pytest.mark.usefixtures("box")
+def test_a_failed_deploy_stops_finish_before_anything_reaches_agentcore(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    repo = _scratch_repo(tmp_path)
+    commands = Commands(failing="--mode participant")
+    assert _finish(fake, 3, repo, commands) == 1
+    assert commands.ran[-1] == DEPLOY_RUN.format(repo=repo)
+    assert _turns(fake) == []
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_4_approves_executes_and_proves_the_same_key_replay(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    repo = _scratch_repo(tmp_path)
+    commands = Commands()
+    assert _finish(fake, 4, repo, commands) == 0
+    assert commands.ran == [
+        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql",
+        DEPLOY_RUN.format(repo=repo), "python3 scripts/lab4_check.py --task 4A",
+        "python3 scripts/lab4_check.py --task 4B",
+        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql"]
+    assert len(_turns(fake)) == 1
+    assert [r["path"] for r in _operator(fake)] == [
+        "/api/operator/reviews", "/api/operator/clients/CUST-JESSICA/investigate",
+        "/api/operator/reviews/41/confirm", "/api/operator/reviews/41/execute",
+        "/api/operator/reviews/41/execute"]
+    out = capsys.readouterr().out
+    assert "Nadia's approval and execution are done for you" in out
+    assert "replayed with the same key credit-41-abc: no new row" in out
+
+
+@pytest.mark.usefixtures("box")
+def test_a_repeated_finish_lab_4_only_replays_the_existing_credit(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.credited = True
+    fake.reviews = [_review("approved", "PERMITTED")]
+    repo = _scratch_repo(tmp_path)
+    assert _finish(fake, 4, repo, Commands()) == 0
+    assert _turns(fake) == [], "Jessica's request is not sent again"
+    assert [r["path"] for r in _operator(fake)] == [
+        "/api/operator/reviews", "/api/operator/reviews/41/execute"]
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_4_fails_when_the_replay_writes_a_second_time(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.replay_writes_again = True
+    repo = _scratch_repo(tmp_path)
+    commands = Commands()
+    assert _finish(fake, 4, repo, commands) == 1
+    assert "was not a replay" in capsys.readouterr().err
+    assert "python3 scripts/lab4_check.py --task 4A" not in commands.ran
+
+
+def test_finish_is_a_lab_run_action(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        lab_run.main(["finish", "--lab", "1", "--task", "1A"])
+    assert "--task goes with solution or send, not finish" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------

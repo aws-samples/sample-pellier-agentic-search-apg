@@ -19,6 +19,15 @@ running the exercise or deploying is that next command:
 
     python3 scripts/lab_run.py solution --lab 1 --task 1A
 
+``finish`` is a lab's "Running behind?" sequence as one command. It keeps your files as
+``.bak`` (as ``solution --task`` does), puts the lab's answers in place, runs the lab's
+exercise, restart or deploy, sends its requests and runs every check, stopping at the
+first failure. Lab 4's finish also does Nadia's approval and execution in the Operator,
+then proves the same-key replay. Run again, it never opens a second credit: an approved
+review is finished rather than reopened, and a credited one is only replayed:
+
+    python3 scripts/lab_run.py finish --lab 3
+
 ``reset`` puts one lab back to its as-shipped start, leaving the other labs alone: its
 files, its database piece, its AgentCore state and the backend. It records a reset point so
 the lab's checks ignore turns from before it (scripts/lab_reset.py has the detail):
@@ -212,7 +221,7 @@ def _print_change(alias: str, yours: bytes, answer: bytes) -> None:
 
 
 def install_task(task: str, repo: pathlib.Path = REPO,
-                 restart: Optional[Callable[[], None]] = None) -> None:
+                 restart: Optional[Callable[[], None]] = None, next_line: bool = True) -> None:
     """Put one task's answer in place and keep the participant's first version beside it.
 
     Only the task's own files change, so a later task's work and evidence stay as they
@@ -241,7 +250,8 @@ def install_task(task: str, repo: pathlib.Path = REPO,
         backend_changed = backend_changed or entry["source"].startswith(BACKEND_DIR)
     if backend_changed and restart is not None:
         restart()
-    print("  Next: " + ", then ".join(NEXT_AFTER_TASK[task]), flush=True)
+    if next_line:
+        print("  Next: " + ", then ".join(NEXT_AFTER_TASK[task]), flush=True)
 
 
 def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run) -> None:
@@ -362,8 +372,8 @@ class Backend:
                 f"cannot reach {self.base_url}{path} ({exc}). Is the backend running? "
                 "Check with: sudo systemctl status pellier") from exc
 
-    def get_json(self, path: str) -> Dict[str, Any]:
-        with self._open(path, None, None, 10) as response:
+    def get_json(self, path: str, token: Optional[str] = None) -> Dict[str, Any]:
+        with self._open(path, None, token, 10) as response:
             return json.loads(response.read())
 
     def post_json(self, path: str, body: Dict[str, Any], token: Optional[str] = None,
@@ -606,12 +616,46 @@ def execute_until_allowed(backend: Backend, token: str, review: int) -> Dict[str
         time.sleep(RETRY_SECONDS)
 
 
-def approve_credit(backend: Backend, token: str) -> None:
-    """Nadia investigates Jessica's case, approves the proposal and executes it."""
-    proposal = investigate(backend, token, CREDIT_CLIENT)
+LIVE_REVIEW = ("pending", "approved")
+
+
+def jessicas_reviews(backend: Backend, token: str) -> List[Dict[str, Any]]:
+    """Jessica's credit reviews, newest first. The Lab 4 check's probe reviews are not hers."""
+    reviews = backend.get_json("/api/operator/reviews", token).get("reviews") or []
+    mine = [r for r in reviews
+            if r.get("customerId") == CREDIT_CLIENT and not r.get("policyCheckProbe")]
+    return sorted(mine, key=lambda r: int(r.get("reviewId") or 0), reverse=True)
+
+
+def credited(review: Dict[str, Any]) -> bool:
+    """An approved review whose key already holds a credit in Aurora."""
+    return (review.get("status") == "approved"
+            and (review.get("assurance") or {}).get("aurora") == "PERMITTED")
+
+
+def settle_credit(backend: Backend, token: str,
+                  reviews: Optional[List[Dict[str, Any]]] = None) -> int:
+    """Nadia's part, at most once: return the review that holds Jessica's credit.
+
+    A credited review is left as it is: nothing is investigated, approved or written. A
+    live review (pending or approved) is finished rather than reopened, so a person's own
+    approval stands. Only when Jessica has neither does Nadia investigate.
+    """
+    if reviews is None:
+        reviews = jessicas_reviews(backend, token)
+    done = next((r for r in reviews if credited(r)), None)
+    if done is not None:
+        ok(f"review {done['reviewId']} already credited Jessica; nothing is investigated, "
+           "approved or written again")
+        return int(done["reviewId"])
+    live = next((r for r in reviews if r.get("status") in LIVE_REVIEW), None)
+    proposal = live or investigate(backend, token, CREDIT_CLIENT)
     review = int(proposal["reviewId"])
-    ok(f"Nadia investigated Jessica's case: review {review} proposes "
-       f"${proposal.get('amount')} for orders {proposal.get('orderIds')}")
+    if live is not None:
+        ok(f"review {review} is Jessica's open review; it is finished, not reopened")
+    else:
+        ok(f"Nadia investigated Jessica's case: review {review} proposes "
+           f"${proposal.get('amount')} for orders {proposal.get('orderIds')}")
     approve(backend, token, proposal)
     payload = execute_until_allowed(backend, token, review)
     credits = (payload.get("record") or {}).get("creditRows")
@@ -619,6 +663,20 @@ def approve_credit(backend: Backend, token: str) -> None:
         raise LabRunError(f"review {review} executed with Policy ALLOW but Aurora holds "
                           f"{credits} credit rows for its key, not 1")
     ok(f"Policy ALLOW; Aurora holds one credit for key {payload.get('idempotencyKey')}")
+    return review
+
+
+def prove_replay(backend: Backend, token: str, review: int) -> None:
+    """Execute the credited review again: the same key must find the first credit."""
+    payload = execute_until_allowed(backend, token, review)
+    replayed = bool((payload.get("result") or {}).get("idempotent_replay"))
+    credits = (payload.get("record") or {}).get("creditRows")
+    key = payload.get("idempotencyKey")
+    if not replayed or credits != 1:
+        raise LabRunError(f"executing review {review} again was not a replay: Aurora holds "
+                          f"{credits} credit rows for key {key}. A same-key retry must find "
+                          "the first credit and write nothing; check Task 4B.")
+    ok(f"replayed with the same key {key}: no new row; Aurora still holds one credit")
 
 
 def mint_token(username: str) -> str:
@@ -648,13 +706,106 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
         print("  Next: as Nadia in the Operator, investigate Jessica's case, approve the "
               "proposed credit and select Execute.", flush=True)
     elif lab == 4:
-        approve_credit(backend, token_for(OPERATOR))
+        settle_credit(backend, token_for(OPERATOR))
+
+
+# ---------------------------------------------------------------------------
+# finish: the lab's "Running behind?" sequence as one command
+# ---------------------------------------------------------------------------
+
+EXERCISES = {2: "labs/02-ground/2B-check-stock.sql", 3: "labs/03-deploy/3B-row-ownership.sql",
+             4: "labs/04-govern/4B-credit-writer.sql"}
+ABSENCE_QUERY = "workshop/lab-4-absence.sql"
+
+
+def _psql(path: str) -> List[str]:
+    return ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-f", path]
+
+
+def _check(task: str) -> List[str]:
+    return ["python3", f"scripts/lab{task[0]}_check.py", "--task", task]
+
+
+def _deploy(repo: pathlib.Path) -> List[str]:
+    return ["python3", "scripts/provision_agentcore_end_to_end.py", "--repo-path", str(repo),
+            "--mode", "participant"]
+
+
+class Finish:
+    """One lab's catch-up: every command is printed as typed, and the first failure stops it."""
+
+    def __init__(self, lab: int, backend: Backend, token_for: Callable[[str], str],
+                 run: Callable[..., Any], repo: pathlib.Path) -> None:
+        self.lab, self.backend, self.token_for = lab, backend, token_for
+        self.run, self.repo = run, repo
+
+    def command(self, argv: List[str]) -> None:
+        shown = shlex.join(argv)
+        print(f"  $ {shown}", flush=True)
+        executable = [sys.executable, *argv[1:]] if argv[0] == "python3" else argv
+        code = self.run(executable, cwd=str(self.repo), check=False).returncode
+        if code:
+            raise LabRunError(f"{shown} exited {code}; the lines above say why. Fix it, then run "
+                              f"python3 scripts/lab_run.py finish --lab {self.lab} again.")
+
+    def restart(self) -> None:
+        restart_backend(self.backend, run=self.run)
+
+    def credit(self) -> None:
+        """Jessica's request and Nadia's part, once, then the same-key replay proof."""
+        print("  Nadia's approval and execution are done for you here; in the lab you make "
+              "that decision yourself in the Operator.", flush=True)
+        wait_until_healthy(self.backend)
+        nadia = self.token_for(OPERATOR)
+        reviews = jessicas_reviews(self.backend, nadia)
+        if not any(credited(r) for r in reviews):
+            for persona, stages in CONVERSATIONS[4]:
+                converse(self.backend, 4, self.token_for(persona), persona,
+                         required_requests(persona, stages))
+        review = settle_credit(self.backend, nadia, reviews)
+        prove_replay(self.backend, nadia, review)
+
+
+def _finish_in_process(job: Finish) -> None:
+    if job.lab == 2:
+        job.command(_psql(EXERCISES[2]))
+    job.restart()
+    send(job.lab, job.backend, job.token_for)
+    job.command(_check(f"{job.lab}A"))
+    job.command(_check(f"{job.lab}B"))
+
+
+def _finish_lab_3(job: Finish) -> None:
+    job.command(_check("3A"))
+    job.command(_deploy(job.repo))
+    job.command(_psql(EXERCISES[3]))
+    send(3, job.backend, job.token_for)
+    job.command(_check("3B"))
+
+
+def _finish_lab_4(job: Finish) -> None:
+    job.command(_psql(EXERCISES[4]))
+    job.command(_deploy(job.repo))
+    job.credit()
+    job.command(_check("4A"))
+    job.command(_check("4B"))
+    job.command(_psql(ABSENCE_QUERY))
+
+
+def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
+           run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO) -> None:
+    """Back up the lab's files, put its answers in place, then run what proves them."""
+    for task in (t for t in TASKS if t.startswith(str(lab))):
+        install_task(task, repo, next_line=False)
+    job = Finish(lab, backend, token_for, run, repo)
+    {1: _finish_in_process, 2: _finish_in_process, 3: _finish_lab_3, 4: _finish_lab_4}[lab](job)
+    ok(f"Lab {lab} is finished: every check above passed")
 
 
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("action", choices=("solution", "send", "diff", "reset"))
+    parser.add_argument("action", choices=("solution", "send", "diff", "reset", "finish"))
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
     parser.add_argument("--shopper-only", action="store_true",
                         help="send: stop before Nadia's part in the Operator (Lab 4)")
@@ -673,7 +824,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                          f"Task {args.task} has no request of its own")
     titles = {"solution": "install the solution", "send": "send the requests",
               "diff": "compare your files with the solution",
-              "reset": "start over from the as-shipped lab"}
+              "reset": "start over from the as-shipped lab",
+              "finish": "finish the lab with its answers and prove it"}
     print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
     try:
         if args.action == "diff":
@@ -683,6 +835,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
             install_task(args.task, restart=lambda: restart_backend(backend))
         elif args.action == "solution":
             install_solution(args.lab)
+        elif args.action == "finish":
+            finish(args.lab, Backend(base_url), token_for)
         elif args.action == "reset":
             lab_reset.reset_lab(args.lab, wait_healthy=lambda: wait_until_healthy(
                 Backend(base_url)))
