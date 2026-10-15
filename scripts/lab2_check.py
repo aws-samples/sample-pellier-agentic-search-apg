@@ -82,8 +82,8 @@ EXPECTED_2B = ("not carried -> not_found with no count; several -> ambiguous wit
                "candidates; sold out -> success with 0 units; in stock -> success with "
                "the warehouse rows; the live pellier.check_stock is your worksheet's")
 _NEXT_2B = ("what should a piece Pellier does not carry return? Write that test in the "
-            f"{FUNCTION_REGION} region of workshop/lab-2-check-stock.sql, then run it "
-            f"({WORKSHEET_RUN}): it commits your function only when its four probes match.")
+            f"{FUNCTION_REGION} region of workshop/lab-2-check-stock.sql, then run it: "
+            f"{WORKSHEET_RUN}. It commits your function only when its four probes match.")
 
 # The catalog's own answer to "which pieces does this query name?": every word
 # of the query in the name, the matching rule check_stock documents.
