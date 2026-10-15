@@ -14,6 +14,7 @@ All of it runs on the real schema and catalog of a fresh cluster.
 from __future__ import annotations
 
 import importlib
+import json
 import subprocess
 import sys
 import textwrap
@@ -106,9 +107,16 @@ def test_the_check_catches_a_realistic_mistake(conn, monkeypatch, mistake: str,
     assert observed in finding.observed, (mistake, finding.observed)
 
 
-def test_the_worksheet_query_is_the_one_the_search_builds() -> None:
+def _annas_first_sentence() -> str:
+    scenarios = json.loads((REPO / "data" / "scenarios.json").read_text(encoding="utf-8"))
+    (first,) = [s["prompt"] for s in scenarios
+                if s["persona"] == "anna" and s["journey_stage"] == "establish"]
+    return first
+
+
+def test_the_worksheet_query_is_the_one_the_search_builds_from_the_1a_sentence() -> None:
     worksheet = WORKSHEET.read_text(encoding="utf-8")
-    expected = store_tools.or_tsquery(lab1_vector.ANNA_REQUEST)
+    expected = store_tools.or_tsquery(_annas_first_sentence())
     assert f"\\set words '{expected}'" in worksheet
 
 
@@ -126,11 +134,10 @@ def _worksheet_rows(cluster: Any, worksheet: Path = WORKSHEET, bars: int = 2) ->
 
 def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> None:  # noqa: F811
     rows = {row[1]: row for row in _worksheet_rows(fresh_db) if row[0].isdigit()}
-    assert rows["8-Quart Stock Pot"][2] == "stock"
+    assert rows["Housewarming Gift Box"][0] == "1"
     assert rows["Morning Run Shorts"][2] == "mornings"
-    assert rows["100% Linen Apron"][2] == "100"
-    assert "candles" in rows["Sunday Morning Candle"][2]
-    assert rows["Sunday Morning Candle"][3] == "a candle"
+    assert rows["Sunday Morning Candle"][2] == "gift, mornings"
+    assert len(rows) == 10
 
 
 def test_the_meaning_worksheet_shows_distances_without_ranking_them(fresh_db) -> None:  # noqa: F811
