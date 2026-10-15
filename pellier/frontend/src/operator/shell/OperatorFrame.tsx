@@ -26,6 +26,7 @@ import ClientAvatar from '../components/ClientAvatar'
 import { presentIdentity } from '../components/ProposedCreditCard'
 import { ClientList } from '../surfaces/ClientBook'
 import { ReviewList } from '../surfaces/ReviewQueue'
+import { waitingLabel } from '../vocabulary'
 import '../styles/operator.css'
 
 /** Tab, history and bookmark titles for each desk route. */
@@ -42,7 +43,35 @@ const PendingCount: React.FC = () => {
   return (
     <span className="op-bar-count" data-count={queue.pendingCount > 0 ? 'waiting' : 'clear'} data-testid="operator-reviews-link-count">
       {queue.pendingCount}
+      <span className="gov-visually-hidden"> {waitingLabel(queue.pendingCount)}</span>
     </span>
+  )
+}
+
+/**
+ * The keyboard route between the list, the record and the investigation or
+ * decision. Tab already walks them in that order; these links jump a reader
+ * past the fifteen clients to the part they came for. Hidden until focused.
+ */
+const SkipLinks: React.FC<{ section: 'clients' | 'reviews'; hasRecord: boolean }> = ({ section, hasRecord }) => {
+  const go = (event: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+    const target = document.getElementById(id)
+    if (!target) return
+    event.preventDefault()
+    target.focus()
+    target.scrollIntoView({ block: 'start' })
+  }
+  const links = [
+    { id: 'op-rail', label: section === 'reviews' ? 'Skip to the reviews' : 'Skip to the clients' },
+    { id: 'main-content', label: 'Skip to the record' },
+    ...(hasRecord ? [{ id: 'op-aside', label: section === 'reviews' ? 'Skip to the decision' : 'Skip to the investigation' }] : []),
+  ]
+  return (
+    <nav className="op-skip" aria-label="Move around the desk">
+      {links.map(link => (
+        <a key={link.id} href={`#${link.id}`} className="op-skip-link" onClick={event => go(event, link.id)}>{link.label}</a>
+      ))}
+    </nav>
   )
 }
 
@@ -75,6 +104,7 @@ const StaffIdentity: React.FC = () => {
 const OperatorDesk: React.FC = () => {
   const { pathname } = useLocation()
   const reviews = pathname.startsWith('/operator/reviews')
+  const hasRecord = /^\/operator\/(clients|reviews)\/[^/]+/.test(pathname)
   const queue = useQueueResource()
   const clients = useClientBookResource()
 
@@ -88,6 +118,7 @@ const OperatorDesk: React.FC = () => {
     <ClientBookContext.Provider value={clients}>
       <ReviewQueueContext.Provider value={queue}>
           <div className="operator-root" data-testid="operator-root">
+            <SkipLinks section={reviews ? 'reviews' : 'clients'} hasRecord={hasRecord} />
             <div className="op-bar">
               <nav className="op-bar-sections" aria-label="Operator sections">
                 <NavLink to="/operator" end={false} className={({ isActive }) => `op-bar-link${isActive && !reviews ? ' op-bar-link-active' : ''}`} aria-current={!reviews ? 'page' : undefined}>
@@ -100,8 +131,8 @@ const OperatorDesk: React.FC = () => {
               </nav>
               <StaffIdentity />
             </div>
-            <div className="op-desk" data-section={reviews ? 'reviews' : 'clients'}>
-              <aside className="op-rail" aria-label={reviews ? 'Reviews' : 'Clients'}>
+            <div className="op-desk" data-section={reviews ? 'reviews' : 'clients'} data-view={hasRecord ? 'record' : 'index'}>
+              <aside className="op-rail" id="op-rail" tabIndex={-1} aria-label={reviews ? 'Reviews' : 'Clients'}>
                 {reviews ? <ReviewList /> : <ClientList />}
               </aside>
               <main className="op-main" id="main-content" tabIndex={-1}>

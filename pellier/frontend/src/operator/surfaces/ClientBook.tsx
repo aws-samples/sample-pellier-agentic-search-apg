@@ -13,6 +13,7 @@ import type { OperatorClient } from '../../services/operator'
 import ClientAvatar from '../components/ClientAvatar'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
+import { openRequestsLabel } from '../vocabulary'
 
 export function shortDate(iso: string | null): string | null {
   if (!iso) return null
@@ -42,7 +43,7 @@ const ClientRow: React.FC<{ client: OperatorClient; selected: boolean }> = ({ cl
           <span className="op-row-name">{client.name}</span>
           {client.openRequests > 0 ? (
             <StatusTag tone="pending" pulse>
-              {client.openRequests === 1 ? '1 open request' : `${client.openRequests} open requests`}
+              {openRequestsLabel(client.openRequests)}
             </StatusTag>
           ) : null}
         </span>
@@ -97,7 +98,7 @@ export const ClientList: React.FC = () => {
       <div className="op-list-head">
         <h2 className="op-h2">Clients</h2>
         <span className="op-list-count">
-          {book.openRequests === 1 ? '1 open request' : `${book.openRequests} open requests`}
+          {openRequestsLabel(book.openRequests)}
         </span>
       </div>
       <ul>
@@ -116,7 +117,7 @@ const ClientBook: React.FC = () => (
     data-testid="operator-book-choose"
     eyebrow="Operator desk"
     headline="Choose a client"
-    body="Open a record to read the ticket, the orders and the credits, then let the Investigator and the Planner propose the next step."
+    body="Open a record to read the ticket, the orders and the credits, then let the Investigator and the Planner propose the next step. From the keyboard, Tab walks the list, then the record, then the investigation; the skip links at the top of the desk jump between them."
   />
 )
 

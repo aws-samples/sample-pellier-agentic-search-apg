@@ -142,6 +142,46 @@
   white-space: nowrap;
 }
 
+/* ---- Keyboard route: hidden until focused ---- */
+
+.op-skip {
+  position: absolute;
+  top: calc(var(--pellier-chrome-height) + 8px);
+  left: var(--pellier-gutter);
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.op-skip:focus-within {
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip-path: none;
+}
+
+.op-skip-link {
+  padding: 8px 14px;
+  border: 1px solid var(--dl-line-strong);
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-raised);
+  color: var(--dl-ink);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.op-skip-link:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
+}
+
 /* ---- The three columns ---- */
 
 .op-desk {
@@ -159,8 +199,12 @@
   min-width: 0;
 }
 
-.op-main:focus-visible {
-  outline: none;
+.op-main:focus-visible,
+.op-rail:focus-visible,
+.op-aside:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 4px;
+  border-radius: var(--dl-r-sm);
 }
 
 .op-rail {
@@ -462,6 +506,13 @@
   color: var(--pellier-tag-blocked-ink);
 }
 
+.op-note-replay {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+}
+
 .op-error {
   margin: 0;
   color: var(--pellier-tag-blocked-ink);
@@ -634,8 +685,52 @@
 
 .op-check-detail {
   grid-column: 2;
-  color: var(--dl-ink-2);
-  font-size: 12.5px;
+  display: grid;
+  gap: 2px;
+}
+
+.op-check-verdict {
+  color: var(--dl-ink);
+  font-size: 13px;
+}
+
+.op-check-note {
+  color: var(--dl-muted);
+  font-size: 12px;
+}
+
+.op-copy {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.op-copy-value {
+  min-width: 0;
+}
+
+.op-copy-button {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid transparent;
+  border-radius: var(--dl-r-sm);
+  background: transparent;
+  color: var(--dl-muted);
+  cursor: pointer;
+}
+
+.op-copy-button:hover {
+  border-color: var(--dl-line-strong);
+  color: var(--dl-ink);
+}
+
+.op-copy-button:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
 }
 
 .op-credit-actions {
@@ -761,6 +856,18 @@
     order: 1;
   }
 
+  /* A record route leads with the record: the reader chose it, and the Clients
+     tab returns to the list. The index routes have no record, so the list
+     leads and the prompt follows it. */
+  .op-desk[data-view='index'] .op-rail {
+    order: 1;
+    border-bottom: 0;
+  }
+
+  .op-desk[data-view='index'] .op-main {
+    order: 2;
+  }
+
   .op-bar {
     padding-inline: 16px;
   }
@@ -788,6 +895,10 @@
 
   .op-check-detail {
     grid-column: 1;
+  }
+
+  .op-skip {
+    left: 16px;
   }
 }
 

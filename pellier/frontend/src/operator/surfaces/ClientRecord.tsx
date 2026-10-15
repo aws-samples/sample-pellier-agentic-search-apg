@@ -6,7 +6,7 @@
  * Planner opens one review, a person approves it, and only the approved review
  * can reach execution.
  */
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useContext, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { StatusTag } from '../../components/turn'
 import {
@@ -17,13 +17,17 @@ import {
 } from '../../services/operator'
 import { imageSrc } from '../../utils/assetPath'
 import ClientAvatar from '../components/ClientAvatar'
+import CopyValue from '../components/CopyValue'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
+import { ClientBookContext } from '../hooks/useClientBook'
 import { useInvestigation } from '../hooks/useInvestigation'
 import { useReview } from '../hooks/useReview'
+import { ReviewQueueContext } from '../hooks/useReviewQueue'
 import InvestigationSteps from '../investigation/InvestigationSteps'
 import { shortDate } from './ClientBook'
 import { requestOutcome } from './ReviewQueue'
+import { WAITING_TAG } from '../vocabulary'
 
 function ticketTone(status: string): 'good' | 'blocked' | 'pending' {
   if (status === 'open' || status === 'pending') return 'pending'
@@ -61,7 +65,7 @@ function reviewTone(review: OperatorReview): { tone: 'good' | 'blocked' | 'pendi
     }
     return { tone: 'good', word: 'Approved', pulse: false }
   }
-  return { tone: 'pending', word: 'Waiting for approval', pulse: true }
+  return { tone: 'pending', word: WAITING_TAG, pulse: true }
 }
 
 const OrderThumb: React.FC<{ src: string; name: string }> = ({ src, name }) => {
@@ -82,6 +86,8 @@ const ClientRecordPage: React.FC = () => {
   const followed = record ? activeReview(record.reviews) : null
   const reviewId = investigation.answer?.proposal?.reviewId ?? followed?.reviewId ?? null
   const review = useReview(reviewId)
+  const refreshQueue = useContext(ReviewQueueContext)?.refresh
+  const refreshClients = useContext(ClientBookContext)?.refresh
 
   const load = useCallback(() => {
     let active = true
@@ -106,8 +112,14 @@ const ClientRecordPage: React.FC = () => {
   }, [reviewVersion, executed])
 
   const start = useCallback(() => {
-    void investigation.start().then(() => setRetry(value => value + 1))
-  }, [investigation])
+    // The investigation opens a review and answers the client's request, so
+    // the Reviews badge, the rail and the client list are re-read with the record.
+    void investigation.start().then(() => {
+      setRetry(value => value + 1)
+      void refreshQueue?.()
+      refreshClients?.()
+    })
+  }, [investigation, refreshQueue, refreshClients])
 
   if (error) {
     const described = describeOperatorError(error, 'open this client record')
@@ -253,7 +265,7 @@ const ClientRecordPage: React.FC = () => {
                   <tr key={credit.creditId} data-testid={`operator-credit-${credit.creditId}`}>
                     <td>{credit.reason}</td>
                     <td className="op-col-optional">{shortDate(credit.createdAt) ?? ''}</td>
-                    <td><code>{credit.idempotencyKey}</code></td>
+                    <td><CopyValue value={credit.idempotencyKey} noun="write key" /></td>
                     <td className="op-num">${credit.amount}</td>
                   </tr>
                 ))}
@@ -270,7 +282,7 @@ const ClientRecordPage: React.FC = () => {
         </section>
       </article>
 
-      <aside className="op-aside" aria-label="Investigation">
+      <aside className="op-aside" id="op-aside" tabIndex={-1} aria-label="Investigation">
         <InvestigationSteps
           investigation={investigation}
           review={reviewId !== null ? review : null}

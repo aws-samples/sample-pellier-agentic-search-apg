@@ -52,6 +52,8 @@ import ClientBook, { ClientList } from './surfaces/ClientBook'
 import ClientRecord from './surfaces/ClientRecord'
 import ReviewRecord from './surfaces/ReviewRecord'
 import { ReviewList, reviewOutcome } from './surfaces/ReviewQueue'
+import { gatewayDetail, splitDetail } from './components/ProposedCreditCard'
+import { ReviewQueueContext } from './hooks/useReviewQueue'
 import OperatorFrame, { operatorTitleForPath } from './shell/OperatorFrame'
 
 function renderAt(path: string, element: React.ReactNode) {
@@ -286,7 +288,7 @@ describe('the review record', () => {
     expect(within(checks).getByText('Recorded once')).toBeInTheDocument()
     expect(checks).toHaveTextContent('Credit #12 and tool_audit row #4051')
     expect(screen.getByTestId('operator-credit-recorded')).toHaveTextContent('Credit #12 recorded for Jessica Nakamura')
-    expect(screen.getByTestId('operator-review-retry')).toHaveTextContent('Retry execution')
+    expect(screen.getByTestId('operator-review-retry')).toHaveTextContent('Replay with the same key')
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('gateway-mcp')
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent(WRITE_KEY)
   })
@@ -304,7 +306,8 @@ describe('the review record', () => {
     const checks = await screen.findByTestId('operator-credit-checks')
     await waitFor(() => expect(within(checks).getByText('DENY')).toBeInTheDocument())
     expect(within(checks).getByText('Not written')).toBeInTheDocument()
-    expect(checks).toHaveTextContent('Zero store_credits rows and zero tool_audit rows for this key: the tool was never entered.')
+    expect(checks).toHaveTextContent('No store_credits row and no tool_audit row for this key.')
+    expect(checks).toHaveTextContent('The tool was never entered.')
     expect(screen.getByTestId('operator-credit-denied')).toBeInTheDocument()
     expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute again')
   })
@@ -374,8 +377,8 @@ describe('the reviews list', () => {
     renderAt('/operator/reviews', <ReviewList />)
     expect(await screen.findByTestId('operator-reviews')).toBeInTheDocument()
     const rows = screen.getAllByTestId('operator-review-41')
-    expect(rows.map(r => r.getAttribute('data-outcome'))).toEqual(['Waiting for Nadia', 'Credited', 'Not written'])
-    expect(screen.getByTestId('operator-reviews-count')).toHaveTextContent('1 waiting')
+    expect(rows.map(r => r.getAttribute('data-outcome'))).toEqual(['Waiting for approval', 'Credited', 'Not written'])
+    expect(screen.getByTestId('operator-reviews-count')).toHaveTextContent('1 waiting for approval')
   })
 
   it("lists Jessica's chat request above the reviews: no amount, nothing to approve", async () => {
@@ -446,7 +449,7 @@ describe('the desk shell', () => {
         </Routes>
       </MemoryRouter>,
     )
-    expect(await screen.findByTestId('operator-review-41')).toHaveAttribute('data-outcome', 'Waiting for Nadia')
+    expect(await screen.findByTestId('operator-review-41')).toHaveAttribute('data-outcome', 'Waiting for approval')
     expect(screen.getByTestId('operator-reviews-link-count')).toHaveTextContent('1')
     api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, reviews: [EXECUTED_REVIEW], pendingCount: 0 })
 
@@ -508,5 +511,137 @@ describe('the review a client record follows', () => {
     // A record whose only review is the probe still shows it.
     expect(activeReview([PROBE_REVIEW])).toBe(PROBE_REVIEW)
     expect(activeReview([])).toBeNull()
+  })
+})
+
+describe('the investigation refreshes the desk', () => {
+  it('re-reads the review queue when an investigation opens a review', async () => {
+    const refresh = vi.fn()
+    render(
+      <MemoryRouter initialEntries={['/operator/clients/CUST-JESSICA']}>
+        <ReviewQueueContext.Provider value={{ queue: QUEUE, error: null, refreshing: false, updatedAt: null, refresh }}>
+          <Routes>
+            <Route path="/operator/clients/:customerId" element={<ClientRecord />} />
+          </Routes>
+        </ReviewQueueContext.Provider>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    await screen.findByTestId('operator-brief')
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1))
+  })
+})
+
+describe('the execution actions and their outcomes', () => {
+  it('keeps one label for the first run and for the run after a DENY', async () => {
+    api.fetchReview.mockResolvedValue(detail(APPROVED_REVIEW))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    expect(await screen.findByTestId('operator-review-execute')).toHaveTextContent(/^Execute$/)
+    api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, NOTHING_WRITTEN))
+    api.executeReview.mockResolvedValueOnce({
+      reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
+      actorPrincipal: 'sub-nadia', assurance: DENIED_ON_RELOAD.assurance,
+      notes: {}, tool: 'give_store_credit', result: { status: 'policy_denied' }, record: NOTHING_WRITTEN,
+    })
+    fireEvent.click(screen.getByTestId('operator-review-execute'))
+    await waitFor(() => expect(screen.getByTestId('operator-review-execute')).toHaveTextContent(/^Execute again$/))
+  })
+
+  it('shows a replay as its own neutral outcome that names the original credit', async () => {
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
+    api.executeReview.mockResolvedValueOnce({
+      reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-2', idempotencyKey: WRITE_KEY,
+      actorPrincipal: 'sub-nadia', assurance: EXECUTED_REVIEW.assurance,
+      notes: {}, tool: 'give_store_credit', result: { status: 'success', credit_id: 12, idempotent_replay: true }, record: RECORDED_ONCE,
+    })
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-retry'))
+    const replayed = await screen.findByTestId('operator-credit-replayed')
+    expect(within(replayed).getByTestId('status-tag')).toHaveTextContent('Replayed, no new row')
+    expect(within(replayed).getByTestId('status-tag')).toHaveAttribute('data-tone', 'pending')
+    expect(replayed).toHaveTextContent('credit #12 already recorded')
+    expect(screen.queryByTestId('operator-credit-recorded')).not.toBeInTheDocument()
+  })
+
+  it('says waiting for approval when no staff member is signed in', async () => {
+    const signedIn = auth.user
+    auth.user = null
+    auth.isAuthenticated = false
+    try {
+      renderAt('/operator/reviews/41', <ReviewRecord />)
+      const checks = await screen.findByTestId('operator-credit-checks')
+      expect(within(checks).getByText('Waiting for approval')).toBeInTheDocument()
+    } finally {
+      auth.user = signedIn
+      auth.isAuthenticated = true
+    }
+  })
+
+  it('offers a copy control beside the write key', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, { clipboard: { writeText } })
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const card = await screen.findByTestId('operator-proposed-credit')
+    fireEvent.click(within(card).getByRole('button', { name: 'Copy write key' }))
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith(WRITE_KEY))
+    expect(await within(card).findByRole('button', { name: 'write key copied' })).toBeInTheDocument()
+  })
+})
+
+describe('check details', () => {
+  it('splits the Gateway note into a verdict and a facts line', () => {
+    const note = EXECUTED_REVIEW.execution!.notes.policy!
+    expect(gatewayDetail(note)).toEqual({
+      verdict: 'The Gateway answered: allowed.',
+      note: 'Engine in ENFORCE, 2026-10-04 15:04 UTC. Evidence: tool_audit and store_credits.',
+    })
+    const denied = gatewayDetail(DENIED_ON_RELOAD.execution!.notes.policy!)
+    expect(denied.verdict).toBe('The Gateway answered: denied. The tool never ran.')
+    expect(denied.note).toContain('Forbid: credit_limit_forbid')
+  })
+
+  it('splits text of any other shape on its first sentence', () => {
+    expect(gatewayDetail('Something unexpected. It has two sentences.')).toEqual({
+      verdict: 'Something unexpected.', note: 'It has two sentences.',
+    })
+    expect(splitDetail('One sentence only')).toEqual({ verdict: 'One sentence only' })
+  })
+})
+
+describe('the keyboard route and the narrow order', () => {
+  function renderDesk(path: string) {
+    return render(
+      <MemoryRouter initialEntries={[path]}>
+        <Routes>
+          <Route path="/operator" element={<OperatorFrame />}>
+            <Route index element={<ClientBook />} />
+            <Route path="clients/:customerId" element={<ClientRecord />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>,
+    )
+  }
+
+  it('offers skip links to the list, the record and the investigation', async () => {
+    renderDesk('/operator/clients/CUST-JESSICA')
+    await screen.findByTestId('operator-record')
+    const nav = screen.getByRole('navigation', { name: 'Move around the desk' })
+    expect(within(nav).getAllByRole('link').map(link => link.textContent)).toEqual([
+      'Skip to the clients', 'Skip to the record', 'Skip to the investigation',
+    ])
+    fireEvent.click(within(nav).getByRole('link', { name: 'Skip to the investigation' }))
+    expect(document.getElementById('op-aside')).toHaveFocus()
+  })
+
+  it('marks index routes so the list leads on a narrow window, and record routes so the record does', async () => {
+    const { container, unmount } = renderDesk('/operator')
+    await screen.findByTestId('operator-book')
+    expect(container.querySelector('.op-desk')).toHaveAttribute('data-view', 'index')
+    expect(screen.queryByRole('link', { name: 'Skip to the investigation' })).not.toBeInTheDocument()
+    unmount()
+    const record = renderDesk('/operator/clients/CUST-JESSICA')
+    await screen.findByTestId('operator-record')
+    expect(record.container.querySelector('.op-desk')).toHaveAttribute('data-view', 'record')
   })
 })

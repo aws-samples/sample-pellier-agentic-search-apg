@@ -11,6 +11,7 @@ import React from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
 import { StatusTag, type TagTone } from '../../components/turn'
 import { useReviewQueue } from '../hooks/useReviewQueue'
+import { openRequestsLabel, WAITING_TAG, waitingLabel } from '../vocabulary'
 import type { OperatorCreditRequest, OperatorReview } from '../../services/operator'
 import ClientAvatar from '../components/ClientAvatar'
 import OperatorSignInAction from '../components/OperatorSignInAction'
@@ -24,7 +25,7 @@ export interface ReviewOutcome {
 
 /** Where a credit stands, from the axes the API resolved. Nothing is inferred. */
 export function reviewOutcome(review: OperatorReview): ReviewOutcome {
-  if (review.humanState === 'confirmation_required') return { tone: 'pending', word: 'Waiting for Nadia', pulse: true }
+  if (review.humanState === 'confirmation_required') return { tone: 'pending', word: WAITING_TAG, pulse: true }
   if (review.humanState === 'declined') return { tone: 'blocked', word: 'Declined', pulse: false }
   const { policy, aurora, evidence } = review.assurance
   if (aurora === 'PERMITTED' && evidence === 'RECEIPTED') return { tone: 'good', word: 'Credited', pulse: false }
@@ -126,7 +127,7 @@ export const ReviewList: React.FC = () => {
       <div className="op-list-head">
         <h2 className="op-h2">Reviews</h2>
         <span className="op-list-count" data-testid="operator-reviews-count">
-          {queue.pendingCount === 1 ? '1 waiting' : `${queue.pendingCount} waiting`}
+          {waitingLabel(queue.pendingCount)}
         </span>
       </div>
       {queue.total === 0 ? (
@@ -145,7 +146,7 @@ export const ReviewList: React.FC = () => {
           <div className="op-list-head">
             <h3 className="op-h3">Requests</h3>
             <span className="op-list-count" data-testid="operator-requests-count">
-              {`${queue.openRequestCount} open`}
+              {openRequestsLabel(queue.openRequestCount)}
             </span>
           </div>
           <ul aria-label="Store credit requests">
@@ -164,7 +165,7 @@ const ReviewQueue: React.FC = () => (
     data-testid="operator-reviews-choose"
     eyebrow="Reviews"
     headline="Choose a review"
-    body="Each review is one proposed store credit. Approving binds to its exact amount, reason and customer; executing asks whether the system may carry it out."
+    body="Each review is one proposed store credit. Approving binds to its exact amount, reason and customer; executing asks whether the system may carry it out. From the keyboard, Tab walks the list, then the record, then the decision; the skip links at the top of the desk jump between them."
   />
 )
 

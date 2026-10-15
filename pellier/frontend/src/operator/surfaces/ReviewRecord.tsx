@@ -10,6 +10,7 @@ import React from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { StatusTag } from '../../components/turn'
 import ClientAvatar from '../components/ClientAvatar'
+import CopyValue from '../components/CopyValue'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
 import ProposedCreditCard, { POLICY_CHECK_PROBE_LINE } from '../components/ProposedCreditCard'
@@ -118,7 +119,7 @@ const ReviewRecordPage: React.FC = () => {
             <dl className="op-key">
               <div><dt>Rail</dt><dd>{review.execution.rail ?? 'no row written'}</dd></div>
               <div><dt>Execution turn</dt><dd>{review.execution.executionTurnId}</dd></div>
-              <div><dt>Write key</dt><dd>{review.execution.idempotencyKey}</dd></div>
+              <div><dt>Write key</dt><dd><CopyValue value={review.execution.idempotencyKey} noun="write key" /></dd></div>
               {review.execution.lastAttempt ? (
                 <div data-testid="operator-review-last-attempt">
                   <dt>Last attempt</dt>
@@ -135,7 +136,7 @@ const ReviewRecordPage: React.FC = () => {
         ) : null}
       </article>
 
-      <aside className="op-aside" aria-label="Decision">
+      <aside className="op-aside" id="op-aside" tabIndex={-1} aria-label="Decision">
         <ProposedCreditCard controller={controller} items={items} />
       </aside>
     </>
