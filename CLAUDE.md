@@ -147,10 +147,10 @@ unpackaged file or infer deployed completion from source inspection.
 
 The schedule is 20 minutes for the opening talk and 10 for the Introduction and
 Getting started. Participant guides then start their hands-on clock with Labs
-1-4 at 15/15/25/25 minutes (80), five minutes are held for recovery, and the
-Wrap-up takes the last 5: all 120 minutes of the slot. Reading,
-deployment waits, and explanation share those allocations. These are targets
-pending a timed fresh-account rehearsal.
+1-4 at 15/20/25/25 minutes (85) and the Wrap-up takes the last 5: all 120
+minutes of the slot, with no time held for recovery. Reading, deployment waits,
+and explanation share those allocations. These are targets pending a timed
+fresh-account rehearsal.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
 documentation.

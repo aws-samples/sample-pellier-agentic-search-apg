@@ -38,10 +38,9 @@ Times are elapsed minutes from the start of the session.
 | 0-20 | Opening talk | 20 minutes |
 | 20-30 | Introduction and Getting started | 10 minutes |
 | 30-45 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
-| 45-60 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
-| 60-85 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
-| 85-110 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 25 minutes |
-| 110-115 | Held for recovery | 5 minutes |
+| 45-65 | Lab 2: Build a PostgreSQL-Grounded Agent | 20 minutes |
+| 65-90 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
+| 90-115 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 25 minutes |
 | 115-120 | Wrap-up: export the evidence | 5 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
@@ -223,7 +222,7 @@ credit, and the system must prove what moved.
   `UPDATE`. The worksheet commits the privileges once all eight probes match
   and ends `Lab 4B privileges check passed`.
 - **The decision:** Nadia selects **Execute again** (ALLOW, recorded once),
-  then **Retry execution** (nothing written twice).
+  then **Replay with the same key** (nothing written twice).
 - **Proof, back in the terminal:** `python3 scripts/lab4_check.py --task 4A`
   evaluates the rule with Cedar beside the deployed baseline (shopper $100 DENY,
   Nadia 10000 cents ALLOW, 10001 DENY), rejects eight wrong rules, then sends

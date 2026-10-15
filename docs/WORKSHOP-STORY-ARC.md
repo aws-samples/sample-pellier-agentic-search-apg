@@ -28,7 +28,7 @@ Prove it is one command and one pass token. The Storefront's Builder view, the
 Operator and the AgentCore console come after the token and show what the
 terminal proved; nothing the proof depends on happens there. Lab 4's decisions
 are the exception: Nadia's approval and the Operator's **Execute**, **Execute
-again** and **Retry execution** happen in the Operator, and their proof comes
+again** and **Replay with the same key** happen in the Operator, and their proof comes
 back to the terminal.
 
 One starter-failure test per lab (`pellier/backend/tests/test_lab1_vector.py`,
@@ -130,7 +130,7 @@ starter is never proved.
 ## Timing
 
 The schedule is 20 minutes for the opening talk, 10 for the Introduction and
-Getting started, then 15, 15, 25 and 25 minutes for Labs 1 to 4, five held for
-recovery, and 5 for the Wrap-up: all 120 minutes of the slot. These are targets until a timed fresh-account rehearsal
-confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
+Getting started, then 15, 20, 25 and 25 minutes for Labs 1 to 4, and 5 for the
+Wrap-up: all 120 minutes of the slot, with no time held for recovery. These are
+targets until a timed fresh-account rehearsal confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
 each of those labs runs its worksheet task during its wait.
