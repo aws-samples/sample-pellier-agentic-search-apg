@@ -30,6 +30,16 @@ the remembered record the check printed, his ticket read bound to `CUST-THEO`, a
 request staying on his account. The AgentCore console shows the Runtime, the Gateway and the
 Memory record.
 
+Then look from the database's side. This supplied worksheet reads `pg_stat_statements` and
+lists what each role ran: the agent's reads as `pellier_agent`, the app's own login, and one
+plan with the row policy inside it. It only reads.
+
+```bash
+psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-agent-workload.sql
+```
+
+It ends `Lab 3 workload check passed` once Theo's requests have run.
+
 ## If you need a solution
 
 Open [solution/README.md](solution/README.md) when you choose the recovery path. Installing

@@ -40,6 +40,14 @@ The two worksheets run during their labs' deploys and print their own lines:
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql`.
 
+Two more supplied worksheets read the agent from the database's side and change nothing.
+After Lab 3's token, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-agent-workload.sql`
+lists the statements each role ran, from `pg_stat_statements`, and one plan with the row
+policy inside it; it ends `Lab 3 workload check passed`. At the Wrap-up,
+`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql` rebuilds
+Jessica's credit from her request to the row with joins, and ends
+`Wrap-up reconstruction passed`.
+
 Before Task 1A's edit, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql` measures eight products against
 a product's own stored embedding: that product sits at distance 0, and the rows come
 in name order, so the ranking and its direction stay Task 1A's to write. The HNSW

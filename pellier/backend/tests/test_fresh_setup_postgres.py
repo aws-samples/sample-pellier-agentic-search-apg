@@ -65,7 +65,7 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%' "
                            "ORDER BY 1") == ["pellier_agent", "pellier_credit_writer"]
     assert _rows(fresh_db, "SELECT extname FROM pg_extension ORDER BY 1") == [
-        "pg_trgm", "plpgsql", "vector",
+        "pg_stat_statements", "pg_trgm", "plpgsql", "vector",
     ]
 
 

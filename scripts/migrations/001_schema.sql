@@ -15,6 +15,7 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;   -- embeddings: Cohere Embed v4, 1024 numbers
 CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- fast "name contains" lookups
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;  -- the workload, by role
 
 CREATE SCHEMA pellier;
 

@@ -81,7 +81,9 @@ def _start_step(args: list[str], log: Path) -> None:
                              f"{done.stderr}\n{server_log}")
 
 
-def start_cluster(root: Path) -> Cluster:
+def start_cluster(root: Path, server_options: str = "") -> Cluster:
+    """Start a throwaway cluster; ``server_options`` adds ``-c name=value`` settings,
+    such as preloading pg_stat_statements the way the workshop's Aurora cluster does."""
     pg = _pg_bin()
     if pg is None:
         pytest.skip("PostgreSQL 18 with pgvector is required for the fresh-setup harness")
@@ -92,7 +94,7 @@ def start_cluster(root: Path) -> Cluster:
         _start_step([str(pg / "initdb"), "-D", str(root / "data"), "-U", "postgres",
                      "-A", "trust", "--no-locale", "--encoding=UTF8", "--no-sync"], log)
         _start_step([str(pg / "pg_ctl"), "-D", str(root / "data"), "-l", str(log),
-                     "-o", f"-F -h '' -k {socket}",
+                     "-o", f"-F -h '' -k {socket} {server_options}".rstrip(),
                      "-w", "start"], log)
     except BaseException:
         cluster.stop()
