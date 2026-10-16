@@ -721,6 +721,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "git.autofetch": false,
     "scm.diffDecorations": "none",
     "aws.telemetry": false,
+    "remote.autoForwardPorts": false,
     "aws.suppressPrompts": {
         "minIdeVersion": true,
         "ssoCacheError": true,

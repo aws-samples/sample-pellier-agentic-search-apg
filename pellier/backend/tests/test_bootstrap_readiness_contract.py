@@ -1406,6 +1406,17 @@ def test_the_explorer_shows_the_whole_source_and_hides_only_noise_and_secrets() 
             assert shown not in listing, f"{shown} must stay visible in the Explorer"
 
 
+def test_restarting_the_backend_raises_no_port_forwarding_toast() -> None:
+    """Every lab restart re-binds port 8000, and auto-forwarding announced it each time.
+
+    "Your application running on port 8000 is available" covered the terminal's next command
+    at the moment participants read it. Pellier is served through Code Editor's /ports/8000/
+    proxy, which does not depend on auto-forwarding (proved on a live event).
+    """
+    user_settings, _workspace = _settings_blocks()
+    assert user_settings["remote.autoForwardPorts"] is False
+
+
 def test_the_settings_comment_says_why_so_little_is_hidden() -> None:
     source = BOOTSTRAP_ENV.read_text(encoding="utf-8")
     comment = source[source.index("# files.exclude"):source.index("cat > \"$SETTINGS_DIR")]
