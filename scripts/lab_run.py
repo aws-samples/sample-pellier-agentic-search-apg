@@ -90,6 +90,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import lab_reset  # noqa: E402  (sibling module)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
+# The .env the backend loads; send reads its USE_AGENTCORE_RUNTIME before any request.
+ENV_FILE = REPO / ".env"
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 
 IN_PROCESS, MANAGED = "in-process", "gateway-mcp"
@@ -180,7 +182,16 @@ def wait(message: str) -> None:
 
 
 def fail(message: str) -> None:
-    print(f"  x FAIL  {message}", file=sys.stderr, flush=True)
+    first, *rest = message.split("\n")
+    lines = [f"  x FAIL  {first}"] + [f"          {line}" for line in rest]
+    print("\n".join(lines), file=sys.stderr, flush=True)
+
+
+def print_next(*commands: str) -> None:
+    """The next commands, each whole on its own line so it copies and pastes as one command."""
+    for index, command in enumerate(commands):
+        prefix = "  Next: " if index == 0 else "        then "
+        print(prefix + command, flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -207,7 +218,7 @@ def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
             continue
         shutil.copyfile(answer, target)
         ok(f"{entry['alias']} now holds the solution ({entry['source']})")
-    print(f"  Next: {NEXT_AFTER_SOLUTION[lab]}", flush=True)
+    print_next(NEXT_AFTER_SOLUTION[lab])
 
 
 def task_files(task: str, repo: pathlib.Path = REPO) -> List[Dict[str, str]]:
@@ -254,7 +265,7 @@ def install_task(task: str, repo: pathlib.Path = REPO,
     if backend_changed and restart is not None:
         restart()
     if next_line:
-        print("  Next: " + ", then ".join(NEXT_AFTER_TASK[task]), flush=True)
+        print_next(*NEXT_AFTER_TASK[task])
 
 
 def _keep(repo: pathlib.Path, alias: str, yours: bytes) -> str:
@@ -508,20 +519,39 @@ def send_turn(backend: Backend, token: str, body: Dict[str, Any],
     raise LabRunError("the turn ended without a complete event")
 
 
-def _rail_problem(lab: int, served: str, response: Dict[str, Any]) -> str:
+def _configured_rail(path: Optional[pathlib.Path] = None) -> Optional[str]:
+    """The rail the backend's .env selects, or None when that file or setting cannot be read."""
+    try:
+        lines = (path or ENV_FILE).read_text("utf-8").splitlines()
+    except OSError:
+        return None
+    values = [line.split("=", 1)[1].strip().strip("'\"").lower() for line in lines
+              if line.strip().startswith("USE_AGENTCORE_RUNTIME=")]
+    if not values:
+        return None
+    return MANAGED if values[-1] in ("true", "1", "yes") else IN_PROCESS
+
+
+def _rail_problem(lab: int, served: str, response: Dict[str, Any], *, before: bool = False) -> str:
     wanted = LAB_RAIL[lab]
     decision = response.get("railDecision") or {}
     reason = decision.get("reason") or (response.get("degradation") or {}).get("reason")
-    observed = f"this turn ran on {served or 'no reported path'}"
-    observed += f" ({reason})" if reason else ""
+    if before:
+        observed = f"Pellier is set to run {RAIL_NAMES[served]}, so nothing was sent"
+    else:
+        observed = f"this turn ran on {served or 'no reported path'}"
+        observed += f" ({reason})" if reason else ""
     if wanted == IN_PROCESS:
-        return (f"Lab {lab} runs in process, but {observed}. Lab 3's deploy has moved "
-                "Pellier onto AgentCore, so this turn did not run the code you edited. To "
-                "rerun it, set USE_AGENTCORE_RUNTIME=false in .env, restart the backend and "
-                "rerun this command; bash scripts/lab3-start.sh theo moves it back.")
-    return (f"Lab {lab} runs on AgentCore Runtime and Gateway, but {observed}. Lab 3's "
-            f"deploy moves Pellier onto AgentCore: run {DEPLOY}. If that deploy already "
-            "reported ready, run bash scripts/lab3-start.sh theo, then rerun this command.")
+        return (f"Lab {lab} runs in process, but {observed}.\n"
+                "Lab 3's deploy has moved Pellier onto AgentCore, so a turn would not run the code\n"
+                "you edited. To rerun it, set USE_AGENTCORE_RUNTIME=false in .env, restart the\n"
+                "backend and rerun this command. To move back to AgentCore, run:\n"
+                "  bash scripts/lab3-start.sh theo")
+    return (f"Lab {lab} runs on AgentCore Runtime and Gateway, but {observed}.\n"
+            "Lab 3's deploy moves Pellier onto AgentCore. Run:\n"
+            f"  {DEPLOY}\n"
+            "If that deploy already reported ready, run this, then rerun this command:\n"
+            "  bash scripts/lab3-start.sh theo")
 
 
 def _one_line(text: str, width: int = 140) -> str:
@@ -734,6 +764,9 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
          shopper_only: bool = False, trace: bool = True, task: Optional[str] = None) -> None:
     """Make the lab's requests on the lab's path, or one task's with ``task``, and for Lab 4
     do Nadia's part unless ``shopper_only``."""
+    configured = _configured_rail()
+    if configured is not None and configured != LAB_RAIL[lab]:
+        raise LabRunError(_rail_problem(lab, configured, {}, before=True))
     wait_until_healthy(backend)
     tokens: Dict[str, str] = {}
     for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
@@ -742,8 +775,8 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
         converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
                  trace=trace)
     if lab == 4 and shopper_only:
-        print("  Next: as Nadia in the Operator, investigate Jessica's case, approve the "
-              "proposed credit and select Execute.", flush=True)
+        print_next("as Nadia in the Operator, investigate Jessica's case, approve the "
+                   "proposed credit and select Execute.")
         print(f"  {nadias_sign_in()}", flush=True)
     elif lab == 4:
         settle_credit(backend, token_for(OPERATOR))

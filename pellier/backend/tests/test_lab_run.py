@@ -27,6 +27,12 @@ PROPOSAL = {"reviewId": 41, "amount": "100.00", "orderIds": [7, 9], "actionHash"
             "status": "pending"}
 
 
+@pytest.fixture(autouse=True)
+def _no_env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A checkout's own .env must not steer these tests' rail pre-check."""
+    monkeypatch.setattr(lab_run, "ENV_FILE", tmp_path / "no-such.env")
+
+
 class FakeBackend:
     """What the fake server answers, and every request it received."""
 
@@ -1201,3 +1207,48 @@ def test_quiet_keeps_the_one_line_output(
     assert "Router" not in out and "How it ranked" not in out
     assert '  + OK    Anna: "' in out and '" ran in process (turn ' in out
     assert all(turn["body"]["source"] == "terminal" for turn in _turns(fake))
+
+
+def test_next_commands_print_whole_on_their_own_lines(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A terminal about 124 columns wide split "--mode participant" as "--mo" / "de participant".
+
+    Each next command now sits whole on its own line, so a participant who copies it from the
+    terminal gets the complete command.
+    """
+    repo = _scratch_repo(tmp_path)
+    lab_run.install_task("3A", repo, restart=_restarts())
+    lines = capsys.readouterr().out.splitlines()
+    nexts = lines[[i for i, line in enumerate(lines) if line.startswith("  Next: ")][0]:]
+    assert nexts[0] == "  Next: uv run scripts/lab3_check.py --task 3A"
+    assert nexts[1] == "        then " + lab_run.DEPLOY
+    assert all(len(line) <= 120 for line in nexts)
+
+
+def test_a_managed_lab_refuses_before_sending_when_env_selects_in_process(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Before the Lab 3 deploy, send --lab 3 used to run Theo's first request, then refuse.
+
+    The rail is read from the .env the backend loads, so the refusal comes before any model call,
+    and each command in it sits whole on its own line.
+    """
+    env = tmp_path / ".env"
+    env.write_text("DB_HOST=x\nUSE_AGENTCORE_RUNTIME=false\n", encoding="utf-8")
+    monkeypatch.setattr(lab_run, "ENV_FILE", env)
+    assert _run(fake, 3) == 1
+    err = capsys.readouterr().err
+    assert _turns(fake) == []
+    assert any(line.strip() == lab_run.DEPLOY for line in err.splitlines())
+    assert any(line.strip() == "bash scripts/lab3-start.sh theo" for line in err.splitlines())
+    assert all(len(line) <= 120 for line in err.splitlines())
+
+
+def test_the_rail_precheck_is_skipped_when_env_cannot_be_read(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run, "ENV_FILE", tmp_path / "missing.env")
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 3) == 0
