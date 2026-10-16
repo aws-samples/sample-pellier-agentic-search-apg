@@ -1,95 +1,61 @@
-# Contract 2: bounded facts
+# Contract 2: ground bounded answers
 
-A tool answers one bounded question with one query and returns the database's
-answer unchanged. The agent repeats what the tool returned. It holds only the
-tools its job needs.
+**Question:** Does the tool preserve the source's facts, including an absence?
 
-## Template: the result contract
+**Takeaway:** A missing product is not a product with zero stock. A tool's
+available authority and result contract matter more than its prompt.
 
-Four states, never collapsed. Simplified from Pellier's `check_stock`:
+## Follow the fact to its source
 
-```python
-def check_stock(run, *, product_query: str) -> dict:
-    """Warehouse, quantity and ship window for one named product.
+Find the authoritative table or service for the question. Pellier's stock
+agent uses warehouse inventory; catalog availability is not a substitute for
+warehouse counts. Trace the result through wrappers and the final answer.
+The model can explain the result, but cannot invent a count or erase an error.
 
-    Unknown and zero are different answers. A piece the catalog does not
-    carry is ``not_found``; a piece it carries with no units is ``success``
-    with ``total_units`` 0 and its warehouse rows. More than one match is
-    ``ambiguous`` with the candidates, so the agent asks which one is meant.
-    """
-    tokens = [t for t in str(product_query or "").split() if t]
-    if not tokens:
-        return {"status": "not_found", "query": product_query, "message": "Empty product query."}
+A useful result contract distinguishes:
 
-    # A name is a lookup, not a meaning: one LIKE per word, parameterised.
-    clause = " AND ".join(["lower(name) LIKE %s"] * len(tokens))
-    candidates = run(f"SELECT product_id, name FROM catalog WHERE {clause}",
-                     tuple(f"%{t.lower()}%" for t in tokens))
+| Case | Expected meaning |
+|---|---|
+| No product matches | Not found; no stock claim |
+| Several products match | Ambiguous; resolve the product first |
+| One product, recorded quantity zero | Found and sold out |
+| One product, stock rows present | Found with the recorded counts |
+| Product exists but expected inventory records are missing | Incomplete data, unless the business contract explicitly defines this as zero |
+| Query fails | Unavailable or error; no factual answer |
 
-    if not candidates:
-        return {"status": "not_found", "query": product_query,
-                "message": "No product matched. Stock can only be reported for catalog products."}
-    if len(candidates) > 1:
-        return {"status": "ambiguous", "query": product_query,
-                "candidates": [{"productId": r["product_id"], "name": r["name"]} for r in candidates],
-                "message": "Multiple products match. Ask which one is meant before reporting stock."}
+An aggregate such as `coalesce(sum(quantity), 0)` can collapse the first and
+third cases. Establish that the product exists before aggregating. A name
+lookup may use ids, aliases or lexical matching. Semantic matching is useful
+for discovery but must not silently replace the exact product in a stock
+claim. Bound candidate matches, warehouse rows and caller-supplied limits.
 
-    product = candidates[0]
-    warehouses = run("SELECT warehouse_name, quantity, ship_window_min, ship_window_max "
-                     "FROM warehouse_inventory WHERE product_id = %s ORDER BY ship_window_min",
-                     (product["product_id"],))
-    return {"status": "success", "product": product,
-            "total_units": sum(w["quantity"] for w in warehouses),
-            "warehouses": list(warehouses)}
-```
+## Review the tools the agent can actually call
 
-The defect to look for, in the SQL that answers (Pellier's own, in
-`pellier.check_stock` as shipped): a total over whatever matched, with no test
-that anything did.
+Pellier's Stock agent holds `check_stock` alone. Its prompt cannot grant a
+tool, and removing alternative catalog tools closes an unreliable factual
+path. For another application, inspect the complete tool set and the SQL
+permissions behind it. A tool list is analogous to a function grant, but is
+not itself a PostgreSQL privilege and does not stop direct callers from
+reaching an exposed backend.
 
-```sql
-SELECT coalesce(sum(w.quantity), 0) AS total_units
-  FROM warehouse_inventory w
- WHERE w.product_id = (SELECT product_id FROM catalog WHERE lower(name) LIKE $1);
--- No product matches: the aggregate still returns one row, sum() is NULL,
--- COALESCE makes it 0, and "we don't carry that" reads as "sold out".
-```
+Source inspection establishes configured tools. A correlated execution
+record establishes which tool ran. Neither establishes that the final prose
+accurately reflected its result; test that separately when reviewing answers.
 
-A missing product is a missing row, not a zero, so test for the product before
-you aggregate: no product, no row. The same defect can live in the wrapper the
-agent calls (`if status == "not_found": return {"total_units": 0}`). Pass the
-shared result through unchanged; if the agent needs a friendlier message, add a
-message, and do not change the status.
+## Verification
 
-## Template: the grant is the tool list
+Use explicit case ids for found, zero, missing, ambiguous and failed reads.
+Compare the complete returned set against an independently known expected
+set. An inner join can hide an omitted warehouse. Check both directions,
+duplicates, status and field types; missing evidence must stay visible.
 
-A prompt rule ("every stock answer starts from check_stock") does not let the
-agent call the tool. Only the list it is constructed with does. And a tool
-that could plausibly answer the same question from the wrong source (a catalog
-listing that says "in stock") must not be in that list.
+Query `stock` in [proof-queries.sql](proof-queries.sql) compares one recorded
+result with a fixture expectation. It includes status and exact JSON values,
+so a missing warehouse or an unexpected field fails. Arrays are ordered in
+this fixture. If the application's contract treats them as sets, normalize
+both sides and still check duplicates. This query verifies a tool result,
+not what an agent eventually said to a shopper.
 
-```python
-stock_agent = Agent(
-    model=sonnet,
-    system_prompt=STOCK_PROMPT,
-    tools=[check_stock],              # the one tool that reads warehouse rows, and nothing it could answer from instead
-)
-```
-
-Record the grant with each answer (Pellier writes the agent's tool list into
-each audit row's `args`, as `grant`, and shows "Stock agent may call:
-check_stock" in the turn's Router step) so a reviewer can see what the agent
-*could* have used, not only what it did use.
-
-## Bounded rows
-
-- Clamp caller-supplied limits: `min(max(int(limit), 1), MAX_ROWS)`.
-- Read one customer's rows by their id, newest first, with `LIMIT`.
-- Never return a whole table to a model.
-
-## Review questions
-
-- Which row supports this claim, and could the agent have answered from
-  something else?
-- Does any tool turn an absence into a value?
-- Does the agent hold a tool it does not need for its job?
+Keep business expectations independent of the function under review. A test
+that computes its expected answer by calling the same defective tool proves
+nothing about grounding.

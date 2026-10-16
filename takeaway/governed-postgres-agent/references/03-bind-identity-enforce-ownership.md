@@ -1,118 +1,86 @@
-# Contract 3: ownership
+# Contract 3: bind identity and enforce ownership
 
-The caller comes from the verified token. The server sets the customer on
-every scoped call. The database enforces ownership on its own.
+**Question:** Can a proposed argument change whose records are accessed?
 
-## Template: the server overwrites what the model proposed
+**Takeaway:** Authentication identifies the caller. Authorization decides
+what that caller may do. RLS can enforce the row boundary when a tool's SQL
+uses the wrong customer filter.
 
-The model may ask for anyone's records; the conversation may contain a
-plausible reason ("we share an address"). The server replaces the customer
-argument with the signed-in principal before the call leaves the runtime,
-for every tool that takes one. Keep that list explicit, and keep it beside the
-list of tools the agent may call, so the two are reviewed together:
+## Trace each boundary
 
-```python
-SUPPORT_TOOLS = ("get_orders", "get_tickets", "get_return_policy")
-CALLER_BOUND = ("get_orders", "get_tickets")   # the server overwrites customer_id on these
+Follow the verified caller through application binding, tool authorization
+and the database transaction. In Pellier, the server replaces customer-scoped
+arguments before the call leaves AgentCore Runtime. AgentCore Policy checks
+direct calls at AgentCore Gateway. Aurora PostgreSQL enforces row ownership.
+These are separate controls with separate tests.
 
-def bind_caller(call, principal):
-    if call.name in CALLER_BOUND:
-        asked = call.args.get("customer_id")
-        call.args["customer_id"] = principal.customer_id
-        if asked and asked != principal.customer_id:
-            audit_note(f"model asked for {asked}, server bound {principal.customer_id} (overwritten)")
-    return call
-```
+Test a forged tool argument while authenticated as another customer. Inspect
+what crosses the boundary using that probe's correlation id. The latest
+unrelated ticket audit row cannot prove that binding worked. Then test a
+direct gateway call to exercise authorization independently of application
+binding. A local binding probe does not establish deployed behavior.
 
-The test that proves it: send a forged call for another customer through the
-binding while a shopper is signed in. It must leave as the shopper. Do not
-rely on real conversations; the model rarely asks, so a passing turn proves
-little. Run the forged call every time.
+## Bind identity on the same connection and transaction
 
-## Template: a principal per transaction
-
-Bind the verified username on the session, local to the transaction, and read
-it in the policy with the `missing_ok` form so an unbound session matches
-nobody:
+An application using transaction-local roles and context can follow this
+pattern after validating authentication:
 
 ```python
 async with conn.transaction():
-    await conn.execute("SELECT set_config('app.principal_username', $1, true)", username or "")
+    await conn.execute("SET LOCAL ROLE app_agent")
+    await conn.execute(
+        "SELECT set_config('app.customer_id', $1, true)", verified_customer_id
+    )
     rows = await conn.fetch(query, *params)
 ```
 
-`set_config(..., true)` scopes the value to the transaction. Pooling then
-cannot leak one principal into the next request. Pellier's setting is
-`pellier.principal_username`. Over the RDS Data API the
-same `set_config` runs as the first statement in the transaction.
+The role name is fixed by trusted code, and the customer value is bound as a
+parameter. `SET LOCAL` ends with the transaction; all scoped operations must
+use that same transaction and connection. Test pooled connection reuse with
+two customers and an unbound request. Do not leave a broader session-level
+identity setting for the next transaction to inherit.
 
-## Template: row-level security
+`session_user` identifies the login. `current_user` reflects the effective
+role, including role switches and SECURITY DEFINER functions. A custom
+setting supplies application context; it is not independently authenticated.
+A caller allowed to issue arbitrary SQL can change an ordinary custom GUC.
+This pattern assumes trusted parameterized tools and a protected database
+connection. It does not protect against an attacker holding that connection
+or its privileged login. Review who can switch roles, set context and reach
+each entry point.
 
-One expression decides which rows the session may see (`USING`) and which it
-may write (`WITH CHECK`). Resolve the principal to the owner id with a
-subselect so the policy does not depend on the username column being on the
-owned table:
+## Review the policies as a whole
+
+For equal read and write ownership, a policy may use the same expression:
 
 ```sql
-ALTER TABLE orders          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY orders_owner ON orders TO app_agent
-    USING      (customer_id = (SELECT id FROM customers
-                                WHERE cognito_username = current_setting('app.principal_username', true)))
-    WITH CHECK (customer_id = (SELECT id FROM customers
-                                WHERE cognito_username = current_setting('app.principal_username', true)));
--- the same policy on support_tickets
+CREATE POLICY tickets_owner ON support_tickets TO app_agent
+    USING (customer_id = nullif(current_setting('app.customer_id', true), ''))
+    WITH CHECK (customer_id = nullif(current_setting('app.customer_id', true), ''));
 ```
 
-A write in someone else's name fails with SQLSTATE `42501`. A read of someone
-else's rows returns none. Note the asymmetry: reads fail silently (an empty
-result), writes fail loudly. An empty result therefore has two possible causes,
-out-of-scope rows or an unbound principal; log which.
+This adaptation pattern assumes the role has the intended table privileges.
+`USING` controls existing rows; `WITH CHECK` controls new row values. Review
+all policies applicable to the command and role. Permissive policies combine
+with OR; restrictive policies further constrain access. Multiple policies
+can be correct. Also inspect table ownership, superuser, `BYPASSRLS`, RLS
+enablement, `FORCE ROW LEVEL SECURITY` where applicable, and any function
+that changes the effective role.
 
-Preconditions, or a denial proves nothing (Pellier checks these in the lab
-exercise before trusting a result):
+## Verification
 
-- the agent role has no `BYPASSRLS` and is not superuser;
-- the agent role does not own the tables, or `FORCE ROW LEVEL SECURITY` is on;
-- exactly one permissive policy per table (permissive policies combine with
-  OR, so a second one widens access whatever the first says);
-- the policy is `TO` the agent role, and the app connects as that role.
+Query `ownership` in [proof-queries.sql](proof-queries.sql) uses known fixture
+rows to establish own-row access and a wrong-customer denial. A separate
+unbound probe must return none. Where writes are intended, pair a permitted
+own-row insert with a refused foreign insert. SQLSTATE `42501` alone cannot
+distinguish missing INSERT privilege from RLS enforcement.
 
-## Template: policy at the gateway
+An `EXPLAIN` can help inspect enforcement and performance. A particular
+InitPlan, One-Time Filter or never-executed scan is not required for correct
+RLS behavior. Judge the access result first.
 
-Where tool calls cross a gateway, authorization decides whether the call runs
-at all. In Cedar, an owner-only read permit matches the customer in the call
-to the identity in the token, so a direct call with a mismatched customer is
-denied before any tool runs. AgentCore exposes the token's claims as
-principal tags; this is Pellier's permit, with its custom claim:
+AgentCore Memory may supply preferences. It supplies neither authenticated
+identity nor authorization. The caller's verified identity identifies them;
+the policies determine their access.
 
-```cedar
-permit(
-  principal is AgentCore::OAuthUser,
-  action == AgentCore::Action::"store-tools___get_tickets",
-  resource == AgentCore::Gateway::"<gateway arn>"
-)
-when {
-  principal.hasTag("custom:customer_id") &&
-  context.input has customer_id &&
-  principal.getTag("custom:customer_id") == context.input.customer_id
-};
-```
-
-Policy stops a wrong call. Row-level security stops a wrong query. One without
-the other leaves a path open: a direct caller who bypasses the agent, or a tool
-whose own SQL asks for the wrong rows.
-
-## Memory is context, not authority
-
-Remembered preferences (AgentCore Memory, a profile table, a vector store of
-past turns) may shape an answer. They never set `customer_id`, never satisfy a
-policy, and never justify a write. Read them under the signed-in id and pass
-them to the model as labelled context.
-
-## Review questions
-
-- Whose data was read, and what would have stopped a read of someone else's?
-- Is the customer argument set by the server after the model proposes the call?
-- Does the agent role bypass RLS by ownership, attribute or a second policy?
+See [PostgreSQL row security](https://www.postgresql.org/docs/current/ddl-rowsecurity.html).

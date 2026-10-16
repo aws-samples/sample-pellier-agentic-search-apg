@@ -1,105 +1,79 @@
-# Contract 1: filter, then rank
+# Contract 1: preserve requirements through retrieval
 
-Hard constraints are SQL predicates on every candidate branch, before `LIMIT`.
-Ranking orders eligible rows; it never decides eligibility.
+**Question:** Can a search or retry return something the caller ruled out?
 
-## Template: two branches, same predicates
+**Takeaway:** Ranking chooses among eligible records. A fallback can relax a
+preference only when the application's contract permits it.
 
-Both branches take the same `extra_clauses` (price cap, in-stock, exclusions,
-tenant) and apply them inside the query. Parameters are bound, never
-interpolated. Simplified from Pellier's `services/store_tools.py`:
+## Trace the requirements
+
+Find where the request becomes structured constraints, where each candidate
+branch uses them, and what changes on retry. In Pellier, Anna's budget,
+availability and exclusions remain hard requirements while gift tags may be
+relaxed. Preserve the original requirements separately from the executed
+plan; comparing results only with the retry's plan would miss dropped limits.
+
+For SQL retrieval, place eligibility predicates before the candidate limit:
 
 ```sql
--- Vector branch: nearest by meaning, among eligible rows only.
-WITH query_embedding AS (SELECT %s::vector AS emb)
-SELECT product_id, name, price, quantity,
-       1 - (embedding <=> (SELECT emb FROM query_embedding)) AS similarity
+SELECT product_id, name, price
   FROM catalog
- WHERE image_url IS NOT NULL
-   AND price <= %s              -- hard limit
-   AND quantity > 0             -- hard limit
-   AND category <> %s           -- exclusion
- ORDER BY embedding <=> (SELECT emb FROM query_embedding)
- LIMIT %s;
-
--- Full-text branch: cover-density rank, among the same eligible rows.
-WITH q AS (SELECT to_tsquery('english', %s) AS ts_q)
-SELECT product_id, name, price, quantity,
-       ts_rank_cd(description_tsv, q.ts_q) AS fts_rank_score
-  FROM catalog CROSS JOIN q
- WHERE image_url IS NOT NULL
-   AND description_tsv @@ q.ts_q
-   AND price <= %s
-   AND quantity > 0
-   AND category <> %s
- ORDER BY fts_rank_score DESC
- LIMIT %s;
+ WHERE price <= $1 AND quantity > 0 AND category <> ALL ($2::text[])
+ ORDER BY embedding <=> $3::vector
+ LIMIT $4;
 ```
 
-If a predicate exists on one branch and not the other, the fused list can
-contain an ineligible row. That is the most common defect in hybrid search.
+This is an adaptation pattern, not a statement for the supplied fixture,
+which has no vectors. Parameter values and table names belong to the target
+application. Check every candidate branch and every fallback. If an
+application filters later, inspect replenishment and result-count behavior
+as well as eligibility; the position of a filter alone is not a verdict.
 
-## Template: reciprocal rank fusion you can recompute
-
-Fuse by rank, not by score. Scores from different rankers are not comparable;
-ranks are. A product present in both lists outscores one ranked first in only
-one, which is the point.
-
-```sql
--- k = 60. A rank is NULL when the product was not in that list, and a
--- missing rank adds nothing: apply the default to the term, not the rank.
-coalesce(1.0 / (60 + vector_rank), 0)
-  + coalesce(1.0 / (60 + full_text_rank), 0) AS rrf_score
-```
-
-Record the two ranks and the fused score per result (Pellier writes a
-`retrieval_receipts` row per search with `vector_ranks`, `lexical_ranks`
-and `rrf_scores` as JSONB). Then anyone can recompute the ranking later and
-compare it with what was recorded. The check is in `proof-queries.sql`.
-
-Rerank only the top of the fused list (Pellier: Cohere Rerank 3.5 on the top
-15). The reranker reorders; it still cannot admit a row the SQL excluded.
-
-## Template: a fallback that keeps the constraints
-
-When the strict plan returns too little, relax a *preference*, never a
-*constraint*. Copy the plan and change only the soft fields:
+A copied plan that changes only permitted soft fields is easier to review:
 
 ```python
-@dataclass(frozen=True)
-class SearchPlan:
-    query: str
-    max_price: float | None        # hard
-    in_stock_only: bool            # hard
-    exclude: tuple[str, ...]       # hard
-    soft_tags: tuple[str, ...]     # soft: may be dropped on retry
-
-def relaxed(plan: SearchPlan) -> SearchPlan:
-    # dataclasses.replace keeps every field you do not name.
-    return dataclasses.replace(plan, soft_tags=())
+return dataclasses.replace(plan, soft_tags=())
 ```
 
-The defect to look for: `SearchPlan(query=plan.query, soft_tags=())`, which
-takes the default for every field not passed, including the hard ones. Record
-which relaxation was applied alongside the receipt so the retry is explainable
-(Pellier writes `drop_tags` into the receipt's `relaxations` column).
+Test the behavior, not just this implementation choice. A newly constructed
+plan can also be correct if it explicitly preserves every requirement.
 
-## pgvector under a filter
+## Test both the result and the evidence
 
-With a small table the planner may skip the HNSW index and scan exactly; that
-is correct, not a defect. At scale, a filtered HNSW scan can return fewer than
-`LIMIT` rows because the index returns a fixed candidate set before the filter
-applies. With pgvector 0.8 and later:
+Use a request with known eligible and ineligible records. Force the fallback
+rather than hoping the model chooses it. Record the request id, original
+requirements, executed plan, returned ids and the catalog snapshot used for
+verification. Check that:
 
-```sql
-SET hnsw.iterative_scan = strict_order;   -- keep scanning until LIMIT is met, in distance order
-```
+- the expected request and receipt exist;
+- the positive fixture returns at least one eligible record;
+- every returned id resolves to a record and obeys the original requirements;
+- missing constraint fields, missing products and missing receipts cannot pass.
 
-Use `strict_order` when downstream fusion depends on ranks (it does here).
-`relaxed_order` is faster and acceptable when only the set matters.
+Query `retrieval` in [proof-queries.sql](proof-queries.sql) demonstrates this
+on the supplied fixture. Live stock or prices may change after a search;
+reconstruct the search-time facts or identify that limitation explicitly.
 
-## Review questions
+## Ranking and approximate search are separate questions
 
-- Can a retry or a fallback ever return a row the user's constraints exclude?
-- Can you recompute why this row ranked here from recorded values?
-- Does any branch have a predicate the other branches lack?
+Pellier uses reciprocal rank fusion, with `k = 60`, then reranking. If the
+application uses RRF, reconstruct its scores from the actual configured `k`
+and recorded ranks. Appearing in two lists helps a result; it does not always
+outscore the first result from one list. Other ranking methods need their own
+checks. Correct arithmetic does not establish relevance or eligibility.
+
+With pgvector, `LIMIT` requests an output count. `hnsw.ef_search` controls the
+initial search candidate list. Filtering an approximate scan can leave fewer
+results. Iterative scanning can search further, but stops at configured scan
+or resource limits. `strict_order` orders the results by distance; it does
+not guarantee exact recall or a full result count.
+
+For a representative data set, compare an exact baseline with HNSW with and
+without iterative scanning. For the baseline, disable index and bitmap scans
+inside a transaction and verify the actual plan with `EXPLAIN`. Merely setting
+`enable_seqscan = on` does not force a sequential scan. For HNSW, inspect the
+plan rather than assuming `enable_seqscan = off` selected that index. Compare
+eligible counts, returned ids, recall and latency. Roll back the settings.
+
+See [pgvector's iterative scan documentation](https://github.com/pgvector/pgvector#iterative-index-scans)
+and [PostgreSQL planner controls](https://www.postgresql.org/docs/current/runtime-config-query.html).
