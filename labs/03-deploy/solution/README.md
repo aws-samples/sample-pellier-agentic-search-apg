@@ -11,7 +11,7 @@ Skip one task: the task's own apply command shows the change, installs that task
 keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-python3 scripts/lab_run.py solution --lab 3 --task 3A   # or 3B
+uv run scripts/lab_run.py solution --lab 3 --task 3A   # or 3B
 ```
 
 Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
@@ -19,7 +19,7 @@ requests and run every check, stopping at the first failure. It deploys to Agent
 takes about three minutes, and runs the row-ownership exercise.
 
 ```bash
-python3 scripts/lab_run.py finish --lab 3
+uv run scripts/lab_run.py finish --lab 3
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

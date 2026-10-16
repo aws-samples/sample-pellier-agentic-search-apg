@@ -1,6 +1,6 @@
 """Lab 4A's check: your Cedar rule, evaluated with Cedar, then enforced by the Gateway.
 
-    python3 scripts/lab4_check.py --task 4A
+    uv run scripts/lab4_check.py --task 4A
 
 Part 1 runs here and deploys nothing. It evaluates your
 ``policies/workshop_credit_limit.cedar`` with the real Cedar engine (the
@@ -708,7 +708,7 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
     if not row:
         return check.Finding("4A", title, check.NOT_YET, expected,
                              "no over-limit review has been sent yet", [],
-                             "deploy your rule, then run python3 scripts/lab4_check.py --task 4A.")
+                             "deploy your rule, then run uv run scripts/lab4_check.py --task 4A.")
     attempt = row.get("last_attempt")
     if isinstance(attempt, str):
         import json
@@ -725,11 +725,11 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
     if rows_left or attempt.get("outcome") == "allowed":
         return check.Finding("4A", title, check.CONTRADICTED, expected,
                              "the over-limit credit got past Cedar", evidence,
-                             "run python3 scripts/lab4_check.py --task 4A and read part 2.")
+                             "run uv run scripts/lab4_check.py --task 4A and read part 2.")
     if attempt.get("outcome") != "denied":
         return check.Finding("4A", title, check.NOT_YET, expected,
                              "no Gateway denial is stored for the over-limit review", evidence,
-                             "deploy your rule, then run python3 scripts/lab4_check.py --task 4A.")
+                             "deploy your rule, then run uv run scripts/lab4_check.py --task 4A.")
     return check.Finding("4A", title, check.PROVED, expected,
                          "the Gateway denied it and its key left no row", evidence)
 
@@ -750,7 +750,7 @@ def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: b
                                 "be reprovisioned.")
     if not same_rule(deployed, local_rule):
         return _managed_finding(check.NOT_YET, "the deployed rule is not your file yet", evidence,
-                                'deploy it: python3 scripts/provision_agentcore_end_to_end.py '
+                                'deploy it: uv run scripts/provision_agentcore_end_to_end.py '
                                 '--repo-path "$PWD" --mode participant')
     if not local_proved:
         return _managed_finding(check.NOT_YET, "your rule is deployed but did not pass Part 1",
@@ -776,7 +776,7 @@ def _call_outcome(payload: Dict[str, Any], rows: Dict[str, int],
     # still propagating cannot tell the two apart on its own.
     evidence.append("the rule as shipped denies 10001 cents too, so this DENY alone cannot tell your "
                     "rule from the shipped one still propagating; Jessica's $100.00 credit, which only your "
-                    "rule allows, is the other half (python3 scripts/workshop_evidence.py, 4A)")
+                    "rule allows, is the other half (uv run scripts/workshop_evidence.py, 4A)")
     return _managed_finding(check.PROVED, "Cedar denied the over-limit credit before the tool "
                                           "ran; its key left no row", evidence)
 

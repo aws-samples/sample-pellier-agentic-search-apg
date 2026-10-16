@@ -147,7 +147,7 @@ class TestLab2:
         check = _by_name(doctor.lab2_checks(evidence, **paths))[FUNCTION]
         assert check.passed is False
         assert check.detail.endswith(
-            "run psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql")
+            "run psql -f workshop/lab-2-check-stock.sql")
 
     @pytest.mark.parametrize("body", [
         "_STOCK_TOOLS = [agent_tools.check_stock, agent_tools.search_products]\n",
@@ -210,7 +210,7 @@ class TestLab1:
         evidence = FakeEvidence({"information_schema": {"n": 2}})
         check = _by_name(doctor.lab1_checks(evidence))["Anna's search receipt"]
         assert check.passed is False
-        assert "python3 scripts/lab_run.py send --lab 1" in check.detail
+        assert "uv run scripts/lab_run.py send --lab 1" in check.detail
         assert "persona-anna-" in evidence.queries[-1][0]
 
     def test_missing_citation_columns_fail(self) -> None:

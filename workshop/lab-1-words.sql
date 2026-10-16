@@ -20,7 +20,7 @@ SET client_min_messages = warning;
 -- sees the top 15 of what the search fused.
 --
 -- Supplied and read-only. Run:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-words.sql
+--   psql -f workshop/lab-1-words.sql
 
 \set words 'housewarming | gift | friend | slow | mornings'
 

@@ -32,10 +32,10 @@ Usage
 -----
 
     # Report the mapping and the validation result. Nothing is written.
-    python3 scripts/import_product_photos.py --source <folder> --check
+    uv run scripts/import_product_photos.py --source <folder> --check
 
     # Derive every variant and update data/pellier_catalog.json.
-    python3 scripts/import_product_photos.py --source <folder>
+    uv run scripts/import_product_photos.py --source <folder>
 """
 
 from __future__ import annotations

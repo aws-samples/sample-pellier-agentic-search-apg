@@ -22,7 +22,7 @@ collapsed `solution` folder.
 | [04 - Govern](labs/04-govern/README.md) | Jessica, with Nadia | A Cedar credit limit, and a money role that writes only through the credit function | `4A-credit-policy.cedar`, `4B-credit-writer.sql` | nothing |
 
 You write 1B, 2B, 3B, 4A and 4B in the marked region. You apply 1A, 2A and 3A with
-`python3 scripts/lab_run.py solution --lab N --task NX`, which shows the change before it
+`uv run scripts/lab_run.py solution --lab N --task NX`, which shows the change before it
 installs it and keeps your file as `.bak`.
 
 The files in these groups are links to the application's own files, so there is no second
@@ -40,7 +40,7 @@ tool, an agent or a check is built.
 ## How every task runs
 
 Each task has three steps. **See it fail** runs in the terminal: an exercise, a check, or
-`python3 scripts/lab_run.py send`, which sends the customer's exact sentence. **Fix** is the
+`uv run scripts/lab_run.py send`, which sends the customer's exact sentence. **Fix** is the
 marked region you write, or the answer you apply by command. **Prove** is one command that ends
 with one pass token, such as `Lab 1A check passed`; a fluent answer in the chat is not the
 proof. Then you look at the same thing in the app.
@@ -61,7 +61,7 @@ coding coach, and the solution. The `solution` folder in each group holds the sa
 files. To skip one task, run its apply command:
 
 ```bash
-python3 scripts/lab_run.py solution --lab N --task NX
+uv run scripts/lab_run.py solution --lab N --task NX
 ```
 
 To finish a whole lab, run the one command below. It backs up your files, applies the lab's
@@ -69,7 +69,7 @@ answers, restarts or deploys, sends the requests, runs every check and stops at 
 failure:
 
 ```bash
-python3 scripts/lab_run.py finish --lab N
+uv run scripts/lab_run.py finish --lab N
 ```
 
 ## Start a lab over
@@ -91,12 +91,12 @@ you ask. You run the checks yourself. The guide's coaching page has the two-minu
 ## At the end
 
 The guide's **Wrap-up** page rebuilds Jessica's credit from her request to the row with one
-read-only query, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql`
+read-only query, `psql -f workshop/wrap-up-reconstruct.sql`
 (`Wrap-up reconstruction passed`), hands you the four contracts as `governed-postgres-agent`, a
 skill for reviewing your own team's agents the way a DBA would, and exports your evidence:
 
 ```bash
-python3 scripts/workshop_evidence.py --save workshop-evidence.txt
+uv run scripts/workshop_evidence.py --save workshop-evidence.txt
 ```
 
 If this opened as a plain folder rather than a workspace, choose **File → Open Workspace

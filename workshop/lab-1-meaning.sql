@@ -21,7 +21,7 @@ SET client_min_messages = warning;
 -- and nothing changes.
 --
 -- Supplied and read-only. Run:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql
+--   psql -f workshop/lab-1-meaning.sql
 
 \set probe 'Stoneware Mugs, Set of 2'
 

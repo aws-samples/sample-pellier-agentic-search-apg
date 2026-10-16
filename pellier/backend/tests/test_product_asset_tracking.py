@@ -94,7 +94,7 @@ def test_every_required_asset_is_tracked_in_git(result) -> None:
     assert not untracked, (
         f"{len(untracked)} required product assets are untracked, so a clean clone "
         "cannot render them. Run:\n"
-        "  python3 scripts/audit_product_assets.py --print-untracked | xargs git add\n"
+        "  uv run scripts/audit_product_assets.py --print-untracked | xargs git add\n"
         f"first few: {_names(untracked)[:8]}"
     )
 

@@ -1435,7 +1435,7 @@ def _lab4_rule_gate(repo: Path) -> str:
         print(lab4_policy.check.render(finding), file=sys.stderr)
         raise RuntimeError(
             f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} fails the Cedar check, so it was not "
-            "deployed. Run python3 scripts/lab4_check.py --task 4A, fix the final unless "
+            "deployed. Run uv run scripts/lab4_check.py --task 4A, fix the final unless "
             "block, then deploy again."
         )
     if finding.state == "UNCHECKED":

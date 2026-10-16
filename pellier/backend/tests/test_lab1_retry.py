@@ -64,7 +64,7 @@ def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, o
     finding = _judge(_receipt(requested=requested, kept={}, exclusions=[]))
     assert finding.state == "NOT YET"
     assert finding.observed == observed
-    assert "python3 scripts/lab_run.py send --lab 1" in finding.next_step
+    assert "uv run scripts/lab_run.py send --lab 1" in finding.next_step
 
 
 def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> None:
@@ -156,7 +156,7 @@ def test_a_search_older_than_the_edit_is_not_judged() -> None:
     assert finding.observed == ("Anna's newest search ran at 14:45:43 UTC, before your last "
                                 "change to search_plan.py at 14:46:10 UTC, so the code before "
                                 "your edit made it")
-    assert finding.next_step == ("send Anna's request again (python3 scripts/lab_run.py send "
+    assert finding.next_step == ("send Anna's request again (uv run scripts/lab_run.py send "
                                  "--lab 1 --task 1B), then rerun this check.")
     assert "pellier last started: 14:46:19 UTC" in finding.evidence
     assert rows == [] and conn.queries == 1, "the stale search's products are not judged"

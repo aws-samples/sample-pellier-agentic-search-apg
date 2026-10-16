@@ -1,6 +1,6 @@
 """Put one lab back to its as-shipped start, without touching the other labs.
 
-``python3 scripts/lab_run.py reset --lab N`` calls :func:`reset_lab`. A lab's start has
+``uv run scripts/lab_run.py reset --lab N`` calls :func:`reset_lab`. A lab's start has
 four parts, and each is restored by the one source that defines it:
 
     files         the lab's marked regions and worksheets, from ``workshop/starters/``
@@ -139,7 +139,7 @@ def shipped_sql(lab: int, repo: pathlib.Path = REPO) -> str:
     if len(found) != 1 or not found[0].strip():
         raise LabResetError(f"{SCHEMA} must hold exactly one 'SHIPPED STATE - "
                             f"{SHIPPED_BLOCKS[lab]}' block; repair the files with "
-                            "python3 scripts/repair_workshop_files.py")
+                            "uv run scripts/repair_workshop_files.py")
     return found[0].strip()
 
 
@@ -203,7 +203,7 @@ def run_agentcore_step(lab: int, repo: pathlib.Path = REPO) -> None:
     script = repo / AGENTCORE_SCRIPT
     if not script.is_file():
         raise LabResetError(f"{AGENTCORE_SCRIPT} is missing. Repair the files with "
-                            "python3 scripts/repair_workshop_files.py")
+                            "uv run scripts/repair_workshop_files.py")
     try:
         result = subprocess.run(["bash", str(script), str(lab)], cwd=repo,
                                 timeout=AGENTCORE_TIMEOUT_SECONDS, check=False)

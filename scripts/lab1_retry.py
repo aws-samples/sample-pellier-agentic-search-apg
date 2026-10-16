@@ -3,7 +3,7 @@
 When the first search is sparse, the fallback retries with fewer preferences;
 it must never retry with fewer limits. This reads the retrieval receipts of
 Anna's newest turn (``persona-anna-...``, the session
-``python3 scripts/lab_run.py send --lab 1`` starts), takes the search that
+``uv run scripts/lab_run.py send --lab 1`` starts), takes the search that
 needed the fallback (else the newest), and compares two things it records: the
 limits the shopper asked for (``retrieval_config.requested``, the plan built
 from her words before any fallback) and the limits the search that answered
@@ -22,7 +22,7 @@ judged: the finding says to restart, or to send Anna's request again. A later
 restart for another lab does not date the search. Without that timeline (the
 Wrap-up summary reads rows alone) it judges the newest search as it is.
 
-    python3 scripts/lab1_check.py --task 1B
+    uv run scripts/lab1_check.py --task 1B
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import workshop_check as check  # noqa: E402  (sibling module)
 
 ANNA_SESSION_PREFIX = "persona-anna-"
-SEND = "python3 scripts/lab_run.py send --lab 1 --task 1B"
+SEND = "uv run scripts/lab_run.py send --lab 1 --task 1B"
 # The guide's request, the one Anna's first suggestion sends: three limits the
 # first search cannot fill, so the fallback has to run.
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "

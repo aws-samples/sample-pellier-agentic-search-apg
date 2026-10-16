@@ -22,7 +22,7 @@ persona-led scenario; keep the technical titles as the headings.
 ## Every task: fail in the terminal, fix the region, prove it, then look
 
 See it fail is a command in the Code Editor terminal that prints the failure as
-evidence: a worksheet, a check, or `python3 scripts/lab_run.py send`, which
+evidence: a worksheet, a check, or `uv run scripts/lab_run.py send`, which
 sends the customer's exact sentence. Build is the edit in the named region.
 Prove it is one command and one pass token. The Storefront's Builder view, the
 Operator and the AgentCore console come after the token and show what the
@@ -51,14 +51,14 @@ task letter.
 
 | Task | Region | Check | Pass token |
 |---|---|---|---|
-| 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `python3 scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
-| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `python3 scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
-| 2A | `agents/stock_agent.py`, `Stock agent - definition` | `python3 scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
-| 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its worksheet prints `Lab 2B function check passed`) | `python3 scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `python3 scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
-| 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `python3 scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
-| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `python3 scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
-| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its worksheet prints `Lab 4B privileges check passed`) | `python3 scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
+| 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `uv run scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
+| 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `uv run scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
+| 2A | `agents/stock_agent.py`, `Stock agent - definition` | `uv run scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
+| 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its worksheet prints `Lab 2B function check passed`) | `uv run scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `uv run scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
+| 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `uv run scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
+| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `uv run scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
+| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its worksheet prints `Lab 4B privileges check passed`) | `uv run scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
 
 Lab 1's Go deeper keeps the RRF worksheet (`workshop/lab-1-fusion.sql`, region
 `PostgreSQL RRF - fusion expression`, `Lab 1 fusion check passed`); it is not a
@@ -71,7 +71,7 @@ task, and neither writes.
 
 Every check prints three things: what was expected, what was observed, and the
 evidence (the row, the decision, the key). A check that did not pass asks one
-question that points at its region. The optional `python3 scripts/workshop_evidence.py`
+question that points at its region. The optional `uv run scripts/workshop_evidence.py`
 exports all eight lines: 1B, 2A and 2B from rows alone, the others by running
 or reading the participant's source, where a region that still holds its
 starter is never proved. Saving that record is not required to complete the

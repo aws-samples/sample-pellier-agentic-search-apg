@@ -247,7 +247,7 @@ def test_the_worksheet_says_what_to_do_without_a_receipt(fresh_db) -> None:  # n
                              dbname="postgres", autocommit=True) as other:
             other.execute("DROP DATABASE lab1_empty")
     assert done.returncode != 0
-    assert "python3 scripts/lab_run.py send --lab 1" in done.stdout
+    assert "uv run scripts/lab_run.py send --lab 1" in done.stdout
     assert "Ask Pellier" not in done.stdout, "the terminal sends her request, not the app"
 
 

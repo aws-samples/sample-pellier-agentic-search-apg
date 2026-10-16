@@ -182,7 +182,7 @@ def psql_environment(cfg: Dict[str, str]) -> Dict[str, str]:
 # Reset points: evidence from before a lab was reset no longer counts
 # ---------------------------------------------------------------------------
 # tool_audit and retrieval_receipts are append-only, so a reset cannot delete the turns a
-# lab left behind. `python3 scripts/lab_run.py reset --lab N` instead records the
+# lab left behind. `uv run scripts/lab_run.py reset --lab N` instead records the
 # database's own clock in a small file, and each lab's checks read only the evidence
 # created at or after it. The file lives under .local/, which a repair never touches and
 # the full reset removes (it empties the tables anyway).

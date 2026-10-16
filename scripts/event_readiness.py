@@ -8,9 +8,9 @@ or names the first failing check, goes to ``~/.pellier/readiness.json`` in the p
 home and to CloudWatch Logs, ``/aws/pellier/readiness``, one stream per instance. Nothing is
 shown to participants; this is the facilitator's check before the event.
 
-    python3 scripts/event_readiness.py            # the latest record and when it ran
-    python3 scripts/event_readiness.py --live     # run the checks again now
-    python3 scripts/event_readiness.py --record   # bootstrap: run, cap and record
+    uv run scripts/event_readiness.py            # the latest record and when it ran
+    uv run scripts/event_readiness.py --live     # run the checks again now
+    uv run scripts/event_readiness.py --record   # bootstrap: run, cap and record
 
 On the box the latest record is the local file, and ``--live`` records again. From a laptop
 with the event account's credentials, the latest record comes from CloudWatch Logs, and
@@ -265,7 +265,7 @@ def main(argv: Optional[Sequence[str]] = None, *, run: Callable[..., Any] = subp
     record = read_local(local) if on_box else latest_from_cloudwatch(
         logs() if callable(logs) else logs)
     if record is None:
-        print("No readiness record yet. Run python3 scripts/event_readiness.py --live to "
+        print("No readiness record yet. Run uv run scripts/event_readiness.py --live to "
               "check the box now.")
         return 1
     print("\n".join(render(record, now(), args.max_age_hours)))

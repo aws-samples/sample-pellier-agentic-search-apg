@@ -1,4 +1,4 @@
-"""Every task has one check command of one shape: ``python3 scripts/labN_check.py --task NX``.
+"""Every task has one check command of one shape: ``uv run scripts/labN_check.py --task NX``.
 
 Labs 2 and 3 keep both tasks' checks in their own script; Labs 1 and 4 route each task to
 its sibling module. The task is always named, and the names the shape replaced stay gone.

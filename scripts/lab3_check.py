@@ -3,9 +3,9 @@
 and what the database returned.
 
 Run after Theo's turns on the managed path (Task 3B), which
-``python3 scripts/lab_run.py send --lab 3`` sends:
+``uv run scripts/lab_run.py send --lab 3`` sends:
 
-    python3 scripts/lab3_check.py --task 3B
+    uv run scripts/lab3_check.py --task 3B
 
 It prints seven findings, each with Expected, Observed and Evidence:
 
@@ -31,7 +31,7 @@ Together the household request's three layers: the server binds a forged call
 to Theo, Cedar refuses his direct read of Jessica's tickets, and the database
 returns none of her rows even to a query that asks for them.
 
-Task 3A's check is ``python3 scripts/lab3_check.py --task 3A``. It reads the
+Task 3A's check is ``uv run scripts/lab3_check.py --task 3A``. It reads the
 source before anything is deployed and prints four rules, one finding each:
 get_tickets is published; the Support agent's Gateway tools include get_orders
 and get_tickets; every tool that takes a customer_id is bound to the caller; and
@@ -62,7 +62,7 @@ PROBE_TOOL = "get_tickets"
 # The reads Theo's household request needs. Of the nine tools, these two and the staff-only
 # give_store_credit require a customer_id; ask_a_person takes one when the caller is known.
 SHOPPER_READS = ("get_orders", "get_tickets")
-SEND = "python3 scripts/lab_run.py send --lab 3"
+SEND = "uv run scripts/lab_run.py send --lab 3"
 
 # The Gateway Lambda writes a shopper turn's call with the turn id as its
 # session and the build the Runtime reported. Rows carrying a build come first,

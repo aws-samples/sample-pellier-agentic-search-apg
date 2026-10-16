@@ -7,8 +7,8 @@ outside the marked regions therefore has nothing to ``git checkout`` from. This 
 downloads that exact revision's tarball and writes back every file that differs or is
 missing, so the tree matches the pin again.
 
-    python3 scripts/repair_workshop_files.py            repair the files
-    python3 scripts/repair_workshop_files.py --check    count what differs, change nothing
+    uv run scripts/repair_workshop_files.py            repair the files
+    uv run scripts/repair_workshop_files.py --check    count what differs, change nothing
 
 The full reset (scripts/reset-governed-workshop.sh) runs this first, before it rebuilds the
 database.

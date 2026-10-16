@@ -12,15 +12,15 @@ applied by command. Pellier is already on AgentCore from Lab 3.
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 4A, cap the credit at $100 in Cedar | `python3 scripts/lab_run.py send --lab 4 --shopper-only`, Nadia's **Execute** in the Operator, then `python3 scripts/lab4_check.py --task 4A` | Write: [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, then deploy with `python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | After 4B: **Execute again** and **Replay with the same key**, then `python3 scripts/lab4_check.py --task 4A` ends `Lab 4A check passed` |
-| 4B, let the money role write only through the function | `psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql` | Write: [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, then the same `psql` run until it ends `Lab 4B privileges check passed` | `python3 scripts/lab4_check.py --task 4B` ends `Lab 4B check passed` |
+| 4A, cap the credit at $100 in Cedar | `uv run scripts/lab_run.py send --lab 4 --shopper-only`, Nadia's **Execute** in the Operator, then `uv run scripts/lab4_check.py --task 4A` | Write: [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, then deploy with `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | After 4B: **Execute again** and **Replay with the same key**, then `uv run scripts/lab4_check.py --task 4A` ends `Lab 4A check passed` |
+| 4B, let the money role write only through the function | `psql -f labs/04-govern/4B-credit-writer.sql` | Write: [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, then the same `psql` run until it ends `Lab 4B privileges check passed` | `uv run scripts/lab4_check.py --task 4B` ends `Lab 4B check passed` |
 
 The deploy ends `Pellier is already using AgentCore.`
 
 Jessica's request goes from the terminal:
 
 ```bash
-python3 scripts/lab_run.py send --lab 4 --shopper-only
+uv run scripts/lab_run.py send --lab 4 --shopper-only
 ```
 
 Its last line prints Nadia's sign-in for the Operator. Nadia's decision is the one step that
@@ -31,7 +31,7 @@ key**. Their proof comes back here: the two checks above, then the supplied abse
 ends `Lab 4 absence check passed`:
 
 ```bash
-psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
+psql -f workshop/lab-4-absence.sql
 ```
 
 `4B-credit-writer.sql` deploys itself: when every probe matches, it commits your privileges
@@ -39,11 +39,11 @@ for `pellier_credit_writer`; when any probe differs, it rolls back.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 4** (or run `python3 scripts/lab_run.py reset --lab 4`). It puts this lab back as shipped and leaves the other labs alone. Once a credit has been written it stops and points you to **Reset the whole workshop**.
+In Code Editor choose **Terminal > Run Task > Reset Lab 4** (or run `uv run scripts/lab_run.py reset --lab 4`). It puts this lab back as shipped and leaves the other labs alone. Once a credit has been written it stops and points you to **Reset the whole workshop**.
 
 ## If you need a solution
 
-To finish the whole lab, run `python3 scripts/lab_run.py finish --lab 4`. It backs up your
+To finish the whole lab, run `uv run scripts/lab_run.py finish --lab 4`. It backs up your
 files, applies both answers, deploys, performs Nadia's approval and execution once (a rerun only
 replays), runs every check and stops at the first failure. The answers are also in
 [solution/README.md](solution/README.md).

@@ -352,18 +352,18 @@ def test_the_app_restarts_only_when_a_backend_file_changed(
 
 
 @pytest.mark.parametrize("task,expected", [
-    ("1A", ["python3 scripts/lab1_check.py --task 1A"]),
-    ("1B", ["python3 scripts/lab_run.py send --lab 1 --task 1B",
-            "python3 scripts/lab1_check.py --task 1B"]),
-    ("2A", ["python3 scripts/lab_run.py send --lab 2 --task 2A",
-            "python3 scripts/lab2_check.py --task 2A"]),
-    ("2B", ["psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql",
-            "python3 scripts/lab2_check.py --task 2B"]),
-    ("3A", ["python3 scripts/lab3_check.py --task 3A", lab_run.DEPLOY]),
-    ("3B", ["psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/03-deploy/3B-row-ownership.sql"]),
-    ("4A", ["python3 scripts/lab4_check.py --task 4A", lab_run.DEPLOY]),
-    ("4B", ["psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql",
-            "python3 scripts/lab4_check.py --task 4B"]),
+    ("1A", ["uv run scripts/lab1_check.py --task 1A"]),
+    ("1B", ["uv run scripts/lab_run.py send --lab 1 --task 1B",
+            "uv run scripts/lab1_check.py --task 1B"]),
+    ("2A", ["uv run scripts/lab_run.py send --lab 2 --task 2A",
+            "uv run scripts/lab2_check.py --task 2A"]),
+    ("2B", ["psql -f labs/02-ground/2B-check-stock.sql",
+            "uv run scripts/lab2_check.py --task 2B"]),
+    ("3A", ["uv run scripts/lab3_check.py --task 3A", lab_run.DEPLOY]),
+    ("3B", ["psql -f labs/03-deploy/3B-row-ownership.sql"]),
+    ("4A", ["uv run scripts/lab4_check.py --task 4A", lab_run.DEPLOY]),
+    ("4B", ["psql -f labs/04-govern/4B-credit-writer.sql",
+            "uv run scripts/lab4_check.py --task 4B"]),
 ])
 def test_each_task_names_its_next_command(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], task: str, expected: List[str],
@@ -416,7 +416,7 @@ def test_diff_shows_the_finished_lines_as_minus_and_the_participants_as_plus(
     assert f"\n-{finished}\n" in out
     assert "\n+    my unfinished line\n" in out
     assert "2B-check-stock.sql matches the solution" in out
-    assert "python3 scripts/lab_run.py solution --lab 2" in out
+    assert "uv run scripts/lab_run.py solution --lab 2" in out
     assert "\x1b[" not in out
 
 
@@ -799,10 +799,15 @@ class Commands:
 
     def __init__(self, failing: str = "") -> None:
         self.ran: List[str] = []
+        self.executed: List[List[str]] = []
         self.failing = failing
 
     def __call__(self, argv: List[str], **kwargs: Any) -> Any:
-        shown = " ".join("python3" if part == sys.executable else part for part in argv)
+        self.executed.append(list(argv))
+        typed = ["uv", "run", *argv[1:]] if argv[0] == sys.executable else list(argv)
+        if typed[:6] == ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off"]:
+            typed = ["psql", *typed[6:]]
+        shown = " ".join(typed)
         self.ran.append(shown)
         failed = bool(self.failing) and shown.endswith(self.failing)
         return type("Completed", (), {"returncode": 1 if failed else 0})()
@@ -825,8 +830,21 @@ def _finish(fake: FakeBackend, lab: int, repo: Path, commands: Commands) -> int:
     return 0
 
 
+
+
+def test_finish_prints_uv_and_psql_but_runs_without_either_setup() -> None:
+    """The catch-up shows the commands the guide teaches, but runs a check with this
+    interpreter and psql with its flags spelled out, so it never needs uv or ~/.psqlrc."""
+    assert lab_run._executable(["uv", "run", "scripts/lab2_check.py", "--task", "2B"]) == [
+        sys.executable, "scripts/lab2_check.py", "--task", "2B"]
+    assert lab_run._executable(lab_run._psql("labs/02-ground/2B-check-stock.sql")) == [
+        "psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-f",
+        "labs/02-ground/2B-check-stock.sql"]
+    assert lab_run._executable(["sudo", "-n", "systemctl", "restart", "pellier"]) == [
+        "sudo", "-n", "systemctl", "restart", "pellier"]
+
 RESTART = "sudo -n systemctl restart pellier"
-DEPLOY_RUN = ("python3 scripts/provision_agentcore_end_to_end.py --repo-path {repo} "
+DEPLOY_RUN = ("uv run scripts/provision_agentcore_end_to_end.py --repo-path {repo} "
               "--mode participant")
 
 
@@ -837,8 +855,8 @@ def test_finish_lab_1_installs_restarts_sends_and_checks(fake: FakeBackend, tmp_
         (repo / entry["source"]).write_text("starter\n")
     commands = Commands()
     assert _finish(fake, 1, repo, commands) == 0
-    assert commands.ran == [RESTART, "python3 scripts/lab1_check.py --task 1A",
-                            "python3 scripts/lab1_check.py --task 1B"]
+    assert commands.ran == [RESTART, "uv run scripts/lab1_check.py --task 1A",
+                            "uv run scripts/lab1_check.py --task 1B"]
     assert len(_turns(fake)) == 2
     for entry in lab_run.solution_files(1, repo):
         assert (repo / entry["source"]).read_bytes() == (repo / entry["solution"]).read_bytes()
@@ -870,7 +888,7 @@ def test_a_second_finish_keeps_the_first_backup_and_runs_the_proof_again(
     assert _finish(fake, 1, repo, commands) == 0
     assert _finish(fake, 1, repo, commands) == 0
     assert (repo / (one_b["alias"] + ".bak")).read_text() == "my 1B\n"
-    assert commands.ran.count("python3 scripts/lab1_check.py --task 1B") == 2
+    assert commands.ran.count("uv run scripts/lab1_check.py --task 1B") == 2
 
 
 @pytest.mark.usefixtures("box")
@@ -880,10 +898,10 @@ def test_finish_stops_at_the_first_failed_check(
     repo = _scratch_repo(tmp_path)
     commands = Commands(failing="lab1_check.py --task 1A")
     assert _finish(fake, 1, repo, commands) == 1
-    assert commands.ran[-1] == "python3 scripts/lab1_check.py --task 1A"
+    assert commands.ran[-1] == "uv run scripts/lab1_check.py --task 1A"
     err = capsys.readouterr().err
-    assert "python3 scripts/lab1_check.py --task 1A exited 1" in err
-    assert "python3 scripts/lab_run.py finish --lab 1" in err
+    assert "uv run scripts/lab1_check.py --task 1A exited 1" in err
+    assert "uv run scripts/lab_run.py finish --lab 1" in err
 
 
 @pytest.mark.usefixtures("box")
@@ -894,9 +912,9 @@ def test_finish_lab_2_commits_the_exercise_before_the_restart_and_requests(
     commands = Commands()
     assert _finish(fake, 2, repo, commands) == 0
     assert commands.ran == [
-        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql",
-        RESTART, "python3 scripts/lab2_check.py --task 2A",
-        "python3 scripts/lab2_check.py --task 2B"]
+        "psql -f labs/02-ground/2B-check-stock.sql",
+        RESTART, "uv run scripts/lab2_check.py --task 2A",
+        "uv run scripts/lab2_check.py --task 2B"]
     assert len(_turns(fake)) == 2
 
 
@@ -909,9 +927,9 @@ def test_finish_lab_3_deploys_writes_the_rule_then_sends_on_agentcore(
     commands = Commands()
     assert _finish(fake, 3, repo, commands) == 0
     assert commands.ran == [
-        "python3 scripts/lab3_check.py --task 3A", DEPLOY_RUN.format(repo=repo),
-        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/03-deploy/3B-row-ownership.sql",
-        "python3 scripts/lab3_check.py --task 3B"]
+        "uv run scripts/lab3_check.py --task 3A", DEPLOY_RUN.format(repo=repo),
+        "psql -f labs/03-deploy/3B-row-ownership.sql",
+        "uv run scripts/lab3_check.py --task 3B"]
     assert len(_turns(fake)) == 3
 
 
@@ -936,10 +954,10 @@ def test_finish_lab_4_approves_executes_and_proves_the_same_key_replay(
     commands = Commands()
     assert _finish(fake, 4, repo, commands) == 0
     assert commands.ran == [
-        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql",
-        DEPLOY_RUN.format(repo=repo), "python3 scripts/lab4_check.py --task 4A",
-        "python3 scripts/lab4_check.py --task 4B",
-        "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql"]
+        "psql -f labs/04-govern/4B-credit-writer.sql",
+        DEPLOY_RUN.format(repo=repo), "uv run scripts/lab4_check.py --task 4A",
+        "uv run scripts/lab4_check.py --task 4B",
+        "psql -f workshop/lab-4-absence.sql"]
     assert len(_turns(fake)) == 1
     assert [r["path"] for r in _operator(fake)] == [
         "/api/operator/reviews", "/api/operator/clients/CUST-JESSICA/investigate",
@@ -974,7 +992,7 @@ def test_finish_lab_4_fails_when_the_replay_writes_a_second_time(
     commands = Commands()
     assert _finish(fake, 4, repo, commands) == 1
     assert "was not a replay" in capsys.readouterr().err
-    assert "python3 scripts/lab4_check.py --task 4A" not in commands.ran
+    assert "uv run scripts/lab4_check.py --task 4A" not in commands.ran
 
 
 def test_finish_is_a_lab_run_action(capsys: pytest.CaptureFixture[str]) -> None:
@@ -1027,11 +1045,11 @@ def test_fast_track_finishes_both_labs_and_can_repeat_without_losing_backups(
     if partly_finished:
         lab_run.install_task("1A", recovery_repo, next_line=False)
     commands = Commands()
-    expected = [RESTART, "python3 scripts/lab1_check.py --task 1A",
-                "python3 scripts/lab1_check.py --task 1B",
-                "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql",
-                RESTART, "python3 scripts/lab2_check.py --task 2A",
-                "python3 scripts/lab2_check.py --task 2B"]
+    expected = [RESTART, "uv run scripts/lab1_check.py --task 1A",
+                "uv run scripts/lab1_check.py --task 1B",
+                "psql -f labs/02-ground/2B-check-stock.sql",
+                RESTART, "uv run scripts/lab2_check.py --task 2A",
+                "uv run scripts/lab2_check.py --task 2B"]
     for attempt in (1, 2):
         lab_run.fast_track(lab_run.Backend(fake.url), lambda user: f"token-{user}",
                            run=commands, repo=recovery_repo)
@@ -1065,7 +1083,7 @@ def test_fast_track_stops_before_later_steps_or_labs_on_failure(
         lab_run.fast_track(lab_run.Backend(fake.url), lambda user: f"token-{user}",
                            run=commands, repo=recovery_repo)
     assert commands.ran[-1].endswith(failure)
-    assert "python3 scripts/lab2_check.py --task 2B" not in commands.ran
+    assert "uv run scripts/lab2_check.py --task 2B" not in commands.ran
     if not lab_2_started:
         for task in ("2A", "2B"):
             assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"

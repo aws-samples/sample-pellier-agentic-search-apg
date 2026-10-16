@@ -35,10 +35,10 @@ Three kinds of reference, because the app builds image URLs three ways:
 Usage
 -----
 
-    python3 scripts/audit_product_assets.py              # summary
-    python3 scripts/audit_product_assets.py --table      # per-image detail
-    python3 scripts/audit_product_assets.py --json out.json
-    python3 scripts/audit_product_assets.py --print-untracked | xargs git add
+    uv run scripts/audit_product_assets.py              # summary
+    uv run scripts/audit_product_assets.py --table      # per-image detail
+    uv run scripts/audit_product_assets.py --json out.json
+    uv run scripts/audit_product_assets.py --print-untracked | xargs git add
 
 Exit status is non-zero when a required asset is missing or untracked.
 Dimensions are reported only when ``sips`` is available, so the machine-checked

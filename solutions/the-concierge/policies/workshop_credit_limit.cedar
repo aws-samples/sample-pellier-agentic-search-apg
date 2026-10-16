@@ -1,9 +1,9 @@
 // Lab 4, Task 4A: the credit limit. Provisioning deployed this file as the
 // policy workshop_credit_limit, so as written it already blocks Nadia's
 // approved credit. Complete the final unless block, check it with
-//   python3 scripts/lab4_check.py --task 4A
+//   uv run scripts/lab4_check.py --task 4A
 // then update the deployed policy with
-//   python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
+//   uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
 // The deploy fills in ${PELLIER_GATEWAY_ARN} with your Gateway's ARN.
 //
 // Goal: staff may give at most $100 of store credit per approved review. The

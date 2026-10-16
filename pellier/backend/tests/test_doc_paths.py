@@ -108,7 +108,7 @@ def test_every_named_path_exists() -> None:
     ("/operator", []),
     ("https://example.com/x.md", []),
     ("skills/<name>/SKILL.md", []),
-    ("python3 scripts/workshop_evidence.py --save <file>", ["scripts/workshop_evidence.py"]),
+    ("uv run scripts/workshop_evidence.py --save <file>", ["scripts/workshop_evidence.py"]),
     ("./.venv/bin/python -m pytest -q", []),
     ("pellier.tool_audit", []),
     ("cp .env.example .env", [".env.example"]),

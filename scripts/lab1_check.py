@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Lab 1's checks, one per task.
 
-    python3 scripts/lab1_check.py --task 1A   the vector branch ranks Anna's products by meaning
-    python3 scripts/lab1_check.py --task 1B   Anna's retry kept every limit she asked for
+    uv run scripts/lab1_check.py --task 1A   the vector branch ranks Anna's products by meaning
+    uv run scripts/lab1_check.py --task 1B   Anna's retry kept every limit she asked for
 
 Each prints its findings and ends with one line, such as ``Lab 1A check passed``.
 """

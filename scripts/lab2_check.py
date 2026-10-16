@@ -2,7 +2,7 @@
 """Lab 2's checks: the Stock agent holds one tool, and that tool answers from the rows.
 
 Task 2A reads Marco's latest Stock-agent turn from ``pellier.tool_audit`` (his
-session is the one ``python3 scripts/lab_run.py send --lab 2`` starts,
+session is the one ``uv run scripts/lab_run.py send --lab 2`` starts,
 ``persona-marco-...``). Each in-process audit row records the agent that called
 the tool and the store tools that running agent held (``args->>'agent'``,
 ``args->'grant'``), so the check reads the grant the answering Stock agent
@@ -32,9 +32,9 @@ The evidence export judges 2B from the rows Marco's turns left
 (:func:`judge_recorded_2b`): his latest ``check_stock`` call for each case, as
 recorded, against the catalog.
 
-    python3 scripts/lab2_check.py --task 2A
-    python3 scripts/lab2_check.py --task 2B
-    python3 scripts/lab2_check.py --task 2B --unknown "..." --ambiguous "..." --sold-out "..."
+    uv run scripts/lab2_check.py --task 2A
+    uv run scripts/lab2_check.py --task 2B
+    uv run scripts/lab2_check.py --task 2B --unknown "..." --ambiguous "..." --sold-out "..."
 """
 
 from __future__ import annotations
@@ -61,13 +61,13 @@ STOCK_AGENT_NAME = "stock"
 # tool that reads warehouse_inventory. A turn answered with it is a lab not done
 # yet, not a wrong answer.
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
-SEND = "python3 scripts/lab_run.py send --lab 2"
-SEND_2A = "python3 scripts/lab_run.py send --lab 2 --task 2A"
+SEND = "uv run scripts/lab_run.py send --lab 2"
+SEND_2A = "uv run scripts/lab_run.py send --lab 2 --task 2A"
 RESTART = "sudo systemctl restart pellier"
 STOCK_AGENT_FILE = BACKEND / "agents" / "stock_agent.py"
 WORKSHEET = REPO / "workshop" / "lab-2-check-stock.sql"
 WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
-WORKSHEET_RUN = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql"
+WORKSHEET_RUN = "psql -f workshop/lab-2-check-stock.sql"
 FUNCTION_REGION = "Stock check - not carried"
 STAMP_PREFIX = "Lab 2B function sha256 "
 _DOLLAR = "$check_stock$"

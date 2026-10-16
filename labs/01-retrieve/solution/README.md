@@ -11,7 +11,7 @@ Skip one task: the task's own apply command shows the change, installs that task
 keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-python3 scripts/lab_run.py solution --lab 1 --task 1A   # or 1B
+uv run scripts/lab_run.py solution --lab 1 --task 1A   # or 1B
 ```
 
 Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
@@ -19,7 +19,7 @@ requests and run every check, stopping at the first failure. It leaves the optio
 exercise alone.
 
 ```bash
-python3 scripts/lab_run.py finish --lab 1
+uv run scripts/lab_run.py finish --lab 1
 ```
 
 Return to the [lab README](../README.md) and continue in Workshop Studio.

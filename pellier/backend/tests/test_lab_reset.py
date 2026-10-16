@@ -354,9 +354,9 @@ def test_a_damaged_points_file_means_no_reset_point(reset_points: Path) -> None:
 
 
 def test_the_note_names_the_reset_and_says_to_send_again(reset_points: Path) -> None:
-    assert check.since_note(2, "python3 scripts/lab_run.py send --lab 2") == ""
+    assert check.since_note(2, "uv run scripts/lab_run.py send --lab 2") == ""
     check.record_reset_point(2, datetime(2026, 10, 15, 9, 30, tzinfo=timezone.utc))
-    note = check.since_note(2, "python3 scripts/lab_run.py send --lab 2")
+    note = check.since_note(2, "uv run scripts/lab_run.py send --lab 2")
     assert "send the requests again since your reset" in note
     assert "09:30:00 UTC" in note
 
@@ -371,12 +371,12 @@ def test_the_full_reset_clears_the_points_after_it_empties_the_tables() -> None:
 # ---------------------------------------------------------------------------
 
 TASK_COMMANDS = {
-    "Reset Lab 1": "python3 scripts/lab_run.py reset --lab 1",
-    "Reset Lab 2": "python3 scripts/lab_run.py reset --lab 2",
-    "Reset Lab 3": "python3 scripts/lab_run.py reset --lab 3",
-    "Reset Lab 4": "python3 scripts/lab_run.py reset --lab 4",
+    "Reset Lab 1": "uv run scripts/lab_run.py reset --lab 1",
+    "Reset Lab 2": "uv run scripts/lab_run.py reset --lab 2",
+    "Reset Lab 3": "uv run scripts/lab_run.py reset --lab 3",
+    "Reset Lab 4": "uv run scripts/lab_run.py reset --lab 4",
     "Reset the whole workshop": "bash scripts/reset-governed-workshop.sh",
-    "Repair workshop files": "python3 scripts/repair_workshop_files.py",
+    "Repair workshop files": "uv run scripts/repair_workshop_files.py",
 }
 
 

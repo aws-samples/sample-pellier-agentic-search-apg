@@ -17,7 +17,7 @@
 --                          and the statements you ran in psql
 --
 -- Supplied and read-only: it runs in one transaction and rolls back.
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-agent-workload.sql
+--   psql -f workshop/lab-3-agent-workload.sql
 
 SET client_min_messages TO warning;
 BEGIN;
@@ -166,7 +166,7 @@ ROLLBACK;
   \echo 'Lab 3 workload check passed'
 \else
   \echo 'Observed  none yet: no get_orders or get_tickets statement under pellier_agent'
-  \echo 'Next      send Theo''s requests with python3 scripts/lab_run.py send --lab 3, then run this again.'
+  \echo 'Next      send Theo''s requests with uv run scripts/lab_run.py send --lab 3, then run this again.'
   \echo 'Lab 3 workload check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
 \endif

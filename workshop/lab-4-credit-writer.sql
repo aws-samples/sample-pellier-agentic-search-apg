@@ -20,7 +20,7 @@
 -- from it and puts the function back to its caller's rights.
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql
+--   psql -f workshop/lab-4-credit-writer.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it
 -- commits: your statements become the live privileges and the probe credit is

@@ -42,10 +42,10 @@ extraction.
 
 Usage::
 
-    python3 scripts/workshop_doctor.py --lab 1
-    python3 scripts/workshop_doctor.py --lab 3 --phase prerequisites
-    python3 scripts/workshop_doctor.py --environment
-    python3 scripts/workshop_doctor.py --memory
+    uv run scripts/workshop_doctor.py --lab 1
+    uv run scripts/workshop_doctor.py --lab 3 --phase prerequisites
+    uv run scripts/workshop_doctor.py --environment
+    uv run scripts/workshop_doctor.py --memory
 """
 
 from __future__ import annotations
@@ -367,7 +367,7 @@ def lab1_checks(evidence: Evidence, *, include_proof: bool = True) -> List[Check
         sql=_ANNA_RECEIPT,
         key="receipt_id",
         hint="no pellier.retrieval_receipts row in a session of Anna's; send her request "
-             "with python3 scripts/lab_run.py send --lab 1",
+             "with uv run scripts/lab_run.py send --lab 1",
     )
     return [columns, receipt]
 
@@ -468,11 +468,11 @@ def _managed_build(evidence: Evidence) -> Check:
     if not row:
         return Check(name, False, "no Gateway tool_audit row for a shopper turn; run "
                                   "bash scripts/lab3-start.sh theo to switch the rail, then "
-                                  "python3 scripts/lab_run.py send --lab 3")
+                                  "uv run scripts/lab_run.py send --lab 3")
     build = str(row.get("deployed_fingerprint") or "")
     if not build:
         return Check(name, False, f"turn {row.get('turn_id')} carries no build; deploy your "
-                                  "Task 3A change, then python3 scripts/lab_run.py send --lab 3")
+                                  "Task 3A change, then uv run scripts/lab_run.py send --lab 3")
     return Check(name, True, f"turn {row.get('turn_id')} ran build {build[:12]}")
 
 

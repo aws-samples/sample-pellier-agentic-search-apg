@@ -17,7 +17,7 @@ eligible before meaning decides the order.
 No model is called; every vector the check searches with is already in the
 catalog.
 
-    python3 scripts/lab1_check.py --task 1A
+    uv run scripts/lab1_check.py --task 1A
 """
 
 from __future__ import annotations

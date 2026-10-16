@@ -40,8 +40,8 @@ YET: "this did not happen" and "I could not look" are different findings.
 Lab 3B's direct Cedar probe calls the Gateway, so it stays in
 ``scripts/lab3_check.py``.
 
-    python3 scripts/workshop_evidence.py
-    python3 scripts/workshop_evidence.py --save /tmp/pellier-evidence/workshop-evidence.txt
+    uv run scripts/workshop_evidence.py
+    uv run scripts/workshop_evidence.py --save /tmp/pellier-evidence/workshop-evidence.txt
 """
 
 from __future__ import annotations

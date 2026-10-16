@@ -15,7 +15,7 @@
 -- order, and checks that every link finds the row it should.
 --
 -- Supplied and read-only; it never writes:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql
+--   psql -f workshop/wrap-up-reconstruct.sql
 
 SET client_min_messages TO warning;
 
@@ -132,7 +132,7 @@ SELECT * FROM (VALUES
 
 SELECT CASE
          WHEN :wrap_requests = 0 THEN 'no request from Jessica''s chat is answered by review '
-              || :'wrap_review_id' || ': send her request (python3 scripts/lab_run.py send --lab 4)'
+              || :'wrap_review_id' || ': send her request (uv run scripts/lab_run.py send --lab 4)'
          WHEN :wrap_handoff_rows = 0 THEN 'her request''s turn left no ask_a_person row in tool_audit'
          WHEN NOT :'wrap_key_matches'::boolean THEN 'the key derived from the review is not the credit''s'
          WHEN :wrap_credit_audit_rows <> 1 THEN :'wrap_credit_audit_rows'

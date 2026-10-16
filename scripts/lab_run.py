@@ -4,16 +4,16 @@
 ``finish --lab N`` finishes just the chosen lab, including its backups,
 restart or deployment, requests and checks:
 
-    python3 scripts/lab_run.py finish --lab 1
+    uv run scripts/lab_run.py finish --lab 1
 
 ``fast-track`` finishes Labs 1 and 2 in order using that same flow, stopping
 at the first failure. It takes no lab or task arguments:
 
-    python3 scripts/lab_run.py fast-track
+    uv run scripts/lab_run.py fast-track
 
 A task that opens with its own request sends just that one with ``--task``:
 
-    python3 scripts/lab_run.py send --lab 1 --task 1A
+    uv run scripts/lab_run.py send --lab 1 --task 1A
 
 ``solution --task`` installs one task's answer and nothing else. It prints the change
 from your file to the answer, keeps your file beside its editor link as ``.bak`` (a later,
@@ -21,7 +21,7 @@ different attempt as ``.bak.2`` and on, so none is overwritten), restarts the ba
 backend file changed, and names the next command. A SQL or Cedar answer is only installed;
 running the exercise or deploying is that next command:
 
-    python3 scripts/lab_run.py solution --lab 1 --task 1A
+    uv run scripts/lab_run.py solution --lab 1 --task 1A
 
 ``finish`` is a lab's "Running behind?" sequence as one command. It keeps your files as
 ``.bak`` (as ``solution --task`` does), puts the lab's answers in place, runs the lab's
@@ -30,20 +30,20 @@ first failure. Lab 4's finish also does Nadia's approval and execution in the Op
 then proves the same-key replay. Run again, it never opens a second credit: an approved
 review is finished rather than reopened, and a credited one is only replayed:
 
-    python3 scripts/lab_run.py finish --lab 3
+    uv run scripts/lab_run.py finish --lab 3
 
 ``reset`` puts one lab back to its as-shipped start, leaving the other labs alone: its
 files, its database piece, its AgentCore state and the backend. It records a reset point so
 the lab's checks ignore turns from before it (scripts/lab_reset.py has the detail):
 
-    python3 scripts/lab_run.py reset --lab 2
+    uv run scripts/lab_run.py reset --lab 2
 
 A third action is for whoever is helping a stuck participant, and the guide
 does not show it. ``diff`` prints what ``solution`` would change, without
 changing it: a unified diff per task file, the finished version as '-' lines
 and the participant's file as '+' lines.
 
-    python3 scripts/lab_run.py diff --lab 2
+    uv run scripts/lab_run.py diff --lab 2
 
 ``solution`` copies the lab's supplied answers over the files its tasks edit,
 using the map in ``workshop/participant-files.json`` (the files the
@@ -63,7 +63,7 @@ Gateway cannot yet answer, is retried. ``--shopper-only`` stops before
 Nadia's part, so the participant makes that decision in the Operator; its last line is
 Nadia's sign-in, read from the workshop's test-credentials file:
 
-    python3 scripts/lab_run.py send --lab 4 --shopper-only
+    uv run scripts/lab_run.py send --lab 4 --shopper-only
 
 Each step prints ``+ OK`` or ``x FAIL``. The first failure stops the command
 with exit status 1.
@@ -119,27 +119,27 @@ TASK_CONVERSATIONS = {
     "2B": [("marco", ("exercise",))],
     "3A": [("theo", ("exercise",))],
 }
-DEPLOY = 'python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
+DEPLOY = 'uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
 TASKS = ("1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B")
-PSQL = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f"
+PSQL = "psql -f"
 # What proves each task once its answer is in place, naming files by their editor link.
 NEXT_AFTER_TASK = {
-    "1A": ["python3 scripts/lab1_check.py --task 1A"],
-    "1B": ["python3 scripts/lab_run.py send --lab 1 --task 1B",
-           "python3 scripts/lab1_check.py --task 1B"],
-    "2A": ["python3 scripts/lab_run.py send --lab 2 --task 2A",
-           "python3 scripts/lab2_check.py --task 2A"],
-    "2B": [f"{PSQL} labs/02-ground/2B-check-stock.sql", "python3 scripts/lab2_check.py --task 2B"],
-    "3A": ["python3 scripts/lab3_check.py --task 3A", DEPLOY],
+    "1A": ["uv run scripts/lab1_check.py --task 1A"],
+    "1B": ["uv run scripts/lab_run.py send --lab 1 --task 1B",
+           "uv run scripts/lab1_check.py --task 1B"],
+    "2A": ["uv run scripts/lab_run.py send --lab 2 --task 2A",
+           "uv run scripts/lab2_check.py --task 2A"],
+    "2B": [f"{PSQL} labs/02-ground/2B-check-stock.sql", "uv run scripts/lab2_check.py --task 2B"],
+    "3A": ["uv run scripts/lab3_check.py --task 3A", DEPLOY],
     "3B": [f"{PSQL} labs/03-deploy/3B-row-ownership.sql"],
-    "4A": ["python3 scripts/lab4_check.py --task 4A", DEPLOY],
+    "4A": ["uv run scripts/lab4_check.py --task 4A", DEPLOY],
     "4B": [f"{PSQL} labs/04-govern/4B-credit-writer.sql",
-           "python3 scripts/lab4_check.py --task 4B"],
+           "uv run scripts/lab4_check.py --task 4B"],
 }
 BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
     1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
-    2: ("run the Task 2B exercise (psql -X -v ON_ERROR_STOP=1 -P pager=off -f "
+    2: ("run the Task 2B exercise (psql -f "
         "labs/02-ground/2B-check-stock.sql), restart the backend (sudo systemctl restart "
         "pellier), then send the lab's requests."),
     3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",
@@ -321,7 +321,7 @@ def show_diff(lab: int, repo: pathlib.Path = REPO, color: bool = False) -> int:
         for line in lines:
             print(_paint(line.rstrip("\n"), color), flush=True)
     if differs:
-        print(f"'-' lines are the finished version: what 'python3 scripts/lab_run.py solution "
+        print(f"'-' lines are the finished version: what 'uv run scripts/lab_run.py solution "
               f"--lab {lab}' would write.\n'+' lines are your file as it is now.", flush=True)
     return differs
 
@@ -759,16 +759,27 @@ ABSENCE_QUERY = "workshop/lab-4-absence.sql"
 
 
 def _psql(path: str) -> List[str]:
-    return ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-f", path]
+    return ["psql", "-f", path]
 
 
 def _check(task: str) -> List[str]:
-    return ["python3", f"scripts/lab{task[0]}_check.py", "--task", task]
+    return ["uv", "run", f"scripts/lab{task[0]}_check.py", "--task", task]
 
 
 def _deploy(repo: pathlib.Path) -> List[str]:
-    return ["python3", "scripts/provision_agentcore_end_to_end.py", "--repo-path", str(repo),
+    return ["uv", "run", "scripts/provision_agentcore_end_to_end.py", "--repo-path", str(repo),
             "--mode", "participant"]
+
+
+def _executable(argv: List[str]) -> List[str]:
+    """What a printed command runs as. ``uv run`` runs with this interpreter, which is already
+    the participant environment's, and psql spells out the flags ~/.psqlrc sets, so a catch-up
+    never depends on uv or the rc file being in place."""
+    if argv[:2] == ["uv", "run"]:
+        return [sys.executable, *argv[2:]]
+    if argv[0] == "psql":
+        return ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", *argv[1:]]
+    return argv
 
 
 class Finish:
@@ -782,11 +793,10 @@ class Finish:
     def command(self, argv: List[str]) -> None:
         shown = shlex.join(argv)
         print(f"  $ {shown}", flush=True)
-        executable = [sys.executable, *argv[1:]] if argv[0] == "python3" else argv
-        code = self.run(executable, cwd=str(self.repo), check=False).returncode
+        code = self.run(_executable(argv), cwd=str(self.repo), check=False).returncode
         if code:
             raise LabRunError(f"{shown} exited {code}; the lines above say why. Fix it, then run "
-                              f"python3 scripts/lab_run.py finish --lab {self.lab} again.")
+                              f"uv run scripts/lab_run.py finish --lab {self.lab} again.")
 
     def restart(self) -> None:
         restart_backend(self.backend, run=self.run)

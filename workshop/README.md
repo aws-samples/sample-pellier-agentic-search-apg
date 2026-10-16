@@ -9,7 +9,7 @@ The Builders event informed its pacing and exercises; `main` is a different trac
 Every task runs the same way: it fails in the terminal, you fix the marked region,
 one command proves the fix with one pass token, and then you look at it in the app.
 Every check prints what was expected, what was observed, and the evidence behind
-it. `python3 scripts/workshop_evidence.py` exports that proof for all four labs.
+it. `uv run scripts/workshop_evidence.py` exports that proof for all four labs.
 Tasks 1B, 2A and 2B are read from rows alone (`pellier.retrieval_receipts`,
 `pellier.tool_audit`, the catalog and warehouse tables), so no code of yours
 runs: Lab 2's lines pass only after Marco's requests are sent again on the finished lab.
@@ -24,44 +24,44 @@ the same checks.
 
 | Lab and task | Work you do | Check |
 |---|---|---|
-| 1A, Anna | Search by what she means (`services/store_tools.py`), applied with `scripts/lab_run.py solution --lab 1 --task 1A` | `python3 scripts/lab1_check.py --task 1A` |
-| 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `python3 scripts/lab1_check.py --task 1B` |
-| 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`), applied with `scripts/lab_run.py solution --lab 2 --task 2A` | `python3 scripts/lab2_check.py --task 2A` |
-| 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `python3 scripts/lab2_check.py --task 2B` |
-| 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `python3 scripts/lab3_check.py --task 3A` |
-| 3B, Theo | Deploy, write the ownership rule (`labs/03-deploy/3B-row-ownership.sql`), then challenge it | `python3 scripts/lab3_check.py --task 3B` |
-| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `python3 scripts/lab4_check.py --task 4A` |
-| 4B, Jessica and Nadia | Let the money role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `python3 scripts/lab4_check.py --task 4B` |
+| 1A, Anna | Search by what she means (`services/store_tools.py`), applied with `scripts/lab_run.py solution --lab 1 --task 1A` | `uv run scripts/lab1_check.py --task 1A` |
+| 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `uv run scripts/lab1_check.py --task 1B` |
+| 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`), applied with `scripts/lab_run.py solution --lab 2 --task 2A` | `uv run scripts/lab2_check.py --task 2A` |
+| 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `uv run scripts/lab2_check.py --task 2B` |
+| 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `uv run scripts/lab3_check.py --task 3A` |
+| 3B, Theo | Deploy, write the ownership rule (`labs/03-deploy/3B-row-ownership.sql`), then challenge it | `uv run scripts/lab3_check.py --task 3B` |
+| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `uv run scripts/lab4_check.py --task 4A` |
+| 4B, Jessica and Nadia | Let the money role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `uv run scripts/lab4_check.py --task 4B` |
 
 The two exercises run during their labs' deploys and print their own lines:
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/03-deploy/3B-row-ownership.sql` ends
+`psql -f labs/03-deploy/3B-row-ownership.sql` ends
 `Lab 3B predicate check passed` and
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/04-govern/4B-credit-writer.sql`
+`psql -f labs/04-govern/4B-credit-writer.sql`
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql`.
+`psql -f workshop/lab-4-absence.sql`.
 
 Two more supplied queries read the agent from the database's side and change nothing.
-After Lab 3's token, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-agent-workload.sql`
+After Lab 3's token, `psql -f workshop/lab-3-agent-workload.sql`
 lists the statements each role ran, from `pg_stat_statements`, and one plan with the row
 policy inside it; it ends `Lab 3 workload check passed`. At the Wrap-up,
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/wrap-up-reconstruct.sql` rebuilds
+`psql -f workshop/wrap-up-reconstruct.sql` rebuilds
 Jessica's credit from her request to the row with joins, and ends
 `Wrap-up reconstruction passed`.
 
-Before Task 1A's edit, `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-meaning.sql` measures eight products against
+Before Task 1A's edit, `psql -f workshop/lab-1-meaning.sql` measures eight products against
 a product's own stored embedding: that product sits at distance 0, and the rows come
 in name order, so the ranking and its direction stay Task 1A's to write. The HNSW
 index names its operator class. It only reads.
 
-Optional in Lab 1: `psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-fusion.sql`
+Optional in Lab 1: `psql -f workshop/lab-1-fusion.sql`
 recomputes the fused scores Anna's search recorded from their two ranks, and
-`psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-index.sql` shows whether
+`psql -f workshop/lab-1-index.sql` shows whether
 Aurora uses the HNSW index at this catalog's size, and what a filter does to the
 index when it is used. Both only read.
 
 Only edit the lab's marked regions; there are nine. Python edits in Labs 1 and
 2 need the guide's backend restart. Lab 3's edits and Lab 4's rule reach AWS
-only through `python3 scripts/provision_agentcore_end_to_end.py --repo-path
+only through `uv run scripts/provision_agentcore_end_to_end.py --repo-path
 "$PWD" --mode participant`: changing a local file does not update AWS.
 Provisioning deploys Lab 4's starter rule, so the deploy updates it.
 
@@ -102,7 +102,7 @@ eligibility.
 ## Keep a useful continuation checkpoint
 
 Before the sandbox closes, save the evidence export with
-`python3 scripts/workshop_evidence.py --save <file>` and download the file. It
+`uv run scripts/workshop_evidence.py --save <file>` and download the file. It
 names the last passing check, the first failed one, and what to look at next. Keep the public source link and save or print the Studio
 guides if you need them offline. Do not archive `.env`, tokens, credential files,
 or the generated deployment directory. Review evidence files for private values

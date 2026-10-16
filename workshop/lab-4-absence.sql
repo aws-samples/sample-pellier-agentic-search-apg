@@ -15,7 +15,7 @@
 --
 -- This check is supplied; you write nothing here. Decide what the three counts
 -- should be before you run it:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-absence.sql
+--   psql -f workshop/lab-4-absence.sql
 --
 -- It finds both keys itself and never writes. Both are derived the same way,
 -- from an approved review: operator-review:<review id>:<first 32 of its hash>.
@@ -68,7 +68,7 @@ SELECT format('%s, %s, %s and %s',
 \else
   \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
   \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
-  \echo 'Next      run python3 scripts/lab4_check.py --task 4A after deploying your rule, then run this again.'
+  \echo 'Next      run uv run scripts/lab4_check.py --task 4A after deploying your rule, then run this again.'
   \echo 'Lab 4 absence check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif

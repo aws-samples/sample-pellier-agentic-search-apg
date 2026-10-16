@@ -23,15 +23,15 @@ keys the attempt receipt in ``pellier.tool_audit`` and the credit in
 
 Usage::
 
-    python3 scripts/deploy/gateway_policy_probe.py --user theo \\
+    uv run scripts/deploy/gateway_policy_probe.py --user theo \\
         --tool get_return_policy --arguments '{"department": "Home"}' \\
         --turn-id turn-readiness-check --expect allow
 
-    python3 scripts/deploy/gateway_policy_probe.py --user theo \\
+    uv run scripts/deploy/gateway_policy_probe.py --user theo \\
         --tool get_tickets --arguments '{"customer_id": "CUST-JESSICA"}' \\
         --turn-id turn-lab3-household --expect deny
 
-    python3 scripts/deploy/gateway_policy_probe.py --user theo \\
+    uv run scripts/deploy/gateway_policy_probe.py --user theo \\
         --tool give_store_credit --arguments '{"customer_id": "CUST-READINESS-PROBE",
         "amount_cents": 100, "reason": "readiness probe",
         "idempotency_key": "readiness-check"}' --expect deny

@@ -12,7 +12,7 @@ conversation provisioning wrote for the persona (session `prefseed`) and the
 user-preference records AgentCore extracted from it, and prints Expected,
 Observed and Evidence with the source event ids beside the record ids:
 
-    python3 scripts/showcase_agentcore_memory.py provisioned --persona theo
+    uv run scripts/showcase_agentcore_memory.py provisioned --persona theo
 
 `strategies` is Lab 3's look at all four strategies. It reads, and never
 writes, every record AgentCore made from that one conversation: preferences,
@@ -20,7 +20,7 @@ facts, the session summary, the episode and its reflection. Each strategy says
 whether its records follow the customer into new conversations and whether a
 Pellier turn reads them. `--versus` runs the same reads for a second shopper:
 
-    python3 scripts/showcase_agentcore_memory.py strategies --persona theo --versus marco
+    uv run scripts/showcase_agentcore_memory.py strategies --persona theo --versus marco
 """
 from __future__ import annotations
 

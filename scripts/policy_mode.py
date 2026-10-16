@@ -32,11 +32,11 @@ current configuration and echoes it back. Prefer `--policy`.
 
 Usage::
 
-    python3 scripts/policy_mode.py                      # show current state
-    python3 scripts/policy_mode.py --policy give_store_credit_staff_scope \\
+    uv run scripts/policy_mode.py                      # show current state
+    uv run scripts/policy_mode.py --policy give_store_credit_staff_scope \\
         --mode LOG_ONLY                                 # one policy
-    python3 scripts/policy_mode.py --policy all --mode ACTIVE
-    python3 scripts/policy_mode.py --gateway --mode ENFORCE
+    uv run scripts/policy_mode.py --policy all --mode ACTIVE
+    uv run scripts/policy_mode.py --gateway --mode ENFORCE
 """
 from __future__ import annotations
 

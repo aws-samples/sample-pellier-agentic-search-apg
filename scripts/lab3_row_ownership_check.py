@@ -22,7 +22,7 @@ Row-level security stops a wrong query; it does not choose the customer.
 On the Gateway path the Lambda binds the customer the call carries, which
 Cedar's owner-only permit has already matched to the caller's token (Task 3A).
 
-    python3 scripts/lab3_row_ownership_check.py
+    uv run scripts/lab3_row_ownership_check.py
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ STARTER = REPO / "workshop" / "starters" / "lab-3-row-ownership.sql"
 REGION = "Row ownership - predicate"
 STAMP_PREFIX = "Lab 3B predicate sha256 "
 POLICY_NAMES = ("orders_owner", "support_tickets_owner")
-RUN_WORKSHEET = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql"
+RUN_WORKSHEET = "psql -f workshop/lab-3-row-ownership.sql"
 DEPLOYED_TITLE = "your predicate is the live policy on both tables"
 DEPLOYED_EXPECTED = ("orders_owner and support_tickets_owner carry the predicate now in "
                      "workshop/lab-3-row-ownership.sql, committed by its passing run")

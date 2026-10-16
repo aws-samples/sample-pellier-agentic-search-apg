@@ -18,7 +18,7 @@
 -- pellier.customers maps each id to its cognito_username (theo).
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql
+--   psql -f workshop/lab-3-row-ownership.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it
 -- commits: your predicate becomes the live policy and the probe writes are

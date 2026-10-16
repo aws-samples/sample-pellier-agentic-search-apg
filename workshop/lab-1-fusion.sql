@@ -14,10 +14,10 @@
 -- are proving the recorded score can be derived from the ranks beside it.
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-1-fusion.sql
+--   psql -f workshop/lab-1-fusion.sql
 --
 -- The receipt is the newest one written in Anna's session, which
--- python3 scripts/lab_run.py send --lab 1 starts (persona-anna-...).
+-- uv run scripts/lab_run.py send --lab 1 starts (persona-anna-...).
 
 SET client_min_messages TO warning;
 DROP TABLE IF EXISTS pg_temp.lab_1_ranks;
@@ -109,14 +109,14 @@ SELECT count(*) AS lab_1_products,
     \endif
   \else
     \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only, so it cannot tell a missing rank apart'
-    \echo 'Next      send Anna''s request again: python3 scripts/lab_run.py send --lab 1'
+    \echo 'Next      send Anna''s request again: uv run scripts/lab_run.py send --lab 1'
     \echo 'Lab 1 fusion check not yet'
     DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 fusion check not yet; see the lines above'; END $fail$;
   \endif
 \else
   \echo 'Expected  a search receipt written in a session of Anna''s'
   \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting persona-anna-'
-  \echo 'Next      run python3 scripts/lab_run.py send --lab 1, then run this again.'
+  \echo 'Next      run uv run scripts/lab_run.py send --lab 1, then run this again.'
   \echo 'Lab 1 fusion check not yet'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 fusion check not yet; see the lines above'; END $fail$;
 \endif

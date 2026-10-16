@@ -383,7 +383,7 @@ _repair_workshop_files() {
 _load_restore_functions() {
   if [[ ! -f "$REPO/scripts/lib/agentcore-reset.sh" ]]; then
     fail "scripts/lib/agentcore-reset.sh is missing and the workshop files could not be repaired."
-    fail "Re-run once the box can reach GitHub, or run: python3 scripts/repair_workshop_files.py"
+    fail "Re-run once the box can reach GitHub, or run: uv run scripts/repair_workshop_files.py"
     exit 1
   fi
   # shellcheck source=lib/agentcore-reset.sh

@@ -10,7 +10,7 @@ Skip one task: the task's own apply command shows the change, installs that task
 keeps your file as `.bak`, restarts the backend when needed and prints the next command.
 
 ```bash
-python3 scripts/lab_run.py solution --lab 4 --task 4A   # or 4B
+uv run scripts/lab_run.py solution --lab 4 --task 4A   # or 4B
 ```
 
 Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
@@ -18,7 +18,7 @@ requests and run every check, stopping at the first failure. It deploys the Ceda
 performs Nadia's approval and execution once; a rerun only replays.
 
 ```bash
-python3 scripts/lab_run.py finish --lab 4
+uv run scripts/lab_run.py finish --lab 4
 ```
 
 The credit writer's privileges are committed before Nadia's credit is written, so the credit is

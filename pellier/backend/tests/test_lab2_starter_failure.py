@@ -289,7 +289,7 @@ def test_no_stock_agent_turn_is_not_yet(conn, monkeypatch) -> None:
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_2a(conn)
     assert finding.state == "NOT YET"
-    assert "python3 scripts/lab_run.py send --lab 2" in finding.next_step
+    assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step
     assert "build Task 2A" in finding.next_step
 
 
@@ -401,4 +401,4 @@ def test_the_recorded_2b_line_waits_for_a_not_carried_question(conn, monkeypatch
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_recorded_2b(conn)
     assert finding.state == "NOT YET"
-    assert "python3 scripts/lab_run.py send --lab 2" in finding.next_step
+    assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step

@@ -20,7 +20,7 @@
 -- test for the product before it aggregates. Write that test between the markers.
 --
 -- Run with:
---   psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql
+--   psql -f workshop/lab-2-check-stock.sql
 --
 -- Everything below runs in one transaction. If every probe matches, it commits and
 -- your function is the live one. If any probe differs, it rolls back and the live

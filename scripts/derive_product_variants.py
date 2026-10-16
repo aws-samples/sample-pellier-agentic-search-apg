@@ -19,13 +19,13 @@ Usage
 -----
 
     # Report only. Nothing is written.
-    python3 scripts/derive_product_variants.py --check
+    uv run scripts/derive_product_variants.py --check
 
     # Take masters from a drop folder, then derive.
-    python3 scripts/derive_product_variants.py --from ~/Desktop/DAT416-UI-rehaul
+    uv run scripts/derive_product_variants.py --from ~/Desktop/DAT416-UI-rehaul
 
     # Re-derive variants for masters already in the repository.
-    python3 scripts/derive_product_variants.py
+    uv run scripts/derive_product_variants.py
 """
 
 from __future__ import annotations

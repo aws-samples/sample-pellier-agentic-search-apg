@@ -21,9 +21,9 @@ makes a drift fail in CI rather than in a room.
 Usage
 -----
 
-    python3 scripts/describe_workshop_publication.py
-    python3 scripts/describe_workshop_publication.py --json audit/handoff/publication.json
-    python3 scripts/describe_workshop_publication.py --policies-json out/fresh-policy-set.json
+    uv run scripts/describe_workshop_publication.py
+    uv run scripts/describe_workshop_publication.py --json audit/handoff/publication.json
+    uv run scripts/describe_workshop_publication.py --policies-json out/fresh-policy-set.json
 """
 
 from __future__ import annotations

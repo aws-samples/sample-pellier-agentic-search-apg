@@ -19,7 +19,7 @@ approval_required, and both direct writes must be refused with SQLSTATE 42501, a
 privilege the role does not hold. Every probe ends in a rollback and the direct
 writes match no row, so nothing is kept.
 
-    python3 scripts/lab4_check.py --task 4B
+    uv run scripts/lab4_check.py --task 4B
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ REGION = "Credit writer - privileges"
 STAMP_PREFIX = "Lab 4B privileges sha256 "
 ROLE = "pellier_credit_writer"
 FUNCTION = "pellier.apply_store_credit(text, text, integer, text, text)"
-RUN_WORKSHEET = "psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql"
+RUN_WORKSHEET = "psql -f workshop/lab-4-credit-writer.sql"
 DEPLOYED_TITLE = "your privileges are the live ones"
 DEPLOYED_EXPECTED = ("apply_store_credit carries the statements now in "
                      "workshop/lab-4-credit-writer.sql, and the role holds EXECUTE on it and "

@@ -22,7 +22,7 @@ runtime (``requestHeaderAllowlist`` patch), so identity passes through:
 shopper → Runtime → Gateway → Cedar → MCP Lambda, one JWT end to end.
 
 Deploy (bootstrap / instructor):
-    python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD"
+    uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD"
 
 The provisioner renders ``.agentcore-project/pellier/agentcore/agentcore.json``
 and invokes the pinned CLI. AgentCore CDK injects discovery variables for

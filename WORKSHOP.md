@@ -49,16 +49,16 @@ Lab 4's deploys are inside their budgets, and each of those labs runs its
 exercise during the wait. An unrun check stays incomplete.
 
 Participants write 1B, 2B, 3B, 4A and 4B in the marked region. They apply 1A, 2A and 3A by
-command after seeing the change: `python3 scripts/lab_run.py solution --lab N --task NX`.
-`python3 scripts/lab_run.py finish --lab N` finishes one lab.
-`python3 scripts/lab_run.py fast-track` finishes Labs 1 and 2 in order, stopping at the first
+command after seeing the change: `uv run scripts/lab_run.py solution --lab N --task NX`.
+`uv run scripts/lab_run.py finish --lab N` finishes one lab.
+`uv run scripts/lab_run.py fast-track` finishes Labs 1 and 2 in order, stopping at the first
 failure. Either lab can still be finished individually with its `finish --lab` command.
 
 ## What participants use
 
 Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files are exercises that deploy themselves: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional exercise; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` and `finish` leave it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
-To see where a stuck participant's files depart from the answer without overwriting them, run `python3 scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
+To see where a stuck participant's files depart from the answer without overwriting them, run `uv run scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
 | Surface | Use | What it proves |
 |---|---|---|
@@ -133,9 +133,9 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
   embedding, the kind of vector the check searches with. Then rank the eligible products by meaning in the `Vector branch -
   order by meaning` region of `pellier/backend/services/store_tools.py`: order
   by cosine distance to the query embedding and report similarity as 1 minus
-  it. `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.
-- **Task 1B:** after `python3 scripts/lab_run.py send --lab 1`,
-  `python3 scripts/lab1_check.py --task 1B` shows the retry dropped her limits. Keep
+  it. `uv run scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.
+- **Task 1B:** after `uv run scripts/lab_run.py send --lab 1`,
+  `uv run scripts/lab1_check.py --task 1B` shows the retry dropped her limits. Keep
   them in `pellier/backend/services/search_plan.py`: a retry may relax a
   preference, never the budget, the stock rule or the exclusions. The check
   ends `Lab 1B check passed`.
@@ -152,7 +152,7 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
 
 Marco needs reliable stock and dispatch facts before his trip.
 
-- **See it fail:** `python3 scripts/lab_run.py send --lab 2` sends Marco's two
+- **See it fail:** `uv run scripts/lab_run.py send --lab 2` sends Marco's two
   requests; the Stock agent holds only the catalog tools, so its call to
   `check_stock` is refused and no step reads `warehouse_inventory`. Once it
   holds `check_stock`, the same request about the Velvet Opera Cape comes back
@@ -166,7 +166,7 @@ Marco needs reliable stock and dispatch facts before his trip.
 - **Task 2B:** write the not-carried test in `pellier.check_stock`
   (`labs/02-ground/2B-check-stock.sql`, region `Stock check - not carried`). The
   exercise commits the function only when its four probes match and ends
-  `Lab 2B function check passed`; `python3 scripts/lab2_check.py --task 2B`
+  `Lab 2B function check passed`; `uv run scripts/lab2_check.py --task 2B`
   then runs the live function and ends `Lab 2B check passed`.
 - **Lesson:** an agent can only claim what its tool returns, and a missing
   product is a missing row, not a zero.
@@ -175,7 +175,7 @@ Marco needs reliable stock and dispatch facts before his trip.
 
 Theo wants his taste remembered and help with his own chipped bowl.
 
-- **See it fail:** `python3 scripts/lab3_check.py --task 3A` prints one line per rule before any
+- **See it fail:** `uv run scripts/lab3_check.py --task 3A` prints one line per rule before any
   deploy: `get_tickets` is withheld from the Gateway, and the Support agent as
   shipped, which answers returns questions with `get_return_policy` and hands off
   with `ask_a_person`, lacks the reads Theo's household request needs.
@@ -184,7 +184,7 @@ Theo wants his taste remembered and help with his own chipped bowl.
   `pellier/backend/services/agentcore_gateway.py`, add the reads his request
   needs to `SUPPORT_GATEWAY_TOOLS` and bind every tool that takes a
   `customer_id` in `SUPPORT_CALLER_BOUND_TOOLS`, so the server overwrites the
-  `customer_id` the model chose. The task is applied with `python3 scripts/lab_run.py solution --lab 3 --task 3A`. The check's four rules: `get_tickets`
+  `customer_id` the model chose. The task is applied with `uv run scripts/lab_run.py solution --lab 3 --task 3A`. The check's four rules: `get_tickets`
   published; `get_orders` and `get_tickets` asked for; both bound, by a forged
   read for Jessica that must leave as `CUST-THEO`; and `give_store_credit`
   refused on a shopper agent (published is not permitted). It ends
@@ -192,10 +192,10 @@ Theo wants his taste remembered and help with his own chipped bowl.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
   row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; its exercise commits
   the predicate as the live policy once every probe matches and ends `Lab 3B
-  predicate check passed`. Then `python3 scripts/lab_run.py send --lab 3` sends
+  predicate check passed`. Then `uv run scripts/lab_run.py send --lab 3` sends
   Theo's three sentences, including the household request ("Jessica and I
   share an address... Can you check her ticket too?"), and
-  `python3 scripts/lab3_check.py --task 3B` prints the executed build beside this
+  `uv run scripts/lab3_check.py --task 3B` prints the executed build beside this
   checkout's, the Memory record, every ticket read bound to Theo, Cedar's
   denial of his direct read of Jessica's tickets, and his row policies holding
   on both database paths. It ends `Lab 3B check passed`.
@@ -215,8 +215,8 @@ wrong query, not an untrusted session.
 Jessica sent two items back and has no credit yet. Nadia must approve the
 credit, and the system must prove what moved.
 
-- **See it fail:** `python3 scripts/lab4_check.py --task 4A` shows the rule as
-  shipped, a forbid, denying Nadia's approved credits. `python3 scripts/lab_run.py send
+- **See it fail:** `uv run scripts/lab4_check.py --task 4A` shows the rule as
+  shipped, a forbid, denying Nadia's approved credits. `uv run scripts/lab_run.py send
   --lab 4 --shopper-only` sends Jessica's request; in the Operator, Nadia
   approves her $100.00 credit and **Execute** reads DENY.
 - **Task 4A:** write the final `unless` block of
@@ -229,11 +229,11 @@ credit, and the system must prove what moved.
   and ends `Lab 4B privileges check passed`.
 - **The decision:** Nadia selects **Execute again** (ALLOW, recorded once),
   then **Replay with the same key** (nothing written twice).
-- **Proof, back in the terminal:** `python3 scripts/lab4_check.py --task 4A`
+- **Proof, back in the terminal:** `uv run scripts/lab4_check.py --task 4A`
   evaluates the rule with Cedar beside the deployed baseline (shopper $100 DENY,
   Nadia 10000 cents ALLOW, 10001 DENY), rejects eight wrong rules, then sends
   one over-limit credit through the Gateway: a Cedar DENY with no row for its
-  key, ending `Lab 4A check passed`. `python3 scripts/lab4_check.py --task 4B`
+  key, ending `Lab 4A check passed`. `uv run scripts/lab4_check.py --task 4B`
   confirms the live function carries the participant's statements, then probes
   the money role in process and through the Gateway Lambda's Data API: the
   function refuses a credit no one approved and a direct insert or update is
@@ -252,7 +252,7 @@ Then ask: Nadia approved the credit. What evidence would you require before
 telling her it was executed correctly and only once? Point participants to
 the take-home skill for reviewing one tool in their own application.
 
-Saving a personal record is optional: `python3 scripts/workshop_evidence.py
+Saving a personal record is optional: `uv run scripts/workshop_evidence.py
 --save <file>` writes one finding per task, eight in all. It reruns checks;
 the Wrap-up does not teach it or require a downloaded file. A region left as
 shipped is never proved. The guide has no participant cleanup step.

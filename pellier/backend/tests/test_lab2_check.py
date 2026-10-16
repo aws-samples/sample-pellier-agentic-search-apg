@@ -161,7 +161,7 @@ def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(re
     finding = check.with_resend_hint(_finding("PROVED"), _finding(recorded))
     assert finding.state == "PROVED"
     assert finding.evidence[0] == "row"
-    assert "python3 scripts/lab_run.py send --lab 2" in finding.evidence[-1]
+    assert "uv run scripts/lab_run.py send --lab 2" in finding.evidence[-1]
     assert "restart" not in finding.evidence[-1].lower()
 
 

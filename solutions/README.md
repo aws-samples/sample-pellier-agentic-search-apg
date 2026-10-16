@@ -2,7 +2,7 @@
 
 These files are facilitator recovery paths and readable reference implementations. A participant who uses a reference still runs the same live proof.
 
-The commands below recover one task. To recover a whole lab, `python3 scripts/lab_run.py solution --lab N` copies its tasks' answers, and after the restart or deployment `python3 scripts/lab_run.py send --lab N` makes that lab's requests. Each guide's "Running behind?" block chains them with the lab's worksheets and checks.
+The commands below recover one task. To recover a whole lab, `uv run scripts/lab_run.py solution --lab N` copies its tasks' answers, and after the restart or deployment `uv run scripts/lab_run.py send --lab N` makes that lab's requests. Each guide's "Running behind?" block chains them with the lab's worksheets and checks.
 
 ## Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 
@@ -23,9 +23,9 @@ cp solutions/the-quiet-search/retrieval/search_plan_solution.py \
 ```
 
 Restart the backend after the copies. The checks are unchanged:
-`python3 scripts/lab1_check.py --task 1A` runs the vector branch, and after
-`python3 scripts/lab_run.py send --lab 1` writes a receipt,
-`python3 scripts/lab1_check.py --task 1B` reads that search's products.
+`uv run scripts/lab1_check.py --task 1A` runs the vector branch, and after
+`uv run scripts/lab_run.py send --lab 1` writes a receipt,
+`uv run scripts/lab1_check.py --task 1B` reads that search's products.
 
 The optional Go deeper worksheet's answer is
 `solutions/the-quiet-search/sql/lab-1-fusion-solution.sql`; `scripts/lab_run.py solution`
@@ -47,13 +47,13 @@ row. Run it to commit the function:
 ```bash
 cp solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql \
   workshop/lab-2-check-stock.sql
-psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-2-check-stock.sql
+psql -f workshop/lab-2-check-stock.sql
 ```
 
 Restart, send Marco's requests again with
-`python3 scripts/lab_run.py send --lab 2`, then run
-`python3 scripts/lab2_check.py --task 2A` and
-`python3 scripts/lab2_check.py --task 2B`.
+`uv run scripts/lab_run.py send --lab 2`, then run
+`uv run scripts/lab2_check.py --task 2A` and
+`uv run scripts/lab2_check.py --task 2B`.
 
 ## Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
 
@@ -66,19 +66,19 @@ cp solutions/the-ledger/gateway/gateway_tool_schemas_solution.py \
   scripts/deploy/gateway_tool_schemas.py
 cp solutions/the-ledger/services/agentcore_gateway.py \
   pellier/backend/services/agentcore_gateway.py
-python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
+uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
 ```
 
 Task 3B's recovery is the ownership predicate:
 
 ```bash
 cp solutions/the-ledger/sql/lab-3-row-ownership-solution.sql workshop/lab-3-row-ownership.sql
-psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-3-row-ownership.sql
+psql -f workshop/lab-3-row-ownership.sql
 ```
 
-The checks are unchanged: `python3 scripts/lab3_check.py --task 3A` reads
+The checks are unchanged: `uv run scripts/lab3_check.py --task 3A` reads
 "9 tools published" and the forged call bound to Theo, and after
-`python3 scripts/lab_run.py send --lab 3`, `python3 scripts/lab3_check.py --task 3B`
+`uv run scripts/lab_run.py send --lab 3`, `uv run scripts/lab3_check.py --task 3B`
 compares the executed build with this checkout's, asks Cedar to refuse his
 direct read of Jessica's tickets, and probes the live row policies. The managed
 Memory, Runtime, Gateway and JWT path has no local substitute; move a
@@ -89,7 +89,7 @@ credit after Lab 4: who asked, who investigated, who approved, what the
 Gateway answered, and what was paid. It only reads:
 
 ```bash
-psql -X -v ON_ERROR_STOP=1 -P pager=off -f solutions/the-ledger/sql/forensic_incident.sql
+psql -f solutions/the-ledger/sql/forensic_incident.sql
 ```
 
 ## Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges
@@ -100,9 +100,9 @@ starter as the policy `workshop_credit_limit`, so the deploy updates it:
 ```bash
 cp solutions/the-concierge/policies/workshop_credit_limit.cedar \
   policies/workshop_credit_limit.cedar
-python3 scripts/lab4_check.py --task 4A
-python3 scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
-python3 scripts/lab4_check.py --task 4A
+uv run scripts/lab4_check.py --task 4A
+uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
+uv run scripts/lab4_check.py --task 4A
 ```
 
 The first check evaluates the rule with Cedar here; the second, after the
@@ -114,8 +114,8 @@ probe matches; the check then reads the live function and probes both paths:
 ```bash
 cp solutions/the-concierge/sql/lab-4-credit-writer-solution.sql \
   workshop/lab-4-credit-writer.sql
-psql -X -v ON_ERROR_STOP=1 -P pager=off -f workshop/lab-4-credit-writer.sql
-python3 scripts/lab4_check.py --task 4B
+psql -f workshop/lab-4-credit-writer.sql
+uv run scripts/lab4_check.py --task 4B
 ```
 
 The keyed absence check, `workshop/lab-4-absence.sql`, is supplied and has no

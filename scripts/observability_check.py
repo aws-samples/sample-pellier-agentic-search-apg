@@ -15,11 +15,11 @@ evidence for both, and never writes:
     O3  PostgreSQL log      a write that row-level security refused is in the
                             cluster's postgresql log group
 
-Run it after python3 scripts/lab_run.py send --lab 3 and
-python3 scripts/lab3_row_ownership_check.py:
+Run it after uv run scripts/lab_run.py send --lab 3 and
+uv run scripts/lab3_row_ownership_check.py:
 
-    python3 scripts/observability_check.py
-    python3 scripts/observability_check.py --minutes 120
+    uv run scripts/observability_check.py
+    uv run scripts/observability_check.py --minutes 120
 
 Spans reach CloudWatch about ten seconds after a turn; Database Insights'
 counters and the exported log, about a minute after the statement.
@@ -103,7 +103,7 @@ def app_spans(logs: Any, start_ms: int, minutes: int) -> Finding:
     if not routed:
         return Finding("O1", "App spans in CloudWatch", NOT_YET, expected,
                        "no routing span from the app yet",
-                       next_step="send a request (python3 scripts/lab_run.py send --lab 3), "
+                       next_step="send a request (uv run scripts/lab_run.py send --lab 3), "
                                  "wait about ten seconds and run this again; if it stays empty, "
                                  "grep 'Failed to export span "
                                  "batch' /tmp/pellier/uvicorn.log: a 403 means this instance's "
@@ -187,7 +187,7 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
     if not busy:
         return Finding("O2", "Database Insights on Aurora", NOT_YET, expected,
                        f"{setting}; no finished queries recorded in the window yet",
-                       next_step="send a request (python3 scripts/lab_run.py send --lab 3), "
+                       next_step="send a request (uv run scripts/lab_run.py send --lab 3), "
                                  "wait about a minute and run this again")
     evidence = [f"queries finished in {busy} of the {reported} minutes reported "
                 f"({QUERIES_FINISHED})"]
@@ -217,7 +217,7 @@ def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, minutes: i
     if not events:
         return Finding("O3", "Refused writes in the PostgreSQL log", NOT_YET, expected,
                        "no refused write in the window",
-                       next_step="run python3 scripts/lab3_row_ownership_check.py, wait about a "
+                       next_step="run uv run scripts/lab3_row_ownership_check.py, wait about a "
                                  "minute and run this again")
     newest = max(events, key=lambda e: int(e.get("timestamp") or 0))
     when = datetime.fromtimestamp(int(newest.get("timestamp") or 0) / 1000,

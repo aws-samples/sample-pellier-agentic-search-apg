@@ -38,7 +38,7 @@ throwaway actors whose events and records were deleted afterwards:
   under `/pellier/preferences/user-memprobe20261013-session-ae280f9f/` after
   134.3 s, and the customer read returned 0 records.
 
-`python3 scripts/lab3_where_memory_lands.py` prints the customer namespace beside
+`uv run scripts/lab3_where_memory_lands.py` prints the customer namespace beside
 Theo's session actors on any deployment.
 
 ## Why the code does this

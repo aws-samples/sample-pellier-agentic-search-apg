@@ -10,8 +10,8 @@ Every terminal starts at the repository root. You apply 1A and write 1B.
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 1A, search by what she means | `python3 scripts/lab_run.py send --lab 1 --task 1A`: her ranking has no vector rank | Apply: `python3 scripts/lab_run.py solution --lab 1 --task 1A`. It shows the change to [1A-vector-branch.py](1A-vector-branch.py), installs it, keeps your file as `.bak` and restarts the backend | `python3 scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
-| 1B, keep her limits on the retry | `python3 scripts/lab_run.py send --lab 1 --task 1B`, her sentence with her limits, then the guide's receipt query | Write: [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then `sudo systemctl restart pellier && python3 scripts/lab_run.py send --lab 1 --task 1B` | `python3 scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
+| 1A, search by what she means | `uv run scripts/lab_run.py send --lab 1 --task 1A`: her ranking has no vector rank | Apply: `uv run scripts/lab_run.py solution --lab 1 --task 1A`. It shows the change to [1A-vector-branch.py](1A-vector-branch.py), installs it, keeps your file as `.bak` and restarts the backend | `uv run scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
+| 1B, keep her limits on the retry | `uv run scripts/lab_run.py send --lab 1 --task 1B`, her sentence with her limits, then the guide's receipt query | Write: [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then `sudo systemctl restart pellier && uv run scripts/lab_run.py send --lab 1 --task 1B` | `uv run scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
 
 Sends in this lab print `ran in process`: the agents run inside the app.
 
@@ -28,12 +28,12 @@ the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `python3 scripts/lab_run.py reset --lab 1`). It puts this lab back as shipped and leaves the other labs alone.
+In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `uv run scripts/lab_run.py reset --lab 1`). It puts this lab back as shipped and leaves the other labs alone.
 
 ## If you need a solution
 
 To skip one task, run its apply command above. To finish the whole lab, run
-`python3 scripts/lab_run.py finish --lab 1`. Either way the check still has to pass. The answers
+`uv run scripts/lab_run.py finish --lab 1`. Either way the check still has to pass. The answers
 are also in [solution/README.md](solution/README.md).
 
 [All labs](../../START_HERE.md)

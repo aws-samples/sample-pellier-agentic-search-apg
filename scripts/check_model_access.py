@@ -3,7 +3,7 @@
 Check Bedrock model access for Pellier's application and managed Runtime.
 
 Usage:
-    python3 scripts/check_model_access.py
+    uv run scripts/check_model_access.py
 
 Verifies invoke access by sending a minimal request to each model.
 Prints a clear pass/fail for each.

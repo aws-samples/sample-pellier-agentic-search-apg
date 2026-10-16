@@ -57,7 +57,7 @@ participant's named task and prediction before proposing a change.
 
 The `labs/` names are links to the application's own files. The participant writes 1B, 2B,
 3B, 4A and 4B in the marked region. 1A, 2A and 3A they apply by command after seeing the change
-(`python3 scripts/lab_run.py solution --lab N --task NX`); explain the change, do not write it
+(`uv run scripts/lab_run.py solution --lab N --task NX`); explain the change, do not write it
 for them. Task 3B writes the row-ownership predicate while the deploy runs, then challenges it.
 Lab 1's meaning query (`workshop/lab-1-meaning.sql`, run before Task 1A), Lab 3's
 live row-level security check (`scripts/lab3_row_ownership_check.py`), Lab 3's workload
@@ -85,7 +85,7 @@ the task the participant names, never every file at once.
 - Do not read credentials, tokens, environment secrets or unrelated customer data.
 - The participant runs the guide's checks, restarts, deployments, resets and business
   actions. Resets are the Reset Lab 1 to 4, Reset the whole workshop and Repair workshop
-  files tasks in Code Editor (Terminal > Run Task), `python3 scripts/lab_run.py reset
+  files tasks in Code Editor (Terminal > Run Task), `uv run scripts/lab_run.py reset
   --lab N` and `bash scripts/reset-governed-workshop.sh`. The coach explains what a reset
   restores and does not run one. It does not run Git, install packages, deploy or approve
   actions.

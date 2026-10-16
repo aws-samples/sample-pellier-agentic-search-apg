@@ -46,7 +46,7 @@ class TestTheBuild:
         assert "--mode participant" in finding.next_step
         # The retry needs a new Runtime session; lab_run.py send starts a new
         # conversation for every request set it sends.
-        assert "python3 scripts/lab_run.py send --lab 3" in finding.next_step
+        assert "uv run scripts/lab_run.py send --lab 3" in finding.next_step
 
     def test_no_turn_is_not_yet_and_an_unstamped_row_is_unchecked(self) -> None:
         assert lab3.judge_build(None, BUILD).state == check.NOT_YET

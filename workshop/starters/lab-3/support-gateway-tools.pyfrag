@@ -17,10 +17,10 @@
 # ask_a_person's handoff is bound whenever the caller is known (below), and the
 # staff-only give_store_credit never belongs on a shopper agent.
 #
-# python3 scripts/lab3_check.py --task 3A prints one line per rule. Task 3B
+# uv run scripts/lab3_check.py --task 3A prints one line per rule. Task 3B
 # deploys the agent and prints each agentcore command it runs; then send
-# Theo's requests with python3 scripts/lab_run.py send --lab 3, and
-# python3 scripts/lab3_check.py --task 3B reads the bound customer and the
+# Theo's requests with uv run scripts/lab_run.py send --lab 3, and
+# uv run scripts/lab3_check.py --task 3B reads the bound customer and the
 # executed build. Its direct Gateway probe checks a foreign request against
 # Cedar separately.
 SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (

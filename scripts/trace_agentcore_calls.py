@@ -15,8 +15,8 @@ A call made by the Runtime has the Runtime's MCP span as its parent. An ALLOW
 has a Lambda invocation span. A DENY has none, because the Gateway never
 called the Lambda:
 
-    python3 scripts/trace_agentcore_calls.py --tool get_tickets
-    python3 scripts/trace_agentcore_calls.py --tool give_store_credit
+    uv run scripts/trace_agentcore_calls.py --tool get_tickets
+    uv run scripts/trace_agentcore_calls.py --tool give_store_credit
 
 Spans reach CloudWatch about ten seconds after a call.
 """
