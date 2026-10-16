@@ -69,7 +69,7 @@
       "proof": "python3 scripts/lab4_check.py --task 4A: the policy head unchanged, the Cedar matrix (shopper $100 DENY, Nadia 1, 9999 and 10000 cents ALLOW, 10001 DENY, three read tools still ALLOW, another customer's orders DENY), one policy in the file, eight wrong rules caught, the rule-less counterfactual, then the Gateway's DENY of an over-limit credit with no row for its key, ending Lab 4A check passed. psql -f workshop/lab-4-credit-writer.sql commits the privileges once all eight probes match, ending Lab 4B privileges check passed. Nadia executes and retries Jessica's credit: one credit, one audit row, unchanged. python3 scripts/lab4_check.py --task 4B confirms the live function carries the statements, then probes the money role in process and through the Gateway Lambda's Data API: the function refuses a credit no one approved, a direct insert or update is refused with 42501, and it ends Lab 4B check passed. psql -f workshop/lab-4-absence.sql prints 0, 0 and 1.",
       "challenge": "Execute Jessica's approved credit, then execute it again: the second run returns the same credit and adds nothing.",
       "lesson": "Cedar decides who may move money and how much; the database decides what the money role can touch. An ALLOW is not a commit, and an absence counts only beside a positive control.",
-      "next": "Bring the four claims together: requirements, facts, caller and effect. Save your evidence with python3 scripts/workshop_evidence.py --save."
+      "next": "Bring the four claims together by reconstructing Jessica's credit from request to committed row. Take home the review skill; saving a personal evidence export is optional."
     }
   ],
   "story": "Preserve business meaning across facts, requirements, identity and action.",

@@ -42,7 +42,7 @@ Times are elapsed minutes from the start of the session.
 | 50-55 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |
 | 55-80 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
 | 80-110 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 30 minutes |
-| 110-120 | Wrap-up: export the evidence | 10 minutes |
+| 110-120 | Wrap-up: reconstruct one credit, discuss the evidence, take home the review skill | 10 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
 Lab 4's deploys are inside their budgets, and each of those labs runs its
@@ -50,7 +50,9 @@ exercise during the wait. An unrun check stays incomplete.
 
 Participants write 1B, 2B, 3B, 4A and 4B in the marked region. They apply 1A, 2A and 3A by
 command after seeing the change: `python3 scripts/lab_run.py solution --lab N --task NX`.
-`python3 scripts/lab_run.py finish --lab N` finishes a whole lab.
+`python3 scripts/lab_run.py finish --lab N` finishes one lab.
+`python3 scripts/lab_run.py fast-track` finishes Labs 1 and 2 in order, stopping at the first
+failure. Either lab can still be finished individually with its `finish --lab` command.
 
 ## What participants use
 
@@ -244,15 +246,16 @@ credit, and the system must prove what moved.
 
 ## Summary
 
-Exporting the evidence is the last action: `python3 scripts/workshop_evidence.py
---save <file>` writes one line per task, eight in all. Lines 1B, 2A and 2B
-are read from rows alone; the others run or read the participant's source, so a
-region left as shipped is never proved. The guide has no
-participant cleanup step.
+The last required command runs `workshop/wrap-up-reconstruct.sql`, joining
+Jessica's request, Nadia's approval, the tool execution and the committed credit.
+Then ask: Nadia approved the credit. What evidence would you require before
+telling her it was executed correctly and only once? Point participants to
+the take-home skill for reviewing one tool in their own application.
 
-Then ask: Memory says Theo prefers stoneware. Could that ever justify a store
-credit? Which checks still decide whether a credit can run after a person
-approves it?
+Saving a personal record is optional: `python3 scripts/workshop_evidence.py
+--save <file>` writes one finding per task, eight in all. It reruns checks;
+the Wrap-up does not teach it or require a downloaded file. A region left as
+shipped is never proved. The guide has no participant cleanup step.
 
 The in-process app reaches Aurora over a PostgreSQL connection; the Gateway
 Lambda uses the RDS Data API. The SQL, full-text search, pgvector and RLS
@@ -263,7 +266,8 @@ patterns apply to RDS for PostgreSQL too; only the transport differs.
 Provision a fresh account before the timed session and record cold
 provisioning separately. Time both a manual and a coached run of every lab,
 Memory extraction readiness, the Lab 3 and Lab 4 deploys, one Operator
-investigation and the evidence export. Test the recovery paths in a separate run. If
+investigation and the credit reconstruction. Run the optional evidence export
+for the rehearsal record, outside participant teaching time. Test the recovery paths in a separate run. If
 a lab exceeds its budget, cut required work or change the schedule
 explicitly, and keep the failed measurement.
 

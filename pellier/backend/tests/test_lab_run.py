@@ -984,6 +984,141 @@ def test_finish_is_a_lab_run_action(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# fast-track: both local labs, with finish still available for either one
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def recovery_repo(tmp_path: Path) -> Path:
+    """Synthetic task files exercise recovery without depending on answer contents."""
+    entries = []
+    for task in lab_run.TASKS:
+        entry = {"alias": f"labs/0{task[0]}-example/{task}-example.py",
+                 "source": f"work/{task}.py", "solution": f"answers/{task}.py"}
+        for key, contents in (("source", "participant"), ("solution", "provided")):
+            target = tmp_path / entry[key]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(f"{contents} {task}\n")
+        entries.append(entry)
+    (tmp_path / "workshop").mkdir()
+    (tmp_path / "workshop/participant-files.json").write_text(json.dumps(entries))
+    return tmp_path
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("lab", [1, 2])
+def test_finish_one_local_lab_leaves_every_other_lab_untouched(
+    lab: int, fake: FakeBackend, recovery_repo: Path,
+) -> None:
+    assert _finish(fake, lab, recovery_repo, Commands()) == 0
+    for task in lab_run.TASKS:
+        contents = "provided" if task.startswith(str(lab)) else "participant"
+        assert (recovery_repo / f"work/{task}.py").read_text() == f"{contents} {task}\n"
+    assert {turn["auth"] for turn in _turns(fake)} == {
+        "Bearer token-anna" if lab == 1 else "Bearer token-marco"}
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("partly_finished", [False, True])
+def test_fast_track_finishes_both_labs_and_can_repeat_without_losing_backups(
+    partly_finished: bool, fake: FakeBackend, recovery_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    if partly_finished:
+        lab_run.install_task("1A", recovery_repo, next_line=False)
+    commands = Commands()
+    expected = [RESTART, "python3 scripts/lab1_check.py --task 1A",
+                "python3 scripts/lab1_check.py --task 1B",
+                "psql -X -v ON_ERROR_STOP=1 -P pager=off -f labs/02-ground/2B-check-stock.sql",
+                RESTART, "python3 scripts/lab2_check.py --task 2A",
+                "python3 scripts/lab2_check.py --task 2B"]
+    for attempt in (1, 2):
+        lab_run.fast_track(lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                           run=commands, repo=recovery_repo)
+        assert commands.ran == expected * attempt
+        assert [turn["auth"] for turn in _turns(fake)] == [
+            "Bearer token-anna", "Bearer token-anna",
+            "Bearer token-marco", "Bearer token-marco"] * attempt
+        for task in lab_run.TASKS:
+            contents = "provided" if task[0] in "12" else "participant"
+            assert (recovery_repo / f"work/{task}.py").read_text() == f"{contents} {task}\n"
+        for lab in (1, 2):
+            for entry in lab_run.solution_files(lab, recovery_repo):
+                task = Path(entry["source"]).stem
+                backup = recovery_repo / (entry["alias"] + ".bak")
+                assert backup.read_text() == f"participant {task}\n"
+                assert not Path(str(backup) + ".2").exists()
+        assert "Fast track complete: all four checks passed" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("failure,lab_2_started", [
+    (RESTART, False), ("lab1_check.py --task 1B", False),
+    ("lab2_check.py --task 2A", True),
+])
+def test_fast_track_stops_before_later_steps_or_labs_on_failure(
+    failure: str, lab_2_started: bool, fake: FakeBackend, recovery_repo: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    commands = Commands(failing=failure)
+    with pytest.raises(lab_run.LabRunError):
+        lab_run.fast_track(lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                           run=commands, repo=recovery_repo)
+    assert commands.ran[-1].endswith(failure)
+    assert "python3 scripts/lab2_check.py --task 2B" not in commands.ran
+    if not lab_2_started:
+        for task in ("2A", "2B"):
+            assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"
+        assert not any(turn["auth"] == "Bearer token-marco" for turn in _turns(fake))
+    assert "Fast track complete" not in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("arguments,expected", [
+    (["fast-track"], [1, 2]), (["finish", "--lab", "1"], [1]),
+    (["finish", "--lab", "2"], [2]),
+])
+def test_cli_can_finish_either_local_lab_or_both(
+    arguments: List[str], expected: List[int], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls = []
+    monkeypatch.setattr(lab_run, "finish", lambda lab, *args, **kwargs: calls.append(lab))
+    assert lab_run.main(arguments) == 0
+    assert calls == expected
+
+
+def test_fast_track_cli_returns_failure_without_starting_lab_2(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls = []
+
+    def fail_first(lab: int, *args: Any, **kwargs: Any) -> None:
+        calls.append(lab)
+        raise lab_run.LabRunError("check failed")
+
+    monkeypatch.setattr(lab_run, "finish", fail_first)
+    assert lab_run.main(["fast-track"]) == 1
+    assert calls == [1]
+    output = capsys.readouterr()
+    assert "check failed" in output.err
+    assert "Fast track complete" not in output.out
+
+
+@pytest.mark.parametrize("options", [["--lab", "1"], ["--task", "1A"],
+                                     ["--shopper-only"], ["--quiet"]])
+def test_fast_track_rejects_options_that_would_change_its_scope(options: List[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        lab_run.main(["fast-track", *options])
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("action", ["solution", "send", "diff", "reset", "finish"])
+def test_individual_actions_still_require_a_lab(action: str) -> None:
+    with pytest.raises(SystemExit) as exc:
+        lab_run.main([action])
+    assert exc.value.code == 2
+
+
+# ---------------------------------------------------------------------------
 # The live trace: each turn's steps, printed as they stream
 # ---------------------------------------------------------------------------
 RANKING = {"available": True, "filters": {"kept": 64, "of": 100}, "rows": [

@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Catch up on a lab: install its solution files, then send its requests.
+"""Finish a lab with provided answers and checks, or fast-track Labs 1 and 2.
 
-The guide's "Running behind?" block chains these two commands with the lab's
-restart or deployment and its checks:
+``finish --lab N`` finishes just the chosen lab, including its backups,
+restart or deployment, requests and checks:
 
-    python3 scripts/lab_run.py solution --lab 1
-    python3 scripts/lab_run.py send --lab 1
+    python3 scripts/lab_run.py finish --lab 1
+
+``fast-track`` finishes Labs 1 and 2 in order using that same flow, stopping
+at the first failure. It takes no lab or task arguments:
+
+    python3 scripts/lab_run.py fast-track
 
 A task that opens with its own request sends just that one with ``--task``:
 
@@ -838,11 +842,21 @@ def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_to
     ok(f"Lab {lab} is finished: every check above passed")
 
 
+def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
+               run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO) -> None:
+    """Finish the two local labs in order; a failure prevents any later lab from starting."""
+    for lab in (1, 2):
+        print(f"Lab {lab}: finish with provided answers and checks", flush=True)
+        finish(lab, backend, token_for, run=run, repo=repo)
+    ok("Fast track complete: all four checks passed. Continue to Before Lab 3.")
+
+
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("action", choices=("solution", "send", "diff", "reset", "finish"))
-    parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4), required=True)
+    parser.add_argument("action", choices=("solution", "send", "diff", "reset", "finish", "fast-track"))
+    parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4),
+                        help="required except for fast-track, which finishes Labs 1 and 2")
     parser.add_argument("--shopper-only", action="store_true",
                         help="send: stop before Nadia's part in the Operator (Lab 4)")
     parser.add_argument("--quiet", action="store_true",
@@ -850,6 +864,11 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     parser.add_argument("--task", choices=TASKS,
                         help="solution: only that task's answer; send: only that task's request")
     args = parser.parse_args(argv)
+    if args.action == "fast-track":
+        if args.lab is not None or args.task or args.shopper_only or args.quiet:
+            parser.error("fast-track finishes Labs 1 and 2 and takes no options")
+    elif args.lab is None:
+        parser.error(f"--lab is required for {args.action}")
     if args.task:
         if args.action not in ("solution", "send"):
             parser.error(f"--task goes with solution or send, not {args.action}")
@@ -862,9 +881,14 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
               "diff": "compare your files with the solution",
               "reset": "start over from the as-shipped lab",
               "finish": "finish the lab with its answers and prove it"}
-    print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
+    if args.action == "fast-track":
+        print("Fast track: finish Labs 1 and 2", flush=True)
+    else:
+        print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
     try:
-        if args.action == "diff":
+        if args.action == "fast-track":
+            fast_track(Backend(base_url), token_for)
+        elif args.action == "diff":
             show_diff(args.lab, color=sys.stdout.isatty() and "NO_COLOR" not in os.environ)
         elif args.action == "solution" and args.task:
             backend = Backend(base_url)

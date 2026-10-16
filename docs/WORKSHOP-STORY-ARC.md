@@ -71,10 +71,11 @@ task, and neither writes.
 
 Every check prints three things: what was expected, what was observed, and the
 evidence (the row, the decision, the key). A check that did not pass asks one
-question that points at its region. `python3 scripts/workshop_evidence.py`
+question that points at its region. The optional `python3 scripts/workshop_evidence.py`
 exports all eight lines: 1B, 2A and 2B from rows alone, the others by running
 or reading the participant's source, where a region that still holds its
-starter is never proved.
+starter is never proved. Saving that record is not required to complete the
+workshop and takes no teaching time in the Wrap-up.
 
 ## Acceptance and rejected implementations
 
