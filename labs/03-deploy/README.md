@@ -8,7 +8,7 @@ file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root. You apply 3A and write 3B. Before this lab, the
+Every terminal starts at the repository root. You apply 3A and build 3B. Before this lab, the
 room finishes Labs 1 and 2 together; the deploy below then moves Pellier from local agents onto
 AgentCore.
 

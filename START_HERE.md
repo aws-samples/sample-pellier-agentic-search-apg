@@ -14,16 +14,16 @@ app. Every terminal starts at the repository root, so open the guide's Lab 1 and
 Each numbered group holds one lab's files: the files you edit, a short `README.md`, and a
 collapsed `solution` folder.
 
-| Group | Customer | What you build | You write | You apply |
+| Group | Customer | Outcome | You build | You apply |
 |---|---|---|---|---|
 | [01 - Retrieve](labs/01-retrieve/README.md) | Anna | A search that ranks by meaning, and a retry that keeps her limits | `1B-search-plan.py` | `1A-vector-branch.py` |
 | [02 - Ground](labs/02-ground/README.md) | Marco | A stock tool that answers from a warehouse row, held by one agent | `2B-check-stock.sql` | `2A-stock-agent.py` |
 | [03 - Deploy](labs/03-deploy/README.md) | Theo | A published ticket tool bound to the caller on AgentCore, and a row-ownership policy in Aurora | `3B-row-ownership.sql` | `3A-1-publish-tool.py`, `3A-2-bind-caller.py` |
 | [04 - Govern](labs/04-govern/README.md) | Jessica, with Nadia | A Cedar credit limit, and a money role that writes only through the credit function | `4A-credit-policy.cedar`, `4B-credit-writer.sql` | nothing |
 
-You write 1B, 2B, 3B, 4A and 4B in the marked region. You apply 1A, 2A and 3A with
-`uv run scripts/lab_run.py solution --lab N --task NX`, which shows the change before it
-installs it and keeps your file as `.bak`.
+You build 1B, 2B, 3B, 4A and 4B in the marked region. You apply 1A, 2A and 3A, the supplied
+repairs, with `uv run scripts/lab_run.py solution --lab N --task NX`, which shows the change
+before it installs it and keeps your file as `.bak`.
 
 The files in these groups are links to the application's own files, so there is no second
 copy to keep in sync. Python edits reach the running backend when you save, because it reloads; the Lab 3
@@ -41,9 +41,9 @@ tool, an agent or a check is built.
 
 Each task has three steps. **See it fail** runs in the terminal: an exercise, a check, or
 `uv run scripts/lab_run.py send`, which sends the customer's exact sentence. **Fix** is the
-marked region you write, or the answer you apply by command. **Prove** is one command that ends
-with one pass token, such as `Lab 1A check passed`; a fluent answer in the chat is not the
-proof. Then you look at the same thing in the app.
+marked region you build, or the supplied repair you apply by command. **Prove** is one command
+that ends with one pass token, such as `Lab 1A check passed`; a fluent answer in the chat is not
+the proof. Then you look at the same thing in the app.
 
 ## Where to look in the app
 
@@ -56,7 +56,7 @@ Gateway and Memory.
 
 ## If you get stuck
 
-Each task you write has a **Stuck?** box on the guide with three tabs: hints, a prompt for the
+Each task you build has a **Stuck?** box on the guide with three tabs: hints, a prompt for the
 coding coach, and the solution. The `solution` folder in each group holds the same answers as
 files. To skip one task, run its apply command:
 

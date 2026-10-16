@@ -8,7 +8,7 @@ file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root. You apply 2A and write 2B.
+Every terminal starts at the repository root. You apply 2A and build 2B.
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|

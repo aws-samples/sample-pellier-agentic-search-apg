@@ -6,7 +6,7 @@ retry drops her limits. Keep the Workshop Studio guide open beside this file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root. You apply 1A and write 1B.
+Every terminal starts at the repository root. You apply 1A and build 1B.
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|

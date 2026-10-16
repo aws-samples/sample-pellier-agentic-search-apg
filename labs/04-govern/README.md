@@ -7,8 +7,8 @@ file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root. You write both tasks; nothing in this lab is
-applied by command. Pellier is already on AgentCore from Lab 3.
+Every terminal starts at the repository root. You build both tasks; this lab has no supplied
+repair to apply. Pellier is already on AgentCore from Lab 3.
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|

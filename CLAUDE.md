@@ -44,18 +44,18 @@ participant's named task and prediction before proposing a change.
 
 | Task | How | Explorer name | File it links to | Allowed marker |
 |---|---|---|---|---|
-| 1A | Applied by command | `labs/01-retrieve/1A-vector-branch.py` | `pellier/backend/services/store_tools.py` | `Vector branch - order by meaning` |
-| 1B | Written | `labs/01-retrieve/1B-search-plan.py` | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
-| 1, Go deeper | Written | `labs/01-retrieve/go-deeper-fusion.sql` | `workshop/lab-1-fusion.sql` | `PostgreSQL RRF - fusion expression` |
-| 2A | Applied by command | `labs/02-ground/2A-stock-agent.py` | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
-| 2B | Written | `labs/02-ground/2B-check-stock.sql` | `workshop/lab-2-check-stock.sql` | `Stock check - not carried` |
-| 3A | Applied by command | `labs/03-deploy/3A-1-publish-tool.py` | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
-| 3A | Applied by command | `labs/03-deploy/3A-2-bind-caller.py` | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
-| 3B | Written | `labs/03-deploy/3B-row-ownership.sql` | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
-| 4A | Written | `labs/04-govern/4A-credit-policy.cedar` | `policies/workshop_credit_limit.cedar` | final `unless` block |
-| 4B | Written | `labs/04-govern/4B-credit-writer.sql` | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
+| 1A | Apply by command | `labs/01-retrieve/1A-vector-branch.py` | `pellier/backend/services/store_tools.py` | `Vector branch - order by meaning` |
+| 1B | Build | `labs/01-retrieve/1B-search-plan.py` | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
+| 1, Go deeper | Build | `labs/01-retrieve/go-deeper-fusion.sql` | `workshop/lab-1-fusion.sql` | `PostgreSQL RRF - fusion expression` |
+| 2A | Apply by command | `labs/02-ground/2A-stock-agent.py` | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
+| 2B | Build | `labs/02-ground/2B-check-stock.sql` | `workshop/lab-2-check-stock.sql` | `Stock check - not carried` |
+| 3A | Apply by command | `labs/03-deploy/3A-1-publish-tool.py` | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
+| 3A | Apply by command | `labs/03-deploy/3A-2-bind-caller.py` | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
+| 3B | Build | `labs/03-deploy/3B-row-ownership.sql` | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
+| 4A | Build | `labs/04-govern/4A-credit-policy.cedar` | `policies/workshop_credit_limit.cedar` | final `unless` block |
+| 4B | Build | `labs/04-govern/4B-credit-writer.sql` | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
 
-The `labs/` names are links to the application's own files. The participant writes 1B, 2B,
+The `labs/` names are links to the application's own files. The participant builds 1B, 2B,
 3B, 4A and 4B in the marked region. 1A, 2A and 3A they apply by command after seeing the change
 (`uv run scripts/lab_run.py solution --lab N --task NX`); explain the change, do not write it
 for them. Task 3B writes the row-ownership predicate while the deploy runs, then challenges it.
