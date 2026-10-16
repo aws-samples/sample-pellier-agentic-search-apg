@@ -20,8 +20,10 @@ def test_the_arc_holds_four_questions() -> None:
     assert QUESTIONS == [
         "Can we deliver relevant recommendations while preserving every customer requirement?",
         "Can we rely on the assistant's answers when making commitments to customers?",
-        "When we deploy the agent on AgentCore, how do we ensure every request carries the "
-        "right identity and permissions?",
+        (
+            "When we deploy the agent on AgentCore, how do we ensure every request carries the "
+            "right identity and permissions?"
+        ),
         "Can the assistant act within approved limits, with a record of exactly what changed?",
     ]
 
