@@ -121,6 +121,17 @@ describe('the clients', () => {
 })
 
 describe("Jessica's record", () => {
+  it('says there is no such client for an unknown id, not that the database failed', async () => {
+    const { OperatorApiError } = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+    api.fetchClientRecord.mockRejectedValueOnce(new OperatorApiError('Unknown client: jessica', 404))
+    renderAt('/operator/clients/jessica', <ClientRecord />)
+    const state = await screen.findByTestId('operator-record-error')
+    expect(state).toHaveTextContent('No such client')
+    expect(state).toHaveTextContent('The client list is the current one.')
+    expect(state).not.toHaveTextContent(/database/i)
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
   it('shows the ticket, the orders with their return state, and no credit', async () => {
     renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
     expect(await screen.findByTestId('operator-record')).toBeInTheDocument()

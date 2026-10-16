@@ -95,7 +95,10 @@ const ClientRecordPage: React.FC = () => {
     fetchClientRecord(customerId)
       .then(data => { if (active) setRecord(data) })
       .catch((reason: unknown) => {
-        if (active) setError(reason instanceof OperatorApiError ? reason.code : 'operator_unavailable')
+        if (!active) return
+        // A wrong id is a not-found, never a database failure: say so, as an unknown review does.
+        if (reason instanceof OperatorApiError && reason.status === 404) setError('client_not_found')
+        else setError(reason instanceof OperatorApiError ? reason.code : 'operator_unavailable')
       })
     return () => { active = false }
   }, [customerId])
@@ -123,17 +126,18 @@ const ClientRecordPage: React.FC = () => {
 
   if (error) {
     const described = describeOperatorError(error, 'open this client record')
+    const missing = error === 'client_not_found'
     return (
       <OperatorState
         level={1}
         data-testid="operator-record-error"
         eyebrow="Client record"
-        headline={described.headline}
-        body={described.body}
+        headline={missing ? 'No such client' : described.headline}
+        body={missing ? 'The client list is the current one.' : described.body}
         reason={error}
         action={described.signIn
           ? <OperatorSignInAction unlocks="open this client record" />
-          : error !== 'operator_group_required'
+          : error !== 'operator_group_required' && !missing
             ? <button type="button" className="op-button op-button-quiet" onClick={() => setRetry(v => v + 1)}>Try again</button>
             : undefined}
       />
