@@ -384,7 +384,16 @@ EOF
     chmod 600 "$PGPASS_DIR/.pgpass"
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PGPASS_DIR/.pgpass"
 
-    log "✅ Environment files created (.env, .pgpass)"
+    # .psqlrc lets the guide teach plain `psql -f file.sql`: a lab script
+    # stops at its first error, and results print without a pager. QUIET
+    # keeps \pset from announcing itself every time psql starts. Automation
+    # keeps passing -X and its own flags, so it never depends on this file.
+    printf '%s\n' '\set QUIET 1' '\pset pager off' '\set ON_ERROR_STOP on' '\unset QUIET' \
+        > "$PGPASS_DIR/.psqlrc"
+    chmod 644 "$PGPASS_DIR/.psqlrc"
+    chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PGPASS_DIR/.psqlrc"
+
+    log "✅ Environment files created (.env, .pgpass, .psqlrc)"
 
 else
     warn "Database credentials not available - skipping DB configuration"
@@ -463,15 +472,37 @@ else
 fi
 
 # ============================================================================
-# STEP 7: INSTALL UV (~30 sec)
+# STEP 7: INSTALL UV AND THE PARTICIPANT ENVIRONMENT (~60 sec)
 # ============================================================================
-log "Installing uv..."
-if ! sudo -u "$CODE_EDITOR_USER" bash -c 'export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH" && command -v uv' &>/dev/null; then
-    sudo -u "$CODE_EDITOR_USER" bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh' &>/dev/null || \
-    sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user uv &>/dev/null
-    log "✅ uv installed"
+# Participants run every lab script as `uv run scripts/...` from the repo
+# root. There is no pyproject.toml there, so uv runs the script with the
+# interpreter in $REPO_PATH/.venv: nothing to sync and no network. The .venv
+# holds the same hash-locked requirements.lock as the service's environment.
+# pellier/backend/pyproject.toml is the AgentCore Runtime bundle, not this.
+# The uv pin is the version DAT438 tested; bump it deliberately.
+UV_VERSION="0.11.26"
+UV_BIN="/home/$CODE_EDITOR_USER/.local/bin/uv"
+log "Installing uv $UV_VERSION..."
+if ! sudo -u "$CODE_EDITOR_USER" "$UV_BIN" --version 2>/dev/null | grep -q "^uv $UV_VERSION "; then
+    sudo -u "$CODE_EDITOR_USER" bash -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh" &>/dev/null || \
+    sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user "uv==$UV_VERSION" &>/dev/null
+fi
+if sudo -u "$CODE_EDITOR_USER" "$UV_BIN" --version 2>/dev/null | grep -q "^uv $UV_VERSION "; then
+    log "✅ uv $UV_VERSION installed"
 else
-    log "✅ uv already installed"
+    warn "uv $UV_VERSION is not installed; participant uv run commands will fail"
+fi
+
+log "Building the participant environment at $REPO_PATH/.venv..."
+if sudo -u "$CODE_EDITOR_USER" bash -c "cd '$REPO_PATH' \
+        && '$UV_BIN' venv --clear --quiet --python /usr/bin/python3.14 .venv \
+        && '$UV_BIN' pip sync --quiet --require-hashes --python .venv/bin/python \
+            pellier/backend/requirements.lock" 2>&1 | tee -a /var/log/pellier-venv.log >/dev/null \
+    && sudo -u "$CODE_EDITOR_USER" "$REPO_PATH/.venv/bin/python" \
+        -c "import boto3, fastapi, psycopg, strands, uvicorn" 2>>/var/log/pellier-venv.log; then
+    log "✅ Participant environment ready: uv run uses $REPO_PATH/.venv"
+else
+    warn "Participant environment failed; see /var/log/pellier-venv.log"
 fi
 
 # ============================================================================

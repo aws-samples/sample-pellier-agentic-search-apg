@@ -8,12 +8,16 @@
 #   2. Print the psql client's version beside the server's. A client older than
 #      the server prints a version warning at the top of every interactive psql
 #      session; this warns and never fails the start.
-#   3. Say hello to the deployed AgentCore Runtime and record the build id it
+#   3. Check the environment every lab command runs in: uv and $REPO/.venv.
+#      Participants run each lab script as `uv run scripts/...` from the repo
+#      root, so without them no lab command works. A facilitator warning, so
+#      readiness reports it; it never fails the start.
+#   4. Say hello to the deployed AgentCore Runtime and record the build id it
 #      reports. That is the predeployed baseline Lab 3 compares against, and it
 #      puts managed execution in front of the room during orientation rather
 #      than fifty minutes in. This step never fails the start: a box without a
 #      token helper or a deployed Runtime is still a box that can start Lab 1.
-#   4. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
+#   5. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
 #      --memory, capped at 10 s). Lab 3 needs them; their absence is a facilitator
 #      issue, printed as a warning. Nothing is seeded and nothing waits.
 #
@@ -81,7 +85,15 @@ else
   warn "$versions"
 fi
 
-# --- 3. one managed turn, so "deployed" is a thing they have seen ------------
+# --- 3. the environment every lab command runs in ---------------------------
+UV_BIN="${UV_BIN:-$HOME/.local/bin/uv}"
+if [ -x "$UV_BIN" ] && "$REPO/.venv/bin/python" -c "import boto3, psycopg, strands" >/dev/null 2>&1; then
+  pass "uv run is ready: $("$UV_BIN" --version 2>/dev/null) with $REPO/.venv"
+else
+  warn "Facilitator: uv run is not ready (uv or $REPO/.venv missing); see /var/log/pellier-venv.log"
+fi
+
+# --- 4. one managed turn, so "deployed" is a thing they have seen ------------
 RUNTIME_HELLO="$SCRIPT_DIR/runtime_hello.sh"
 if [ -x "$RUNTIME_HELLO" ]; then
   echo "------------------------------------------------------------"
@@ -93,7 +105,7 @@ if [ -x "$RUNTIME_HELLO" ]; then
   fi
 fi
 
-# --- 4. Theo's remembered preferences, which Lab 3's Memory finding reads ------
+# --- 5. Theo's remembered preferences, which Lab 3's Memory finding reads ------
 if memory="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --memory 2>&1)"; then
   pass "$memory"
 else
