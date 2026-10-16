@@ -17,10 +17,10 @@ store's leadership would ask, and each lab answers one:
 
 | Lab | Customer | Leadership question |
 |---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Can we recommend what shoppers mean without breaking what they require?" |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | "Can we rely on the assistant's answers when we make promises to customers?" |
-| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "Once the agent runs on AgentCore, does every request carry the right identity and access?" |
-| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia (staff) | "Can the assistant act within approved limits, with proof of exactly what changed?" |
+| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Can we deliver relevant recommendations while preserving every customer requirement?" |
+| 2. Build a PostgreSQL-Grounded Agent | Marco | "Can we rely on the assistant's answers when making commitments to customers?" |
+| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "When we deploy the agent on AgentCore, how do we ensure every request carries the right identity and permissions?" |
+| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia (staff) | "Can the assistant act within approved limits, with a record of exactly what changed?" |
 
 Every task runs the same way: it fails in the terminal, the participant fixes
 the marked region, one command proves the fix, and then they look at it in the
