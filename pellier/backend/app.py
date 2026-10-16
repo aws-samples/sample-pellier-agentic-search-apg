@@ -1009,13 +1009,24 @@ async def chat_stream(
                     )
                     return
 
+                from services import evidence_spans
                 from services.intent_router import classify_intent
                 from services.specialist_models import AGENT_NAMES, build_intent_signal
 
+                # The Router still runs here on the managed rail, so the turn gets the
+                # same routing span the in-process path opens; observability_check's O1
+                # counts a turn by it.
+                with evidence_spans.routing_span(
+                    turn_id=turn_id,
+                    principal_sub=turn_identity.principal_sub,
+                    authenticated=turn_identity.authenticated,
+                    persona_is_simulated=turn_identity.persona_is_simulated,
+                ):
+                    managed_intent = classify_intent(request.message)
                 yield (
                     "data: "
                     + json.dumps(
-                        build_intent_signal(classify_intent(request.message)),
+                        build_intent_signal(managed_intent),
                         ensure_ascii=False,
                     )
                     + "\n\n"

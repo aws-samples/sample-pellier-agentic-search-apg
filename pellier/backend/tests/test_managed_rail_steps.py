@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 import app as app_module
 import services.agentcore_memory as memory_module
 import services.agentcore_runtime as runtime_module
+import services.evidence_spans as evidence_spans
 from services.agentcore_runtime import ManagedRuntimeResult
 
 
@@ -176,6 +177,35 @@ def managed_app(monkeypatch: pytest.MonkeyPatch):
         yield TestClient(app_module.app)
     finally:
         app_module.app.dependency_overrides.pop(app_module.get_current_user, None)
+
+
+def test_a_managed_turn_opens_one_routing_span_for_its_turn(
+    managed_app: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The Router runs in the app on the managed rail too, so the turn has a routing span.
+
+    observability_check.py's O1 counts a turn once its routing span carries the turn id; without
+    it, no turn after the Lab 3 deploy could ever prove the app's spans.
+    """
+    opened: List[Dict[str, Any]] = []
+    real_span = evidence_spans.routing_span
+
+    def recording_span(**kwargs: Any):
+        opened.append(kwargs)
+        return real_span(**kwargs)
+
+    monkeypatch.setattr(evidence_spans, "routing_span", recording_span)
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "any news on my chipped bowl?", "conversation_history": [],
+              "session_id": "sess-theo"},
+    ).text
+    turn_id = [event for event in _events(body) if event.get("type") == "turn_start"][0]["turn_id"]
+
+    assert len(opened) == 1
+    assert opened[0]["turn_id"] == turn_id
+    assert opened[0]["principal_sub"] == "principal-theo"
+    assert opened[0]["authenticated"] is True
 
 
 def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: TestClient) -> None:
