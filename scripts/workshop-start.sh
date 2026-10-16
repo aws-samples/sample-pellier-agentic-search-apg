@@ -86,11 +86,18 @@ else
 fi
 
 # --- 3. the environment every lab command runs in ---------------------------
+# The command participants type, from where they type it: uv at the version
+# bootstrap pins (bootstrap-labs.sh STEP 7), and `uv run` from the repo root
+# running $REPO/.venv with the lab packages.
+UV_VERSION="0.11.26"
 UV_BIN="${UV_BIN:-$HOME/.local/bin/uv}"
-if [ -x "$UV_BIN" ] && "$REPO/.venv/bin/python" -c "import boto3, psycopg, strands" >/dev/null 2>&1; then
-  pass "uv run is ready: $("$UV_BIN" --version 2>/dev/null) with $REPO/.venv"
+VENV_PROBE="import os, sys, boto3, psycopg, strands; sys.exit(os.path.realpath(sys.prefix) != os.path.realpath(sys.argv[1]))"
+uv_version="$("$UV_BIN" --version 2>/dev/null || true)"
+if [ "${uv_version%% (*}" = "uv $UV_VERSION" ] \
+    && (cd "$REPO" && "$UV_BIN" run python -c "$VENV_PROBE" "$REPO/.venv") >/dev/null 2>&1; then
+  pass "uv run is ready: uv $UV_VERSION runs $REPO/.venv"
 else
-  warn "Facilitator: uv run is not ready (uv or $REPO/.venv missing); see /var/log/pellier-venv.log"
+  warn "Facilitator: uv run is not ready (want uv $UV_VERSION running $REPO/.venv; found '${uv_version:-no uv}'); see /var/log/pellier-venv.log"
 fi
 
 # --- 4. one managed turn, so "deployed" is a thing they have seen ------------

@@ -479,31 +479,55 @@ fi
 # interpreter in $REPO_PATH/.venv: nothing to sync and no network. The .venv
 # holds the same hash-locked requirements.lock as the service's environment.
 # pellier/backend/pyproject.toml is the AgentCore Runtime bundle, not this.
-# The uv pin is the version DAT438 tested; bump it deliberately.
+# The uv pin is the version DAT438 tested; bump it deliberately, and with it
+# workshop-start.sh's readiness check.
+#
+# numpy 1.26.4 has no Python 3.14 wheel, so the sync compiles it with Stage 1's
+# gcc, gcc-c++ and python3.14-devel; on AL2023 arm64 the whole sync takes about
+# 40 s (proved in an amazonlinux:2023 container, 2026-10-16).
+#
+# This is a required gate. The service runs from its own environment, so a box
+# whose participant environment failed would otherwise pass the health gate
+# and report success while every taught `uv run` command fails.
 UV_VERSION="0.11.26"
-UV_BIN="/home/$CODE_EDITOR_USER/.local/bin/uv"
-log "Installing uv $UV_VERSION..."
-if ! sudo -u "$CODE_EDITOR_USER" "$UV_BIN" --version 2>/dev/null | grep -q "^uv $UV_VERSION "; then
-    sudo -u "$CODE_EDITOR_USER" bash -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh" &>/dev/null || \
-    sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user "uv==$UV_VERSION" &>/dev/null
-fi
-if sudo -u "$CODE_EDITOR_USER" "$UV_BIN" --version 2>/dev/null | grep -q "^uv $UV_VERSION "; then
-    log "✅ uv $UV_VERSION installed"
-else
-    warn "uv $UV_VERSION is not installed; participant uv run commands will fail"
-fi
+UV_BIN="${PELLIER_UV_BIN:-/home/$CODE_EDITOR_USER/.local/bin/uv}"
+VENV_LOG="${PELLIER_VENV_LOG:-/var/log/pellier-venv.log}"
+# Run where participants run it: `uv run` from the repo root must use this
+# .venv and import the lab stack. No quotes inside, so it nests in bash -c.
+VENV_PROBE="import os, sys, boto3, fastapi, psycopg, strands, uvicorn; sys.exit(os.path.realpath(sys.prefix) != os.path.realpath(sys.argv[1]))"
 
-log "Building the participant environment at $REPO_PATH/.venv..."
-if sudo -u "$CODE_EDITOR_USER" bash -c "cd '$REPO_PATH' \
+uv_is_pinned() {
+    sudo -u "$CODE_EDITOR_USER" "$UV_BIN" --version 2>/dev/null | grep -q "^uv $UV_VERSION\( \|$\)"
+}
+
+participant_uv_run_works() {
+    sudo -u "$CODE_EDITOR_USER" bash -c "cd '$REPO_PATH' \
+        && '$UV_BIN' run python -c '$VENV_PROBE' '$REPO_PATH/.venv'" >>"$VENV_LOG" 2>&1
+}
+
+build_participant_venv() {
+    sudo -u "$CODE_EDITOR_USER" bash -c "cd '$REPO_PATH' \
         && '$UV_BIN' venv --clear --quiet --python /usr/bin/python3.14 .venv \
         && '$UV_BIN' pip sync --quiet --require-hashes --python .venv/bin/python \
-            pellier/backend/requirements.lock" 2>&1 | tee -a /var/log/pellier-venv.log >/dev/null \
-    && sudo -u "$CODE_EDITOR_USER" "$REPO_PATH/.venv/bin/python" \
-        -c "import boto3, fastapi, psycopg, strands, uvicorn" 2>>/var/log/pellier-venv.log; then
-    log "✅ Participant environment ready: uv run uses $REPO_PATH/.venv"
-else
-    warn "Participant environment failed; see /var/log/pellier-venv.log"
+            pellier/backend/requirements.lock" >>"$VENV_LOG" 2>&1 \
+        && participant_uv_run_works
+}
+
+log "Installing uv $UV_VERSION..."
+if ! uv_is_pinned; then
+    sudo -u "$CODE_EDITOR_USER" bash -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh" >>"$VENV_LOG" 2>&1 || \
+    sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user "uv==$UV_VERSION" >>"$VENV_LOG" 2>&1 || true
 fi
+uv_is_pinned || fail "uv $UV_VERSION did not install, so no participant uv run command can work; see $VENV_LOG"
+log "✅ uv $UV_VERSION installed"
+
+log "Building the participant environment at $REPO_PATH/.venv..."
+if ! build_participant_venv; then
+    warn "The participant environment did not build; retrying once (see $VENV_LOG)"
+    sleep "${PELLIER_VENV_RETRY_DELAY:-10}"
+    build_participant_venv || fail "uv run from $REPO_PATH does not run $REPO_PATH/.venv with the lab packages, so no participant uv run command can work; see $VENV_LOG"
+fi
+log "✅ Participant environment ready: uv run uses $REPO_PATH/.venv"
 
 # ============================================================================
 # STEP 8: MCP CONFIG DIRECTORY & GENERATION
