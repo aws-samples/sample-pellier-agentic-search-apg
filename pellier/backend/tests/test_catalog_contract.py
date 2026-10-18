@@ -412,7 +412,7 @@ def test_photographs_are_shared_only_by_the_same_design_and_color():
         assert all(p.name.startswith(f"{photo['design']}, {photo['color']}, ") for p in pieces)
         assert pieces[0].materials == pieces[1].materials
     assert photographed == set(range(101, 1001))
-    assert all(not p.imgPath and p.public_image_path == '' for pid, p in catalog.items() if pid > 1000)
+    assert all(not p.imgPath and p.public_image_path is None for pid, p in catalog.items() if pid > 1000)
 
 
 def test_long_tail_is_distinct_varied_and_preserves_the_sparse_lab_preferences():

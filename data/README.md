@@ -21,7 +21,7 @@ The second size uses the same product photograph; it is not a missing-image entr
 `catalog_photography.json` records those product IDs and the exact generation
 prompts. Responsive WebP and AVIF assets live in
 `pellier/frontend/public/products/`. Products after ID 1,000 have `image: null`;
-the seeder publishes an empty image URL. These 49,000 rows remain in the real
+the seeder stores a NULL image URL. These 49,000 rows remain in the real
 PostgreSQL tables and vector/full-text indexes for scale exercises, but are
 excluded from participant-facing browsing, search, stock lookup, comparison,
 product links and related products. The visible catalog contains 1,000 products.

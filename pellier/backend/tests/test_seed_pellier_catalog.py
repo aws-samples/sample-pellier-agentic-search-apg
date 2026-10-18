@@ -168,7 +168,7 @@ def test_no_photo_has_no_fabricated_path():
     seed = _seed()
     p = seed.load_catalog()[0]
     p.imgPath = None
-    assert p.public_image_path == ''
+    assert p.public_image_path is None
     assert p.to_csv_row()['imgurl'] == ''
 
 

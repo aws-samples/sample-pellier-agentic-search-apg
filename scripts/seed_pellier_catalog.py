@@ -136,12 +136,15 @@ class Product:
         )
 
     @property
-    def public_image_path(self) -> str:
-        """Return the browser-served WebP path, never the PNG source master."""
+    def public_image_path(self) -> Optional[str]:
+        """Return the browser-served WebP path, never the PNG source master.
+
+        A product without photography stores NULL, so the column's own
+        `"imgUrl" IS NOT NULL` test excludes the scale rows as well as
+        VISIBLE_CATALOG_SQL does.
+        """
         if not self.imgPath:
-            # Keep the scale corpus in PostgreSQL, without inventing photography.
-            # Shopper-facing SQL excludes empty and NULL image URLs.
-            return ""
+            return None
         stem, _separator, _extension = self.imgPath.rpartition(".")
         return f"/products/{stem or self.imgPath}.webp"
 
@@ -149,7 +152,7 @@ class Product:
         return {
             "productId": str(self.productId).ljust(10),
             "product_description": self.description,
-            "imgurl": self.public_image_path,
+            "imgurl": self.public_image_path or "",
             "producturl": f"/p/{self.productId}",
             "stars": self.rating,
             "reviews": self.reviews,

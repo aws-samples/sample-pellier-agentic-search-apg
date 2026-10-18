@@ -89,6 +89,16 @@ def test_the_seed_runs_after_the_schema_and_the_catalog():
 # ---------------------------------------------------------------------------
 
 
+def test_a_product_without_a_photograph_stores_no_image_url(fresh_db):
+    """The column's own IS NOT NULL test and the storefront rule keep the same 1,000 rows."""
+    assert fresh_db.psql('SELECT count(*) FROM pellier.product_catalog '
+                         'WHERE "imgUrl" = \'\'') == "0"
+    assert fresh_db.psql('SELECT count(*) FROM pellier.product_catalog '
+                         'WHERE "imgUrl" IS NOT NULL') == "1000"
+    assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog "
+                         "WHERE NULLIF(btrim(\"imgUrl\"), '') IS NOT NULL") == "1000"
+
+
 def test_the_catalog_is_fifty_thousand_products_with_embeddings(fresh_db):
     assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog") == "50000"
     assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog "
