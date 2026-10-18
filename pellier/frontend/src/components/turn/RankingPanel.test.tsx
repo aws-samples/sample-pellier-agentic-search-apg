@@ -100,6 +100,22 @@ describe('RankingPanel', () => {
     render(<RankingPanel ranking={missing} />)
     const cells = screen.getByTestId('ranking-row').querySelectorAll('.tn-rank-barcell .tn-rank-num')
     expect(cells[0].textContent).toBe('–')
+    expect(screen.getByTestId('ranking-row').querySelector('.tn-rank-bar')).toBeNull()
+  })
+
+  it('does not describe vector-only retrieval as hybrid fusion', () => {
+    const vector = { ...RANKING, method: 'vector', rows: [{ ...RANKING.rows![0], fts_rank: null, rrf_score: null, rerank_score: null }] }
+    render(<RankingPanel ranking={vector} />)
+    expect(screen.getByText('ordered by vector similarity')).toBeInTheDocument()
+    expect(screen.queryByText(/fused with RRF|Cohere Rerank/)).toBeNull()
+    expect(screen.getByTestId('ranking-row').querySelector('.tn-rank-bar')).toBeNull()
+  })
+
+  it.each([undefined, 'unrecognized-method'])('does not infer a method from ranks when the method is %s', method => {
+    render(<RankingPanel ranking={{ ...RANKING, method }} />)
+    expect(screen.getByText('Ranking method was not recorded')).toBeInTheDocument()
+    expect(screen.queryByText(/fused with RRF|Cohere Rerank/)).toBeNull()
+    expect(screen.getAllByTestId('ranking-row').every(row => !row.querySelector('.tn-rank-bar'))).toBe(true)
   })
 
   it('tags how far rerank moved a row, up in green and down in red', () => {

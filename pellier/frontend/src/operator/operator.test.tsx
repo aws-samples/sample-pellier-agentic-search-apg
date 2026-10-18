@@ -320,7 +320,20 @@ describe('the review record', () => {
     expect(checks).toHaveTextContent('No store_credits row and no tool_audit row for this key.')
     expect(checks).toHaveTextContent('The tool was never entered.')
     expect(screen.getByTestId('operator-credit-denied')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-credit-denied')).toHaveTextContent('No credit or audit row was found for this key.')
     expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute again')
+  })
+
+  it.each([null, { ...NOTHING_WRITTEN, readable: false }, RECORDED_ONCE])('does not infer database absence from a policy denial alone (%j)', async record => {
+    api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, record))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const denial = await screen.findByTestId('operator-credit-denied')
+    expect(denial).toHaveTextContent('AgentCore Policy denied this attempt before the tool ran.')
+    expect(denial).not.toHaveTextContent('Nothing was written')
+    expect(denial).not.toHaveTextContent('No credit or audit row was found')
+    expect(denial).toHaveTextContent(record?.readable
+      ? 'The recorded rows for this key are shown above.'
+      : 'The database record could not be verified.')
   })
 
   it('after a reload with no stored answer, says so and what the tables hold', async () => {

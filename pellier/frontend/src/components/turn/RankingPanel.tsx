@@ -75,11 +75,15 @@ export function removalLabels(filters: RankingFilters): string[] {
 
 function methodLine(ranking: RankingPayload, k: number): string {
   const fused = `fused with RRF (k=${k})`
+  if (ranking.method === 'vector') return 'ordered by vector similarity'
+  if (ranking.method === 'hybrid') return fused
   if (ranking.method === RERANK_FALLBACK) return `${fused}; rerank was unavailable, so this is RRF order`
-  if (ranking.method === RERANKED && ranking.rerank_pool) {
-    return `${fused}, then Cohere Rerank 3.5 on the top ${ranking.rerank_pool}`
+  if (ranking.method === RERANKED) {
+    return ranking.rerank_pool
+      ? `${fused}, then Cohere Rerank 3.5 on the top ${ranking.rerank_pool}`
+      : `${fused}, then Cohere Rerank 3.5`
   }
-  return fused
+  return 'Ranking method was not recorded'
 }
 
 function Movement({ moved }: { moved: number | null }) {
@@ -93,7 +97,7 @@ function Movement({ moved }: { moved: number | null }) {
   )
 }
 
-function Row({ row, k, maxFused }: { row: RankingRow; k: number; maxFused: number }) {
+function Row({ row, k, maxFused, fused }: { row: RankingRow; k: number; maxFused: number; fused: boolean }) {
   const full = contribution(row.fts_rank, k)
   const vec = contribution(row.vec_rank, k)
   return (
@@ -109,10 +113,10 @@ function Row({ row, k, maxFused }: { row: RankingRow; k: number; maxFused: numbe
         {row.vec_rank && row.similarity != null ? `  ${number(row.similarity, 2)}` : ''}
       </span>
       <span className="tn-rank-barcell" role="cell">
-        <span className="tn-rank-bar" aria-hidden="true">
+        {fused && typeof row.rrf_score === 'number' && Number.isFinite(row.rrf_score) ? <span className="tn-rank-bar" aria-hidden="true">
           <span className="tn-rank-bar-ft" style={{ width: `${(100 * full) / maxFused}%` }} />
           <span className="tn-rank-bar-vec" style={{ width: `${(100 * vec) / maxFused}%` }} />
-        </span>
+        </span> : null}
         <span className="tn-rank-num">{number(row.rrf_score, 4)}</span>
       </span>
       <span className="tn-rank-num" role="cell">{number(row.rerank_score, 2)}</span>
@@ -134,6 +138,7 @@ export default function RankingPanel({ ranking, id, className, resultsNote }: Ra
   }
   const k = ranking.rrf_k ?? 60
   const rows = ranking.rows ?? []
+  const fused = ranking.method === 'hybrid' || ranking.method === RERANKED || ranking.method === RERANK_FALLBACK
   const maxFused = Math.max(
     ...rows.map(row => contribution(row.fts_rank, k) + contribution(row.vec_rank, k)),
     0.0001,
@@ -168,7 +173,7 @@ export default function RankingPanel({ ranking, id, className, resultsNote }: Ra
               ))}
             </div>
             {rows.map(row => (
-              <Row key={row.product_id} row={row} k={k} maxFused={maxFused} />
+              <Row key={row.product_id} row={row} k={k} maxFused={maxFused} fused={fused} />
             ))}
           </div>
         </div>

@@ -353,7 +353,12 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
       {attempted && axes.policy === 'DENY' ? (
         <p className="op-note op-note-blocked" data-testid="operator-credit-denied">
           <CircleX size={14} aria-hidden />
-          AgentCore Policy denied the credit before the tool ran. Nothing was written.
+          AgentCore Policy denied this attempt before the tool ran.{' '}
+          {!record?.readable
+            ? 'The database record could not be verified.'
+            : record.creditRows === 0 && record.auditRows === 0
+              ? 'No credit or audit row was found for this key.'
+              : 'The recorded rows for this key are shown above.'}
         </p>
       ) : null}
       {!compact ? (
