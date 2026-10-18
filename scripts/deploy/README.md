@@ -155,5 +155,5 @@ value, `30` in the workshop template).
 
 Run `bash scripts/health-gate.sh` for the governed readiness verdict. It also
 requires all four Memory strategies with the expected configuration and a
-complete extraction receipt, exactly 300 warehouse rows, Policy `ENFORCE`,
+complete extraction receipt, exactly 150,000 warehouse rows, Policy `ENFORCE`,
 and the structured provisioning receipt.

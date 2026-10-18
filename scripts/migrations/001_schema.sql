@@ -7,7 +7,7 @@
 -- row-level security).
 --
 -- Applied once, to an empty database, by scripts/setup/database-setup.sh.
--- The seed follows: scripts/seed_pellier_catalog.py loads the 100 products,
+-- The seed follows: scripts/seed_pellier_catalog.py loads the 50000 products,
 -- then scripts/migrations/002_seed.sql loads everything else. A reset drops
 -- the schema and runs the same three steps, so a reset database is a fresh one.
 
@@ -21,7 +21,7 @@ CREATE SCHEMA pellier;
 
 
 -- ===========================================================================
--- 1. The catalog: 100 products
+-- 1. The catalog: 50000 products
 -- ===========================================================================
 -- "productId" keeps the camelCase name the API returns; product_id is the
 -- same value for SQL you type by hand. persona_id groups a product into a
@@ -67,11 +67,23 @@ CREATE INDEX product_catalog_embedding_hnsw ON pellier.product_catalog
     USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
 -- When the planner uses this index, pgvector filters the rows the graph returns.
 -- With iterative scan off, a selective WHERE can leave fewer rows than the LIMIT;
--- strict_order keeps walking the graph until the LIMIT is met and returns rows
--- in exact distance order, which RRF's ranks need. It is the default for every
--- new session in this database: the app's pool, the Gateway Lambda's RDS Data
--- API calls and psql. A user that does not own the database sets it for itself.
--- workshop/lab-1-index.sql shows both behaviors on this catalog.
+-- strict_order keeps walking the graph toward the LIMIT, subject to scan and
+-- memory bounds, and orders the returned candidates by distance for RRF. It is
+-- the default for every new session in this database: the app's pool, the
+-- Gateway Lambda's RDS Data API calls and psql. A user that does not own the
+-- database sets it for itself. workshop/lab-1-index.sql shows both behaviors on
+-- this catalog.
+--
+-- Shoppers see only the 1,000 photographed products: VISIBLE_CATALOG_SQL in
+-- pellier/backend/services/store_tools.py, about 2% of the rows. Through the
+-- index above, that filter discards most of what the graph returns, so a search
+-- with a department or price limit can come back short or miss closer products.
+-- This partial index holds only the photographed rows. PostgreSQL uses it only
+-- when it can prove the query's WHERE implies the index predicate, so the app's
+-- queries repeat the predicate exactly.
+CREATE INDEX product_catalog_visible_hnsw ON pellier.product_catalog
+    USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64)
+    WHERE NULLIF(btrim("imgUrl"), '') IS NOT NULL;
 DO $iterative_scan$
 BEGIN
     -- Load pgvector in this session, so hnsw.iterative_scan is a known setting a
@@ -111,7 +123,7 @@ CREATE TRIGGER product_catalog_set_updated_at
 -- ===========================================================================
 -- 2. Stock: one row per product per warehouse
 -- ===========================================================================
--- Three warehouses, so 300 rows. A warehouse's name, city and ship window
+-- Three warehouses, so 150000 rows. A warehouse's name, city and ship window
 -- sit on every row, which is all check_stock needs from one SELECT.
 
 CREATE TABLE pellier.warehouse_inventory (
@@ -150,6 +162,7 @@ BEGIN
       FROM (SELECT p."productId", p.rating
               FROM pellier.product_catalog p
              WHERE regexp_replace(product_query, '[[:space:]]', '', 'g') <> ''
+               AND NULLIF(btrim(p."imgUrl"), '') IS NOT NULL
                AND NOT EXISTS (
                    SELECT 1
                      FROM regexp_split_to_table(lower(product_query), '[[:space:]]+') AS word

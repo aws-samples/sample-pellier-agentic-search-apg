@@ -217,7 +217,7 @@ def test_filters_rows_with_null_image_url(embedding: List[float]) -> None:
     db, _ = _call(embedding)
 
     sql, _params = db.cursor.calls[-1]
-    assert re.search(r'"imgUrl"\s+IS\s+NOT\s+NULL', sql), sql
+    assert 'NULLIF(btrim("imgUrl"), \'\') IS NOT NULL' in sql, sql
 
 
 # ---------------------------------------------------------------------------

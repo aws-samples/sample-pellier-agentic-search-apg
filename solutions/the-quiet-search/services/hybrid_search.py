@@ -22,6 +22,7 @@ from typing import Any, Dict, List
 
 from services.database import DatabaseService
 from services.sql_query_logger import QueryLog, get_query_logger
+from services.store_tools import VISIBLE_CATALOG_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +74,7 @@ class HybridSearchService:
            cp solutions/the-quiet-search/services/hybrid_search.py pellier/backend/services/hybrid_search.py
         """
         # === REFERENCE: START ===
-        sql = """
+        sql = f"""
             WITH query_embedding AS (
                 SELECT %s::vector as emb
             )
@@ -92,7 +93,7 @@ class HybridSearchService:
                 tags,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) as similarity
             FROM pellier.product_catalog
-            WHERE "imgUrl" IS NOT NULL
+            WHERE {VISIBLE_CATALOG_SQL}
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
         """

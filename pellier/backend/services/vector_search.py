@@ -18,6 +18,7 @@ from typing import Any, Dict, List
 from config import settings
 from services.database import DatabaseService
 from services.sql_query_logger import QueryLog, get_query_logger
+from services.store_tools import VISIBLE_CATALOG_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ class VectorSearch:
 
         """
         # === REFERENCE: START ===
-        sql = """
+        sql = f"""
             WITH query_embedding AS (
                 SELECT %s::vector as emb
             )
@@ -89,7 +90,7 @@ class VectorSearch:
                 materials,
                 1 - (embedding <=> (SELECT emb FROM query_embedding)) as similarity
             FROM pellier.product_catalog
-            WHERE "imgUrl" IS NOT NULL
+            WHERE {VISIBLE_CATALOG_SQL}
               AND embedding IS NOT NULL
             ORDER BY embedding <=> (SELECT emb FROM query_embedding)
             LIMIT %s
@@ -267,7 +268,7 @@ class VectorSearch:
         ``ef_search`` ceiling, which would cause silent recall loss.
         """
         clauses = [
-            '"imgUrl" IS NOT NULL',
+            VISIBLE_CATALOG_SQL,
             "embedding IS NOT NULL",
             *extra_clauses,
         ]

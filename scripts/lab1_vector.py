@@ -109,8 +109,9 @@ def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
     target = run(_EMBEDDING, (LIMITS_PROBE,))[0]
     rows, distances = _probe(run, store_tools.vector_branch_sql(clauses),
                              (target["embedding"], *params, size), target["embedding"], size)
-    eligible = run('SELECT count(*) AS n FROM pellier.product_catalog WHERE "imgUrl" IS NOT '
-                   "NULL AND " + " AND ".join(clauses), params)[0]["n"]
+    eligible = run('SELECT count(*) AS n FROM pellier.product_catalog WHERE '
+                   + store_tools.VISIBLE_CATALOG_SQL + " AND " + " AND ".join(clauses),
+                   params)[0]["n"]
     problem = _ordering_problem("Anna's limits", rows, distances, min(size, int(eligible)))
     for row in rows:
         broken = [label for label, bad in (

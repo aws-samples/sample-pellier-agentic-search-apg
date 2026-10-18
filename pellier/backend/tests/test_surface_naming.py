@@ -73,6 +73,9 @@ SKIP_PARTS = {
     # into the finding. Same reasoning as the audit output above. Neither
     # directory ships: `docs/*` and `.superpowers/` are both gitignored.
     "superpowers", ".superpowers",
+    # Gitignored local scratch: catalog-authoring work files and asset audits that
+    # quote whatever text they inspected. Nothing under `tmp/` ships.
+    "tmp",
 }
 
 # The inspection surface's last name, matched case-insensitively so a CSS class,

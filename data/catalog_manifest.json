@@ -1,0 +1,36 @@
+{
+  "version": "2026-10-catalog-50000",
+  "count": 50000,
+  "photographed_count": 1000,
+  "scale_dataset": {
+    "label": "Scale dataset records",
+    "description": "Text and embeddings only; product photography is not part of this dataset.",
+    "count": 49000,
+    "product_id_range": [
+      1001,
+      50000
+    ],
+    "participant_visible": false,
+    "purpose": "Real PostgreSQL rows, full-text indexing, vector indexing and scale experiments."
+  },
+  "original_lab_product_ids": [
+    1,
+    100
+  ],
+  "catalog_sha256": "251c1a371f25763f7d6bfade8f3c5d8714404835b8896cbbb5bb4b8f6ef23734",
+  "authorship": "Synthetic workshop catalog. Original 100 lab products preserved; 900 size/color options across 90 new designs; 49,000 separately authored products.",
+  "long_tail_model": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "departments": {
+    "Home": 6359,
+    "Clothing": 6257,
+    "Bags and travel": 6231,
+    "Accessories": 6257,
+    "Bath and body": 6160,
+    "Kitchen and table": 6263,
+    "Shoes": 6231,
+    "Stationery and gifts": 6242
+  },
+  "out_of_stock": 5002,
+  "low_stock": 7463,
+  "anna_eligible": 37171
+}

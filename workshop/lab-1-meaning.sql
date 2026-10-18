@@ -11,14 +11,15 @@ SET client_min_messages = warning;
 -- 1,024 numbers in its embedding column. pgvector's <=> operator is cosine
 -- distance: 0 when two vectors point the same way, larger as their meanings drift
 -- apart. The catalog's HNSW index is built with vector_cosine_ops, the operator
--- class for <=>.
+-- class for <=>. (A second, partial HNSW index over the photographed products uses
+-- the same operator class; Lab 1's Go deeper measures it.)
 --
 -- The query vector is a product's own stored embedding, the kind
 -- scripts/lab1_check.py --task 1A searches with, so that product sits at distance
--- 0 from itself. The eight products below are the five nearest it in meaning and
--- the three furthest, listed in name order: which one a search by meaning puts
--- first, and which way its rows run, is Task 1A's to write. No model is called
--- and nothing changes.
+-- 0 from itself. The eight products below are a fixed sample of nearby tableware
+-- and more distant clothing and body care, listed in name order: which one a
+-- search by meaning puts first, and which way its rows run, is Task 1A's to write.
+-- No model is called and nothing changes.
 --
 -- Supplied and read-only. Run:
 --   psql -f workshop/lab-1-meaning.sql
@@ -46,4 +47,4 @@ SELECT p.name,
 SELECT indexname AS index,
        substring(indexdef FROM 'USING (.*)$') AS definition
   FROM pg_indexes
- WHERE schemaname = 'pellier' AND tablename = 'product_catalog' AND indexdef LIKE '%hnsw%';
+ WHERE schemaname = 'pellier' AND indexname = 'product_catalog_embedding_hnsw';

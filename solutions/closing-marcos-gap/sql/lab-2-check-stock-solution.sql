@@ -48,6 +48,7 @@ BEGIN
       FROM (SELECT p."productId", p.rating
               FROM pellier.product_catalog p
              WHERE regexp_replace(product_query, '[[:space:]]', '', 'g') <> ''
+               AND NULLIF(btrim(p."imgUrl"), '') IS NOT NULL
                AND NOT EXISTS (
                    SELECT 1
                      FROM regexp_split_to_table(lower(product_query), '[[:space:]]+') AS word

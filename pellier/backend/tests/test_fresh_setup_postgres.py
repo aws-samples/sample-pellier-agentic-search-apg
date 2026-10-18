@@ -89,8 +89,8 @@ def test_the_seed_runs_after_the_schema_and_the_catalog():
 # ---------------------------------------------------------------------------
 
 
-def test_the_catalog_is_the_hundred_products_with_embeddings(fresh_db):
-    assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog") == "100"
+def test_the_catalog_is_fifty_thousand_products_with_embeddings(fresh_db):
+    assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog") == "50000"
     assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog "
                          "WHERE embedding IS NULL OR description_tsv IS NULL") == "0"
     assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog "
@@ -174,7 +174,7 @@ WAREHOUSE_FIXTURES = {
 
 
 def test_three_rows_per_product_and_the_catalog_agrees(fresh_db):
-    assert fresh_db.psql("SELECT count(*) FROM pellier.warehouse_inventory") == "300"
+    assert fresh_db.psql("SELECT count(*) FROM pellier.warehouse_inventory") == "150000"
     assert fresh_db.psql("""
         SELECT count(*) FROM pellier.product_catalog pc
          WHERE pc.quantity <> (SELECT COALESCE(sum(quantity), 0) FROM pellier.warehouse_inventory wi
@@ -198,7 +198,12 @@ def test_teaching_products_have_exact_stock(fresh_db):
 
 def test_low_stock_list_is_real(fresh_db):
     assert fresh_db.psql("""SELECT string_agg("productId", ',' ORDER BY "productId"::int)
-                              FROM pellier.product_catalog WHERE quantity <= 10""") == "12,14,20,43,79"
+                              FROM pellier.product_catalog
+                             WHERE quantity <= 10 AND "productId"::int <= 100""") == "12,14,20,43,79"
+    # The larger assortment also contains low-stock and sold-out pieces.
+    assert int(fresh_db.psql("""SELECT count(*) FROM pellier.product_catalog
+                               WHERE quantity BETWEEN 1 AND 10
+                                 AND "productId"::int > 100""")) > 0
 
 
 # ---------------------------------------------------------------------------
@@ -328,28 +333,48 @@ def test_a_user_that_does_not_own_the_database_sets_it_for_itself(fresh_db):
         fresh_db.psql("ALTER ROLE lab_reader RESET ALL; DROP ROLE lab_reader")
 
 
-def test_the_lab1_index_check_shows_the_scan_the_short_list_and_the_full_list(fresh_db):
+def _lab1_index(cluster, *extra: str) -> str:
     done = subprocess.run(
-        [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
-         "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-P", "pager=off",
+        [str(cluster.bin / "psql"), "-X", "-h", str(cluster.socket), "-U", "postgres",
+         "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", *extra,
          "-f", str(REPO / "workshop/lab-1-index.sql")],
         capture_output=True, text=True, timeout=120)
-    out = done.stdout
-    assert done.returncode == 0, done.stderr + out
+    assert done.returncode == 0, done.stderr + done.stdout
+    return done.stdout
+
+
+def test_the_lab1_index_check_measures_the_full_catalog(fresh_db):
+    out = _lab1_index(fresh_db)
     choice, forced = out.split("1. The planner's own choice")[1].split(
-        "2. Forced onto the HNSW index, iterative scan off")
-    assert "Seq Scan on product_catalog" in choice
-    assert "product_catalog_embedding_hnsw" not in choice
+        "3. Forced onto the HNSW index, iterative scan off")
+    # Costs and statistics choose the initial plan; at 50,000 rows either plan is legitimate.
+    assert "product_catalog" in choice and "Limit" in choice
     assert "Index Scan using product_catalog_embedding_hnsw" in forced
     eligible = int(re.search(r"1\. exact scan: 20 of 20 \((\d+) products are \$35 or less "
                              r"and not candles\)", out).group(1))
-    assert eligible >= 20
-    short = int(re.search(r"2\. HNSW, iterative scan off: (\d+) of 20", out).group(1))
-    assert short < 20
-    assert "3. HNSW, strict_order: 20 of 20, the exact 20 in the same order" in out
+    assert eligible > 10_000
+    assert re.search(r"2\. HNSW, iterative scan off: \d+ of 20; recall@20 [\d.]+%", out)
+    assert re.search(r"3\. HNSW, strict_order: 20 of 20; recall@20 [\d.]+%", out)
+    assert "5. The storefront" not in out
     assert out.rstrip().endswith("Lab 1 index check passed")
     # Read-only: the forced plan and the scan setting end with the transaction.
     assert fresh_db.psql("SHOW enable_seqscan") == "on"
+
+
+def test_the_photographed_run_comes_back_short_until_the_partial_index(fresh_db):
+    """1% of the full graph qualifies: one pass comes back short; the partial index fills it."""
+    out = _lab1_index(fresh_db, "-v", "storefront_only=on")
+    steps = out.split("3. Forced onto the HNSW index, iterative scan off")[1]
+    full_graph, partial = steps.split("5. The storefront's own predicate")
+    assert "Index Scan using product_catalog_embedding_hnsw" in full_graph
+    assert "product_catalog_visible_hnsw" not in full_graph
+    assert "Index Scan using product_catalog_visible_hnsw" in partial
+    short = int(re.search(r"2\. HNSW, iterative scan off: (\d+) of 20", out).group(1))
+    assert short < 20
+    assert re.search(r"3\. HNSW, strict_order: 20 of 20;", out)
+    assert re.search(r"4\. photographed-only index, iterative scan off: 20 of 20;", out)
+    assert "select different rows" not in out
+    assert out.rstrip().endswith("Lab 1 index check passed")
 
 
 # ---------------------------------------------------------------------------

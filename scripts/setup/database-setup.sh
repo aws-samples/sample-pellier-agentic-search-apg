@@ -26,10 +26,10 @@ apply() {
 # 1. The whole schema: ten tables, the role and its row-level security.
 apply 001_schema.sql
 
-# 2. The 100 products in data/pellier_catalog.json, with the real Cohere Embed v4
+# 2. The 50000 products in data/pellier_catalog.json, with the real Cohere Embed v4
 # vectors from the committed cache (data/embeddings_cache.json), so bootstrap never
 # calls Bedrock. After a catalog change, regenerate the cache on a machine with Bedrock
-# access: `python scripts/seed_pellier_catalog.py --csv-only`.
+# access: `python scripts/seed_pellier_catalog.py --cache-only`.
 echo "Seeding catalog from cache"
 (cd "$REPO" && "$PYTHON" scripts/seed_pellier_catalog.py --from-cache)
 

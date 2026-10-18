@@ -5,7 +5,8 @@
 # ///
 """Measure Pellier's retrieval on a 50,000-product catalog in Aurora, through the RDS Data API.
 
-Pellier's own catalog has 100 products, too few for an index to matter. This loads the
+This historical benchmark predates the expanded catalog: its baseline was 100
+products. Its results describe a separate corpus. This loads the
 100 hero products with their stored Cohere Embed v4 vectors plus a synthetic long tail of
 49,900, builds Pellier's indexes, and measures what the guide's Go deeper quotes: index
 build times and sizes, the Lab 1 index check (an exact scan against HNSW with iterative

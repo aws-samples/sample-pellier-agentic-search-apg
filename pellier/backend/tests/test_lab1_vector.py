@@ -135,29 +135,32 @@ def _worksheet_rows(cluster: Any, worksheet: Path = WORKSHEET, bars: int = 2) ->
 def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> None:  # noqa: F811
     rows = {row[1]: row for row in _worksheet_rows(fresh_db) if row[0].isdigit()}
     assert rows["Housewarming Gift Box"][0] == "1"
-    assert rows["Morning Run Shorts"][2] == "mornings"
-    assert rows["Sunday Morning Candle"][2] == "gift, mornings"
+    assert rows["Housewarming Gift Box"][2] == "gift, housewarming"
+    assert rows["Gift Wrapping Kit"][2] == "gift"
+    assert not {"Stoneware Mugs, Set of 2", "Stoneware Pour-Over Set", "Ceramic Tumblers"} & rows.keys()
     assert len(rows) == 10
 
 
 def test_the_meaning_worksheet_shows_distances_without_ranking_them(fresh_db) -> None:  # noqa: F811
     rows = {row[0]: row[1:] for row in _worksheet_rows(fresh_db, MEANING)
             if row[0] != "name"}
-    ranked = fresh_db.psql(
-        "WITH q AS (SELECT embedding AS emb FROM pellier.product_catalog "
-        "WHERE name = 'Stoneware Mugs, Set of 2') "
-        'SELECT p.name FROM pellier.product_catalog p CROSS JOIN q '
-        'WHERE p."imgUrl" IS NOT NULL ORDER BY p.embedding <=> q.emb').splitlines()
-    assert set(rows) == set(ranked[:5]) | set(ranked[-3:])
+    assert set(rows) == {
+        "Ceramic Tumblers", "Espresso Cups, Set of 4", "Morning Run Shorts",
+        "Neroli Oil", "Quilted Silk Vest", "Stoneware Mugs, Set of 2",
+        "Stoneware Pour-Over Set", "Wabi-Sabi Bowl",
+    }
     assert list(rows) == sorted(rows)
     assert rows["Stoneware Mugs, Set of 2"] == ["0.0000", "1.0000"]
     distances = [float(distance) for distance, _ in rows.values()]
     assert distances != sorted(distances) and distances != sorted(distances, reverse=True)
     for distance, similarity in rows.values():
         assert abs(float(similarity) - (1 - float(distance))) < 1e-4
-    index = [row for row in _worksheet_rows(fresh_db, MEANING, bars=1)
-             if row[0] == "product_catalog_embedding_hnsw"]
-    assert index and "vector_cosine_ops" in index[0][1]
+    assert float(rows["Ceramic Tumblers"][0]) < float(rows["Morning Run Shorts"][0])
+    # Task 1A needs the operator class only; the partial index waits for Go deeper.
+    indexes = {row[0]: row[1] for row in _worksheet_rows(fresh_db, MEANING, bars=1)
+               if row[0].startswith("product_catalog_")}
+    assert list(indexes) == ["product_catalog_embedding_hnsw"]
+    assert "vector_cosine_ops" in indexes["product_catalog_embedding_hnsw"]
 
 
 def test_the_worksheet_ranks_the_fitting_products_outside_the_rerank_pool(fresh_db) -> None:  # noqa: F811
@@ -168,3 +171,32 @@ def test_the_worksheet_ranks_the_fitting_products_outside_the_rerank_pool(fresh_
     for name, row in fitting.items():
         assert int(row[1]) > store_tools.DEFAULT_RERANK_POOL_K, (name, row)
         assert row[3] == "slow", (name, row)
+
+
+SELECTIVE = (["category = ANY(%s)", "price <= %s"], [["Home"], 35.0])
+
+
+def test_a_selective_storefront_search_stays_off_the_full_graph(conn) -> None:
+    """Home under $35 is under 0.2% of the rows: through the full graph, one search in two
+    came back short. The photographed-only partial index keeps every list full and close."""
+    clauses, params = SELECTIVE
+    branch = lab_variants.vector_branch(lab_variants.SOLUTION)(clauses)
+    exact = branch.replace(f"ORDER BY {DISTANCE}", f"ORDER BY ({DISTANCE}) + 0")
+    assert exact != branch
+    probes = [row["e"] for row in conn.execute(
+        f'SELECT embedding::text AS e FROM pellier.product_catalog '
+        f'WHERE {store_tools.VISIBLE_CATALOG_SQL} ORDER BY "productId"::int LIMIT 25')]
+    plan = "\n".join(row["QUERY PLAN"] for row in conn.execute(
+        "EXPLAIN (COSTS OFF) " + branch, (probes[0], *params, 20)))
+    assert "product_catalog_embedding_hnsw" not in plan
+    eligible = conn.execute(
+        "SELECT count(*) AS n FROM pellier.product_catalog "
+        f"WHERE {store_tools.VISIBLE_CATALOG_SQL} AND " + " AND ".join(clauses),
+        params).fetchone()["n"]
+    recalls = []
+    for probe in probes:
+        got = [row["product_id"] for row in conn.execute(branch, (probe, *params, 20))]
+        want = [row["product_id"] for row in conn.execute(exact, (probe, *params, 20))]
+        assert len(got) == min(20, eligible)
+        recalls.append(len(set(got) & set(want)) / len(want))
+    assert sum(recalls) / len(recalls) >= 0.9

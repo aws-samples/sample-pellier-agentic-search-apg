@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
-from services.store_tools import RESULT_IDS_MAX
+from services.store_tools import RESULT_IDS_MAX, VISIBLE_CATALOG_SQL
 from services.turn_steps import plural
 
 TOP_ROWS = 8
@@ -138,7 +138,7 @@ def filter_count_sql(
         selects.append("count(*) AS kept")
     sql = (
         "SELECT " + ", ".join(selects)
-        + ' FROM pellier.product_catalog WHERE "imgUrl" IS NOT NULL'
+        + f' FROM pellier.product_catalog WHERE {VISIBLE_CATALOG_SQL}'
     )
     return sql, bound, reasons
 

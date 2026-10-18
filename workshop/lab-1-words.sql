@@ -37,7 +37,7 @@ SELECT row_number() OVER (ORDER BY ts_rank_cd(p.description_tsv, q.ts_q) DESC, p
        (SELECT string_agg(w.word, ', ' ORDER BY w.word) FROM words w
          WHERE p.description_tsv @@ to_tsquery('english', w.word)) AS "matched on"
   FROM pellier.product_catalog p CROSS JOIN q
- WHERE p."imgUrl" IS NOT NULL AND p.description_tsv @@ q.ts_q
+ WHERE NULLIF(btrim(p."imgUrl"), '') IS NOT NULL AND p.description_tsv @@ q.ts_q
  ORDER BY rank
  LIMIT 10;
 
@@ -52,7 +52,7 @@ matches AS (
   SELECT p.name, p.description_tsv,
          rank() OVER (ORDER BY ts_rank_cd(p.description_tsv, q.ts_q) DESC) AS word_rank
     FROM pellier.product_catalog p CROSS JOIN q
-   WHERE p."imgUrl" IS NOT NULL AND p.description_tsv @@ q.ts_q
+   WHERE NULLIF(btrim(p."imgUrl"), '') IS NOT NULL AND p.description_tsv @@ q.ts_q
 )
 SELECT f.name,
        coalesce(e.word_rank::text, 'no match') AS "word rank",

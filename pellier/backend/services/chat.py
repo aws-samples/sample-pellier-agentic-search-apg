@@ -1138,7 +1138,8 @@ class EnhancedChatService:
                     # acting as a wildcard and widening the match.
                     params = [prepare_like_pattern(n[:30]) for n in names]
                     rows = await self.db_service.fetch_all(
-                        f'SELECT "productId", name, "imgUrl" FROM pellier.product_catalog WHERE {placeholders}',
+                        f'SELECT "productId", name, "imgUrl" FROM pellier.product_catalog '
+                        f'WHERE ({placeholders}) AND {store_tools.VISIBLE_CATALOG_SQL}',
                         *params,
                     )
                     img_lookup: Dict[str, str] = {}
@@ -1181,7 +1182,7 @@ class EnhancedChatService:
 
         try:
             rows = await self.db_service.fetch_all(
-                """
+                f"""
                 SELECT
                     "productId",
                     brand,
@@ -1194,6 +1195,7 @@ class EnhancedChatService:
                     tags
                 FROM pellier.product_catalog
                 WHERE "productId" = ANY(%s)
+                  AND {store_tools.VISIBLE_CATALOG_SQL}
                 """,
                 product_ids,
             )

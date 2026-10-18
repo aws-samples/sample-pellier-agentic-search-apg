@@ -36,7 +36,9 @@ const COPY_PATH = resolve(__dirname, "..", "copy.ts");
 // storefront shows them. Every JSON file there is scanned except these.
 export const DATA_DIR = resolve(__dirname, "..", "..", "..", "..", "data");
 export const DATA_NOT_COPY = new Map([
-  ["embeddings_cache.json", "the catalog's embedding vectors, numbers only"],
+  ["embeddings_cache.json", "vector shard metadata and text fingerprints"],
+  ["catalog_photography.json", "maintainer image prompts and product mappings, never shopper copy"],
+  ["catalog_manifest.json", "catalog provenance, checksums and release counts"],
 ]);
 
 export async function dataCopyFiles() {

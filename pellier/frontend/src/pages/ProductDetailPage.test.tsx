@@ -185,7 +185,7 @@ function stubFetch(
     const url = typeof input === 'string' ? input : String(input)
     const match = /\/api\/products\/(\w+)/.exec(url)
     if (match) return handler(match[1])
-    if (url.endsWith('/api/products')) return typeof catalog === 'function' ? catalog() : jsonResponse(catalog)
+    if (url.includes('/api/products?related_to=')) return typeof catalog === 'function' ? catalog() : jsonResponse(catalog)
     return new Response('[]', { status: 200 })
   })
   vi.stubGlobal('fetch', impl)
@@ -272,7 +272,7 @@ describe('ProductDetailPage — live catalog read', () => {
   })
 
   it('lists siblings from the live catalog response, not the active profile', async () => {
-    stubFetch(() => jsonResponse(detailPayload()))
+    const fetch = stubFetch(() => jsonResponse(detailPayload()))
 
     renderAt(`/product/${SUBJECT.id}`)
 
@@ -286,6 +286,8 @@ describe('ProductDetailPage — live catalog read', () => {
       .map(id => Number(id.replace('product-card-', '')))
 
     expect(rendered.length).toBeGreaterThan(0)
+    expect(fetch.mock.calls.map(call => String(call[0]))).toContain(`/api/products?related_to=${SUBJECT.id}`)
+    expect(fetch.mock.calls.map(call => String(call[0]))).not.toContain('/api/products')
     for (const id of rendered) {
       expect(liveIds.has(id)).toBe(true)
       expect(id).not.toBe(SUBJECT.id)
@@ -334,6 +336,16 @@ describe('ProductDetailPage — live catalog read', () => {
 // --- Aurora layer -------------------------------------------------------
 
 describe('ProductDetailPage — Aurora layer', () => {
+  it('shows an honest no-photo state while keeping product details and stock', async () => {
+    stubFetch(() => jsonResponse(detailPayload({ imageUrl: '' })))
+    renderAt(`/product/${SUBJECT.id}`)
+    expect(await screen.findByText('Photo not available')).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: SUBJECT.name })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('product-detail-zoom')).not.toBeInTheDocument()
+    expect(screen.getByTestId('product-description')).toHaveTextContent('Italian linen')
+    expect(screen.getByRole('heading', { name: SUBJECT.name })).toBeInTheDocument()
+  })
+
   it('only advertises responsive derivatives that are shipped', async () => {
     stubFetch(() => jsonResponse(detailPayload()))
 

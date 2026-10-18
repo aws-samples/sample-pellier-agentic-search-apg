@@ -52,7 +52,7 @@ TRAILING_WHITESPACE_CEILING = 527
 
 # Files this effort owns. Zero tolerance here, because there is no legacy excuse for them.
 OWNED = (
-    "data/pellier_catalog_curated.csv",
+    "data/pellier_catalog.json",
     "pellier/backend/services/operator_graph.py",
     "pellier/backend/services/operator_review.py",
     "pellier/backend/services/governed_execution.py",

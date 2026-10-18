@@ -396,6 +396,7 @@
 .pellier-pager-pages {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   justify-content: center;
   gap: 4px;
   margin: 0;

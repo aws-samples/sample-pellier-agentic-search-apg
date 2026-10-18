@@ -22,6 +22,11 @@ the plan itself against the pinned filters as ground truth. A planning
 mistake now shows up as a planner-precision miss rather than disappearing
 into a healthy-looking recall figure.
 
+The supplied judgments cover the original 100-product catalog. They are partial
+labels on the expanded 50,000-product catalog: a new relevant product can lower
+these legacy recall scores. Keep the thresholds visible, but do not interpret a
+pass or failure as a complete relevance evaluation of the expanded corpus.
+
 Three evaluation layers, per the governed-workshop audit:
 
 1. **Planner correctness**: did the plan recover the expected hard
@@ -917,6 +922,7 @@ async def _evaluate(args: argparse.Namespace, backend: dict[str, Any]) -> dict[s
         [item["agentic_requested_compliance"] for item in detailed]
     )
     return {
+        "judgment_scope": "Original 100-product catalog; expanded products are unjudged",
         "query_count": len(GOLDEN_QUERIES),
         "recall_scored_query_count": len(recall_scored),
         "rrf_k": args.rrf_k,
@@ -964,6 +970,7 @@ def _print_report(report: dict[str, Any], *, no_gate: bool) -> None:
     )
     print(f"Models: {report['embed_model']} + {report['rerank_model']}")
     print(f"Executor: {report['executor']}")
+    print("Judgments: original 100 products; new products are unjudged. Legacy scores are partial.")
     print()
     _print_summary(report["_summary_pairs"])
     print()

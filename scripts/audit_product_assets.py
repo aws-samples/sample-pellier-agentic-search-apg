@@ -156,6 +156,13 @@ def literal_references() -> Dict[str, List[str]]:
         for match in REFERENCE_RE.finditer(text):
             rel = path.relative_to(REPO).as_posix()
             found.setdefault(match.group(1), set()).add(rel)
+    # Catalog image fields are bare filenames, not literal /products/ URLs.
+    # Products without a photograph deliberately publish no image reference.
+    catalog = REPO / "data/pellier_catalog.json"
+    if catalog.is_file():
+        for product in json.loads(catalog.read_text()):
+            if name := product.get("image"):
+                found.setdefault(name, set()).add("data/pellier_catalog.json")
     return {name: sorted(sources) for name, sources in found.items()}
 
 

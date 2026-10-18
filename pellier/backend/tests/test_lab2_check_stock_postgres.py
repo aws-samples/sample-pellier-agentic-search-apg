@@ -12,10 +12,14 @@ commits the participant's function and its stamp.
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import re
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List
+
+import psycopg
+from psycopg.rows import dict_row
 
 from tests.fresh_cluster import fresh_db, run_reset  # noqa: F401  (fixture import)
 
@@ -95,6 +99,24 @@ def test_the_starter_returns_a_row_for_a_piece_not_carried(fresh_db) -> None:  #
     assert fresh_db.psql("SELECT count(*), max(total_units), bool_and(product_id IS NULL) "
                          "FROM pellier.check_stock('Velvet Opera Cape')") == "1|0|t"
     assert _live(fresh_db) == f"{_sha(_body(STARTER))} no stamp"
+
+
+def test_the_lab_check_uses_the_same_photographed_assortment_as_stock(fresh_db) -> None:
+    spec = importlib.util.spec_from_file_location("lab2_scope_check", REPO / "scripts/lab2_check.py")
+    check = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(check)
+    with psycopg.connect(host=str(fresh_db.socket), user="postgres", dbname="postgres",
+                          row_factory=dict_row) as conn:
+        hidden = conn.execute('SELECT name FROM pellier.product_catalog WHERE "productId" = %s',
+                              ('37168',)).fetchone()['name']
+        assert check.catalog_answer(conn, hidden) == {"matches": [], "stock": []}
+        matches = check.catalog_answer(conn, "linen")["matches"]
+        assert len(matches) > 1
+        assert all(1 <= int(row["product_id"]) <= 1000 for row in matches)
+        offered = conn.execute("SELECT product_id FROM pellier.check_stock('linen')").fetchall()
+        # The tool offers at most five matches; the check independently finds all.
+        assert len(offered) == 5
+        assert {row["product_id"] for row in offered} <= {row["product_id"] for row in matches}
 
 
 def test_the_starter_fails_only_not_carried_and_shows_the_null_sum(fresh_db) -> None:  # noqa: F811

@@ -84,6 +84,18 @@ def test_the_last_page_holds_what_is_left(db: _FakeDB) -> None:
     assert body["pages"] == 9
 
 
+@pytest.mark.parametrize(('page', 'size', 'expected_ids'), [
+    (84, 12, list(range(997, 1001))),
+    (1000, 1, [1000]),
+])
+def test_all_thousand_visible_products_are_reachable_through_http(page, size, expected_ids):
+    response = _client(_FakeDB(size=1000)).get(
+        '/api/products', params={'page': page, 'page_size': size})
+    assert response.status_code == 200
+    assert response.json()['total'] == 1000
+    assert [card['id'] for card in response.json()['products']] == expected_ids
+
+
 def test_the_edit_is_a_bound_parameter_never_sql_text(db: _FakeDB) -> None:
     edit = "anna' or '1'='1"
     _client(db).get("/api/products", params={"persona": edit, "page": 1})
@@ -101,7 +113,7 @@ def test_without_an_edit_every_piece_still_pages(db: _FakeDB) -> None:
 @pytest.mark.parametrize("params", [
     {"page": 0},
     {"page": -1},
-    {"page": 1001},
+    {"page": 100_001},
     {"page": 1, "page_size": 0},
     {"page": 1, "page_size": PAGE_SIZE_MAX + 1},
     {"page": "two"},

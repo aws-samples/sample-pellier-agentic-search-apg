@@ -63,13 +63,26 @@ interface CatalogPagerProps {
 export default function CatalogPager({ page, pages, onNavigate }: CatalogPagerProps) {
   const [params] = useSearchParams()
   if (pages <= 1) return null
-  const numbers = Array.from({ length: pages }, (_, index) => index + 1)
+  // Keep navigation bounded even when the catalog spans thousands of pages.
+  const visible = pages <= 9
+    ? Array.from({ length: pages }, (_, index) => index + 1)
+    : [...new Set([1, ...Array.from({ length: 5 }, (_, index) => page - 2 + index), pages])]
+      .filter(n => n >= 1 && n <= pages).sort((a, b) => a - b)
+  const numbers: (number | string)[] = []
+  visible.forEach((n, index) => {
+    const skipped = index > 0 ? n - visible[index - 1] - 1 : 0
+    // An ellipsis that hides a single page costs as much room as that page's link.
+    if (skipped === 1) numbers.push(n - 1)
+    else if (skipped > 1) numbers.push(`gap-${n}`)
+    numbers.push(n)
+  })
   return (
     <nav className="pellier-pager" aria-label={PAGER.LABEL} data-testid="home-pager">
       <Step label={PAGER.PREVIOUS} target={page - 1} enabled={page > 1} rel="prev" params={params} onNavigate={onNavigate} />
       <ol className="pellier-pager-pages">
         {numbers.map(n => (
           <li key={n}>
+            {typeof n === 'string' ? <span aria-hidden="true">…</span> : (
             <Link
               to={{ search: pageSearch(params, n) }}
               className="pellier-pager-page"
@@ -80,6 +93,7 @@ export default function CatalogPager({ page, pages, onNavigate }: CatalogPagerPr
             >
               {n}
             </Link>
+            )}
           </li>
         ))}
       </ol>

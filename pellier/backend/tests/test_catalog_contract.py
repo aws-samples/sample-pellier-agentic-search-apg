@@ -1,6 +1,8 @@
 """The catalog matches the approved table. These expectations are written out here on
 purpose: they must never be regenerated from data/pellier_catalog.json."""
 import importlib.util
+import json
+from functools import lru_cache
 import re
 import sys
 from pathlib import Path
@@ -251,6 +253,7 @@ WATCHES = {5, 61}
 CANDLES = {4, 21, 38, 80}
 
 
+@lru_cache(maxsize=1)
 def _catalog():
     spec = importlib.util.spec_from_file_location("seed_catalog", REPO / "scripts" / "seed_pellier_catalog.py")
     module = importlib.util.module_from_spec(spec)
@@ -264,9 +267,9 @@ def _matches(query: str, name: str) -> bool:
     return all(token in name.lower() for token in query.lower().split())
 
 
-def test_catalog_is_exactly_the_approved_table():
+def test_expanded_catalog_preserves_the_approved_lab_products():
     catalog = _catalog()
-    assert set(catalog) == set(EXPECTED_CATALOG)
+    assert set(catalog) == set(range(1, 50001))
     for pid, (name, department, moment, brand, price, quantity) in EXPECTED_CATALOG.items():
         p = catalog[pid]
         assert (p.name, p.department, p.persona, p.brand, p.price, p.quantity) == \
@@ -274,7 +277,7 @@ def test_catalog_is_exactly_the_approved_table():
 
 
 def test_prices_fit_the_approved_spread():
-    prices = sorted(p.price for p in _catalog().values())
+    prices = sorted(p.price for pid, p in _catalog().items() if pid <= 100)
     assert max(prices) <= 450
     assert (prices[49] + prices[50]) / 2 == 55
     assert sum(price <= 100 for price in prices) == 69
@@ -288,8 +291,9 @@ def test_tags_come_from_the_planner_vocabulary():
 
 def test_watch_and_candle_tags_are_exact():
     catalog = _catalog()
-    assert {pid for pid, p in catalog.items() if "watch" in p.tags} == WATCHES
-    assert {pid for pid, p in catalog.items() if "candle" in p.tags} == CANDLES
+    assert {pid for pid, p in catalog.items() if pid <= 100 and "watch" in p.tags} == WATCHES
+    assert {pid for pid, p in catalog.items() if pid <= 100 and "candle" in p.tags} == CANDLES
+    assert all(p.price > 100 for p in catalog.values() if "watch" in p.tags)
     assert all("Candle" in catalog[pid].name for pid in CANDLES)
     assert all(catalog[pid].price > 100 for pid in WATCHES)
     assert "watch" not in catalog[62].tags and {"leather", "gift"} <= set(catalog[62].tags)
@@ -344,6 +348,8 @@ def test_copy_uses_the_store_voice():
 def test_every_image_is_the_product_photograph_named_by_the_rule():
     catalog = _catalog()
     for pid, p in catalog.items():
+        if pid > 100:
+            continue  # New photographs are explicitly mapped to their size options below.
         slug = re.sub(r"[^a-z0-9]+", "-", p.name.lower()).strip("-")
         expected = NAMED_MASTERS.get(pid, f"{p.persona}-{slug}")
         assert p.imgPath == f"{expected}.png", (pid, p.imgPath)
@@ -353,6 +359,9 @@ def test_every_image_is_served_at_every_width_and_none_is_a_placeholder():
     """A card asks for `-480`, `-960` and `-1122` in AVIF and WebP; each must exist."""
     catalog = _catalog()
     for pid, p in catalog.items():
+        if not p.imgPath:
+            assert pid > 1000, pid
+            continue
         assert "placeholder" not in p.imgPath, (pid, p.imgPath)
         stem = p.imgPath.rsplit(".", 1)[0]
         for width in SERVED_WIDTHS:
@@ -385,7 +394,37 @@ def test_nothing_in_source_mentions_archive_rows():
 
 def test_materials_are_exactly_the_approved_composition():
     catalog = _catalog()
-    assert {pid: tuple(sorted(p.materials)) for pid, p in catalog.items()} == EXPECTED_MATERIALS
+    assert {pid: tuple(sorted(p.materials)) for pid, p in catalog.items() if pid <= 100} == EXPECTED_MATERIALS
+
+
+def test_photographs_are_shared_only_by_the_same_design_and_color():
+    catalog = _catalog()
+    photos = json.loads((REPO / 'data/catalog_photography.json').read_text())['photos']
+    assert len(photos) == 450
+    photographed = set()
+    for photo in photos:
+        ids = photo['product_ids']
+        assert len(ids) == 2
+        assert not photographed.intersection(ids)
+        photographed.update(ids)
+        pieces = [catalog[pid] for pid in ids]
+        assert all(p.imgPath == photo['image'] and p.color == photo['color'] for p in pieces)
+        assert all(p.name.startswith(f"{photo['design']}, {photo['color']}, ") for p in pieces)
+        assert pieces[0].materials == pieces[1].materials
+    assert photographed == set(range(101, 1001))
+    assert all(not p.imgPath and p.public_image_path == '' for pid, p in catalog.items() if pid > 1000)
+
+
+def test_long_tail_is_distinct_varied_and_preserves_the_sparse_lab_preferences():
+    products = list(_catalog().values())
+    assert len({p.name.casefold() for p in products}) == 50000
+    assert len({p.description for p in products}) == 50000
+    assert all(0 <= p.price <= 450 and 0 <= p.quantity <= 500 for p in products)
+    assert sum(p.quantity == 0 for p in products) >= 3000
+    assert sum(0 < p.quantity < 10 for p in products) >= 3000
+    # The supplied retry must still encounter a sparse conjunction. New products
+    # are discoverable by their own attributes, without the generic gift tag.
+    assert all('gift' not in p.tags for p in products if p.productId > 100)
 
 
 def test_materials_come_from_the_material_vocabulary():
@@ -410,7 +449,17 @@ MATERIAL_WORDS = {
     r"\bnylon\b": "nylon", r"\bpaper\b|\bkraft\b": "paper",
 }
 # Mentions that are not part of the product: the table it sits on, or a color name.
-NOT_THE_PRODUCT = {(7, "wood"), (24, "ceramic"), (77, "ceramic")}
+NOT_THE_PRODUCT = {
+    (7, "wood"), (24, "ceramic"), (77, "ceramic"),
+    (5438, "paper"),  # Filters used with the ceramic cone, not included.
+    (7208, "silk"),  # Thread stored on the wooden organizer.
+    (18805, "wood"),  # The description explicitly excludes the hanging dowel.
+    (19992, "ceramic"),  # Tile pattern embossed into a linen journal cover.
+    (25746, "paper"),  # "Paper-thin" describes the rubber sole's thickness.
+    (30563, "ceramic"),  # Terracotta is the suede pouch's color.
+    (31269, "steel"),  # Window frames the magnetic liner attaches to.
+    (37856, "silk"),  # Screen-printing process, not the squeegee's material.
+}
 
 
 def test_every_material_named_in_the_copy_is_listed():

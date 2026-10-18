@@ -23,6 +23,13 @@ function renderCard(product: PellierProduct = PRODUCT) {
 }
 
 describe('ProductCard', () => {
+  it('keeps a product without photography readable and linked, without requesting an image', () => {
+    const { container } = renderCard({ ...PRODUCT, imageUrl: '' })
+    expect(container.querySelector('img')).toBeNull()
+    expect(screen.getByText('Photo not available')).toBeInTheDocument()
+    expect(screen.getByTestId('product-card-link-905')).toHaveAttribute('href', '/product/905')
+    expect(screen.getByText('$64')).toBeInTheDocument()
+  })
   it('leaves the frame empty when the photo fails, instead of a broken image and its alt text', () => {
     const { container } = renderCard()
     const img = container.querySelector('img')

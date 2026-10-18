@@ -662,7 +662,7 @@ setup_database() {
         # and psycopg is installed via `pip install --user` for that user in
         # Stage 1, so root's python3.14 cannot import it. Without sudo -u the
         # seeder dies with ModuleNotFoundError and the catalog stays empty, and
-        # the seed that follows refuses a catalog without 100 products. psql runs
+        # the seed that follows refuses a catalog without 50000 products. psql runs
         # as that user too and authenticates with PGPASSWORD, as it did as root.
         # DB_USER/DB_PASSWORD are passed via `env NAME=value`, never
         # interpolated into a string a nested shell parses, so a literal ' or \
@@ -696,7 +696,7 @@ setup_database & PID_DB=$!
 FRONTEND_SETUP_OK=true
 wait "$PID_FE" || FRONTEND_SETUP_OK=false
 if wait "$PID_DB"; then
-    log "✅ Database setup complete (ten tables, 100 products, the seed)"
+    log "✅ Database setup complete (ten tables, 50000 products, the seed)"
 else
     # Stop before later application/managed milestones can overwrite FAILED.
     fail "Database setup failed; see /var/log/database-setup.log"

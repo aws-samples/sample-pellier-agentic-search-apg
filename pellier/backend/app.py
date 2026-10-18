@@ -34,6 +34,7 @@ from models.search import (
 from services.database import DatabaseService
 from services.auth import get_current_user, require_operator
 from services import turn_relay
+from services.store_tools import VISIBLE_CATALOG_SQL
 from services.embeddings import EmbeddingService
 from services.chat import ChatService, attach_warehouse_units
 from services.chat_error_taxonomy import classify_chat_error
@@ -1413,10 +1414,11 @@ async def autocomplete(
 ):
     """Product search autocomplete"""
     try:
-        query = """
+        query = f"""
             SELECT name, category
             FROM pellier.product_catalog
             WHERE name ILIKE %s
+              AND {VISIBLE_CATALOG_SQL}
             ORDER BY reviews DESC
             LIMIT %s
         """
@@ -1721,7 +1723,7 @@ async def list_scenarios(persona: str = Query(default="fresh", min_length=1, max
         db = await get_db_service()
         rows = await db.fetch_all(
             'SELECT "productId", name, "imgUrl" FROM pellier.product_catalog '
-            'WHERE "productId" = ANY(%s)',
+            f'WHERE "productId" = ANY(%s) AND {VISIBLE_CATALOG_SQL}',
             preview_ids,
         )
         previews = {str(row["productId"]): dict(row) for row in rows}

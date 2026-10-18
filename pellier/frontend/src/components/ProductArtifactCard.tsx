@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { Heart } from 'lucide-react'
 import type { ChatProduct } from '../services/chat'
 import { imageSrc } from '../utils/assetPath'
+import ProductPhotoUnavailable from './ProductPhotoUnavailable'
 import { productQuickActions } from '../utils/catalogFollowUps'
 import StatusTag, { type TagTone } from './turn/StatusTag'
 import '../styles/product-artifact.css'
@@ -124,7 +125,7 @@ export default function ProductArtifactCard({
               e.currentTarget.style.display = 'none'
             }}
           />
-        ) : null}
+        ) : <ProductPhotoUnavailable />}
       </div>
 
       {/* Body */}

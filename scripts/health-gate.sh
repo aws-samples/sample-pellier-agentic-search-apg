@@ -8,8 +8,8 @@
 #
 # Checks:
 #   1. Backend /api/health is green (DB connected)
-#   2. Catalog row count == expected (100 by default)
-#   3. Warehouse inventory present (300 rows: 100 curated x 3 warehouses)
+#   2. Catalog row count == expected (50000 by default)
+#   3. Warehouse inventory present (150000 rows: 50000 products x 3 warehouses)
 #   3b. The ten tables, the evidence triggers, the pellier_agent role and its
 #       row-level security policies, and the seeded customers and orders
 #   4. node --version is 24 LTS                   (required for governed format;
@@ -36,7 +36,8 @@ export PATH="/opt/pellier/bin:$PATH"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
-EXPECTED_CATALOG="${EXPECTED_CATALOG:-100}"
+EXPECTED_CATALOG="${EXPECTED_CATALOG:-50000}"
+EXPECTED_WAREHOUSE_ROWS=$((EXPECTED_CATALOG * 3))
 HEALTH_URL="${HEALTH_URL:-http://localhost:8000/api/health}"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
@@ -182,10 +183,10 @@ fi
 
 # 3. Warehouse inventory
 wh_n="$(_psql 'SELECT count(*) FROM pellier.warehouse_inventory;' || echo '')"
-if [[ "$wh_n" == "300" ]]; then
-  pass "Warehouse inventory has exactly 300 curated rows"
+if [[ "$wh_n" == "$EXPECTED_WAREHOUSE_ROWS" ]]; then
+  pass "Warehouse inventory has exactly $EXPECTED_WAREHOUSE_ROWS rows"
 else
-  fail "Warehouse inventory row count is ${wh_n:-none}, expected exactly 300"
+  fail "Warehouse inventory row count is ${wh_n:-none}, expected exactly $EXPECTED_WAREHOUSE_ROWS"
   ok=false
 fi
 
@@ -194,14 +195,13 @@ inventory_drift="$(_psql "
 SELECT count(*)
   FROM pellier.product_catalog pc
  WHERE pc.\"productId\" ~ '^[0-9]+$'
-   AND pc.\"productId\"::int BETWEEN 1 AND 100
    AND pc.quantity <> (
        SELECT COALESCE(sum(wi.quantity), 0)
          FROM pellier.warehouse_inventory wi
         WHERE wi.product_id = pc.\"productId\"
    );" || echo '')"
 if [[ "$inventory_drift" == "0" ]]; then
-  pass "Catalog quantity matches warehouse aggregate for all 100 curated products"
+  pass "Catalog quantity matches warehouse aggregate for the full catalog"
 else
   fail "Catalog/warehouse inventory drift detected (${inventory_drift:-unknown} products)"
   ok=false

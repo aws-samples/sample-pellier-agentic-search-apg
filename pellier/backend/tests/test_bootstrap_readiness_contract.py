@@ -625,8 +625,8 @@ case "$*" in
   *schema_tables_check*) {schema_answer or f"printf '{table_count}\\n'"} ;;
   *evidence_triggers_check*) {schema_answer or f"printf '{trigger_count}\\n'"} ;;
   *row_security_check*) {schema_answer or f"printf '{rls_policy_count}\\n'"} ;;
-  *product_catalog*) printf '100\n' ;;
-  *warehouse_inventory*) printf '300\n' ;;
+  *product_catalog*) printf '50000\n' ;;
+  *warehouse_inventory*) printf '150000\n' ;;
   *customers*) printf '{customer_count}\n' ;;
   *orders*) printf '{order_count}\n' ;;
 esac
@@ -1161,7 +1161,7 @@ def test_a_reset_database_is_built_by_the_fresh_setup_itself() -> None:
 
 
 def test_the_seed_runs_after_the_catalog_it_reads() -> None:
-    """The seed's 300 warehouse rows are derived from the catalog's quantities."""
+    """The seed's warehouse rows are derived from the catalog's quantities."""
     setup = DATABASE_SETUP.read_text(encoding="utf-8")
     schema = setup.index("apply 001_schema.sql")
     catalog = setup.index("scripts/seed_pellier_catalog.py --from-cache")
@@ -1670,8 +1670,8 @@ exit 0
 case "$*" in
   *CUST-JESSICA*) printf '2\\n' ;;
   *"FROM pellier.approvals;"*) printf '{approvals}\\n' ;;
-  *"FROM pellier.product_catalog;"*) printf '100\\n' ;;
-  *"FROM pellier.warehouse_inventory;"*) printf '300\\n' ;;
+  *"FROM pellier.product_catalog;"*) printf '50000\\n' ;;
+  *"FROM pellier.warehouse_inventory;"*) printf '150000\\n' ;;
   *"FROM pellier.customers;"*) printf '4\\n' ;;
   *"FROM pellier.orders;"*) printf '21\\n' ;;
   *"FROM pellier.support_tickets;"*) printf '3\\n' ;;

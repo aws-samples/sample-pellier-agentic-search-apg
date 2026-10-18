@@ -321,16 +321,16 @@ else
 fi
 
 # 6b. pg_trgm: confirm the schema's trigram index by asking the planner. At
-# 100 rows Postgres seq-scans regardless (correct + cheap), so this is
-# informational — what we're checking is that the trigram index EXISTS.
+# the catalog scale, costs and selectivity determine the chosen plan; this
+# remains informational. The required invariant is that the index exists.
 trgm_idx="$(_psql "SELECT count(*) FROM pg_indexes WHERE schemaname='pellier' AND indexname='product_catalog_name_trgm';")"
 if [[ "${trgm_idx:-0}" == "1" ]]; then
   plan="$(_psql "EXPLAIN SELECT \"productId\" FROM pellier.product_catalog WHERE lower(name) LIKE '%hadley%';" | tr '\n' ' ')"
   if echo "$plan" | grep -qi "trgm\|bitmap index scan"; then
     pass "pg_trgm index exists and the planner uses it for lower(name) LIKE '%…%'."
   else
-    info "pg_trgm index exists; at this row count the planner seq-scans (expected). Plan: ${plan:0:120}"
-    info "  → the index pays off at production scale, not at 100 rows."
+    info "pg_trgm index exists; the planner chose a sequential scan. Plan: ${plan:0:120}"
+    info "  → inspect selectivity and statistics before changing planner settings."
   fi
 else
   warn "pg_trgm index product_catalog_name_trgm missing — rebuild with scripts/setup/database-setup.sh."

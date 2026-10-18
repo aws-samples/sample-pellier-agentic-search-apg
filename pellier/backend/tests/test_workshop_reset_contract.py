@@ -517,7 +517,7 @@ def test_the_reset_verifies_the_baseline_it_claims_to_have_restored() -> None:
     assert "SELECT count(*) FROM pellier.${table};" in section
     for table in ("approvals", "store_credits", "tool_audit", "retrieval_receipts"):
         assert table in section, f"{table} is never verified empty"
-    for seeded in ("product_catalog:100", "warehouse_inventory:300", "customers:4",
+    for seeded in ("product_catalog:50000", "warehouse_inventory:150000", "customers:4",
                    "orders:21", "support_tickets:3"):
         assert seeded in section, seeded
     # Lab 4 starts from Jessica's two received returns with no credit on them.

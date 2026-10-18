@@ -163,9 +163,9 @@ def test_storefront_persona_edits_are_ranked_in_the_seed() -> None:
     assert carry_all["persona"] == "fresh" and carry_all["preview_product_id"] == "10"
 
 
-def test_inventory_covers_all_hundred_products_and_matches_the_catalog() -> None:
+def test_inventory_covers_the_full_catalog_and_matches_its_quantities() -> None:
     seed = SEED.read_text()
-    assert "Expected 300 warehouse rows" in seed
+    assert "Expected 150000 warehouse rows" in seed
     assert "disagree with their warehouse rows" in seed
 
 

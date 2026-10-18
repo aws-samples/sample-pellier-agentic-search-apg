@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
 """Import the catalog's product photographs and derive the variants the app serves.
 
-The 100 catalog masters live outside the repository: they are multi-megabyte
-PNG drafts the owner keeps beside their generation provenance, and the
-repository ships only responsive derivatives. This script maps every catalog
-row to exactly one master by name, derives the WebP and AVIF variants straight
-from that master into ``pellier/frontend/public/products/``, and points the
-catalog's ``image`` at the stem. ``derive_product_variants`` owns validation
-and encoding; this script owns the catalog mapping.
+PNG masters stay with their generation provenance; the repository ships
+responsive derivatives. The catalog's explicit image references select the
+masters. Rows with no photograph are skipped. ``derive_product_variants`` owns
+dimension validation and encoding; this script validates the product mapping.
 
 Mapping rule
 ------------
 
-``<moment>-<slug(name)>.png``, where ``slug`` lowercases the name and turns
-every run of characters outside ``[a-z0-9]`` into one hyphen. Six masters were
-named differently when generated; ``NAMED_MASTERS`` records them so the rule
-stays mechanical for the other 94 and the exceptions stay visible. The run
-fails before writing anything if a product has no master, a master would serve
-two products, or a master in the source folder maps to no product.
+The original 100 products each have their own photograph. New photographs
+may serve only the two size options listed in data/catalog_photography.json,
+with matching design and color. Missing or unrecognized masters fail before
+writing. Use --only-supplied to process a partial delivery of known masters.
+Neither mode changes catalog content or assigns photos to unphotographed rows.
 
 Widths
 ------
@@ -34,8 +30,11 @@ Usage
     # Report the mapping and the validation result. Nothing is written.
     uv run scripts/import_product_photos.py --source <folder> --check
 
-    # Derive every variant and update data/pellier_catalog.json.
+    # Derive every variant from a complete collection of masters.
     uv run scripts/import_product_photos.py --source <folder>
+
+    # Derive only the known masters in a partial delivery.
+    uv run scripts/import_product_photos.py --source <folder> --only-supplied
 """
 
 from __future__ import annotations
@@ -54,6 +53,7 @@ from derive_product_variants import PRODUCTS, _dimensions, _encode, validate  # 
 
 REPO = Path(__file__).resolve().parents[1]
 CATALOG = REPO / "data" / "pellier_catalog.json"
+PHOTOGRAPHY = REPO / "data" / "catalog_photography.json"
 
 # Widths every catalog stem publishes, in both formats.
 CATALOG_WIDTHS = (480, 960, 1122)
@@ -88,27 +88,56 @@ class Mapping:
     height: int
 
 
-def plan(catalog: List[dict], source: Path) -> List[Mapping]:
-    """One master per product, every master used once. Raises on any gap."""
+def plan(catalog: List[dict], source: Path, *, photos: List[dict] | None = None,
+         only_supplied: bool = False) -> List[Mapping]:
+    """Validate explicit image ownership before deriving any files."""
+    if photos is None:
+        photos = json.loads(PHOTOGRAPHY.read_text(encoding="utf-8"))["photos"]
     problems: List[str] = []
     mappings: List[Mapping] = []
-    claimed: Dict[str, int] = {}
+    claimed: Dict[str, List[dict]] = {}
+    allowed = {photo["image"]: photo for photo in photos}
+    if len(allowed) != len(photos):
+        problems.append("photography manifest repeats an image")
     for product in catalog:
         product_id = int(product["id"])
-        stem = expected_stem(product)
-        master = source / f"{stem}.png"
-        if stem in claimed:
-            problems.append(f"id {product_id} and id {claimed[stem]} both map to {master.name}")
+        image = product["image"]
+        if image is None:
             continue
-        claimed[stem] = product_id
+        if not isinstance(image, str) or not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*\.png", image):
+            problems.append(f"id {product_id}: invalid image filename {image!r}")
+            continue
+        claimed.setdefault(image, []).append(product)
+        if product_id <= 100 and image != f"{expected_stem(product)}.png":
+            problems.append(f"id {product_id}: original product photo does not match its name")
+
+    for image, products in claimed.items():
+        ids = [int(p["id"]) for p in products]
+        if any(pid > 100 for pid in ids):
+            photo = allowed.get(image)
+            if not photo or sorted(ids) != sorted(photo["product_ids"]):
+                problems.append(f"{image}: product IDs do not match the photography manifest")
+            elif len(ids) != 2 or any(
+                p["color"] != photo["color"]
+                or not p["name"].startswith(f"{photo['design']}, {photo['color']}, ")
+                for p in products
+            ):
+                problems.append(f"{image}: sharing is limited to two sizes of one design and color")
+        elif len(ids) != 1:
+            problems.append(f"{image}: original product photographs cannot be shared")
+        master = source / image
         if not master.is_file():
-            problems.append(f"id {product_id} {product['name']!r}: no master {master.name}")
+            if not only_supplied:
+                problems.append(f"ids {ids}: no master {image}")
             continue
         width, height = _dimensions(master)
-        mappings.append(Mapping(product_id, product["name"], stem, master, width, height))
+        mappings.extend(Mapping(int(p["id"]), p["name"], master.stem, master, width, height)
+                        for p in products)
 
-    unused = sorted(p.name for p in source.glob("*.png") if p.stem not in claimed)
+    unused = sorted(p.name for p in source.glob("*.png") if p.name not in claimed)
     problems.extend(f"master {name} maps to no product" for name in unused)
+    if not mappings:
+        problems.append("no catalog masters supplied")
     if problems:
         raise SystemExit("mapping failed:\n  " + "\n  ".join(problems))
     return mappings
@@ -126,8 +155,8 @@ def print_mapping(mappings: List[Mapping]) -> None:
 
 def derive_all(mappings: List[Mapping]) -> int:
     jobs = [
-        (m.master, width, suffix)
-        for m in mappings
+        (master, width, suffix)
+        for master in sorted({m.master for m in mappings})
         for width in CATALOG_WIDTHS
         for suffix in FORMATS
     ]
@@ -136,22 +165,12 @@ def derive_all(mappings: List[Mapping]) -> int:
     return len(written)
 
 
-def update_catalog(catalog: List[dict], mappings: List[Mapping]) -> int:
-    by_id = {m.product_id: m for m in mappings}
-    changed = 0
-    for product in catalog:
-        image = f"{by_id[int(product['id'])].stem}.png"
-        if product["image"] != image:
-            product["image"] = image
-            changed += 1
-    CATALOG.write_text(json.dumps(catalog, indent=2) + "\n", encoding="utf-8")
-    return changed
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", required=True, help="folder holding <stem>.png masters")
     parser.add_argument("--check", action="store_true", help="report only")
+    parser.add_argument("--only-supplied", action="store_true",
+                        help="accept a partial delivery; reject unknown masters")
     args = parser.parse_args()
 
     source = Path(args.source).expanduser()
@@ -159,9 +178,9 @@ def main() -> int:
         raise SystemExit(f"{source} is not a directory")
 
     catalog = json.loads(CATALOG.read_text(encoding="utf-8"))
-    mappings = plan(catalog, source)
+    mappings = plan(catalog, source, only_supplied=args.only_supplied)
     print_mapping(mappings)
-    print(f"\n{len(mappings)} products mapped to {len(mappings)} masters in {source}")
+    print(f"\n{len(mappings)} products mapped to {len({m.master for m in mappings})} masters in {source}")
 
     bad = rejected(mappings)
     for mapping, reason in bad:
@@ -174,9 +193,7 @@ def main() -> int:
         return 0
 
     written = derive_all(mappings)
-    changed = update_catalog(catalog, mappings)
     print(f"{written} variants written to {PRODUCTS.relative_to(REPO)}")
-    print(f"{changed} catalog image fields changed in {CATALOG.relative_to(REPO)}")
     return 0
 
 

@@ -500,7 +500,7 @@ _verify_baseline() {
       bad=$((bad + 1))
     fi
   done
-  for expected in product_catalog:100 warehouse_inventory:300 customers:4 orders:21 support_tickets:3; do
+  for expected in product_catalog:50000 warehouse_inventory:150000 customers:4 orders:21 support_tickets:3; do
     table="${expected%%:*}"
     count="$(_psql_scalar "SELECT count(*) FROM pellier.${table};" 2>/dev/null | tr -d '[:space:]')"
     if [[ "$count" != "${expected##*:}" ]]; then

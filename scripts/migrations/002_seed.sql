@@ -1,5 +1,5 @@
 -- Pellier's starting data, after scripts/seed_pellier_catalog.py has loaded
--- the 100 products. Four customers and their orders, the stock in three
+-- the 50000 products. Four customers and their orders, the stock in three
 -- warehouses, the return policies and three support tickets.
 --
 -- Two cases the labs build on:
@@ -54,7 +54,7 @@ UPDATE pellier.product_catalog p
 -- Stock: every product in all three warehouses
 -- ---------------------------------------------------------------------------
 -- 30% of a product's units sit in each of two warehouses and the rest in a
--- third, chosen by product id, so the 300 rows add up to the catalog quantity.
+-- third, chosen by product id, so the 150000 rows add up to the catalog quantity.
 INSERT INTO pellier.warehouse_inventory
        (product_id, warehouse_code, warehouse_name, city, ship_window_min, ship_window_max, quantity)
 SELECT p."productId", w.code, w.name, w.city, w.ship_min, w.ship_max,
@@ -170,11 +170,11 @@ DO $$
 DECLARE
     drift integer;
 BEGIN
-    IF (SELECT count(*) FROM pellier.product_catalog) <> 100 THEN
-        RAISE EXCEPTION 'Expected 100 products; run scripts/seed_pellier_catalog.py first';
+    IF (SELECT count(*) FROM pellier.product_catalog) <> 50000 THEN
+        RAISE EXCEPTION 'Expected 50000 products; run scripts/seed_pellier_catalog.py first';
     END IF;
-    IF (SELECT count(*) FROM pellier.warehouse_inventory) <> 300 THEN
-        RAISE EXCEPTION 'Expected 300 warehouse rows';
+    IF (SELECT count(*) FROM pellier.warehouse_inventory) <> 150000 THEN
+        RAISE EXCEPTION 'Expected 150000 warehouse rows';
     END IF;
     -- A product's catalog quantity is the sum of its warehouse rows.
     SELECT count(*) INTO drift

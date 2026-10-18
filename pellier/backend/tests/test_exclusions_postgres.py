@@ -1,5 +1,7 @@
 """A stated exclusion holds against the real seeded catalog, components included."""
 import psycopg
+import json
+from pathlib import Path
 
 from services.search_plan import build_plan
 from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
@@ -20,16 +22,26 @@ def _eligible(cluster, exclusions):
 
 
 def test_no_leather_excludes_leather_parts(fresh_db):
-    assert _eligible(fresh_db, ["leather"]) == ALL - LEATHER
+    assert _eligible(fresh_db, ["leather"]) & ALL == ALL - LEATHER
+    assert _eligible(fresh_db, ["leather"]) == _expected(["leather"])
 
 
 def test_no_wool_excludes_merino_and_blends(fresh_db):
-    assert _eligible(fresh_db, ["wool"]) == ALL - WOOL
+    assert _eligible(fresh_db, ["wool"]) & ALL == ALL - WOOL
+    assert _eligible(fresh_db, ["wool"]) == _expected(["wool"])
 
 
 def test_no_candles_still_uses_the_merchandising_tag(fresh_db):
-    assert _eligible(fresh_db, ["candle"]) == ALL - CANDLES
+    assert _eligible(fresh_db, ["candle"]) & ALL == ALL - CANDLES
+    assert _eligible(fresh_db, ["candle"]) == _expected(["candle"])
 
 
 def test_exclusions_combine(fresh_db):
-    assert _eligible(fresh_db, ["leather", "wool", "candle"]) == ALL - LEATHER - WOOL - CANDLES
+    assert _eligible(fresh_db, ["leather", "wool", "candle"]) & ALL == ALL - LEATHER - WOOL - CANDLES
+    assert _eligible(fresh_db, ["leather", "wool", "candle"]) == _expected(["leather", "wool", "candle"])
+
+
+def _expected(exclusions):
+    """Independent JSON oracle for all 50,000 rows; original fixtures stay pinned above."""
+    rows = json.loads((Path(__file__).resolve().parents[3] / 'data/pellier_catalog.json').read_text())
+    return {row['id'] for row in rows if not set(exclusions).intersection(row['materials'] + row['tags'])}

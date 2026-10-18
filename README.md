@@ -96,7 +96,7 @@ python3 -m venv .venv
 cp .env.example .env    # set DB_* (or DATABASE_URL) and AWS_REGION
 cd ../..
 
-# 2. Into an existing, empty database: schema, the 100-product catalog
+# 2. Into an existing, empty database: schema, the 50,000-product catalog
 #    (from its committed embeddings) and the seed data
 DB_HOST=localhost DB_PORT=5432 DB_NAME=pellier DB_USER=postgres DB_PASSWORD=... \
   PYTHON="$PWD/pellier/backend/.venv/bin/python" \
@@ -140,7 +140,7 @@ Then run `/governed-postgres-agent review <path>` on your team's agent code. Its
 | `solutions/` | Reference solutions for the lab tasks |
 | `takeaway/` | `governed-postgres-agent`, how a DBA reviews an agent: the four contracts as an Agent Skill |
 | `scripts/` | Database setup and migrations, catalog seeding, AgentCore deployment and lab checks |
-| `data/` | The 100-product catalog and its cached Cohere Embed v4 vectors |
+| `data/` | The 50,000-product catalog and its cached Cohere Embed v4 vectors |
 | `docs/` | Workshop design notes: the story arc, transport and AgentCore readiness |
 | `tests/` | Deployment helpers for end-to-end runs and a performance smoke test |
 

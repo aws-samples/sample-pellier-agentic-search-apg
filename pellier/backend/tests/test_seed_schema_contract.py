@@ -12,6 +12,7 @@ column cannot repeat it.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -35,10 +36,15 @@ def _columns_defined_by_the_base_schema() -> set[str]:
 
 
 def _columns_the_seeder_writes() -> set[str]:
-    """The column list of the seeder's INSERT into product_catalog."""
-    source = SEEDER.read_text()
-    start = source.index(f"INSERT INTO {_TABLE}")
-    column_list = source[source.index("(", start) + 1 : source.index(")", start)]
+    """The shared column list used for staging COPY and the catalog INSERT."""
+    tree = ast.parse(SEEDER.read_text())
+    function = next(node for node in tree.body
+                    if isinstance(node, ast.FunctionDef) and node.name == "seed_database")
+    declaration = next(node for node in function.body if isinstance(node, ast.Assign)
+                       and any(isinstance(target, ast.Name) and target.id == "columns"
+                               for target in node.targets))
+    column_list = ast.literal_eval(declaration.value)
+    assert isinstance(column_list, str) and '"productId"' in column_list
     return {
         token.strip().strip('"')
         for token in column_list.split(",")

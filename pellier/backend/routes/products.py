@@ -102,7 +102,7 @@ from services.agentcore_identity import (
 )
 from services.agentcore_memory import AgentCoreMemory
 from services.personalization import sort_personalized
-from services.store_tools import RESULT_IDS_MAX
+from services.store_tools import RESULT_IDS_MAX, VISIBLE_CATALOG_SQL
 from routes.user import get_agentcore_memory
 
 logger = logging.getLogger(__name__)
@@ -206,7 +206,7 @@ _WAREHOUSE_LIST_SELECT = """
 # catalog's size before the LIMIT, so one statement answers a page and its
 # total. With no edit, the CASE is NULL for every row and the department
 # order alone remains.
-_PAGE_SELECT = """
+_PAGE_SELECT = f"""
     SELECT
         "productId"          AS id,
         brand,
@@ -223,6 +223,7 @@ _PAGE_SELECT = """
         quantity,
         COUNT(*) OVER ()     AS total
     FROM pellier.product_catalog
+    WHERE {VISIBLE_CATALOG_SQL}
     ORDER BY
         CASE WHEN persona_id = %s AND storefront_rank IS NOT NULL
              THEN storefront_rank END ASC NULLS LAST,
@@ -238,7 +239,7 @@ _PAGE_SELECT = """
 PAGE_SIZE_DEFAULT = 12
 PAGE_SIZE_MAX = RESULT_IDS_MAX
 # Far past any catalog this store holds; it bounds the OFFSET a caller can ask for.
-PAGE_MAX = 1000
+PAGE_MAX = 100_000
 
 
 _VALID_BADGES = {"EDITORS_PICK", "BESTSELLER", "JUST_IN"}
@@ -328,7 +329,7 @@ async def _fetch_editorial_catalog(
     unavailable, this read fails and the caller renders an explicit
     unavailable state.
     """
-    clauses: list[str] = []
+    clauses: list[str] = [VISIBLE_CATALOG_SQL]
     params: list[Any] = []
     if category:
         clauses.append("category ILIKE %s ESCAPE '\\'")
@@ -379,7 +380,9 @@ async def _fetch_products_by_ids(db: Any, ids: List[str]) -> List[StorefrontProd
     """The cards for ``ids`` in that order, from one read; an unknown id is skipped."""
     if not ids:
         return []
-    rows = await db.fetch_all(_PRODUCT_SELECT + ' WHERE "productId" = ANY(%s)', ids)
+    rows = await db.fetch_all(
+        _PRODUCT_SELECT + f' WHERE {VISIBLE_CATALOG_SQL} AND "productId" = ANY(%s)', ids
+    )
     by_id = {str(dict(row)["id"]): _row_to_storefront_product(dict(row)) for row in rows}
     products = [by_id[key] for key in ids if key in by_id]
     await _attach_warehouse_stock(db, products)
@@ -412,6 +415,19 @@ async def _catalog_page(
     }
 
 
+async def _related_products(db: Any, product_id: int) -> List[StorefrontProduct]:
+    """Four other products in the item's department, without reading the full catalog."""
+    rows = await db.fetch_all(
+        _PRODUCT_SELECT + f' WHERE {VISIBLE_CATALOG_SQL} AND "productId" <> %s AND category = '
+        f'(SELECT category FROM pellier.product_catalog WHERE {VISIBLE_CATALOG_SQL} AND "productId" = %s) '
+        'ORDER BY rating DESC, name, "productId" LIMIT 4',
+        str(product_id), str(product_id),
+    )
+    products = [_row_to_storefront_product(dict(row)) for row in rows]
+    await _attach_warehouse_stock(db, products)
+    return products
+
+
 def _prefs_empty(prefs: Optional[Preferences]) -> bool:
     """Return True when ``prefs`` is null or has nothing to match on.
 
@@ -436,6 +452,7 @@ async def list_storefront_products(
     category: Optional[str] = Query(default=None),
     persona: Optional[str] = Query(default=None, min_length=1, max_length=64),
     ids: Optional[str] = Query(default=None, max_length=256),
+    related_to: Optional[int] = Query(default=None, ge=1),
     page: Optional[int] = Query(default=None, ge=1, le=PAGE_MAX),
     page_size: int = Query(default=PAGE_SIZE_DEFAULT, ge=1, le=PAGE_SIZE_MAX),
     db: Any = Depends(get_db_service),
@@ -462,6 +479,10 @@ async def list_storefront_products(
             status_code=200,
             content=[p.model_dump(mode="json", by_alias=True) for p in cards],
         )
+
+    if related_to is not None:
+        cards = await _related_products(db, related_to)
+        return JSONResponse(content=[p.model_dump(mode="json", by_alias=True) for p in cards])
 
     persona_id = persona.lower().strip() if persona else None
     if page is not None:
@@ -567,7 +588,7 @@ async def get_storefront_product(
     """
     catalog_key = str(product_id)
     row = await db.fetch_one(
-        _PRODUCT_DETAIL_SELECT + ' WHERE "productId" = %s', catalog_key
+        _PRODUCT_DETAIL_SELECT + f' WHERE {VISIBLE_CATALOG_SQL} AND "productId" = %s', catalog_key
     )
     if row is None:
         raise HTTPException(status_code=404, detail="product_not_found")
@@ -617,9 +638,10 @@ async def get_inventory_signal(
     # ``last_refreshed`` is the MAX(updated_at) across rows — the loader
     # populates this on every batch so it reflects the last catalog sync.
     rows = await db.fetch_all(
-        """
+        f"""
         SELECT category, COUNT(*) AS count, MAX(updated_at) AS last_refreshed
         FROM pellier.product_catalog
+        WHERE {VISIBLE_CATALOG_SQL}
         GROUP BY category
         """
     )

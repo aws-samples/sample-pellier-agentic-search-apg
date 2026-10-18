@@ -27,6 +27,7 @@ import { RESULTS } from '../copy'
 import type { PellierProduct } from '../services/types'
 import { stockLine } from '../utils/stockLine'
 import ResponsiveImage from './ResponsiveImage'
+import ProductPhotoUnavailable from './ProductPhotoUnavailable'
 import StatusTag from './turn/StatusTag'
 import '../styles/turn.css'
 import { formatPrice } from '../utils/money'
@@ -137,7 +138,7 @@ export default function ProductCard({ product, index, pick = false, showColor = 
           the accessibility tree and the tab order, so assistive tech and
           keyboard users get exactly one link per card. */}
       <Link to={detailPath} aria-hidden="true" tabIndex={-1} className="pellier-card-photo">
-        {photoFailed ? null : (
+        {photoFailed || !product.imageUrl ? <ProductPhotoUnavailable /> : (
           <ResponsiveImage
             src={product.imageUrl}
             alt={product.name}

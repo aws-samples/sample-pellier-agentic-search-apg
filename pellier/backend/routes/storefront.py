@@ -13,6 +13,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from pellier_copy import STOREFRONT_COPY
+from services.store_tools import VISIBLE_CATALOG_SQL
 
 router = APIRouter(prefix="/api/storefront", tags=["storefront"])
 
@@ -38,18 +39,19 @@ async def catalog_stats() -> CatalogStatsResponse:
 
     try:
         counts = await db_service.fetch_one(
-            """
+            f"""
             SELECT
                 count(*)::integer AS product_count,
                 count(DISTINCT category)::integer AS category_count
               FROM pellier.product_catalog
+             WHERE {VISIBLE_CATALOG_SQL}
             """
         )
         standout = await db_service.fetch_one(
-            """
+            f"""
             SELECT name, category
               FROM pellier.product_catalog
-             WHERE "imgUrl" IS NOT NULL
+             WHERE {VISIBLE_CATALOG_SQL}
              ORDER BY tier NULLS LAST, rating DESC NULLS LAST,
                       reviews::integer DESC NULLS LAST, "productId"
              LIMIT 1

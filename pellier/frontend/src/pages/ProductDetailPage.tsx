@@ -28,6 +28,7 @@ import ProductAvailabilityPanel from '../components/ProductAvailabilityPanel'
 import ProductCard from '../components/ProductCard'
 import { asset } from '../utils/assetPath'
 import ReasoningChip from '../components/ReasoningChip'
+import ProductPhotoUnavailable from '../components/ProductPhotoUnavailable'
 import ResponsiveImage from '../components/ResponsiveImage'
 import { TraceChip } from '../shared'
 import { useFocusTrap } from '../shared/useFocusTrap'
@@ -190,7 +191,7 @@ export default function ProductDetailPage() {
 
     // Related pieces are optional. Their read must not block or hide a
     // successfully loaded product, price, or availability receipt.
-    void apiFetch('/api/products', {
+    void apiFetch(`/api/products?related_to=${numericId}`, {
       credentials: 'include',
       signal: controller.signal,
     })
@@ -345,7 +346,7 @@ export default function ProductDetailPage() {
               {/* One photograph per piece today. A zoom is the honest version
                   of a gallery until more angles exist: the shopper can still
                   look closely at the weave before paying for it. */}
-              <button
+              {view.imageUrl ? <button
                 type="button"
                 className="relative block aspect-[4/5] w-full cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper focus-visible:ring-offset-2"
                 aria-label={`Zoom in on ${view.name}`}
@@ -363,7 +364,7 @@ export default function ProductDetailPage() {
                   className="h-full w-full object-cover"
                   style={{ objectPosition: view.imagePosition ?? 'center center' }}
                 />
-              </button>
+              </button> : <div className="aspect-[4/5] w-full"><ProductPhotoUnavailable /></div>}
             </div>
             {zoomOpen ? (
               <div

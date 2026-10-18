@@ -80,6 +80,10 @@ MAX_ROWS = 20
 # grid, beside the result the model reads: the size of the fused pool.
 RESULT_IDS_MAX = 30
 
+# The long-tail corpus stays indexed for scale exercises. Only merchandise
+# with its own photograph is eligible for shopper-facing reads, on both rails.
+VISIBLE_CATALOG_SQL = """NULLIF(btrim("imgUrl"), '') IS NOT NULL"""
+
 # A sink for what the model must not read (see ``services.tool_evidence``).
 EvidenceSink = Callable[[Dict[str, Any]], None]
 
@@ -224,7 +228,7 @@ def _product(row: Dict[str, Any]) -> Dict[str, Any]:
 # browse_department
 # ---------------------------------------------------------------------------
 
-# The department a browse reads. The filter counts reuse it, so "N of 100
+# The department a browse reads. The filter counts reuse it, so "N of M
 # fit" counts exactly the rows this predicate and the plan's limits keep.
 # The escape character is the backslash prepare_like_pattern writes, spelled
 # chr(92): the RDS Data API reads a backslash inside a quoted literal as an
@@ -311,11 +315,12 @@ def browse_department(
 # compare_products
 # ---------------------------------------------------------------------------
 
-_COMPARE_SQL = """
+_COMPARE_SQL = f"""
     SELECT "productId", name, brand, color, description, price, rating,
            reviews, category, "imgUrl", badge, tags
       FROM pellier.product_catalog
      WHERE "productId" IN (%s, %s)
+       AND {VISIBLE_CATALOG_SQL}
 """
 
 
@@ -1014,8 +1019,11 @@ _CATALOG_COLUMNS = """
 
 
 def _indent_clauses(extra_clauses: Sequence[str]) -> str:
-    """Render extra predicates as trailing ``AND`` lines for the branch SQL."""
-    return "".join(f"\n              AND {clause}" for clause in extra_clauses)
+    """Apply catalog visibility and the plan's predicates before ranking."""
+    return "".join(
+        f"\n              AND {clause}"
+        for clause in (VISIBLE_CATALOG_SQL, *extra_clauses)
+    )
 
 
 def vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:

@@ -135,3 +135,6 @@ audit/
 # lab_run.py solution --task keeps a participant's own version beside its editor link.
 labs/*/*.bak
 labs/*/*.bak.*
+
+# Optional catalog CSV export duplicates the JSON and vector shards.
+data/pellier_catalog_curated.csv

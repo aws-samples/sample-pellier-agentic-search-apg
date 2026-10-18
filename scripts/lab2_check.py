@@ -94,7 +94,7 @@ _NEXT_2B = ("what should a piece Pellier does not carry return? Write that test 
 _MATCH_SQL = """
     SELECT "productId" AS product_id, name
       FROM pellier.product_catalog
-     WHERE {tokens}
+     WHERE NULLIF(btrim("imgUrl"), '') IS NOT NULL AND {tokens}
      ORDER BY "productId"::int
 """
 _STOCK_SQL = """
