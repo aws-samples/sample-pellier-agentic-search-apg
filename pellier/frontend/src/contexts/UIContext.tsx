@@ -90,6 +90,8 @@ interface UIContextValue {
    * the shopper asked for moves focus into the composer.
    */
   drawerOpenedByShopper: () => boolean
+  /** Repeated open requests still bring an already-open stacked panel into view. */
+  drawerOpenRequest: number
 
   // Chat is a storefront-only surface. Dedicated operational and evidence
   // routes set this to `none`, leaving their keyboard conventions untouched.
@@ -130,6 +132,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [activeModal, setActiveModal] = useState<ActiveModal>(initialModal)
   const drawerDismissed = useRef(false)
   const openedByShopper = useRef(false)
+  const [drawerOpenRequest, setDrawerOpenRequest] = useState(0)
   // Ref mirror for synchronous reads — React 18 batches state updates,
   // so setPendingConciergeQuery's updater may not run synchronously.
   // The ref is always in sync so consumePendingQuery can read it
@@ -150,6 +153,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     if (name === 'drawer') {
       drawerDismissed.current = false
       openedByShopper.current = true
+      setDrawerOpenRequest(request => request + 1)
     }
     setActiveModal(name)
   }, [])
@@ -190,6 +194,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     drawerDismissed.current = false
     openedByShopper.current = true
     setActiveModal('drawer')
+    setDrawerOpenRequest(request => request + 1)
   }, [])
 
   // Read-and-clear. Uses the ref for a synchronous read so
@@ -263,6 +268,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       dismissDrawer,
       restoreDock,
       drawerOpenedByShopper,
+      drawerOpenRequest,
       chatSurface,
       setChatSurface,
       toggleDrawer,
@@ -282,6 +288,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
       dismissDrawer,
       restoreDock,
       drawerOpenedByShopper,
+      drawerOpenRequest,
       chatSurface,
       setChatSurface,
       toggleDrawer,

@@ -12,7 +12,7 @@
  * the choice, is what Pellier trusts. Once a conversation has started the
  * cards give way to `ShopperBar`, one row: the verified shopper (or "Not
  * signed in"), "Switch shopper" (or "Choose a shopper") and, signed in, "Sign
- * out". Opening it unfolds the four chips beneath (they exist only while it is
+ * out". Opening it unfolds the four choices in a 2×2 grid (they exist only while it is
  * open) and folds again once a sign-in completes. After a choice, on the
  * cards or the chips, focus lands on "Switch shopper".
  *
@@ -168,7 +168,7 @@ export function ShopperBar() {
               disabled={Boolean(busy) || switching}
               onClick={() => pick(id)}
             >
-              <Portrait id={id} size={24} />
+              <Portrait id={id} size={40} />
               {busy === id ? HERO_CONCIERGE.SIGNING_IN : shopperName(id)}
             </button>
           ))}

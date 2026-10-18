@@ -75,6 +75,23 @@ describe('Storefront conversation entry', () => {
     expect(chat.sendMessage).not.toHaveBeenCalled()
   })
 
+  it('brings an already-open stacked conversation back into view from the header or a product question', async () => {
+    const scroll = vi.spyOn(HTMLElement.prototype, 'scrollIntoView')
+    render(<App />)
+    fireEvent.click(screen.getByTestId('header-ask-pellier'))
+    await screen.findByRole('complementary', { name: 'Ask Pellier' })
+    scroll.mockClear()
+
+    fireEvent.click(screen.getByTestId('header-ask-pellier'))
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'start' })
+    scroll.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ask about this piece' }))
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ behavior: 'smooth', block: 'start' })
+    expect(chat.sendMessage).toHaveBeenCalledExactlyOnceWith('Tell me about the Linen Shirt.')
+    scroll.mockRestore()
+  })
+
   it('yields the conversation to the bag and resumes without resending the question', async () => {
     persona = ANNA
     const view = render(<App />)

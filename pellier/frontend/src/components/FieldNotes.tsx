@@ -29,7 +29,7 @@ const NOTES: readonly Note[] = [
     kicker: 'From the editors',
     title: 'On asking for the piece, not the product.',
     body: [
-      'A store that knows its floor should answer "a linen piece that travels well" as readily as "camp shirt, size 41." You know what you want before you know its name.',
+      'A store that knows its floor should understand "a linen piece that travels well" as readily as "linen camp shirt." You know what you want before you know its name.',
     ],
     signature: 'The editors',
   },
@@ -38,25 +38,25 @@ const NOTES: readonly Note[] = [
     kicker: 'Field note No. 01',
     title: 'Anna, on gifting as a practiced art.',
     body: [
-      'Anna arrives with people, not products, and a gift under $100 is a real limit. Pellier holds to it, and can show that it did.',
+      'Anna is choosing a housewarming gift under $100. It needs to be in stock, and candles are off the list. Even when she asks for another idea, those limits still matter.',
     ],
     signature: 'Anna, a gift-giver',
   },
   {
     id: 'field-note-marco',
     kicker: 'Field note No. 02',
-    title: 'Marco, on being remembered.',
+    title: 'Marco, on checking before the trip.',
     body: [
-      'Seven orders, from a Hadley linen shirt to a leather holdall, point to travel. When Marco signs back in, Pellier leads with the next piece for the trip.',
+      'Seven orders, from a Hadley linen shirt to a leather holdall, point to travel. Before his next trip, Marco wants the count in Brooklyn and the dispatch window. A piece the store does not carry needs a different answer from one that is sold out.',
     ],
     signature: 'Marco, a regular',
   },
   {
     id: 'field-note-theo',
     kicker: 'Field note No. 03',
-    title: 'Theo, on pieces that wear in.',
+    title: 'Theo, on caring for what you keep.',
     body: [
-      'First a brass incense holder, then ceramic tumblers, a stoneware pour-over set and a wabi-sabi bowl. Each piece earned the next, and Theo comes back for things that wear in.',
+      'Theo\'s orders trace a path from a brass incense holder to ceramic tumblers, a stoneware pour-over set and a wabi-sabi bowl. The bowl arrived chipped, and he wants an update on his ticket. Sharing a home with Jessica does not give him access to her case.',
     ],
     signature: 'Theo, a slow shopper',
   },
@@ -65,7 +65,7 @@ const NOTES: readonly Note[] = [
     kicker: 'Field note No. 04',
     title: 'Jessica, on being made whole.',
     body: [
-      'A sage waffle robe and a reed diffuser went back, and no credit followed. Pellier hands her request to a person, and nothing moves until Nadia approves it.',
+      'Jessica\'s sage waffle robe and reed diffuser were received back at the store. She paid $64 and $36, making a $100 credit request. Nadia must approve the request before a credit can be issued; asking again must not issue it twice.',
     ],
     signature: 'Jessica, a returning customer',
   },

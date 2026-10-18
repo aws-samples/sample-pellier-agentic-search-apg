@@ -32,6 +32,7 @@ import { Avatar } from '../design/primitives'
 import { getPersonaPhoto } from '../data/personaPhotos'
 import { IconButton } from '../design/primitives'
 import PersonaModal from './PersonaModal'
+import AnnouncementBar from './AnnouncementBar'
 import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
 import {
   ShoppingBag,
@@ -185,7 +186,16 @@ function PersonaAccountControl({
 // Header
 // ---------------------------------------------------------------------------
 
-export default function Header({
+export default function Header(props: HeaderProps) {
+  return (
+    <>
+      <AnnouncementBar />
+      <StorefrontNavigation {...props} />
+    </>
+  )
+}
+
+function StorefrontNavigation({
   current = 'home',
   onNavigate,
 }: HeaderProps) {

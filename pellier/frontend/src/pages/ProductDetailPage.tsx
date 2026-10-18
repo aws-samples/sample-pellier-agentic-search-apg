@@ -21,15 +21,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Sparkles, Star, X } from 'lucide-react'
 
-import AnnouncementBar from '../components/AnnouncementBar'
 import Footer from '../components/Footer'
 import Header, { type NavItem } from '../components/Header'
 import ProductAvailabilityPanel from '../components/ProductAvailabilityPanel'
 import ProductCard from '../components/ProductCard'
 import { asset } from '../utils/assetPath'
 import ReasoningChip from '../components/ReasoningChip'
-import ProductPhotoUnavailable from '../components/ProductPhotoUnavailable'
 import ResponsiveImage from '../components/ResponsiveImage'
+import ProductPhotoUnavailable from '../components/ProductPhotoUnavailable'
 import { TraceChip } from '../shared'
 import { useFocusTrap } from '../shared/useFocusTrap'
 import { useCart } from '../contexts/CartContext'
@@ -309,7 +308,6 @@ export default function ProductDetailPage() {
 
   return (
     <div data-testid="product-detail-page" className="pellier-page-surface min-h-dvh bg-page">
-      <AnnouncementBar />
       <Header current="shop" onNavigate={handleNavigate} />
 
       <main className="bg-page">

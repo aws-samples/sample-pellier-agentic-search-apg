@@ -1,5 +1,5 @@
 /**
- * Three editorial introductions to the corresponding FieldNotes essays.
+ * Four editorial introductions to the corresponding FieldNotes essays.
  * Each title, excerpt and named link describes the note it opens. Titles are
  * Instrument Sans like every heading; the section sits on the page ground.
  */

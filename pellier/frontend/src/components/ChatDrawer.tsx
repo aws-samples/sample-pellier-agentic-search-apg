@@ -96,7 +96,7 @@ function detectMac(): boolean {
 
 export default function ChatDrawer() {
   const {
-    activeModal, dismissDrawer, drawerOpenedByShopper, openModal, consumePendingQuery,
+    activeModal, dismissDrawer, drawerOpenedByShopper, drawerOpenRequest, openModal, consumePendingQuery,
     pendingConciergeQuery, setTurnRunning,
   } = useUI()
   const { guardrailsEnabled } = useLayout()
@@ -214,7 +214,7 @@ export default function ChatDrawer() {
     }
     const t = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50)
     return () => clearTimeout(t)
-  }, [isOpen, reducedMotion, drawerOpenedByShopper])
+  }, [isOpen, reducedMotion, drawerOpenedByShopper, drawerOpenRequest])
 
   // Return focus on close
   useEffect(() => {

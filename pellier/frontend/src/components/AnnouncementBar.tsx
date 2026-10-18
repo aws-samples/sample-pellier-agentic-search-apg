@@ -7,8 +7,8 @@
  *
  * A pulse dot on the left, a small-caps-style verb (THE HOUSE EDIT /
  * GIFT SERVICE / SERVICE) in sans semibold + wide tracking, and body copy
- * in cream. Pellier keeps this retail-facing; Pellier Observatory carries the
- * proof and trace vocabulary.
+ * in cream. These are store notes; the Builder view carries proof and trace
+ * vocabulary.
  *
  * Copy lives in copy.ts. It intentionally avoids mutable inventory and
  * verification claims; those belong on a live evidence-bearing surface.
