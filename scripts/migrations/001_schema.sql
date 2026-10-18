@@ -140,8 +140,8 @@ CREATE TABLE pellier.warehouse_inventory (
 
 -- check_stock, as shipped: the one implementation both rails call (store_tools.py
 -- runs SELECT * FROM pellier.check_stock(name) in process and in the Gateway
--- Lambda). Task 2B's worksheet, workshop/lab-2-check-stock.sql, replaces it; this
--- statement is byte-identical to that worksheet's starter, so a fresh or reset
+-- Lambda). Task 2B's SQL file, workshop/lab-2-check-stock.sql, replaces it; this
+-- statement is byte-identical to that file's starter, so a fresh or reset
 -- database ships the same function the participant starts from. As shipped, a piece
 -- Pellier does not carry returns one row with 0 units.
 -- === SHIPPED STATE - Lab 2 check_stock: START ===

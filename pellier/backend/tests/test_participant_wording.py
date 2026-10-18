@@ -1,20 +1,23 @@
-"""Participants read "exercise" and "query", never "worksheet".
+"""Participants read four verbs, never "worksheet" or "exercise".
 
-A SQL file a participant edits and runs, which commits only when its probes pass, is an
-exercise; one they only run and read is a query. The rule covers what participants read:
-the lab READMEs, START_HERE.md, the workshop map and SQL files, and the messages the checks
-and lab_run.py print. Internal identifiers, comments in Python and history keep their names.
+Run (run something supplied and read it), Apply (1A to 4A, a supplied change installed by
+command), Build (1B to 4B and Lab 1's optional fusion file) and Prove (the check that prints
+``Lab NX check passed``). A file is never labelled a worksheet or an exercise. The rule covers
+what participants read: the lab READMEs, START_HERE.md, the workshop map and SQL files, and
+the messages the checks and lab_run.py print. Internal identifiers, comments in Python and
+history keep their names, and a journey stage id may still be the string "exercise".
 """
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 from typing import Iterator, List
 
 import pytest
 
 REPO = Path(__file__).resolve().parents[3]
-RETIRED = "worksheet"
+RETIRED = re.compile(r"worksheet|\bexercises?\b", re.IGNORECASE)
 
 
 def _documents() -> List[Path]:
@@ -52,14 +55,15 @@ def test_the_rule_covers_every_file_it_names() -> None:
 
 
 @pytest.mark.parametrize("path", _documents(), ids=lambda p: str(p.relative_to(REPO)))
-def test_participant_documents_say_exercise_or_query(path: Path) -> None:
+def test_participant_documents_use_the_four_verbs(path: Path) -> None:
     lines = [f"{number}: {line.strip()}"
              for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
-             if RETIRED in line.lower()]
-    assert lines == [], f"{path.relative_to(REPO)} still says {RETIRED}"
+             if RETIRED.search(line)]
+    assert lines == [], f"{path.relative_to(REPO)} still labels a file: {lines}"
 
 
 @pytest.mark.parametrize("path", _printing_scripts(), ids=lambda p: p.name)
-def test_printed_messages_say_exercise_or_query(path: Path) -> None:
-    printed = [text for text in _message_strings(path) if RETIRED in text.lower()]
-    assert printed == [], f"{path.name} prints {RETIRED}"
+def test_printed_messages_use_the_four_verbs(path: Path) -> None:
+    printed = [text for text in _message_strings(path)
+               if text != "exercise" and RETIRED.search(text)]
+    assert printed == [], f"{path.name} prints a retired label: {printed}"

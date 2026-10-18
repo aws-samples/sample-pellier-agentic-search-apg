@@ -19,13 +19,13 @@ A task that opens with its own request sends just that one with ``--task``:
 from your file to the answer, keeps your file beside its editor link as ``.bak`` (a later,
 different attempt as ``.bak.2`` and on, so none is overwritten), restarts the backend when a
 backend file changed, and names the next command. A SQL or Cedar answer is only installed;
-running the exercise or deploying is that next command:
+running the SQL file or deploying is that next command:
 
     uv run scripts/lab_run.py solution --lab 1 --task 1A
 
 ``finish`` is a lab's "Running behind?" sequence as one command. It keeps your files as
 ``.bak`` (as ``solution --task`` does), puts the lab's answers in place, runs the lab's
-exercise, restart or deploy, sends its requests and runs every check, stopping at the
+SQL file, restart or deploy, sends its requests and runs every check, stopping at the
 first failure. Lab 4's finish also does Nadia's approval and execution in the Operator,
 then proves the same-key replay. Run again, it never opens a second credit: an approved
 review is finished rather than reopened, and a credited one is only replayed:
@@ -48,7 +48,7 @@ and the participant's file as '+' lines.
 ``solution`` copies the lab's supplied answers over the files its tasks edit,
 using the map in ``workshop/participant-files.json`` (the files the
 ``labs/0N-*/solution/`` folders link to). An entry marked ``optional`` is a Go
-deeper exercise, not a task, so ``solution`` and ``diff`` leave it alone. It
+deeper Build, not a task, so ``solution`` and ``diff`` leave it alone. It
 neither restarts the backend nor deploys; the block's next command does that.
 
 ``send`` makes the lab's requests through the local backend, the way Ask
@@ -141,7 +141,7 @@ NEXT_AFTER_TASK = {
 BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
     1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
-    2: ("run the Task 2B exercise (psql -f "
+    2: ("run the Task 2B SQL file (psql -f "
         "labs/02-ground/2B-check-stock.sql), restart the backend (sudo systemctl restart "
         "pellier), then send the lab's requests."),
     3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",

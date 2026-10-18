@@ -7,13 +7,12 @@ file.
 
 ## Run it in the terminal
 
-Every terminal starts at the repository root. You build both tasks; this lab has no supplied
-repair to apply. Pellier is already on AgentCore from Lab 3.
+Every terminal starts at the repository root. You apply 4A and build 4B. Pellier is already on AgentCore from Lab 3.
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 4A, cap the credit at $100 in Cedar | `uv run scripts/lab_run.py send --lab 4 --shopper-only`, Nadia's **Execute** in the Operator, then `uv run scripts/lab4_check.py --task 4A` | Write: [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, then deploy with `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | After 4B: **Execute again** and **Replay with the same key**, then `uv run scripts/lab4_check.py --task 4A` ends `Lab 4A check passed` |
-| 4B, let the money role write only through the function | `psql -f labs/04-govern/4B-credit-writer.sql` | Write: [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, then the same `psql` run until it ends `Lab 4B privileges check passed` | `uv run scripts/lab4_check.py --task 4B` ends `Lab 4B check passed` |
+| 4A, cap the credit at $100 in Cedar | `uv run scripts/lab_run.py send --lab 4 --shopper-only`, Nadia's **Execute** in the Operator, then `uv run scripts/lab4_check.py --task 4A` | Apply: `uv run scripts/lab_run.py solution --lab 4 --task 4A`. It shows the change to [4A-credit-policy.cedar](4A-credit-policy.cedar), the final `unless` block, installs it and keeps your file as `.bak`. Then deploy with `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant` | After 4B: **Execute again** and **Replay with the same key**, then `uv run scripts/lab4_check.py --task 4A` ends `Lab 4A check passed` |
+| 4B, let the money role write only through the function | `psql -f labs/04-govern/4B-credit-writer.sql` | Build: [4B-credit-writer.sql](4B-credit-writer.sql), region `Credit writer - privileges`, while 4A deploys, then the same `psql` run until it ends `Lab 4B privileges check passed` | `uv run scripts/lab4_check.py --task 4B` ends `Lab 4B check passed` |
 
 The deploy ends `Pellier is already using AgentCore.`
 
@@ -34,7 +33,7 @@ ends `Lab 4 absence check passed`:
 psql -f workshop/lab-4-absence.sql
 ```
 
-`4B-credit-writer.sql` deploys itself: when every probe matches, it commits your privileges
+`4B-credit-writer.sql` checks itself: when every probe matches, it commits your privileges
 for `pellier_credit_writer`; when any probe differs, it rolls back.
 
 ## Start this lab over

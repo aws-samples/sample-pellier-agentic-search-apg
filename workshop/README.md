@@ -4,7 +4,7 @@ For the participant entry point, open [START_HERE.md](../START_HERE.md) and [Pel
 
 Workshop Studio contains the instructions and recovery answers for the four labs.
 This directory is the source map and portable notebook for the **governed** track.
-The Builders event informed its pacing and exercises; `main` is a different track.
+The Builders event informed its pacing and tasks; `main` is a different track.
 
 Every task runs the same way: it fails in the terminal, you fix the marked region,
 one command proves the fix with one pass token, and then you look at it in the app.
@@ -30,17 +30,17 @@ the same checks.
 | 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `uv run scripts/lab2_check.py --task 2B` |
 | 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `uv run scripts/lab3_check.py --task 3A` |
 | 3B, Theo | Deploy, write the ownership rule (`labs/03-deploy/3B-row-ownership.sql`), then challenge it | `uv run scripts/lab3_check.py --task 3B` |
-| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`) | `uv run scripts/lab4_check.py --task 4A` |
+| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`), applied with `scripts/lab_run.py solution --lab 4 --task 4A` | `uv run scripts/lab4_check.py --task 4A` |
 | 4B, Jessica and Nadia | Let the money role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `uv run scripts/lab4_check.py --task 4B` |
 
-The two exercises run during their labs' deploys and print their own lines:
+The two SQL files run during their labs' deploys and print their own lines:
 `psql -f labs/03-deploy/3B-row-ownership.sql` ends
 `Lab 3B predicate check passed` and
 `psql -f labs/04-govern/4B-credit-writer.sql`
 ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -f workshop/lab-4-absence.sql`.
 
-Two more supplied queries read the agent from the database's side and change nothing.
+Two more supplied SQL files read the agent from the database's side and change nothing.
 After Lab 3's token, `psql -f workshop/lab-3-agent-workload.sql`
 lists the statements each role ran, from `pg_stat_statements`, and one plan with the row
 policy inside it; it ends `Lab 3 workload check passed`. At the Wrap-up,

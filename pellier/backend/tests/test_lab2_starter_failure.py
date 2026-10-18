@@ -348,14 +348,14 @@ def test_the_2b_check_passes_the_committed_solution(conn) -> None:
                                    worksheet=SOLUTION_WORKSHEET)
     assert solution.state == "PROVED", solution
     assert [row[-1] for row in rows] == ["matches"] * 4
-    assert "the live function is the one your exercise committed" in solution.observed
+    assert "the live function is the one your file committed" in solution.observed
 
 
 def test_a_right_function_your_worksheet_did_not_commit_is_not_yet(conn) -> None:
     _install(conn, lab_variants.SOLUTION)
     finding, _rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), _defaults())
     assert finding.state == "NOT YET", finding
-    assert "not the one in your exercise" in finding.observed
+    assert "not the one in your file" in finding.observed
     assert "lab-2-check-stock.sql" in finding.next_step
 
 

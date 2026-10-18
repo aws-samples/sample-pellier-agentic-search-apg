@@ -357,7 +357,7 @@ def compare_products(run: Run, *, product_id_1: Any, product_id_2: Any) -> Dict[
 # ---------------------------------------------------------------------------
 
 # The answer lives in the database: pellier.check_stock (scripts/migrations/001_schema.sql,
-# replaced by Task 2B's worksheet, workshop/lab-2-check-stock.sql). Both rails run this
+# replaced by Task 2B's SQL file, workshop/lab-2-check-stock.sql). Both rails run this
 # one statement; this module only shapes its rows.
 _CHECK_STOCK_SQL = "SELECT * FROM pellier.check_stock(%s)"
 

@@ -8,7 +8,7 @@
 -- To Aurora an agent is an application user. Every tool call is a SQL statement
 -- run by a role, and pg_stat_statements has been counting them since the cluster
 -- started: how often each statement ran, how many rows it returned and how long
--- it took. This query reads that record role by role, then shows one plan.
+-- it took. This file reads that record role by role, then shows one plan.
 --
 --   pellier_agent          the customer-scoped tools (orders, tickets). The app
 --                          and the Gateway Lambda switch into it for each call.

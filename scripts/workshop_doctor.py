@@ -3,7 +3,7 @@
 
 The evidence export says which tasks a run has proved. This answers the
 question that comes first at a table: "why is Lab N not working for me?" Each
-lab has a short list of things that must already be true before its exercise
+lab has a short list of things that must already be true before its task
 can leave evidence, and each one is checked directly rather than inferred from
 a symptom.
 
@@ -12,7 +12,7 @@ a symptom.
     Lab 2  Aurora reachable; the Stock agent definition grants check_stock alone,
            and the Stock agent that answered Marco's latest stock turn held that
            grant too (a definition saved after his latest turn is named as such);
-           the worksheet's not-carried test is written and its pellier.check_stock
+           the SQL file's not-carried test is written and its pellier.check_stock
            is the live one.
     Lab 3  Task 3A's four rules: get_tickets published, the Support agent asking
            for get_orders and get_tickets, both bound to the signed-in caller,
@@ -311,7 +311,7 @@ def _grant_check(evidence: Evidence, path: pathlib.Path) -> Check:
 
 def _function_check(evidence: Evidence, worksheet: pathlib.Path,
                     starter: pathlib.Path) -> Check:
-    """The not-carried test is written, and the function the worksheet holds is live."""
+    """The not-carried test is written, and the function the SQL file holds is live."""
     name = "check_stock committed"
     built = _region_built(name, worksheet, FUNCTION_REGION, starter)
     if not built.passed:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Restore the governed workshop exercises to their incomplete starters.
+"""Restore the governed workshop task files to their incomplete starters.
 
-This restores files. The live database state the SQL worksheets commit (Task 2B's
+This restores files. The live database state the SQL files commit (Task 2B's
 pellier.check_stock, Task 3B's row policies, Task 4B's credit-writer privileges) is
 restored by the schema rebuild in scripts/setup/database-reset.sh, which
 reset-governed-workshop.sh runs first: scripts/migrations/001_schema.sql installs each
@@ -147,11 +147,11 @@ def _read(path: Path) -> str:
 
 
 def exercises_for(lab: int | None) -> tuple[tuple[MarkerExercise, ...], tuple[FileExercise, ...]]:
-    """The marker and file exercises of one lab, or of every lab when ``lab`` is None."""
+    """The marker and file tasks of one lab, or of every lab when ``lab`` is None."""
     if lab is None:
         return MARKER_EXERCISES, FILE_EXERCISES
     if lab not in {exercise.lab for exercise in (*MARKER_EXERCISES, *FILE_EXERCISES)}:
-        raise ValueError(f"no participant exercises for Lab {lab}")
+        raise ValueError(f"no participant task files for Lab {lab}")
     return (
         tuple(e for e in MARKER_EXERCISES if e.lab == lab),
         tuple(e for e in FILE_EXERCISES if e.lab == lab),
@@ -205,14 +205,14 @@ def restore_lab(repo: Path, lab: int | None = None) -> list[str]:
     """Restore one lab's files (every lab's when None); return the exercise ids restored.
 
     Raises:
-        ValueError: the lab has no participant exercises, or a marker pair is damaged.
+        ValueError: the lab has no participant task files, or a marker pair is damaged.
         FileNotFoundError: a starter or destination file is missing.
         RuntimeError: a file still differs from its starter after the restore.
     """
     _restore(repo, lab)
     mismatches = _check(repo, lab)
     if mismatches:
-        raise RuntimeError("participant exercise reset failed: " + ", ".join(mismatches))
+        raise RuntimeError("participant task file reset failed: " + ", ".join(mismatches))
     markers, files = exercises_for(lab)
     return [exercise.exercise_id for exercise in (*markers, *files)]
 
@@ -244,7 +244,7 @@ def main() -> int:
             mismatches = _check(repo, args.lab)
             if mismatches:
                 print(
-                    "participant exercises are not as shipped: "
+                    "participant task files are not as shipped: "
                     + ", ".join(mismatches),
                     file=sys.stderr,
                 )
@@ -254,7 +254,7 @@ def main() -> int:
         restore_lab(repo, args.lab)
         return 0
     except (FileNotFoundError, ValueError, RuntimeError) as exc:
-        print(f"participant exercise reset failed: {exc}", file=sys.stderr)
+        print(f"participant task file reset failed: {exc}", file=sys.stderr)
         return 1
 
 

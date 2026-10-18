@@ -52,22 +52,25 @@ participant's named task and prediction before proposing a change.
 | 3A | Apply by command | `labs/03-deploy/3A-1-publish-tool.py` | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
 | 3A | Apply by command | `labs/03-deploy/3A-2-bind-caller.py` | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
 | 3B | Build | `labs/03-deploy/3B-row-ownership.sql` | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
-| 4A | Build | `labs/04-govern/4A-credit-policy.cedar` | `policies/workshop_credit_limit.cedar` | final `unless` block |
+| 4A | Apply by command | `labs/04-govern/4A-credit-policy.cedar` | `policies/workshop_credit_limit.cedar` | final `unless` block |
 | 4B | Build | `labs/04-govern/4B-credit-writer.sql` | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
 
 The `labs/` names are links to the application's own files. The participant builds 1B, 2B,
-3B, 4A and 4B in the marked region. 1A, 2A and 3A they apply by command after seeing the change
+3B and 4B in the marked region. 1A, 2A, 3A and 4A they apply by command after seeing the change
 (`uv run scripts/lab_run.py solution --lab N --task NX`); explain the change, do not write it
 for them. Task 3B writes the row-ownership predicate while the deploy runs, then challenges it.
-Lab 1's meaning query (`workshop/lab-1-meaning.sql`, run before Task 1A), Lab 3's
-live row-level security check (`scripts/lab3_row_ownership_check.py`), Lab 3's workload
-query (`workshop/lab-3-agent-workload.sql`), Lab 4's keyed absence check
-(`workshop/lab-4-absence.sql`), Task 4B's check (`scripts/lab4_check.py --task 4B`) and the
-Wrap-up's reconstruction (`workshop/wrap-up-reconstruct.sql`) are supplied; none has a
-region to author. A SQL file a participant edits and runs is an exercise; one they only run is
-a query.
+The supplied SQL file for Lab 1's meaning distances (`workshop/lab-1-meaning.sql`, run before
+Task 1A), Lab 3's live row-level security check (`scripts/lab3_row_ownership_check.py`), the
+supplied SQL file for Lab 3's agent workload (`workshop/lab-3-agent-workload.sql`), Lab 4's
+keyed absence check (`workshop/lab-4-absence.sql`), Task 4B's check
+(`scripts/lab4_check.py --task 4B`) and the Wrap-up's reconstruction
+(`workshop/wrap-up-reconstruct.sql`) are run, not authored; none has a region to build.
+Participants use four verbs: Run (run something supplied and read it), Apply (1A to 4A, a
+supplied change installed by command), Build (1B to 4B and Lab 1's optional fusion file) and
+Prove (the check that prints `Lab NX check passed`). Do not call a file a worksheet, an
+exercise or a query.
 Use the exact START–END comments in each file; for Cedar, edit only the final
-`unless` block inside its exercise boundary. This table grants access only to
+`unless` block inside its task boundary. This table grants access only to
 the task the participant names, never every file at once.
 
 - Ask for the prediction first. Name the invariant, then ask one question
@@ -80,7 +83,7 @@ the task the participant names, never every file at once.
   output, or `takeaway/`, which holds the finished patterns participants take
   home.
 - Do not edit tests, dependencies, deployment configuration or infrastructure.
-  The named Cedar block and Gateway catalogue block are the explicit exercise
+  The named Cedar block and Gateway catalogue block are the explicit task
   exceptions; they do not authorize other policy or deployment edits.
 - Do not read credentials, tokens, environment secrets or unrelated customer data.
 - The participant runs the guide's checks, restarts, deployments, resets and business
@@ -148,10 +151,10 @@ anchored to one person, in climbing order of difficulty:
 task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the
 nine marked regions, starter fragments, and recovery references behind the
 eight tasks. Every task runs in the terminal first: See it fail is a command,
-Build is the region, Prove it is one check and one pass token, and the app
-comes after the token.
+Apply installs a supplied change, Build is the region, Prove it is one check
+and one pass token, and the app comes after the token.
 Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
-deployed build fingerprint includes that edit. Do not move the exercise to an
+deployed build fingerprint includes that edit. Do not move the task to an
 unpackaged file or infer deployed completion from source inspection.
 
 The schedule is 120 minutes. Getting started happens as people arrive, before the talk.

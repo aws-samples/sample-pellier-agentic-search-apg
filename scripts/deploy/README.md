@@ -65,7 +65,7 @@ Memory, authenticate test users, and verify the deployed path.
 
 Runtime and Gateway have service-managed workload identities. The workshop does
 not configure outbound credential providers or managed AgentCore Evaluations.
-See the [implementation and exercise map](../../docs/AGENTCORE-READINESS.md).
+See the [implementation and task map](../../docs/AGENTCORE-READINESS.md).
 
 ## Prerequisites
 

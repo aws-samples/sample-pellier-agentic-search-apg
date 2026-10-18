@@ -3,7 +3,7 @@
 ``uv run scripts/lab_run.py reset --lab N`` calls :func:`reset_lab`. A lab's start has
 four parts, and each is restored by the one source that defines it:
 
-    files         the lab's marked regions and worksheets, from ``workshop/starters/``
+    files         the lab's marked regions and SQL files, from ``workshop/starters/``
                   through ``reset_participant_exercises`` (the same table the whole
                   reset uses, filtered to the lab)
     database      Lab 2's ``pellier.check_stock``, Lab 3's two owner policies, Lab 4's
@@ -54,7 +54,7 @@ SHIPPED_BLOCKS = {2: "Lab 2 check_stock", 3: "Lab 3 row ownership", 4: "Lab 4 cr
 # What a lab's database piece must remove before the shipped statements run. Lab 2's
 # CREATE OR REPLACE keeps the function's comment, so the stamp is cleared; Lab 3's policies
 # are dropped so the shipped policies are created on a clean name (a new policy has no stamp);
-# Lab 4's worksheet grants and policies are revoked and dropped, then the shipped
+# Lab 4's SQL file grants and policies are revoked and dropped, then the shipped
 # statements grant the function alone.
 _CREDIT_FUNCTION = "pellier.apply_store_credit(text, text, integer, text, text)"
 CLEAN_BEFORE = {

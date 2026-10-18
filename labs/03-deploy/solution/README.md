@@ -16,7 +16,7 @@ uv run scripts/lab_run.py solution --lab 3 --task 3A   # or 3B
 
 Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
 requests and run every check, stopping at the first failure. It deploys to AgentCore, which
-takes about three minutes, and runs the row-ownership exercise.
+takes about three minutes, and runs the row-ownership file.
 
 ```bash
 uv run scripts/lab_run.py finish --lab 3

@@ -3,7 +3,7 @@
 # dry-run-builders.sh — end-to-end simulation of the participant path
 # =============================================================================
 # Run this before a 100-person room to catch breakage the health gate can't:
-# it actually exercises the required lab path against the live backend.
+# it actually runs the required lab path against the live backend.
 #
 #   1. Preconditions  — health gate must be READY
 #   1b. Claude Code   — CLI present + pinned Bedrock model reachable
@@ -16,9 +16,9 @@
 #
 # This applies both Lab 2 solutions temporarily and creates the same audit
 # evidence rows as a participant: the Stock agent definition block in its source
-# file, and the check_stock worksheet's function in the database. On exit it
+# file, and the check_stock SQL file's function in the database. On exit it
 # restores the source file from its backup and reinstalls the as-shipped
-# pellier.check_stock from the worksheet starter, unless --keep is passed. Run it
+# pellier.check_stock from the SQL file starter, unless --keep is passed. Run it
 # on a workshop environment, not a production database.
 #
 # Usage:
@@ -41,7 +41,7 @@ AGENT_REFERENCE="${REPO}/solutions/waking-the-stock-keeper/agents/stock_agent_so
 BACKUP_SUFFIX=".dryrun.$$.bak"
 # Participants edit only the START/END blocks. The rehearsal mirrors that
 # contract by copying the reference block into the live file and running the
-# reference worksheet; it never swaps a whole module or changes code outside the
+# reference SQL file; it never swaps a whole module or changes code outside the
 # workshop markers.
 KEEP=false
 [[ "${1:-}" == "--keep" ]] && KEEP=true
@@ -73,7 +73,7 @@ _psql_file() {
     -U "${DB_USER:-postgres}" -d "${DB_NAME:-postgres}" -f "$1"
 }
 
-# The as-shipped function: the CREATE statement in the worksheet starter, which
+# The as-shipped function: the CREATE statement in the SQL file starter, which
 # scripts/migrations/001_schema.sql holds byte for byte.
 reinstall_shipped_function() {
   sed -n '/^CREATE OR REPLACE FUNCTION pellier.check_stock(/,/^\$check_stock\$;$/p' \
@@ -178,7 +178,7 @@ fi
 # Model selection is left to ANTHROPIC_MODEL on purpose. Passing `--model
 # sonnet` would override the pin with the CLI's floating alias and could test
 # a different model than participants use. bootstrap-labs.sh pins the same
-# variable, so this exercises the participant path.
+# variable, so this runs the participant path.
 #
 # What this deliberately does NOT do: drive a real Claude Code edit. A
 # generated diff is nondeterministic, and the deterministic contract is the
@@ -223,7 +223,7 @@ if _psql_file "$WORKSHEET_REFERENCE" >/tmp/dryrun-check-stock.log 2>&1 \
   pass "Committed the reference pellier.check_stock (Lab 2B function check passed)"
 else
   FUNCTION_APPLIED=true
-  fail "The reference check_stock worksheet did not pass — see /tmp/dryrun-check-stock.log"
+  fail "The reference check_stock SQL file did not pass — see /tmp/dryrun-check-stock.log"
   exit 1
 fi
 info "Waiting 4s for uvicorn --reload to pick up the change…"

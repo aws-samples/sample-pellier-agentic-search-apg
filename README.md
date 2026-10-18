@@ -74,7 +74,7 @@ flowchart LR
 
 ### In the workshop
 
-Start with [START_HERE.md](START_HERE.md). Code Editor opens [Pellier.code-workspace](Pellier.code-workspace): **01 - Retrieve**, **02 - Ground**, **03 - Deploy**, **04 - Govern**, and **05 - Explore Pellier source**. Each lab has a short README, links to its actual exercise files, and a solution folder for the documented recovery path. The terminal always starts at the repository root.
+Start with [START_HERE.md](START_HERE.md). Code Editor opens [Pellier.code-workspace](Pellier.code-workspace): **01 - Retrieve**, **02 - Ground**, **03 - Deploy**, **04 - Govern**, and **05 - Explore Pellier source**. Each lab has a short README, links to its actual task files, and a solution folder for the documented recovery path. The terminal always starts at the repository root.
 
 At an AWS event, Workshop Studio gives you an AWS account with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide with every step and check. The guide is the source of truth for the labs; this repository holds the app and the code you edit.
 
@@ -135,8 +135,8 @@ Then run `/governed-postgres-agent review <path>` on your team's agent code. Its
 | `pellier/frontend/` | React and TypeScript app: the storefront, Ask Pellier and the Operator |
 | `skills/` | Five runtime skills: instructions the agents load, not code |
 | `policies/` | The Cedar policy you complete in Lab 4 |
-| `labs/` | The Code Editor lab groups: each lab's README, links to its two exercise files, and a solution folder |
-| `workshop/` | Lab SQL exercises and queries, and a copy of each marked region as shipped |
+| `labs/` | The Code Editor lab groups: each lab's README, links to its task files, and a solution folder |
+| `workshop/` | The SQL files labs build or run, and a copy of each marked region as shipped |
 | `solutions/` | Reference solutions for the lab tasks |
 | `takeaway/` | `governed-postgres-agent`, how a DBA reviews an agent: the four contracts as an Agent Skill |
 | `scripts/` | Database setup and migrations, catalog seeding, AgentCore deployment and lab checks |

@@ -46,9 +46,9 @@ Times are elapsed minutes from the start of the session.
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
 Lab 4's deploys are inside their budgets, and each of those labs runs its
-exercise during the wait. An unrun check stays incomplete.
+SQL file during the wait. An unrun check stays incomplete.
 
-Participants write 1B, 2B, 3B, 4A and 4B in the marked region. They apply 1A, 2A and 3A by
+Participants build 1B, 2B, 3B and 4B in the marked region. They apply 1A, 2A, 3A and 4A by
 command after seeing the change: `uv run scripts/lab_run.py solution --lab N --task NX`.
 `uv run scripts/lab_run.py finish --lab N` finishes one lab.
 `uv run scripts/lab_run.py fast-track` finishes Labs 1 and 2 in order, stopping at the first
@@ -56,7 +56,7 @@ failure. Either lab can still be finished individually with its `finish --lab` c
 
 ## What participants use
 
-Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the exercise files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files are exercises that deploy themselves: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional exercise; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` and `finish` leave it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+Code Editor opens `Pellier.code-workspace` and `START_HERE.md`. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the task files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files deploy themselves when run: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional Build; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` and `finish` leave it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
 To see where a stuck participant's files depart from the answer without overwriting them, run `uv run scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
@@ -165,7 +165,7 @@ Marco needs reliable stock and dispatch facts before his trip.
   done; it ends `Lab 2A check passed`.
 - **Task 2B:** write the not-carried test in `pellier.check_stock`
   (`labs/02-ground/2B-check-stock.sql`, region `Stock check - not carried`). The
-  exercise commits the function only when its four probes match and ends
+  file commits the function only when its four probes match and ends
   `Lab 2B function check passed`; `uv run scripts/lab2_check.py --task 2B`
   then runs the live function and ends `Lab 2B check passed`.
 - **Lesson:** an agent can only claim what its tool returns, and a missing
@@ -190,7 +190,7 @@ Theo wants his taste remembered and help with his own chipped bowl.
   refused on a shopper agent (published is not permitted). It ends
   `Lab 3A check passed`.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
-  row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; its exercise commits
+  row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; the file commits
   the predicate as the live policy once every probe matches and ends `Lab 3B
   predicate check passed`. Then `uv run scripts/lab_run.py send --lab 3` sends
   Theo's three sentences, including the household request ("Jessica and I
@@ -219,13 +219,14 @@ credit, and the system must prove what moved.
   shipped, a forbid, denying Nadia's approved credits. `uv run scripts/lab_run.py send
   --lab 4 --shopper-only` sends Jessica's request; in the Operator, Nadia
   approves her $100.00 credit and **Execute** reads DENY.
-- **Task 4A:** write the final `unless` block of
-  `policies/workshop_credit_limit.cedar` so one credit may be at most $100,
-  then deploy it with `--mode participant`.
+- **Task 4A:** read the supplied rule, then apply it with
+  `uv run scripts/lab_run.py solution --lab 4 --task 4A`. It replaces the final `unless`
+  block of `policies/workshop_credit_limit.cedar` so one credit may be at most $100, and
+  deploys nothing. Deploy it with `--mode participant`.
 - **Task 4B:** during the deploy, write the money role's privileges in
   `labs/04-govern/4B-credit-writer.sql`. As shipped it over-grants: its probes show
   `pellier_credit_writer` raising an approved $25 credit to $500 with a direct
-  `UPDATE`. The exercise commits the privileges once all eight probes match
+  `UPDATE`. The file commits the privileges once all eight probes match
   and ends `Lab 4B privileges check passed`.
 - **The decision:** Nadia selects **Execute again** (ALLOW, recorded once),
   then **Replay with the same key** (nothing written twice).
@@ -273,7 +274,7 @@ explicitly, and keep the failed measurement.
 
 Give every dry run its own fresh provision. Do not reuse a box after a
 maintainer reset: `scripts/reset-governed-workshop.sh` rebuilds the database,
-restores the exercise files and Lab 4's Cedar rule as shipped, but it does
+restores the task files and Lab 4's Cedar rule as shipped, but it does
 not undo Lab 3's deploy. The Gateway still publishes `get_tickets` with its
 owner-only permit, and the Runtime still runs the last participant's build, so
 Lab 3's See it fail no longer fails and its build check compares the restored

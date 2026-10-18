@@ -2,7 +2,7 @@
 
 These files are facilitator recovery paths and readable reference implementations. A participant who uses a reference still runs the same live proof.
 
-The commands below recover one task. To recover a whole lab, `uv run scripts/lab_run.py solution --lab N` copies its tasks' answers, and after the restart or deployment `uv run scripts/lab_run.py send --lab N` makes that lab's requests. Each guide's "Running behind?" block chains them with the lab's worksheets and checks.
+The commands below recover one task. To recover a whole lab, `uv run scripts/lab_run.py solution --lab N` copies its tasks' answers, and after the restart or deployment `uv run scripts/lab_run.py send --lab N` makes that lab's requests. Each guide's "Running behind?" block chains them with the lab's SQL files and checks.
 
 ## Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
 
@@ -27,7 +27,7 @@ Restart the backend after the copies. The checks are unchanged:
 `uv run scripts/lab_run.py send --lab 1` writes a receipt,
 `uv run scripts/lab1_check.py --task 1B` reads that search's products.
 
-The optional Go deeper worksheet's answer is
+The optional Go deeper Build's answer is
 `solutions/the-quiet-search/sql/lab-1-fusion-solution.sql`; `scripts/lab_run.py solution`
 leaves `workshop/lab-1-fusion.sql` alone.
 
@@ -40,7 +40,7 @@ cp solutions/waking-the-stock-keeper/agents/stock_agent_solution.py \
   pellier/backend/agents/stock_agent.py
 ```
 
-Task 2B's recovery restores a worksheet whose `pellier.check_stock` tests for
+Task 2B's recovery restores a SQL file whose `pellier.check_stock` tests for
 the product before it aggregates, so a piece Pellier does not carry returns no
 row. Run it to commit the function:
 
@@ -128,10 +128,10 @@ deployed engine, so the next participant opens Lab 4 with the live DENY.
 The one-hour builders format pre-applies selected reference files. The governed
 format restores every participant region to its starter with
 `scripts/reset_participant_exercises.py`: the vector branch and the search-plan
-fallback for Lab 1 (and its optional RRF worksheet), the `check_stock` body and
+fallback for Lab 1 (and its optional RRF fusion file), the `check_stock` body and
 the Stock agent definition for Lab 2, the Gateway catalogue, the Runtime support
-contract and the RLS worksheet for Lab 3, and the Cedar rule and the credit
-writer worksheet for Lab 4: nine regions and ten starters. Its `--check` holds
+contract and the RLS SQL file for Lab 3, and the Cedar rule and the credit
+writer SQL file for Lab 4: nine regions and ten starters. Its `--check` holds
 every live region to its starter, and a test requires an entry for every file
 under `workshop/starters/`.
 `scripts/bootstrap-labs.sh` is the source of truth for that branch-specific

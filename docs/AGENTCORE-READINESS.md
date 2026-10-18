@@ -1,4 +1,4 @@
-# AgentCore implementation and exercise map
+# AgentCore implementation and task map
 
 This is the maintainer contract for the governed workshop. Workshop Studio owns
 the participant instructions. Provisioning establishes the baseline; each
@@ -109,7 +109,7 @@ configuration, and list, get and retrieve to agree on real record ids and
 namespaces. It never writes long-term records. `scripts/health-gate.sh` checks
 the same configuration.
 
-## Exercises and recovery
+## Tasks and recovery
 
 Four labs, eight tasks, nine marked regions. Recovery copies a reference into
 the region and converges on the same checks. It cannot produce AWS evidence,

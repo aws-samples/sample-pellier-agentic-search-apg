@@ -513,7 +513,8 @@ def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, your
                  escaped: List[str], counterfactual_holds: bool) -> Tuple[str, str]:
     """The verdict and the next step, in the order the check reads them."""
     if unchanged:
-        return check.NOT_YET, "edit the final unless block, then run this again."
+        return check.NOT_YET, ("apply the supplied rule with uv run scripts/lab_run.py "
+                               "solution --lab 4 --task 4A, then run this again.")
     if not head_kept:
         return check.CONTRADICTED, ("edit only the final unless block: the lines before it (the "
                                     "principal, the give_store_credit action and the Gateway) "

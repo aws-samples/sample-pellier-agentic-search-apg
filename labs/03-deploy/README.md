@@ -15,11 +15,11 @@ AgentCore.
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|
 | 3A, publish `get_tickets` and bind it to the caller | `uv run scripts/lab3_check.py --task 3A` | Apply: `uv run scripts/lab_run.py solution --lab 3 --task 3A`. It shows the change to [3A-1-publish-tool.py](3A-1-publish-tool.py) and [3A-2-bind-caller.py](3A-2-bind-caller.py), installs it and keeps your files as `.bak` | `uv run scripts/lab3_check.py --task 3A` ends `Lab 3A check passed` |
-| 3B, deploy, write the ownership rule, then challenge it | `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant`, then in a second terminal `psql -f labs/03-deploy/3B-row-ownership.sql` | Write: [3B-row-ownership.sql](3B-row-ownership.sql), region `Row ownership - predicate`, then the same `psql` run until it ends `Lab 3B predicate check passed` | `uv run scripts/lab_run.py send --lab 3`, then `uv run scripts/lab3_check.py --task 3B` ends `Lab 3B check passed` |
+| 3B, deploy, write the ownership rule, then challenge it | `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant`, then in a second terminal `psql -f labs/03-deploy/3B-row-ownership.sql` | Build: [3B-row-ownership.sql](3B-row-ownership.sql), region `Row ownership - predicate`, then the same `psql` run until it ends `Lab 3B predicate check passed` | `uv run scripts/lab_run.py send --lab 3`, then `uv run scripts/lab3_check.py --task 3B` ends `Lab 3B check passed` |
 
 The order is: the 3A check fails, you apply 3A, the 3A check passes, then the deploy. No send
 comes before the deploy, because only the deploy moves Pellier onto the AgentCore path that
-`send --lab 3` needs. After it come the 3B exercise, `uv run scripts/lab_run.py send --lab 3`
+`send --lab 3` needs. After it come the 3B file, `uv run scripts/lab_run.py send --lab 3`
 and the 3B check.
 
 The deploy carries your 3A files to Runtime and Gateway. When it reports ready it moves Pellier
@@ -37,7 +37,7 @@ the remembered record the check printed, his ticket read bound to `CUST-THEO`, a
 request staying on his account. The AgentCore console shows the Runtime, the Gateway and the
 Memory record.
 
-Then look from the database's side. This supplied query reads `pg_stat_statements` and
+Then look from the database's side. This supplied SQL file reads `pg_stat_statements` and
 lists what each role ran: the agent's reads as `pellier_agent`, the app's own login, and one
 plan with the row policy inside it. It only reads.
 

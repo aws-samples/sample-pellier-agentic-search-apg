@@ -84,7 +84,7 @@ _CASE_LABEL = {"unknown": "not carried", "several": "several", "sold_out": "sold
                "in_stock": "in stock"}
 EXPECTED_2B = ("not carried -> not_found with no count; several -> ambiguous with the "
                "candidates; sold out -> success with 0 units; in stock -> success with "
-               "the warehouse rows; the live pellier.check_stock is your exercise's")
+               "the warehouse rows; the live pellier.check_stock is the one in your file")
 _NEXT_2B = ("what should a piece Pellier does not carry return? Write that test in the "
             f"{FUNCTION_REGION} region of workshop/lab-2-check-stock.sql, then run it: "
             f"{WORKSHEET_RUN}. It commits your function only when its four probes match.")
@@ -403,7 +403,7 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
 
 
 def function_body(text: str) -> Optional[str]:
-    """The function source between the worksheet's ``$check_stock$`` quotes, or None."""
+    """The function source between the SQL file's ``$check_stock$`` quotes, or None."""
     parts = text.split(_DOLLAR)
     return parts[1] if len(parts) == 3 else None
 
@@ -429,11 +429,11 @@ def judge_function(conn: Any, worksheet: pathlib.Path = WORKSHEET,
     evidence = (f"pg_proc: pellier.check_stock source sha256 {check.short(live['source_sha'])}, "
                 f"comment '{live['stamp'] or 'none'}'")
     if yours and live["source_sha"] == yours and live["stamp"] == STAMP_PREFIX + yours:
-        return None, "the live function is the one your exercise committed", evidence
+        return None, "the live function is the one your file committed", evidence
     if shipped and live["source_sha"] == shipped:
-        return (check.NOT_YET, "the live function is the one Pellier shipped; your exercise has "
+        return (check.NOT_YET, "the live function is the one Pellier shipped; your file has "
                                "not committed", evidence)
-    return (check.NOT_YET, "the live function is not the one in your exercise: run it again",
+    return (check.NOT_YET, "the live function is not the one in your file: run it again",
             evidence)
 
 
@@ -485,7 +485,7 @@ def judge_2b(
     if function_state is not None:
         return check.Finding("2B", title, function_state, EXPECTED_2B,
                              f"{observed}; {function_observed}", evidence,
-                             f"run your exercise so its function is the live one: {WORKSHEET_RUN}"
+                             f"run your file so its function is the live one: {WORKSHEET_RUN}"
                              ), rows
     return check.Finding("2B", title, check.PROVED, EXPECTED_2B,
                          f"{observed}; {function_observed}", evidence), rows
@@ -512,7 +512,7 @@ EXPECTED_2B_RECORDED = (
     "catalog's answer")
 _NEXT_2B_RECORDED = (
     "what should pellier.check_stock return for a piece Pellier does not carry? Commit your "
-    f"exercise ({WORKSHEET_RUN}), send Marco's requests again ({SEND}), then rerun this.")
+    f"file ({WORKSHEET_RUN}), send Marco's requests again ({SEND}), then rerun this.")
 
 
 def recorded_cases(conn: Any) -> Dict[str, Tuple[Dict[str, Any], Dict[str, Any]]]:
@@ -568,7 +568,7 @@ def judge_recorded_2b(conn: Any) -> check.Finding:
 def with_resend_hint(live: check.Finding, recorded: check.Finding) -> check.Finding:
     """The live 2B finding, with a line when Marco's recorded turns predate the commit.
 
-    The check runs the live function, so it passes the moment the worksheet
+    The check runs the live function, so it passes the moment the SQL file
     commits. Marco's chat and the evidence export read his recorded turns, so they
     show the change only once his requests are sent again.
     """

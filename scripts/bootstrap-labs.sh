@@ -180,7 +180,7 @@ fi
 # Studio box shipped with a live detached checkout at the pinned SHA and the
 # workspace stayed on live git. `"git.enabled": false` hides the Source Control
 # panel, but the terminal is untouched: `git checkout -- .` silently reverts the
-# exercise a participant is midway through, and `git stash` loses it
+# task file a participant is midway through, and `git stash` loses it
 # with no visible trace. Neither is a thing anyone does on purpose; both are
 # things people type out of habit.
 #
@@ -208,7 +208,7 @@ if [ -d "$REPO_PATH/.git" ]; then
 EOF
     fi
     rm -rf "$REPO_PATH/.git"
-    log "✅ Workspace detached from git (participants cannot revert the exercise)"
+    log "✅ Workspace detached from git (participants cannot revert the task files)"
 fi
 
 # ============================================================================
@@ -975,7 +975,7 @@ if [ -n "$DB_HOST" ]; then
     if [ "$WAREHOUSE_ROWS" -gt 0 ]; then
         log "✅ Warehouse inventory verified ($WAREHOUSE_ROWS rows)"
     else
-        warn "⚠️  Warehouse inventory missing — check_stock exercise will not land"
+        warn "⚠️  Warehouse inventory missing — check_stock task will not land"
     fi
 fi
 
@@ -1286,7 +1286,7 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
 
     # ---- agent_tools.py builders variant ----
     # Byte-identical to the governed module: check_stock's answer lives in the
-    # database function pellier.check_stock, so this file holds no exercise.
+    # database function pellier.check_stock, so this file holds no task.
     copy_solution "solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py" \
                   "pellier/backend/services/agent_tools.py" "Agent tools (builders variant)"
 
@@ -1310,14 +1310,14 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     copy_solution "solutions/the-ledger/services/otel_trace_extractor.py" \
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
     else
-        log "Governed format: restoring every participant exercise to its starter"
+        log "Governed format: restoring every participant task file to its starter"
         if (
             cd "$REPO_PATH"
             python3.14 scripts/reset_participant_exercises.py --repo "$REPO_PATH"
         ); then
-            log "✅ Governed format: every participant exercise holds its starter"
+            log "✅ Governed format: every participant task file holds its starter"
         else
-            fail "Governed participant exercise reset failed"
+            fail "Governed participant task file reset failed"
         fi
     fi
 
@@ -1452,7 +1452,7 @@ EOF
         upsert_env "AGENTCORE_GATEWAY_ARN" "$GATEWAY_ARN" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_URL" "$GATEWAY_URL" "$REPO_PATH/.env"
         if [ "${WORKSHOP_FORMAT}" = "governed" ]; then
-            # Labs 1 and 2 must exercise the participant's local Inventory
+            # Labs 1 and 2 must run against the participant's local Inventory
             # Agent and hybrid retrieval code. Lab 3 deliberately switches
             # the storefront to this already-provisioned Runtime, after the
             # participant has proved the in-process rail.

@@ -2,14 +2,14 @@
 
 Pellier is a retail store building an agentic system for product discovery and
 customer support. Four customers each bring one leadership question, and each lab
-answers one: the participant sees the starter fail it in the terminal, fixes the
-marked region, proves the fix with one command, and only then looks at it in
+answers one: the participant sees the starter fail it in the terminal, applies a supplied change or builds
+the marked region, proves the fix with one command, and only then looks at it in
 the app.
 
 **Respect the requirements → know the facts → establish the caller → govern the action.**
 
 The source contract is `workshop/story-arc.json`. Workshop Studio owns the full
-exercises. In `story-arc.json`, `title` is the lab name and `storyTitle` the
+lab guides. In `story-arc.json`, `title` is the lab name and `storyTitle` the
 persona-led scenario; keep the technical titles as the headings.
 
 | Lab | Customer | Leadership question |
@@ -22,8 +22,10 @@ persona-led scenario; keep the technical titles as the headings.
 ## Every task: fail in the terminal, fix the region, prove it, then look
 
 See it fail is a command in the Code Editor terminal that prints the failure as
-evidence: a worksheet, a check, or `uv run scripts/lab_run.py send`, which
-sends the customer's exact sentence. Build is the edit in the named region.
+evidence: a supplied SQL file, a check, or `uv run scripts/lab_run.py send`, which
+sends the customer's exact sentence. The fix is one of two verbs: Apply installs a
+supplied change by command (1A to 4A) and Build is the edit in the named region (1B to 4B and
+Lab 1's optional fusion file). Run is for a supplied file you only run and read.
 Prove it is one command and one pass token. The Storefront's Builder view, the
 Operator and the AgentCore console come after the token and show what the
 terminal proved; nothing the proof depends on happens there. Lab 4's decisions
@@ -40,13 +42,13 @@ starter fails the way See it fail shows and the solution does not.
 | 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector branch ranks nothing by meaning; after her request is sent, `lab1_retry.py` shows the retry dropped her limits | 1A: read the distances in `workshop/lab-1-meaning.sql`, then rank the eligible products by meaning. 1B: the fallback keeps her limits |
 | 2 | After Marco's requests, `lab2_check.py --task 2A` shows the answering Stock agent held only catalog tools, so its `check_stock` call never ran; once it does, the cape reads 0 in stock and `workshop/lab-2-check-stock.sql` shows the aggregate's NULL sum | 2A: connect `check_stock` to the Stock agent, alone. 2B: `pellier.check_stock` keeps "not carried" apart from sold out |
 | 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway and the starter Support agent without the reads Theo's household request needs; `workshop/lab-3-row-ownership.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: assemble the Support agent: publish `get_tickets`, ask for `get_orders` and `get_tickets`, and bind every tool that takes a `customer_id`. 3B: deploy, write the ownership rule, then challenge it |
-| 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: the $100 per-credit limit in Cedar. 4B: the money role writes only through the credit function |
+| 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: read the $100 per-credit limit in Cedar, then apply it. 4B: the money role writes only through the credit function |
 
 ## Nine marked regions, one check per task
 
 Paths under `services/` and `agents/` are in `pellier/backend/`. A task's
-check prints `Lab NB check passed`; a worksheet a task's Build runs prints
-`Lab NB <thing> check passed`; a worksheet that belongs to no task carries no
+check prints `Lab NB check passed`; a SQL file a task's Build runs prints
+`Lab NB <thing> check passed`; a SQL file that belongs to no task carries no
 task letter.
 
 | Task | Region | Check | Pass token |
@@ -54,13 +56,13 @@ task letter.
 | 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `uv run scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
 | 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `uv run scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
 | 2A | `agents/stock_agent.py`, `Stock agent - definition` | `uv run scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
-| 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its worksheet prints `Lab 2B function check passed`) | `uv run scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
+| 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its SQL file prints `Lab 2B function check passed`) | `uv run scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
 | 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `uv run scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
-| 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its worksheet prints `Lab 3B predicate check passed`) | `uv run scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
+| 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its SQL file prints `Lab 3B predicate check passed`) | `uv run scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
 | 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `uv run scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
-| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its worksheet prints `Lab 4B privileges check passed`) | `uv run scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
+| 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its SQL file prints `Lab 4B privileges check passed`) | `uv run scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
 
-Lab 1's Go deeper keeps the RRF worksheet (`workshop/lab-1-fusion.sql`, region
+Lab 1's Go deeper keeps the RRF fusion file (`workshop/lab-1-fusion.sql`, region
 `PostgreSQL RRF - fusion expression`, `Lab 1 fusion check passed`); it is not a
 task. Lab 4's "What you proved" runs the supplied `workshop/lab-4-absence.sql`
 (`Lab 4 absence check passed`). After Lab 3's token the supplied `workshop/lab-3-agent-workload.sql`
@@ -103,10 +105,10 @@ workshop and takes no teaching time in the Wrap-up.
   extracted from it, never permission. One ownership expression serves USING
   and WITH CHECK on `orders` and `support_tickets`: Theo's own rows are
   visible, Jessica's return 0, a ticket written in her name fails with 42501,
-  and every customer sees exactly their own rows; only then does the worksheet
+  and every customer sees exactly their own rows; only then does the SQL file
   commit the predicate as the live policy, after undoing its probe writes.
   The live check reads the policy's stamp and probes both database paths.
-- **4A:** the participant's rule is evaluated with the real Cedar engine
+- **4A:** the applied rule is evaluated with the real Cedar engine
   (`cedarpy`) beside the rendered baseline: shopper $100 DENY (the baseline's
   doing, not the rule's), Nadia 1, 9999 and 10000 cents ALLOW, 10001 DENY, the
   same for a second staff member and other customers, three read tools still
@@ -120,7 +122,7 @@ workshop and takes no teaching time in the Wrap-up.
   approval of Jessica's 10000-cent case executes once and a retry adds nothing.
 - **4B:** `pellier_credit_writer` may execute `pellier.apply_store_credit`,
   which runs with its owner's rights and a pinned `search_path`, and nothing
-  else. The worksheet's probes, on a probe case of its own, show the function
+  else. The SQL file's probes, on a probe case of its own, show the function
   refusing a credit no one approved and a direct insert or a direct `UPDATE` of
   an approved $25 credit to $500 refused with 42501; only then does it commit
   the privileges. The live check confirms the function carries the file's
@@ -134,4 +136,4 @@ The schedule is 20 minutes for the opening talk, 10 for the Introduction and
 Getting started, then 15, 20, 25 and 25 minutes for Labs 1 to 4, and 5 for the
 Wrap-up: all 120 minutes of the slot, with no time held for recovery. These are
 targets until a timed fresh-account rehearsal confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
-each of those labs runs its worksheet task during its wait.
+each of those labs runs its SQL task during its wait.

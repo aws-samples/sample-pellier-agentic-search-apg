@@ -11,7 +11,7 @@ Every terminal starts at the repository root. You apply 1A and build 1B.
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|
 | 1A, search by what she means | `uv run scripts/lab_run.py send --lab 1 --task 1A`: her ranking has no vector rank | Apply: `uv run scripts/lab_run.py solution --lab 1 --task 1A`. It shows the change to [1A-vector-branch.py](1A-vector-branch.py), installs it, keeps your file as `.bak` and restarts the backend | `uv run scripts/lab1_check.py --task 1A` ends `Lab 1A check passed` |
-| 1B, keep her limits on the retry | `uv run scripts/lab_run.py send --lab 1 --task 1B`, her sentence with her limits, then the guide's receipt query | Write: [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then `sudo systemctl restart pellier && uv run scripts/lab_run.py send --lab 1 --task 1B` | `uv run scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
+| 1B, keep her limits on the retry | `uv run scripts/lab_run.py send --lab 1 --task 1B`, her sentence with her limits, then the guide's receipt query | Build: [1B-search-plan.py](1B-search-plan.py), region `Search plan - preserve requirements`, then `sudo systemctl restart pellier && uv run scripts/lab_run.py send --lab 1 --task 1B` | `uv run scripts/lab1_check.py --task 1B` ends `Lab 1B check passed` |
 
 Sends in this lab print `ran in process`: the agents run inside the app.
 
@@ -23,7 +23,7 @@ ranked** shows a **Vector** rank on every row, her three limits, and no candles.
 
 `1A-vector-branch.py` and `1B-search-plan.py` are links to `pellier/backend/services/`, so
 saving here changes the code the backend runs: it reloads on save. Edit only the marked
-region. `go-deeper-fusion.sql` is the guide's optional Go deeper: an exercise that recomputes
+region. `go-deeper-fusion.sql` is the guide's optional Go deeper Build: it recomputes
 the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## Start this lab over

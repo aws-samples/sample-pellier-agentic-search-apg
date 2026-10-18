@@ -37,7 +37,7 @@ def test_the_stamp_is_the_sha256_of_the_statements_psql_hashes() -> None:
 
 
 @pytest.mark.parametrize(("is_starter", "live", "state", "observed"), [
-    (True, {}, "NOT YET", "the exercise still holds the grants it ships with"),
+    (True, {}, "NOT YET", "the file still holds the grants it ships with"),
     (False, {**CLEAN, "stamp": ""}, "NOT YET",
      "the live function still carries the privileges the database shipped with"),
     (False, {**CLEAN, "stamp": credit_check.STAMP_PREFIX + "0" * 64}, "NOT YET",

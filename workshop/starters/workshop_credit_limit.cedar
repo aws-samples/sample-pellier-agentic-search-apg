@@ -1,6 +1,8 @@
 // Lab 4, Task 4A: the credit limit. Provisioning deployed this file as the
 // policy workshop_credit_limit, so as written it already blocks Nadia's
-// approved credit. Complete the final unless block, check it with
+// approved credit. Read the final unless block, apply the supplied rule with
+//   uv run scripts/lab_run.py solution --lab 4 --task 4A
+// check it with
 //   uv run scripts/lab4_check.py --task 4A
 // then update the deployed policy with
 //   uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant

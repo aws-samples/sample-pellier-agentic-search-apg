@@ -402,7 +402,7 @@ pellier_restore_execution_rail || exit 1
 
 if ! "$PYTHON" "$REPO/scripts/reset_participant_exercises.py" \
     --repo "$REPO" >/tmp/pellier-governed-reset-exercises.log 2>&1; then
-  fail "Participant exercise reset failed; see /tmp/pellier-governed-reset-exercises.log"
+  fail "Participant task file reset failed; see /tmp/pellier-governed-reset-exercises.log"
   exit 1
 fi
 pass "Labs 1-4 restored to their incomplete participant starters"
