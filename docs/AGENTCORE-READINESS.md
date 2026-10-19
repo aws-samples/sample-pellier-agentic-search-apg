@@ -155,3 +155,15 @@ participant identities, Lab 3's deploy and Lab 4's deploy, one Operator
 investigation and the cleanup. Record source SHA, Studio build, account,
 Region, cold provisioning time and each lab's time. A previous account's pass
 does not establish this event's readiness.
+
+Open for the next fresh event (source after f1d0e00a; a re-run on a provisioned
+box cannot prove these, because Transaction Search is already active there):
+
+- Transaction Search activates beside the Lambda and AgentCore deploys on a new
+  account: bootstrap reaches E2E_PROVED, and the receipt records the activation
+  and both trace log groups (`aws/spans`, `/aws/application-signals/data`) as
+  KMS-encrypted with bounded retention.
+- Record the managed stage's time against the last cold run, 34 minutes of a
+  47-minute provision on 2026-10-18.
+- `/var/lib/pellier/memory-deep-dive.json` reaches `ready`, and
+  `uv run scripts/event_readiness.py` shows the `i  Memory deep dive` line.
