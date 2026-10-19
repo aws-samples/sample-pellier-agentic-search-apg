@@ -225,6 +225,79 @@ def test_a_laptop_with_no_cloudwatch_record_exits_one(tmp_path: Path) -> None:
     assert _show(tmp_path, None, on_box=False, logs=Logs()) == 1
 
 
+class DeniedLogs(Logs):
+    """CloudWatch Logs as the box's instance role sees it: no GetLogEvents."""
+
+    def get_log_events(self, **kwargs: Any) -> Dict[str, Any]:
+        raise RuntimeError("AccessDeniedException: not authorized to perform: logs:GetLogEvents")
+
+
+def test_credentials_that_cannot_read_cloudwatch_get_one_line_saying_what_to_use(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert _show(tmp_path, None, on_box=False, logs=DeniedLogs(records=[_record()])) == 1
+    out = capsys.readouterr().out
+    assert "cannot read" in out and "Ops credentials" in out and "--instance-id" in out
+
+
+def test_the_workshop_studio_box_is_recognised_by_its_repository_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    # Workshop Studio hosts have no /etc/pellier; the repository is always at BOX_REPO.
+    monkeypatch.setattr(readiness, "REPO", Path(readiness.BOX_REPO))
+    local = tmp_path / "readiness.json"
+    local.write_text(json.dumps(_record()))
+    status = readiness.main([], logs=DeniedLogs(), local=local, now=lambda: NOW,
+                            instance=lambda: "i-0abc")
+    assert status == 0
+    assert "(1 h ago) on i-0abc" in capsys.readouterr().out
+
+
+def test_a_laptop_checkout_is_not_the_box(tmp_path: Path) -> None:
+    assert readiness.running_on_box(tmp_path, etc=tmp_path / "no-etc-pellier") is False
+    assert readiness.running_on_box(tmp_path, etc=tmp_path) is True
+
+
+STILL_FORMING = ("i  Memory deep dive (optional appendix): records still forming, checked in "
+                 "the background since 2026-12-01T06:59:00+00:00")
+
+
+def _forming_record() -> Dict[str, Any]:
+    record = _record()
+    record["lines"] = [record["lines"][0], STILL_FORMING, record["final"]]
+    return record
+
+
+def test_on_the_box_the_deep_dive_line_is_read_again_when_shown(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    status = tmp_path / "memory-deep-dive.json"
+    status.write_text(json.dumps({"status": "ready"}))
+    monkeypatch.setenv("PELLIER_MEMORY_DEEP_DIVE_FILE", str(status))
+    assert _show(tmp_path, _forming_record()) == 0
+    out = capsys.readouterr().out
+    assert "every strategy holds a record" in out and "still forming" not in out
+    assert out.rstrip().endswith("READY FOR LAB 1")
+
+
+def test_the_stored_deep_dive_line_stays_when_the_status_cannot_be_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv("PELLIER_MEMORY_DEEP_DIVE_FILE", str(tmp_path / "absent.json"))
+    assert _show(tmp_path, _forming_record()) == 0
+    assert "still forming" in capsys.readouterr().out
+
+
+def test_from_a_laptop_the_deep_dive_line_is_shown_as_recorded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    status = tmp_path / "memory-deep-dive.json"
+    status.write_text(json.dumps({"status": "ready"}))
+    monkeypatch.setenv("PELLIER_MEMORY_DEEP_DIVE_FILE", str(status))
+    assert _show(tmp_path, None, on_box=False, logs=Logs(records=[_forming_record()])) == 0
+    assert "still forming" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # --live: on the box, or through SSM from a laptop
 # ---------------------------------------------------------------------------

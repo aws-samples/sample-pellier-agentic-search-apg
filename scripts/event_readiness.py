@@ -12,8 +12,10 @@ shown to participants; this is the facilitator's check before the event.
     uv run scripts/event_readiness.py --live     # run the checks again now
     uv run scripts/event_readiness.py --record   # bootstrap: run, cap and record
 
-On the box the latest record is the local file, and ``--live`` records again. From a laptop
-with the event account's credentials, the latest record comes from CloudWatch Logs, and
+On the box (the repository at ``/workshop/sample-pellier-agentic-search-apg``, or a host with
+``/etc/pellier``) the latest record is the local file, its Memory deep dive line is read again
+from the background check's status, and ``--live`` records again. From a laptop with the event
+account's Ops credentials, the latest record comes from CloudWatch Logs as it was recorded, and
 ``--live`` runs ``--record`` on the box through SSM Run Command: on the instance the record
 names, or the one ``--instance-id`` names (the stack's ``InstanceId`` output).
 
@@ -47,8 +49,21 @@ DEFAULT_MAX_AGE_HOURS = 24
 SSM_WAIT_SECONDS = 600
 BOX_REPO = "/workshop/sample-pellier-agentic-search-apg"
 BOX_USER = "participant"
+DEEP_DIVE_PREFIX = "i  Memory deep dive (optional appendix):"
+CLOUDWATCH_DENIED = (f"Readiness: these credentials cannot read {LOG_GROUP} in CloudWatch Logs. "
+                     "Use the event's Ops credentials, or pass --live --instance-id with the "
+                     "stack's InstanceId output to record on the box through SSM.")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 Record = Dict[str, Any]
+
+
+class CloudWatchDenied(RuntimeError):
+    """The caller's credentials may not read the readiness log group."""
+
+
+def running_on_box(repo: Path, etc: Path = Path("/etc/pellier")) -> bool:
+    """Workshop Studio hosts have no /etc/pellier, but always clone the repository to BOX_REPO."""
+    return repo == Path(BOX_REPO) or etc.is_dir()
 
 
 def local_record_path() -> Path:
@@ -71,15 +86,17 @@ def deep_dive_note(path: Path) -> Optional[str]:
         status = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
-    prefix = "i  Memory deep dive (optional appendix):"
+    prefix = DEEP_DIVE_PREFIX
     state = status.get("status")
     if state == "ready":
         return f"{prefix} every strategy holds a record"
     if state == "checking":
-        return f"{prefix} records still forming, checked in the background since {status.get('startedAt', '')}"
+        return (f"{prefix} records still forming, checked in the background since "
+                f"{status.get('startedAt', '')}")
     if state == "incomplete":
         missing = ", ".join(status.get("missing") or []) or "unknown"
-        return f"{prefix} {missing} not formed after {status.get('elapsedSeconds')} s; the deep dive shows what has"
+        return (f"{prefix} {missing} not formed after {status.get('elapsedSeconds')} s; "
+                "the deep dive shows what has")
     return f"{prefix} the background check could not read Memory ({status.get('error', state)})"
 
 
@@ -177,7 +194,11 @@ def write_cloudwatch(record: Record, logs: Any) -> None:
 
 
 def latest_from_cloudwatch(logs: Any) -> Optional[Record]:
-    """The newest record in the newest stream, or None when there is none."""
+    """The newest record in the newest stream, or None when there is none.
+
+    Raises:
+        CloudWatchDenied: the credentials may not read the log group.
+    """
     try:
         streams = logs.describe_log_streams(logGroupName=LOG_GROUP, orderBy="LastEventTime",
                                             descending=True, limit=1).get("logStreams") or []
@@ -187,8 +208,11 @@ def latest_from_cloudwatch(logs: Any) -> Optional[Record]:
                                      logStreamName=streams[0]["logStreamName"], limit=1,
                                      startFromHead=False).get("events") or []
     except Exception as exc:  # noqa: BLE001 - a missing group is simply no record
-        if "ResourceNotFound" in f"{type(exc).__name__} {exc}":
+        text = f"{type(exc).__name__} {exc}"
+        if "ResourceNotFound" in text:
             return None
+        if "AccessDenied" in text:
+            raise CloudWatchDenied(CLOUDWATCH_DENIED) from exc
         raise
     return json.loads(events[-1]["message"]) if events else None
 
@@ -214,6 +238,20 @@ def render(record: Record, now: datetime, max_age_hours: float) -> List[str]:
     out += [f"  {line}" for line in record.get("lines", [])[:-1]]
     out.append(record.get("final", ""))
     return out
+
+
+def with_current_deep_dive(record: Record, status_path: Path) -> Record:
+    """The record with its deep-dive line as the background check reports it now.
+
+    The check finishes after bootstrap records readiness, so the stored line can be stale.
+    An unreadable status keeps the stored line.
+    """
+    note = deep_dive_note(status_path)
+    if note is None:
+        return record
+    body = [line for line in record.get("lines", [])[:-1]
+            if not line.startswith(DEEP_DIVE_PREFIX)]
+    return {**record, "lines": [*body, note, record.get("final", "")]}
 
 
 def record_now(run: Callable[..., Any], logs: Any, local: Path, now: datetime,
@@ -283,23 +321,33 @@ def main(argv: Optional[Sequence[str]] = None, *, run: Callable[..., Any] = subp
     parser.add_argument("--max-age-hours", type=float, default=DEFAULT_MAX_AGE_HOURS)
     args = parser.parse_args(argv)
     local = local or local_record_path()
-    on_box = Path("/etc/pellier").is_dir() if on_box is None else on_box
+    on_box = running_on_box(REPO) if on_box is None else on_box
     logs = logs or (lambda: _client("logs", args.region))
 
     if args.record or (args.live and on_box):
         record = record_now(run, logs, local, now(), instance(), args.cap)
         print("\n".join(render(record, now(), args.max_age_hours)))
         return 0 if record["ready"] else 1
-    if args.live:
-        return _live_from_laptop(args, logs, ssm, sleep)
-    record = read_local(local) if on_box else latest_from_cloudwatch(
-        logs() if callable(logs) else logs)
+    try:
+        if args.live:
+            return _live_from_laptop(args, logs, ssm, sleep)
+        record = _latest(local, logs, on_box)
+    except CloudWatchDenied as exc:
+        print(exc)
+        return 1
     if record is None:
         print("No readiness record yet. Run uv run scripts/event_readiness.py --live to "
               "check the box now.")
         return 1
     print("\n".join(render(record, now(), args.max_age_hours)))
     return 0 if record.get("ready") else 1
+
+
+def _latest(local: Path, logs: Any, on_box: bool) -> Optional[Record]:
+    if not on_box:
+        return latest_from_cloudwatch(logs() if callable(logs) else logs)
+    record = read_local(local)
+    return record and with_current_deep_dive(record, deep_dive_status_path())
 
 
 def _live_from_laptop(args: argparse.Namespace, logs: Any, ssm: Any,
