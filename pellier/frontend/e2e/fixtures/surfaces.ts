@@ -49,18 +49,22 @@ interface CatalogRow {
   tags: string[]
   rating: number
   reviews: number
-  image: string
+  /** Null for the 49,000 rows the storefront never shows. */
+  image: string | null
   quantity: number
 }
 
-/** The repository's 100 pieces (`data/pellier_catalog.json`), as listing cards. */
+/**
+ * The storefront's 1,000 photographed pieces (`data/pellier_catalog.json`), as listing cards.
+ * The other 49,000 rows have no photograph and the storefront never lists them.
+ */
 const CATALOG: typeof PRODUCTS = (JSON.parse(readFileSync(
   fileURLToPath(new URL('../../../../data/pellier_catalog.json', import.meta.url)), 'utf-8',
-)) as CatalogRow[]).map(row => ({
+)) as CatalogRow[]).flatMap(row => row.image ? [{
   id: row.id, name: row.name, brand: row.brand, color: row.color, price: row.price, category: row.department,
   imageUrl: `/products/${row.image.replace(/\.png$/, '.webp')}`, rating: row.rating, reviewCount: row.reviews,
   tags: row.tags, quantity: row.quantity, warehouses: WAREHOUSES,
-}))
+}] : [])
 
 /**
  * The whole catalog in the home grid's order, as `GET /api/products?page=`
