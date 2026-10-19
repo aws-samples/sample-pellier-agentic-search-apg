@@ -145,7 +145,7 @@ Then run `/governed-postgres-agent review <path>` on your team's agent code. Its
 
 ## Tests
 
-The [governed-quality workflow](.github/workflows/quality.yml) runs the backend, frontend and shell-script checks on every push to `governed`. The main ones, from the repository root:
+The [governed-quality workflow](.github/workflows/quality.yml) runs the backend, frontend, browser and shell-script checks on every push to `governed`. The browser tests answer every API call with an in-test stand-in, so they need no AWS. The main checks, from the repository root:
 
 ```bash
 (cd pellier/backend && ./.venv/bin/python -m pytest -q)

@@ -93,3 +93,52 @@ jobs:
       - name: Audit production dependencies
         working-directory: pellier/frontend
         run: npm audit --omit=dev --audit-level=high
+
+  browser:
+    name: Browser tests against a stand-in API
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: pellier/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: pellier/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      # These specs answer every /api call with an in-test stand-in, so they need
+      # the app on Vite and nothing from AWS. workshop-smoke and retail-journey
+      # need a deployment; the *-screenshots specs only produce captures.
+      - name: Start the app on Vite
+        run: |
+          npx vite --port 5199 --strictPort > "$RUNNER_TEMP/vite.log" 2>&1 &
+          for _ in $(seq 1 60); do
+            curl -fs -o /dev/null http://localhost:5199/ && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/vite.log"
+          exit 1
+
+      - name: Run browser tests
+        env:
+          E2E_BASE_URL: http://localhost:5199
+        run: >-
+          npx playwright test --workers=2
+          e2e/shopper-sign-in.spec.ts
+          e2e/first-visit-tour.spec.ts
+          e2e/two-sessions.spec.ts
+          e2e/live-turn-trace.spec.ts
+          e2e/operator-execution-states.spec.ts
