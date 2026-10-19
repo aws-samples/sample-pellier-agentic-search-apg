@@ -156,14 +156,39 @@ investigation and the cleanup. Record source SHA, Studio build, account,
 Region, cold provisioning time and each lab's time. A previous account's pass
 does not establish this event's readiness.
 
-Open for the next fresh event (source after f1d0e00a; a re-run on a provisioned
-box cannot prove these, because Transaction Search is already active there):
+Proved at test event 6 (2026-10-19, source e853c80f, Studio cb247a0, a new
+account in us-east-1):
 
-- Transaction Search activates beside the Lambda and AgentCore deploys on a new
-  account: bootstrap reaches E2E_PROVED, and the receipt records the activation
-  and both trace log groups (`aws/spans`, `/aws/application-signals/data`) as
-  KMS-encrypted with bounded retention.
-- Record the managed stage's time against the last cold run, 34 minutes of a
-  47-minute provision on 2026-10-18.
-- `/var/lib/pellier/memory-deep-dive.json` reaches `ready`, and
-  `uv run scripts/event_readiness.py` shows the `i  Memory deep dive` line.
+- Transaction Search activated beside the Lambda and AgentCore deploys: ACTIVE
+  after 361 s, inside the managed stage. Bootstrap reached E2E_PROVED, and the
+  managed receipt records the activation, its resource policy and both trace
+  log groups (`aws/spans`, `/aws/application-signals/data`) under the event's
+  KMS key with 30-day retention.
+- The managed stage took 9 minutes (APP_READY 12:43:44 to MANAGED_READY
+  12:52:48 UTC), against 34 minutes on 2026-10-18. E2E_PROVED came 38 minutes
+  after the stack started.
+- `/var/lib/pellier/memory-deep-dive.json` reached `ready` 500 s after the
+  check started. `uv run scripts/event_readiness.py` on the box first crashed
+  with an AccessDenied traceback: it took the box for a laptop, because
+  Workshop Studio hosts have no `/etc/pellier`. With that fixed, it prints
+  `i  Memory deep dive (optional appendix): every strategy holds a record`.
+
+Open for the next fresh event:
+
+- The Studio template's `WorkshopReadyGate` (InfrastructureRevision
+  c85de1be653934bc) takes the bootstrap signal instead of the editor instance:
+  `BrowserVpcOrigin` starts within a minute of the instance launching, the
+  distribution and the Cognito callback registration finish while bootstrap
+  runs, and the nested and root stacks complete within about a minute of the
+  signal. CodeEditorURL and Hosted UI sign-in work. Event 6 on 2026-10-19 took
+  51 minutes to CREATE_COMPLETE, 12 of them CloudFront after `E2E_PROVED`;
+  expect about 39.
+- Shopper sign-in names the step and cause of a failure (`network_error:csrf`,
+  `http_403:csrf`, ...) in the browser console, retries a dropped CSRF request
+  once, and shows its own sentence when the edge limits requests. On event 6 a
+  sign-in failed once with no request reaching the backend; the new code is
+  what would name it.
+- The Studio WAF rule allows 1,000 `/api` requests per IP in 5 minutes and
+  answers a block with 429 `{"detail":"requests_limited"}`. One participant
+  makes about 140 in a heavy 5 minutes; the capture tooling crossed the old
+  limit of 300.
