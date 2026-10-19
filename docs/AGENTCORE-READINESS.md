@@ -12,7 +12,7 @@ participant still runs the checks for their own changes.
 | **Gateway** | One Lambda target, `pellier-store-tools`, with nine tool schemas: eight published at baseline and nine after Lab 3A publishes `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`). Discovery is filtered by policy per caller. Managed turns fail closed when Gateway is unavailable. | Lab 3A publishes `get_tickets` and binds it to the caller; `scripts/workshop_doctor.py --lab 3 --phase prerequisites` reads the catalogue. |
 | **Policy** | A managed Cedar engine attached to Gateway in `ENFORCE` mode. Baseline permits: an exact allow-list of the five shopper-safe reads, `get_orders_owner_only` (and `get_tickets_owner_only` once published), `ask_a_person_caller_bound`, and `give_store_credit_staff_scope` with no amount condition. Provisioning also deploys the Lab 4 starter forbid `workshop_credit_limit`, which denies every credit. A managed output guardrail can suppress a credit response after execution. | Lab 3B's direct probe: Theo's token for Jessica's tickets is denied. Lab 4A: `scripts/lab4_check.py --task 4A` evaluates the rule with `cedarpy`, then gets a Gateway DENY for an over-limit credit with no row for its key. |
 | **Memory** | Conversation events with 30-day expiry and four extraction strategies (below). Provisioning records Theo's first conversation. Turns read Memory for an authenticated shopper; a failed read is reported in the turn and the turn continues. | Lab 3B: a new session's Builder view names the user-preference record the agent was given, and `scripts/lab3_check.py` reads it back. |
-| **Observability** | Runtime, Gateway and Memory log delivery, OpenTelemetry agent, model and tool spans, CloudWatch Transaction Search, KMS-encrypted Runtime logs with bounded retention, and control-plane audit. | Not a required lab check. `workshop/lab-3-otel-contract.jq` checks span structure on a downloaded trace; the lab checks read Aurora's `tool_audit` as execution evidence. |
+| **Observability** | Runtime, Gateway and Memory log delivery, OpenTelemetry agent, model and tool spans, CloudWatch Transaction Search, KMS-encrypted Runtime logs with bounded retention, and control-plane audit. Transaction Search activates beside the Lambda and AgentCore deploys; both trace log groups are protected before Gateway or Memory tracing starts or the Runtime is invoked. | Not a required lab check. `workshop/lab-3-otel-contract.jq` checks span structure on a downloaded trace; the lab checks read Aurora's `tool_audit` as execution evidence. |
 | **Identity** | Cognito person identity for shoppers and staff. A pre-token trigger (`scripts/deploy/cognito_customer_claim.py`) stamps `custom:customer_id` on a shopper's access token from a map rendered from `pellier.customers`, and `custom:staff_scope` on a member of the operator group. Runtime and Gateway use service-managed workload identities. | Throughout Labs 3 and 4. There is no outbound credential-provider exercise. |
 
 The Operator's investigation (Investigator, then Planner) runs in process in
@@ -99,15 +99,25 @@ naming a customer, and nothing else.
 | `EPISODIC` | `PellierEpisodes` | `/pellier/episodes/{actorId}/{sessionId}/` |
 
 Names, namespaces and expiry come from
-`pellier/backend/services/memory_contract.py`. Lab 3 uses the
-`USER_PREFERENCE` record only; the other three are configured and checked at
-provisioning.
+`pellier/backend/services/memory_contract.py`. Shopper turns and Lab 3 read the
+`USER_PREFERENCE` record only; the other three serve the appendix's deep dive.
 
 `scripts/deploy/verify_memory_readiness.py` writes an isolated conversation
-with `CreateEvent` and requires every strategy to be ACTIVE with the expected
-configuration, and list, get and retrieve to agree on real record ids and
-namespaces. It never writes long-term records. `scripts/health-gate.sh` checks
-the same configuration.
+with `CreateEvent`, requires every strategy to be ACTIVE with the expected
+configuration, and waits until list, get and retrieve agree on real record ids
+and namespaces for `REQUIRED_STRATEGIES` (user preferences). Another strategy's
+records found by then pass the same checks. It never writes long-term records.
+`scripts/deploy/seed_agentcore_memory.py` writes the persona conversations
+first, so Theo's preference extracts while that proof waits. Provisioning starts
+the proof right after the first `agentcore deploy`, beside the policy deploys.
+`scripts/health-gate.sh` checks the same configuration.
+
+Facts, the session summary and the episode can form long after provisioning,
+an episode sometimes more than ten minutes after its conversation, so they do not
+hold a box. `scripts/deploy/check_memory_deep_dive.py` reads Theo's provisioning
+conversation in the background after handout and writes
+`/var/lib/pellier/memory-deep-dive.json`; `scripts/event_readiness.py` reports it
+as an `i  Memory deep dive` line that never changes READY FOR LAB 1.
 
 ## Tasks and recovery
 

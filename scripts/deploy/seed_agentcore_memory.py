@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Seed scenario conversations and prove all four managed Memory strategies.
+"""Seed scenario conversations and prove the managed Memory a box needs.
 
 Theo's first conversation is one of them: he tells Pellier his taste
 (ceramics, stoneware, slow craft) at provisioning, so Lab 3 starts with the
-user-preference record AgentCore extracted from it. The seed waits, within its
-time budget, for that record and reports its id beside the source event ids.
-``scripts/showcase_agentcore_memory.py provisioned --persona theo`` prints the
-same pair in the lab.
+user-preference record AgentCore extracted from it. The conversations are written
+before the readiness proof, so their extraction runs while the proof waits; the seed
+then waits, within its time budget, for Theo's record and reports its id beside the
+source event ids. ``scripts/showcase_agentcore_memory.py provisioned --persona theo``
+prints the same pair in the lab. The proof gates on REQUIRED_STRATEGIES;
+``check_memory_deep_dive.py`` confirms the other strategies after handout.
 """
 
 from __future__ import annotations
@@ -103,7 +105,6 @@ def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
         config=AWS_CONFIG,
     )
     memory = _wait_for_memory(control, memory_id)
-    acceptance = verify_memory_readiness(control, data, memory_id, timeout=timeout)
 
     created = 0
     duplicates = 0
@@ -143,6 +144,7 @@ def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
                     continue
                 raise
 
+    acceptance = verify_memory_readiness(control, data, memory_id, timeout=timeout)
     deadline = time.monotonic() + min(PREFERENCE_WAIT_SECONDS, timeout)
     theo = seeded_memory(control, data, memory_id, LAB3_ACTOR)
     while not theo["records"] and time.monotonic() < deadline:

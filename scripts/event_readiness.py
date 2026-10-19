@@ -56,6 +56,33 @@ def local_record_path() -> Path:
     return Path(override) if override else Path.home() / ".pellier" / "readiness.json"
 
 
+def deep_dive_status_path() -> Path:
+    override = os.environ.get("PELLIER_MEMORY_DEEP_DIVE_FILE")
+    return Path(override) if override else Path("/var/lib/pellier/memory-deep-dive.json")
+
+
+def deep_dive_note(path: Path) -> Optional[str]:
+    """One informational line for the appendix's Memory deep dive; never a readiness gate.
+
+    scripts/deploy/check_memory_deep_dive.py writes the status after handout, because an
+    episode can form long after provisioning ends.
+    """
+    try:
+        status = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    prefix = "i  Memory deep dive (optional appendix):"
+    state = status.get("status")
+    if state == "ready":
+        return f"{prefix} every strategy holds a record"
+    if state == "checking":
+        return f"{prefix} records still forming, checked in the background since {status.get('startedAt', '')}"
+    if state == "incomplete":
+        missing = ", ".join(status.get("missing") or []) or "unknown"
+        return f"{prefix} {missing} not formed after {status.get('elapsedSeconds')} s; the deep dive shows what has"
+    return f"{prefix} the background check could not read Memory ({status.get('error', state)})"
+
+
 # ---------------------------------------------------------------------------
 # the checks and their verdict
 # ---------------------------------------------------------------------------
@@ -193,6 +220,9 @@ def record_now(run: Callable[..., Any], logs: Any, local: Path, now: datetime,
                instance_id: str, cap: int) -> Record:
     lines, code = run_checks(run=run, cap=cap)
     ready, final = verdict(lines, code, cap)
+    note = deep_dive_note(deep_dive_status_path())
+    if note:
+        lines = [*lines, note]
     record = {"recordedAt": now.isoformat(), "instanceId": instance_id, "ready": ready,
               "final": final, "lines": [*lines, final]}
     write_local(record, local)

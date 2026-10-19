@@ -150,3 +150,23 @@ def test_reprovisioning_reuses_the_existing_conversation(monkeypatch):
         assert result["events_already_present"] == 2
         assert result["lab3_theo"]["source_event_ids"] == ["0", "1"]
     assert created == []
+
+
+def test_persona_conversations_are_written_before_the_readiness_proof(monkeypatch):
+    """Their extraction runs while the proof waits, so Theo's record is usually there by its end."""
+    order: List[str] = []
+
+    class Data(_Pages):
+        def create_event(self, **kwargs):
+            order.append("event")
+            return {"event": {"eventId": f"e-{len(order)}"}}
+
+    data = Data({"list_events": [], "list_memory_records": [THEO_RECORD]}, [])
+    clients = {"bedrock-agentcore-control": _Control(), "bedrock-agentcore": data}
+    monkeypatch.setattr(seed.boto3, "client", lambda name, **_k: clients[name])
+    monkeypatch.setattr(seed, "_wait_for_memory", lambda control, memory_id: {"status": "ACTIVE"})
+    monkeypatch.setattr(seed, "verify_memory_readiness",
+                        lambda *a, **k: order.append("proof") or {"strategies": {}})
+    seed.seed("mem-1", "us-east-1", timeout=5)
+    assert order.count("event") == sum(len(pairs) for pairs in seed.SEED_TURNS.values())
+    assert order[-1] == "proof"

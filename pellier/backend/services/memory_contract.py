@@ -16,6 +16,11 @@ STRATEGIES = {
     "episodic": ("EPISODIC", "PellierEpisodes", "episodicMemoryStrategy", "/pellier/episodes/{actorId}/{sessionId}/"),
 }
 REFLECTION_NAMESPACE = "/pellier/episodes/{actorId}/"
+# What provisioning must see extracted before a box is handed out: a shopper turn and
+# Lab 3 read user preferences. Facts, summaries and episodes serve the appendix's deep
+# dive; scripts/deploy/check_memory_deep_dive.py confirms them after handout, because
+# an episode can take far longer to form than a box should take to provision.
+REQUIRED_STRATEGIES = ("preferences",)
 
 
 def namespace(kind: str, actor: str, session: str) -> str:

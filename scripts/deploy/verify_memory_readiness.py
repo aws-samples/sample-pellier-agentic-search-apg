@@ -1,7 +1,9 @@
-"""Prove all four strategies with an isolated conversation in the real service.
+"""Prove managed Memory with an isolated conversation in the real service.
 
-Only CreateEvent writes are used. Long-term records must be extracted by AWS,
-listed, read by ID, and retrieved in the configured namespace before readiness.
+Only CreateEvent writes are used. All four strategies must be configured and ACTIVE.
+Records of the required strategies (REQUIRED_STRATEGIES) must be extracted by AWS,
+listed, read by ID, and retrieved in the configured namespace before readiness; any
+other strategy's records found by then are recorded with the same checks.
 The readiness actor is separate from every participant and every earlier run.
 """
 from __future__ import annotations
@@ -14,12 +16,15 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "pellier" / "backend"))
-from services.memory_contract import STRATEGIES, configuration_errors, namespace, record_matches
+from services.memory_contract import (
+    REQUIRED_STRATEGIES, STRATEGIES, configuration_errors, namespace, record_matches,
+)
 from services.memory_records import record_view
 
 
 def verify_memory_readiness(
     control: Any, data: Any, memory_id: str, *, timeout: int = 1200,
+    required: tuple[str, ...] = REQUIRED_STRATEGIES,
 ) -> dict[str, Any]:
     """Fail closed on wrong configuration, missing extraction, or failed recall."""
     started = time.monotonic()
@@ -100,16 +105,16 @@ def verify_memory_readiness(
                     "type": strategy["type"], "strategyId": strategy["strategyId"],
                     "namespace": path, "records": records, "retrievedRecordIds": matched,
                 }
-        if len(evidence) == len(STRATEGIES) and set(event_ids) <= source_ids:
+        if all(kind in evidence for kind in required) and set(event_ids) <= source_ids:
             break
         if time.monotonic() >= deadline:
-            missing = [kind for kind in STRATEGIES if kind not in evidence]
+            missing = [kind for kind in required if kind not in evidence]
             if not set(event_ids) <= source_ids:
                 missing.append("source events")
             raise RuntimeError(
                 f"Memory extraction/retrieval timed out for {actor}/{session}; missing: {', '.join(missing)}"
             )
-        print("Memory extraction pending: " + ", ".join(k for k in STRATEGIES if k not in evidence), file=sys.stderr)
+        print("Memory extraction pending: " + ", ".join(k for k in required if k not in evidence), file=sys.stderr)
         time.sleep(15)
 
     if pages("list_events", "events", actorId=actor, sessionId=recall_session):

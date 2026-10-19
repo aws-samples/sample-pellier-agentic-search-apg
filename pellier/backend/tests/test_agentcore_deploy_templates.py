@@ -1439,6 +1439,7 @@ def test_deploy_sequence_validates_both_cli_phases(
     provisioner = _load_provisioner()
     root = tmp_path / "project"
     calls: list[tuple[str, ...]] = []
+    after_first: list[tuple[int, dict]] = []
     render_phases: list[bool] = []
     rendered_runtime_arns = []
     state = {
@@ -1503,10 +1504,13 @@ def test_deploy_sequence_validates_both_cli_phases(
         model_id="model",
         workshop_id="workshop",
         env={},
+        after_first_deploy=lambda first: after_first.append((len(calls), first)),
     )
 
     assert returned_root == root
     assert returned_state is state
+    # Work that needs only the first deploy's resources starts before the policy deploys.
+    assert after_first == [(2, state)]
     assert render_phases == [False, True]
     assert rendered_runtime_arns[0] is None
     assert rendered_runtime_arns[1] == {
@@ -2208,6 +2212,23 @@ def test_participant_update_refuses_an_unprovisioned_environment(
     message = str(exc_info.value)
     assert "No deployed AgentCore project" in message
     assert "facilitator" in message
+
+
+def test_full_provisioning_overlaps_its_waits_but_protects_spans_first() -> None:
+    """Transaction Search and the memory proof run beside the deploys, and nothing that
+    can emit a span (Gateway or Memory tracing, the Runtime smoke) starts before the
+    trace log groups are protected."""
+    source = PROVISIONER_PATH.read_text(encoding="utf-8")
+    body = source[source.index("\ndef main() -> int:"):]
+    started = body.index("background.submit(\n            _ensure_trace_log_groups,")
+    joined = body.index("trace_log_groups = trace_future.result()")
+    assert started < body.index("lambda_arns = _deploy_lambdas(") < body.index("_deploy_cli_project(") < joined
+    for emits_spans in ("_enable_gateway_observability(", "_enable_memory_observability(",
+                        "_authenticated_runtime_smoke("):
+        assert joined < body.index(emits_spans), emits_spans
+    assert "after_first_deploy=start_memory_proof" in body
+    assert body.index("memory_seed = memory_future.result()") > joined
+    assert "background.shutdown(wait=True)" in body
 
 
 def test_participant_update_skips_the_preparation_stages_it_cannot_change() -> None:

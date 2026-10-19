@@ -14,7 +14,7 @@ Observed and Evidence with the source event ids beside the record ids:
 
     uv run scripts/showcase_agentcore_memory.py provisioned --persona theo
 
-`strategies` is Lab 3's look at all four strategies. It reads, and never
+`strategies` is the appendix's deep dive into all four strategies. It reads, and never
 writes, every record AgentCore made from that one conversation: preferences,
 facts, the session summary, the episode and its reflection. Each strategy says
 whether its records follow the customer into new conversations and whether a

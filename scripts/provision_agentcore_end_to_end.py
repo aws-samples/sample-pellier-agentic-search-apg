@@ -23,9 +23,10 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable, Sequence
@@ -58,6 +59,7 @@ from render_agentcore_project import (  # noqa: E402
     project_root,
     render_project,
 )
+from services.memory_contract import REQUIRED_STRATEGIES  # noqa: E402
 
 
 # Lambda names carry the deployment suffix so a release candidate's functions
@@ -1241,8 +1243,14 @@ def _deploy_cli_project(
     opus_model_id: str | None = None,
     sonnet_model_id: str | None = None,
     identity: DeploymentIdentity | None = None,
+    after_first_deploy: Callable[[dict[str, Any]], None] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    """Deploy resources, then bind Cedar policies and telemetry to their IDs."""
+    """Deploy resources, then bind Cedar policies and telemetry to their IDs.
+
+    ``after_first_deploy`` receives the state the first deploy wrote, once Runtime,
+    Memory, Gateway and the policy engine exist, so work that needs only those can
+    start while the policy deploys run.
+    """
     identity = identity or deployment_identity()
     root = _scaffold_cli_project(repo=repo, env=env, identity=identity)
     common = {
@@ -1271,6 +1279,8 @@ def _deploy_cli_project(
             _require_state_resource(state, "runtimes", identity.runtime_name)["runtimeArn"]
         )
     }
+    if after_first_deploy is not None:
+        after_first_deploy(state)
 
     # The first deploy supplies physical Gateway and Runtime IDs. Bind Cedar
     # policies and the Runtime exporter to those IDs in the second render.
@@ -2965,7 +2975,23 @@ def main() -> int:
         "verification": {},
     }
 
+    # Background threads never touch ``result``: they queue what they created, and the
+    # main thread applies it at its next checkpoint, so the receipt has one writer.
+    queued: list[tuple[Callable[[dict[str, Any]], None], dict[str, Any]]] = []
+    queued_lock = threading.Lock()
+
+    def queue_for_receipt(apply: Callable[[dict[str, Any]], None]) -> Callable[[dict[str, Any]], None]:
+        def record(payload: dict[str, Any]) -> None:
+            with queued_lock:
+                queued.append((apply, payload))
+        return record
+
     def checkpoint() -> None:
+        with queued_lock:
+            pending = queued[:]
+            queued.clear()
+        for apply, payload in pending:
+            apply(payload)
         result["updated_at"] = datetime.now(timezone.utc).isoformat()
         _write_result(output_path, result)
 
@@ -2974,7 +3000,7 @@ def main() -> int:
         checkpoint()
         print(f"Managed AgentCore stage: {name}", flush=True)
 
-    def checkpoint_trace_log_group(group: dict[str, Any]) -> None:
+    def apply_trace_log_group(group: dict[str, Any]) -> None:
         trace_log_groups = result["observability"].setdefault(
             "trace_log_groups",
             {
@@ -2990,11 +3016,9 @@ def main() -> int:
             if existing.get("name") != group.get("name")
         ]
         groups.append(group)
-        checkpoint()
 
-    def checkpoint_transaction_search(receipt: dict[str, Any]) -> None:
+    def apply_transaction_search(receipt: dict[str, Any]) -> None:
         result["observability"]["transaction_search"] = receipt
-        checkpoint()
 
     def checkpoint_runtime_log_group(group: dict[str, Any]) -> None:
         result["observability"]["runtime_log_group"] = group
@@ -3004,6 +3028,7 @@ def main() -> int:
         result["observability"].setdefault(kind, {})["log_group_protection"] = group
         checkpoint()
 
+    background: ThreadPoolExecutor | None = None
     try:
         stage("managed resource provisioning")
         sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
@@ -3046,6 +3071,34 @@ def main() -> int:
             required["runtime_log_kms_key_arn"], region=region,
             account_id=account_id, partition=partition,
         )
+        # Transaction Search takes minutes to turn ACTIVE (361 s on 2026-10-18). No
+        # workshop resource emits a span until Gateway and Memory tracing are enabled
+        # below, and the Runtime is first invoked after that, so the trace log groups
+        # and the activation run beside the Lambdas and the deploys and are joined
+        # before that tracing starts.
+        background = ThreadPoolExecutor(max_workers=2, thread_name_prefix="provision")
+
+        def activate_transaction_search() -> None:
+            record = queue_for_receipt(apply_transaction_search)
+            record(_configure_transaction_search(
+                region=region,
+                account_id=account_id,
+                partition=partition,
+                on_cleanup_state=record,
+            ))
+
+        trace_future = background.submit(
+            _ensure_trace_log_groups,
+            region=region,
+            kms_key_arn=required["runtime_log_kms_key_arn"],
+            retention_days=runtime_log_retention_days,
+            on_cleanup_state=queue_for_receipt(apply_trace_log_group),
+            activate_transaction_search=activate_transaction_search,
+            allow_existing_changes=(
+                os.environ.get(_SHARED_TRACE_LOG_CHANGES_ENV, "").strip().lower()
+                == "true"
+            ),
+        )
         _ensure_data_api_enabled(db_region, required["db_cluster_arn"])
 
         lambda_arns = _deploy_lambdas(
@@ -3063,32 +3116,21 @@ def main() -> int:
             for surface, arn in lambda_arns.items()
         }
 
-        def activate_transaction_search() -> None:
-            receipt = _configure_transaction_search(
-                region=region,
-                account_id=account_id,
-                partition=partition,
-                on_cleanup_state=checkpoint_transaction_search,
-            )
-            checkpoint_transaction_search(receipt)
+        # Memory exists after the first deploy. Its proof waits minutes for AWS to
+        # extract records, so it runs beside the policy deploys and the checks below.
+        memory_future: Future[dict[str, Any]] | None = None
 
-        trace_log_groups = _ensure_trace_log_groups(
-            region=region,
-            kms_key_arn=required["runtime_log_kms_key_arn"],
-            retention_days=runtime_log_retention_days,
-            on_cleanup_state=checkpoint_trace_log_group,
-            activate_transaction_search=activate_transaction_search,
-            allow_existing_changes=(
-                os.environ.get(_SHARED_TRACE_LOG_CHANGES_ENV, "").strip().lower()
-                == "true"
-            ),
-        )
-        result["observability"]["trace_log_groups"] = trace_log_groups
-        checkpoint()
-        encrypted, bounded = _trace_protection_checks(trace_log_groups["groups"])
-        result["verification"]["trace_log_groups_encrypted"] = encrypted
-        result["verification"]["trace_log_groups_retention_bounded"] = bounded
-        result["verification"]["transaction_search_ready"] = True
+        def start_memory_proof(first_state: dict[str, Any]) -> None:
+            nonlocal memory_future
+            first_memory = _require_state_resource(first_state, "memories", identity.memory_name)
+            memory_future = background.submit(
+                _seed_memory,
+                repo=repo,
+                memory_id=str(first_memory["memoryId"]),
+                region=region,
+                env=deploy_env,
+            )
+
         agentcore_deployment_started_at = datetime.now(timezone.utc)
         root, state = _deploy_cli_project(
             repo=repo,
@@ -3103,6 +3145,7 @@ def main() -> int:
             workshop_id=required["workshop_id"],
             env=deploy_env,
             identity=identity,
+            after_first_deploy=start_memory_proof,
         )
         result["cli"]["project_root"] = str(root)
 
@@ -3207,6 +3250,15 @@ def main() -> int:
 
         # Gateway spans, including the policy engine's own decision attributes,
         # reach aws/spans only once trace delivery is configured on the Gateway.
+        stage("trace log groups and Transaction Search (started before the Lambdas)")
+        trace_log_groups = trace_future.result()
+        result["observability"]["trace_log_groups"] = trace_log_groups
+        checkpoint()
+        encrypted, bounded = _trace_protection_checks(trace_log_groups["groups"])
+        result["verification"]["trace_log_groups_encrypted"] = encrypted
+        result["verification"]["trace_log_groups_retention_bounded"] = bounded
+        result["verification"]["transaction_search_ready"] = True
+
         gateway_observability = _enable_gateway_observability(
             region=region,
             account_id=account_id,
@@ -3261,20 +3313,16 @@ def main() -> int:
             "prefixed_names"
         ]
 
-        stage("memory extraction and retrieval (maximum 1200s)")
-        memory_seed = _seed_memory(
-            repo=repo,
-            memory_id=memory_id,
-            region=region,
-            env=deploy_env,
-        )
+        stage("memory extraction and retrieval (started after the first deploy, maximum 1200s)")
+        if memory_future is None:
+            raise RuntimeError("The memory proof did not start after the first deploy")
+        memory_seed = memory_future.result()
         result["memory"]["seed"] = memory_seed
         result["verification"]["memory_seeded"] = memory_seed.get("status") == "ready"
         result["verification"]["memory_extraction_verified"] = (
             memory_seed.get("acceptance", {}).get("status") == "ready"
             and memory_seed["acceptance"].get("memoryId") == memory_id
-            and set(memory_seed["acceptance"].get("strategies", {}))
-            == {"facts", "preferences", "summary", "episodic"}
+            and set(REQUIRED_STRATEGIES) <= set(memory_seed["acceptance"].get("strategies", {}))
         )
 
         stage("live policy allow and deny")
@@ -3407,6 +3455,13 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
+    finally:
+        if background is not None:
+            # After a failure, Transaction Search or the memory proof may still be
+            # running. Wait for them, so what they created reaches the receipt that
+            # teardown reads.
+            background.shutdown(wait=True)
+            checkpoint()
 
 
 if __name__ == "__main__":

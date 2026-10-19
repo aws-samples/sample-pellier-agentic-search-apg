@@ -1793,6 +1793,30 @@ if [ -n "${COGNITO_USER_POOL_ID:-}" ] && [ -x "$REPO_PATH/scripts/seed-sample-pr
 fi
 
 # ============================================================================
+# STEP 18d: CONFIRM THE APPENDIX'S MEMORY DEEP DIVE IN THE BACKGROUND
+#
+# Provisioning proved the user preferences a turn and Lab 3 read. Theo's facts,
+# summary and episode can form long after that, so they are confirmed without
+# holding the box; event_readiness.py reports the result to the facilitator.
+# This worker's unit kills its whole control group on exit, so the check runs as
+# its own transient unit.
+# ============================================================================
+if [ "${WORKSHOP_FORMAT}" = "governed" ] && [ "${AGENTCORE_OK:-false}" = true ] && [ -n "${MEMORY_ID:-}" ]; then
+    if command -v systemd-run >/dev/null 2>&1; then
+        log "Confirming the Memory deep dive in the background ($PELLIER_STATE_DIR/memory-deep-dive.json)"
+        systemd-run --unit=pellier-memory-deep-dive --collect --uid="$CODE_EDITOR_USER" \
+            --property=StandardOutput=append:/var/log/pellier-memory-deep-dive.log \
+            --property=StandardError=append:/var/log/pellier-memory-deep-dive.log \
+            "$(command -v python3.14)" "$REPO_PATH/scripts/deploy/check_memory_deep_dive.py" \
+            --memory-id "$MEMORY_ID" --region "$AWS_REGION" \
+            --status-file "$PELLIER_STATE_DIR/memory-deep-dive.json" >/dev/null || \
+            warn "Could not start the Memory deep-dive check; run scripts/deploy/check_memory_deep_dive.py by hand"
+    else
+        warn "systemd-run not found; the Memory deep-dive check did not start"
+    fi
+fi
+
+# ============================================================================
 # SUMMARY
 # ============================================================================
 log "=========================================="

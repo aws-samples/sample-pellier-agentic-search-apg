@@ -666,3 +666,17 @@ def test_a_401_shaped_deny_is_not_a_policy_proof() -> None:
 
     errors = _policy_errors(lambda v: v["live_policy_proof"]["deny"].update({"cedar_denial": False}))
     assert any("Cedar policy denial" in error for error in errors)
+
+
+def test_receipt_needs_only_the_required_memory_strategies():
+    """Episodes can form long after provisioning, so handout waits for preferences only."""
+    receipt = _valid_receipt()
+    for kind in ("facts", "summary", "episodic"):
+        del receipt["memory"]["seed"]["acceptance"]["strategies"][kind]
+    assert _load_validator().validate_receipt(receipt) == []
+
+
+def test_receipt_without_user_preferences_cannot_pass():
+    receipt = _valid_receipt()
+    del receipt["memory"]["seed"]["acceptance"]["strategies"]["preferences"]
+    assert any("preferences" in error for error in _load_validator().validate_receipt(receipt))

@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "pellier" / "backend"))
-from services.memory_contract import STRATEGIES, namespace
+from services.memory_contract import REQUIRED_STRATEGIES, STRATEGIES, namespace
 
 
 DEPLOY_DIR = Path(__file__).resolve().parent / "deploy"
@@ -124,7 +124,12 @@ def _validate_participant_receipt(
 
 
 def validate_memory_acceptance(payload: dict[str, Any]) -> list[str]:
-    """A seed acknowledgement or ACTIVE flag cannot stand in for extraction."""
+    """A seed acknowledgement or ACTIVE flag cannot stand in for extraction.
+
+    Every required strategy needs its evidence. Another strategy's panel is optional,
+    because its records may still be forming at handout, but one that is present must
+    pass the same checks.
+    """
     proof = _value(payload, "memory.seed.acceptance")
     if not isinstance(proof, dict):
         return ["memory.seed.acceptance must contain real extraction and retrieval evidence"]
@@ -147,6 +152,8 @@ def validate_memory_acceptance(payload: dict[str, Any]) -> list[str]:
     if not isinstance(panels, dict):
         return errors + ["memory acceptance strategies must be an object"]
     for kind, spec in STRATEGIES.items():
+        if kind not in REQUIRED_STRATEGIES and kind not in panels:
+            continue
         panel = panels.get(kind, {})
         if not isinstance(panel, dict):
             errors.append(f"memory acceptance {kind} evidence is missing")
