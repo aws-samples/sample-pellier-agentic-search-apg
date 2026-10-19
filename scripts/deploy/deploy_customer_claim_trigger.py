@@ -47,7 +47,7 @@ sys.path.insert(0, str(DEPLOY))
 from gateway_client import _load_env, _require  # noqa: E402
 
 HANDLER_FILE = DEPLOY / "cognito_customer_claim.py"
-LAMBDA_RUNTIME = "python3.12"
+LAMBDA_RUNTIME = "python3.14"
 SUPPORTED_TIERS = {"ESSENTIALS", "PLUS"}
 LAMBDA_VERSION = "V2_0"
 PERMISSION_SID = "AllowCognitoPreTokenGeneration"

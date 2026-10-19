@@ -566,7 +566,7 @@ def render_project(
                 "build": "CodeZip",
                 "entrypoint": "agentcore_runtime.py",
                 "codeLocation": str(runtime_dir),
-                "runtimeVersion": "PYTHON_3_12",
+                "runtimeVersion": "PYTHON_3_14",
                 "envVars": [
                     {
                         "name": "PELLIER_COGNITO_ISSUER",

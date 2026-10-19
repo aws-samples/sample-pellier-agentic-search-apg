@@ -15,6 +15,10 @@ import re
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# The Python the function runs, and the one its dependencies are installed for: the
+# same 3.14 the box, the Runtime and requirements.lock use.
+LAMBDA_PYTHON = '3.14'
+
 iam_client = None
 lambda_client = None
 
@@ -80,7 +84,7 @@ def build_package(files, dependencies):
       logger.info(f"Installing dependencies: {', '.join(dependencies)}")
       for dep in dependencies:
         Run(['uv', 'pip', 'install', dep, '--target', temp_dir,
-             '--python-platform', 'linux', '--python-version', '3.13', '--quiet'], check=True)
+             '--python-platform', 'linux', '--python-version', LAMBDA_PYTHON, '--quiet'], check=True)
 
     zip_path = f"{temp_dir}_deployment.zip"
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -147,14 +151,10 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
       except lambda_client.exceptions.ResourceNotFoundException:
         pass
       
-      # NOTE: 'Runtime' is the AWS Lambda managed-runtime identifier, NOT the
-      # EC2 box's interpreter. It is pinned to a Lambda-SUPPORTED version and
-      # is independent of the python3.14 the bootstrap installs on the
-      # code-editor host. Do not bump this to 3.14 until AWS Lambda
-      # publishes a python3.14 runtime (CreateFunction rejects unsupported
-      # runtimes). python3.13 is the latest Lambda-supported line as of now.
+      # 'Runtime' is the Lambda managed-runtime identifier; the package's
+      # dependencies are installed for the same version (build_package).
       config_params = {
-        'FunctionName': function_name, 'Runtime': 'python3.13', 'Role': role_arn, 'Handler': handler,
+        'FunctionName': function_name, 'Runtime': f'python{LAMBDA_PYTHON}', 'Role': role_arn, 'Handler': handler,
         'Description': f'MCP server: {function_name}', 'Timeout': 300, 'MemorySize': 512,
         'Environment': {'Variables': env}
       }

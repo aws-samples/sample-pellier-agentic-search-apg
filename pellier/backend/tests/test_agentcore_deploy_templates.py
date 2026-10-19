@@ -177,6 +177,30 @@ def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:
     ]
 
 
+def _load_deploy_script(name: str) -> Any:
+    spec = importlib.util.spec_from_file_location(
+        f"{name}_python_version_test", REPO_ROOT / "scripts" / "deploy" / f"{name}.py"
+    )
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_runtime_and_both_lambdas_run_the_python_the_lock_is_compiled_for(
+    tmp_path: Path,
+) -> None:
+    """The box runs Python 3.14 and requirements.lock is compiled for it. The managed
+    Runtime and both Lambdas run the same version, so a tool cannot behave one way in
+    the terminal and another behind the Gateway."""
+    lock = (REPO_ROOT / "pellier" / "backend" / "requirements.lock").read_text()
+    assert "--python-version 3.14" in lock
+    _, project = _render(tmp_path, include_policies=False)
+    assert project["runtimes"][0]["runtimeVersion"] == "PYTHON_3_14"
+    assert _load_deploy_script("deploy_lambda").LAMBDA_PYTHON == "3.14"
+    assert _load_deploy_script("deploy_customer_claim_trigger").LAMBDA_RUNTIME == "python3.14"
+
+
 def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) -> None:
     root, project = _render(tmp_path, include_policies=False)
     runtime = project["runtimes"][0]
@@ -184,7 +208,7 @@ def test_runtime_uses_cli_managed_role_and_resource_discovery(tmp_path: Path) ->
     assert runtime["name"] == renderer.RUNTIME_NAME
     assert runtime["build"] == "CodeZip"
     assert runtime["entrypoint"] == "agentcore_runtime.py"
-    assert runtime["runtimeVersion"] == "PYTHON_3_12"
+    assert runtime["runtimeVersion"] == "PYTHON_3_14"
     assert runtime["protocol"] == "HTTP"
     assert runtime["networkMode"] == "PUBLIC"
     assert runtime["tags"]["PellierDeploymentClass"] == "workshop"
