@@ -48,6 +48,19 @@ describe('dedicated Pellier sign-in', () => {
     expect(screen.getByLabelText('Password', { exact: true })).toHaveValue('private-password')
     expect(assign).not.toHaveBeenCalled()
   })
+  it('says requests are being limited when the edge refused the sign-in', async () => {
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError('http_403:sign_in'))
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pellier is limiting requests from this network for a few minutes. Try again shortly.')
+    expect(screen.getByLabelText('Username')).toHaveValue('operator')
+  })
+  it('keeps the plain unavailable sentence for a dropped connection', async () => {
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError('network_error:sign_in'))
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in is temporarily unavailable. Please try again.')
+  })
   it('returns to the requested record after a verified server session', async () => {
     calls.passwordAuth.mockResolvedValue({ status: 'signed_in', returnTo: '/operator/clients/CUST-JESSICA' })
     render(<SignInPage />); credentials()

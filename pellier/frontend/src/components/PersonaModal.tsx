@@ -15,9 +15,10 @@ import { createPortal } from 'react-dom'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { ArrowRight, Check, X } from 'lucide-react'
 import { usePersona, type PersonaListItem } from '../contexts/PersonaContext'
-import { HERO_CONCIERGE, SHOPPER } from '../copy'
+import { HERO_CONCIERGE, REQUESTS_LIMITED, SHOPPER } from '../copy'
 import { getPersonaModalPortrait } from '../data/personaPhotos'
 import { chooserShoppers, isWorkshopShopper, useShopperSignIn } from '../hooks/useShopperSignIn'
+import { isRequestsLimited } from '../services/passwordAuth'
 import { useFocusTrap } from '../shared/useFocusTrap'
 import '../styles/persona-modal.css'
 
@@ -159,7 +160,7 @@ function ShopperChooser({ onClose }: { onClose: () => void }) {
           ) : null}
           {signInError ? (
             <div className="pellier-recovery" role="alert" data-testid="persona-modal-sign-in-error">
-              <p>{HERO_CONCIERGE.FAILED}</p>
+              <p>{isRequestsLimited(signInError) ? REQUESTS_LIMITED : HERO_CONCIERGE.FAILED}</p>
             </div>
           ) : null}
           {personas.map((p) => {

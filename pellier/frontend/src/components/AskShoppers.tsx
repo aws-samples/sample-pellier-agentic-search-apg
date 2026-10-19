@@ -21,11 +21,11 @@
  */
 import { useEffect, useId, useRef, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { ASK_PANEL, HERO_CONCIERGE, SHOPPER, STATUS_LINES } from '../copy'
+import { ASK_PANEL, HERO_CONCIERGE, REQUESTS_LIMITED, SHOPPER, STATUS_LINES } from '../copy'
 import { usePersona } from '../contexts/PersonaContext'
 import { getPersonaPhoto } from '../data/personaPhotos'
 import { SHOPPER_ORDER, shopperName, useShopperSignIn } from '../hooks/useShopperSignIn'
-import type { WorkshopShopper } from '../services/passwordAuth'
+import { isRequestsLimited, type WorkshopShopper } from '../services/passwordAuth'
 
 function Portrait({ id, size }: { id: WorkshopShopper; size: number }) {
   return (
@@ -47,7 +47,7 @@ function SignInErrors({ error }: { error: string | null }) {
       {/* A plain sentence. The machine code goes to the console. */}
       {error ? (
         <p className="cd-who-alert" role="alert" data-testid="persona-sign-in-error">
-          {HERO_CONCIERGE.FAILED}
+          {isRequestsLimited(error) ? REQUESTS_LIMITED : HERO_CONCIERGE.FAILED}
         </p>
       ) : null}
       {switchError ? (

@@ -101,6 +101,19 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     warn.mockRestore()
   })
 
+  it('says requests are being limited when the edge refused the sign-in, and logs the step', async () => {
+    const { PasswordAuthError } = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
+    state.workshopSignIn.mockRejectedValueOnce(new PasswordAuthError('http_403:csrf'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    render(<ShopperCards />)
+    fireEvent.click(screen.getByTestId('ask-shopper-theo'))
+    const error = await screen.findByTestId('persona-sign-in-error')
+    expect(error).toHaveTextContent('Pellier is limiting requests from this network for a few minutes. Try again shortly.')
+    expect(error).not.toHaveTextContent('http_403')
+    expect(warn).toHaveBeenCalledWith('Shopper sign-in did not complete:', 'http_403:csrf')
+    warn.mockRestore()
+  })
+
   it('shows the shopper the server verified, not the edit on screen, in one row', () => {
     state.username = 'theo'
     state.persona = { id: 'anna' }

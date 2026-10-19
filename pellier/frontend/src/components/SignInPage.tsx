@@ -4,8 +4,8 @@ import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
 import { WordmarkLetters } from './Wordmark'
 import { asset } from '../utils/assetPath'
-import { hostedSignInAvailable, passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
-import { HOSTED_SIGN_IN } from '../copy'
+import { hostedSignInAvailable, isRequestsLimited, passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
+import { HOSTED_SIGN_IN, REQUESTS_LIMITED } from '../copy'
 import '../styles/surface-navigation.css'
 import '../styles/pellier-signin.css'
 
@@ -113,7 +113,8 @@ export default function SignInPage() {
       }
     } catch (reason) {
       if (mounted.current) setError(reason instanceof PasswordAuthError
-        ? ERROR_COPY[reason.message] || 'Sign-in is temporarily unavailable. Please try again.'
+        ? ERROR_COPY[reason.message]
+          || (isRequestsLimited(reason.message) ? REQUESTS_LIMITED : 'Sign-in is temporarily unavailable. Please try again.')
         : 'We could not confirm the response. Check your connection and try again.')
     } finally {
       window.clearTimeout(timeout)

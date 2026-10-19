@@ -236,6 +236,19 @@ describe('PersonaModal choosing a shopper', () => {
     expect(order).toEqual([...order].sort((a, b) => a - b))
   })
 
+  it('says requests are being limited when the edge refused the sign-in', async () => {
+    const { PasswordAuthError } = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
+    stubPersonaFetch()
+    state.workshopSignIn.mockRejectedValueOnce(new PasswordAuthError('http_429:sign_in'))
+    const user = userEvent.setup()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    render(<PersonaModal open onClose={vi.fn()} />)
+    await user.click(await screen.findByTestId('persona-card-marco'))
+    const error = await screen.findByTestId('persona-modal-sign-in-error')
+    expect(error).toHaveTextContent('Pellier is limiting requests from this network for a few minutes. Try again shortly.')
+    warn.mockRestore()
+  })
+
   it('stays open and says so when the sign-in fails, then closes on success', async () => {
     const { PasswordAuthError } = await vi.importActual<typeof import('../services/passwordAuth')>('../services/passwordAuth')
     stubPersonaFetch()

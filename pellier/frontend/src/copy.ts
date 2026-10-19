@@ -93,6 +93,13 @@ export const HERO_CONCIERGE = {
 } as const;
 
 /**
+ * The edge refused a request before it reached Pellier: this network sent more requests
+ * than the firewall allows in a few minutes. Waiting is the remedy, so the sentence says so.
+ */
+export const REQUESTS_LIMITED =
+  "Pellier is limiting requests from this network for a few minutes. Try again shortly.";
+
+/**
  * Editorial hero statement. One accent word per line is split out as an
  * `<em>`; `ACCENT` must appear verbatim inside `HEADLINE` or the headline
  * renders unaccented rather than mis-split.

@@ -13,24 +13,101 @@ export interface PasswordAuthResult {
 export const WORKSHOP_SHOPPERS = ['anna', 'marco', 'theo', 'jessica'] as const
 export type WorkshopShopper = (typeof WORKSHOP_SHOPPERS)[number]
 
-/** Credentials and tokens are never persisted by the browser. No automatic POST retries. */
+/** The step a failure names: the nonce, then the POST. */
+const STEP: Record<PasswordOperation, string> = {
+  'sign-in': 'sign_in', 'workshop-sign-in': 'sign_in', forgot: 'forgot', reset: 'reset',
+}
+const NONCE_RETRY_MS = 500
+
+/**
+ * One request, its failure named when Pellier did not answer: `network_error:<step>` when
+ * the request never got a reply. An abort stays an abort.
+ */
+async function send(step: string, path: string, init: RequestInit): Promise<Response> {
+  try {
+    return await apiFetch(path, init)
+  } catch (reason) {
+    if (init.signal?.aborted) throw reason
+    throw new PasswordAuthError(`network_error:${step}`)
+  }
+}
+
+/** The reply's JSON, or null when the body is not JSON, such as an edge's own error page. */
+async function replyJson<T>(response: Response): Promise<T | null> {
+  try {
+    return await response.json() as T
+  } catch {
+    return null
+  }
+}
+
+function pause(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const abandoned = () => {
+      clearTimeout(timer)
+      reject(new DOMException('The sign-in was abandoned', 'AbortError'))
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', abandoned)
+      resolve()
+    }, ms)
+    if (signal.aborted) abandoned()
+    else signal.addEventListener('abort', abandoned, { once: true })
+  })
+}
+
+/**
+ * The browser nonce the POST is bound to. Fetching it changes nothing, so a dropped
+ * connection gets one retry; an answer that refuses it does not.
+ */
+async function nonce(signal: AbortSignal): Promise<string> {
+  const path = '/api/auth/password/csrf'
+  let response: Response
+  try {
+    response = await send('csrf', path, { credentials: 'include', signal })
+  } catch (reason) {
+    if (!(reason instanceof PasswordAuthError)) throw reason
+    await pause(NONCE_RETRY_MS, signal)
+    response = await send('csrf', path, { credentials: 'include', signal })
+  }
+  if (!response.ok) throw new PasswordAuthError(`http_${response.status}:csrf`)
+  const body = await replyJson<{ csrfToken?: string }>(response)
+  if (!body?.csrfToken) throw new PasswordAuthError('bad_reply:csrf')
+  return body.csrfToken
+}
+
+/**
+ * Credentials and tokens are never persisted by the browser. No automatic POST retries.
+ *
+ * A failure carries Pellier's own reason when it gave one (`invalid_credentials`), and
+ * otherwise names its cause and step: `network_error:csrf`, `http_403:sign_in`,
+ * `bad_reply:csrf`. The page shows a sentence; the code is for the builder.
+ */
 export async function passwordAuth(
   operation: PasswordOperation,
   body: Record<string, string>,
   signal: AbortSignal,
 ): Promise<PasswordAuthResult> {
-  const csrf = await apiFetch('/api/auth/password/csrf', { credentials: 'include', signal })
-  if (!csrf.ok) throw new PasswordAuthError('auth_unavailable')
-  const { csrfToken } = await csrf.json() as { csrfToken: string }
-  if (!csrfToken) throw new PasswordAuthError('auth_unavailable')
-  const response = await apiFetch(`/api/auth/password/${operation}`, {
+  const csrfToken = await nonce(signal)
+  const step = STEP[operation]
+  const response = await send(step, `/api/auth/password/${operation}`, {
     method: 'POST', credentials: 'include', signal,
     headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
     body: JSON.stringify(body),
   })
-  const result = await response.json() as PasswordAuthResult & { detail?: string }
-  if (!response.ok) throw new PasswordAuthError(result.detail || 'auth_unavailable')
+  const result = await replyJson<PasswordAuthResult & { detail?: string }>(response)
+  if (!response.ok) throw new PasswordAuthError(result?.detail || `http_${response.status}:${step}`)
+  if (!result) throw new PasswordAuthError(`bad_reply:${step}`)
   return result
+}
+
+/**
+ * Whether the edge refused a step before it reached Pellier. The CloudFront firewall answers
+ * its rate limit with 429 `requests_limited`; Pellier's own refusals carry other reasons, so
+ * a bare 403 or 429 is the firewall too.
+ */
+export function isRequestsLimited(code: string | null): boolean {
+  return code === 'requests_limited' || /^http_(403|429):/.test(code ?? '')
 }
 
 /**
