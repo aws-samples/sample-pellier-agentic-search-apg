@@ -175,8 +175,8 @@ account in us-east-1):
 
 Open for the next fresh event:
 
-- The Studio template's `WorkshopReadyGate` (InfrastructureRevision
-  c85de1be653934bc) takes the bootstrap signal instead of the editor instance:
+- The Studio template's `WorkshopReadyGate`, in the first Studio build pinned
+  after this commit, takes the bootstrap signal instead of the editor instance:
   `BrowserVpcOrigin` starts within a minute of the instance launching, the
   distribution and the Cognito callback registration finish while bootstrap
   runs, and the nested and root stacks complete within about a minute of the
