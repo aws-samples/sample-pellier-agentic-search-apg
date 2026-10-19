@@ -147,11 +147,18 @@
   outline-offset: 2px;
 }
 @media (hover: hover) and (pointer: fine) {
-  .sf-action:hover {
+  .sf-action:hover:not(:disabled) {
     border-color: var(--dl-ink);
     background: var(--dl-ink);
     color: var(--dl-on-ink);
   }
+}
+
+/* A shopper switch is in flight: the suggestions wait for it, like the shopper cards. */
+.sf-action:disabled,
+.sf-overheard:disabled {
+  cursor: wait;
+  opacity: 0.6;
 }
 
 /* Divider between the required turns and the rest */
@@ -213,8 +220,8 @@
   border-bottom: 1px solid transparent;
   transition: border-color 150ms, color 150ms;
 }
-.sf-overheard:hover { color: var(--dl-ink); }
-.sf-overheard:hover .sf-overheard-quote {
+.sf-overheard:hover:not(:disabled) { color: var(--dl-ink); }
+.sf-overheard:hover:not(:disabled) .sf-overheard-quote {
   border-bottom-color: var(--dl-ink);
 }
 .sf-overheard:focus-visible {

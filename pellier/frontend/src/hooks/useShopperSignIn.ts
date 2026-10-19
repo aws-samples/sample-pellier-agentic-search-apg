@@ -82,9 +82,10 @@ export function useShopperSignIn(): ShopperSignIn {
     setBusy(id)
     setError(null)
     try {
-      await workshopSignIn(id, abort.signal)
-      await auth?.refresh()
-      return await switchPersona(id)
+      return await switchPersona(id, async () => {
+        await workshopSignIn(id, abort.signal)
+        await auth?.refresh()
+      })
     } catch (reason) {
       if (abort.signal.aborted) return false
       const code = reason instanceof PasswordAuthError ? reason.message : 'auth_unavailable'

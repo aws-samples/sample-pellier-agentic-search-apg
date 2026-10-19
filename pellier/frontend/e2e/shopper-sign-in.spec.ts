@@ -25,8 +25,12 @@ function profile(id: string) {
   }
 }
 
-/** The stand-in server: one session, signed in only through the workshop sign-in. */
-async function serve(page: Page) {
+/**
+ * The stand-in server: one session, signed in only through the workshop sign-in.
+ * `switchGate` holds `/api/persona/switch` open until it settles; `starters` are the
+ * welcome's suggested requests.
+ */
+async function serve(page: Page, options: { switchGate?: Promise<void>, starters?: string[] } = {}) {
   const session = { user: null as string | null, persona: null as string | null }
   const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) })
   await page.route('**/assets/personas/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.alloc(0) }))
@@ -55,6 +59,7 @@ async function serve(page: Page) {
     if (path.endsWith('/api/user/preferences')) return route.fulfill(json({ preferences: null }))
     if (path.endsWith('/api/personas')) return route.fulfill(json(['fresh', 'nadia', ...SHOPPERS].map(profile)))
     if (path.endsWith('/api/persona/switch')) {
+      await options.switchGate
       session.persona = body.persona_id
       return route.fulfill(json({ session_id: `persona-${body.persona_id}-${'0'.repeat(32)}`, persona: profile(body.persona_id) }))
     }
@@ -74,7 +79,10 @@ async function serve(page: Page) {
       return route.fulfill({ status: 200, contentType: 'text/event-stream', body: events.map(e => `data: ${JSON.stringify(e)}\n\n`).join('') })
     }
     if (path.endsWith('/api/products')) return route.fulfill(json([]))
-    if (path.endsWith('/api/scenarios')) return route.fulfill(json({ scenarios: [] }))
+    if (path.endsWith('/api/scenarios')) {
+      const scenarios = (options.starters ?? []).map((prompt, index) => ({ id: index + 1, prompt, journeyRole: 'required' }))
+      return route.fulfill(json({ scenarios }))
+    }
     return route.fulfill(json({}))
   })
   return session
@@ -150,4 +158,58 @@ test('choosing a shopper in the panel signs in, switching changes the principal,
   await expect(page.getByTestId('ask-shopper-anna')).not.toHaveAttribute('aria-pressed')
   await expect(page.getByTestId('ask-sign-out')).toHaveCount(0)
   expect(await askAndReadPrincipal(page)).toBe('Not signed in')
+})
+
+test('while a chosen shopper signs in, the panel takes no request that the switch would discard', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const request = 'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.'
+  let releaseSwitch = () => {}
+  const switchGate = new Promise<void>(resolve => { releaseSwitch = resolve })
+  await serve(page, { switchGate, starters: [request] })
+  await page.goto('/')
+  await page.getByTestId('ask-shopper-anna').click()
+
+  // Anna's sign-in has landed and the panel names her, but her persona switch is still
+  // in flight. Landing resets the draft and the conversation, so until then the
+  // composer and the suggested requests take nothing.
+  const drawer = page.getByTestId('chat-drawer')
+  await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Anna')
+  const composer = drawer.getByRole('textbox', { name: 'Message Pellier' })
+  const starter = drawer.getByRole('button', { name: request, exact: true })
+  await expect(starter).toBeVisible()
+  await expect(composer).toBeDisabled()
+  await expect(starter).toBeDisabled()
+
+  // Once it lands, a draft typed straight away is still there afterwards.
+  releaseSwitch()
+  await expect(composer).toBeEnabled()
+  await composer.fill(request)
+  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Anna, signed in')
+  await expect(composer).toHaveValue(request)
+  await expect(starter).toBeEnabled()
+})
+
+test('a question from the home bar during a shopper sign-in waits for it, then stays', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  let releaseSwitch = () => {}
+  const switchGate = new Promise<void>(resolve => { releaseSwitch = resolve })
+  await serve(page, { switchGate })
+  await page.goto('/')
+  await page.getByTestId('ask-shopper-anna').click()
+  await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Anna')
+
+  // Sent now, the question would run before Anna's persona lands and then be
+  // erased by the reset that landing performs.
+  const question = 'Something warm for the evening'
+  const ask = page.getByTestId('pellier-hero-search')
+  await ask.fill(question)
+  await ask.press('Enter')
+  const drawer = page.getByTestId('chat-drawer')
+  await expect(drawer.getByText(question, { exact: true })).toHaveCount(0)
+
+  releaseSwitch()
+  await expect(drawer.getByText(question, { exact: true })).toBeVisible()
+  await expect(drawer.getByTestId('turn-principal').last()).toHaveText('IdentityWorkshop sign-in, CUST-ANNA')
+  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Anna, signed in')
+  await expect(drawer.getByText(question, { exact: true })).toBeVisible()
 })

@@ -52,14 +52,20 @@ const NOT_SHOPPERS = [
 ]
 
 const state = vi.hoisted(() => ({
-  switchPersona: vi.fn().mockResolvedValue(true),
+  // The context runs a shopper's sign-in first, then opens the edit.
+  openEdit: vi.fn(),
+  switchPersona: vi.fn(async (id: string, signIn?: () => Promise<void>) => {
+    await signIn?.()
+    state.openEdit(id)
+    return true
+  }),
   clearShopper: vi.fn(),
   refresh: vi.fn(() => Promise.resolve()),
   logout: vi.fn(),
   workshopSignIn: vi.fn(() => Promise.resolve({ status: 'signed_in' })),
   username: '',
 }))
-const switchPersona = state.switchPersona
+const openEdit = state.openEdit
 
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
@@ -225,8 +231,8 @@ describe('PersonaModal choosing a shopper', () => {
     await user.click(await screen.findByTestId('persona-card-jessica'))
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(state.workshopSignIn).toHaveBeenCalledWith('jessica', expect.any(AbortSignal))
-    expect(switchPersona).toHaveBeenCalledWith('jessica')
-    const order = [state.workshopSignIn, state.refresh, switchPersona].map(fn => fn.mock.invocationCallOrder[0])
+    expect(openEdit).toHaveBeenCalledWith('jessica')
+    const order = [state.workshopSignIn, state.refresh, openEdit].map(fn => fn.mock.invocationCallOrder[0])
     expect(order).toEqual([...order].sort((a, b) => a - b))
   })
 
@@ -244,7 +250,7 @@ describe('PersonaModal choosing a shopper', () => {
     expect(error).toHaveTextContent('That sign-in did not complete. Try again, or use the sign-in page.')
     expect(error).not.toHaveTextContent('workshop_sign_in_unavailable')
     expect(warn).toHaveBeenCalledWith('Shopper sign-in did not complete:', 'workshop_sign_in_unavailable')
-    expect(switchPersona).not.toHaveBeenCalled()
+    expect(openEdit).not.toHaveBeenCalled()
     expect(onClose).not.toHaveBeenCalled()
     await user.click(profile)
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
@@ -262,7 +268,7 @@ describe('PersonaModal choosing a shopper', () => {
     expect(theo).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByTestId('persona-card-marco')).toHaveAttribute('aria-pressed', 'false')
     await user.click(theo)
-    await waitFor(() => expect(switchPersona).toHaveBeenCalledWith('theo'))
+    await waitFor(() => expect(openEdit).toHaveBeenCalledWith('theo'))
     expect(state.workshopSignIn).toHaveBeenCalledWith('theo', expect.any(AbortSignal))
   })
 })

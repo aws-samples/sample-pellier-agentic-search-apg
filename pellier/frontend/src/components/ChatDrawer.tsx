@@ -64,7 +64,7 @@ import StatusLines from './StatusLines'
 import { SkillModeToggle, useBuilderView } from './turn'
 import { useStoreResults } from '../contexts/StoreResultsContext'
 import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
-import { ASK_PANEL } from '../copy'
+import { ASK_PANEL, HERO_CONCIERGE } from '../copy'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
 
@@ -101,7 +101,7 @@ export default function ChatDrawer() {
   } = useUI()
   const { guardrailsEnabled } = useLayout()
   const { addToCart, cartOpen } = useCart()
-  const { persona } = usePersona()
+  const { persona, switching } = usePersona()
   const signedInAs = useSignedInShopper()
   const docked = useDocksBesideStore()
 
@@ -229,18 +229,19 @@ export default function ChatDrawer() {
   // it cannot erase the seeded turn. A pending query adds to the active
   // thread: storefront suggestions are follow-on shopping questions, so
   // clearing the conversation here silently discarded the shopper's context.
-  // While the bag covers the panel the question waits for it.
+  // While the bag covers the panel the question waits for it, and so it does
+  // while a shopper switch is in flight, whose landing resets the thread.
   useEffect(() => {
     if (!isOpen) {
       if (activeModal !== 'drawer') consumePendingQuery()
       return
     }
-    if (!pendingConciergeQuery) return
+    if (!pendingConciergeQuery || switching) return
     const seeded = consumePendingQuery()
     if (seeded) {
       void sendMessage(seeded)
     }
-  }, [isOpen, activeModal, pendingConciergeQuery, consumePendingQuery, sendMessage])
+  }, [isOpen, activeModal, pendingConciergeQuery, switching, consumePendingQuery, sendMessage])
 
   // Follow the reply until the shopper scrolls back. A new question resumes
   // following; streamed chunks never pull someone away from earlier text.
@@ -376,6 +377,7 @@ export default function ChatDrawer() {
               <PellierWelcome
                 persona={persona}
                 onSend={(text) => void sendMessage(text)}
+                disabled={switching}
               />
             ) : null}
             {hasUserMessages && (
@@ -411,18 +413,23 @@ export default function ChatDrawer() {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={handleKeyPress}
+                // A shopper switch resets the draft when it lands, so the
+                // composer takes nothing until then.
+                disabled={switching}
                 aria-label="Message Pellier"
                 placeholder={
-                  hasUserMessages
-                    ? 'Continue the conversation…'
-                    : "Tell Pellier what you're looking for…"
+                  switching
+                    ? `${HERO_CONCIERGE.SIGNING_IN}…`
+                    : hasUserMessages
+                      ? 'Continue the conversation…'
+                      : "Tell Pellier what you're looking for…"
                 }
                 aria-describedby="cd-composer-hint"
               />
               <button
                 type="button"
                 className="cd-send"
-                disabled={!isLoading && !inputValue.trim()}
+                disabled={switching || (!isLoading && !inputValue.trim())}
                 aria-label={isLoading ? 'Stop' : 'Ask Pellier'}
                 title={isLoading ? 'Stop' : 'Ask Pellier'}
                 data-loading={isLoading}

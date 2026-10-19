@@ -13,7 +13,13 @@ const state = vi.hoisted(() => ({
   persona: null as null | { id: string },
   refresh: vi.fn(() => Promise.resolve()),
   logout: vi.fn(),
-  switchPersona: vi.fn(() => Promise.resolve(true)),
+  // The context runs a shopper's sign-in first, then opens the edit.
+  openEdit: vi.fn(),
+  switchPersona: vi.fn(async (id: string, signIn?: () => Promise<void>) => {
+    await signIn?.()
+    state.openEdit(id)
+    return true
+  }),
   clearShopper: vi.fn(),
   workshopSignIn: vi.fn(() => Promise.resolve({ status: 'signed_in' })),
 }))
@@ -75,10 +81,10 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
   it('signs in with the demo account first, then opens the edit', async () => {
     render(<ShopperCards />)
     fireEvent.click(screen.getByTestId('ask-shopper-jessica'))
-    await waitFor(() => expect(state.switchPersona).toHaveBeenCalledWith('jessica'))
+    await waitFor(() => expect(state.openEdit).toHaveBeenCalledWith('jessica'))
     expect(state.workshopSignIn).toHaveBeenCalledWith('jessica', expect.any(AbortSignal))
     expect(state.workshopSignIn.mock.invocationCallOrder[0])
-      .toBeLessThan(state.switchPersona.mock.invocationCallOrder[0])
+      .toBeLessThan(state.openEdit.mock.invocationCallOrder[0])
   })
 
   it('selects no edit when the sign-in fails, and says so in a plain sentence', async () => {
@@ -90,7 +96,7 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     const error = await screen.findByTestId('persona-sign-in-error')
     expect(error).toHaveTextContent('That sign-in did not complete. Try again, or use the sign-in page.')
     expect(error).not.toHaveTextContent('workshop_sign_in_unavailable')
-    expect(state.switchPersona).not.toHaveBeenCalled()
+    expect(state.openEdit).not.toHaveBeenCalled()
     expect(screen.getByTestId('ask-shopper-theo')).not.toHaveAttribute('aria-pressed')
     warn.mockRestore()
   })
@@ -138,7 +144,7 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
     render(<ShopperBar />)
     fireEvent.click(screen.getByTestId('ask-switch-shopper'))
     fireEvent.click(screen.getByTestId('ask-shopper-marco'))
-    await waitFor(() => expect(state.switchPersona).toHaveBeenCalledWith('marco'))
+    await waitFor(() => expect(state.openEdit).toHaveBeenCalledWith('marco'))
     await waitFor(() => expect(screen.getByTestId('ask-switch-shopper')).toHaveAttribute('aria-expanded', 'false'))
     expect(screen.queryByTestId('ask-shopper-marco')).not.toBeInTheDocument()
     expect(screen.getByTestId('ask-switch-shopper')).toHaveFocus()

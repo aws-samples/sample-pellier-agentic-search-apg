@@ -15,7 +15,13 @@ const state = vi.hoisted(() => ({
   persona: null as null | { id: string },
   refresh: vi.fn(() => Promise.resolve()),
   logout: vi.fn(),
-  switchPersona: vi.fn(() => Promise.resolve(true)),
+  // The context runs a shopper's sign-in first, then opens the edit.
+  openEdit: vi.fn(),
+  switchPersona: vi.fn(async (id: string, signIn?: () => Promise<void>) => {
+    await signIn?.()
+    state.openEdit(id)
+    return true
+  }),
   clearPersona: vi.fn(),
   clearShopper: vi.fn(),
   workshopSignIn: vi.fn(() => Promise.resolve({ status: 'signed_in' })),
@@ -59,8 +65,8 @@ describe('choosing a shopper', () => {
     const { result } = renderHook(() => useShopperSignIn())
     await act(async () => { expect(await result.current.choose('theo')).toBe(true) })
     expect(state.workshopSignIn).toHaveBeenCalledWith('theo', expect.any(AbortSignal))
-    expect(state.switchPersona).toHaveBeenCalledWith('theo')
-    const order = [state.workshopSignIn, state.refresh, state.switchPersona].map(fn => fn.mock.invocationCallOrder[0])
+    expect(state.openEdit).toHaveBeenCalledWith('theo')
+    const order = [state.workshopSignIn, state.refresh, state.openEdit].map(fn => fn.mock.invocationCallOrder[0])
     expect(order).toEqual([...order].sort((a, b) => a - b))
   })
 
@@ -71,7 +77,7 @@ describe('choosing a shopper', () => {
     expect(result.current.signedInAs).toBe('theo')
     await act(async () => { await result.current.choose('anna') })
     expect(state.workshopSignIn).toHaveBeenCalledExactlyOnceWith('anna', expect.any(AbortSignal))
-    expect(state.switchPersona).toHaveBeenCalledWith('anna')
+    expect(state.openEdit).toHaveBeenCalledWith('anna')
   })
 
   it('keeps the previous edit when the sign-in fails', async () => {
@@ -80,7 +86,7 @@ describe('choosing a shopper', () => {
     const { result } = renderHook(() => useShopperSignIn())
     await act(async () => { expect(await result.current.choose('marco')).toBe(false) })
     await waitFor(() => expect(result.current.error).toBe('auth_unavailable'))
-    expect(state.switchPersona).not.toHaveBeenCalled()
+    expect(state.openEdit).not.toHaveBeenCalled()
   })
 
   it('names no verified shopper for staff or the signed-out state', () => {

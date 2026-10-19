@@ -74,8 +74,12 @@ export interface PersonaTransition {
 interface PersonaContextType {
   /** The active persona, or null if none selected. */
   persona: PersonaSnapshot | null
-  /** Switch to a new persona. Generates a new session, clears chat. */
-  switchPersona: (personaId: string) => Promise<boolean>
+  /**
+   * Switch to a new persona. Generates a new session, clears chat. A shopper
+   * choice passes its sign-in as `signIn`, which runs first, inside the same
+   * `switching` span; its errors reach the caller unchanged.
+   */
+  switchPersona: (personaId: string, signIn?: () => Promise<void>) => Promise<boolean>
   /**
    * Clear the active shopper identity without rendering a sign-out
    * celebration. Operator client previews use this so client context can never
@@ -84,7 +88,7 @@ interface PersonaContextType {
   clearPersona: () => void
   /** Sign out — clear the active persona. */
   signOut: () => void
-  /** Whether a switch is in flight. */
+  /** Whether a switch, including a shopper choice's sign-in, is in flight. */
   switching: boolean
   /** Last live persona-switch failure, surfaced by selection controls. */
   switchError: string | null
@@ -195,9 +199,20 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     }
   }, [persona])
 
-  const switchPersona = useCallback(async (personaId: string) => {
+  const switchPersona = useCallback(async (personaId: string, signIn?: () => Promise<void>) => {
     setSwitching(true)
     setSwitchError(null)
+    // Signing in names the new shopper in the panel before the persona lands, and
+    // landing resets the panel's draft and conversation. One span covers both, so
+    // nothing typed in between is lost.
+    if (signIn) {
+      try {
+        await signIn()
+      } catch (reason) {
+        setSwitching(false)
+        throw reason
+      }
+    }
     try {
       const res = await apiFetch('/api/persona/switch', {
         method: 'POST',

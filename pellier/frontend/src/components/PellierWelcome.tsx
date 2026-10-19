@@ -16,6 +16,8 @@ import '../styles/pellier-welcome.css'
 interface PellierWelcomeProps {
   onSend: (text: string) => void
   persona?: PersonaSnapshot | null
+  /** True while a shopper switch is in flight; its landing resets the panel. */
+  disabled?: boolean
 }
 
 interface LiveScenario {
@@ -54,7 +56,7 @@ export function composeWelcomeGreeting(
   return `${timeGreeting}${suffix}${suffix.endsWith('.') ? '' : '.'}`
 }
 
-export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps) {
+export default function PellierWelcome({ onSend, persona, disabled = false }: PellierWelcomeProps) {
   const [catalog, setCatalog] = useState<PellierProduct[]>([])
   const [scenarios, setScenarios] = useState<LiveScenario[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -175,6 +177,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
                   key={scenario.id}
                   type="button"
                   className={`sf-action ${index === 0 ? 'sf-action-primary' : ''}`}
+                  disabled={disabled}
                   onClick={() => onSend(scenario.prompt)}
                 >
                   {scenario.prompt}
@@ -197,6 +200,7 @@ export default function PellierWelcome({ onSend, persona }: PellierWelcomeProps)
                   key={scenario.id}
                   type="button"
                   className="sf-overheard"
+                  disabled={disabled}
                   onClick={() => onSend(scenario.prompt)}
                 >
                   <span className="sf-overheard-line">
