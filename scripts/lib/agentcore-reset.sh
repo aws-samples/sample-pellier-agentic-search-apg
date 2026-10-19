@@ -116,7 +116,7 @@ _agentcore() {
 # package and the Cedar policies - and records it in the participant receipt. The
 # files were restored above, but the live Gateway still publishes get_tickets with its
 # owner-only permit, and the receipt still names that catalogue, so lab3-start.sh
-# (Lab 3's first step) and the health gate both refused the reset box. The same deploy
+# (which Lab 3's deploy runs) and the health gate both refused the reset box. The same deploy
 # from the restored starters puts the live project back to what provisioning built;
 # --reset-to-starters lets it retire the permit the starters no longer render, permit
 # first and schema second. Before any participant deploy there is no receipt, and the

@@ -2,8 +2,11 @@
 # Restore one lab's execution and AgentCore state. Run by `lab_run.py reset --lab N`.
 #
 #   bash scripts/reset-agentcore-lab.sh 1|2   execution rail back to in-process
-#   bash scripts/reset-agentcore-lab.sh 3     managed project redeployed from the starters
-#   bash scripts/reset-agentcore-lab.sh 4     Lab 4 Cedar rule and live enforcement mode
+#   bash scripts/reset-agentcore-lab.sh 3     managed project redeployed from the starters, then
+#                                             the rail back to in-process, as a fresh Lab 3
+#                                             starts: its deploy moves Pellier onto AgentCore
+#   bash scripts/reset-agentcore-lab.sh 4     Lab 4 Cedar rule and live enforcement mode; the
+#                                             rail stays on AgentCore, where Lab 4 starts
 #
 # The functions are the ones scripts/reset-governed-workshop.sh runs for the whole
 # workshop (scripts/lib/agentcore-reset.sh). It does not stop the application: the lab's
@@ -35,7 +38,8 @@ cd "$REPO"
 
 case "$LAB" in
   1 | 2) pellier_restore_execution_rail ;;
-  3) pellier_agentcore_init && pellier_restore_lab3_agentcore ;;
+  3) pellier_agentcore_init && pellier_restore_lab3_agentcore &&
+       pellier_restore_execution_rail ;;
   4) pellier_agentcore_init && pellier_restore_lab4_agentcore ;;
 esac || {
   fail "Lab ${LAB} AgentCore state was not restored (step: ${PELLIER_RESET_FAILED_STEP:-unknown}). Run the whole-workshop reset instead."

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -309,6 +310,67 @@ def test_lab_three_starts_again_at_task_3a_because_its_deploy_moves_the_rail() -
     assert lab_reset.next_step(3) == "start Task 3A again from labs/03-deploy/README.md."
     assert "lab3-start" not in lab_reset.next_step(3)
     assert "Task 1A" in lab_reset.next_step(1)
+
+
+def managed_box(tmp_path: Path) -> Dict[str, Path]:
+    """A box after Lab 3's deploy: the rail on in .env and run.env, and a participant receipt.
+
+    The fake interpreter answers the identity helper and records, for each starters'
+    redeploy, the rail .env selected while it ran.
+    """
+    repo = tmp_path / "box"
+    for relative in ("scripts/reset-agentcore-lab.sh", "scripts/lib/agentcore-reset.sh",
+                     "scripts/lib/dotenv.sh"):
+        (repo / relative).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO / relative, repo / relative)
+    project = tmp_path / "agentcore-project"
+    (project / "agentcore").mkdir(parents=True)
+    (project / "agentcore" / "agentcore.json").write_text("{}\n")
+    box = {"repo": repo, "env": repo / ".env", "run_env": tmp_path / "run.env",
+           "receipt": tmp_path / "participant.json", "calls": tmp_path / "calls.log"}
+    for name in ("env", "run_env"):
+        box[name].write_text("USE_AGENTCORE_RUNTIME=true\n")
+    box["receipt"].write_text("{}\n")
+    python = repo / "pellier" / "backend" / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text(f"""#!/bin/bash
+case "$1" in
+  *resolve_agentcore_identity.py)
+    case "$*" in *project-root*) echo '{project}' ;; *) echo pellier ;; esac ;;
+  *provision_agentcore_end_to_end.py)
+    printf 'redeploy %s\\n' "$(grep USE_AGENTCORE_RUNTIME '{box["env"]}')" >> '{box["calls"]}' ;;
+esac
+exit 0
+""")
+    python.chmod(0o755)
+    return box
+
+
+def test_lab_three_reset_puts_the_rail_back_in_process_after_the_starters(
+        tmp_path: Path) -> None:
+    """A fresh Lab 3 runs in process until its deploy moves Pellier onto AgentCore, and the
+    deploy says so. A reset box must match: after the starters' redeploy, the rail goes back,
+    so `send --lab 3` refuses again and the next deploy prints the move."""
+    box = managed_box(tmp_path)
+    env = {**os.environ, "PELLIER_REPO": str(box["repo"]),
+           "PELLIER_RUN_ENV": str(box["run_env"]),
+           "AGENTCORE_PARTICIPANT_OUTPUT_JSON": str(box["receipt"])}
+    result = subprocess.run(["bash", str(box["repo"] / "scripts" / "reset-agentcore-lab.sh"),
+                             "3"], env=env, capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert box["calls"].read_text() == "redeploy USE_AGENTCORE_RUNTIME=true\n"
+    for name in ("env", "run_env"):
+        assert box[name].read_text() == "USE_AGENTCORE_RUNTIME=false\n"
+        assert lab_run._configured_rail(box[name]) == lab_run.IN_PROCESS
+    assert "Execution rail restored to in-process" in result.stdout
+
+
+def test_lab_four_reset_leaves_the_rail_on_agentcore() -> None:
+    """Lab 4 starts on AgentCore, where Lab 3's deploy left it."""
+    script = (REPO / "scripts" / "reset-agentcore-lab.sh").read_text()
+    lab_four = next(line for line in script.splitlines() if line.strip().startswith("4)"))
+    assert "pellier_restore_execution_rail" not in lab_four
+    assert lab_run.LAB_RAIL[4] == lab_run.MANAGED
 
 
 def test_the_command_is_wired_into_lab_run(monkeypatch: pytest.MonkeyPatch,

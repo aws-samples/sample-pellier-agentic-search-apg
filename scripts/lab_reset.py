@@ -10,7 +10,7 @@ four parts, and each is restored by the one source that defines it:
                   credit-writer privileges: the statements between the ``SHIPPED STATE``
                   markers in ``scripts/migrations/001_schema.sql``, the file a fresh
                   database is built from, so there is no second copy to drift
-    managed       the execution rail (Labs 1 and 2), the Lab 3 deploy and the Lab 4 Cedar
+    managed       the execution rail (Labs 1 to 3), the Lab 3 deploy and the Lab 4 Cedar
                   rule and enforcement mode: ``scripts/reset-agentcore-lab.sh``, which runs
                   the functions the whole reset runs
     evidence      ``tool_audit`` and ``retrieval_receipts`` are append-only, so the lab's
@@ -293,8 +293,8 @@ def reset_lab(
 
 
 def next_step(lab: int) -> str:
-    """The page that starts the lab again. Lab 3 needs no switch first: its deploy moves
-    Pellier onto AgentCore when it is not there yet."""
+    """The page that starts the lab again. Lab 3 needs no switch first: the reset puts the
+    rail back in process, and the lab's deploy moves Pellier onto AgentCore."""
     return f"start Task {START_TASK[lab]} again from labs/{LAB_DIRECTORY[lab]}/README.md."
 
 
