@@ -366,7 +366,8 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
                              f"send Marco's requests with {SEND}, then rerun this check. "
                              "Already sent? As shipped, the Stock agent does not hold "
                              "check_stock, so a call to it did not run and left no row: "
-                             "build Task 2A." + check.since_note(2, SEND))
+                             "apply Task 2A (uv run scripts/lab_run.py solution --lab 2 --task 2A)."
+                             + check.since_note(2, SEND))
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "

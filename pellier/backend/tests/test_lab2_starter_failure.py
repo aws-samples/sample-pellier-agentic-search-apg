@@ -290,7 +290,8 @@ def test_no_stock_agent_turn_is_not_yet(conn, monkeypatch) -> None:
     finding = lab2.judge_2a(conn)
     assert finding.state == "NOT YET"
     assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step
-    assert "build Task 2A" in finding.next_step
+    assert ("apply Task 2A (uv run scripts/lab_run.py solution --lab 2 --task 2A)"
+            in finding.next_step)
 
 
 # ---------------------------------------------------------------------------
