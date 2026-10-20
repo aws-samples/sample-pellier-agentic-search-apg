@@ -195,20 +195,20 @@ SELECT :lab_1_eligible >= 20 AS enough,
        :lab_1_off_rows < 20 AS short_list,
        :lab_1_strict_rows = 20 AS filled,
        :lab_1_eligible = :lab_1_eligible_storefront AS same_rows,
-       format('1. exact scan: %s of 20 (%s products are $35 or less and not candles)',
+       format('2. exact scan: %s of 20 (%s products are $35 or less and not candles)',
               :lab_1_exact_rows, :lab_1_eligible) AS line_1,
-       format('2. HNSW, iterative scan off: %s of 20; recall@20 %s%%', :lab_1_off_rows,
+       format('3. HNSW, iterative scan off: %s of 20; recall@20 %s%%', :lab_1_off_rows,
               round(100.0 * (SELECT count(*) FROM unnest(:'lab_1_off_ids'::text[]) AS ids(id)
                              WHERE id = ANY(:'lab_1_exact_ids'::text[]))
                     / nullif(:lab_1_exact_rows, 0), 1)) AS line_2,
-       format('3. HNSW, strict_order: %s of 20; recall@20 %s%%; %s', :lab_1_strict_rows,
+       format('4. HNSW, strict_order: %s of 20; recall@20 %s%%; %s', :lab_1_strict_rows,
               round(100.0 * (SELECT count(*) FROM unnest(:'lab_1_strict_ids'::text[]) AS ids(id)
                              WHERE id = ANY(:'lab_1_exact_ids'::text[]))
                     / nullif(:lab_1_exact_rows, 0), 1),
               CASE WHEN :'lab_1_strict_ids' = :'lab_1_exact_ids'
                    THEN 'the exact 20 in the same order'
                    ELSE 'not the exact 20 in order' END) AS line_3,
-       format('4. photographed-only index, iterative scan off: %s of 20; recall@20 %s%%',
+       format('5. photographed-only index, iterative scan off: %s of 20; recall@20 %s%%',
               :lab_1_partial_rows,
               round(100.0 * (SELECT count(*) FROM unnest(:'lab_1_partial_ids'::text[]) AS ids(id)
                              WHERE id = ANY(:'lab_1_exact_ids'::text[]))
@@ -218,11 +218,11 @@ SELECT :lab_1_eligible >= 20 AS enough,
 ROLLBACK;
 
 \echo ''
-\echo 'Expected  1. inspect the actual plan; compare against the exact scan'
-\echo '          2. HNSW with iterative scan off may return fewer than 20'
-\echo '          3. with strict_order the same index returns all 20'
+\echo 'Expected  1. the planner''s own choice; compare it with 2, the exact scan'
+\echo '          3. HNSW with iterative scan off may return fewer than 20'
+\echo '          4. with strict_order the same index returns all 20'
 \if :storefront_only
-  \echo '          4. the photographed-only index returns all 20 in one pass'
+  \echo '          5. the photographed-only index returns all 20 in one pass'
 \endif
 \echo 'Read      Execution Time, Buffers and Rows Removed by Filter in each plan above.'
 \echo 'Recall    overlap with this run''s exact top 20; not recommendation quality.'

@@ -360,11 +360,11 @@ def test_the_lab1_index_check_measures_the_full_catalog(fresh_db):
     # Costs and statistics choose the initial plan; at 50,000 rows either plan is legitimate.
     assert "product_catalog" in choice and "Limit" in choice
     assert "Index Scan using product_catalog_embedding_hnsw" in forced
-    eligible = int(re.search(r"1\. exact scan: 20 of 20 \((\d+) products are \$35 or less "
+    eligible = int(re.search(r"2\. exact scan: 20 of 20 \((\d+) products are \$35 or less "
                              r"and not candles\)", out).group(1))
     assert eligible > 10_000
-    assert re.search(r"2\. HNSW, iterative scan off: \d+ of 20; recall@20 [\d.]+%", out)
-    assert re.search(r"3\. HNSW, strict_order: 20 of 20; recall@20 [\d.]+%", out)
+    assert re.search(r"3\. HNSW, iterative scan off: \d+ of 20; recall@20 [\d.]+%", out)
+    assert re.search(r"4\. HNSW, strict_order: 20 of 20; recall@20 [\d.]+%", out)
     assert "5. The storefront" not in out
     assert out.rstrip().endswith("Lab 1 index check passed")
     # Read-only: the forced plan and the scan setting end with the transaction.
@@ -379,10 +379,10 @@ def test_the_photographed_run_comes_back_short_until_the_partial_index(fresh_db)
     assert "Index Scan using product_catalog_embedding_hnsw" in full_graph
     assert "product_catalog_visible_hnsw" not in full_graph
     assert "Index Scan using product_catalog_visible_hnsw" in partial
-    short = int(re.search(r"2\. HNSW, iterative scan off: (\d+) of 20", out).group(1))
+    short = int(re.search(r"3\. HNSW, iterative scan off: (\d+) of 20", out).group(1))
     assert short < 20
-    assert re.search(r"3\. HNSW, strict_order: 20 of 20;", out)
-    assert re.search(r"4\. photographed-only index, iterative scan off: 20 of 20;", out)
+    assert re.search(r"4\. HNSW, strict_order: 20 of 20;", out)
+    assert re.search(r"5\. photographed-only index, iterative scan off: 20 of 20;", out)
     assert "select different rows" not in out
     assert out.rstrip().endswith("Lab 1 index check passed")
 
