@@ -31,10 +31,13 @@ build/
 pellier/config/mcp-server-config.json
 
 # Claude Code worktrees, debug logs, scheduled tasks, and local settings are
-# machine-local. Project skills are reviewed source and ship with the workshop.
+# machine-local. Project skills are reviewed source and ship with the workshop, and so
+# does settings.json: it starts the coach in manual mode, asking before each edit or
+# command, where Claude Code's own default runs tool calls without asking.
 .claude/*
 !.claude/skills/
 !.claude/skills/**
+!.claude/settings.json
 
 # Internal design docs — working notes, not shipping content.
 # Written as `docs/*` rather than `docs/`: git cannot re-include a file whose parent
