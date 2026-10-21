@@ -186,7 +186,7 @@ def test_workshop_dependencies_are_immutable() -> None:
         if clean and not clean.startswith("#"):
             assert "==" in clean, clean
     deploy_lambda = (DEPLOY / "deploy_lambda.py").read_text(encoding="utf-8")
-    assert "'mcp==1.28.1'" in deploy_lambda
+    assert "'mcp==1.30.0'" in deploy_lambda
     assert '"bedrock:Rerank"' in deploy_lambda
 
 
