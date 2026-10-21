@@ -350,7 +350,7 @@ def main():
         'common/types.py': types_path,
         target_filename: args.mcp_server_path
       },
-      dependencies=['mcp==1.28.1'] + args.extra_deps,
+      dependencies=['mcp==1.30.0'] + args.extra_deps,
       env=env_vars,
       region=args.region,
       s3_bucket=args.s3_bucket,
