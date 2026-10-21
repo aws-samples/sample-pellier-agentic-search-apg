@@ -107,7 +107,32 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     assert granted.splitlines()[-1] == (
         "policy orders_credit_writer on orders USING (true): every customer's rows")
     assert "rolled back, the live state is unchanged" in done.stdout
+    assert "Next      which single privilege does a money path need?" in done.stdout
     assert "Lab 4B privileges check failed" in done.stdout
+    assert _state(fresh_db) == before
+
+
+def test_a_definer_with_another_path_is_told_the_pinned_one(fresh_db, tmp_path) -> None:  # noqa: F811
+    # A participant's first try on event 10: owner's rights, but the pellier schema ahead of
+    # pg_catalog. Only the rights probe differs, so the next step must name the pinned path,
+    # not the table privileges that already match.
+    text = SOLUTION.read_text(encoding="utf-8")
+    assert text.count("SET search_path = pg_catalog, pg_temp;") == 1
+    variant = tmp_path / "lab-4-credit-writer.sql"
+    variant.write_text(text.replace("SET search_path = pg_catalog, pg_temp;",
+                                    "SET search_path = pellier, pg_catalog, pg_temp;"),
+                       encoding="utf-8")
+    before = _state(fresh_db)
+    done = _run(fresh_db, variant)
+    assert done.returncode != 0
+    probes = _probes(done.stdout)
+    differs = [name for name, row in probes.items() if row[-1] == "differs"]
+    assert differs == ["The function's rights"], probes
+    assert probes["The function's rights"][1] == "definer, search_path=pellier, pg_catalog, pg_temp"
+    assert "7 of 8 probes match; rolled back" in " ".join(done.stdout.split())
+    assert "owner's rights and search_path pinned to" in done.stdout
+    assert "pg_catalog, pg_temp: it names every table with its schema" in done.stdout
+    assert "which single privilege" not in done.stdout
     assert _state(fresh_db) == before
 
 

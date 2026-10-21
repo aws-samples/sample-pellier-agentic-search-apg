@@ -216,6 +216,12 @@ SELECT format(E'%s  %s\n         expected  %s\n         observed  %s\n         s
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes
 \gset lab_4_
+-- Point a failed run's next step at the first kind of probe that differs: table access,
+-- then the function's rights, then what the function itself refused or wrote.
+SELECT bool_or(expected <> observed) FILTER (WHERE ord IN (1, 2, 8)) AS tables_differ,
+       bool_or(expected <> observed) FILTER (WHERE ord = 6) AS rights_differ
+  FROM lab_4_probes
+\gset lab_4_
 
 \echo 'Expected  every probe matches; then the transaction commits and your privileges are live'
 SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
@@ -233,10 +239,19 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
     FROM pellier.store_credits \gset credits_
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, the live state is unchanged'
   \echo '         ' :credits_rows
-  \echo 'Next      which single privilege does a money path need? In the rows marked differs,'
-  \echo '          23514 is the trigger refusing a row your role was allowed to insert: a rule'
-  \echo '          the owner can switch off, not a privilege the role lacks. A direct UPDATE'
-  \echo '          that goes through changes an approved amount with no check at all.'
+  \if :lab_4_tables_differ
+    \echo 'Next      which single privilege does a money path need? In the rows marked differs,'
+    \echo '          23514 is the trigger refusing a row your role was allowed to insert: a rule'
+    \echo '          the owner can switch off, not a privilege the role lacks. A direct UPDATE'
+    \echo '          that goes through changes an approved amount with no check at all.'
+  \elif :lab_4_rights_differ
+    \echo 'Next      run the function with its owner''s rights and search_path pinned to'
+    \echo '          pg_catalog, pg_temp: it names every table with its schema, and pg_temp last'
+    \echo '          keeps a caller''s temporary objects from being found first.'
+  \else
+    \echo 'Next      the role reaches no table, so the function must: run it as its owner and'
+    \echo '          grant EXECUTE on it to pellier_credit_writer alone.'
+  \endif
   \echo 'Lab 4B privileges check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4B privileges check failed; see the lines above'; END $fail$;
 \endif
