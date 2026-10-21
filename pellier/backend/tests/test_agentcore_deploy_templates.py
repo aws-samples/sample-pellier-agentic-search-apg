@@ -2074,6 +2074,49 @@ def test_participant_update_orders_new_actions_before_policies_without_dropping_
     assert json.loads((root / "agentcore/agentcore.json").read_text()) == desired
 
 
+
+def test_a_participant_deploy_numbers_its_steps_once_the_plan_is_known(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Off a terminal each deploy prints a start and an end line, counted against the plan."""
+    provisioner = _load_provisioner()
+    identity = provisioner.deployment_identity()
+    root = tmp_path / "project"
+    (root / "agentcore").mkdir(parents=True)
+    desired = {"policyEngines": [{"name": identity.policy_engine_name, "policies": [
+        {"name": "existing_forbid"}, {"name": "new_owner_permit"}]}]}
+    monkeypatch.setattr(provisioner, "project_root", lambda *_a, **_k: root)
+    monkeypatch.setattr(provisioner, "render_project", lambda **_k: (
+        root / "agentcore/agentcore.json").write_text(json.dumps(desired)))
+    monkeypatch.setattr(provisioner, "_active_policy_names", lambda **_k: {"existing_forbid"})
+    monkeypatch.setattr(provisioner, "_agentcore", lambda *_a, **_k: None)
+    monkeypatch.setattr(
+        provisioner, "_read_deployed_state", lambda _root: _participant_state(identity)
+    )
+    (root / "agentcore" / "agentcore.json").write_text("{}")
+    progress = provisioner.Progress("Deploying your changes to AgentCore")
+    progress.begin("Checking your files", typical=10, done="Checked your files")
+
+    provisioner._redeploy_participant_edits(
+        repo=tmp_path, account_id="123456789012", region="us-east-1",
+        cognito_pool="pool", cognito_client="client", lambda_arns=_lambda_arns(),
+        model_id="model", opus_model_id="opus", sonnet_model_id="sonnet",
+        workshop_id="dat416", env={}, identity=identity, progress=progress, steps_after=2,
+    )
+
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[0] == "Deploying your changes to AgentCore"
+    assert lines[1] == "  - 1  Checking your files (usually about 0:10)"
+    assert lines[2].endswith("1/5  Checked your files")
+    assert lines.index(provisioner.TWO_DEPLOYS) == 3, "the plan is explained after the check"
+    assert "  - 2/5  Publishing Gateway schemas (usually about 1:15)" in lines
+    assert lines[-1].endswith("3/5  Published policies for the new Gateway actions")
+    assert lines.index("Publishing policies for the newly registered Gateway actions") < len(
+        lines) - 2
+
+
 def test_participant_update_refuses_to_remove_an_active_policy(monkeypatch, tmp_path) -> None:
     provisioner = _load_provisioner()
     identity = provisioner.deployment_identity()

@@ -88,6 +88,7 @@ from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequ
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import lab_reset  # noqa: E402  (sibling module)
+from wait_progress import waiting  # noqa: E402  (sibling module)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 # The .env the backend loads; send reads its USE_AGENTCORE_RUNTIME before any request.
@@ -157,6 +158,13 @@ POLICY_ALLOW, POLICY_DENY, POLICY_INCOMPLETE = "ALLOW", "DENY", "EVALUATION_INCO
 HEALTH_WAIT_SECONDS = 120
 POLICY_WAIT_SECONDS = 420
 RETRY_SECONDS = 30
+# Usual durations for the progress bars: a backend restart, and Cedar's first ALLOW after a
+# Lab 4 deploy (35 s to about a minute on the October 2026 test events).
+HEALTH_TYPICAL_SECONDS = 15
+POLICY_TYPICAL_SECONDS = 60
+# systemctl restart returns once the unit's ExecStartPre frontend build is done: about 13 s
+# on the 2026-10-21 test event.
+RESTART_TYPICAL_SECONDS = 15
 TURN_TIMEOUT_SECONDS = 300
 
 
@@ -291,7 +299,9 @@ def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run
     command = (["systemctl", "restart", "pellier"] if os.geteuid() == 0
                else ["sudo", "-n", "systemctl", "restart", "pellier"])
     wait("restarting the backend so it serves the new code")
-    if run(command, check=False).returncode != 0:
+    with waiting("Restarting the backend", typical=RESTART_TYPICAL_SECONDS):
+        restarted = run(command, check=False).returncode == 0
+    if not restarted:
         raise LabRunError(f"{shlex.join(command)} failed. Restart the backend yourself "
                           "(sudo systemctl restart pellier), then run the next command.")
     wait_until_healthy(backend)
@@ -420,19 +430,21 @@ def wait_until_healthy(backend: Backend) -> None:
     """Wait for /api/health to report healthy, as after a restart."""
     deadline = time.monotonic() + HEALTH_WAIT_SECONDS
     last = ""
-    while True:
-        try:
-            status = str(backend.get_json("/api/health").get("status") or "")
-        except LabRunError as exc:
-            status, last = "", str(exc)
-        if status == "healthy":
-            ok("the backend is healthy")
-            return
-        last = f"status {status!r}" if status else last
-        if time.monotonic() >= deadline:
-            raise LabRunError(f"the backend is not healthy after {HEALTH_WAIT_SECONDS} s "
-                              f"({last}). Check with: journalctl -u pellier -n 50")
-        time.sleep(2)
+    with waiting("Waiting for the backend to answer", typical=HEALTH_TYPICAL_SECONDS,
+                 limit=HEALTH_WAIT_SECONDS):
+        while True:
+            try:
+                status = str(backend.get_json("/api/health").get("status") or "")
+            except LabRunError as exc:
+                status, last = "", str(exc)
+            if status == "healthy":
+                break
+            last = f"status {status!r}" if status else last
+            if time.monotonic() >= deadline:
+                raise LabRunError(f"the backend is not healthy after {HEALTH_WAIT_SECONDS} s "
+                                  f"({last}). Check with: journalctl -u pellier -n 50")
+            time.sleep(2)
+    ok("the backend is healthy")
 
 
 def required_requests(persona: str, stages: Sequence[str],
@@ -668,17 +680,19 @@ def execute_until_allowed(backend: Backend, token: str, review: int) -> Dict[str
     second credit.
     """
     deadline = time.monotonic() + POLICY_WAIT_SECONDS
-    while True:
-        payload, why = _execute_once(backend, token, review)
-        if payload is not None:
-            return payload
-        if time.monotonic() >= deadline:
-            raise LabRunError(
-                f"review {review} has no Policy ALLOW after {POLICY_WAIT_SECONDS // 60} "
-                f"minutes; last: {why}. Check Task 4A with python3 "
-                "scripts/lab4_check.py --task 4A, deploy it, and rerun.")
-        wait(f"{why}. Retrying in {RETRY_SECONDS} s.")
-        time.sleep(RETRY_SECONDS)
+    with waiting("Waiting for Cedar to allow the credit", typical=POLICY_TYPICAL_SECONDS,
+                 limit=POLICY_WAIT_SECONDS):
+        while True:
+            payload, why = _execute_once(backend, token, review)
+            if payload is not None:
+                return payload
+            if time.monotonic() >= deadline:
+                raise LabRunError(
+                    f"review {review} has no Policy ALLOW after {POLICY_WAIT_SECONDS // 60} "
+                    f"minutes; last: {why}. Check Task 4A with python3 "
+                    "scripts/lab4_check.py --task 4A, deploy it, and rerun.")
+            wait(f"{why}. Retrying in {RETRY_SECONDS} s.")
+            time.sleep(RETRY_SECONDS)
 
 
 def jessicas_reviews(backend: Backend, token: str) -> List[Dict[str, Any]]:

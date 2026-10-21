@@ -11,6 +11,7 @@ import importlib
 import json
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 REPO = Path(__file__).resolve().parents[3]
@@ -73,3 +74,66 @@ def test_without_memory_settings_it_says_why_and_exits_one(monkeypatch, capsys) 
     monkeypatch.setattr(namespaces, "_connect", no_memory)
     assert namespaces.main([]) == 1
     assert "AGENTCORE_MEMORY_ID is not configured" in capsys.readouterr().out
+
+
+class TimedMemory(FakeMemory):
+    """Answers list_events too, and lets a record land after a number of polls."""
+
+    def __init__(self, actors: List[str], turn_ages: Dict[str, float], now: Any,
+                 lands_after: int = -1) -> None:
+        super().__init__(actors, {})
+        self.turn_ages, self.now, self.lands_after, self.polls = turn_ages, now, lands_after, 0
+
+    def list_events(self, memoryId: str, actorId: str, sessionId: str,
+                    includePayloads: bool) -> Dict[str, Any]:
+        assert actorId == sessionId, "a live turn's actor and session are the same namespace"
+        age = self.turn_ages.get(actorId)
+        return {"events": [] if age is None else [
+            {"eventId": "e1", "eventTimestamp": self.now - timedelta(seconds=age + 60)},
+            {"eventId": "e2", "eventTimestamp": self.now - timedelta(seconds=age)}]}
+
+    def list_memory_records(self, memoryId: str, namespace: str) -> Dict[str, Any]:
+        if namespace == f"/pellier/preferences/{LIVE}/":
+            self.polls += 1
+            if 0 <= self.lands_after < self.polls:
+                self.by_namespace[namespace] = ["Drawn to deep indigo linen"]
+        return super().list_memory_records(memoryId, namespace)
+
+
+NOW = datetime(2026, 10, 21, 12, 0, tzinfo=timezone.utc)
+
+
+def test_only_a_recent_turn_with_nothing_extracted_is_waited_for() -> None:
+    old = LIVE + "-old"
+    memory = TimedMemory([LIVE, old, "CUST-THEO"], {LIVE: 40.0, old: 900.0}, NOW)
+    assert namespaces.extracting(memory, "mem-id", SUB, now=NOW) == [(LIVE, 40.0)]
+
+
+def test_the_wait_ends_when_the_record_lands() -> None:
+    memory = TimedMemory([LIVE], {LIVE: 40.0}, NOW, lands_after=2)
+    ticks = [0.0]
+    landed = namespaces.wait_for_extraction(
+        memory, "mem-id", [(LIVE, 40.0)],
+        sleep=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds), now=lambda: ticks[0])
+    assert landed is True
+    assert ticks[0] == 2 * namespaces.POLL_SECONDS
+
+
+def test_the_wait_gives_up_once_the_turn_is_too_old_to_yield_a_record() -> None:
+    memory = TimedMemory([LIVE], {LIVE: 200.0}, NOW)
+    ticks = [0.0]
+    landed = namespaces.wait_for_extraction(
+        memory, "mem-id", [(LIVE, 200.0)],
+        sleep=lambda seconds: ticks.__setitem__(0, ticks[0] + seconds), now=lambda: ticks[0])
+    assert landed is False
+    assert ticks[0] == namespaces.EXTRACTION_LIMIT_SECONDS - 200.0
+
+
+def test_main_waits_then_prints_the_landed_record(monkeypatch, capsys) -> None:
+    memory = TimedMemory([LIVE], {LIVE: 30.0}, datetime.now(timezone.utc), lands_after=1)
+    monkeypatch.setattr(namespaces, "_connect", lambda: (memory, "mem-id", SUB))
+    monkeypatch.setattr(namespaces.time, "sleep", lambda _seconds: None)
+    assert namespaces.main([]) == 0
+    out = capsys.readouterr().out
+    assert "nothing is extracted from it yet. Waiting for it" in out
+    assert "  mem-0  Drawn to deep indigo linen" in out

@@ -36,10 +36,13 @@ from botocore.config import Config
 from botocore.exceptions import ClientError
 
 
-DEPLOY_DIR = Path(__file__).resolve().parent / "deploy"
-if str(DEPLOY_DIR) not in sys.path:
-    sys.path.insert(0, str(DEPLOY_DIR))
+SCRIPTS_DIR = Path(__file__).resolve().parent
+DEPLOY_DIR = SCRIPTS_DIR / "deploy"
+for _path in (SCRIPTS_DIR, DEPLOY_DIR):
+    if str(_path) not in sys.path:
+        sys.path.insert(0, str(_path))
 
+from wait_progress import Progress  # noqa: E402
 from gateway_tool_schemas import (  # noqa: E402
     STAFF_ONLY_GATEWAY_TOOLS,
     TOOL_SCHEMAS,
@@ -168,6 +171,18 @@ TWO_DEPLOYS = (
     "Two deploys follow: a Cedar policy can name a Gateway tool only after that tool's "
     "schema is published, so the schemas deploy first and the policies second."
 )
+
+# How long each participant-deploy step usually takes, in seconds, for its progress bar.
+# Measured in Code Editor on the 2026-10-21 test event, Lab 3's deploy, 3:33 in all: the
+# check under 1 s, the two deploys 67 and 76 s, the Gateway check 2 s, the Runtime proof
+# 21 s and the move onto AgentCore 45 s. Every step prints its real duration.
+STEP_SECONDS = {
+    "check": 5,
+    "deploy": 75,
+    "gateway": 5,
+    "smoke": 25,
+    "move": 45,
+}
 
 
 def _redacted(cmd: Sequence[str]) -> list[str]:
@@ -2519,8 +2534,14 @@ def _redeploy_participant_edits(
     env: dict[str, str],
     identity: DeploymentIdentity,
     reset_to_starters: bool = False,
+    progress: Progress | None = None,
+    steps_after: int = 0,
 ) -> tuple[Path, dict[str, Any]]:
     """Publish new tool schemas before policies that refer to their actions.
+
+    Each deploy is one ``progress`` step. Once the plan says how many deploys follow,
+    ``progress`` learns the total: the steps begun so far, those deploys, and the
+    ``steps_after`` the caller runs next.
 
     The pinned CLI makes Gateway targets depend on policies. Adding both at once
     therefore validates a new action before its schema exists. First deploy the
@@ -2575,27 +2596,42 @@ def _redeploy_participant_edits(
     desired = json.loads(config_path.read_text())
     engine = next(item for item in desired["policyEngines"] if item["name"] == identity.policy_engine_name)
     desired_names = {policy["name"] for policy in engine["policies"]}
-    if missing := active_policies - desired_names:
-        if not reset_to_starters:
-            raise RuntimeError(
-                "Participant render would remove active policies: " + ", ".join(sorted(missing))
-            )
-        _retire_policies(root, previous, desired, missing, identity=identity, env=env)
-    elif desired_names - active_policies:
+    missing = active_policies - desired_names
+    if missing and not reset_to_starters:
+        raise RuntimeError(
+            "Participant render would remove active policies: " + ", ".join(sorted(missing))
+        )
+    staging = not missing and bool(desired_names - active_policies)
+    progress = progress or Progress()
+    progress.expect(progress.number + (2 if missing or staging else 1) + steps_after)
+    if missing:
+        _retire_policies(root, previous, desired, missing, identity=identity, env=env,
+                         progress=progress)
+        final = ("Deploying the restored starters", "Deployed the restored starters")
+    elif staging:
         staged = json.loads(json.dumps(desired))
         staged_engine = next(item for item in staged["policyEngines"] if item["name"] == identity.policy_engine_name)
         staged_engine["policies"] = [policy for policy in engine["policies"] if policy["name"] in active_policies]
+        progress.end()
         print(TWO_DEPLOYS, flush=True)
         print("Publishing Gateway schemas with the active policy baseline retained", flush=True)
+        progress.begin("Publishing Gateway schemas", typical=STEP_SECONDS["deploy"],
+                       done="Published Gateway schemas, active policies kept")
         try:
             config_path.write_text(json.dumps(staged, indent=2) + "\n")
             _agentcore(root, "validate", env=env)
             _agentcore(root, "deploy", "--yes", "--json", env=env)
         finally:
             config_path.write_text(json.dumps(desired, indent=2) + "\n")
+        progress.end()
         print("Publishing policies for the newly registered Gateway actions", flush=True)
+        final = ("Publishing policies", "Published policies for the new Gateway actions")
+    else:
+        final = ("Deploying your changes", "Deployed your changes")
+    progress.begin(final[0], typical=STEP_SECONDS["deploy"], done=final[1])
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
+    progress.end()
     return root, _read_deployed_state(root)
 
 
@@ -2607,6 +2643,7 @@ def _retire_policies(
     *,
     identity: DeploymentIdentity,
     env: dict[str, str],
+    progress: Progress,
 ) -> None:
     """Deploy the last project without ``missing``, schemas unchanged; leave ``desired`` on disk."""
     previous_engine = next(
@@ -2628,14 +2665,18 @@ def _retire_policies(
         policy for policy in retiring_engine["policies"] if policy["name"] not in missing
     ]
     config_path = root / "agentcore" / "agentcore.json"
+    progress.end()
     print("Retiring policies the starters no longer declare: " + ", ".join(sorted(missing)),
           flush=True)
+    progress.begin("Retiring those policies", typical=STEP_SECONDS["deploy"],
+                   done="Retired the policies the starters no longer declare")
     try:
         config_path.write_text(json.dumps(retiring, indent=2) + "\n")
         _agentcore(root, "validate", env=env)
         _agentcore(root, "deploy", "--yes", "--json", env=env)
     finally:
         config_path.write_text(json.dumps(desired, indent=2) + "\n")
+    progress.end()
 
 
 # A ready participant deploy moves the storefront onto the agents it just deployed. The move
@@ -2670,15 +2711,25 @@ def move_onto_agentcore(
     *,
     run: Callable[..., Any] = subprocess.run,
     run_env: Path = RUN_ENV_FILE,
+    progress: Progress | None = None,
 ) -> int:
-    """Switch the storefront onto AgentCore unless it already is; return the exit status."""
+    """Switch the storefront onto AgentCore unless it already is; return the exit status.
+
+    The switch is the deploy's last step. lab3-start.sh prints its own lines and draws
+    its own bars, so this step prints a start line instead of redrawing one.
+    """
+    progress = progress or Progress()
     if _rail_is_managed(repo, run_env):
+        progress.finish()
         print(ALREADY_ON_AGENTCORE, flush=True)
         return 0
+    progress.begin("Moving Pellier onto AgentCore", typical=STEP_SECONDS["move"],
+                   done="Moved Pellier onto AgentCore", animate=False)
     completed = run(
         ["bash", str(repo / "scripts" / "lab3-start.sh"), "theo"], cwd=str(repo), check=False
     )
     if completed.returncode != 0:
+        progress.fail()
         print(
             "The deploy is ready, but Pellier did not move onto AgentCore; the lines above "
             "say why. Fix that, then run: bash scripts/lab3-start.sh theo",
@@ -2686,6 +2737,7 @@ def move_onto_agentcore(
             flush=True,
         )
         return completed.returncode
+    progress.finish()
     print(MOVED_ONTO_AGENTCORE, flush=True)
     return 0
 
@@ -2723,6 +2775,7 @@ def _participant_update(
     result: dict[str, Any],
     checkpoint: Callable[[], None],
     reset_to_starters: bool = False,
+    progress: Progress | None = None,
 ) -> int:
     """Deploy a participant's Lab 3 and Lab 4 edits and prove only what the lab asks.
 
@@ -2748,6 +2801,11 @@ def _participant_update(
     """
     result["mode"] = "participant"
     result["reset_to_starters"] = reset_to_starters
+    progress = progress or Progress()
+    progress.begin("Checking your files and the deployed project", typical=STEP_SECONDS["check"],
+                   done="Checked your files and the deployed project")
+    # Gateway and Runtime checks follow the deploys; a fresh Lab 3 then moves onto AgentCore.
+    moving = not reset_to_starters and not _rail_is_managed(repo)
     lambda_arns = _existing_lambda_arns(region=region, identity=identity)
     result["lambdas"] = {
         surface: {"function_arn": arn} for surface, arn in lambda_arns.items()
@@ -2768,6 +2826,8 @@ def _participant_update(
         env=env,
         identity=identity,
         reset_to_starters=reset_to_starters,
+        progress=progress,
+        steps_after=2 + moving,
     )
     result["cli"]["project_root"] = str(root)
 
@@ -2801,6 +2861,7 @@ def _participant_update(
     }
     checkpoint()
 
+    progress.begin("Checking the Gateway's published tools", typical=STEP_SECONDS["gateway"])
     control_proof = _verify_gateway_control_plane(region=region, gateway_id=gateway_id)
     result["verification"]["gateway_control_plane"] = control_proof
     result["verification"]["targets_attached"] = control_proof["target_count"] == 1
@@ -2824,7 +2885,11 @@ def _participant_update(
         "prefixed_names"
     ]
     checkpoint()
+    progress.end(f"The Gateway publishes {live_gateway['count']} tools to a signed-in caller")
 
+    progress.begin("Proving your build answers on AgentCore Runtime",
+                   typical=STEP_SECONDS["smoke"],
+                   done="Your build answers on AgentCore Runtime")
     runtime_smoke = _authenticated_runtime_smoke(
         root=root,
         access_token=access_token,
@@ -2838,6 +2903,7 @@ def _participant_update(
     result["verification"]["runtime_build_fingerprint_match"] = runtime_smoke[
         "build_fingerprint_match"
     ]
+    progress.end()
 
     # Named apart from the full run's `required_checks` on purpose: that gate is
     # the complete managed contract, and a narrower list must never be mistaken
@@ -2868,8 +2934,11 @@ def _participant_update(
                 "build_fingerprint_match": runtime_smoke["build_fingerprint_match"],
                 "output_json": str(output_path),
             }
-        )
+        ),
+        flush=True,
     )
+    if reset_to_starters:
+        progress.finish()
     return 0
 
 
@@ -3029,6 +3098,11 @@ def main() -> int:
         checkpoint()
 
     background: ThreadPoolExecutor | None = None
+    progress = (
+        Progress("Deploying the restored starters to AgentCore" if args.reset_to_starters
+                 else "Deploying your changes to AgentCore")
+        if args.mode == "participant" else None
+    )
     try:
         stage("managed resource provisioning")
         sts = boto3.client("sts", region_name=region, config=AWS_CONFIG)
@@ -3059,8 +3133,9 @@ def main() -> int:
                     result=result,
                     checkpoint=checkpoint,
                     reset_to_starters=args.reset_to_starters,
+                    progress=progress,
                 ),
-                lambda: move_onto_agentcore(repo),
+                lambda: move_onto_agentcore(repo, progress=progress),
                 reset_to_starters=args.reset_to_starters,
             )
 
@@ -3448,6 +3523,10 @@ def main() -> int:
         result["status"] = "failed"
         result["error"] = str(exc)
         checkpoint()
+        if progress is not None:
+            # The receipt keeps the error; the participant needs it on screen too.
+            progress.fail()
+            print(f"Deploy failed: {exc}", file=sys.stderr, flush=True)
         print(
             json.dumps(
                 {"status": "failed", "output_json": str(output_path)}
@@ -3456,6 +3535,8 @@ def main() -> int:
         )
         return 1
     finally:
+        if progress is not None:
+            progress.fail()  # a step still running here was interrupted
         if background is not None:
             # After a failure, Transaction Search or the memory proof may still be
             # running. Wait for them, so what they created reaches the receipt that

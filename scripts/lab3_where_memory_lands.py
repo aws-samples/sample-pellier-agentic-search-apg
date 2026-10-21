@@ -13,7 +13,9 @@ agent never reads.
 This prints both for Theo, side by side: the customer namespace and its records,
 then every session actor of his and the records extracted under each. Extraction
 is asynchronous; in our runs a stated preference became readable after about two
-to two and a half minutes. It only reads.
+to two and a half minutes. When Theo's newest turn is younger than that and nothing
+has been extracted from it yet, the command waits for it under a progress bar, up to
+four minutes after the turn, then prints again. It only reads.
 
     uv run scripts/lab3_where_memory_lands.py
 """
@@ -24,17 +26,24 @@ import base64
 import json
 import pathlib
 import sys
+import time
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import workshop_check as check  # noqa: E402  (sibling module)
+from wait_progress import clock, waiting  # noqa: E402  (sibling module)
 
 BACKEND = check.REPO / "pellier" / "backend"
 DEPLOY = SCRIPTS / "deploy"
 
 THEO, USERNAME = "CUST-THEO", "theo"
 DELAY = "about two to two and a half minutes in our runs (116.8 s, 138.0 s and 148.8 s)"
+EXTRACTION_TYPICAL_SECONDS = 150
+# A turn older than this with nothing extracted stated no preference; waiting longer finds none.
+EXTRACTION_LIMIT_SECONDS = 240
+POLL_SECONDS = 10
 
 
 def namespace(actor: str) -> str:
@@ -80,6 +89,49 @@ def records(client: Any, memory_id: str, actor: str) -> List[Tuple[str, str]]:
                    memoryId=memory_id, namespace=namespace(actor))
     return [(str(r.get("memoryRecordId")), _preference((r.get("content") or {}).get("text", "")))
             for r in found]
+
+
+def turn_age(client: Any, memory_id: str, actor: str, now: datetime) -> Optional[float]:
+    """Seconds since the actor's newest event, or ``None`` when it has none.
+
+    A live turn writes its events with the session namespace as both actor and session.
+    """
+    events = _pages(client.list_events, "events", memoryId=memory_id, actorId=actor,
+                    sessionId=actor, includePayloads=False)
+    stamps = [event["eventTimestamp"] for event in events if event.get("eventTimestamp")]
+    return (now - max(stamps)).total_seconds() if stamps else None
+
+
+def extracting(client: Any, memory_id: str, sub: str,
+               now: Optional[datetime] = None) -> List[Tuple[str, float]]:
+    """Theo's session actors with no record yet, from a turn recent enough to still yield one."""
+    now = now or datetime.now(timezone.utc)
+    pending = []
+    for actor in session_actors(client, memory_id, sub):
+        if records(client, memory_id, actor):
+            continue
+        age = turn_age(client, memory_id, actor, now)
+        if age is not None and age < EXTRACTION_LIMIT_SECONDS:
+            pending.append((actor, age))
+    return pending
+
+
+def wait_for_extraction(client: Any, memory_id: str, pending: List[Tuple[str, float]],
+                        sleep: Callable[[float], None] = time.sleep,
+                        now: Callable[[], float] = time.monotonic) -> bool:
+    """Poll the pending actors until one holds a record; ``False`` once none still can."""
+    youngest = min(age for _, age in pending)
+    started = now()
+    deadline = started + EXTRACTION_LIMIT_SECONDS - youngest
+    with waiting("Waiting for AgentCore Memory to extract Theo's newest turn",
+                 typical=max(POLL_SECONDS, EXTRACTION_TYPICAL_SECONDS - youngest),
+                 limit=EXTRACTION_LIMIT_SECONDS - youngest, now=now):
+        while True:
+            if any(records(client, memory_id, actor) for actor, _ in pending):
+                return True
+            if now() >= deadline:
+                return False
+            sleep(min(POLL_SECONDS, max(0.0, deadline - now())))
 
 
 def _block(actor: str, writer: str, found: List[Tuple[str, str]]) -> List[str]:
@@ -134,6 +186,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("Lab 3, Go deeper: where Theo's preferences land, beside where the agent reads them")
     try:
         client, memory_id, sub = _connect()
+        pending = extracting(client, memory_id, sub)
+        if pending:
+            print(f"Theo's newest turn is {clock(min(age for _, age in pending))} old and "
+                  "nothing is extracted from it yet. Waiting for it; Ctrl-C stops the wait.")
+            try:
+                if not wait_for_extraction(client, memory_id, pending):
+                    print("Nothing was extracted from it. A turn that states no preference "
+                          "leaves no record to extract.")
+            except KeyboardInterrupt:
+                print("Stopped waiting; here is what has landed so far.")
         lines = report(client, memory_id, sub)
     except (Exception, SystemExit) as exc:  # noqa: BLE001 - say why it could not look
         print(f"Could not read AgentCore Memory here: {type(exc).__name__}: {str(exc)[:200]}")

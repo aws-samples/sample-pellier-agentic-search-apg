@@ -53,6 +53,8 @@ if [ ! -r "$DOTENV_HELPER" ]; then
 fi
 # shellcheck source=lib/dotenv.sh
 . "$DOTENV_HELPER"
+# shellcheck source=lib/progress.sh
+. "${SCRIPT_DIR}/lib/progress.sh"
 ENV_FILE=""
 if [ -f "$REPO/.env" ]; then
   ENV_FILE="$REPO/.env"
@@ -183,14 +185,19 @@ _restart_service() {
 }
 
 _wait_healthy() {
-  local deadline=$(( $(date +%s) + ${1:-90} )) body
+  local started deadline body
+  started="$(date +%s)"
+  deadline=$(( started + ${1:-90} ))
   while [ "$(date +%s)" -lt "$deadline" ]; do
     body="$(curl -fs --max-time 5 "$HEALTH_URL" 2>/dev/null || true)"
     if printf '%s' "$body" | grep -q '"status".*"healthy"'; then
+      pellier_progress_clear
       return 0
     fi
+    pellier_progress_draw "Waiting for Pellier to restart" 15 "$started"
     sleep 2
   done
+  pellier_progress_clear
   return 1
 }
 
@@ -252,7 +259,8 @@ fi
 pass "USE_AGENTCORE_RUNTIME=true in $rail_target (Runtime ARN already present)"
 
 # --- 4. restart and wait -------------------------------------------------------
-if ! _restart_service; then
+_restart_service &
+if ! pellier_progress_wait_for "$!" "Restarting Pellier" 15; then
   _revert_hint "'systemctl restart pellier' failed; run 'start-backend' and retry"
   exit 1
 fi
@@ -281,10 +289,14 @@ pass "Cognito token minted for $PERSONA"
 SESSION_ID="lab3-start-$(date +%s)"
 body="$(printf '{"message":"%s","session_id":"%s","customer_id":"%s"}' \
   "$MESSAGE" "$SESSION_ID" "$CUSTOMER_ID")"
-reply="$(curl -sN --max-time 240 -X POST "$BASE/api/chat/stream" \
+reply_file="$(mktemp "${TMPDIR:-/tmp}/pellier-lab3-start.XXXXXX")"
+curl -sN --max-time 240 -X POST "$BASE/api/chat/stream" \
   -H 'Content-Type: application/json' \
   -H "Authorization: Bearer $PELLIER_TOKEN" \
-  -d "$body" 2>/dev/null || true)"
+  -d "$body" >"$reply_file" 2>/dev/null &
+pellier_progress_wait_for "$!" "Running one turn on AgentCore" 15 || true
+reply="$(cat "$reply_file")"
+rm -f "$reply_file"
 if [ -z "$reply" ]; then
   _revert_hint "No response from $BASE/api/chat/stream"
   exit 1

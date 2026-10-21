@@ -129,5 +129,31 @@ def test_main_routes_the_participant_update_through_the_move() -> None:
     start = source.index('if args.mode == "participant":')
     block = source[start:source.index("_require_release_log_protection(", start)]
     assert "_participant_then_move(" in block
-    assert "move_onto_agentcore(repo)" in block
+    assert "move_onto_agentcore(repo, progress=progress)" in block
     assert "reset_to_starters=args.reset_to_starters" in block
+
+
+def test_the_move_is_the_deploys_last_step_and_the_closing_line_stays_last(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    progress = provisioner.Progress()
+    progress.expect(1)
+    assert provisioner.move_onto_agentcore(
+        _repo(tmp_path), run=Runs(), run_env=tmp_path / "absent", progress=progress) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "  - 1/1  Moving Pellier onto AgentCore (usually about 0:45)"
+    assert out[1].endswith("1/1  Moved Pellier onto AgentCore")
+    assert out[2].startswith("  Done in ")
+    assert out[-1] == "Pellier is now using AgentCore. Continue with Theo's requests."
+
+
+def test_a_failed_move_marks_its_step_failed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    progress = provisioner.Progress()
+    assert provisioner.move_onto_agentcore(
+        _repo(tmp_path), run=Runs(returncode=1), run_env=tmp_path / "absent",
+        progress=progress) == 1
+    captured = capsys.readouterr()
+    assert "Moving Pellier onto AgentCore: failed" in captured.out
+    assert "Done in" not in captured.out

@@ -31,6 +31,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -40,12 +41,18 @@ SCRIPTS = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import reset_participant_exercises as exercises  # noqa: E402  (sibling module)
 import workshop_check as check  # noqa: E402  (sibling module)
+from wait_progress import waiting  # noqa: E402  (sibling module)
 
 REPO = check.REPO
 SCHEMA = pathlib.Path("scripts") / "migrations" / "001_schema.sql"
 FULL_RESET = "bash scripts/reset-governed-workshop.sh"
 AGENTCORE_SCRIPT = pathlib.Path("scripts") / "reset-agentcore-lab.sh"
 AGENTCORE_TIMEOUT_SECONDS = 1500
+# How long each lab's managed reset usually takes, for its progress bar. Lab 3 redeploys the
+# starters: about 3:10 of a 207 s reset --lab 3 on the 2026-10-21 test event. Lab 4 redeploys
+# one Cedar policy; Labs 1 and 2 only move the rail.
+MANAGED_TYPICAL_SECONDS = {1: 5, 2: 5, 3: 195, 4: 90}
+RESTART_TYPICAL_SECONDS = 15
 SERVICE = "pellier"
 
 # The part of the schema each lab's database piece is read from.
@@ -191,26 +198,57 @@ def restart_backend() -> str:
     command = ["systemctl", "restart", SERVICE]
     if os.geteuid() != 0:
         command = ["sudo", "-n", *command]
-    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    with waiting("Restarting the backend", typical=RESTART_TYPICAL_SECONDS):
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
     if result.returncode != 0:
         raise LabResetError(f"could not restart the backend ({result.stderr.strip()}). Run: "
                             f"sudo systemctl restart {SERVICE}")
     return "restarted"
 
 
+def _relay_lines(source: Any, name: str) -> None:
+    """Print a child's lines through ``sys.<name>``, so they land above a progress bar."""
+    for line in source:
+        print(line, end="", file=getattr(sys, name), flush=True)
+
+
+def relay(argv: List[str], *, cwd: pathlib.Path, timeout: float) -> int:
+    """Run ``argv``, printing its stdout and stderr line by line; return its exit status.
+
+    Raises:
+        subprocess.TimeoutExpired: it ran longer than ``timeout``; it has been killed.
+    """
+    with subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True) as child:
+        relays = [threading.Thread(target=_relay_lines, args=(pipe, name), daemon=True)
+                  for pipe, name in ((child.stdout, "stdout"), (child.stderr, "stderr"))]
+        for thread in relays:
+            thread.start()
+        try:
+            code = child.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            child.kill()
+            raise
+        for thread in relays:
+            thread.join()
+        return code
+
+
 def run_agentcore_step(lab: int, repo: pathlib.Path = REPO) -> None:
-    """Run the managed part of the reset, streaming its [PASS] lines."""
+    """Run the managed part of the reset under a progress bar, relaying its [PASS] lines."""
     script = repo / AGENTCORE_SCRIPT
     if not script.is_file():
         raise LabResetError(f"{AGENTCORE_SCRIPT} is missing. Repair the files with "
                             "uv run scripts/repair_workshop_files.py")
     try:
-        result = subprocess.run(["bash", str(script), str(lab)], cwd=repo,
-                                timeout=AGENTCORE_TIMEOUT_SECONDS, check=False)
+        with waiting(f"Restoring Lab {lab}'s execution and AgentCore state",
+                     typical=MANAGED_TYPICAL_SECONDS[lab], limit=AGENTCORE_TIMEOUT_SECONDS):
+            returncode = relay(["bash", str(script), str(lab)], cwd=repo,
+                               timeout=AGENTCORE_TIMEOUT_SECONDS)
     except subprocess.TimeoutExpired as exc:
         raise LabResetError(f"the managed reset ran longer than "
                             f"{AGENTCORE_TIMEOUT_SECONDS // 60} minutes") from exc
-    if result.returncode != 0:
+    if returncode != 0:
         raise LabResetError(f"Lab {lab}'s managed state was not restored. Nothing else is "
                             f"half done. To start clean, run the whole-workshop reset: "
                             f"{FULL_RESET}")

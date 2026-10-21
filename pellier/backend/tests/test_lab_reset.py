@@ -727,3 +727,22 @@ def test_one_labs_reset_does_not_hide_another_labs_evidence(fresh_db: Cluster) -
         assert lab2_check.latest_stock_turn(conn)
     finally:
         conn.close()
+
+
+def test_the_managed_step_relays_its_lines_through_this_process(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The reset draws a bar while the managed step runs, so the step's own [PASS] and [FAIL]
+    lines must come through sys.stdout and sys.stderr, never straight to the terminal."""
+    code = lab_reset.relay(
+        ["bash", "-c", "echo '  [PASS] rail restored'; echo '  [FAIL] nope' >&2; exit 4"],
+        cwd=tmp_path, timeout=30)
+    captured = capsys.readouterr()
+    assert code == 4
+    assert captured.out == "  [PASS] rail restored\n"
+    assert captured.err == "  [FAIL] nope\n"
+
+
+def test_a_managed_step_past_its_limit_is_killed(tmp_path: Path) -> None:
+    with pytest.raises(subprocess.TimeoutExpired):
+        lab_reset.relay(["bash", "-c", "sleep 30"], cwd=tmp_path, timeout=0.5)
