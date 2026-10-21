@@ -134,6 +134,17 @@ describe('StepList', () => {
     expect(screen.getByTestId('ranking-panel')).toBeInTheDocument()
   })
 
+  it('stacks a model id above its label so it never breaks inside the token', () => {
+    const read: TurnStep = {
+      id: 'get_orders', label: "Reading Jessica's orders", status: 'done', tags: ['Aurora'],
+      builder: { tool: 'get_orders', model_id: 'global.anthropic.claude-sonnet-5-5', rail: 'in-process' },
+    }
+    render(<StepList steps={[read]} live={false} builderView />)
+    const rows = Array.from(screen.getByTestId('turn-evidence').querySelectorAll('.tn-fact'))
+    const stacked = Object.fromEntries(rows.map(row => [row.querySelector('dt')?.textContent, row.getAttribute('data-stacked')]))
+    expect(stacked).toEqual({ Tool: null, Model: 'true', Rail: null })
+  })
+
   it('renders the identity binding from structured fields, never from prose', () => {
     render(<StepList steps={[TICKETS]} live={false} builderView />)
     expect(factRows(screen.getByTestId('turn-evidence'))).toMatchObject({

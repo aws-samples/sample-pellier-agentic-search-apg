@@ -14,8 +14,14 @@ export const SHOW_RAW_STEP = 'Show the raw step'
 
 /** An id this long needs the row's full width, so its label stacks above it. */
 const LONG_ID = 16
+/**
+ * Nor does a code chip this long, such as a model id, fit beside its label in a narrow
+ * column like the Operator's; stacked, it stays whole instead of breaking inside the token.
+ */
+const LONG_CODE = 24
 
-const hasLongId = (parts: FactPart[]) => parts.some(part => part.kind === 'id' && part.text.length > LONG_ID)
+const needsFullWidth = (parts: FactPart[]) => parts.some(part =>
+  (part.kind === 'id' && part.text.length > LONG_ID) || (part.kind === 'code' && part.text.length > LONG_CODE))
 
 function Part({ part }: { part: FactPart }) {
   if (part.kind === 'id') return <CopyId value={part.text} noun={part.noun} />
@@ -30,7 +36,7 @@ export default function StepFacts({ step }: { step: TurnStep }) {
     <>
       <dl className="tn-facts" data-testid="turn-evidence">
         {facts.map(fact => (
-          <div key={fact.label} className="tn-fact" data-stacked={hasLongId(fact.parts) ? 'true' : undefined}>
+          <div key={fact.label} className="tn-fact" data-stacked={needsFullWidth(fact.parts) ? 'true' : undefined}>
             <dt>{fact.label}</dt>
             <dd>
               {fact.parts.map((part, index) => <Part key={`${part.kind}-${index}`} part={part} />)}
