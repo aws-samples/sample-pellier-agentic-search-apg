@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import StatusLine from './StatusLine'
 import StatusTag from './StatusTag'
 import RevealedProse from './RevealedProse'
-import { evidenceLine, identitySentence } from './evidence'
+import { evidenceFacts, evidenceLine, identitySentence } from './evidence'
 import { emphasisRanges, parseProse, sentenceEndAfter } from './prose'
 import {
   BUILDER_VIEW_KEY,
@@ -100,7 +100,7 @@ describe('evidenceLine', () => {
         requirements: { applied: ['under $100', 'in stock', 'no candles'], carried: ['under $100', 'in stock', 'no candles'] },
       },
     })
-    expect(line).toBe('kept from earlier: under $100, in stock, no candles; audit row 9040; receipt 6; rail in-process')
+    expect(line).toBe('tool search_products; kept from earlier: under $100, in stock, no candles; audit row 9040; receipt 6; rail in-process')
     const first = evidenceLine({
       id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', tags: ['Aurora'],
       builder: { tool: 'search_products', requirements: { applied: ['under $100'], carried: [] } },
@@ -113,7 +113,24 @@ describe('evidenceLine', () => {
       id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', tags: ['Aurora'],
       builder: { tool: 'search_products', rail: 'gateway-mcp', duration_ms: 1108, query: 'quiet tactile keepsake piece' },
     })
-    expect(line).toBe('searched "quiet tactile keepsake piece"; rail gateway-mcp; 1108 ms')
+    expect(line).toBe('tool search_products; searched "quiet tactile keepsake piece"; rail gateway-mcp; 1108 ms')
+  })
+
+  it('names the tool, the model that called it, and how a call that did not answer ended', () => {
+    const step = (outcome: 'ok' | 'denied' | 'invalid') => ({
+      id: 'step-1', label: 'Checking stock in three warehouses', status: outcome === 'ok' ? 'done' as const : 'failed' as const,
+      tags: ['Aurora'],
+      builder: { tool: 'check_stock', agent: 'Stock agent', model_id: 'global.anthropic.claude-sonnet-5-5', outcome, rail: 'in-process' },
+    })
+    expect(evidenceLine(step('ok'))).toBe('tool check_stock; model global.anthropic.claude-sonnet-5-5; rail in-process')
+    expect(evidenceLine(step('denied'))).toBe(
+      'tool check_stock; model global.anthropic.claude-sonnet-5-5; outcome denied; rail in-process')
+    expect(evidenceFacts(step('invalid')).slice(0, 3)).toEqual([
+      { label: 'Tool', parts: [{ kind: 'code', text: 'check_stock' }] },
+      { label: 'Model', parts: [{ kind: 'code', text: 'global.anthropic.claude-sonnet-5-5' }] },
+      { label: 'Outcome', parts: [{ kind: 'code', text: 'invalid' }] },
+    ])
+    expect(evidenceFacts(step('ok')).map(fact => fact.label)).not.toContain('Outcome')
   })
 
   it('says when the answer was cut short, and nothing for a turn that ended normally', () => {

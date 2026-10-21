@@ -634,3 +634,53 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
         for mark in ("—", "·"):
             assert mark not in preamble, mark
             assert mark not in prompt, (name, mark)
+
+
+def test_a_real_strands_failure_shows_failed_with_its_tool_and_model(service, monkeypatch) -> None:
+    """Through a real Strands Stock agent: input that failed the schema, and a read that raised.
+
+    Strands answers both with error prose that parses as no rows. Read from the text
+    alone, the step showed done with an empty-data finding. Each step now fails,
+    says why, and names the tool and the model that called it.
+    """
+    from strands import Agent, tool
+
+    from services.specialist_models import model_for_intent
+    from services.turn_steps import INVALID_FINDING
+    from tests.scripted_model import ScriptedModel
+
+    @tool
+    def check_stock(product_name: str) -> str:
+        """Units of one piece in each warehouse.
+
+        Args:
+            product_name: The piece to look up.
+        """
+        raise RuntimeError("connection to Aurora refused")
+
+    agent = Agent(
+        name="stock",
+        model=ScriptedModel([("check_stock", {}),
+                             ("check_stock", {"product_name": "Waffle Bath Robe"})],
+                            "I could not check the warehouses just now."),
+        tools=[check_stock], callback_handler=None,
+    )
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "stock")
+    events = _run(service, agent, monkeypatch, message="is the waffle robe in stock?")
+
+    steps = _of(events, "step")
+    route = steps[0]
+    model_id = model_for_intent("stock")[0]
+    assert route["builder"]["model_id"] == model_id
+    calls = [step for step in steps if step["builder"]["tool"] == "check_stock"]
+    ended = {step["builder"]["outcome"]: step for step in calls if step["status"] != "running"}
+    assert set(ended) == {"invalid", "failed"}
+    assert ended["invalid"]["finding"] == INVALID_FINDING
+    assert ended["failed"]["finding"] == "The stock check did not complete"
+    for step in ended.values():
+        assert step["status"] == "failed"
+        assert step["builder"]["tool"] == "check_stock"
+        assert (step["builder"]["agent"], step["builder"]["model_id"]) == ("Stock agent", model_id)
+    running = [step for step in calls if step["status"] == "running"]
+    assert running and all(step["builder"]["model_id"] == model_id for step in running), (
+        "the running step names the model too, while the call is out")

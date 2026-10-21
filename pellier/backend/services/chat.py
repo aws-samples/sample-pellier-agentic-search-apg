@@ -27,6 +27,7 @@ from services.turn_steps import (
     granted_tools,
     remembered_receipt,
     status_event,
+    tool_outcome,
 )
 from skills import (
     AGENT_LOCAL_TOOLS,
@@ -1866,6 +1867,13 @@ class EnhancedChatService:
                     tool_input = tool_use.get("input", {}) if isinstance(tool_use, dict) else {}
                     tool_use_id = tool_use.get("toolUseId") if isinstance(tool_use, dict) else None
                     result_str = _extract_tool_result_text(getattr(event, "result", None))
+                    # Judged from Strands' own fields: a call that raised, failed
+                    # validation or was cancelled says so in its status, not its text.
+                    outcome = tool_outcome(
+                        tool_name, getattr(event, "result", None),
+                        exception=getattr(event, "exception", None),
+                        cancel_message=getattr(event, "cancel_message", None),
+                    )
                     # The audit row id is the evidence line's anchor; read it
                     # before the UPDATE pops the pending mapping.
                     audit_id = tool_audit_writer.pending_audit_id(tool_use_id)
@@ -1882,6 +1890,7 @@ class EnhancedChatService:
                                 "_input": dict(tool_input) if isinstance(tool_input, dict) else {},
                                 "_audit_id": audit_id,
                                 "_evidence": evidence,
+                                "_outcome": outcome,
                             }),
                             loop,
                         ).result(timeout=10)
@@ -2058,6 +2067,7 @@ class EnhancedChatService:
                     duration_ms=tool_ms,
                     audit_id=event.get("_audit_id"),
                     evidence=event.get("_evidence"),
+                    outcome=event.get("_outcome"),
                 )
                 if tool_name not in AGENT_LOCAL_TOOLS:
                     yield _completed_tool_event(tool_name, tool_ms)

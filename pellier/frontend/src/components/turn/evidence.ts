@@ -83,6 +83,9 @@ export function evidenceLine(step: TurnStep): string {
     else if (builder.stop_reason && builder.stop_reason !== 'end_turn') parts.push(`stop ${builder.stop_reason}`)
     return parts.join('; ')
   }
+  if (builder.tool) parts.push(`tool ${builder.tool}`)
+  if (builder.model_id) parts.push(`model ${builder.model_id}`)
+  if (builder.outcome && builder.outcome !== 'ok') parts.push(`outcome ${builder.outcome}`)
   if (builder.query) parts.push(`searched "${builder.query}"`)
   if (builder.identity) parts.push(identitySentence(builder.identity))
   if (builder.requirements?.carried?.length) {
@@ -168,8 +171,17 @@ function routerFacts(builder: StepBuilder): EvidenceFact[] {
   return facts
 }
 
+/**
+ * A tool step names the tool and the model that called it, and how a call that did
+ * not answer ended: failed, invalid input, denied by policy, not held or cancelled.
+ */
 function toolFacts(builder: StepBuilder): EvidenceFact[] {
   const facts: EvidenceFact[] = []
+  if (builder.tool) facts.push({ label: 'Tool', parts: [code(builder.tool)] })
+  if (builder.model_id) facts.push({ label: 'Model', parts: [code(builder.model_id)] })
+  if (builder.outcome && builder.outcome !== 'ok') {
+    facts.push({ label: 'Outcome', parts: [code(builder.outcome)] })
+  }
   if (builder.query) facts.push({ label: 'Searched', parts: [text(`"${builder.query}"`)] })
   if (builder.identity) facts.push({ label: 'Identity', parts: [text(identitySentence(builder.identity))] })
   if (builder.requirements?.carried?.length) {

@@ -208,10 +208,15 @@ def _parse(result_text: Any) -> Dict[str, Any]:
     return {"_text": text}
 
 
+_READ_FAILED = "This read did not complete"
+# A read still out when the graph stopped, on a timeout or an error: it never finished.
+_READ_UNFINISHED = "The investigation stopped before this read finished"
+
+
 def finding_for(tool: str, parsed: Dict[str, Any]) -> str:
     """One plain line computed from the actual result of ``tool``."""
     if parsed.get("status") == "error" or "error" in parsed:
-        return "This read did not complete"
+        return _READ_FAILED
     if tool == "get_orders":
         count = int(parsed.get("count") or 0)
         if count == 0:
@@ -284,21 +289,31 @@ def step_event(
     duration_ms: Optional[int] = None,
     audit_id: Optional[int] = None,
     agent: Optional[str] = None,
+    model_id: Optional[str] = None,
+    outcome: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """One ``step`` event in the shape Ask Pellier streams."""
+    """One ``step`` event in the shape Ask Pellier streams.
+
+    ``model_id`` is the model the node runs on, so the Builder view names the
+    model beside each tool it called; ``outcome`` is how a tool call ended.
+    """
+    builder: Dict[str, Any] = {
+        "tool": tool,
+        "rail": EXECUTION,
+        "duration_ms": duration_ms,
+        "audit_id": audit_id,
+        "agent": agent,
+        "model_id": model_id or None,
+    }
+    if outcome is not None:
+        builder["outcome"] = outcome
     event: Dict[str, Any] = {
         "type": "step",
         "id": step_id,
         "label": label,
         "status": status,
         "tags": list(LAYER_TAGS.get(step_id, ())),
-        "builder": {
-            "tool": tool,
-            "rail": EXECUTION,
-            "duration_ms": duration_ms,
-            "audit_id": audit_id,
-            "agent": agent,
-        },
+        "builder": builder,
     }
     if finding is not None:
         event["finding"] = finding
@@ -737,11 +752,14 @@ def _tool_result_text(raw: Any) -> str:
 class _NodeHooks:
     """Reports one node's tool calls and its start and end as ``step`` events."""
 
-    def __init__(self, case: _Case, node: str) -> None:
+    def __init__(self, case: _Case, node: str, model_id: str = "") -> None:
         self.case = case
         self.node = node
+        self.model_id = model_id
         self._started: Dict[str, float] = {}
         self._node_started = 0.0
+        # Each read whose step is running, by tool use id, until its result arrives.
+        self._open: Dict[str, str] = {}
 
     def register_hooks(self, registry: Any, **_kwargs: Any) -> None:
         from strands.hooks import (
@@ -761,7 +779,8 @@ class _NodeHooks:
 
     def before_node(self, _event: Any) -> None:
         self._node_started = time.perf_counter()
-        self.case.emit(step_event(self.node, label=self._label(self.node), status="running", agent=self.node))
+        self.case.emit(step_event(self.node, label=self._label(self.node), status="running",
+                                  agent=self.node, model_id=self.model_id))
 
     def after_node(self, _event: Any) -> None:
         # The node's finding is written by the graph runner once the output is
@@ -776,7 +795,9 @@ class _NodeHooks:
             return
         self._started[str(tool_use_id)] = time.perf_counter()
         if name in STEP_LABELS:
-            self.case.emit(step_event(name, label=self._label(name), status="running", tool=name, agent=self.node))
+            self._open[str(tool_use_id)] = name
+            self.case.emit(step_event(name, label=self._label(name), status="running", tool=name,
+                                      agent=self.node, model_id=self.model_id))
         names = getattr(getattr(event, "agent", None), "tool_names", None)
         held = names is None or name in names
         if self.node == INVESTIGATOR_NODE and held:
@@ -789,13 +810,22 @@ class _NodeHooks:
             )
 
     def after_tool(self, event: Any) -> None:
+        from services.turn_steps import OUTCOME_FAILED, outcome_finding, tool_outcome
+
         tool_use = getattr(event, "tool_use", None) or {}
         name = str(tool_use.get("name") or "")
         tool_use_id = tool_use.get("toolUseId")
         started = self._started.pop(str(tool_use_id), None)
+        self._open.pop(str(tool_use_id), None)
         duration = int((time.perf_counter() - started) * 1000) if started else None
         text = _tool_result_text(getattr(event, "result", None))
         parsed = _parse(text)
+        # Judged from Strands' own fields: a read that raised or failed validation
+        # comes back as error text, which parses as no records at all.
+        outcome = tool_outcome(
+            name, getattr(event, "result", None), exception=getattr(event, "exception", None),
+            cancel_message=getattr(event, "cancel_message", None),
+        )
         audit_id = None
         if self.node == INVESTIGATOR_NODE:
             from services import tool_audit_writer
@@ -803,12 +833,27 @@ class _NodeHooks:
             audit_id = tool_audit_writer.pending_audit_id(tool_use_id)
             tool_audit_writer.record_after(tool_use_id, parsed, duration or 0)
         if name in STEP_LABELS:
-            failed = parsed.get("status") == "error" or "error" in parsed
+            if outcome.kind == OUTCOME_FAILED:
+                finding = _READ_FAILED
+            else:
+                finding = outcome_finding(name, outcome) or finding_for(name, parsed)
             self.case.emit(step_event(
-                name, label=self._label(name), status="failed" if failed else "done",
-                finding=finding_for(name, parsed), tool=name, duration_ms=duration,
-                audit_id=audit_id, agent=self.node,
+                name, label=self._label(name), status="failed" if outcome.failed else "done",
+                finding=finding, tool=name, duration_ms=duration, audit_id=audit_id,
+                agent=self.node, model_id=self.model_id, outcome=outcome.kind,
             ))
+
+
+    def fail_unfinished(self) -> None:
+        """End each read still running when the graph stopped: it failed, never finished."""
+        from services.turn_steps import OUTCOME_FAILED
+
+        for name in self._open.values():
+            self.case.emit(step_event(
+                name, label=self._label(name), status="failed", finding=_READ_UNFINISHED,
+                tool=name, agent=self.node, model_id=self.model_id, outcome=OUTCOME_FAILED,
+            ))
+        self._open.clear()
 
 
 # ---------------------------------------------------------------------------
@@ -867,6 +912,48 @@ def _task(case: _Case) -> str:
     )
 
 
+def _build_graph(case: _Case, model_id: str, hooks: Dict[str, "_NodeHooks"]) -> Any:
+    """The Investigator then the Planner, each on ``model_id``, each reporting through its hooks."""
+    from strands import Agent
+    from strands.models import BedrockModel
+    from strands.multiagent import GraphBuilder
+
+    investigator = Agent(
+        name=INVESTIGATOR_NODE,
+        description="Reads one client's orders, tickets and the return policy, and states the case.",
+        model=BedrockModel(model_id=model_id, max_tokens=_INVESTIGATOR_MAX_TOKENS),
+        system_prompt=_INVESTIGATOR_PROMPT,
+        tools=_investigator_tools(case),
+        hooks=[hooks[INVESTIGATOR_NODE]],
+        callback_handler=None,
+    )
+    planner = Agent(
+        name=PLANNER_NODE,
+        description="Proposes one store credit for a person to approve.",
+        model=BedrockModel(model_id=model_id, max_tokens=_PLANNER_MAX_TOKENS),
+        system_prompt=_PLANNER_PROMPT,
+        tools=_planner_tools(case),
+        hooks=[hooks[PLANNER_NODE]],
+        callback_handler=None,
+    )
+
+    builder = GraphBuilder()
+    builder.set_max_node_executions(2)
+    builder.set_execution_timeout(_GRAPH_TIMEOUT_SECONDS)
+    builder.set_node_timeout(_NODE_TIMEOUT_SECONDS)
+    builder.add_node(investigator, INVESTIGATOR_NODE)
+    builder.add_node(planner, PLANNER_NODE)
+    builder.add_edge(INVESTIGATOR_NODE, PLANNER_NODE)
+    builder.set_entry_point(INVESTIGATOR_NODE)
+    graph = builder.build()
+    graph.trace_attributes = {
+        "gen_ai.operation.name": "operator_investigation",
+        "pellier.graph.id": GRAPH_ID,
+        "pellier.turn.id": case.turn_id,
+    }
+    return graph
+
+
 def run_investigation(
     *,
     run: Run,
@@ -894,49 +981,14 @@ def run_investigation(
         turn_id: The investigation's turn id, the review's source turn.
         emit: Receives each ``step`` event as it happens.
     """
-    from strands import Agent
-    from strands.models import BedrockModel
-    from strands.multiagent import GraphBuilder
-
     from services.specialist_models import specialist_model
 
     case = _Case(run=run, run_customer=run_customer, customer_id=customer_id,
                  customer_name=customer_name,
                  operator_sub=operator_sub, turn_id=turn_id, emit=emit)
     model_id, _configured_max = specialist_model("sonnet")
-    investigator = Agent(
-        name=INVESTIGATOR_NODE,
-        description="Reads one client's orders, tickets and the return policy, and states the case.",
-        model=BedrockModel(model_id=model_id, max_tokens=_INVESTIGATOR_MAX_TOKENS),
-        system_prompt=_INVESTIGATOR_PROMPT,
-        tools=_investigator_tools(case),
-        hooks=[_NodeHooks(case, INVESTIGATOR_NODE)],
-        callback_handler=None,
-    )
-    planner = Agent(
-        name=PLANNER_NODE,
-        description="Proposes one store credit for a person to approve.",
-        model=BedrockModel(model_id=model_id, max_tokens=_PLANNER_MAX_TOKENS),
-        system_prompt=_PLANNER_PROMPT,
-        tools=_planner_tools(case),
-        hooks=[_NodeHooks(case, PLANNER_NODE)],
-        callback_handler=None,
-    )
-
-    builder = GraphBuilder()
-    builder.set_max_node_executions(2)
-    builder.set_execution_timeout(_GRAPH_TIMEOUT_SECONDS)
-    builder.set_node_timeout(_NODE_TIMEOUT_SECONDS)
-    builder.add_node(investigator, INVESTIGATOR_NODE)
-    builder.add_node(planner, PLANNER_NODE)
-    builder.add_edge(INVESTIGATOR_NODE, PLANNER_NODE)
-    builder.set_entry_point(INVESTIGATOR_NODE)
-    graph = builder.build()
-    graph.trace_attributes = {
-        "gen_ai.operation.name": "operator_investigation",
-        "pellier.graph.id": GRAPH_ID,
-        "pellier.turn.id": turn_id,
-    }
+    hooks = {node: _NodeHooks(case, node, model_id) for node in (INVESTIGATOR_NODE, PLANNER_NODE)}
+    graph = _build_graph(case, model_id, hooks)
 
     started = time.perf_counter()
     try:
@@ -944,9 +996,12 @@ def run_investigation(
     except Exception as exc:  # noqa: BLE001 - the caller renders a failed turn
         duration = int((time.perf_counter() - started) * 1000)
         logger.warning("Operator investigation failed: %s", exc)
+        for node_hooks in hooks.values():
+            node_hooks.fail_unfinished()
         for node in (INVESTIGATOR_NODE, PLANNER_NODE):
             emit(step_event(node, label=STEP_LABELS[node].format(name=case.first_name),
-                            status="failed", finding="The investigation did not complete", agent=node))
+                            status="failed", finding="The investigation did not complete",
+                            agent=node, model_id=model_id))
         return InvestigationResult(
             turn_id=turn_id, customer_id=customer_id, status="failed",
             proposal=case.proposal, model_id=model_id, duration_ms=duration,
@@ -954,6 +1009,8 @@ def run_investigation(
         )
 
     duration = int((time.perf_counter() - started) * 1000)
+    for node_hooks in hooks.values():
+        node_hooks.fail_unfinished()
     facts, missing = _brief_from(_node_text(result, INVESTIGATOR_NODE))
     if reached_a_finding(case, brief=bool(facts)):
         answer_open_requests(case)
@@ -969,6 +1026,7 @@ def run_investigation(
             if facts else "The Investigator returned no brief"
         ),
         duration_ms=by_node.get(INVESTIGATOR_NODE, {}).get("durationMs"), agent=INVESTIGATOR_NODE,
+        model_id=model_id,
     ))
     emit(step_event(
         PLANNER_NODE, label=STEP_LABELS[PLANNER_NODE], status="done" if case.proposal else "failed",
@@ -976,6 +1034,7 @@ def run_investigation(
             " ".join(planner_text.split())[:160] or "No credit was proposed"
         ),
         duration_ms=by_node.get(PLANNER_NODE, {}).get("durationMs"), agent=PLANNER_NODE,
+        model_id=model_id,
     ))
     return InvestigationResult(
         turn_id=turn_id, customer_id=customer_id, status="complete",

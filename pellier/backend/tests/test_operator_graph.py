@@ -594,3 +594,83 @@ def test_a_graph_failure_is_a_failed_turn_with_no_proposal(graph_runtime) -> Non
     assert result.proposal is None
     assert run.answered == [], "a failed investigation answers no request"
     assert [e["status"] for e in events[-2:]] == ["failed", "failed"]
+
+
+def test_a_read_that_raised_shows_failed_not_an_empty_record(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """Through a real Strands graph: a get_orders that raised is a failed read.
+
+    Strands answers a raised read with "Error: RuntimeError - ...", which parses as no
+    orders at all, so the desk used to show a check and "No orders on file" for a read
+    that never reached Aurora. A read with input that failed the schema did not run.
+    """
+    import strands.models
+
+    from services import specialist_models
+    from services.turn_steps import INVALID_FINDING
+    from tests.scripted_model import ScriptedModel
+
+    model_id = "global.anthropic.claude-sonnet-5-5"
+    models = iter([
+        ScriptedModel([("get_orders", {}), ("get_tickets", {"limit": "a few"})],
+                      INVESTIGATOR_BRIEF),
+        ScriptedModel([], "No credit is proposed until the orders can be read."),
+    ])
+    monkeypatch.setattr(strands.models, "BedrockModel", lambda **_kwargs: next(models))
+    monkeypatch.setattr(specialist_models, "specialist_model", lambda _tier: (model_id, 1024))
+
+    class _AuroraDown(_Run):
+        def __call__(self, sql: str, params: Any = ()) -> List[Dict[str, Any]]:
+            if "FROM pellier.orders o" in sql:
+                raise RuntimeError("connection to Aurora refused")
+            return super().__call__(sql, params)
+
+    events: List[Dict[str, Any]] = []
+    _investigate(_AuroraDown(), events)
+    ended = {event["id"]: event for event in events if event["status"] != "running"}
+
+    orders = ended["get_orders"]
+    assert (orders["status"], orders["finding"]) == ("failed", "This read did not complete")
+    assert orders["builder"]["outcome"] == "failed"
+    tickets = ended["get_tickets"]
+    assert (tickets["status"], tickets["finding"]) == ("failed", INVALID_FINDING)
+    for step in (orders, tickets):
+        assert (step["builder"]["agent"], step["builder"]["model_id"]) == ("investigator", model_id)
+    assert ended["investigator"]["builder"]["model_id"] == model_id
+    assert ended["planner"]["builder"]["model_id"] == model_id
+
+
+def test_a_read_still_out_when_the_graph_timed_out_ends_failed(
+        monkeypatch: pytest.MonkeyPatch) -> None:
+    """Through a real Strands graph: the node times out while get_orders is out.
+
+    The read's after-tool event never comes, so its step stayed running on a finished,
+    failed investigation, a spinner for a read that would never answer.
+    """
+    import time as clock
+
+    import strands.models
+
+    from services import specialist_models, store_tools
+    from tests.scripted_model import ScriptedModel
+
+    models = iter([ScriptedModel([("get_orders", {})], INVESTIGATOR_BRIEF),
+                   ScriptedModel([], "No credit is proposed.")])
+    monkeypatch.setattr(strands.models, "BedrockModel", lambda **_kwargs: next(models))
+    monkeypatch.setattr(specialist_models, "specialist_model", lambda _tier: ("model-test", 1024))
+    monkeypatch.setattr(GRAPH, "_NODE_TIMEOUT_SECONDS", 0.3)
+    read = store_tools.get_orders
+
+    def slow_read(*args: Any, **kwargs: Any) -> Any:
+        clock.sleep(1.0)
+        return read(*args, **kwargs)
+
+    monkeypatch.setattr(store_tools, "get_orders", slow_read)
+    events: List[Dict[str, Any]] = []
+    result = _investigate(_Run(), events)
+
+    assert result.status == "failed"
+    orders = [event for event in events if event["id"] == "get_orders"]
+    assert [event["status"] for event in orders] == ["running", "failed"]
+    assert orders[-1]["finding"] == "The investigation stopped before this read finished"
+    assert orders[-1]["builder"]["outcome"] == "failed"

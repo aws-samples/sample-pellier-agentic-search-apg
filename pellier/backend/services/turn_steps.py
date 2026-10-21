@@ -147,6 +147,119 @@ def result_failed(tool: str, parsed: Dict[str, Any]) -> bool:
     return False
 
 
+# How one tool call ended. Strands hands every call that did not answer to the
+# after-tool hook with status "error": a tool that raised, input that failed the
+# tool's schema, a tool the agent does not hold, a call a hook cancelled and, over
+# MCP, a Gateway refusal. Their text is not the tool's JSON, so a reading of the
+# text alone takes each for an empty answer. The kinds stay apart here instead.
+OUTCOME_OK = "ok"
+OUTCOME_FAILED = "failed"
+OUTCOME_INVALID = "invalid"
+OUTCOME_DENIED = "denied"
+OUTCOME_NOT_HELD = "not_held"
+OUTCOME_CANCELLED = "cancelled"
+
+# The Gateway's words for a Cedar denial, box-verified 2026-06-12: "Tool call not
+# allowed due to policy enforcement [Policy evaluation denied due to <policy>-...]".
+# A bare AccessDenied, 401 or 403 is not one: those describe IAM, the token or the
+# target, and must never read as a policy decision.
+POLICY_DENIAL_MARKERS = (
+    "authorizeactionexception",
+    "not allowed due to policy",
+    "policy enforcement",
+    "policy evaluation denied",
+)
+
+# Strands' words when a call's input fails the tool's schema; the tool body never ran.
+_INVALID_INPUT_PREFIX = "Error: Validation failed for input parameters"
+
+DENIED_FINDING = "Denied by policy, so the tool did not run"
+INVALID_FINDING = "The agent's input was invalid, so the tool did not run"
+CANCELLED_FINDING = "Stopped before the tool ran"
+
+
+@dataclass(frozen=True)
+class ToolOutcome:
+    """How one tool call ended: ``kind`` is an ``OUTCOME_*`` value, ``text`` what it said."""
+
+    kind: str
+    text: str = ""
+
+    @property
+    def failed(self) -> bool:
+        return self.kind != OUTCOME_OK
+
+
+def _result_text(result: Any) -> str:
+    if isinstance(result, dict) and "content" in result:
+        for block in result.get("content") or []:
+            if isinstance(block, dict) and "text" in block:
+                return str(block["text"])
+        return ""
+    return "" if result is None else str(result)
+
+
+def _policy_denied(said: str) -> bool:
+    said = said.lower()
+    if "suppress" in said and ("output" in said or "response" in said):
+        return False
+    return any(marker in said for marker in POLICY_DENIAL_MARKERS)
+
+
+def tool_outcome(
+    tool: str,
+    result: Any,
+    *,
+    exception: Optional[BaseException] = None,
+    cancel_message: Optional[str] = None,
+) -> ToolOutcome:
+    """How one tool call ended, from the fields of Strands' ``AfterToolCallEvent``.
+
+    Args:
+        tool: The tool's name.
+        result: The event's ``result``, a ToolResult, or the tool's text.
+        exception: The event's ``exception``: the tool raised, or was not found.
+        cancel_message: The event's ``cancel_message``: a hook cancelled the call.
+    """
+    text = _result_text(result)
+    if cancel_message:
+        return ToolOutcome(OUTCOME_CANCELLED, str(cancel_message))
+    status = result.get("status") if isinstance(result, dict) else None
+    if status == "error" or exception is not None:
+        if _policy_denied(f"{text} {exception or ''}"):
+            return ToolOutcome(OUTCOME_DENIED, text)
+        if text.strip().startswith(_NOT_HELD_PREFIX):
+            return ToolOutcome(OUTCOME_NOT_HELD, text)
+        if text.strip().startswith(_INVALID_INPUT_PREFIX):
+            return ToolOutcome(OUTCOME_INVALID, text)
+        return ToolOutcome(OUTCOME_FAILED, text or str(exception or ""))
+    parsed = parse_result(text)
+    if tool_not_held(parsed):
+        return ToolOutcome(OUTCOME_NOT_HELD, text)
+    # The skill loader answers in prose, and its refusals have their own finding.
+    if tool != SKILL_LOAD_TOOL and result_failed(tool, parsed):
+        return ToolOutcome(OUTCOME_FAILED, text)
+    return ToolOutcome(OUTCOME_OK, text)
+
+
+def outcome_finding(tool: str, outcome: ToolOutcome) -> Optional[str]:
+    """The finding for a call that did not answer; ``None`` for one that did."""
+    if outcome.kind == OUTCOME_NOT_HELD:
+        return f"{tool} is not one of this agent's tools; it did not run"
+    if outcome.kind == OUTCOME_DENIED:
+        return DENIED_FINDING
+    if outcome.kind == OUTCOME_INVALID:
+        return INVALID_FINDING
+    if outcome.kind == OUTCOME_CANCELLED:
+        # The Gateway rail cancels a customer-scoped call that has no signed-in customer.
+        if "customer context" in outcome.text:
+            return _SCOPE_FINDINGS["customer_scope_required"]
+        return CANCELLED_FINDING
+    if outcome.kind == OUTCOME_FAILED:
+        return ERROR_FINDINGS.get(tool, _GENERIC_ERROR_FINDING)
+    return None
+
+
 # A material is a mass noun: "no wool", never "no wools".
 _MASS_NOUNS = frozenset(material.lower() for material in KNOWN_MATERIALS)
 
@@ -472,6 +585,9 @@ class TurnSteps:
     earlier ones. Each step travels as its own small event, so nothing about
     the stream needs a cap either.
 
+    Every tool step names the agent and model that called it, as the Router
+    step reported them, so the Builder view pairs each tool with its model.
+
     Args:
         skill_names: Skill name to display name, for the loader's labels.
         skill_paths: Skill name to repository path, for the loader's findings.
@@ -483,6 +599,13 @@ class TurnSteps:
     ids: Dict[str, str] = field(default_factory=dict)
     loaded_skills: List[Dict[str, str]] = field(default_factory=list)
     labels: Dict[str, str] = field(default_factory=dict)
+    agent: str = ""
+    model_id: str = ""
+
+    def _caller(self) -> Dict[str, str]:
+        """The agent and model the Router step named, once it has."""
+        caller = {"agent": self.agent, "model_id": self.model_id}
+        return {key: value for key, value in caller.items() if value}
 
     def step_id(self, tool: str, call_id: Optional[str] = None) -> str:
         """An opaque id per tool use. The tool name lives only under ``builder``."""
@@ -515,7 +638,7 @@ class TurnSteps:
             "label": label,
             "status": "running",
             "tags": list(LAYER_TAGS.get(tool, ())),
-            "builder": {"tool": tool},
+            "builder": {"tool": tool, **self._caller()},
         }
 
     def finished(
@@ -529,15 +652,19 @@ class TurnSteps:
         audit_id: Optional[int] = None,
         evidence: Optional[Dict[str, Any]] = None,
         rail: str = "in-process",
+        outcome: Optional[ToolOutcome] = None,
     ) -> Dict[str, Any]:
         """The ``step`` event for a tool end, with its finding and Builder data.
 
         ``evidence`` is what this one tool use published, taken by its id.
+        ``outcome`` is how the call ended (:func:`tool_outcome`); without it the
+        outcome is read from ``result_text`` alone.
         """
         tool_input = tool_input or {}
         evidence = evidence or {}
         step_id = self.step_id(tool, call_id)
         parsed = parse_result(result_text)
+        outcome = outcome or tool_outcome(tool, result_text)
         carried = [str(kind) for kind in (evidence.get("requirements") or {}).get("carried") or []]
         if tool == SKILL_LOAD_TOOL:
             refused = skill_load_refused(result_text)
@@ -550,13 +677,18 @@ class TurnSteps:
                     "path": self.skill_paths.get(name, f"skills/{name}/SKILL.md"),
                 })
             finding = skill_finding(self.loaded_skills, refused)
-            failed = refused is not None
+            if refused is None and outcome.failed:
+                finding = outcome_finding(tool, outcome) or finding
+            failed = refused is not None or outcome.failed
         else:
             kept = ((evidence.get("ranking") or {}).get("filters") or {}).get("kept")
-            finding = finding_for(tool, parsed, kept=kept, carried=carried)
-            failed = result_failed(tool, parsed)
+            finding = outcome_finding(tool, outcome) or finding_for(
+                tool, parsed, kept=kept, carried=carried)
+            failed = outcome.failed
         builder: Dict[str, Any] = {
             "tool": tool,
+            **self._caller(),
+            "outcome": outcome.kind,
             "rail": rail,
             "duration_ms": duration_ms,
             "audit_id": audit_id,
@@ -576,7 +708,7 @@ class TurnSteps:
             "label": self.labels.get(step_id) or step_label(tool, tool_input),
             "status": "failed" if failed else "done",
             "finding": finding,
-            "tags": layer_tags(tool, parsed),
+            "tags": _outcome_tags(layer_tags(tool, parsed), outcome.kind),
             "builder": builder,
         }
         return _with_results(event, evidence.get("results"))
@@ -614,6 +746,7 @@ class TurnSteps:
         tags the step Memory. ``grant`` is what the built
         agent may call (:func:`grant_receipt`), on the in-process rail.
         """
+        self.agent, self.model_id = agent, model_id
         tags = list(LAYER_TAGS[ROUTE_STEP_ID])
         if memory or remembered:
             tags.append("Memory")
@@ -649,13 +782,16 @@ class TurnSteps:
     def managed(self, tool_call: Dict[str, Any], *, rail: str = "gateway-mcp") -> Dict[str, Any]:
         """A done ``step`` for one tool call the managed Runtime reported.
 
-        The Runtime computes ``finding`` beside the Gateway with the same
-        templates, so it arrives on the call. Identity fields arrive the same
-        way; the ranking is attached by the route when the receipt is readable.
+        The Runtime computes ``finding`` and ``outcome`` beside the Gateway with
+        the same templates, so they arrive on the call. Identity fields arrive
+        the same way; the ranking is attached by the route when the receipt is
+        readable.
         """
         tool = str(tool_call.get("tool") or "")
         status = str(tool_call.get("status") or "success")
-        failed = status not in ("success", "completed")
+        kind = str(tool_call.get("outcome") or "")
+        failed = status not in ("success", "completed") or kind not in ("", OUTCOME_OK)
+        kind = kind or (OUTCOME_FAILED if failed else OUTCOME_OK)
         identity = None
         if tool_call.get("binding"):
             identity = {
@@ -672,6 +808,8 @@ class TurnSteps:
         self.labels[step_id] = label
         builder: Dict[str, Any] = {
             "tool": tool,
+            **self._caller(),
+            "outcome": kind,
             "rail": rail,
             "duration_ms": tool_call.get("duration_ms"),
             "audit_id": None,
@@ -689,9 +827,14 @@ class TurnSteps:
             "label": label,
             "status": "failed" if failed else "done",
             "finding": finding,
-            "tags": list(LAYER_TAGS.get(tool, ())),
+            "tags": _outcome_tags(list(LAYER_TAGS.get(tool, ())), kind),
             "builder": builder,
         }, tool_call.get("results"))
+
+
+def _outcome_tags(tags: List[str], kind: str) -> List[str]:
+    """A call that policy denied carries the Policy layer: that is where it stopped."""
+    return [*tags, "Policy"] if kind == OUTCOME_DENIED and "Policy" not in tags else tags
 
 
 def _with_results(event: Dict[str, Any], results: Optional[Dict[str, Any]]) -> Dict[str, Any]:

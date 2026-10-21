@@ -132,7 +132,14 @@ export interface StepBuilder {
   requirements?: StepRequirements | null
   intent?: string
   agent?: string
+  /** The model that ran this turn's agent: on the Router step, and on each tool step it called. */
   model_id?: string
+  /**
+   * How a tool call ended, judged from Strands' own result: `ok`, `failed`, `invalid`
+   * (input failed the tool's schema), `denied` (policy at the Gateway), `not_held` or
+   * `cancelled`.
+   */
+  outcome?: 'ok' | 'failed' | 'invalid' | 'denied' | 'not_held' | 'cancelled'
   skills?: LoadedSkill[]
   skill_mode?: string
   /** The Aurora customer record the prompt carried, on the in-process Router step. */

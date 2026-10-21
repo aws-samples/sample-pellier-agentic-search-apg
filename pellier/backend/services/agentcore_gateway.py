@@ -479,12 +479,13 @@ def _tool_result_values(result: Any) -> list[Any]:
     return values
 
 
-def _finding_for(tool_name: str, result: Any, status: str) -> str:
-    """One plain line from the full tool result, by the shared template."""
-    from services.turn_steps import ERROR_FINDINGS, finding_for, parse_result
+def _finding_for(tool_name: str, result: Any, outcome: Any) -> str:
+    """One plain line from the full tool result and how the call ended, by the shared template."""
+    from services.turn_steps import finding_for, outcome_finding, parse_result
 
-    if status == "error":
-        return ERROR_FINDINGS.get(tool_name, "This check did not complete")
+    failure = outcome_finding(tool_name, outcome)
+    if failure:
+        return failure
     for value in _tool_result_values(result):
         return finding_for(tool_name, parse_result(value))
     return finding_for(tool_name, {})
@@ -577,6 +578,7 @@ class ManagedGatewayDispatcher:
         from strands.tools.mcp.mcp_client import MCPClient
         from services.intent_router import classify_intent
         from services.specialist_models import model_for_intent
+        from services.turn_steps import tool_outcome
 
         # Route on the current shopper request, not the bounded conversation
         # prompt. Prior turns can contain unrelated keywords and must not
@@ -719,19 +721,24 @@ class ManagedGatewayDispatcher:
                     if event.exception is not None
                     else str((event.result or {}).get("status") or "success")
                 )
+                outcome = tool_outcome(
+                    tool_name, event.result, exception=event.exception,
+                    cancel_message=getattr(event, "cancel_message", None),
+                )
                 safe_input = _safe_tool_input(tool_use)
                 tool_events.append(
                     {
                         "id": tool_use_id,
                         "tool": tool_name,
                         "status": status,
+                        "outcome": outcome.kind,
                         "duration_ms": duration_ms,
                         "input": safe_input,
                         "result": _result_summary(event.result, observed_products),
                         # The same template the in-process rail uses, computed
                         # here beside the Gateway from the full result the
                         # Runtime never sends back.
-                        "finding": _finding_for(tool_name, event.result, status),
+                        "finding": _finding_for(tool_name, event.result, outcome),
                         **scope_by_id.pop(tool_use_id, {}),
                     }
                 )

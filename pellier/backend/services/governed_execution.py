@@ -44,6 +44,7 @@ from typing import Any, Dict, List, Mapping, Optional
 # recomputes it and admits a write only under the key of the approved review.
 # This module derives the same key for the Operator's execute path.
 from services.store_tools import WRITE_GUARDS, execution_idempotency_key
+from services.turn_steps import POLICY_DENIAL_MARKERS
 
 logger = logging.getLogger(__name__)
 
@@ -583,19 +584,13 @@ def require_enforced_engine(
 # Policy-denial classification
 # ---------------------------------------------------------------------------
 
-# Verbatim Gateway deny markers, box-verified 2026-06-12 and reused here rather
-# than re-derived: "Tool call not allowed due to policy enforcement [Policy
-# evaluation denied due to <policy>-...]".
-#
-# Deliberately NOT matched: bare AccessDenied / Unauthorized / Forbidden. Those
-# describe IAM, JWT, or target failures, and treating them as Cedar denials would
-# make a broken Gateway look like a successful governance proof.
-_DENIAL_MARKERS = (
-    "authorizeactionexception",
-    "not allowed due to policy",
-    "policy enforcement",
-    "policy evaluation denied",
-)
+# The verbatim Gateway deny markers live beside the step contract, which the
+# Runtime bundle carries too, so the Operator's write path and every tool step
+# read a denial the same way. Deliberately NOT matched: bare AccessDenied /
+# Unauthorized / Forbidden. Those describe IAM, JWT, or target failures, and
+# treating them as Cedar denials would make a broken Gateway look like a
+# successful governance proof.
+_DENIAL_MARKERS = POLICY_DENIAL_MARKERS
 
 
 def is_output_suppression(error: BaseException | str) -> bool:
