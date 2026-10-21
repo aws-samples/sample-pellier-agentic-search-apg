@@ -495,6 +495,48 @@ def test_a_planner_that_reads_the_brief_and_proposes_nothing_answers_them(graph_
     assert run.answered == [("turn-" + "a" * 32, None, "CUST-JESSICA")]
 
 
+def _planner_step(events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return [event for event in events if event["id"] == GRAPH.PLANNER_NODE][-1]
+
+
+def test_a_planner_that_rightly_proposes_nothing_is_a_done_step(graph_runtime) -> None:
+    """Seen on event 9: Jessica already credited, the Planner said why and called no tool.
+
+    That is a finding, so the desk must not show it as a step that did not complete. Its
+    line keeps whole sentences instead of stopping mid-date at 160 characters.
+    """
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    _FakeAgent.outputs[GRAPH.PLANNER_NODE] = (
+        "No store credit is warranted, so I called no tool. Orders 20 ($64.00) and 21 ($36.00) "
+        "are both marked returned and received. A $100.00 store credit dated 2026-10-21 already "
+        "covers both items, so the records support no further credit."
+    )
+    events: List[Dict[str, Any]] = []
+    _investigate(_Run(), events)
+    planner = _planner_step(events)
+    assert planner["status"] == "done"
+    assert planner["finding"] == (
+        "No store credit is warranted, so I called no tool. Orders 20 ($64.00) and 21 ($36.00) "
+        "are both marked returned and received.")
+
+
+def test_a_planner_told_the_returns_are_credited_says_so_in_the_template(graph_runtime) -> None:
+    rows = [{**order, "store_credit_id": 7} for order in JESSICA_ORDERS]
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+        ("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back."}),
+    ]
+    events: List[Dict[str, Any]] = []
+    _investigate(_Run(rows), events)
+    planner = _planner_step(events)
+    assert (planner["status"], planner["finding"]) == (
+        "done", "A store credit already covers every received return")
+
+
+def test_a_long_planner_line_without_a_sentence_end_stops_at_a_word() -> None:
+    line = GRAPH._whole_sentences("word " * 60, 160)
+    assert line.endswith("word…") and len(line) <= 161
+
+
 @pytest.mark.parametrize("order_ids", [[9999], [399]], ids=["refused", "over-ceiling"])
 def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) -> None:
     orders = JESSICA_ORDERS + [{
@@ -506,9 +548,11 @@ def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) ->
         ("propose_store_credit", {"order_ids": order_ids, "reason": "Credit these."}),
     ]
     run = _Run(orders if order_ids == [399] else None)
-    result = _investigate(run, [])
+    events: List[Dict[str, Any]] = []
+    result = _investigate(run, events)
     assert result.status == "complete" and result.proposal is None
     assert run.answered == [], "no proposal and no finding: the request stays open"
+    assert _planner_step(events)["status"] == "failed"
 
 
 def test_an_investigation_with_no_brief_leaves_the_requests_open(graph_runtime) -> None:

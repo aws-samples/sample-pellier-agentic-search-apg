@@ -279,6 +279,31 @@ def proposal_finding(parsed: Dict[str, Any]) -> str:
     return str(parsed.get("message") or "No credit was proposed")
 
 
+# The longest Planner line the desk shows in its own words.
+_PLANNER_LINE_LIMIT = 160
+
+
+def _whole_sentences(text: str, limit: int) -> str:
+    """As many whole sentences as fit in ``limit`` characters, else whole words and an ellipsis."""
+    flat = " ".join(str(text or "").split())
+    if len(flat) <= limit:
+        return flat
+    cut = flat[:limit + 1]
+    end = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    if end > 0:
+        return cut[:end + 1]
+    return cut[:cut.rfind(" ")].rstrip(",;:") + "…"
+
+
+def planner_finding(case: "_Case", planner_text: str) -> str:
+    """The Planner step's line: its proposal, the outcome its tool reported, or its own words."""
+    if case.proposal is not None:
+        return proposal_finding(case.proposal_result)
+    if case.planner_outcome in ("nothing_returned", "already_credited"):
+        return proposal_finding({"status": case.planner_outcome})
+    return _whole_sentences(planner_text, _PLANNER_LINE_LIMIT) or "No credit was proposed"
+
+
 def step_event(
     step_id: str,
     *,
@@ -1028,11 +1053,12 @@ def run_investigation(
         duration_ms=by_node.get(INVESTIGATOR_NODE, {}).get("durationMs"), agent=INVESTIGATOR_NODE,
         model_id=model_id,
     ))
+    # Proposing nothing is a finding when the records support no credit; the step
+    # fails only when the investigation reached none.
     emit(step_event(
-        PLANNER_NODE, label=STEP_LABELS[PLANNER_NODE], status="done" if case.proposal else "failed",
-        finding=proposal_finding(case.proposal_result) if case.proposal else (
-            " ".join(planner_text.split())[:160] or "No credit was proposed"
-        ),
+        PLANNER_NODE, label=STEP_LABELS[PLANNER_NODE],
+        status="done" if reached_a_finding(case, brief=bool(facts)) else "failed",
+        finding=planner_finding(case, planner_text),
         duration_ms=by_node.get(PLANNER_NODE, {}).get("durationMs"), agent=PLANNER_NODE,
         model_id=model_id,
     ))
