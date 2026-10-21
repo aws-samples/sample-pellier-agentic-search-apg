@@ -156,7 +156,7 @@ export const ANSWER = {
   },
   planner: 'A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it before anything is written.',
   proposal: { reviewId: 41, customerId: 'CUST-JESSICA', amountCents: 10000, amount: '100.00', reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).', orderIds: [301, 302], actionHash: ACTION_HASH, idempotencyKey: WRITE_KEY, status: 'pending' },
-  graph: { graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5', nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'planner', status: 'completed', durationMs: 2900 }], durationMs: 7100 },
+  graph: { graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5-5', nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'planner', status: 'completed', durationMs: 2900 }], durationMs: 7100 },
   error: null,
 }
 

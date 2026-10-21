@@ -56,7 +56,7 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
         if model.get("role") == "editorial":
             return False
         if model.get("role") == "sonnet":
-            model["_resolved_id"] = "global.anthropic.claude-sonnet-5"
+            model["_resolved_id"] = "global.anthropic.claude-sonnet-5-5"
         return True
 
     monkeypatch.setattr(module, "check_model", fake_check)
@@ -72,12 +72,12 @@ def test_model_preflight_persists_sonnet_5_runtime_fallback(
         for line in env_file.read_text(encoding="utf-8").splitlines()
         if "=" in line
     )
-    assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5"
+    assert values["BEDROCK_OPUS_MODEL"] == "global.anthropic.claude-sonnet-5-5"
     assert "BEDROCK_CHAT_MODEL" not in values
     assert "BEDROCK_ROUTER_MODEL" not in values
     assert "BEDROCK_FAST_MODEL" not in values
     assert "CLAUDE_CODE_MODEL" not in values
-    assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-5"
+    assert values["AGENT_MODEL_ID"] == "global.anthropic.claude-sonnet-5-5"
     assert values["BEDROCK_MODEL_ACCESS_READY"] == "true"
 
 
@@ -87,7 +87,7 @@ def test_claude_code_pins_global_sonnet_5_profile() -> None:
     assert "export CLAUDE_CODE_USE_BEDROCK=1" in source
     assert (
         "export ANTHROPIC_MODEL="
-        "${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}" in source
+        "${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5-5}" in source
     )
     assert "ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-sonnet}" not in source
     assert "CLAUDE_CODE_MODEL" not in source
@@ -125,7 +125,7 @@ def test_facilitator_dry_run_probes_the_pinned_model_not_the_floating_alias() ->
     assert "--model sonnet" not in source
     assert 'ANTHROPIC_MODEL="$CLAUDE_MODEL_PIN"' in source
     assert (
-        'CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}"'
+        'CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5-5}"'
         in source
     )
 
@@ -389,7 +389,7 @@ def _valid_managed_receipt() -> dict[str, object]:
                 },
                 "step_latency_observed": True,
                 "step_latency_ms": {"agent": 125, "model": 80, "tool": 30},
-                "model_ids": ["global.anthropic.claude-sonnet-5"],
+                "model_ids": ["global.anthropic.claude-sonnet-5-5"],
                 "tool_names": ["search_products"],
                 "provenance": "agentcore-unified-telemetry",
             },

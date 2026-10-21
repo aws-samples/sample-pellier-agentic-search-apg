@@ -215,7 +215,7 @@ export const ANSWER: InvestigationAnswer = {
     actionHash: ACTION_HASH, idempotencyKey: WRITE_KEY, status: 'pending',
   },
   graph: {
-    graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5',
+    graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5-5',
     nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'planner', status: 'completed', durationMs: 2900 }],
     durationMs: 7100,
   },

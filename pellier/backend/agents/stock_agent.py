@@ -73,7 +73,7 @@ _STOCK_TOOLS = [
     agent_tools.compare_products,
 ]
 #
-# The Stock agent sets no temperature: Sonnet 5 rejects that argument.
+# The Stock agent sets no temperature: Sonnet 5.5 rejects that argument.
 # === WORKSHOP - Stock agent - definition: END ===
 
 

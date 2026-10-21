@@ -907,11 +907,11 @@ export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 # CLAUDE_CODE_USE_BEDROCK=1 makes the CLI authenticate through THIS box's IAM
 # instance role (the same ambient-credential chain psql/boto3/agentcore already
 # use) — no Anthropic API key, no per-participant login, nothing to paste.
-# Model: pin global Sonnet 5 explicitly. The model-access preflight verifies
+# Model: pin global Sonnet 5.5 explicitly. The model-access preflight verifies
 # this same profile for app routing/reporting and the participant CLI lane.
 # A floating alias could move to an untested model independently of this release.
 export CLAUDE_CODE_USE_BEDROCK=1
-export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}
+export ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5-5}
 export AWS_REGION=${AWS_REGION:-us-east-1}
 # The CLI is installed globally as root (/usr/bin/claude) but runs as the
 # participant user, so its auto-updater can't write the root-owned npm prefix

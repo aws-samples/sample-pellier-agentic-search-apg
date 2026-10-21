@@ -1,5 +1,5 @@
 """
-Structured query extraction via Claude Sonnet 5.
+Structured query extraction via Claude Sonnet 5.5.
 
 Path 2 retrieval, the agentic upgrade to hybrid+rerank, splits a
 shopper query into:
@@ -15,7 +15,7 @@ filters (with ``hnsw.iterative_scan`` so a strict WHERE doesn't drop
 the candidate count below ``ef_search``), then sends a smaller pool
 through Cohere Rerank using ``soft_signal`` as the query.
 
-Why Sonnet 5 specifically:
+Why Sonnet 5.5 specifically:
 
   - Reliable JSON-shaped output against eight departments, 28 tags and
     30 materials.
@@ -49,11 +49,13 @@ from services.catalog_vocabulary import KNOWN_CATEGORIES, KNOWN_MATERIALS, KNOWN
 
 logger = logging.getLogger(__name__)
 
-# The reply is one short JSON object. Thinking is disabled on the request:
-# on Claude 5 a thinking block counts against ``max_tokens`` and cuts the
-# JSON off mid-key, which read as "no JSON object found".
+# The reply is one short JSON object, so the request turns thinking off: a
+# thinking block counts against ``max_tokens`` and cut the JSON off mid-key,
+# which read as "no JSON object found". Sonnet 5.5 refuses
+# ``{"type": "disabled"}`` with a 400 and turns thinking off with
+# ``between_tools``, which it accepts at effort ``high`` (its default) or below.
 EXTRACT_MAX_TOKENS = 400
-THINKING_DISABLED = {"type": "disabled"}
+THINKING_OFF = {"type": "between_tools"}
 
 REASON_TRUNCATED = "truncated"
 REASON_UNREADABLE = "unreadable"
@@ -152,7 +154,7 @@ def request_body(query: str) -> Dict[str, Any]:
     return {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": EXTRACT_MAX_TOKENS,
-        "thinking": dict(THINKING_DISABLED),
+        "thinking": dict(THINKING_OFF),
         "system": _SYSTEM_PROMPT,
         "messages": [
             {"role": "user", "content": _build_prompt(query.strip())},

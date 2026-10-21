@@ -359,9 +359,9 @@ def test_bedrock_model_ids_have_spec_defaults(
     # Per-agent model mix should also default cleanly. Sonnet owns structured
     # extraction and reporting; the Router is deterministic and has no model.
     assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-5"
-    assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-sonnet-5"
+    assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-sonnet-5-5"
     assert not hasattr(s, "BEDROCK_ROUTER_MODEL")
-    assert s.BEDROCK_REPORTING_MODEL == "global.anthropic.claude-sonnet-5"
+    assert s.BEDROCK_REPORTING_MODEL == "global.anthropic.claude-sonnet-5-5"
 
 
 # ---------------------------------------------------------------------------

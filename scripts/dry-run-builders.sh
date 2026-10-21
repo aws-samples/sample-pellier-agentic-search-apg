@@ -186,7 +186,7 @@ fi
 # verifies through the same commands a participant runs. The AI edit path
 # itself is a manual fresh-account check; see the facilitator notes.
 echo "[1b/6] Claude Code preflight (Lab 2 recommended lane)"
-CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5}"
+CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5-5}"
 if ! command -v claude >/dev/null 2>&1; then
   fail "Claude Code CLI not on PATH — Lab 2's recommended lane cannot start"
 else

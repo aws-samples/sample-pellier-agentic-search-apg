@@ -33,11 +33,9 @@ REPO = Path(__file__).resolve().parents[3]
 ENVIRONMENT_BOOTSTRAP = REPO / "scripts" / "bootstrap-environment.sh"
 LABS_BOOTSTRAP = REPO / "scripts" / "bootstrap-labs.sh"
 
-# Chosen for the release contract and tested against Bedrock mode, the explicit
-# Sonnet 5 profile id, a no-auth-prompt start, and the sibling workshop's
-# preflight flag set. Bump only as a deliberate release action.
-PINNED_CLAUDE_CODE_VERSION = "2.1.233"
-EXPLICIT_SONNET_PROFILE = "global.anthropic.claude-sonnet-5"
+# The CLI lane runs on this explicit profile; Claude Code itself installs at its latest
+# release, because Sonnet 5.5 needs 2.1.280 or newer.
+EXPLICIT_SONNET_PROFILE = "global.anthropic.claude-sonnet-5-5"
 
 
 @pytest.fixture(scope="module")
@@ -102,19 +100,17 @@ def test_workspace_detachment_is_logged(labs: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_claude_code_cli_version_is_pinned(environment: str) -> None:
-    assert (
-        f'CLAUDE_CODE_VERSION="${{CLAUDE_CODE_VERSION:-{PINNED_CLAUDE_CODE_VERSION}}}"'
-        in environment
-    )
+def test_claude_code_installs_the_latest_release(environment: str) -> None:
+    """An old pin refuses the model: Claude Code 2.1.233 does not run Sonnet 5.5."""
+    assert 'npm install -g "@anthropic-ai/claude-code@latest"' in environment
+    assert "CLAUDE_CODE_VERSION" not in environment, "a version pin remains"
+    assert not re.search(r"@anthropic-ai/claude-code@\d", environment)
 
 
-def test_claude_code_install_uses_the_pin(environment: str) -> None:
-    """An unpinned `npm install -g` would silently float past the pin."""
-    assert 'npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"' in environment
-    assert not re.search(
-        r"npm install -g @anthropic-ai/claude-code(?!@)", environment
-    ), "an unpinned Claude Code install remains"
+def test_the_cli_link_points_at_npms_binary_not_at_itself(environment: str) -> None:
+    """`command -v claude` can answer /usr/bin/claude, the link, and loop it onto itself."""
+    assert '_claude_bin="$(npm prefix -g 2>/dev/null)/bin/claude"' in environment
+    assert '_claude_bin="$(command -v claude' not in environment
 
 
 def test_global_npm_installs_are_readable_by_the_participant(

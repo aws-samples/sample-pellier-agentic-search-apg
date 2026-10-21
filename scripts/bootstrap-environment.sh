@@ -19,7 +19,6 @@ CFN_WAIT_HANDLE="${CFN_WAIT_HANDLE:-}"
 STAGE2_SCRIPT_URL="${STAGE2_SCRIPT_URL:-}"
 ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}"
 ASSETS_BUCKET_PREFIX="${ASSETS_BUCKET_PREFIX:-}"
-CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-2.1.233}"
 
 # Colors
 RED='\033[0;31m'
@@ -156,17 +155,17 @@ if [ "$_node24_ok" = true ]; then
         # login — the same ambient-credential model the rest of the lab uses.
         # Intentionally NON-fatal: the pacing fallback copies the two checked-in
         # references and then runs the same live proof.
-        # Pin the event-rehearsed release. A floating install re-introduces
-        # CLI-behaviour drift on a date nobody chose - the same class of failure
-        # that made the floating `sonnet` alias resolve to a denied model.
-        # Updating this version is a deliberate release action followed by a
-        # provisioned-environment rehearsal.
-        log "Installing Claude Code CLI ${CLAUDE_CODE_VERSION} globally for Lab 2..."
-        if (umask 022; npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" >/dev/null 2>&1); then
+        # The latest release, not a pin: Claude Sonnet 5.5, the model the CLI
+        # runs on, needs Claude Code 2.1.280 or newer, and the workshop tracks
+        # each release instead of re-pinning. The model stays pinned through
+        # ANTHROPIC_MODEL, and the log below records the version each box got.
+        log "Installing the latest Claude Code CLI globally for Lab 2..."
+        if (umask 022; npm install -g "@anthropic-ai/claude-code@latest" >/dev/null 2>&1); then
             # Same /usr/bin symlink defense as tsc above: the CLI runs as the
             # PARTICIPANT user, whose PATH may not include npm's global prefix.
-            _claude_bin="$(command -v claude 2>/dev/null || true)"
-            if [ -n "$_claude_bin" ] && [ "$_claude_bin" != "/usr/bin/claude" ]; then
+            # Link npm's own binary: `command -v claude` can be this link itself.
+            _claude_bin="$(npm prefix -g 2>/dev/null)/bin/claude"
+            if [ -x "$_claude_bin" ] && [ "$_claude_bin" != "/usr/bin/claude" ]; then
                 ln -sf "$_claude_bin" /usr/bin/claude 2>/dev/null || true
             fi
             # Check as the participant, who runs it: a root-only install
@@ -177,7 +176,7 @@ if [ "$_node24_ok" = true ]; then
                 warn "Claude Code CLI installed but $CODE_EDITOR_USER cannot run it. Recover: 'sudo chmod -R a+rX /usr/lib/node_modules/@anthropic-ai'."
             fi
         else
-            warn "Claude Code CLI ${CLAUDE_CODE_VERSION} install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
+            warn "Claude Code CLI install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@latest'."
         fi
     fi
 else

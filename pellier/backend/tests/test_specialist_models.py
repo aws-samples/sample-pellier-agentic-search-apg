@@ -25,13 +25,13 @@ def test_each_intent_answers_on_its_configured_model(intent: str, setting: str) 
 
 def test_the_default_profiles_are_global_claude_5() -> None:
     assert settings.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-5"
-    assert settings.BEDROCK_REPORTING_MODEL == "global.anthropic.claude-sonnet-5"
+    assert settings.BEDROCK_REPORTING_MODEL == "global.anthropic.claude-sonnet-5-5"
     assert not hasattr(settings, "BEDROCK_FAST_MODEL")
 
 
 def test_intent_signal_reports_the_model_that_answers(monkeypatch) -> None:
     monkeypatch.setattr(settings, "BEDROCK_OPUS_MODEL", "global.anthropic.claude-opus-5")
-    monkeypatch.setattr(settings, "BEDROCK_REPORTING_MODEL", "global.anthropic.claude-sonnet-5")
+    monkeypatch.setattr(settings, "BEDROCK_REPORTING_MODEL", "global.anthropic.claude-sonnet-5-5")
 
     assert build_intent_signal("support") == {
         "type": "intent_signal",

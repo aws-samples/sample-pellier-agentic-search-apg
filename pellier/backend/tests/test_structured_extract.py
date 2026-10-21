@@ -38,16 +38,18 @@ def _extractor(monkeypatch: pytest.MonkeyPatch, payload: Dict[str, Any]) -> Stru
     return StructuredExtractor(region="us-east-1")
 
 
-def test_the_request_disables_thinking_and_keeps_the_reply_short(monkeypatch) -> None:
+def test_the_request_turns_thinking_off_and_keeps_the_reply_short(monkeypatch) -> None:
+    """Sonnet 5.5 refuses ``{"type": "disabled"}`` with a 400 (seen live on 2026-10-21) and
+    turns thinking off with ``between_tools``; a thinking block would cut the JSON short."""
     extractor = _extractor(monkeypatch, {
         "stop_reason": "end_turn",
         "content": [{"type": "text", "text": json.dumps(PARSED)}],
     })
     out = extractor.extract("a housewarming gift under $100, in stock, no candles")
     body = extractor.client.bodies[0]
-    assert body["thinking"] == {"type": "disabled"}
+    assert body["thinking"] == {"type": "between_tools"}
     assert body["max_tokens"] == 400
-    assert request_body("mugs")["thinking"] == {"type": "disabled"}
+    assert request_body("mugs")["thinking"] == {"type": "between_tools"}
     assert out["extraction_status"] == "parsed" and out["extraction_reason"] is None
     assert out["price_max_usd"] == 100.0 and out["exclusions"] == ["candle"]
 

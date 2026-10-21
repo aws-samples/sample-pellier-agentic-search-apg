@@ -69,7 +69,7 @@ _STOCK_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 # agent answer a stock question from a product listing instead.
 _STOCK_TOOLS = [agent_tools.check_stock]
 #
-# The Stock agent sets no temperature: Sonnet 5 rejects that argument.
+# The Stock agent sets no temperature: Sonnet 5.5 rejects that argument.
 # === WORKSHOP - Stock agent - definition: END ===
 
 

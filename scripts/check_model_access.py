@@ -55,16 +55,16 @@ MODELS = [
     {
         "name": "Claude Sonnet",
         "model_id_variants": [
-            "global.anthropic.claude-sonnet-5",
+            "global.anthropic.claude-sonnet-5-5",
         ],
         # Hard-required: routing, reporting specialists, structured extraction,
         # the AgentCore Runtime, AND the Claude Code CLI lane all pin this
-        # global Sonnet 5 profile. Keep an explicit profile rather than a
+        # global Sonnet 5.5 profile. Keep an explicit profile rather than a
         # floating CLI alias so preflight and participant sessions agree.
         "required": True,
         "role": "sonnet",
         "access_hint": (
-            "Enable Claude Sonnet 5 in Bedrock model access."
+            "Enable Claude Sonnet 5.5 in Bedrock model access."
         ),
         "body": {
             "anthropic_version": "bedrock-2023-05-31",
