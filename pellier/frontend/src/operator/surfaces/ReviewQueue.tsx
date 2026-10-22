@@ -29,6 +29,10 @@ export function reviewOutcome(review: OperatorReview): ReviewOutcome {
   if (review.humanState === 'declined') return { tone: 'blocked', word: 'Declined', pulse: false }
   const { policy, aurora, evidence } = review.assurance
   if (aurora === 'PERMITTED' && evidence === 'RECEIPTED') return { tone: 'good', word: 'Credited', pulse: false }
+  // The credit committed; the audit row that should record it is missing.
+  if (aurora === 'PERMITTED' && evidence === 'RECEIPT_MISSING') {
+    return { tone: 'pending', word: 'Credited, receipt missing', pulse: false }
+  }
   if (policy === 'DENY') return { tone: 'blocked', word: 'DENY', pulse: false }
   if (aurora === 'DENIED') return { tone: 'blocked', word: 'Refused by Aurora', pulse: false }
   // An attempt that left no credit and no audit row: refused, failed, or with

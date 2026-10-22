@@ -175,12 +175,22 @@ export function detail(review: OperatorReview, record: OperatorReviewDetail['rec
 
 export const RECORDED_ONCE = {
   idempotencyKey: WRITE_KEY, creditRows: 1, creditIds: [12], amountCents: 10000, auditRows: 1, auditIds: [4051],
-  auditCaller: 'gateway', readable: true,
+  appliedAuditRows: 1, appliedAuditIds: [4051], auditCaller: 'gateway', readable: true,
 }
 
 export const NOTHING_WRITTEN = {
   idempotencyKey: WRITE_KEY, creditRows: 0, creditIds: [], amountCents: null, auditRows: 0, auditIds: [],
-  auditCaller: null, readable: true,
+  appliedAuditRows: 0, appliedAuditIds: [], auditCaller: null, readable: true,
+}
+
+/** A transient failure, then the credit: two audit rows for the key, one of them the write. */
+export const RECORDED_AFTER_A_FAILED_ATTEMPT = {
+  ...RECORDED_ONCE, auditRows: 2, auditIds: [4050, 4051],
+}
+
+/** The credit committed and its receipt write failed: no audit row for the key. */
+export const RECEIPT_MISSING_RECORD = {
+  ...RECORDED_ONCE, auditRows: 0, auditIds: [], appliedAuditRows: 0, appliedAuditIds: [], auditCaller: null,
 }
 
 export const QUEUE: OperatorReviewQueue = {

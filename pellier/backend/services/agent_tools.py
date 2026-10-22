@@ -471,6 +471,9 @@ def search_products(
             rerank=get_rerank_service().rerank,
             extracted=extracted,
             max_price=max_price,
+            max_price_is_shoppers=(
+                max_price is not None and active_requirements.shopper_stated_ceiling(max_price)
+            ),
             min_rating=min_rating,
             category=category,
             limit=limit,
@@ -490,8 +493,10 @@ def search_products(
 def browse_department(department: str, limit: int = 5) -> str:
     """Show the highest-rated products in one store department, such as Home or Kitchen and table.
 
-    The shopper's limits (budget, stock, what they refused), including ones
-    stated earlier in this conversation, apply here as they do to a search.
+    The shopper's limits (budget, stock, what they refused, a department they
+    required), including ones stated earlier in this conversation, apply here as
+    they do to a search. If the result has constraint_notice, tell the shopper
+    what it says.
 
     Args:
         department: Store department name.
@@ -508,6 +513,7 @@ def browse_department(department: str, limit: int = 5) -> str:
             department=department,
             limit=limit,
             extracted=extracted,
+            department_named_by_shopper=active_requirements.shopper_named_department(department),
             evidence=(
                 (lambda published: _browse_evidence(published, extracted=extracted, carried=carried))
                 if tool_evidence.is_open()

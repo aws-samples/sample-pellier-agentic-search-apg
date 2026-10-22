@@ -47,7 +47,8 @@ def _frames(text: str) -> List[tuple[str, Dict[str, Any]]]:
                 kind = line[7:]
             elif line.startswith("data: "):
                 data += line[6:]
-        frames.append((kind, json.loads(data)))
+        if data:  # a heartbeat is a comment frame with no data
+            frames.append((kind, json.loads(data)))
     return frames
 
 
@@ -185,3 +186,23 @@ def test_the_investigators_customer_reads_are_bound_to_the_clients_username(
     assert response.status_code == 200
     assert [kind for kind, _ in _frames(response.text)][-1] == "complete"
     assert calls == [("pellier_agent", "theo", orders_sql, ("CUST-THEO",))]
+
+
+def test_a_slow_model_call_is_bridged_by_heartbeats(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A node may run 90 s; CloudFront closes a response quiet for 60 s (review, 2026-10-22)."""
+    import time
+
+    from services import sse_keepalive
+
+    monkeypatch.setattr(sse_keepalive, "HEARTBEAT_SECONDS", 0.1)
+    _fake_graph(monkeypatch)
+    real = GRAPH.run_investigation
+
+    def slow(**kwargs: Any) -> GRAPH.InvestigationResult:
+        time.sleep(0.35)
+        return real(**kwargs)
+
+    monkeypatch.setattr(GRAPH, "run_investigation", slow)
+    response = _client().post("/api/operator/clients/CUST-JESSICA/investigate")
+    assert ": keep-alive" in response.text
+    assert [kind for kind, _ in _frames(response.text)] == ["status", "step", "step", "answer", "complete"]

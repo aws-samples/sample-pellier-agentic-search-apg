@@ -129,3 +129,37 @@ def test_watching_streams_the_callers_own_channel(monkeypatch: pytest.MonkeyPatc
     assert response.headers["x-accel-buffering"] == "no"
     assert watched == ["sub-anna"]
     assert _types(response.text) == ["relay_turn"]
+
+
+def test_a_quiet_turn_is_kept_open_and_the_relay_never_carries_the_heartbeat(
+    relay: TurnRelay, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A turn quiet for longer than CloudFront's read timeout still reaches the browser."""
+    import asyncio
+
+    from services import sse_keepalive
+
+    async def _slow(**_kwargs: Any) -> AsyncIterator[Dict[str, Any]]:
+        yield {"type": "status", "label": "Understanding your request"}
+        await asyncio.sleep(0.35)
+        yield {"type": "complete", "response": {"response": "hello", "products": [], "suggestions": []}}
+
+    class _Svc:
+        chat_stream = staticmethod(_slow)
+
+    monkeypatch.setattr(sse_keepalive, "HEARTBEAT_SECONDS", 0.1)
+    monkeypatch.setattr(app_module.settings, "USE_AGENTCORE_RUNTIME", False, raising=False)
+    monkeypatch.setattr(app_module, "chat_service", _Svc())
+    app_module.app.dependency_overrides[app_module.get_current_user] = lambda: _shopper("anna")
+    try:
+        response = TestClient(app_module.app).post("/api/chat/stream", json={
+            "message": "a gift", "conversation_history": [], "session_id": "persona-anna-1",
+            "source": "terminal"})
+    finally:
+        app_module.app.dependency_overrides.pop(app_module.get_current_user, None)
+    assert response.status_code == 200
+    assert ": keep-alive" in response.text
+    assert _types(response.text)[-1] == "complete"
+    assert all(frame.get("type") != "heartbeat" for frame in relay.replay("sub-anna"))
+    assert [f["event"]["type"] for f in relay.replay("sub-anna") if f["type"] == "relay_event"] == \
+        _types(response.text)

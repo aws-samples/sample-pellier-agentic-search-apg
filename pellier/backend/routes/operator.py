@@ -46,6 +46,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from services import sse_keepalive
 from services.auth import require_operator
 from services.data_source import database_source_label
 from services.personas import persona_for_customer
@@ -455,8 +456,10 @@ async def investigate_client(
             if not task.done():
                 task.cancel()
 
+    # One model call may run longer than CloudFront's 60-second read timeout
+    # between steps; the heartbeat keeps the request open meanwhile.
     return StreamingResponse(
-        events(),
+        sse_keepalive.with_heartbeat(events()),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -930,10 +933,13 @@ def _assurance_from_record(
     policy = str(attempt.get("policy") or "NOT_RECORDED") if attempt else "NOT_RECORDED"
     if not record.get("readable"):
         return {**base, "policy": policy, "aurora": "OUTCOME_UNKNOWN", "evidence": "PENDING"}
+    # A committed credit outranks its receipt: the audit row commits on its
+    # own and may be missing, but a credit row means Aurora applied the write.
+    if record.get("creditRows"):
+        evidence = "RECEIPTED" if record.get("appliedAuditRows") else "RECEIPT_MISSING"
+        return {**base, "policy": policy, "aurora": "PERMITTED", "evidence": evidence}
     if not record.get("auditRows"):
         return {**base, "policy": policy, "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
-    if record.get("creditRows"):
-        return {**base, "policy": policy, "aurora": "PERMITTED", "evidence": "RECEIPTED"}
     return {**base, "policy": policy, "aurora": "DENIED", "evidence": "ATTEMPT_RECEIPT"}
 
 

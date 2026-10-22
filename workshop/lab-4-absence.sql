@@ -53,8 +53,17 @@ SELECT (SELECT count(*) FROM pellier.tool_audit
          WHERE idempotency_key = :'lab_4_deny_key') AS denied_credit_rows,
        (SELECT count(*) FROM pellier.store_credits
          WHERE idempotency_key = :'lab_4_allow_key') AS allowed_credit_rows,
+       -- The allowed key's row that applied the credit. A call that failed or
+       -- was refused before it leaves its own row: an attempt, counted apart.
        (SELECT count(*) FROM pellier.tool_audit
-         WHERE args->>'idempotency_key' = :'lab_4_allow_key') AS allowed_audit_rows,
+         WHERE args->>'idempotency_key' = :'lab_4_allow_key'
+           AND (result->>'status' = 'success'
+                AND coalesce(result->>'idempotent_replay', 'false') <> 'true')) AS allowed_audit_rows,
+       (SELECT count(*) FROM pellier.tool_audit
+         WHERE args->>'idempotency_key' = :'lab_4_allow_key'
+           AND (result->>'status' = 'success'
+                AND coalesce(result->>'idempotent_replay', 'false') <> 'true') IS NOT TRUE)
+         AS allowed_attempt_rows,
        :'lab_4_deny_key' <> '' AS has_deny_key,
        :'lab_4_allow_key' <> '' AS has_allow_key
 \gset lab_4_
@@ -88,11 +97,20 @@ SELECT * FROM (VALUES
     ('tool_audit rows for the denied key', '0', :'lab_4_denied_audit_rows'),
     ('store_credits rows for the denied key', '0', :'lab_4_denied_credit_rows'),
     ('store_credits rows for the allowed key', '1', :'lab_4_allowed_credit_rows'),
-    ('tool_audit rows for the allowed key', '1', :'lab_4_allowed_audit_rows')
+    ('tool_audit rows that applied the allowed key', '1', :'lab_4_allowed_audit_rows')
 ) AS counts(count, expected, observed);
 
 \echo 'Expected  0, 0, 1 and 1: nothing ran or moved for the denied key, and the same search finds'
-\echo '          the allowed credit and the one audit row its call left'
+\echo '          the allowed credit and the one audit row that applied it'
+SELECT :lab_4_allowed_attempt_rows > 0 AS lab_4_has_attempts,
+       format('%s other attempt%s for the allowed key did not apply; tool_audit keeps %s',
+              :lab_4_allowed_attempt_rows,
+              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN '' ELSE 's' END,
+              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN 'it' ELSE 'them' END) AS lab_4_attempts
+\gset
+\if :lab_4_has_attempts
+  \echo 'Also     ' :lab_4_attempts
+\endif
 \echo 'Observed ' :lab_4_observed
 SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4_control_holds,
        :lab_4_denied_audit_rows = 0 AND :lab_4_denied_credit_rows = 0 AS lab_4_absence_holds

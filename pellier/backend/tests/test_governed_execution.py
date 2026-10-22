@@ -1149,15 +1149,31 @@ async def test_the_record_is_read_from_the_two_tables_that_hold_the_evidence() -
                          "reason": "r", "issued_by": "sub", "created_at": None}]
             if "FROM pellier.tool_audit" in query:
                 assert "give_store_credit" in query and "idempotency_key" in query
-                return [{"audit_id": 4051, "caller": "nadia", "created_at": None}]
+                return [{"audit_id": 4051, "caller": "nadia", "created_at": None,
+                         "status": "success", "replay": "false"}]
             return []
 
     record = await ge.evidence_for_key(_Db(), "operator-review:41:abc")
     assert record == {
         "idempotencyKey": "operator-review:41:abc", "creditRows": 1, "creditIds": [12],
-        "amountCents": 10000, "auditRows": 1, "auditIds": [4051], "auditCaller": "nadia",
-        "readable": True,
+        "amountCents": 10000, "auditRows": 1, "auditIds": [4051], "appliedAuditRows": 1,
+        "appliedAuditIds": [4051], "auditCaller": "nadia", "readable": True,
     }
+
+
+@pytest.mark.asyncio
+async def test_a_failed_attempt_is_counted_apart_from_the_row_that_applied_the_credit() -> None:
+    class _Db:
+        async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
+            if "FROM pellier.store_credits" in query:
+                return [{"credit_id": 12, "amount_cents": 10000}]
+            if "FROM pellier.tool_audit" in query:
+                return [{"audit_id": 4050, "caller": "gateway", "status": None, "replay": None},
+                        {"audit_id": 4051, "caller": "gateway", "status": "success", "replay": "false"}]
+            return []
+
+    record = await ge.evidence_for_key(_Db(), "operator-review:41:abc")
+    assert (record["auditRows"], record["appliedAuditRows"], record["appliedAuditIds"]) == (2, 1, [4051])
 
 
 @pytest.mark.asyncio
@@ -1262,6 +1278,7 @@ def test_a_reload_reads_policy_from_the_stored_answer_never_from_the_audit_calle
     from routes import operator as OP
 
     gateway_row = {"readable": True, "auditRows": 1, "auditIds": [7], "auditCaller": "gateway",
+                   "appliedAuditRows": 1, "appliedAuditIds": [7],
                    "creditRows": 1, "creditIds": [3], "amountCents": 2500}
     unstored = OP._review_payload(_executed_row(None), gateway_row)
     assert unstored["assurance"]["policy"] == "NOT_RECORDED"

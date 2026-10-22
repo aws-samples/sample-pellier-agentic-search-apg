@@ -262,6 +262,7 @@ def browse_department(
     limit: int = 5,
     extracted: Optional[Dict[str, Any]] = None,
     max_price: Optional[float] = None,
+    department_named_by_shopper: bool = False,
     evidence: Optional[EvidenceSink] = None,
 ) -> Dict[str, Any]:
     """The highest-rated products in one store department.
@@ -269,9 +270,15 @@ def browse_department(
     The shopper's limits are the same hard predicates a search applies: a
     department browse must not show a sold-out piece or a candle to a shopper
     who ruled them out. ``extracted`` is the structured reading of what the
-    shopper said (``in_stock_only``, ``exclusions``, ``price_max_usd``);
-    ``max_price`` is an explicit ceiling. The department itself is the
-    category, so a stated department requirement is not applied twice.
+    shopper said (``in_stock_only``, ``exclusions``, ``price_max_usd``,
+    ``required_categories``); ``max_price`` is an explicit ceiling.
+
+    A department the shopper required stays a hard predicate beside the
+    browsed one. Browsing inside it changes nothing. Browsing outside it is
+    the shopper's change only when they named that department in this
+    message (``department_named_by_shopper``); a department only the agent
+    chose returns nothing outside the requirement and says so in
+    ``constraint_notice``.
 
     Args:
         run: Statement runner for the calling rail.
@@ -279,6 +286,8 @@ def browse_department(
         limit: Number of products to return.
         extracted: The requirements reading, or ``None`` when none ran.
         max_price: An explicit ceiling, a hard SQL predicate.
+        department_named_by_shopper: The shopper asked for this department
+            in this message, so it may look outside a required department.
         evidence: A sink for the storefront grid: the plan, the department
             predicate and up to ``RESULT_IDS_MAX`` ids in the same order. The
             one read then fetches that many rows; the model still reads the
@@ -287,8 +296,14 @@ def browse_department(
     name = " ".join(str(department or "").split())
     if not name:
         return {"status": "error", "message": "A department is required."}
-    reading = {**extracted, "required_categories": []} if extracted is not None else None
-    plan = build_plan(name, reading, price_max_usd=max_price, top_k=limit)
+    plan = build_plan(name, extracted, price_max_usd=max_price, top_k=limit)
+    required = plan.hard.categories
+    outside = bool(required) and not _department_within(name, required)
+    if outside and department_named_by_shopper:
+        # Their own words asked for this department; the requirement stays in
+        # force for the next search, unapplied to this browse.
+        plan = build_plan(name, {**(extracted or {}), "required_categories": []},
+                          price_max_usd=max_price, top_k=limit)
     clauses, params = plan.compile_predicates(include_soft=False)
     shown = _clamp(limit, 5)
     fetched = max(shown, RESULT_IDS_MAX) if evidence is not None else shown
@@ -301,7 +316,7 @@ def browse_department(
             "department_clause": (BROWSE_DEPARTMENT_CLAUSE, [pattern]),
             "result_ids": [_product(row)["productId"] for row in rows][:RESULT_IDS_MAX],
         })
-    return {
+    payload: Dict[str, Any] = {
         "status": "success",
         "department": name,
         "count": len(products),
@@ -309,6 +324,19 @@ def browse_department(
         "hard_constraints_enforced": plan.hard.describe(),
         "search_plan": plan.to_dict(),
     }
+    if outside and not department_named_by_shopper:
+        payload["constraint_notice"] = (
+            f"The shopper asked only for {', '.join(required)}; {name} is outside it, "
+            "so nothing from it is shown. Ask before looking in another department."
+        )
+    return payload
+
+
+def _department_within(name: str, categories: Sequence[str]) -> bool:
+    """Whether a browsed department is one of the required ones, or part of one."""
+    browsed = name.lower()
+    return any(browsed in category.lower() or category.lower() in browsed
+               for category in categories)
 
 
 # ---------------------------------------------------------------------------
@@ -1628,6 +1656,7 @@ def search_products(
     rerank: RerankFn,
     extracted: Optional[Dict[str, Any]] = None,
     max_price: Optional[float] = None,
+    max_price_is_shoppers: bool = False,
     min_rating: float = 0.0,
     category: Optional[str] = None,
     limit: int = 5,
@@ -1645,7 +1674,10 @@ def search_products(
         extracted: The structured reading of what the shopper typed, or
             ``None`` when no extractor ran. It is the only way a stated
             exclusion, stock requirement or implied budget reaches SQL.
-        max_price: An explicit ceiling, a hard SQL predicate.
+        max_price: An explicit ceiling, a hard SQL predicate. It may tighten
+            the shopper's extracted ceiling, never widen it on its own.
+        max_price_is_shoppers: ``max_price`` is a limit the shopper stated in
+            this message, so it may replace a narrower extracted ceiling.
         min_rating: A post-rerank preference.
         category: A department the agent thinks fits. Recorded on the plan,
             never a filter.
@@ -1669,6 +1701,7 @@ def search_products(
         query,
         extracted,
         price_max_usd=max_price,
+        caller_price_is_shoppers=max_price_is_shoppers,
         inferred_category=category or None,
         top_k=limit,
     )
@@ -1683,7 +1716,7 @@ def search_products(
     )
     ordered, merchandising = apply_merchandising_rules(query, execution.ordered)
     shown_rows, products = select_shown_products(
-        ordered, limit=limit, max_price=max_price, min_rating=min_rating
+        ordered, limit=limit, max_price=execution.plan.hard.price_max_usd, min_rating=min_rating
     )
 
     payload: Dict[str, Any] = {

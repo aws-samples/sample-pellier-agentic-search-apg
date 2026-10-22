@@ -385,6 +385,75 @@ def _amounts(text: str) -> List[float]:
     return amounts
 
 
+def _names_amount(texts: Sequence[str], ceiling: float) -> bool:
+    # "under $100" applied as at most $99.99 names the same limit.
+    return any(-0.005 < amount - ceiling < 0.015 for text in texts for amount in _amounts(text))
+
+
+# An amount written as a limit: "under $300", "up to 300", "a budget of $300",
+# "$300 or less". A price the shopper mentions in passing ("my $250 lamp") is not.
+_LIMIT_BEFORE = re.compile(
+    r"\b(?:under|below|less than|no more than|not more than|at most|up to|max(?:imum)?|"
+    r"within|budget(?:\s+is|\s+of)?|cap(?:ped)?\s+at|keep\s+it\s+(?:under|below))"
+    r"\s*(?:of\s*)?\$?\s*(\d[\d,]*(?:\.\d+)?)(\s*k\b)?",
+    re.I,
+)
+_LIMIT_AFTER = re.compile(
+    r"\$?(\d[\d,]*(?:\.\d+)?)(\s*k\b)?\s*(?:dollars?|usd)?\s*"
+    r"(?:or\s+(?:less|under|below)|max(?:imum)?|tops)\b",
+    re.I,
+)
+
+
+def _stated_limits(text: str) -> List[float]:
+    limits: List[float] = []
+    for pattern in (_LIMIT_BEFORE, _LIMIT_AFTER):
+        for digits, thousands in pattern.findall(text):
+            amount = float(digits.replace(",", ""))
+            limits.append(amount * 1000 if thousands else amount)
+    return limits
+
+
+def shopper_stated_ceiling(value: Any) -> bool:
+    """Whether the shopper's message in this turn states ``value`` as a price limit.
+
+    The one case where an agent's ceiling may be wider than the shopper's
+    reading: one message with two limits ("under $300 for him and under $150
+    for her") whose reading kept the narrower one. Only this turn's message
+    counts, and only an amount written as a limit, so a price mentioned in
+    passing ("I bought a $250 lamp") or a limit the shopper has since lowered
+    never widens a search. Outside a bound turn it is False.
+    """
+    scope = _turn.get()
+    if scope is None:
+        return False
+    try:
+        ceiling = float(value)
+    except (TypeError, ValueError):
+        return False
+    return any(-0.005 < limit - ceiling < 0.015 for limit in _stated_limits(scope.message))
+
+
+_DEPARTMENT_FILLER = {"and", "the", "of"}
+
+
+def shopper_named_department(department: Any) -> bool:
+    """Whether the shopper's message in this turn names ``department``.
+
+    A browse the shopper asked for in this message ("what is good in Kitchen and
+    table?") may look outside a department they required earlier; one only the
+    agent chose may not. Any significant word of the department counts. Outside
+    a bound turn it is False.
+    """
+    scope = _turn.get()
+    if scope is None:
+        return False
+    words = [word for word in re.findall(r"[a-z]+", str(department or "").lower())
+             if word not in _DEPARTMENT_FILLER]
+    text = scope.message.lower()
+    return any(re.search(rf"\b{re.escape(word)}", text) for word in words)
+
+
 def shopper_never_said(kind: str, value: Any) -> bool:
     """Whether no message the shopper wrote in this conversation names ``value``.
 
@@ -410,9 +479,7 @@ def shopper_never_said(kind: str, value: Any) -> bool:
             return False
         if any(_AMOUNT_WORDS.search(text) for text in texts):
             return False
-        # "under $100" applied as at most $99.99 names the same limit.
-        return not any(-0.005 < amount - ceiling < 0.015
-                       for text in texts for amount in _amounts(text))
+        return not _names_amount(texts, ceiling)
     word = str(value or "").strip()
     if kind == KIND_EXCLUSIONS and word:
         named = re.compile(rf"\b{re.escape(word)}(?:s|es)?\b", re.I)

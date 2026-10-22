@@ -85,6 +85,9 @@ EVIDENCE_POLICY_PROOF = "POLICY_PROOF"
 EVIDENCE_ATTEMPT_RECEIPT = "ATTEMPT_RECEIPT"
 EVIDENCE_NO_EXECUTION = "NO_EXECUTION"
 EVIDENCE_PENDING = "PENDING"
+# The credit committed and no audit row records the call that wrote it: the
+# receipt commits on its own, and its failure is logged rather than raised.
+EVIDENCE_RECEIPT_MISSING = "RECEIPT_MISSING"
 
 
 class ExecutionError(Exception):
@@ -260,7 +263,8 @@ async def claim_execution_turn(db: Any, review_id: int) -> str:
 # row's arguments, and the in-process writer does the same, so one key joins
 # both tables with no timestamp heuristic.
 _AUDIT_FOR_KEY = """
-SELECT audit_id, caller, created_at
+SELECT audit_id, caller, created_at,
+       result->>'status' AS status, result->>'idempotent_replay' AS replay
   FROM pellier.tool_audit
  WHERE tool = 'give_store_credit'
    AND args->>'idempotency_key' = %s
@@ -278,9 +282,12 @@ SELECT credit_id, customer_id, amount_cents, reason, issued_by, created_at
 async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
     """The ``store_credits`` and ``tool_audit`` rows for one write key.
 
-    This is Lab 4's count: one credit and one audit row after an executed
-    credit, both still one after a retry, and zero of each for a key Cedar
-    refused. Read from the tables, never inferred from the response.
+    This is Lab 4's count: one credit and one audit row that applied it
+    after an executed credit, both still one after a retry, and zero of each
+    for a key Cedar refused. Both rails also leave a row for an attempt that
+    failed or was refused before a later one applied, so ``auditRows`` counts
+    every row and ``appliedAuditRows`` the one that wrote the credit. Read
+    from the tables, never inferred from the response.
 
     Never raises: an unreadable table reports itself rather than a zero that
     would read as a keyed-absence proof.
@@ -293,8 +300,10 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
         "amountCents": None,
         "auditRows": 0,
         "auditIds": [],
-        # Who wrote the first audit row: 'gateway' for the Lambda, the staff
-        # member's subject for the in-process rail.
+        "appliedAuditRows": 0,
+        "appliedAuditIds": [],
+        # Who wrote the row that applied the credit, else the first row:
+        # 'gateway' for the Lambda, the staff member's subject in process.
         "auditCaller": None,
         "readable": True,
     }
@@ -311,10 +320,24 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
     record["creditRows"] = len(credits)
     record["creditIds"] = [int(c["credit_id"]) for c in credits if c.get("credit_id") is not None]
     record["amountCents"] = int(credits[0]["amount_cents"]) if credits else None
+    applied = [a for a in audits if applied_receipt(a.get("status"), a.get("replay"))]
     record["auditRows"] = len(audits)
     record["auditIds"] = [int(a["audit_id"]) for a in audits if a.get("audit_id") is not None]
-    record["auditCaller"] = str(audits[0].get("caller") or "") or None if audits else None
+    record["appliedAuditRows"] = len(applied)
+    record["appliedAuditIds"] = [int(a["audit_id"]) for a in applied if a.get("audit_id") is not None]
+    first = (applied or audits)[:1]
+    record["auditCaller"] = (str(first[0].get("caller") or "") or None) if first else None
     return record
+
+
+def applied_receipt(status: Any, replay: Any) -> bool:
+    """Whether an audit row records the call that wrote the credit.
+
+    The same rule as the Lab 4 and wrap-up SQL: ``status`` ``success`` on a
+    call that was not an idempotent replay. A refusal, an error envelope and
+    a replay are attempts, not the write.
+    """
+    return str(status or "") == "success" and str(replay or "").lower() != "true"
 
 
 # ---------------------------------------------------------------------------

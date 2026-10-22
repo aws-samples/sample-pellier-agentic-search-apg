@@ -183,13 +183,31 @@ def test_missing_soft_signal_falls_back_to_the_raw_query() -> None:
     assert plan.soft.soft_signal == "a slow Sunday morning"
 
 
-def test_caller_supplied_price_overrides_the_extracted_one() -> None:
-    """An explicit tool argument is authoritative, not a model guess."""
+def test_a_caller_ceiling_may_tighten_the_extracted_one() -> None:
     plan = build_plan(
         "gift", {"price_max_usd": 500}, price_max_usd=75,
     )
 
     assert plan.hard.price_max_usd == 75.0
+
+
+def test_a_caller_ceiling_never_widens_the_shoppers_on_its_own() -> None:
+    """A model's tool argument cannot loosen what the shopper asked for (review, 2026-10-22)."""
+    plan = build_plan("gift", {"price_max_usd": 100}, price_max_usd=250)
+
+    clauses, params = plan.compile_predicates()
+    assert plan.hard.price_max_usd == 100.0
+    assert "price <= %s" in clauses and 100.0 in params and 250.0 not in params
+    from services.store_tools import violates_hard_constraints
+
+    assert violates_hard_constraints({"price": 150, "quantity": 3, "tags": [], "materials": []}, plan)
+
+
+def test_a_wider_caller_ceiling_holds_when_the_shopper_wrote_it() -> None:
+    """"Under $300 for him and under $150 for her": the reading kept one, the agent searches the other."""
+    plan = build_plan("gift", {"price_max_usd": 150}, price_max_usd=300, caller_price_is_shoppers=True)
+
+    assert plan.hard.price_max_usd == 300.0
 
 
 def test_explicit_unknown_category_is_surfaced_as_ambiguous() -> None:

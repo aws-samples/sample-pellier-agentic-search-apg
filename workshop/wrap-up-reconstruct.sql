@@ -48,9 +48,19 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
          WHERE q.tool = 'store_credit_request') AS requests,
        (SELECT count(*) FROM pellier.tool_audit t JOIN request q ON t.session_id = q.source_turn_id
          WHERE t.tool = 'ask_a_person') AS handoff_rows,
+       -- The row that applied the credit. A call that failed or was refused
+       -- before it leaves its own row with the key: an attempt, kept apart.
        (SELECT count(*) FROM pellier.tool_audit t JOIN review r
             ON t.args->>'idempotency_key' = r.write_key
-         WHERE t.tool = 'give_store_credit') AS credit_audit_rows,
+         WHERE t.tool = 'give_store_credit'
+           AND (t.result->>'status' = 'success'
+                AND coalesce(t.result->>'idempotent_replay', 'false') <> 'true')) AS credit_audit_rows,
+       (SELECT count(*) FROM pellier.tool_audit t JOIN review r
+            ON t.args->>'idempotency_key' = r.write_key
+         WHERE t.tool = 'give_store_credit'
+           AND (t.result->>'status' = 'success'
+                AND coalesce(t.result->>'idempotent_replay', 'false') <> 'true') IS NOT TRUE)
+         AS credit_attempt_rows,
        (SELECT count(*) FROM pellier.store_credits s JOIN review r
             ON s.idempotency_key = r.write_key) AS credit_rows,
        (SELECT count(*) FROM pellier.orders o JOIN credit c ON o.store_credit_id = c.credit_id)
@@ -98,7 +108,12 @@ WITH credit AS (
            'approvals ' || id
       FROM review
     UNION ALL
-    SELECT 5, t.created_at, 'give_store_credit ran with the review''s key (' || t.caller || ')',
+    SELECT 5, t.created_at,
+           CASE WHEN t.result->>'status' = 'success'
+                     AND coalesce(t.result->>'idempotent_replay', 'false') <> 'true'
+                THEN 'give_store_credit ran with the review''s key (' || t.caller || ')'
+                ELSE 'give_store_credit was tried with the key and did not apply (' || t.caller || ')'
+           END,
            'tool_audit ' || t.audit_id
       FROM pellier.tool_audit t
      WHERE t.tool = 'give_store_credit' AND t.args->>'idempotency_key' = :'wrap_write_key'
@@ -123,7 +138,7 @@ SELECT * FROM (VALUES
     ('an ask_a_person row in her turn', 'at least 1', :'wrap_handoff_rows'),
     ('the write key derived from the review', 'the credit''s key',
         CASE WHEN :'wrap_key_matches'::boolean THEN 'the credit''s key' ELSE 'differs' END),
-    ('give_store_credit audit rows for the key', '1', :'wrap_credit_audit_rows'),
+    ('give_store_credit audit rows that applied the key', '1', :'wrap_credit_audit_rows'),
     ('store_credits rows for the key', '1', :'wrap_credit_rows'),
     ('orders carrying the credit', :'wrap_reviewed_orders' || ', the review''s orders',
         :'wrap_credited_orders' || CASE WHEN :'wrap_orders_match'::boolean
@@ -136,7 +151,7 @@ SELECT CASE
          WHEN :wrap_handoff_rows = 0 THEN 'her request''s turn left no ask_a_person row in tool_audit'
          WHEN NOT :'wrap_key_matches'::boolean THEN 'the key derived from the review is not the credit''s'
          WHEN :wrap_credit_audit_rows <> 1 THEN :'wrap_credit_audit_rows'
-              || ' give_store_credit audit rows carry the key; one applied write leaves one'
+              || ' give_store_credit audit rows applied the key; one applied write leaves one'
          WHEN :wrap_credit_rows <> 1 THEN :'wrap_credit_rows' || ' credits carry the key'
          WHEN NOT :'wrap_orders_match'::boolean THEN 'the credited orders are not the review''s orders'
          ELSE ''
@@ -146,6 +161,15 @@ SELECT CASE
          AND :'wrap_orders_match'::boolean AS whole
 \gset wrap_
 
+SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
+       format('%s other attempt%s with the key did not apply; tool_audit keeps %s',
+              :wrap_credit_attempt_rows,
+              CASE WHEN :wrap_credit_attempt_rows = 1 THEN '' ELSE 's' END,
+              CASE WHEN :wrap_credit_attempt_rows = 1 THEN 'it' ELSE 'them' END) AS attempts
+\gset wrap_
+\if :wrap_has_attempts
+  \echo 'Also     ' :wrap_attempts
+\endif
 \echo 'Expected  every link finds its row: request, turn, review, key, audit row, credit, orders'
 \if :wrap_whole
   \echo 'Observed  the request, the approval, the write and the credit join into one story'

@@ -205,12 +205,26 @@ function recordedCheck(record: ExecutionRecord | null, attempted: boolean, polic
   }
   const credits = record.creditRows
   const audits = record.auditRows
-  if (credits === 1 && audits === 1) {
+  const applied = record.appliedAuditRows
+  // A call that failed or was refused before the credit leaves its own audit row.
+  const attempts = audits - applied
+  if (credits === 1 && applied === 1) {
     return {
       key: 'recorded', label: 'Recorded', tone: 'good', tag: 'Recorded once',
       detail: {
-        verdict: `Credit #${record.creditIds[0]} and tool_audit row #${record.auditIds[0]}, once each.`,
-        note: 'A retry keeps both at one.',
+        verdict: `Credit #${record.creditIds[0]} and tool_audit row #${record.appliedAuditIds[0]}, once each.`,
+        note: attempts > 0
+          ? `${attempts} other attempt${attempts === 1 ? '' : 's'} for this key did not apply; tool_audit keeps ${attempts === 1 ? 'it' : 'them'}.`
+          : 'A retry keeps both at one.',
+      },
+    }
+  }
+  if (credits === 1 && applied === 0) {
+    return {
+      key: 'recorded', label: 'Recorded', tone: 'pending', tag: 'Receipt missing',
+      detail: {
+        verdict: `Credit #${record.creditIds[0]} is in store_credits; no tool_audit row records the call that wrote it.`,
+        note: 'The receipt commits on its own, and its write failed after the credit. The credit stands.',
       },
     }
   }

@@ -446,6 +446,43 @@ def test_a_model_chosen_max_price_is_never_carried_as_the_shoppers_limit(monkeyp
     assert kept.sources == {"budget": SHOPPER, "stock": SHOPPER, "exclusions": SHOPPER}
 
 
+def test_an_agent_chosen_browse_keeps_the_shoppers_required_department(monkeypatch) -> None:
+    """Kitchen only, then the agent browses Home on its own: the requirement holds (review, 2026-10-22)."""
+    remember("sess-anna", {**FIRST, "required_categories": ["Kitchen and table"]})
+    run, _, bound = _bind(
+        monkeypatch,
+        reading=NOTHING_STATED,
+        history=[{"role": "user", "content": "Kitchen and table only, under $100, in stock, no candles"}],
+        message="anything else you would suggest?",
+    )
+    try:
+        parsed = json.loads(agent_tools.browse_department.__wrapped__(department="Home"))
+    finally:
+        _unbind(bound)
+    assert parsed["search_plan"]["hard_constraints"]["categories"] == ["Kitchen and table"]
+    assert "category in Kitchen and table" in parsed["hard_constraints_enforced"]
+    sql, params = run.calls[0]
+    assert params[0] == "%home%" and ["Kitchen and table"] in params
+    assert "Kitchen and table" in parsed["constraint_notice"]
+    assert "Home" in parsed["constraint_notice"]
+
+
+def test_a_browse_inside_the_required_department_keeps_it_and_says_nothing(monkeypatch) -> None:
+    remember("sess-anna", {**FIRST, "required_categories": ["Kitchen and table"]})
+    run, _, bound = _bind(
+        monkeypatch,
+        reading=NOTHING_STATED,
+        history=[{"role": "user", "content": "Kitchen and table only"}],
+        message="show me the best ones",
+    )
+    try:
+        parsed = json.loads(agent_tools.browse_department.__wrapped__(department="Kitchen"))
+    finally:
+        _unbind(bound)
+    assert parsed["search_plan"]["hard_constraints"]["categories"] == ["Kitchen and table"]
+    assert "constraint_notice" not in parsed
+
+
 def test_browse_keeps_a_shopper_stated_department(monkeypatch) -> None:
     """"Home only" survives a later browse of another department."""
     remember("sess-anna", {**FIRST, "required_categories": ["Home"]})

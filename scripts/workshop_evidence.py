@@ -220,8 +220,10 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
 # ---------------------------------------------------------------------------
 
 # Jessica's approved credit executed once. The write key is the approved review's
-# own, so the credit and its tool_audit row are found by that key and by nothing
-# else; a retry must leave both counts at one.
+# own, so the credit and the tool_audit row that applied it are found by that key
+# and by nothing else; a retry must leave both counts at one. A call that failed
+# or was refused before it leaves its own row with the key: an attempt, counted
+# apart, never the write.
 LAB4_SQL = """
 SELECT sc.credit_id, sc.approval_id, sc.customer_id, sc.amount_cents,
        sc.idempotency_key,
@@ -230,7 +232,15 @@ SELECT sc.credit_id, sc.approval_id, sc.customer_id, sc.amount_cents,
          WHERE idempotency_key = sc.idempotency_key) AS credit_rows,
        (SELECT count(*) FROM pellier.tool_audit
          WHERE tool = 'give_store_credit'
-           AND args->>'idempotency_key' = sc.idempotency_key) AS audit_rows
+           AND args->>'idempotency_key' = sc.idempotency_key
+           AND (result->>'status' = 'success'
+                AND coalesce(result->>'idempotent_replay', 'false') <> 'true')) AS audit_rows,
+       (SELECT count(*) FROM pellier.tool_audit
+         WHERE tool = 'give_store_credit'
+           AND args->>'idempotency_key' = sc.idempotency_key
+           AND (result->>'status' = 'success'
+                AND coalesce(result->>'idempotent_replay', 'false') <> 'true') IS NOT TRUE)
+         AS attempt_rows
   FROM pellier.store_credits sc
   JOIN pellier.approvals a ON a.id = sc.approval_id
  WHERE sc.customer_id = 'CUST-JESSICA'
@@ -270,7 +280,7 @@ def _combine(task: str, title: str, expected: str,
 def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
     """Jessica's approved credit, executed once for the approved amount."""
     title = "Jessica's approved credit was recorded once"
-    expected = "one store_credits row and one tool_audit row for the approved review's key"
+    expected = "one store_credits row and the one tool_audit row that applied the approved review's key"
     found = credit_findings(row)
     if not row:
         return check.Finding("4A", title, NOT_YET, expected, "no store credit yet", [],
@@ -279,6 +289,9 @@ def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
                 f"{row.get('idempotency_key')}: {row.get('credit_rows')} credit row(s), "
                 f"{row.get('audit_rows')} audit row(s), {row.get('amount_cents')} of "
                 f"{row.get('approved_cents')} cents approved"]
+    attempts = int(row.get("attempt_rows") or 0)
+    if attempts:
+        evidence.append(f"tool_audit also keeps {attempts} other attempt(s) that did not apply")
     state = PROVED if set(found.values()) == {PROVED} else CONTRADICTED
     return check.Finding("4A", title, state, expected,
                          f"recorded once {found['once']}, approved amount {found['amount']}",

@@ -22,6 +22,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Callable, Deque, Dict, Iterator, List, Optional, Set
 
+from services.sse_keepalive import HEARTBEAT, HEARTBEAT_SECONDS
+
 logger = logging.getLogger(__name__)
 
 KEEP_TURNS = 3
@@ -29,8 +31,6 @@ KEEP_SECONDS = 30 * 60
 MAX_TURN_BYTES = 2 * 1024 * 1024
 MAX_SUBSCRIBERS = 5
 QUEUE_SIZE = 1000
-HEARTBEAT_SECONDS = 15.0
-HEARTBEAT = ": keep-alive\n\n"
 TOO_MANY_WATCHERS = ": too many watchers\n\n"
 
 # A watcher's queue carries frames, or None: "you were dropped, reconnect".

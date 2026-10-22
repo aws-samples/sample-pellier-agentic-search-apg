@@ -9,6 +9,7 @@ import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer, OperatorReview } from '../services/operator'
 import {
   ANSWER, ANSWERED_REQUEST, APPROVED_REVIEW, BOOK, DENIED_ON_RELOAD, EXECUTED_REVIEW, NOTHING_WRITTEN,
+  RECEIPT_MISSING_RECORD, RECORDED_AFTER_A_FAILED_ATTEMPT,
   OPEN_REQUEST, PENDING_REVIEW, PROBE_REVIEW, QUEUE, RECORD, RECORDED_ONCE, UNWRITTEN_REVIEW, STEPS, WRITE_KEY,
   detail,
 } from './fixtures'
@@ -281,6 +282,25 @@ describe('the review record', () => {
     expect(screen.queryByTestId('operator-review-retry')).toBeNull()
   })
 
+  it('names a missing receipt beside a committed credit', async () => {
+    const missing = { ...EXECUTED_REVIEW, assurance: { ...EXECUTED_REVIEW.assurance, evidence: 'RECEIPT_MISSING' as const } }
+    api.fetchReview.mockResolvedValue(detail(missing, RECEIPT_MISSING_RECORD))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const checks = await screen.findByTestId('operator-credit-checks')
+    expect(within(checks).getByText('Receipt missing')).toBeInTheDocument()
+    expect(checks).toHaveTextContent('Credit #12 is in store_credits; no tool_audit row records the call that wrote it.')
+    expect(within(checks).queryByText('Not written')).toBeNull()
+  })
+
+  it('keeps a failed attempt beside the row that applied the credit', async () => {
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_AFTER_A_FAILED_ATTEMPT))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const checks = await screen.findByTestId('operator-credit-checks')
+    expect(within(checks).getByText('Recorded once')).toBeInTheDocument()
+    expect(checks).toHaveTextContent('Credit #12 and tool_audit row #4051, once each.')
+    expect(checks).toHaveTextContent('1 other attempt for this key did not apply; tool_audit keeps it.')
+  })
+
   it('declines without a fingerprint and submits nothing', async () => {
     renderAt('/operator/reviews/41', <ReviewRecord />)
     fireEvent.click(await screen.findByTestId('operator-review-decline'))
@@ -427,6 +447,11 @@ describe('the reviews list', () => {
     const refused = { ...UNWRITTEN_REVIEW.assurance, policy: 'NOT_EVALUATED' as const }
     expect(reviewOutcome({ ...UNWRITTEN_REVIEW, assurance: refused }).word).toBe('Not written')
     expect(reviewOutcome({ ...EXECUTED_REVIEW, assurance: { ...EXECUTED_REVIEW.assurance, policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' } }).word).toBe('DENY')
+  })
+
+  it('calls a committed credit with no receipt credited, never not written (review, 2026-10-22)', () => {
+    const missing = { ...EXECUTED_REVIEW.assurance, evidence: 'RECEIPT_MISSING' as const }
+    expect(reviewOutcome({ ...EXECUTED_REVIEW, assurance: missing }).word).toBe('Credited, receipt missing')
   })
 
   it('never calls the Lab 4 probe approved, even before its answer is stored', () => {

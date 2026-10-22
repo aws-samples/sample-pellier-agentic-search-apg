@@ -445,3 +445,23 @@ def test_the_lab4_probe_review_is_flagged_so_the_desk_names_its_real_origin() ->
     })
     assert payload["policyCheckProbe"] is True
     assert payload["decidedByName"] == "lab4-policy-check"
+
+
+@pytest.mark.parametrize(("record", "aurora", "evidence"), [
+    # The receipt write failed after the credit committed (review, 2026-10-22).
+    ({"readable": True, "creditRows": 1, "auditRows": 0, "appliedAuditRows": 0},
+     "PERMITTED", "RECEIPT_MISSING"),
+    # A failed attempt, then the credit: two audit rows, one applied.
+    ({"readable": True, "creditRows": 1, "auditRows": 2, "appliedAuditRows": 1},
+     "PERMITTED", "RECEIPTED"),
+    ({"readable": True, "creditRows": 0, "auditRows": 0, "appliedAuditRows": 0},
+     "NOT_REACHED", "NO_EXECUTION"),
+    ({"readable": True, "creditRows": 0, "auditRows": 1, "appliedAuditRows": 0},
+     "DENIED", "ATTEMPT_RECEIPT"),
+    ({"readable": False, "creditRows": 0, "auditRows": 0, "appliedAuditRows": 0},
+     "OUTCOME_UNKNOWN", "PENDING"),
+])
+def test_a_committed_credit_outranks_a_missing_receipt(record, aurora, evidence) -> None:
+    row = {"execution_turn_id": "turn-x", "last_attempt": None}
+    axes = operator_module._assurance_from_record("confirmed", row, record)
+    assert (axes["aurora"], axes["evidence"]) == (aurora, evidence)

@@ -299,9 +299,39 @@ def test_a_budget_the_shopper_wrote_is_never_added_by_pellier(
     assert tag["origin"] is None
 
 
-def test_a_budget_written_in_an_earlier_message_is_not_added_by_pellier(
+def test_a_model_ceiling_wider_than_the_shoppers_does_not_reach_sql(
     db: _FakeDB, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The shopper said under $100; the model's max_price=250 must not widen the SQL ceiling."""
+    tag = _budget_tag(
+        monkeypatch,
+        message="A housewarming gift under $100",
+        reading={"price_max_usd": 100.0},
+        max_price=250.0,
+    )
+    assert (tag["label"], tag["origin"]) == ("Under $100", "stated")
+
+
+@pytest.mark.parametrize(("message", "history"), [
+    # A price mentioned in passing is not a limit (side review, 2026-10-22).
+    ("I bought a $250 lamp last time; find me something under $100", ()),
+    # A limit the shopper has since lowered does not come back.
+    ("Actually, keep it under $100 now", ("Something for my brother under $250",)),
+])
+def test_only_a_limit_stated_in_this_message_can_widen_the_shoppers_ceiling(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch, message: str, history: tuple,
+) -> None:
+    tag = _budget_tag(
+        monkeypatch, message=message, history=history,
+        reading={"price_max_usd": 100.0}, max_price=250.0,
+    )
+    assert tag["label"] == "Under $100"
+
+
+def test_a_budget_from_an_earlier_message_does_not_widen_this_ones(
+    db: _FakeDB, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Her $150 holds for her search; the $300 she wrote for him earlier is not this limit."""
     tag = _budget_tag(
         monkeypatch,
         message="And something for her under $150",
@@ -309,7 +339,7 @@ def test_a_budget_written_in_an_earlier_message_is_not_added_by_pellier(
         reading={"price_max_usd": 150.0},
         max_price=300.0,
     )
-    assert tag["origin"] is None
+    assert (tag["label"], tag["origin"]) == ("Under $150", "stated")
 
 
 def test_anna_under_100_applied_as_99_99_is_not_added_by_pellier(

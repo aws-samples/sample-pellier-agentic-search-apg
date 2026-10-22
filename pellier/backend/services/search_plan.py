@@ -425,6 +425,7 @@ def build_plan(
     known_tags: Optional[Sequence[str]] = None,
     known_materials: Optional[Sequence[str]] = None,
     price_max_usd: Optional[float] = None,
+    caller_price_is_shoppers: bool = False,
     category: Optional[str] = None,
     inferred_category: Optional[str] = None,
     top_k: int = 5,
@@ -443,10 +444,15 @@ def build_plan(
             facets declared in ``services.catalog_vocabulary``.
         known_tags: Allowed catalog tags. Same default.
         known_materials: Allowed catalog materials. Same default.
-        price_max_usd: Caller-supplied ceiling. A caller-supplied value is
-            authoritative and overrides the extracted one — the agent
-            passed it explicitly, so it is not a guess. Invalid caller
-            ceilings raise ValueError rather than remove that requirement.
+        price_max_usd: Caller-supplied ceiling, usually the agent's
+            ``max_price`` argument. It may tighten the extracted ceiling,
+            never widen it: a model's argument cannot loosen what the shopper
+            asked for. With no extracted ceiling it applies as given. Invalid
+            caller ceilings raise ValueError rather than remove that
+            requirement.
+        caller_price_is_shoppers: The caller ceiling is a limit the shopper
+            stated in this message ("under $300 for him and under $150 for
+            her"), so it may replace a narrower extracted ceiling.
         category: A structured selection, such as the original item's
             department for a replacement. Hard, recorded as ``selection``.
             Never pass a model's or an agent's guess here.
@@ -478,12 +484,15 @@ def build_plan(
             ambiguous.append("in_stock_only")
         stock_only = False
 
-    # A caller-supplied ceiling wins: the agent named it explicitly.
+    # A caller ceiling may tighten the shopper's, and replaces it only when
+    # the shopper wrote that amount; otherwise the shopper's ceiling stands.
     resolved_price = extracted_price
     if price_max_usd is not None:
-        resolved_price, invalid_price = _clean_price(price_max_usd)
+        caller_price, invalid_price = _clean_price(price_max_usd)
         if invalid_price:
             raise ValueError("price_max_usd must be a finite, nonnegative price")
+        if extracted_price is None or caller_price <= extracted_price or caller_price_is_shoppers:
+            resolved_price = caller_price
 
     # Only a department the shopper required, or a structured selection,
     # filters. A guess from "a housewarming gift" is recorded, not applied.

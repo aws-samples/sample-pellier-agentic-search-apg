@@ -59,6 +59,9 @@ function reviewTone(review: OperatorReview): { tone: 'good' | 'blocked' | 'pendi
     if (review.assurance.aurora === 'PERMITTED' && review.assurance.evidence === 'RECEIPTED') {
       return { tone: 'good', word: 'Credited', pulse: false }
     }
+    if (review.assurance.aurora === 'PERMITTED' && review.assurance.evidence === 'RECEIPT_MISSING') {
+      return { tone: 'pending', word: 'Credited, receipt missing', pulse: false }
+    }
     if (review.assurance.policy === 'DENY') return { tone: 'blocked', word: 'Denied by policy', pulse: false }
     if (review.assurance.evidence === 'NO_EXECUTION') {
       return { tone: 'blocked', word: 'Not written', pulse: false }

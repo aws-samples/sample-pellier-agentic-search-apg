@@ -33,7 +33,7 @@ from models.search import (
 )
 from services.database import DatabaseService
 from services.auth import get_current_user, require_operator
-from services import turn_relay
+from services import sse_keepalive, turn_relay
 from services.store_tools import VISIBLE_CATALOG_SQL
 from services.embeddings import EmbeddingService
 from services.chat import ChatService, attach_warehouse_units
@@ -1373,8 +1373,11 @@ async def chat_stream(
         session_id=request.session_id,
         message=request.message,
     )
+    # A managed turn waits for the whole Runtime answer; the heartbeat keeps the
+    # browser's request open through CloudFront's 60-second read timeout. It is
+    # added after the relay, so a relayed turn never carries it.
     return StreamingResponse(
-        relayed,
+        sse_keepalive.with_heartbeat(relayed),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

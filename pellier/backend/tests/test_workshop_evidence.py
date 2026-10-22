@@ -245,6 +245,11 @@ class TestLabsThreeAndFour:
     def test_one_credit_for_the_approved_amount_is_proved(self) -> None:
         assert evidence.credit_findings(dict(CREDIT)) == {"once": PROVED, "amount": PROVED}
 
+    def test_a_failed_attempt_beside_the_applied_row_is_still_once(self) -> None:
+        row = {**CREDIT, "attempt_rows": 1}
+        assert evidence.credit_findings(row) == {"once": PROVED, "amount": PROVED}
+        assert "1 other attempt(s) that did not apply" in " ".join(evidence.credit_finding(row).evidence)
+
 
 # ---------------------------------------------------------------------------
 # Labs 1 and 2 on the real schema, solutions in place

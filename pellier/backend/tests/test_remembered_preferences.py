@@ -389,3 +389,30 @@ def test_in_process_with_no_memory_configured_reads_nothing_and_reports_nothing(
     assert theo_memory.reads == []
     route = next(e for e in events if e.get("type") == "step" and e["id"] == "route")
     assert route["builder"]["remembered"] is None
+
+
+def test_a_slow_runtime_answer_keeps_the_browser_request_open(
+    managed_theo, theo_memory, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Runtime may take longer than CloudFront's 60 s read timeout (review, 2026-10-22)."""
+    from services import sse_keepalive
+
+    async def _slow(**kwargs: Any) -> ManagedRuntimeResult:
+        await asyncio.sleep(0.35)
+        return ManagedRuntimeResult(
+            response="Start with the stoneware.", rail="gateway-mcp", intent="shopping",
+            specialist="shopping", model="global.anthropic.claude-opus-5", remembered=[],
+        )
+
+    monkeypatch.setattr(sse_keepalive, "HEARTBEAT_SECONDS", 0.1)
+    monkeypatch.setattr(runtime_module, "run_agent_on_runtime_result", _slow)
+    app_module.app.dependency_overrides[app_module.get_current_user] = lambda: {
+        "sub": "principal-theo", "username": "theo", "access_token": "jwt-theo",
+    }
+    response = TestClient(app_module.app).post("/api/chat/stream", json={
+        "message": "Something for the table", "conversation_history": [], "session_id": "sess-slow",
+    })
+    assert response.status_code == 200
+    head, _, tail = response.text.partition(": keep-alive")
+    assert tail, "no heartbeat while the Runtime worked"
+    assert any(event.get("type") == "complete" for event in _events(tail))

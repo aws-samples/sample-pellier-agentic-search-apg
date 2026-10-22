@@ -134,7 +134,8 @@ export interface ActionAssurance {
    */
   policy: 'PENDING' | 'NOT_EVALUATED' | 'ALLOW' | 'DENY' | 'EVALUATION_INCOMPLETE' | 'NOT_RECORDED'
   aurora: 'NOT_EVALUATED' | 'NOT_REACHED' | 'PERMITTED' | 'DENIED' | 'OUTCOME_UNKNOWN'
-  evidence: 'PENDING' | 'NO_EXECUTION' | 'RECEIPTED' | 'POLICY_PROOF' | 'ATTEMPT_RECEIPT'
+  /** `RECEIPT_MISSING`: the credit committed and no audit row records the call that wrote it. */
+  evidence: 'PENDING' | 'NO_EXECUTION' | 'RECEIPTED' | 'RECEIPT_MISSING' | 'POLICY_PROOF' | 'ATTEMPT_RECEIPT'
 }
 
 /** What the two durable tables hold for one write key, counted from the tables. */
@@ -143,9 +144,13 @@ export interface ExecutionRecord {
   creditRows: number
   creditIds: number[]
   amountCents: number | null
+  /** Every audit row for the key: the one that applied the credit and any failed attempts. */
   auditRows: number
   auditIds: number[]
-  /** Who wrote the first audit row: `gateway` for the Lambda, else the staff member. */
+  /** The audit row that applied the credit: status `success`, not a replay. */
+  appliedAuditRows: number
+  appliedAuditIds: number[]
+  /** Who wrote the applied audit row, else the first: `gateway` for the Lambda, else the staff member. */
   auditCaller: string | null
   readable: boolean
 }
