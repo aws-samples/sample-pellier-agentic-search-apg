@@ -5,7 +5,7 @@ The measured defect
 
 On the shopper rail a store credit is never written: ``ask_a_person`` opens a
 credit request on the customer's case, and the credit itself is
-``give_store_credit``, staff only, for the review the Operator's Planner
+``give_store_credit``, staff only, for the review the Operator's Advisor
 proposes. The Support agent is told to say that a person reviews the credit and
 that nothing has changed yet. On 2026-08-27, against the live stack, a model
 said it had "prepared the request" and dropped the second sentence, and a

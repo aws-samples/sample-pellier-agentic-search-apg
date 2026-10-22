@@ -180,7 +180,7 @@ def test_status_and_steps_come_from_real_events_in_order(service, monkeypatch) -
         ("route", "done"), ("step-1", "running"), ("step-1", "done"),
     ]
     route = steps[0]
-    assert route["finding"] == "Sent to the Shopping agent"
+    assert route["finding"] == "Sent to the Catalog agent"
     assert route["tags"] == ["Router", "Skills"]
     assert [skill["loaded"] for skill in route["builder"]["skills"]] == ["fixed"] * 4
 

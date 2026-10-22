@@ -84,7 +84,7 @@ implementations and evidence boundaries.
 - **Theo:** verified identity → Runtime → Gateway and Cedar → the Lambda's
   read as `pellier_agent` under his row policy. The server binds the caller
   onto every customer-scoped call; Memory is context, not proof of a purchase.
-- **Jessica and Nadia:** request → Investigator and Planner → Nadia's approval
+- **Jessica and Nadia:** request → Investigator and Advisor → Nadia's approval
   → Cedar on the Gateway → `apply_store_credit` as `pellier_credit_writer`.
   One approval is worth one credit; a retry under the same key returns the
   same credit.

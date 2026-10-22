@@ -96,7 +96,7 @@ def test_the_router_and_agent_display_names_are_fixed() -> None:
 
     assert ROUTER_NAME == "Router"
     assert AGENT_NAMES == {
-        "shopping": "Shopping agent",
+        "shopping": "Catalog agent",
         "stock": "Stock agent",
         "support": "Support agent",
     }

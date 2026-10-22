@@ -1,6 +1,6 @@
 """The durable operator review: Pellier's handoff to a person.
 
-The Operator's Planner opens a credit review, one ``pellier.approvals`` row,
+The Operator's Advisor opens a credit review, one ``pellier.approvals`` row,
 through ``store_tools.open_credit_review``; it is the only approvable credit.
 A shopper's ``ask_a_person`` opens a credit request instead
 (``store_tools.open_credit_request``): a row of its own kind with no amount and
@@ -29,7 +29,7 @@ approval for one credit never admits another and never admits the same one
 twice. The ``approvals_one_live_review`` index keeps one live review (pending
 or approved) per exact credit, so there is one approved row and one key to
 bind to. That index keys on the terms, not the orders: two live reviews with
-different terms may cover the same order, and the Planner does not propose
+different terms may cover the same order, and the Advisor does not propose
 one. If a person approved both, the order guard in
 ``pellier.apply_store_credit`` pays only the first. The function holds the
 write to these rules, and a trigger on ``pellier.store_credits`` holds any
@@ -83,7 +83,7 @@ def is_policy_check_probe(review: Mapping[str, Any]) -> bool:
     return str(review.get("issue") or "") == POLICY_CHECK_PROBE_ISSUE
 
 
-# Who asked. `shopper` is a verified token, `operator` is the desk's Planner,
+# Who asked. `shopper` is a verified token, `operator` is the desk's Advisor,
 # `unverified` is a session whose customer could not be tied to a subject.
 REQUESTER_SHOPPER = "shopper"
 REQUESTER_OPERATOR = "operator"

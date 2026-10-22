@@ -48,7 +48,7 @@ Memory, authenticate test users, and verify the deployed path.
      and a store credit is denied with no row
 
 5. **AgentCore Runtime**: one managed runtime, `pellier_orchestrator`, running
-   the Router and the Shopping, Stock and Support agents:
+   the Router and the Catalog, Stock and Support agents:
    - Invocation requires a Cognito access token through `CUSTOM_JWT`
    - The executing package carries a build fingerprint
    - Discovers tools via Gateway

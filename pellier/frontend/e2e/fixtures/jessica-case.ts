@@ -124,7 +124,7 @@ export const EXECUTE_RESULT = {
 }
 
 const step = (id: string, label: string, status: string, extra: Record<string, unknown> = {}) => ({
-  type: 'step', id, label, status, tags: id === 'planner' ? ['Planner', 'Approval'] : id === 'investigator' ? ['Investigator'] : ['Aurora'],
+  type: 'step', id, label, status, tags: id === 'planner' ? ['Advisor', 'Approval'] : id === 'investigator' ? ['Investigator'] : ['Aurora'],
   builder: { tool: id.startsWith('get_') ? id : null, rail: 'in-process', agent: id === 'planner' ? 'planner' : 'investigator' },
   ...extra,
 })
@@ -141,7 +141,7 @@ export const INVESTIGATION_EVENTS: Array<[string, unknown]> = [
   ['step', step('get_return_policy', 'Reading the return policy', 'running')],
   ['step', step('get_return_policy', 'Reading the return policy', 'done', { finding: '30-day returns for Home', builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4051, agent: 'investigator' } })],
   ['step', step('investigator', 'Investigator reads the case', 'done', { finding: '3 things the records show, 1 missing', builder: { tool: null, rail: 'in-process', duration_ms: 4200, agent: 'investigator' } })],
-  ['step', step('planner', 'Planner proposes a credit', 'running')],
+  ['step', step('planner', 'Advisor proposes a credit', 'running')],
 ]
 
 export const ANSWER = {
@@ -161,7 +161,7 @@ export const ANSWER = {
 }
 
 export const INVESTIGATION_TAIL: Array<[string, unknown]> = [
-  ['step', step('planner', 'Planner proposes a credit', 'done', { finding: '$100.00 credit proposed for 2 returned items, waiting for approval', builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'planner' } })],
+  ['step', step('planner', 'Advisor proposes a credit', 'done', { finding: '$100.00 credit proposed for 2 returned items, waiting for approval', builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'planner' } })],
   ['answer', ANSWER],
   ['complete', { ...ANSWER, type: 'complete' }],
 ]

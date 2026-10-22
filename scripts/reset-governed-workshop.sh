@@ -509,7 +509,7 @@ _verify_baseline() {
     fi
   done
   # Lab 4 starts from Jessica's two received returns with no credit on them. A stray
-  # credit here makes the Operator's Planner find nothing left to propose.
+  # credit here makes the Operator's Advisor find nothing left to propose.
   count="$(_psql_scalar "SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-JESSICA' AND return_status = 'received' AND store_credit_id IS NULL;" 2>/dev/null | tr -d '[:space:]')"
   if [[ "$count" != "2" ]]; then
     fail "Baseline: CUST-JESSICA should have two received, uncredited returns, has ${count:-unknown}"

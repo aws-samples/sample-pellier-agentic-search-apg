@@ -1,4 +1,4 @@
-"""Relevance test for the Shopping agent.
+"""Relevance test for the Catalog agent.
 
   The agent is a Strands `Agent` wrapping `BedrockModel` on Opus 5 with the
          four tools `[search_products, browse_department, compare_products,
@@ -131,7 +131,7 @@ def _reset_stub_state() -> Iterable[None]:
 
 @pytest.fixture
 def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
-    """Return a callable that builds the Shopping agent and runs one turn, with
+    """Return a callable that builds the Catalog agent and runs one turn, with
     Strands `Agent` + `BedrockModel` swapped for the stubs above."""
     import agents.shopping_agent as shopping
 
@@ -152,7 +152,7 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
 def test_shopping_agent_is_constructed_with_the_opus_model_and_four_tools(
     stubbed_specialist,
 ) -> None:
-    """Building the Shopping agent SHALL use:
+    """Building the Catalog agent SHALL use:
 
       - Claude Opus 5 (BEDROCK_OPUS_MODEL)
       - no temperature field; Bedrock rejects that deprecated field for
@@ -188,7 +188,7 @@ def test_shopping_agent_is_constructed_with_the_opus_model_and_four_tools(
         "browse_department",
         "compare_products",
         "ask_a_person",
-    }, f"expected the four Shopping agent tools, got {unwrapped!r}"
+    }, f"expected the four Catalog agent tools, got {unwrapped!r}"
 
 
 def test_catalog_turn_policy_withholds_the_handoff_tool(

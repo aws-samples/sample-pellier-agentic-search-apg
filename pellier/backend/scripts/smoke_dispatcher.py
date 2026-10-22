@@ -4,7 +4,7 @@ against the real chat_stream() with Bedrock in the loop.
 Scenarios (per the prompt's verification requirements):
 
   1. Marco signed in → "a linen piece for slow Sundays"
-     Expect: one Opus call (Shopping agent), references his past
+     Expect: one Opus call (Catalog agent), references his past
      Maren purchase, voice preserved.
 
   2. Same query, signed out
@@ -12,7 +12,7 @@ Scenarios (per the prompt's verification requirements):
      still one agent call.
 
   3. Weird query that doesn't match the classifier's patterns
-     Expect: the Router falls back to the Shopping agent, doesn't 500.
+     Expect: the Router falls back to the Catalog agent, doesn't 500.
 
   4. Workaround audit: scan the event stream + log line for evidence
      that the deleted workarounds aren't firing.
@@ -154,7 +154,7 @@ async def main() -> int:
     print("\nScenario 3 · Weird query · classifier falls back gracefully")
     print("─" * 72)
     # "hmmm yes xyzzy" matches no keywords, so classify_intent returns
-    # 'shopping' and the Router builds the Shopping agent.
+    # 'shopping' and the Router builds the Catalog agent.
     r3 = await _collect_events(
         service,
         "hmmm yes xyzzy",
@@ -165,8 +165,8 @@ async def main() -> int:
                       not any(e.get("type") == "error" for e in r3["events"]))
     passed &= _check("Router log line fired",
                       "🎯 Router" in r3["log"])
-    passed &= _check("the fallback is the Shopping agent",
-                      "Shopping agent" in r3["log"])
+    passed &= _check("the fallback is the Catalog agent",
+                      "Catalog agent" in r3["log"])
 
     # -----------------------------------------------------------------
     print("\nScenario 4 · Workaround audit (cross-scenario)")

@@ -72,13 +72,13 @@ class Settings(BaseSettings):
     # See the Workshop Studio repo's content/90-appendix/index.en.md
     # (the model table) for the rationale:
     #
-    #   Claude Opus 5     — the Shopping agent and the Support agent. They need
+    #   Claude Opus 5     — the Catalog agent and the Support agent. They need
     #                       voice and judgment.
     #   Claude Sonnet 5.5 — structured extraction and the Stock agent, which
     #                       reports counts.
     #
     # Model IDs follow Bedrock cross-region inference profile naming.
-    # The Shopping and Support agents read
+    # The Catalog and Support agents read
     # BEDROCK_OPUS_MODEL. It is intentionally env-OVERRIDABLE: the model-access
     # preflight (scripts/check_model_access.py, run in bootstrap) detects
     # whether Opus 5 is reachable on the account, and if it is NOT, writes

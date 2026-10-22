@@ -81,8 +81,8 @@ function respond(body: unknown) {
 const ANNA_QUESTION = 'A housewarming gift, in stock, under $100, no candles.'
 const ROUTE_SHOPPING = {
   type: 'step', id: 'route', label: 'Understanding your request', status: 'done',
-  finding: 'Sent to the Shopping agent', tags: ['Router'],
-  builder: { tool: null, intent: 'shopping', agent: 'Shopping agent' },
+  finding: 'Sent to the Catalog agent', tags: ['Router'],
+  builder: { tool: null, intent: 'shopping', agent: 'Catalog agent' },
 }
 const ROUTE_SUPPORT = { ...ROUTE_SHOPPING, finding: 'Sent to the Support agent', builder: { tool: null, intent: 'support', agent: 'Support agent' } }
 const SEARCH_RUNNING = {

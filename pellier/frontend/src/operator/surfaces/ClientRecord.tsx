@@ -3,7 +3,7 @@
  * store credits, and beside it the investigation.
  *
  * Consequential actions are deliberately absent from the record itself. The
- * Planner opens one review, a person approves it, and only the approved review
+ * Advisor opens one review, a person approves it, and only the approved review
  * can reach execution.
  */
 import React, { useCallback, useContext, useEffect, useState } from 'react'

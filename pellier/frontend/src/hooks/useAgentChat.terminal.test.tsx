@@ -43,7 +43,7 @@ function frames(replay = false): Frame[] {
       principal: { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' } } },
     { type: 'relay_event', turn_id: TURN, event: { type: 'status', label: 'Understanding your request' } },
     { type: 'relay_event', turn_id: TURN, event: { type: 'step', id: 'route', label: 'Understanding your request',
-      status: 'done', finding: 'Sent to the Shopping agent', tags: ['Router'], builder: {} } },
+      status: 'done', finding: 'Sent to the Catalog agent', tags: ['Router'], builder: {} } },
     { type: 'relay_event', turn_id: TURN, event: { type: 'content_delta', delta: 'For a slow ' } },
     { type: 'relay_event', turn_id: TURN, event: { type: 'content_delta', delta: 'morning, the mugs.' } },
     { type: 'relay_event', turn_id: TURN, event: { type: 'complete',
@@ -99,7 +99,7 @@ describe('turns sent from the terminal', () => {
       principal: { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' },
     })
     expect(answer.steps?.map(step => [step.id, step.status, step.finding])).toEqual([
-      ['route', 'done', 'Sent to the Shopping agent']])
+      ['route', 'done', 'Sent to the Catalog agent']])
     expect(reported.map(event => event.type)).toEqual(['start', 'status', 'step', 'end'])
     expect(reported[0]).toEqual({ type: 'start', query: QUESTION })
   })

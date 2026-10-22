@@ -315,23 +315,23 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
     // (Stock agent stubbed → graceful non-answer), once during the
     // midpoint checkpoint (Stock agent wired → real warehouse data).
     ...WORKSHOP_JOURNEYS.marco.prompts,
-    "What's the price range for linen shirts?",              // Turn 4 → Shopping agent · search_products
-    // Turn 5 (capstone) → Shopping agent · ask_a_person. The
+    "What's the price range for linen shirts?",              // Turn 4 → Catalog agent · search_products
+    // Turn 5 (capstone) → Catalog agent · ask_a_person. The
     // explicit "real Pellier stylist" + "not product cards" framing is
     // load-bearing: it teaches the Router's stylist-handoff branch to
-    // route to the Shopping agent instead of refusing as "outside
-    // shopping," and it teaches the Shopping agent that catalog tools
+    // route to the Catalog agent instead of refusing as "outside
+    // shopping," and it teaches the Catalog agent that catalog tools
     // can't satisfy the ask.
     "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding, not product cards.",
   ],
   anna: [
     ...WORKSHOP_JOURNEYS.anna.prompts,
     'Wrap-ready gifts with no extra effort',                     // Turn 4
-    // Turn 5 (capstone) → Shopping agent · ask_a_person. Sympathy
+    // Turn 5 (capstone) → Catalog agent · ask_a_person. Sympathy
     // gifting is the honest fallback seam — catalog tools can
     // surface candles, but they can't read the room. The explicit
     // "real stylist" ask routes through the Router's stylist-handoff
-    // branch to the Shopping agent, which owns ask_a_person.
+    // branch to the Catalog agent, which owns ask_a_person.
     "Can you connect me with a real stylist? My friend just lost her mother and I want a person to help me pick a sympathy gift, not just see product cards.",
   ],
   theo: [

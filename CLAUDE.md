@@ -122,7 +122,7 @@ AgentCore
 The application must continue to demonstrate:
 
 - A deterministic Router that sends each shopper request to one of three
-  Strands agents: Shopping, Stock and Support.
+  Strands agents: Catalog, Stock and Support.
 - Nine store tools with one implementation for the local agents and the
   Gateway Lambda (`pellier/backend/services/store_tools.py`).
 - Aurora PostgreSQL hybrid retrieval: full-text search and pgvector fused with
@@ -191,8 +191,8 @@ documentation.
   enforces this by scanning the repository.
 - Boutique is fully retired on the same terms. `VOICE.md` bans "boutique" in
   shopper copy, model prompts, runtime skills, and product descriptions.
-- The Shopping and Support agents use the configured Opus profile; the Stock
-  agent and the Operator's Investigator and Planner use the Sonnet profile.
+- The Catalog and Support agents use the configured Opus profile; the Stock
+  agent and the Operator's Investigator and Advisor use the Sonnet profile.
   The Router makes no model call.
 - Never hardcode credentials, JWTs, account IDs, endpoints, or `.env` values
   into tracked files.

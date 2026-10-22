@@ -3,7 +3,7 @@
  * the proposed credit with its three checks.
  *
  * Built from the same status, step and tag components as Ask Pellier, so the
- * Investigator and the Planner read exactly as the shopper's agents do. The
+ * Investigator and the Advisor read exactly as the shopper's agents do. The
  * findings are computed by the backend from the real tool results; the brief
  * is the Investigator's own words, labelled as such.
  */
@@ -16,7 +16,7 @@ import ProposedCreditCard from '../components/ProposedCreditCard'
 
 interface Props {
   investigation: InvestigationState & { status: TurnStatus | null }
-  /** The review the Planner opened, once it exists. */
+  /** The review the Advisor opened, once it exists. */
   review: ReviewController | null
   onStart: () => void
   /** True while the record already shows a credit review, so Investigate is a second run. */
@@ -25,7 +25,7 @@ interface Props {
 
 /**
  * The status line once a person has decided. The investigation's own status is
- * fixed when the Planner finishes ("Waiting for approval"); after Nadia approves
+ * fixed when the Advisor finishes ("Waiting for approval"); after Nadia approves
  * or declines, the live review is the truth, so say what she decided.
  */
 export function decidedStatus(
@@ -56,7 +56,7 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
       <div className="op-investigation-head">
         <div>
           <p className="op-eyebrow">Investigation</p>
-          <h2 id="op-investigation-title" className="op-h2">Investigator, then Planner</h2>
+          <h2 id="op-investigation-title" className="op-h2">Investigator, then Advisor</h2>
         </div>
         <button
           type="button"
@@ -72,7 +72,7 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
       {phase === 'idle' ? (
         <p className="op-note">
           The Investigator reads the orders, the tickets, the store credits and the return policy.
-          The Planner proposes one store credit for the returns no review covers yet, and opens one
+          The Advisor proposes one store credit for the returns no review covers yet, and opens one
           review. Then it stops.
         </p>
       ) : null}

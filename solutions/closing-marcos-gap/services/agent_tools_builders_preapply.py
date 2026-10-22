@@ -7,7 +7,7 @@ the call is bound to. The SQL and row shaping live once, in
 (``scripts/deploy/pellier_store_tools.py``) calls too. Every wrapper reaches it
 the same way: ``store_tools.<tool>(_run_sql, ...)``.
 
-  Shopping agent  search_products, browse_department, compare_products, ask_a_person
+  Catalog agent  search_products, browse_department, compare_products, ask_a_person
   Stock agent     check_stock
   Support agent   get_orders, get_return_policy, get_tickets, ask_a_person
 
@@ -430,7 +430,7 @@ def _apply_plan(tool: str, payload: dict, carried: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Shopping agent
+# Catalog agent
 # ---------------------------------------------------------------------------
 
 

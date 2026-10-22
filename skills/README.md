@@ -8,7 +8,7 @@ This directory (`skills/`) is the source of Pellier's five runtime skills.
   what is true. Prices, stock and customer facts come from the store tools.
 - A skill is **not** a tool and **not** a database record.
 - Each agent carries a fixed set, with no model call
-  (`pellier/backend/skills/assignments.py`): the Shopping agent
+  (`pellier/backend/skills/assignments.py`): the Catalog agent
   `gifts`, `makers`, `travel` and
   `evidence`; the Stock agent `evidence`; the Support agent
   `care-and-returns` and `evidence`.

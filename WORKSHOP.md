@@ -78,8 +78,8 @@ the participant edit regions.
 ## The system participants work in
 
 - **Router and three agents.** A deterministic Router, with no model call,
-  sends each shopper request to the Shopping, Stock or Support agent
-  (Strands). Shopping and Support run on Claude Opus 5, Stock on Claude
+  sends each shopper request to the Catalog, Stock or Support agent
+  (Strands). Catalog and Support run on Claude Opus 5, Stock on Claude
   Sonnet 5.5. Each agent holds only its own tools; as shipped, the Stock
   agent has the catalog tools and not `check_stock`, until Lab 2A connects
   `check_stock` alone.
@@ -96,7 +96,7 @@ the participant edit regions.
   same Router and agents get their tools through AgentCore Gateway and Cedar
   decides each call before the Lambda runs.
 - **The Operator's investigation.** A two-node Strands graph, Investigator then
-  Planner, runs in process. It reads the case, proposes one store credit and
+  Advisor, runs in process. It reads the case, proposes one store credit and
   stops. Nothing is written until Nadia approves and executes it.
 
 ## Aurora and AgentCore Memory

@@ -1,14 +1,14 @@
-"""The Operator's investigation: a two-node Strands graph, Investigator then Planner.
+"""The Operator's investigation: a two-node Strands graph, Investigator then Advisor.
 
 The Investigator reads the case with bounded reads, read-only and bound to
 one customer: ``get_orders``, ``get_tickets`` and ``get_return_policy`` from
 ``services/store_tools.py``, and the client's store credits. The orders and
 tickets are read as ``pellier_agent`` with the client named, so row-level
 security holds the Investigator to that one client. It states what the records
-show and what is missing. The Planner proposes exactly one
+show and what is missing. The Advisor proposes exactly one
 ``give_store_credit`` through its one tool, which computes the amount and
 writes the credit's reason from the client's orders whose return was received
-and that no credit or live review already covers, whatever orders the Planner
+and that no credit or live review already covers, whatever orders the Advisor
 names. It opens one ``pellier.approvals`` row for those orders, or resolves to
 the review that already covers them, pending or approved. Then the graph
 stops, and the investigation answers the client's open credit requests.
@@ -63,7 +63,7 @@ STEP_LABELS: Dict[str, str] = {
     "get_tickets": "Reading {name}'s tickets",
     "get_store_credits": "Reading {name}'s store credits",
     "get_return_policy": "Reading the return policy",
-    PLANNER_NODE: "Planner proposes a credit",
+    PLANNER_NODE: "Advisor proposes a credit",
 }
 
 LAYER_TAGS: Dict[str, tuple[str, ...]] = {
@@ -72,7 +72,7 @@ LAYER_TAGS: Dict[str, tuple[str, ...]] = {
     "get_tickets": ("Aurora",),
     "get_store_credits": ("Aurora",),
     "get_return_policy": ("Aurora",),
-    PLANNER_NODE: ("Planner", "Approval"),
+    PLANNER_NODE: ("Advisor", "Approval"),
 }
 
 _INVESTIGATOR_PROMPT = """You are Pellier's Investigator, a staff-side agent.
@@ -95,7 +95,7 @@ Rules:
   records do not contain.
 """
 
-_PLANNER_PROMPT = """You are Pellier's Planner, a staff-side agent.
+_PLANNER_PROMPT = """You are Pellier's Advisor, a staff-side agent.
 
 You receive the Investigator's brief about one client's case. If the records
 show items that went back with no store credit recorded, call
@@ -116,7 +116,7 @@ the credit was issued.
 
 @dataclass
 class Proposal:
-    """What the Planner put in front of a person."""
+    """What the Advisor put in front of a person."""
 
     review_id: int
     amount_cents: int
@@ -250,7 +250,7 @@ def finding_for(tool: str, parsed: Dict[str, Any]) -> str:
 
 
 def proposal_finding(parsed: Dict[str, Any]) -> str:
-    """The Planner step's line, from the proposal tool's result."""
+    """The Advisor step's line, from the proposal tool's result."""
     status = str(parsed.get("status") or "")
     if status == "review_opened":
         count = len(parsed.get("order_ids") or [])
@@ -279,7 +279,7 @@ def proposal_finding(parsed: Dict[str, Any]) -> str:
     return str(parsed.get("message") or "No credit was proposed")
 
 
-# The longest Planner line the desk shows in its own words.
+# The longest Advisor line the desk shows in its own words.
 _PLANNER_LINE_LIMIT = 160
 
 
@@ -296,7 +296,7 @@ def _whole_sentences(text: str, limit: int) -> str:
 
 
 def planner_finding(case: "_Case", planner_text: str) -> str:
-    """The Planner step's line: its proposal, the outcome its tool reported, or its own words."""
+    """The Advisor step's line: its proposal, the outcome its tool reported, or its own words."""
     if case.proposal is not None:
         return proposal_finding(case.proposal_result)
     if case.planner_outcome in ("nothing_returned", "already_credited"):
@@ -370,7 +370,7 @@ class _Case:
     emit: Emit
     proposal: Optional[Proposal] = None
     proposal_result: Dict[str, Any] = field(default_factory=dict)
-    # The status the Planner's last propose_store_credit call returned, or
+    # The status the Advisor's last propose_store_credit call returned, or
     # None when it never called the tool.
     planner_outcome: Optional[str] = None
 
@@ -578,13 +578,13 @@ def propose_credit(case: _Case, *, order_ids: Sequence[Any], reason: str) -> Dic
     The amount is the paid total of this client's orders whose return was
     received and that no credit and no live review already covers, and the
     credit's reason is written from those same rows (:func:`credit_reason`);
-    neither comes from the model. The orders the Planner names only have to include one
+    neither comes from the model. The orders the Advisor names only have to include one
     that went back: naming a subset, or extra orders, still yields the credit
     the records support, so Jessica's case proposes 10000 cents whatever the
     model names. When a live review covers every received return, the
     investigation resolves to it instead of opening a second one; a later,
     genuinely new return gets a review of its own covering only that order.
-    The Planner's own sentence is kept as the review's rationale. One proposal
+    The Advisor's own sentence is kept as the review's rationale. One proposal
     per investigation: a second call returns the first.
     """
     if case.proposal is not None:
@@ -617,7 +617,7 @@ def _record_proposal(
     case: _Case, review: store_tools.CreditReview, *, amount: int, reason: str,
     order_ids: List[int], items: List[str], rationale: str, status: str,
 ) -> Dict[str, Any]:
-    """Keep the proposal on the case and return what the Planner's tool reports."""
+    """Keep the proposal on the case and return what the Advisor's tool reports."""
     action_hash = store_tools.write_request_hash(
         "give_store_credit", customer_id=case.customer_id, amount_cents=amount, reason=reason,
     )
@@ -707,10 +707,10 @@ def _resolve_proposal(case: _Case, row: Dict[str, Any], rationale: str) -> Dict[
 def reached_a_finding(case: _Case, *, brief: bool) -> bool:
     """Whether this investigation ended in a finding that answers a request.
 
-    It does when the Planner proposed a credit (or resolved to the review that
+    It does when the Advisor proposed a credit (or resolved to the review that
     already covers it), when the records show nothing went back or everything
     that went back is already credited, or when the
-    Planner read a brief and deliberately proposed nothing. A proposal that
+    Advisor read a brief and deliberately proposed nothing. A proposal that
     failed (an error, or an amount over the ceiling) or a missing brief is no
     finding: the request stays open for the next investigation.
     """
@@ -938,7 +938,7 @@ def _task(case: _Case) -> str:
 
 
 def _build_graph(case: _Case, model_id: str, hooks: Dict[str, "_NodeHooks"]) -> Any:
-    """The Investigator then the Planner, each on ``model_id``, each reporting through its hooks."""
+    """The Investigator then the Advisor, each on ``model_id``, each reporting through its hooks."""
     from strands import Agent
     from strands.models import BedrockModel
     from strands.multiagent import GraphBuilder

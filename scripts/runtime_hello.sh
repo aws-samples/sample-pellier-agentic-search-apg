@@ -10,7 +10,7 @@
 #      minutes instead of at minute fifty.
 #   2. Again after the Lab 3 deploy, when the build id must be theirs.
 #
-# The prompt is a catalog search on purpose. It routes to the Shopping agent,
+# The prompt is a catalog search on purpose. It routes to the Catalog agent,
 # not the Stock agent whose grant is Lab 2's exercise, so the Runtime answers
 # however far a participant has got. Lab 1B's fallback (search_plan.py, which
 # the Gateway Lambda packages) can change which pieces come back, never whether

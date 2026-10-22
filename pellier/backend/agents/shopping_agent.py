@@ -1,5 +1,5 @@
 """
-Shopping agent: helps a shopper find, browse and compare products.
+Catalog agent: helps a shopper find, browse and compare products.
 
 ``build_shopping_agent()`` returns the configured Strands Agent the Router runs
 for the ``shopping`` intent: price, compare, browse, gifts, and anything that
@@ -30,7 +30,7 @@ _CATALOG_TURN_POLICY = (
 def build_shopping_agent(
     *, allow_handoff: bool = True, skill_mode: str = SKILL_MODE_FIXED
 ) -> Agent:
-    """Return the configured Shopping agent.
+    """Return the configured Catalog agent.
 
     Reads the persona preamble from its ContextVar at construction time; the
     injection is a no-op when it is empty.

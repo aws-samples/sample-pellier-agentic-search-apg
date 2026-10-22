@@ -1,6 +1,6 @@
 """Managed ``search_products`` carries the shopper's requirements as SQL filters.
 
-The Gateway rail runs no structured extractor. The Shopping agent passes the
+The Gateway rail runs no structured extractor. The Catalog agent passes the
 shopper's budget, stock and exclusion requirements as explicit arguments, and
 the plan compiles them into the same predicates an in-process reading produces.
 These tests drive ``lambda_handler`` with a Data API stand-in that applies the

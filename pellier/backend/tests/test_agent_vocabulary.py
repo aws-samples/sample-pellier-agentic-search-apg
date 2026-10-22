@@ -1,6 +1,6 @@
 """The specialist-agent vocabulary is frozen. This test stops it drifting back.
 
-Three agents (Shopping, Stock, Support) sit behind a deterministic Router. The
+Three agents (Catalog, Stock, Support) sit behind a deterministic Router. The
 labels are *display* names, which makes the failure mode quiet: a stale label
 does not raise, it just shows the wrong word in the Builder view or silently
 stops matching a key.
@@ -36,7 +36,7 @@ BACKEND = REPO / "pellier" / "backend"
 
 # The frozen vocabulary: internal key -> display label -> module.
 CANONICAL_AGENTS = {
-    "shopping": ("Shopping agent", "shopping_agent"),
+    "shopping": ("Catalog agent", "shopping_agent"),
     "stock": ("Stock agent", "stock_agent"),
     "support": ("Support agent", "support_agent"),
 }
@@ -44,6 +44,7 @@ CANONICAL_AGENTS = {
 # Retired display labels. These may appear only in the allow-listed history.
 # The second generation is assembled so this file does not itself carry them.
 RETIRED_AGENT_LABELS = (
+    "Shopping agent",
     "Style Advisor",
     "Curator",
     "Value Analyst",
@@ -82,6 +83,8 @@ SKIP_DIRS = {
     # into the finding, which is noise rather than drift. Neither directory
     # ships: `docs/*` and `.superpowers/` are both gitignored.
     "superpowers", ".superpowers",
+    # Gitignored local scratch: logs from earlier runs keep the words they printed.
+    "tmp",
 }
 SKIP_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".webp", ".avif", ".svg", ".ico", ".pdf", ".woff",

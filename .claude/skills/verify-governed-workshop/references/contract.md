@@ -20,7 +20,7 @@ search applications.
 ## Required evidence map
 
 The abstract's "Strands SDK dispatcher" is the Router and the three Strands
-agents (Shopping, Stock, Support).
+agents (Catalog, Stock, Support).
 
 | Contract claim | Minimum evidence |
 |---|---|

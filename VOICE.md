@@ -17,10 +17,10 @@ lives in `pellier/backend/pellier_copy.py`, specialist prompts, and
 
 The agent is **Pellier**. Pellier is who answers; **Ask Pellier** is the panel a
 shopper opens to talk to it. Inside, Pellier is a Router and three specialists
-(the Shopping, Stock and Support agents). They appear only in the Builder view
+(the Catalog, Stock and Support agents). They appear only in the Builder view
 and in sentences that explain the mechanism (workshop copy, the lab guide, the
 deck), never in shopper copy: a shopper talks to Pellier. The Operator's
-Investigator and Planner keep their names, on the Operator and wherever the
+Investigator and Advisor keep their names, on the Operator and wherever the
 staff desk is explained.
 
 ## Core qualities

@@ -576,7 +576,7 @@ def grant_receipt(tool_names: Sequence[str], rule: Optional[str] = None) -> Dict
 class TurnSteps:
     """Allocate one step id per tool use.
 
-    Each tool use gets its own step, keyed by its tool-use id, so a Shopping
+    Each tool use gets its own step, keyed by its tool-use id, so a Catalog
     turn that searches twice, even two at once, shows two search steps, each
     with its own finding, ranking and result. A call with no id keys by its
     tool. Skill loads share one step. There is no cap on the number of steps,

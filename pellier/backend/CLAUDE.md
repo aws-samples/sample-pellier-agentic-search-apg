@@ -42,11 +42,11 @@ Gateway probe tests Cedar separately from the managed caller binding.
   terminal events, cumulative versus delta semantics, and error taxonomy.
 - `services/intent_router.py` is the Router: deterministic, no model call,
   three intents.
-- `agents/` owns the Shopping, Stock and Support agents and their tool grants.
+- `agents/` owns the Catalog, Stock and Support agents and their tool grants.
 - `services/store_tools.py` is the one implementation of the nine store tools;
   `services/agent_tools.py` wraps them for the local agents and owns the
   caller-bound boundaries.
-- `services/operator_graph.py` is the Operator's Investigator and Planner;
+- `services/operator_graph.py` is the Operator's Investigator and Advisor;
   `routes/operator.py` serves the desk.
 - `skills/` loads root `skills/*/SKILL.md` files into the agents' prompts.
 - `agentcore_runtime.py`, `services/agentcore_*`, and `services/managed_policy.py`

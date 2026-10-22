@@ -1,9 +1,9 @@
-"""The Operator's two-node Strands graph: Investigator, then Planner.
+"""The Operator's two-node Strands graph: Investigator, then Advisor.
 
 The graph is built with the real ``GraphBuilder`` API but a fake builder and
 fake agents stand in for Strands and Bedrock, so no model is called. The tools
 are the real closures over a recording ``run`` stand-in, so the amount the
-Planner proposes is computed from real order rows and the review it opens is
+Advisor proposes is computed from real order rows and the review it opens is
 the real INSERT. The stand-in honours the two things the database decides
 here: which orders have a received return, and that one live review (pending
 or approved) exists per exact credit.
@@ -307,7 +307,7 @@ def test_the_investigators_order_and_ticket_reads_run_under_row_level_security(
     scoped = [sql for sql, _params in run.scoped_calls]
     assert any("FROM pellier.support_tickets" in sql for sql in scoped)
     assert any("FROM pellier.orders o" in sql and "LIMIT %s" in sql for sql in scoped)
-    # The Planner's own read of the returns is a staff read, not the customer's.
+    # The Advisor's own read of the returns is a staff read, not the customer's.
     assert not any("o.return_status = %s" in sql for sql in scoped)
 
 
@@ -352,7 +352,7 @@ def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_record
     assert insert[2] == "turn-" + "a" * 32          # the investigation is the source turn
     assert insert[3] == [301, 302]                   # the orders the credit covers
     planner_sentence = "Two items went back, no credit recorded."
-    assert insert[4] == planner_sentence             # the Planner's words are the rationale
+    assert insert[4] == planner_sentence             # the Advisor's words are the rationale
     recommendation = json.loads(insert[5])
     assert "orderIds" not in recommendation, "order_ids is a column, not desk data"
     assert recommendation["rationale"] == planner_sentence
@@ -500,7 +500,7 @@ def _planner_step(events: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 def test_a_planner_that_rightly_proposes_nothing_is_a_done_step(graph_runtime) -> None:
-    """Seen on event 9: Jessica already credited, the Planner said why and called no tool.
+    """Seen on event 9: Jessica already credited, the Advisor said why and called no tool.
 
     That is a finding, so the desk must not show it as a step that did not complete. Its
     line keeps whole sentences instead of stopping mid-date at 160 characters.
@@ -592,7 +592,7 @@ def test_the_steps_stream_in_order_with_template_findings(graph_runtime) -> None
     assert by_id[GRAPH.INVESTIGATOR_NODE]["finding"] == "3 things the records show, 1 missing"
     assert by_id[GRAPH.PLANNER_NODE]["finding"] == "$100.00 credit proposed for 2 returned items, waiting for approval"
     assert by_id["get_orders"]["label"] == "Reading Jessica's orders"
-    assert by_id[GRAPH.PLANNER_NODE]["tags"] == ["Planner", "Approval"]
+    assert by_id[GRAPH.PLANNER_NODE]["tags"] == ["Advisor", "Approval"]
     assert all(e["type"] == "step" for e in events)
 
 

@@ -196,8 +196,8 @@ describe('evidenceLine', () => {
     expect(evidenceLine(route(['check_stock']))).toContain(
       'Stock agent may call: check_stock; prompt rule: "Every stock answer starts from check_stock"',
     )
-    const shopping = { ...route([]), builder: { tool: null, agent: 'Shopping agent', grant: { tools: ['search_products'], rule: null } } }
-    expect(evidenceLine(shopping)).toBe('Shopping agent may call: search_products')
+    const shopping = { ...route([]), builder: { tool: null, agent: 'Catalog agent', grant: { tools: ['search_products'], rule: null } } }
+    expect(evidenceLine(shopping)).toBe('Catalog agent may call: search_products')
   })
 })
 

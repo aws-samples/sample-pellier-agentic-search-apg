@@ -341,12 +341,12 @@ def test_a_skill_opened_twice_is_loaded_once() -> None:
 
 def test_on_demand_mode_tags_the_router_step_before_any_load() -> None:
     route = TurnSteps().route(
-        agent="Shopping agent", intent="shopping", finding="Sent to the Shopping agent",
+        agent="Catalog agent", intent="shopping", finding="Sent to the Catalog agent",
         model_id="m", skills=[], skill_mode="on_demand",
     )
     assert route["tags"] == ["Router", "Skills (on demand)"]
     fixed = TurnSteps().route(
-        agent="Shopping agent", intent="shopping", finding="Sent to the Shopping agent",
+        agent="Catalog agent", intent="shopping", finding="Sent to the Catalog agent",
         model_id="m", skills=[], skill_mode="fixed",
     )
     assert fixed["tags"] == ["Router"]
@@ -416,9 +416,9 @@ def test_a_call_without_a_query_shows_no_search_text() -> None:
 def test_route_step_names_the_agent_once_and_its_skills() -> None:
     steps = TurnSteps()
     route = steps.route(
-        agent="Shopping agent",
+        agent="Catalog agent",
         intent="shopping",
-        finding="Sent to the Shopping agent",
+        finding="Sent to the Catalog agent",
         model_id="global.anthropic.claude-opus-5",
         skills=[{"name": "gifts", "loaded": "fixed"}],
         skill_mode="fixed",
@@ -427,14 +427,14 @@ def test_route_step_names_the_agent_once_and_its_skills() -> None:
     assert route["id"] == "route" and route["status"] == "done"
     assert route["label"] == STATUS_UNDERSTANDING
     assert route["tags"] == ["Router", "Memory", "Skills"]
-    assert route["builder"]["agent"] == "Shopping agent"
+    assert route["builder"]["agent"] == "Catalog agent"
     assert route["builder"]["stop_reason"] is None
 
 
 def test_the_route_step_sent_again_carries_how_the_turn_ended() -> None:
     steps = TurnSteps()
     facts = {
-        "agent": "Shopping agent", "intent": "shopping", "finding": "Sent to the Shopping agent",
+        "agent": "Catalog agent", "intent": "shopping", "finding": "Sent to the Catalog agent",
         "model_id": "global.anthropic.claude-opus-5", "skills": [], "skill_mode": "fixed",
     }
     first = steps.route(**facts)

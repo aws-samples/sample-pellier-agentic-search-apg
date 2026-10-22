@@ -37,7 +37,7 @@ async function stubDesk(page: Page, desk: Desk, options: { streamDelayMs?: numbe
     if (path.endsWith('/api/operator/clients/CUST-JESSICA/investigate') && method === 'POST') {
       desk.investigated = true
       // The planner's step and the answer land after a pause, so a capture can
-      // catch the Investigator's reads with the Planner still running.
+      // catch the Investigator's reads with the Advisor still running.
       if (options.streamDelayMs) {
         const head = sse(INVESTIGATION_EVENTS)
         const tail = sse(INVESTIGATION_TAIL)
@@ -117,7 +117,7 @@ for (const theme of ['light', 'dark'] as const) {
       await page.waitForTimeout(400)
       await page.screenshot({ path: shot('record'), fullPage: true })
 
-      // The investigation streaming: the reads done, the Planner running.
+      // The investigation streaming: the reads done, the Advisor running.
       await page.getByTestId('operator-investigate').click()
       await expect(page.getByTestId('turn-status')).toBeVisible()
       await expect(page.getByTestId('operator-brief')).toBeVisible()

@@ -171,7 +171,7 @@ describe("Jessica's record", () => {
     expect(within(answered).getByRole('link')).toHaveAttribute('href', '/operator/reviews/41')
   })
 
-  it('streams the Investigator and Planner steps, then shows the proposed credit waiting for approval', async () => {
+  it('streams the Investigator and Advisor steps, then shows the proposed credit waiting for approval', async () => {
     renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
     fireEvent.click(await screen.findByTestId('operator-investigate'))
     expect(api.streamInvestigation).toHaveBeenCalledWith('CUST-JESSICA', expect.any(Function), expect.any(Function), expect.any(AbortSignal))
@@ -185,7 +185,7 @@ describe("Jessica's record", () => {
     expect(steps[1]).toHaveTextContent('1 open ticket: Two items went back, no credit yet')
     expect(steps[5]).toHaveTextContent('$100.00 credit proposed for 2 returned items, waiting for approval')
     expect(screen.getByTestId('turn-status')).toHaveTextContent('Waiting for approval')
-    // The card for the review the Planner opened.
+    // The card for the review the Advisor opened.
     await waitFor(() => expect(api.fetchReview).toHaveBeenCalledWith(41))
     const card = await screen.findByTestId('operator-proposed-credit')
     expect(within(card).getByTestId('operator-credit-amount')).toHaveTextContent('$100.00')
@@ -264,12 +264,12 @@ describe('the review record', () => {
     }
   })
 
-  it('names the Lab 4 policy check as the probe review\'s origin, not the Planner or Nadia', async () => {
+  it('names the Lab 4 policy check as the probe review\'s origin, not the Advisor or Nadia', async () => {
     api.fetchReview.mockResolvedValue({ ...detail(PROBE_REVIEW, NOTHING_WRITTEN), orders: [] })
     renderAt('/operator/reviews/57', <ReviewRecord />)
     const line = 'Opened and confirmed by the Lab 4 policy check (probe data, covers no order)'
     expect(await screen.findByTestId('operator-review-requester')).toHaveTextContent(line)
-    expect(screen.queryByText('the Planner, on the desk')).toBeNull()
+    expect(screen.queryByText('the Advisor, on the desk')).toBeNull()
     const approval = screen.getByTestId('operator-credit-checks').querySelector('[data-check="approval"]')
     expect(approval).toHaveTextContent('No person approved it')
     expect(approval).toHaveTextContent(line)

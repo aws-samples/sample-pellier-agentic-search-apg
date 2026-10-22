@@ -23,15 +23,15 @@ modules it plans and proves searches with, so the Lambda can package it.
 
 | Tool                | Agent            | One bounded query                         |
 |---------------------|------------------|-------------------------------------------|
-| search_products     | Shopping         | planned hybrid search, writes a receipt   |
-| browse_department   | Shopping         | products in one department, by rating     |
-| compare_products    | Shopping         | two products side by side, by id          |
+| search_products     | Catalog          | planned hybrid search, writes a receipt   |
+| browse_department   | Catalog          | products in one department, by rating     |
+| compare_products    | Catalog          | two products side by side, by id          |
 | check_stock         | Stock            | warehouse counts and ship windows         |
 | get_orders          | Support          | the signed-in customer's orders           |
 | get_return_policy   | Support          | return window and care for a department   |
 | get_tickets         | Support          | the signed-in customer's support tickets  |
 | give_store_credit   | Operator only    | one store credit per idempotency key      |
-| ask_a_person        | Shopping, Support| a handoff; a credit ask opens a request   |
+| ask_a_person        | Catalog, Support | a handoff; a credit ask opens a request   |
 """
 
 from __future__ import annotations
@@ -634,7 +634,7 @@ def give_store_credit(
 # Credit reviews: what a person approves
 # ---------------------------------------------------------------------------
 
-# A credit review is the only approvable credit, and the Operator's Planner is
+# A credit review is the only approvable credit, and the Operator's Advisor is
 # the only path that opens one, through ``open_credit_review``. Its amount and
 # reason are computed from the client's received returns, so the same returned
 # items always fingerprint the same credit.
@@ -750,7 +750,7 @@ def open_credit_review(
 # review. It is a pellier.approvals row of its own kind, with no amount and no
 # action hash, so it fingerprints nothing and no credit can bind to it: the
 # write and the desk's decision read ``give_store_credit`` rows only. A person
-# answers it by investigating the case, and the Planner's records-built
+# answers it by investigating the case, and the Advisor's records-built
 # proposal is the credit they approve.
 #
 # A request is ``open`` until an investigation of that customer answers it.
@@ -880,7 +880,7 @@ def ask_a_person(
     The handoff changes no business data. When the shopper asks for store
     credit, it also opens one credit request on the customer's case. The
     request carries no amount and cannot be approved: a person investigates
-    the case, and only the Planner's proposal, computed from the received
+    the case, and only the Advisor's proposal, computed from the received
     returns, is a credit anyone approves.
 
     Args:

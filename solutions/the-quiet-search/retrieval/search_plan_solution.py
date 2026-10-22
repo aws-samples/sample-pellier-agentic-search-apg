@@ -3,7 +3,7 @@
 This module plans the in-process retrieval paths in Pellier. Managed Gateway
 search uses a separate Lambda implementation; deploying Runtime does not deploy
 this module. The
-shipped Shopping agent tool path and the Lab 1 strategy comparison both compile
+shipped Catalog agent tool path and the Lab 1 strategy comparison both compile
 their retrieval through :func:`build_plan`, so the "agentic" strategy the
 workshop *demonstrates* is the same one shoppers actually get.
 

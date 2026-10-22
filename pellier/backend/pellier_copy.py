@@ -4,7 +4,7 @@ This module is the single source of truth for every customer-facing string
 that the backend authors. Error envelopes, validation messages, and any
 server-rendered strings that surface in Pellier live here.
 
-The Shopping agent's system prompt (SHOPPING_SYSTEM_PROMPT) also lives here
+The Catalog agent's system prompt (SHOPPING_SYSTEM_PROMPT) also lives here
 so a single file review catches copy regressions across every surface the
 participant might edit. The compliance scanner applies the same forbidden-word and
 no-emoji rules to these prompts; the prompts are phrased with "specialist"
@@ -136,7 +136,7 @@ OUTPUT_RULES = {
     "support": SUPPORT_OUTPUT_RULES,
 }
 
-# The Shopping agent's instructions: what to find, browse and compare, in the
+# The Catalog agent's instructions: what to find, browse and compare, in the
 # store's own voice (VOICE.md). Preferences reach it from AgentCore Memory and
 # the persona preamble, never from a tool.
 SHOPPING_SYSTEM_PROMPT = (

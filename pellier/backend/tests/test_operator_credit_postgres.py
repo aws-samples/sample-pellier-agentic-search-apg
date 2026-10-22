@@ -1,7 +1,7 @@
 """Jessica's credit on real PostgreSQL: one approval is one key is one credit, on both rails.
 
 Her own chat request opens a credit request with no amount, which nobody can
-approve; the Planner's records-built review is the only approvable credit, and
+approve; the Advisor's records-built review is the only approvable credit, and
 a live review keeps the returned orders it covers.
 
 Fakes cannot prove the parts the database decides: that the partial unique
@@ -21,7 +21,7 @@ The two rails:
   what this proves is the tool's own guard, not the policy.
 
 No test reaches AWS or Bedrock: the Investigator's model is not run, the
-Planner's tool (``operator_graph.propose_credit``) is called directly.
+Advisor's tool (``operator_graph.propose_credit``) is called directly.
 """
 from __future__ import annotations
 
@@ -247,7 +247,7 @@ def _order_id(conn: psycopg.Connection, product_id: str) -> int:
 
 
 def _investigate(conn: psycopg.Connection, order_ids: List[int], sentence: str) -> Dict[str, Any]:
-    """The Planner's one tool, as the graph calls it, on a fresh investigation.
+    """The Advisor's one tool, as the graph calls it, on a fresh investigation.
 
     Then what the graph does once it completes: answer the open credit requests.
     """
@@ -461,7 +461,7 @@ async def test_one_approval_is_one_credit_on_either_rail(fresh_db, monkeypatch, 
 async def test_jessicas_request_and_the_investigation_give_one_review_and_one_credit(
     fresh_db, monkeypatch, rail,
 ) -> None:
-    """Her chat request names no amount and is never approvable; the Planner's review pays once."""
+    """Her chat request names no amount and is never approvable; the Advisor's review pays once."""
     with psycopg.connect(**_conninfo(fresh_db)) as conn:
         _clean_case(conn)
         module = _lambda(monkeypatch, conn)

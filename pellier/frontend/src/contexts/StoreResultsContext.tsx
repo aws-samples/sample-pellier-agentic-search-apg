@@ -46,7 +46,7 @@ import type { RankingPayload, StepResults, TurnStep } from '../components/turn/t
 import { usePersona } from './PersonaContext'
 
 const CATALOG_TOOLS = new Set(['search_products', 'browse_department'])
-// Only the Shopping agent holds the catalog tools.
+// Only the Catalog agent holds the catalog tools.
 const SHOPPING_INTENT = 'shopping'
 
 /** The page's panel id; the dock's summary scrolls to it. */

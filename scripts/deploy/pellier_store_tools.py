@@ -98,7 +98,7 @@ def _bool(value: Any) -> bool:
 def _requirements(args: Dict[str, Any], query: str) -> Optional[Dict[str, Any]]:
     """The shopper's stock and exclusion requirements, as the plan reads them.
 
-    No structured extractor runs on this rail. The Shopping agent passes what
+    No structured extractor runs on this rail. The Catalog agent passes what
     the shopper said as explicit ``in_stock_only`` and ``exclusions``
     arguments, and ``build_plan`` compiles them into the same SQL predicates
     an in-process extraction produces. With neither argument the plan carries
@@ -142,7 +142,7 @@ def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, 
 
 
 def _browse_department(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
-    # The same requirement arguments as search_products: the Shopping agent
+    # The same requirement arguments as search_products: the Catalog agent
     # passes the shopper's limits, including ones stated earlier in the
     # conversation, and the plan compiles them into the same predicates.
     return store_tools.browse_department(

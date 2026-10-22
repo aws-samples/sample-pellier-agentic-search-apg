@@ -290,7 +290,7 @@ CREATE INDEX support_tickets_customer ON pellier.support_tickets (customer_id, o
 --   store_credit_request  a shopper asked for credit in chat. It names no
 --                         amount, so nobody can approve it. It is open until
 --                         staff investigate the case, then answered.
---   give_store_credit     the exact credit the Operator's Planner proposed:
+--   give_store_credit     the exact credit the Operator's Advisor proposed:
 --                         args holds customer_id, amount_cents and reason,
 --                         action_hash fingerprints them, and order_ids lists
 --                         the returned orders it covers. Nadia approves or
@@ -324,7 +324,7 @@ CREATE TABLE pellier.approvals (
     action_hash       text,
     order_ids         bigint[] NOT NULL DEFAULT '{}',
     issue             text,                  -- what the case is about, shown to staff
-    recommendation    jsonb,                 -- the Planner's rationale and items, for the desk
+    recommendation    jsonb,                 -- the Advisor's rationale and items, for the desk
     source_turn_id    text,
     requested_by_sub  text,                  -- the verified subject that asked, if any
     requester_kind    text NOT NULL DEFAULT 'unverified'
@@ -354,7 +354,7 @@ CREATE TABLE pellier.approvals (
 -- One live review per exact credit: a second proposal of the same credit
 -- resolves to the first instead of opening a second card. The key is the
 -- terms (customer, amount, reason), not the orders, so two live reviews with
--- different terms can cover the same order. The Planner does not propose
+-- different terms can cover the same order. The Advisor does not propose
 -- one, and if a person approved both, apply_store_credit's order check pays
 -- only the first: an order holds one store_credit_id.
 CREATE UNIQUE INDEX approvals_one_live_review ON pellier.approvals (customer_id, tool, action_hash)
@@ -680,13 +680,13 @@ CREATE TRIGGER retrieval_receipts_append_only
 --     customer (search_products, browse_department, compare_products,
 --     check_stock, get_return_policy);
 --   * the approvals writes: a shopper's credit request (ask_a_person), the
---     Planner's proposal and Nadia's decision. They record decisions, not
+--     Advisor's proposal and Nadia's decision. They record decisions, not
 --     money; a role of their own is the next boundary a team would draw;
 --   * the evidence writes to tool_audit and retrieval_receipts;
 --   * a signed-in shopper's name and preferences, read at the start of a
 --     turn (pellier_agent may read only id and cognito_username);
 --   * three Operator reads of one client: the client record's orders and
---     tickets (routes/operator.py), the Planner's received returns
+--     tickets (routes/operator.py), the Advisor's received returns
 --     (services/operator_graph.py) and the orders a review covers
 --     (services/operator_review.py). Staff may read any client, and these
 --     are fixed SQL for the client the desk opened, not a model's tool call,

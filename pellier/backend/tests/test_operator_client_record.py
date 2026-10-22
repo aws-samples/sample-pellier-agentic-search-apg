@@ -42,7 +42,7 @@ def test_an_order_names_the_credit_that_covers_it() -> None:
 
 
 def test_every_surface_reads_return_state_from_the_order_row() -> None:
-    """The record, get_orders and the Planner cannot disagree about "returned"."""
+    """The record, get_orders and the Advisor cannot disagree about "returned"."""
     from services import operator_graph
 
     for sql in (OP._ORDERS_SELECT, store_tools._ORDERS_SQL, operator_graph._RETURNED_ORDERS_SQL):

@@ -1,6 +1,6 @@
 """The agent and Claude model each routed intent answers with.
 
-The Router is deterministic and calls no model. The Shopping and Support
+The Router is deterministic and calls no model. The Catalog and Support
 agents answer on Opus; the Stock agent, which reports counts, answers on
 Sonnet.
 """
@@ -38,7 +38,7 @@ ModelTier = Literal["opus", "sonnet"]
 
 # The three intents the Router returns, and the agent each one reaches.
 AGENT_NAMES: dict[str, str] = {
-    "shopping": "Shopping agent",
+    "shopping": "Catalog agent",
     "stock": "Stock agent",
     "support": "Support agent",
 }

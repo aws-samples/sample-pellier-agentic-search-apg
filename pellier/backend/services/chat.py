@@ -562,7 +562,7 @@ def credit_request_notice(escalation: Dict[str, Any]) -> Optional[Dict[str, Any]
 
 
 def _allows_human_handoff(message: str) -> bool:
-    """Reserve the Shopping agent's handoff for explicit or genuinely sensitive asks."""
+    """Reserve the Catalog agent's handoff for explicit or genuinely sensitive asks."""
     normalized = (message or "").lower()
     markers = (
         "stylist",

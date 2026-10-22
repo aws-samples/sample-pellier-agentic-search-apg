@@ -44,7 +44,7 @@ digraph Lab4JessicaGovernance {
     fontcolor="#fbf8f2"
   ];
   desk [
-    label="02 OPERATOR DESK\nInvestigator reads her case\nPlanner proposes 10000 cents\nfor two received returns"
+    label="02 OPERATOR DESK\nInvestigator reads her case\nAdvisor proposes 10000 cents\nfor two received returns"
   ];
   approval [
     label="03 HUMAN APPROVAL\nNadia approves the exact terms\nkey operator-review:<id>:<hash>",

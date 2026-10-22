@@ -132,7 +132,7 @@ export const ReviewList: React.FC = () => {
       </div>
       {queue.total === 0 ? (
         <p className="op-note" data-testid="operator-reviews-empty">
-          No credit to approve. A credit the Planner proposes appears here.
+          No credit to approve. A credit the Advisor proposes appears here.
         </p>
       ) : (
         <ul>

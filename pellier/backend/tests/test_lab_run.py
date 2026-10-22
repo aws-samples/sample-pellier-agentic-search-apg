@@ -723,7 +723,7 @@ def test_lab_4_reports_a_planner_that_proposed_nothing(
     fake.rail = lab_run.MANAGED
     fake.proposal = None
     assert _run(fake, 4) == 1
-    assert "the Planner proposed no credit for Jessica: no basis" in capsys.readouterr().err
+    assert "the Advisor proposed no credit for Jessica: no basis" in capsys.readouterr().err
 
 
 def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_nadia(
@@ -1154,7 +1154,7 @@ RANKING = {"available": True, "filters": {"kept": 64, "of": 100}, "rows": [
     {"name": "Stoneware Mugs, Set of 2", "fts_rank": 20, "vec_rank": 3, "rrf_score": 0.0284},
 ]}
 ROUTE = {"type": "step", "id": "route", "label": "Understanding your request", "status": "done",
-         "finding": "Sent to the Shopping agent", "builder": {}}
+         "finding": "Sent to the Catalog agent", "builder": {}}
 STEPS = [
     ROUTE,
     {"type": "step", "id": "step-1", "label": "Searching the catalog in Aurora", "status": "running",
@@ -1183,7 +1183,7 @@ def test_send_prints_each_turns_trace_as_it_streams(
 
     assert '          Anna: "' in out
     assert [line for line in lines if "Router" in line] == [
-        "          Router    Sent to the Shopping agent"]
+        "          Router    Sent to the Catalog agent"]
     done = lines.index("          done      Searching the catalog in Aurora (731 ms): 5 found from 64 that "
                        "fit under $100 and in stock, candles")
     assert lines[done + 1] == "                    left out"

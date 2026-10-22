@@ -117,7 +117,7 @@ const ClientBook: React.FC = () => (
     data-testid="operator-book-choose"
     eyebrow="Operator desk"
     headline="Choose a client"
-    body="Open a record to read the ticket, the orders and the credits, then let the Investigator and the Planner propose the next step. From the keyboard, Tab walks the list, then the record, then the investigation; the skip links at the top of the desk jump between them."
+    body="Open a record to read the ticket, the orders and the credits, then let the Investigator and the Advisor propose the next step. From the keyboard, Tab walks the list, then the record, then the investigation; the skip links at the top of the desk jump between them."
   />
 )
 

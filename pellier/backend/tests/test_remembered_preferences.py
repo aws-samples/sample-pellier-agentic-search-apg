@@ -1,7 +1,7 @@
 """Theo's remembered taste reaches the agent from AgentCore Memory, on both rails, attributed.
 
 The spec: in his first session Theo tells Pellier his taste; in a new session
-the Shopping agent's answer reflects it, and the preferences come from
+the Catalog agent's answer reflects it, and the preferences come from
 AgentCore Memory (session events plus the user-preference strategy), never
 from a tool. Provisioning writes that first session, so here a fake Memory
 answers with the record it extracted.

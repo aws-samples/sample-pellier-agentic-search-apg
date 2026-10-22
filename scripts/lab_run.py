@@ -57,7 +57,7 @@ new conversation, and the requests are that lab's required ones in
 ``data/scenarios.json``. Every turn must run on the lab's path, in process for
 Labs 1 and 2 and through AgentCore Runtime and Gateway for Labs 3 and 4. Lab 4
 then does Nadia's part in the Operator: investigate Jessica's case, approve
-the credit the Planner proposes, and execute it. A Cedar deployment takes a
+the credit the Advisor proposes, and execute it. A Cedar deployment takes a
 few minutes to apply, so an execution that Cedar still denies, or that the
 Gateway cannot yet answer, is retried. ``--shopper-only`` stops before
 Nadia's part, so the participant makes that decision in the Operator; its last line is
@@ -625,14 +625,14 @@ def nadias_sign_in(path: Optional[pathlib.Path] = None) -> str:
 
 
 def investigate(backend: Backend, token: str, client: str) -> Dict[str, Any]:
-    """Run the Operator's investigation; returns the Planner's proposal."""
+    """Run the Operator's investigation; returns the Advisor's proposal."""
     for name, event in backend.stream(f"/api/operator/clients/{client}/investigate", {}, token):
         if name == "error":
             raise LabRunError(f"the investigation failed: {event.get('detail') or event}")
         if name == "answer":
             proposal = event.get("proposal")
             if not proposal:
-                raise LabRunError("the Planner proposed no credit for Jessica: "
+                raise LabRunError("the Advisor proposed no credit for Jessica: "
                                   f"{event.get('planner') or event.get('status')}. Rerun this "
                                   "command, or investigate in the Operator to read the brief.")
             return proposal

@@ -263,7 +263,7 @@ def test_the_2a_check_leaves_the_as_shipped_cape_answer_to_2b(conn) -> None:
 
 
 def test_a_shopping_turn_by_marco_does_not_change_the_verdict(conn) -> None:
-    """Marco's own Goa question goes to the Shopping agent; 2A judges his stock turns only."""
+    """Marco's own Goa question goes to the Catalog agent; 2A judges his stock turns only."""
     envelope = _ask(conn, lab_variants.STARTER, "Hadley Linen Shirt")
     _audit(conn, "turn-stock", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
     _audit(conn, "turn-goa", "search_products", {"query": "linen for Goa"},

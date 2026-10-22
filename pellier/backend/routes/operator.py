@@ -2,7 +2,7 @@
 
   * ``GET  /clients``                      the clients: open requests, last order
   * ``GET  /clients/{id}``                 one record: ticket, orders, credits
-  * ``POST /clients/{id}/investigate``     the Investigator, then the Planner (SSE)
+  * ``POST /clients/{id}/investigate``     the Investigator, then the Advisor (SSE)
   * ``GET  /reviews``, ``GET /reviews/{id}``   the queue (reviews and requests) and a review
   * ``POST /reviews/{id}/confirm|decline|execute``  the decision and the write
 
@@ -21,7 +21,7 @@ not evidence.
 **One governed action, one execution path.** Giving a store credit calls
 ``store_tools.give_store_credit``. It has no direct action endpoint. A
 shopper's credit request carries no amount and is answered by an
-investigation, never approved. The Planner opens one review for the received
+investigation, never approved. The Advisor opens one review for the received
 returns no live review covers, a person confirms the exact review, and
 ``POST /reviews/{id}/execute`` runs the credit with the review's idempotency
 key, so a replay applies exactly once and produces the same durable evidence:
@@ -354,7 +354,7 @@ async def get_client(
 
 
 # ---------------------------------------------------------------------------
-# The investigation: Investigator, then Planner, streamed
+# The investigation: Investigator, then Advisor, streamed
 # ---------------------------------------------------------------------------
 
 
@@ -374,7 +374,7 @@ async def investigate_client(
     finishes, one ``answer`` with the brief and the proposal, then ``complete``.
     Every event follows work that actually finished.
 
-    The graph is read-only except for the one review the Planner opens. It
+    The graph is read-only except for the one review the Advisor opens. It
     runs on a worker thread; the request's pool serves its statements through
     the loop that owns it, exactly as the agents' tools are served.
     """
@@ -448,7 +448,7 @@ async def investigate_client(
         finally:
             # The client left. Cancelling stops the relay, not the graph:
             # ``asyncio.to_thread`` cannot interrupt the worker thread running
-            # it, so the Investigator finishes its reads and the Planner may
+            # it, so the Investigator finishes its reads and the Advisor may
             # still open its one review after the stream is gone. That is
             # acceptable and bounded: the review is the same one the next
             # investigation resolves to, and the record shows it on refresh.

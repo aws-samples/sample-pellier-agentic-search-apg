@@ -36,8 +36,8 @@ flowchart LR
 
   subgraph app["FastAPI app"]
     router["Router"]
-    agents["Shopping, Stock and Support<br/>agents (Strands)"]
-    investigation["Investigator, then Planner<br/>(Strands graph)"]
+    agents["Catalog, Stock and Support<br/>agents (Strands)"]
+    investigation["Investigator, then Advisor<br/>(Strands graph)"]
     tools["Nine store tools"]
   end
 
@@ -62,12 +62,12 @@ flowchart LR
   agentcore -. models .-> bedrock
 ```
 
-- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Shopping and Support on Claude Opus 5, Stock on Claude Sonnet 5.5. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
+- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Catalog and Support on Claude Opus 5, Stock on Claude Sonnet 5.5. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
 - **Store tools.** Nine tools, one implementation for the local agents and the Gateway Lambda: `search_products`, `browse_department`, `compare_products`, `check_stock`, `get_orders`, `get_return_policy`, `get_tickets`, `give_store_credit` and `ask_a_person`. `pellier/backend/services/store_tools.py`
 - **Hybrid search.** The shopper's limits become SQL filters on a pgvector branch and a full-text branch. Reciprocal Rank Fusion (k = 60) merges them and Cohere Rerank 3.5 reorders the pool. Search covers the 1,000 photographed products of a 50,000-row catalog, through a filter applied before ranking and a partial HNSW index. A shopper's search records its ranks in a retrieval receipt, and Builder view shows them as "How it ranked". `pellier/backend/services/search_plan.py`
 - **Managed path.** AgentCore Runtime runs the same Router and agents, with their tools behind AgentCore Gateway. AgentCore Policy evaluates Cedar before the Lambda runs, so a denied call never executes. `pellier/backend/agentcore_runtime.py`, `scripts/deploy/gateway_tool_schemas.py`, `policies/`
 - **Identity and ownership.** Amazon Cognito signs in shoppers and staff. Runtime verifies the access token itself, and a customer-scoped read uses the customer in the signed token, never one the model names; Cedar checks it again at the Gateway. `get_orders` and `get_tickets` run as the `pellier_agent` role under row-level security, so Aurora returns only that customer's rows. `pellier/backend/services/runtime_identity.py`, `workshop/lab-3-row-ownership.sql`
-- **Human approval.** In the Operator, an Investigator and a Planner (a Strands graph) read the case and propose one credit. `give_store_credit` writes only for a review a person approved with the same arguments, once per review key, as `pellier_credit_writer`, a role that may only execute the credit function. `pellier/backend/services/operator_graph.py`, `workshop/lab-4-credit-writer.sql`
+- **Human approval.** In the Operator, an Investigator and an Advisor (a Strands graph) read the case and propose one credit. `give_store_credit` writes only for a review a person approved with the same arguments, once per review key, as `pellier_credit_writer`, a role that may only execute the credit function. `pellier/backend/services/operator_graph.py`, `workshop/lab-4-credit-writer.sql`
 - **Memory.** AgentCore Memory keeps conversation events and the preferences extracted from them. A remembered preference can guide a pick; prices and stock always come from Aurora. `pellier/backend/services/agentcore_memory.py`
 - **Evidence.** Every tool call that runs writes a `pellier.tool_audit` row with its turn's id; a denied call writes none. App and AgentCore spans reach CloudWatch tagged with `pellier.turn_id`. `pellier/backend/services/evidence_spans.py`, `scripts/observability_check.py`
 

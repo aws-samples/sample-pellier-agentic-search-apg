@@ -10,12 +10,12 @@ const ROUTE: TurnStep = {
   id: 'route',
   label: 'Understanding your request',
   status: 'done',
-  finding: 'Sent to the Shopping agent',
+  finding: 'Sent to the Catalog agent',
   tags: ['Router', 'Skills'],
   builder: {
     tool: null,
     intent: 'shopping',
-    agent: 'Shopping agent',
+    agent: 'Catalog agent',
     model_id: 'global.anthropic.claude-opus-5',
     skills: [{ name: 'gifts', display_name: 'The Gift Table', path: 'skills/gifts/SKILL.md', loaded: 'fixed' }],
     skill_mode: 'fixed',
@@ -174,7 +174,7 @@ describe('StepList', () => {
     await user.click(earlier)
     expect(earlier).toHaveTextContent(HIDE_EARLIER)
     expect(earlier).toHaveAttribute('aria-expanded', 'true')
-    expect(rows()).toEqual(['Sent to the Shopping agent', ...searches.map(step => step.finding)])
+    expect(rows()).toEqual(['Sent to the Catalog agent', ...searches.map(step => step.finding)])
     // Every step keeps its own evidence: six receipts, one each.
     const receipts = screen.getAllByTestId('turn-evidence').slice(1).map(line => factRows(line).Receipt)
     expect(receipts).toEqual(['601', '602', '603', '604', '605', '606'])
@@ -231,7 +231,7 @@ describe('StepList evidence rows', () => {
     const row = (label: string) => within(evidence).getByText(label).closest('.tn-fact') as HTMLElement
     const chips = Array.from(row('May call').querySelectorAll('.tn-chip-code')).map(chip => chip.textContent)
     expect(chips).toEqual(['search_products', 'check_stock'])
-    expect(row('May call')).toHaveTextContent('Shopping agent:')
+    expect(row('May call')).toHaveTextContent('Catalog agent:')
     expect(row('Prompt rule')).toHaveTextContent('"Every stock answer starts from check_stock"')
     expect(within(row('Memory')).getByText('mem-923e37b1-4c2a').tagName).toBe('CODE')
   })
@@ -241,7 +241,7 @@ describe('StepList evidence rows', () => {
     const raw = screen.getByTestId('turn-evidence-raw')
     expect(raw).not.toHaveAttribute('open')
     expect(within(raw).getByText(SHOW_RAW_STEP)).toBeInTheDocument()
-    expect(raw).toHaveTextContent('intent shopping; model global.anthropic.claude-opus-5; Shopping agent may call:')
+    expect(raw).toHaveTextContent('intent shopping; model global.anthropic.claude-opus-5; Catalog agent may call:')
     expect(raw).toHaveTextContent('Remembered: AgentCore Memory record mem-923e37b1-4c2a (user preference)')
   })
 

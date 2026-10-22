@@ -12,7 +12,7 @@ editing.
   page. Shoppers are chosen in the panel or from the header; choosing one
   performs the workshop sign-in, and Pellier trusts the signed token, not the
   choice. The **Operator** (`/operator`) is the staff desk: clients, the
-  Investigator and Planner's investigation, and the review queue where a
+  Investigator and Advisor's investigation, and the review queue where a
   person approves, declines or executes a credit.
 - The **Builder view** is one global switch in the shared header
   (`components/turn/BuilderViewSwitch.tsx`). It shows "How it ranked" over the

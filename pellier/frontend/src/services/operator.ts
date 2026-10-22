@@ -87,7 +87,7 @@ export interface OperatorCredit {
 /**
  * A shopper's store credit request, opened in chat. It names no amount and
  * nobody approves it: a person answers it by investigating the case, and the
- * Planner's review is the only credit anyone approves.
+ * Advisor's review is the only credit anyone approves.
  */
 export interface OperatorCreditRequest {
   requestId: number
@@ -271,7 +271,7 @@ export interface OperatorReviewDecision {
   assurance: ActionAssurance
 }
 
-/** The Planner's proposal, as the investigation stream reports it. */
+/** The Advisor's proposal, as the investigation stream reports it. */
 export interface InvestigationProposal {
   reviewId: number
   customerId: string

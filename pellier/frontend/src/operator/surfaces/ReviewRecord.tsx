@@ -2,7 +2,7 @@
  * One review: the proposed credit, its three checks, and the decision.
  *
  * Reading order is the person's reasoning order: who the client is, what the
- * credit covers, what the Planner said, then the card with Approve and
+ * credit covers, what the Advisor said, then the card with Approve and
  * Decline, then Execute once approved. Everything factual is hydrated by the
  * API from the table that owns it.
  */
@@ -22,7 +22,7 @@ import { reviewOutcome } from './ReviewQueue'
 /** Who asked for the credit, from the review row. The Lab 4 check's probe is its own. */
 function requesterLine(review: OperatorReview): string {
   if (review.policyCheckProbe) return POLICY_CHECK_PROBE_LINE
-  if (review.requesterKind === 'operator') return 'the Planner, on the desk'
+  if (review.requesterKind === 'operator') return 'the Advisor, on the desk'
   return review.requesterKind === 'shopper' ? 'the signed-in shopper' : 'an unverified request'
 }
 

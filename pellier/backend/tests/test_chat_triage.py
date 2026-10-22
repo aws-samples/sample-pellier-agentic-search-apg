@@ -178,7 +178,7 @@ def test_price_compare_and_browse_stay_with_shopping(query):
 # The guide's Lab 1 and Lab 2 requests, verbatim. The guide lives in another
 # repository, so these are pinned here: a wording change on either side that
 # sends a request to the wrong agent fails the lab silently (Anna's limits on
-# the Stock agent, or Marco's cape on the Shopping agent).
+# the Stock agent, or Marco's cape on the Catalog agent).
 GUIDE_SENTENCES = (
     ("A housewarming gift for a friend who loves slow mornings.", "shopping"),
     ("A housewarming gift for a friend who loves slow mornings. In stock, under $100, "

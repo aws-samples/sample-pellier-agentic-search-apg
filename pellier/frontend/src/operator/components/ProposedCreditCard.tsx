@@ -164,7 +164,7 @@ function approvalCheck(review: OperatorReview, decider: string, approver: string
   }
   return {
     key: 'approval', label: 'Approval', tone: 'pending', tag: approver ? `Waiting for ${approver}` : WAITING_TAG, pulse: true,
-    detail: splitDetail('The Planner proposed this credit and stopped. Nothing changes until a person approves it.'),
+    detail: splitDetail('The Advisor proposed this credit and stopped. Nothing changes until a person approves it.'),
   }
 }
 
