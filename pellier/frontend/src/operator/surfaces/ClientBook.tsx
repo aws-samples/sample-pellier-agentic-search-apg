@@ -15,12 +15,15 @@ import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
 import { openRequestsLabel } from '../vocabulary'
 
+/** The date in UTC, the zone the desk's policy times are written in. */
 export function shortDate(iso: string | null): string | null {
   if (!iso) return null
   const parsed = new Date(iso)
   return Number.isNaN(parsed.getTime())
     ? null
-    : parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+    : parsed.toLocaleDateString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
+    })
 }
 
 function lastOrderLine(client: OperatorClient): string {

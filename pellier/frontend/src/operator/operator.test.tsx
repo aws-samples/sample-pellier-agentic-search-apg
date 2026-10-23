@@ -49,7 +49,7 @@ vi.mock('../contexts/AuthContext', () => ({
   },
 }))
 
-import ClientBook, { ClientList } from './surfaces/ClientBook'
+import ClientBook, { ClientList, shortDate } from './surfaces/ClientBook'
 import ClientRecord from './surfaces/ClientRecord'
 import ReviewRecord from './surfaces/ReviewRecord'
 import { ReviewList, reviewOutcome } from './surfaces/ReviewQueue'
@@ -412,6 +412,20 @@ describe('the review record', () => {
     renderAt('/operator/reviews/41', <ReviewRecord />)
     fireEvent.click(await screen.findByTestId('operator-review-execute'))
     expect(await screen.findByTestId('operator-review-decision-error')).toHaveTextContent('Missing: AGENTCORE_GATEWAY_URL')
+  })
+})
+
+describe('the dates on the desk', () => {
+  it('reads a timestamp as its UTC date, the zone the policy time is written in', () => {
+    // Event 12: a review decided at 23:56 UTC read Oct 23 beside "2026-10-22 23:56 UTC".
+    const zone = process.env.TZ
+    process.env.TZ = 'Pacific/Auckland'
+    try {
+      expect(shortDate('2026-10-22T23:56:00Z')).toBe('Oct 22, 2026')
+    } finally {
+      if (zone === undefined) delete process.env.TZ
+      else process.env.TZ = zone
+    }
   })
 })
 
