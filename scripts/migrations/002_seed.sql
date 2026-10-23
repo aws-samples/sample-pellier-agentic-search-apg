@@ -145,7 +145,7 @@ INSERT INTO pellier.return_policies (category_name, return_window_days, conditio
     ('Accessories',          30, 'Unused, in original packaging; final sale on pierced jewelry.',     'Original payment method'),
     ('Home',                 45, 'Unused and undamaged; ceramics and glassware inspected on return.', 'Original payment method or store credit'),
     ('Kitchen and table',    45, 'Unused and undamaged; ceramics and glassware inspected on return.', 'Original payment method or store credit'),
-    ('Bath and body',        30, 'Unopened and unused, in the original packaging.',                   'Original payment method'),
+    ('Bath and body',        30, 'Unopened and unused, in the original packaging.',                   'Original payment method or store credit'),
     ('Stationery and gifts', 30, 'Unused, in the original packaging.',                                'Original payment method');
 
 -- ---------------------------------------------------------------------------

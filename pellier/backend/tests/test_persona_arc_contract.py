@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -216,6 +217,25 @@ def test_theo_tools_are_the_support_agents_reads_and_the_handoff() -> None:
 # ---------------------------------------------------------------------------
 # Operator bridge — the APIs that let both channels see one client
 # ---------------------------------------------------------------------------
+
+def test_each_of_jessicas_returned_orders_allows_a_store_credit() -> None:
+    """Lab 4 credits both returns, so the policy the Investigator reads for each must allow it.
+
+    Event 12 (2026-10-22): Bath and body refunded only to the original payment method, so the
+    Investigator's notes argued against crediting the Waffle Bath Robe that Nadia approves.
+    """
+    sql = (MIGRATIONS / "002_seed.sql").read_text()
+    returned = [int(product) for product in re.findall(
+        r"^\s*\(\d+, 'CUST-JESSICA', '(\d+)',.*'received'\)", sql, re.M)]
+    assert len(returned) == 2, "Jessica's credit covers exactly two returned orders"
+    policies = dict(re.findall(r"^\s*\('([^']+)',\s+\d+, '[^']*',\s+'([^']+)'\)", sql, re.M))
+    catalog = _catalog_by_id()
+    for product_id in returned:
+        product = catalog[product_id]
+        refund = policies.get(product.department, policies["default"])
+        assert "store credit" in refund.lower(), (
+            f"{product.name} ({product.department}) refunds only to {refund!r}")
+
 
 def test_operator_read_and_write_apis_are_registered() -> None:
     route = (BACKEND / "routes" / "operator.py").read_text()
