@@ -9,9 +9,11 @@ deploy never leaves a stale one; a deploy that ends normally records its exit co
 Code Editor gives every new window a new terminal, and a deploy started in an earlier window
 keeps running in a terminal the new one does not show. So a second participant deploy follows
 the first instead of starting beside it: it replays the log, prints new lines as they arrive,
-and ends with the first deploy's result. A new terminal says when a deploy is running
-(``--notice``, from scripts/open-workshop-terminal.sh), and the whole-workshop reset refuses to
-start during one (``--refuse-if-running``, from scripts/reset-governed-workshop.sh).
+and ends with the first deploy's result. A command whose lines belong in that log runs through
+``run_logged``, so its lines reach the log as the deploy's own do. A new terminal says when a
+deploy is running (``--notice``, from scripts/open-workshop-terminal.sh), and the
+whole-workshop reset refuses to start during one (``--refuse-if-running``, from
+scripts/reset-governed-workshop.sh).
 
 Standard library only, so a new terminal can ask without loading the provisioner.
 """
@@ -19,16 +21,22 @@ Standard library only, so a new terminal can ask without loading the provisioner
 from __future__ import annotations
 
 import argparse
+import codecs
 import fcntl
 import json
 import os
+import pty
 import re
+import select
+import subprocess
 import sys
+import termios
 import textwrap
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterator, Optional, TextIO, Tuple
+from typing import Any, Callable, Dict, Iterator, Optional, Sequence, TextIO, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from wait_progress import clock, waiting  # noqa: E402
@@ -153,6 +161,76 @@ class Tee:
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._wrapped, name)
+
+
+def run_logged(argv: Sequence[str], *, cwd: str) -> subprocess.CompletedProcess:
+    """Run a command through this process's own output, so its lines reach the deploy log.
+
+    A child writes to the descriptors it inherits, past the Tee, and a window following the
+    deploy would never see what it printed. On a terminal the child gets a pseudo-terminal of
+    its own, so it still draws its bars and its two streams share one screen, as they did;
+    off one, each stream gets a pipe and keeps its own way out.
+    """
+    on_terminal = getattr(sys.stdout, "isatty", lambda: False)()
+    relay = _through_terminal if on_terminal else _through_pipes
+    return subprocess.CompletedProcess(list(argv), relay(list(argv), cwd))
+
+
+def _through_terminal(argv: Sequence[str], cwd: str) -> int:
+    primary, secondary = pty.openpty()
+    settings = termios.tcgetattr(secondary)
+    # A terminal turns "\n" into "\r\n"; the Tee reads what follows a "\r" as a bar's redraw.
+    settings[1] &= ~termios.ONLCR
+    termios.tcsetattr(secondary, termios.TCSANOW, settings)
+    try:  # the screen's size, so a child that asks for its width gets the real one
+        fcntl.ioctl(secondary, termios.TIOCSWINSZ,
+                    fcntl.ioctl(sys.stdout.fileno(), termios.TIOCGWINSZ, b"\0" * 8))
+    except (OSError, ValueError):
+        pass  # no size to copy (a test's stand-in screen): the child sees 0 by 0, as in a pipe
+    try:
+        child = subprocess.Popen(argv, cwd=cwd, stdout=secondary, stderr=secondary)
+    except BaseException:
+        os.close(primary)
+        raise
+    finally:
+        os.close(secondary)
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    try:
+        while True:
+            ready, _, _ = select.select([primary], [], [], 0.2)
+            if not ready:
+                if child.poll() is not None:
+                    break
+                continue
+            try:
+                chunk = os.read(primary, 65536)
+            except OSError:  # Linux reports EIO once every writer has closed the terminal
+                break
+            if not chunk:
+                break
+            sys.stdout.write(decoder.decode(chunk))
+            sys.stdout.flush()
+    finally:
+        os.close(primary)
+    sys.stdout.write(decoder.decode(b"", final=True))
+    sys.stdout.flush()
+    return child.wait()
+
+
+def _through_pipes(argv: Sequence[str], cwd: str) -> int:
+    def copy(source: Optional[TextIO], target: TextIO) -> None:
+        assert source is not None
+        for line in source:
+            target.write(line)
+            target.flush()
+
+    with subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                          text=True, errors="replace") as child:
+        errors = threading.Thread(target=copy, args=(child.stderr, sys.stderr))
+        errors.start()
+        copy(child.stdout, sys.stdout)
+        errors.join()
+        return child.wait()
 
 
 class DeployLock:

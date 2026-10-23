@@ -293,3 +293,92 @@ def _provisioner():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+# Event 13: the deploy's last step runs lab3-start.sh, whose lines went straight to the
+# terminal, past the log, so a reopened window following the deploy never saw them. A failed
+# move then told the follower "the lines above say why" with no lines above.
+HOLD_MOVE = f"""
+import importlib.util, sys
+from pathlib import Path
+sys.path.insert(0, {str(REPO / "scripts")!r})
+import deploy_lock
+spec = importlib.util.spec_from_file_location("provisioner_move", {str(PROVISIONER)!r})
+provisioner = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(provisioner)
+repo = Path(sys.argv[1])
+lock = deploy_lock.hold(Path(sys.argv[2]), "participant")
+lock.tee_output()
+print("held", flush=True)
+sys.stdin.readline()
+lock.release(provisioner.move_onto_agentcore(repo, run_env=repo / "absent-run.env"))
+"""
+
+FAILING_MOVE = """#!/bin/bash
+echo "Pellier Lab 3 start: managed rail"
+echo "  + OK    AGENTCORE_GATEWAY_URL set"
+echo "  x FAIL  pellier service not healthy 90s after restart" >&2
+exit 1
+"""
+
+
+class MovingHolder:
+    """A participant deploy holding the lock that, once told, runs the real move step."""
+
+    def __init__(self, repo: Path) -> None:
+        (repo / "scripts").mkdir(exist_ok=True)
+        (repo / "scripts" / "lab3-start.sh").write_text(FAILING_MOVE)
+        (repo / ".env").write_text("AWS_REGION=us-east-1\n")
+        self.process = subprocess.Popen(
+            [sys.executable, "-c", HOLD_MOVE, str(repo), str(_lock(repo))],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env=_bare_env())
+        assert self.process.stdout is not None
+        assert self.process.stdout.readline().strip() == "held"
+
+    def end(self, line: str) -> None:
+        assert self.process.stdin is not None
+        self.process.stdin.write(line + "\n")
+        self.process.stdin.flush()
+        self.process.wait(timeout=60)
+
+
+def test_a_follower_sees_the_move_steps_own_lines(tmp_path) -> None:
+    holder = MovingHolder(tmp_path)
+    second = _deploy(tmp_path, tmp_path / "receipt.json", holder=holder, then="go")
+    assert second.returncode == 1, second.stdout + second.stderr
+    assert "Pellier Lab 3 start: managed rail" in second.stdout
+    assert "+ OK AGENTCORE_GATEWAY_URL set" in second.stdout
+    assert "x FAIL pellier service not healthy 90s after restart" in second.stdout
+    assert "the lines above say why" in second.stdout
+
+
+class _Terminal(io.StringIO):
+    def isatty(self) -> bool:
+        return True
+
+
+# As scripts/lib/progress.sh does: a bar and its clearing on a terminal only, then lines.
+BAR_THEN_LINES = (
+    'if [ -t 1 ]; then printf "\\r  Restarting Pellier  ###--  0:07"; printf "\\r\\033[K"; fi; '
+    'echo "  + OK    pellier service healthy"; echo "  x FAIL  no turn" >&2; exit 2'
+)
+
+
+def test_on_a_terminal_the_child_still_draws_its_bars_and_the_log_keeps_its_lines(
+    tmp_path, monkeypatch,
+) -> None:
+    terminal, log = _Terminal(), io.StringIO()
+    monkeypatch.setattr(sys, "stdout", deploy_lock.Tee(terminal, log))
+    completed = deploy_lock.run_logged(["bash", "-c", BAR_THEN_LINES], cwd=str(tmp_path))
+    assert completed.returncode == 2
+    assert "Restarting Pellier  ###--  0:07" in terminal.getvalue()  # it saw a terminal
+    assert log.getvalue() == "  + OK    pellier service healthy\n  x FAIL  no turn\n"
+
+
+def test_off_a_terminal_the_childs_streams_keep_their_own_way_out(tmp_path, capsys) -> None:
+    completed = deploy_lock.run_logged(["bash", "-c", BAR_THEN_LINES], cwd=str(tmp_path))
+    assert completed.returncode == 2
+    captured = capsys.readouterr()
+    assert captured.out == "  + OK    pellier service healthy\n"  # no terminal, so no bar
+    assert captured.err == "  x FAIL  no turn\n"

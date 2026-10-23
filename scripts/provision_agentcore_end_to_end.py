@@ -2723,14 +2723,16 @@ def _rail_is_managed(repo: Path, run_env: Path = RUN_ENV_FILE) -> bool:
 def move_onto_agentcore(
     repo: Path,
     *,
-    run: Callable[..., Any] = subprocess.run,
+    run: Callable[..., Any] = deploy_lock.run_logged,
     run_env: Path = RUN_ENV_FILE,
     progress: Progress | None = None,
 ) -> int:
     """Switch the storefront onto AgentCore unless it already is; return the exit status.
 
     The switch is the deploy's last step. lab3-start.sh prints its own lines and draws
-    its own bars, so this step prints a start line instead of redrawing one.
+    its own bars, so this step prints a start line instead of redrawing one. Its lines
+    pass through the deploy's output into the deploy log, so a window following the
+    deploy sees them, and the reason when the switch fails.
     """
     progress = progress or Progress()
     if _rail_is_managed(repo, run_env):
@@ -2739,9 +2741,7 @@ def move_onto_agentcore(
         return 0
     progress.begin("Moving Pellier onto AgentCore", typical=STEP_SECONDS["move"],
                    done="Moved Pellier onto AgentCore", animate=False)
-    completed = run(
-        ["bash", str(repo / "scripts" / "lab3-start.sh"), "theo"], cwd=str(repo), check=False
-    )
+    completed = run(["bash", str(repo / "scripts" / "lab3-start.sh"), "theo"], cwd=str(repo))
     if completed.returncode != 0:
         progress.fail()
         print(
