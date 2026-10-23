@@ -167,6 +167,21 @@ def _anna_agent() -> ScriptedAgent:
     )
 
 
+def test_an_in_process_turn_says_so_on_its_routing_span(service, monkeypatch) -> None:
+    from services import evidence_spans
+
+    opened: List[Dict[str, Any]] = []
+    real_span = evidence_spans.routing_span
+
+    def recording_span(**kwargs: Any):
+        opened.append(kwargs)
+        return real_span(**kwargs)
+
+    monkeypatch.setattr(evidence_spans, "routing_span", recording_span)
+    _run(service, _anna_agent(), monkeypatch)
+    assert [span["rail"] for span in opened] == ["in-process"]
+
+
 def test_status_and_steps_come_from_real_events_in_order(service, monkeypatch) -> None:
     events = _run(service, _anna_agent(), monkeypatch)
     kinds = [event["type"] for event in events]

@@ -60,6 +60,7 @@ def test_full_attribute_set_maps_every_reconstruction_field():
         caller="in-process",
         execution_outcome="denied",
         tool="give_store_credit",
+        rail="gateway-mcp",
     )
     assert attrs == {
         ev.ATTR_TURN_ID: "turn-1",
@@ -68,6 +69,7 @@ def test_full_attribute_set_maps_every_reconstruction_field():
         ev.ATTR_PERSONA_SIMULATED: False,
         ev.ATTR_CALLER: "in-process",
         ev.ATTR_EXECUTION_OUTCOME: "denied",
+        ev.ATTR_RAIL: "gateway-mcp",
         ev.ATTR_TOOL: "give_store_credit",
     }
 

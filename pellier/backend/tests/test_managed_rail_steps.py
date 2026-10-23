@@ -206,6 +206,8 @@ def test_a_managed_turn_opens_one_routing_span_for_its_turn(
     assert opened[0]["turn_id"] == turn_id
     assert opened[0]["principal_sub"] == "principal-theo"
     assert opened[0]["authenticated"] is True
+    # O1 counts only turns routed onto AgentCore, so a Lab 1 turn cannot stand in for them.
+    assert opened[0]["rail"] == "gateway-mcp"
 
 
 def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: TestClient) -> None:

@@ -1022,6 +1022,7 @@ async def chat_stream(
                     principal_sub=turn_identity.principal_sub,
                     authenticated=turn_identity.authenticated,
                     persona_is_simulated=turn_identity.persona_is_simulated,
+                    rail="gateway-mcp",
                 ):
                     managed_intent = classify_intent(request.message)
                 yield (

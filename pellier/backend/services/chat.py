@@ -1560,6 +1560,7 @@ class EnhancedChatService:
             principal_sub=turn_identity.principal_sub,
             authenticated=turn_identity.authenticated,
             persona_is_simulated=turn_identity.persona_is_simulated,
+            rail="in-process",
         ):
             intent = classify_intent(message)
         timing["intent"] = (time.perf_counter() - intent_t0) * 1000

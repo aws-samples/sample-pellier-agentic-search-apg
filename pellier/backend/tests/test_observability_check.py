@@ -12,19 +12,35 @@ from __future__ import annotations
 import importlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+import pytest
 
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 obs = importlib.import_module("observability_check")
+workshop_check = importlib.import_module("workshop_check")
 
 NOW = datetime(2026, 10, 9, 15, 0, tzinfo=timezone.utc)
+CREATED = NOW - timedelta(hours=6)
 CLUSTER_ARN = "arn:aws:rds:us-east-1:123456789012:cluster:pellier-cluster-ws1"
 GROUP = "/aws/rds/cluster/pellier-cluster-ws1/postgresql"
 REFUSAL = ("2026-10-09 14:58:02 UTC:10.0.1.5(51234):pellier_agent@pellier:[4242]:ERROR:  new "
            "row violates row-level security policy for table \"support_tickets\"")
+
+
+def _ms(moment: datetime) -> int:
+    return int(moment.timestamp() * 1000)
+
+
+@pytest.fixture(autouse=True)
+def _no_reset_points(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Each test starts with no lab reset, whatever this checkout's .local holds."""
+    path = tmp_path / "lab-reset-points.json"
+    monkeypatch.setenv(workshop_check.RESET_POINTS_ENV, str(path))
+    return path
 
 
 class _Error(Exception):
@@ -34,7 +50,7 @@ class _Error(Exception):
 
 
 class _Logs:
-    """FilterLogEvents by group, matching the quoted term as the service does."""
+    """FilterLogEvents by group and start time, matching the quoted term as the service does."""
 
     def __init__(self, groups: Dict[str, List[Dict[str, Any]]],
                  missing: Optional[str] = None) -> None:
@@ -51,16 +67,18 @@ class _Logs:
                 if outer.missing and group == outer.missing:
                     raise _Error(outer.missing_code)
                 term = kwargs["filterPattern"].strip('"')
+                start = kwargs["startTime"]
                 yield {"events": [e for e in outer.groups.get(group, [])
-                                  if term in e["message"]]}
+                                  if term in e["message"] and e.get("timestamp", start) >= start]}
 
         return _Paginator()
 
     missing_code = "ResourceNotFoundException"
 
 
-def _span(name: str, turn: Optional[str], start: int) -> Dict[str, Any]:
-    attrs = {"pellier.turn_id": turn} if turn else {}
+def _span(name: str, turn: Optional[str], start: int,
+          rail: str = "gateway-mcp") -> Dict[str, Any]:
+    attrs = {"pellier.turn_id": turn, "pellier.rail": rail} if turn else {}
     return {"message": json.dumps({"name": name, "startTimeUnixNano": str(start),
                                    "attributes": attrs})}
 
@@ -68,6 +86,7 @@ def _span(name: str, turn: Optional[str], start: int) -> Dict[str, Any]:
 def _cluster(mode: str = "advanced", exports: Optional[List[str]] = None,
              pi_on_cluster: bool = True) -> Dict[str, Any]:
     cluster = {"DBClusterIdentifier": "pellier-cluster-ws1", "DatabaseInsightsMode": mode,
+               "ClusterCreateTime": CREATED,
                "EnabledCloudwatchLogsExports": ["postgresql"] if exports is None else exports,
                "DBClusterMembers": [{"DBInstanceIdentifier": "pellier-writer-ws1",
                                      "IsClusterWriter": True}]}
@@ -125,7 +144,7 @@ def _run(spans=None, logs_events=None, cluster=None, statements=(SQL,), **kw) ->
         _span("routing", "turn-1", 1), _span("execute_tool search_products", "turn-1", 2),
         _span("routing", "turn-2", 3), _span("AgentCore.Gateway.InvokeTool", None, 4)],
         GROUP: logs_events if logs_events is not None else [
-            {"message": REFUSAL, "timestamp": 1760021882000}]}, kw.get("missing"))
+            {"message": REFUSAL, "timestamp": _ms(NOW) - 118_000}]}, kw.get("missing"))
     rds = _Rds(_cluster() if cluster is None else cluster, kw.get("instance_pi", True))
     pi = _Pi(list(statements), kw.get("denied", False), kw.get("finished", (0.0, 3.7, 4.1)))
     return obs.check(logs, rds, pi, CLUSTER_ARN, 60, NOW)
@@ -153,6 +172,16 @@ def test_app_spans_ignore_agentcore_spans_and_unreadable_lines() -> None:
                               _span("invoke_agent shopping", "turn-9", 3)])
     assert spans.state == obs.NOT_YET
     assert "Failed to export span batch" in spans.next_step
+
+
+def test_a_turn_routed_in_process_does_not_prove_the_managed_path() -> None:
+    # Labs 1 and 2 route in the app's own process; span export after the move to AgentCore
+    # is what Lab 4 asks about, so only a turn on the gateway-mcp rail counts.
+    spans, _, _ = _run(spans=[_span("routing", "turn-lab1", 1, rail="in-process"),
+                              _span("routing", "turn-old", 2, rail="")])
+    assert spans.state == obs.NOT_YET
+    assert spans.observed == "no routing span from a turn on AgentCore yet"
+    assert "a turn on AgentCore" in spans.expected
 
 
 def test_the_newest_routed_turn_lists_its_agent_spans_in_order() -> None:
@@ -238,10 +267,53 @@ def test_an_undescribable_cluster_leaves_both_database_findings_unchecked() -> N
     assert "pellier-cluster-ws1: AccessDenied" in insights.observed
 
 
-def test_the_reads_use_the_window_and_the_exported_group() -> None:
+def test_spans_and_the_log_read_from_the_clusters_creation() -> None:
     logs = _Logs({})
     obs.check(logs, _Rds(_cluster()), _Pi([]), CLUSTER_ARN, 60, NOW)
-    groups = [call["logGroupName"] for call in logs.calls]
-    assert groups == ["aws/spans", GROUP]
-    assert all(call["startTime"] == int(NOW.timestamp() * 1000) - 3_600_000
-               for call in logs.calls)
+    starts = {call["logGroupName"]: call["startTime"] for call in logs.calls}
+    assert starts == {"aws/spans": _ms(CREATED), GROUP: _ms(CREATED)}
+
+
+def test_a_routed_turn_counts_however_long_ago_lab_4_sent_it() -> None:
+    # Lab 4's Step 1 sends the last turn; Step 19 can come more than an hour later.
+    turn = {**_span("routing", "turn-lab4", 5), "timestamp": _ms(NOW - timedelta(minutes=80))}
+    spans, _, _ = _run(spans=[turn])
+    assert spans.state == obs.PROVED
+    assert "since the cluster was created at 2026-10-09 09:00:00 UTC" in spans.expected
+
+
+def test_an_undescribable_cluster_reads_spans_from_the_window() -> None:
+    turn = {**_span("routing", "turn-old", 5), "timestamp": _ms(NOW - timedelta(minutes=80))}
+    logs = _Logs({"aws/spans": [turn]})
+    spans, _, _ = obs.check(logs, _Rds(None), _Pi([SQL]), CLUSTER_ARN, 60, NOW)
+    assert spans.state == obs.NOT_YET
+    assert "within the last 60 minutes" in spans.expected
+
+
+def _refusal_at(moment: datetime) -> Dict[str, Any]:
+    return {"message": REFUSAL, "timestamp": _ms(moment)}
+
+
+def test_lab_3s_refusal_counts_however_long_ago_it_ran() -> None:
+    # Event 12: Lab 3's check refused the write 80 minutes before Lab 4's Step 17.
+    _, _, log = _run(logs_events=[_refusal_at(NOW - timedelta(minutes=80))])
+    assert log.state == obs.PROVED
+    assert "since the cluster was created at 2026-10-09 09:00:00 UTC" in log.expected
+
+
+def test_a_lab_3_reset_moves_the_log_start_to_the_reset(_no_reset_points: Path) -> None:
+    reset = NOW - timedelta(hours=2)
+    workshop_check.record_reset_point(3, reset)
+    _, _, before = _run(logs_events=[_refusal_at(reset - timedelta(minutes=1))])
+    assert before.state == obs.NOT_YET
+    assert "since Lab 3 was reset at 2026-10-09 13:00:00 UTC" in before.expected
+    _, _, after = _run(logs_events=[_refusal_at(reset + timedelta(minutes=1))])
+    assert after.state == obs.PROVED
+
+
+def test_a_cluster_without_a_creation_time_reads_the_window() -> None:
+    cluster = _cluster()
+    del cluster["ClusterCreateTime"]
+    _, _, log = _run(cluster=cluster, logs_events=[_refusal_at(NOW - timedelta(minutes=80))])
+    assert log.state == obs.NOT_YET
+    assert "within the last 60 minutes" in log.expected

@@ -7,8 +7,8 @@ this instance, which exports its Router's span and its agents' spans, and the da
 which no span describes because spans never carry SQL. This check reads the
 evidence for both, and never writes:
 
-    O1  App spans           a turn's routing span, with its agents' spans, is in
-                            aws/spans
+    O1  App spans           the routing span of a turn on AgentCore, with its agents'
+                            spans, is in aws/spans
     O2  Database Insights   the cluster runs Advanced mode and records the
                             queries that reached Aurora, with the top SQL by
                             load when a statement was sampled
@@ -20,6 +20,12 @@ uv run scripts/lab3_row_ownership_check.py:
 
     uv run scripts/observability_check.py
     uv run scripts/observability_check.py --minutes 120
+
+O1 and O3 read back to the start of Lab 3, however long Labs 3 and 4 took: from Lab 3's reset
+point when the lab was reset, otherwise from the cluster's creation. No step before Lab 3 makes
+row-level security refuse a write, and O1 counts only a turn routed onto AgentCore, which
+starts at Lab 3: a Lab 1 turn cannot stand in for the managed path's spans. O2 reads Database
+Insights over the last --minutes.
 
 Spans reach CloudWatch about ten seconds after a turn; Database Insights'
 counters and the exported log, about a minute after the statement.
@@ -41,11 +47,14 @@ sys.path.insert(0, str(ROOT / "pellier" / "backend"))
 sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+from wait_progress import waiting  # noqa: E402
 from workshop_check import (CONTRADICTED, NOT_YET, PROVED, UNCHECKED,  # noqa: E402
-                            Finding, render)
+                            Finding, render, reset_point)
 
 SPANS_GROUP = "aws/spans"
 TURN_ATTR = "pellier.turn_id"  # services/evidence_spans.py ATTR_TURN_ID
+RAIL_ATTR = "pellier.rail"  # services/evidence_spans.py ATTR_RAIL
+MANAGED_RAIL = "gateway-mcp"
 RLS_REFUSAL = "violates row-level security policy"
 SQL_DIMENSION = "db.sql_tokenized.statement"
 QUERIES_FINISHED = "db.SQL.queries_finished"
@@ -74,15 +83,16 @@ def _events(logs: Any, group: str, start_ms: int, pattern: str) -> List[Dict[str
     return events
 
 
-def app_spans(logs: Any, start_ms: int, minutes: int) -> Finding:
-    """O1: a turn's spans from the app, read back from Transaction Search.
+def app_spans(logs: Any, start_ms: int, since: str) -> Finding:
+    """O1: the spans of a turn on AgentCore, read back from Transaction Search.
 
-    Only the app's chat path opens the ``routing`` span, so a turn counts once its
-    routing span arrives; the Strands agent spans that carry the same turn id
-    (invoke_agent, execute_tool, chat) are listed as its evidence.
+    Only the app's chat path opens the ``routing`` span, and it names the rail the turn ran
+    on, so a turn counts once its routing span arrives from the ``gateway-mcp`` rail; the
+    Strands agent spans that carry the same turn id (invoke_agent, execute_tool, chat) are
+    listed as its evidence.
     """
-    expected = (f"the routing span of a turn, with its agents' spans, carrying {TURN_ATTR}, "
-                f"in {SPANS_GROUP} within the last {minutes} minutes")
+    expected = (f"the routing span of a turn on AgentCore ({RAIL_ATTR} {MANAGED_RAIL}), with its "
+                f"agents' spans, carrying {TURN_ATTR}, in {SPANS_GROUP} {since}")
     try:
         events = _events(logs, SPANS_GROUP, start_ms, f'"{TURN_ATTR}"')
     except Exception as exc:  # noqa: BLE001 - the finding says which read failed
@@ -94,15 +104,17 @@ def app_spans(logs: Any, start_ms: int, minutes: int) -> Finding:
             span = json.loads(event["message"])
         except (KeyError, ValueError):
             continue
-        turn = (span.get("attributes") or {}).get(TURN_ATTR)
+        attributes = span.get("attributes") or {}
+        turn = attributes.get(TURN_ATTR)
         if turn:
             spans.append((int(span.get("startTimeUnixNano") or 0), str(span.get("name", "")),
-                          str(turn)))
+                          str(turn), attributes.get(RAIL_ATTR) == MANAGED_RAIL))
     spans.sort()
-    routed = [(start, turn) for start, name, turn in spans if name == "routing"]
+    routed = [(start, turn) for start, name, turn, managed in spans
+              if name == "routing" and managed]
     if not routed:
         return Finding("O1", "App spans in CloudWatch", NOT_YET, expected,
-                       "no routing span from the app yet",
+                       "no routing span from a turn on AgentCore yet",
                        next_step="send a request (uv run scripts/lab_run.py send --lab 3), "
                                  "wait about ten seconds and run this again; if it stays empty, "
                                  "grep 'Failed to export span "
@@ -110,8 +122,8 @@ def app_spans(logs: Any, start_ms: int, minutes: int) -> Finding:
                                  "role cannot write traces")
     turns = {turn for _, turn in routed}
     _, newest = routed[-1]
-    names = list(dict.fromkeys(name for _, name, turn in spans if turn == newest))
-    in_turns = sum(1 for _, _, turn in spans if turn in turns)
+    names = list(dict.fromkeys(name for _, name, turn, _ in spans if turn == newest))
+    in_turns = sum(1 for _, _, turn, _ in spans if turn in turns)
     return Finding("O1", "App spans in CloudWatch", PROVED, expected,
                    f"{_plural(in_turns, 'span')} across {_plural(len(turns), 'routed turn')}",
                    [f"newest turn {newest}: {', '.join(names)}"])
@@ -196,10 +208,33 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
     return Finding("O2", "Database Insights on Aurora", PROVED, expected, setting, evidence)
 
 
-def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, minutes: int) -> Finding:
+def _utc(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+
+def since_lab_3(cluster: Optional[Dict[str, Any]], window_start: datetime,
+                minutes: int) -> Tuple[datetime, str]:
+    """Where O1 and O3 start reading, and the words for it.
+
+    Lab 3's check refuses the write, and Lab 4's first step sends the last turn, often well
+    over an hour before Lab 4 reads them back. No earlier step makes row-level security
+    refuse a write, so reading from the cluster's creation starts, in effect, at Lab 3. A
+    Lab 3 reset starts it at the reset, as the lab's own checks do. Without a cluster
+    description, the window is all there is.
+    """
+    reset = reset_point(3)
+    if reset is not None:
+        return reset, f"since Lab 3 was reset at {_utc(reset)}"
+    created = (cluster or {}).get("ClusterCreateTime")
+    if isinstance(created, datetime):
+        return created, f"since the cluster was created at {_utc(created)}"
+    return window_start, f"within the last {minutes} minutes"
+
+
+def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, since: str) -> Finding:
     """O3: a refused write in the cluster's PostgreSQL log, exported to CloudWatch."""
     group = f"/aws/rds/cluster/{cluster['DBClusterIdentifier']}/postgresql"
-    expected = (f"an ERROR '{RLS_REFUSAL}' in {group} within the last {minutes} minutes; "
+    expected = (f"an ERROR '{RLS_REFUSAL}' in {group} {since}; "
                 "the log line does not print the SQLSTATE")
     if "postgresql" not in (cluster.get("EnabledCloudwatchLogsExports") or []):
         return Finding("O3", "Refused writes in the PostgreSQL log", CONTRADICTED, expected,
@@ -232,25 +267,32 @@ def check(logs: Any, rds: Any, pi: Any, cluster_arn: str, minutes: int,
           now: Optional[datetime] = None) -> List[Finding]:
     """The three findings, in order. Reads only."""
     now = now or datetime.now(timezone.utc)
-    start_ms = int((now.timestamp() - minutes * 60) * 1000)
-    findings = [app_spans(logs, start_ms, minutes)]
+    window_start = now - timedelta(minutes=minutes)
+    cluster: Optional[Dict[str, Any]] = None
+    unreadable = ""
     try:
         cluster = rds.describe_db_clusters(DBClusterIdentifier=cluster_arn)["DBClusters"][0]
     except Exception as exc:  # noqa: BLE001 - both database findings say why
-        observed = f"could not describe {cluster_id(cluster_arn) or 'the cluster'}: {aws_code(exc)}"
+        name = cluster_id(cluster_arn) or "the cluster"
+        unreadable = f"could not describe {name}: {aws_code(exc)}"
+    start, since = since_lab_3(cluster, window_start, minutes)
+    start_ms = int(start.timestamp() * 1000)
+    findings = [app_spans(logs, start_ms, since)]
+    if cluster is None:
         return findings + [
             Finding("O2", "Database Insights on Aurora", UNCHECKED,
-                    "Database Insights in advanced mode", observed),
+                    "Database Insights in advanced mode", unreadable),
             Finding("O3", "Refused writes in the PostgreSQL log", UNCHECKED,
-                    "a refused write in the exported PostgreSQL log", observed)]
+                    "a refused write in the exported PostgreSQL log", unreadable)]
     return findings + [database_insights(rds, pi, cluster, minutes, now),
-                       postgresql_log(logs, cluster, start_ms, minutes)]
+                       postgresql_log(logs, cluster, start_ms, since)]
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--minutes", type=int, default=60, help="how far back to read")
+    parser.add_argument("--minutes", type=int, default=60,
+                        help="how far back Database Insights reads (O2)")
     args = parser.parse_args()
 
     import boto3
@@ -263,11 +305,11 @@ def main() -> int:
               file=sys.stderr)
         return 1
     region = cluster_arn.split(":")[3]  # the cluster's own Region, where its evidence lives
-    findings = check(boto3.client("logs", region_name=region),
-                     boto3.client("rds", region_name=region),
-                     boto3.client("pi", region_name=region), cluster_arn, args.minutes)
-    print(f"Observability outside AgentCore's trace, last {args.minutes} minutes "
-          f"({time.strftime('%H:%M:%S')})")
+    print(f"Observability outside AgentCore's trace ({time.strftime('%H:%M:%S')})", flush=True)
+    with waiting("Reading CloudWatch and Database Insights", typical=6):
+        findings = check(boto3.client("logs", region_name=region),
+                         boto3.client("rds", region_name=region),
+                         boto3.client("pi", region_name=region), cluster_arn, args.minutes)
     for finding in findings:
         print()
         print(render(finding))

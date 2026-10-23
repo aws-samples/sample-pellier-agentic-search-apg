@@ -51,6 +51,8 @@ ATTR_PERSONA_SIMULATED = "pellier.persona_is_simulated"
 ATTR_CALLER = "pellier.caller"
 ATTR_EXECUTION_OUTCOME = "pellier.execution_outcome"
 ATTR_TOOL = "pellier.tool"
+# Where the turn ran: "in-process" (Labs 1 and 2) or "gateway-mcp" (AgentCore, from Lab 3).
+ATTR_RAIL = "pellier.rail"
 
 # The teaching boundaries. Span names are also a participant contract.
 SPAN_ROUTING = "routing"
@@ -89,6 +91,7 @@ def evidence_attributes(
     caller: Optional[str] = None,
     execution_outcome: Optional[str] = None,
     tool: Optional[str] = None,
+    rail: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Build the canonical attribute dict, omitting anything absent.
 
@@ -105,6 +108,7 @@ def evidence_attributes(
         ATTR_CALLER: caller,
         ATTR_EXECUTION_OUTCOME: execution_outcome,
         ATTR_TOOL: tool,
+        ATTR_RAIL: rail,
     }
     return {key: value for key, value in candidates.items() if value is not None}
 
@@ -164,14 +168,16 @@ def routing_span(
     principal_sub: Optional[str] = None,
     authenticated: Optional[bool] = None,
     persona_is_simulated: Optional[bool] = None,
+    rail: Optional[str] = None,
 ) -> Iterator[Optional[Any]]:
-    """The intent-classification boundary."""
+    """The intent-classification boundary, tagged with the rail the turn runs on."""
     with evidence_span(
         SPAN_ROUTING,
         turn_id=turn_id,
         principal_sub=principal_sub,
         authenticated=authenticated,
         persona_is_simulated=persona_is_simulated,
+        rail=rail,
     ) as span:
         yield span
 
