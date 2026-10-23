@@ -2,12 +2,14 @@
 """Keep the generated workshop staff credential in the managed test secret.
 
 The bootstrap, health gate, and Lab 4 proof must use the same credential source.
-Values arrive through the process environment and are never printed.
+The password arrives on stdin and the other values through the environment; none is
+printed. sudo logs its command line, so the password is never an argument.
 """
 from __future__ import annotations
 
 import json
 import os
+import sys
 
 
 def store(client, secret_id: str, username: str, password: str) -> None:
@@ -30,7 +32,7 @@ if __name__ == "__main__":
         store(
             boto3.client("secretsmanager", region_name=os.environ["AWS_REGION"]),
             os.environ["COGNITO_TEST_CREDENTIALS_SECRET_ARN"],
-            os.environ["OPERATOR_USERNAME"], os.environ["OPERATOR_PASSWORD"],
+            os.environ["OPERATOR_USERNAME"], sys.stdin.read().rstrip("\n"),
         )
     except Exception as exc:
         raise SystemExit(f"Could not store workshop staff credential: {type(exc).__name__}") from None

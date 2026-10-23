@@ -169,34 +169,41 @@ def test_stage2_has_no_ambient_python_call_or_system_python_assignment():
     assert "update-alternatives" not in STAGE2
 
 
-def test_operator_secret_write_uses_participant_site_and_literal_environment(tmp_path):
-    command = STAGE2.split('        if ! sudo -u "$CODE_EDITOR_USER" env \\\n', 1)[1]
-    command = 'sudo -u "$CODE_EDITOR_USER" env \\\n' + command.split("; then", 1)[0]
+def test_operator_secret_write_uses_participant_site_and_keeps_the_password_off_argv(tmp_path):
+    """sudo logs its command line to the journal, and any user can list it while it runs, so
+    the staff password goes in on stdin, never as an argument (event 13's journal held it)."""
+    call = "printf '%s' \"$OPERATOR_PASSWORD\" | sudo -u \"$CODE_EDITOR_USER\" env \\\n"
+    command = call + STAGE2.split("        if ! " + call, 1)[1].split("; then", 1)[0]
     # This exact call must select the intended helper, not a nearby sudo command.
     assert "store_operator_credential.py" in command
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
-    capture = tmp_path / "received"
+    capture, logged = tmp_path / "received", tmp_path / "sudo-argv"
     executable = fake_bin / "python3.14"
     executable.write_text(
-        '#!/bin/bash\n[ "$MOCK_RUN_AS" = participant ] || exit 99\n'
-        'printf "%s\\n" "$OPERATOR_USERNAME" "$OPERATOR_PASSWORD" "$AWS_REGION" '
-        '"$COGNITO_TEST_CREDENTIALS_SECRET_ARN" "$*" > "$MOCK_CAPTURE"\n'
+        '#!/bin/bash\n[ "$MOCK_RUN_AS" = participant ] || exit 99\npassword="$(cat)"\n'
+        'printf "%s\\n" "$OPERATOR_USERNAME" "$password" "$AWS_REGION" '
+        '"$COGNITO_TEST_CREDENTIALS_SECRET_ARN" "${OPERATOR_PASSWORD-unset}" "$*" '
+        '> "$MOCK_CAPTURE"\n'
     )
     executable.chmod(0o755)
     password = 'synthetic $(touch SHOULD_NOT_EXIST); `false` $VALUE "quoted"'
+    # A shell variable, as in the bootstrap: never exported, so only stdin can carry it.
     result = run(
-        'sudo() { [ "$1" = -u ]; export MOCK_RUN_AS="$2"; shift 2; "$@"; }\n' + command,
+        f"OPERATOR_PASSWORD={shlex.quote(password)}\n"
+        'sudo() { printf "%s\\n" "$*" > "$MOCK_SUDO_ARGV"; [ "$1" = -u ]; '
+        'export MOCK_RUN_AS="$2"; shift 2; "$@"; }\n' + command,
         PATH=f"{fake_bin}:/usr/bin:/bin", CODE_EDITOR_USER="participant",
-        REPO_PATH=str(tmp_path), OPERATOR_USERNAME="nadia", OPERATOR_PASSWORD=password,
+        REPO_PATH=str(tmp_path), OPERATOR_USERNAME="nadia",
         AWS_REGION="us-east-1", COGNITO_TEST_CREDENTIALS_SECRET_ARN="synthetic-secret",
-        MOCK_CAPTURE=str(capture),
+        MOCK_CAPTURE=str(capture), MOCK_SUDO_ARGV=str(logged),
     )
     assert result.stdout == result.stderr == ""
     assert capture.read_text().splitlines() == [
-        "nadia", password, "us-east-1", "synthetic-secret",
+        "nadia", password, "us-east-1", "synthetic-secret", "unset",
         f"{tmp_path}/scripts/store_operator_credential.py",
     ]
+    assert password not in logged.read_text() and "OPERATOR_PASSWORD" not in logged.read_text()
     assert not (REPO / "SHOULD_NOT_EXIST").exists()
 
 

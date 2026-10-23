@@ -1719,12 +1719,14 @@ if [ -n "$(_pool_id)" ]; then
          --username "$OPERATOR_USERNAME" --region "$AWS_REGION" \
          --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
          | grep -q "$OPERATOR_GROUP"; then
-        # boto3 belongs to the participant's Python 3.14 user site. Pass the
-        # credential as literal environment data, never through a shell string.
-        if ! sudo -u "$CODE_EDITOR_USER" env \
+        # boto3 belongs to the participant's Python 3.14 user site. The other values
+        # go as literal environment data, never through a shell string; the password
+        # goes on stdin, because sudo logs its command line to the journal and any
+        # user can list that command line while it runs.
+        if ! printf '%s' "$OPERATOR_PASSWORD" | sudo -u "$CODE_EDITOR_USER" env \
             AWS_REGION="$AWS_REGION" \
             COGNITO_TEST_CREDENTIALS_SECRET_ARN="$COGNITO_TEST_CREDENTIALS_SECRET_ARN" \
-            OPERATOR_USERNAME="$OPERATOR_USERNAME" OPERATOR_PASSWORD="$OPERATOR_PASSWORD" \
+            OPERATOR_USERNAME="$OPERATOR_USERNAME" \
             python3.14 "$REPO_PATH/scripts/store_operator_credential.py"; then
             fail "Could not persist the staff credential for readiness and Lab 4"
         fi

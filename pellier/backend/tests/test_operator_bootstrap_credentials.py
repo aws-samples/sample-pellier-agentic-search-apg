@@ -1,5 +1,8 @@
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -47,3 +50,43 @@ def test_nadia_is_the_staff_user_everywhere_she_is_provisioned():
     # The shopper filter follows the configured staff name; no literal is left.
     assert '!="operator"' not in gate and '!="nadia"' not in gate
     assert 'ROLE_LABEL[5]="Staff (Nadia)' in credentials
+
+
+def test_the_script_takes_the_password_from_stdin(tmp_path):
+    """The staff password reaches the secret from stdin; it is never an argument."""
+    fake = tmp_path / "boto3"
+    fake.mkdir()
+    (fake / "__init__.py").write_text(
+        "import json, os\n"
+        "class _Client:\n"
+        "    def get_secret_value(self, SecretId):\n"
+        "        return {'SecretString': json.dumps({'users': []})}\n"
+        "    def put_secret_value(self, SecretId, SecretString):\n"
+        "        open(os.environ['MOCK_SECRET'], 'w').write(SecretString)\n"
+        "def client(service, region_name):\n"
+        "    return _Client()\n"
+    )
+    saved = tmp_path / "secret.json"
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/store_operator_credential.py")],
+        input="synthetic-staff-password", text=True, capture_output=True,
+        env={"PATH": os.environ["PATH"], "PYTHONPATH": str(tmp_path), "AWS_REGION": "us-east-1",
+             "COGNITO_TEST_CREDENTIALS_SECRET_ARN": "synthetic-secret",
+             "OPERATOR_USERNAME": "nadia", "MOCK_SECRET": str(saved)},
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout == result.stderr == ""
+    assert json.loads(saved.read_text())["users"] == [
+        {"username": "nadia", "password": "synthetic-staff-password"}]
+
+
+def test_the_script_refuses_an_empty_password(tmp_path):
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/store_operator_credential.py")],
+        input="", text=True, capture_output=True,
+        env={"PATH": os.environ["PATH"], "PYTHONPATH": str(tmp_path), "AWS_REGION": "us-east-1",
+             "COGNITO_TEST_CREDENTIALS_SECRET_ARN": "synthetic-secret",
+             "OPERATOR_USERNAME": "nadia"},
+    )
+    assert result.returncode != 0
+    assert "Could not store workshop staff credential" in result.stderr
