@@ -9,11 +9,9 @@ deploy never leaves a stale one; a deploy that ends normally records its exit co
 Code Editor gives every new window a new terminal, and a deploy started in an earlier window
 keeps running in a terminal the new one does not show. So a second participant deploy follows
 the first instead of starting beside it: it replays the log, prints new lines as they arrive,
-and ends with the first deploy's result. A new terminal says when a deploy is running, and a
-reset refuses to start during one:
-
-    python3 scripts/deploy_lock.py --notice
-    python3 scripts/deploy_lock.py --refuse-if-running
+and ends with the first deploy's result. A new terminal says when a deploy is running
+(``--notice``, from scripts/open-workshop-terminal.sh), and the whole-workshop reset refuses to
+start during one (``--refuse-if-running``, from scripts/reset-governed-workshop.sh).
 
 Standard library only, so a new terminal can ask without loading the provisioner.
 """

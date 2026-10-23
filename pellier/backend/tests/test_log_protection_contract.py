@@ -137,7 +137,8 @@ def test_wrong_key_location_is_rejected_before_provider_access(provisioner, monk
 def test_key_verification_precedes_first_provisioning_mutation(provisioner):
     import inspect
 
-    source = inspect.getsource(provisioner.main)
+    # main() takes the deploy lock and hands the provisioning flow to _provision().
+    source = inspect.getsource(provisioner._provision)
     assert source.index("_verify_log_kms_key(") < source.index("_ensure_data_api_enabled(")
     assert source.index("_verify_log_kms_key(") < source.index("_deploy_lambdas(")
 
