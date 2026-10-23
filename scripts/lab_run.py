@@ -38,6 +38,11 @@ the lab's checks ignore turns from before it (scripts/lab_reset.py has the detai
 
     uv run scripts/lab_run.py reset --lab 2
 
+``restart`` restarts the backend so it serves an edited file, as ``sudo systemctl restart
+pellier`` does, with a bar while it runs and until the backend answers:
+
+    uv run scripts/lab_run.py restart
+
 A third action is for whoever is helping a stuck participant, and the guide
 does not show it. ``diff`` prints what ``solution`` would change, without
 changing it: a unified diff per task file, the finished version as '-' lines
@@ -165,6 +170,9 @@ POLICY_TYPICAL_SECONDS = 60
 # systemctl restart returns once the unit's ExecStartPre frontend build is done: about 13 s
 # on the 2026-10-21 test event.
 RESTART_TYPICAL_SECONDS = 15
+# A managed turn's steps arrive in one batch at the end: 20 s, 14 s and 5 s for Lab 3's three
+# requests on event 12 (2026-10-23).
+TURN_TYPICAL_SECONDS = 20
 TURN_TIMEOUT_SECONDS = 300
 
 
@@ -520,14 +528,15 @@ def send_turn(backend: Backend, token: str, body: Dict[str, Any],
               trace: bool = False) -> Dict[str, Any]:
     """One Ask Pellier turn; returns the complete event's response, printing its trace."""
     shown: set = set()
-    for name, event in backend.stream("/api/chat/stream", body, token):
-        if name == "error" or event.get("type") == "error":
-            reason = event.get("error") or event.get("message") or json.dumps(event)
-            raise LabRunError(f"the turn failed: {reason}")
-        if trace:
-            trace_event(event, shown)
-        if event.get("type") == "complete":
-            return event.get("response") or {}
+    with waiting("Waiting for Pellier's answer", typical=TURN_TYPICAL_SECONDS):
+        for name, event in backend.stream("/api/chat/stream", body, token):
+            if name == "error" or event.get("type") == "error":
+                reason = event.get("error") or event.get("message") or json.dumps(event)
+                raise LabRunError(f"the turn failed: {reason}")
+            if trace:
+                trace_event(event, shown)
+            if event.get("type") == "complete":
+                return event.get("response") or {}
     raise LabRunError("the turn ended without a complete event")
 
 
@@ -911,7 +920,8 @@ def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
-    parser.add_argument("action", choices=("solution", "send", "diff", "reset", "finish", "fast-track"))
+    parser.add_argument("action", choices=("solution", "send", "diff", "reset", "finish",
+                                           "fast-track", "restart"))
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4),
                         help="required except for fast-track, which finishes Labs 1 and 2")
     parser.add_argument("--shopper-only", action="store_true",
@@ -921,9 +931,9 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     parser.add_argument("--task", choices=TASKS,
                         help="solution: only that task's answer; send: only that task's request")
     args = parser.parse_args(argv)
-    if args.action == "fast-track":
+    if args.action in ("fast-track", "restart"):
         if args.lab is not None or args.task or args.shopper_only or args.quiet:
-            parser.error("fast-track finishes Labs 1 and 2 and takes no options")
+            parser.error(f"{args.action} takes no options")
     elif args.lab is None:
         parser.error(f"--lab is required for {args.action}")
     if args.task:
@@ -940,11 +950,15 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
               "finish": "finish the lab with its answers and prove it"}
     if args.action == "fast-track":
         print("Fast track: finish Labs 1 and 2", flush=True)
+    elif args.action == "restart":
+        print("Restart the backend so it serves your edits", flush=True)
     else:
         print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
     try:
         if args.action == "fast-track":
             fast_track(Backend(base_url), token_for)
+        elif args.action == "restart":
+            restart_backend(Backend(base_url))
         elif args.action == "diff":
             show_diff(args.lab, color=sys.stdout.isatty() and "NO_COLOR" not in os.environ)
         elif args.action == "solution" and args.task:

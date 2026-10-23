@@ -52,6 +52,7 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 SCRIPTS = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import workshop_check as check  # noqa: E402  (sibling module)
+from wait_progress import waiting  # noqa: E402  (sibling module)
 
 REPO = check.REPO
 BACKEND = REPO / "pellier" / "backend"
@@ -644,9 +645,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                              "managed turns")
     if parser.parse_args(argv).task == "3A":
         return main_3a()
-    findings = collect()
     print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory, the Gateway "
-          "and the row policies")
+          "and the row policies", flush=True)
+    with waiting("Reading tool_audit, AgentCore Memory, the Gateway and the row policies",
+                 typical=4):
+        findings = collect()
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PROVED for finding in findings)

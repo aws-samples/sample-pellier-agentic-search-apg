@@ -58,6 +58,7 @@ Connect = Callable[[Dict[str, str]], Any]
 SCRIPTS = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
 import workshop_check as check  # noqa: E402  (sibling module)
+from wait_progress import waiting  # noqa: E402  (sibling module)
 
 REPO = check.REPO
 BACKEND = REPO / "pellier" / "backend"
@@ -420,7 +421,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--save", help="also write the report to this file")
     args = parser.parse_args(argv)
-    findings = collect()
+    with waiting("Reading the evidence for the eight tasks", typical=4):
+        findings = collect()
     report = render_report(findings)
     print(report)
     if args.save:
