@@ -32,6 +32,14 @@ JESSICA_ORDERS = [
      "return_status": None, "store_credit_id": None},
 ]
 
+# The policy rows the stand-in serves, by department; the default stands in for any other.
+HOME_POLICIES = {
+    "Home": {"category_name": "Home", "return_window_days": 30,
+             "conditions": "Unused", "refund_method": "original payment"},
+    "default": {"category_name": "default", "return_window_days": 30,
+                "conditions": "Unworn", "refund_method": "Original payment method"},
+}
+
 JESSICA_REASON = (
     "Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); "
     "Reed Diffuser (order 302)."
@@ -45,9 +53,11 @@ class _Run:
         self,
         orders: List[Dict[str, Any]] | None = None,
         credits: List[Dict[str, Any]] | None = None,
+        policies: Dict[str, Dict[str, Any]] | None = None,
     ) -> None:
         self.orders = [dict(o) for o in (orders if orders is not None else JESSICA_ORDERS)]
         self.credits = [dict(c) for c in (credits or [])]
+        self.policies = dict(policies or HOME_POLICIES)
         self.calls: List[tuple[str, tuple[Any, ...]]] = []
         # Statements that ran as pellier_agent with the customer named.
         self.scoped_calls: List[tuple[str, tuple[Any, ...]]] = []
@@ -79,8 +89,7 @@ class _Run:
                      "status": "open", "channel": "chat", "last_note": "Both were received.",
                      "opened_at": None, "resolved_at": None}]
         if "FROM pellier.return_policies" in sql:
-            return [{"category_name": "Home", "return_window_days": 30,
-                     "conditions": "Unused", "refund_method": "original payment"}]
+            return [dict(self.policies.get(params[0]) or self.policies["default"])]
         if "FROM pellier.store_credits" in sql:
             return [dict(c) for c in self.credits][: params[1]]
         if "INSERT INTO pellier.approvals" in sql:
@@ -239,7 +248,7 @@ def graph_runtime(monkeypatch: pytest.MonkeyPatch):
     _FakeAgent.scripts = {
         GRAPH.INVESTIGATOR_NODE: [
             ("get_tickets", {}), ("get_orders", {}), ("get_store_credits", {}),
-            ("get_return_policy", {"department": "Home"}),
+            ("get_return_policy", {}),
         ],
         GRAPH.PLANNER_NODE: [("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back, no credit recorded."})],
     }
@@ -718,3 +727,68 @@ def test_a_read_still_out_when_the_graph_timed_out_ends_failed(
     assert [event["status"] for event in orders] == ["running", "failed"]
     assert orders[-1]["finding"] == "The investigation stopped before this read finished"
     assert orders[-1]["builder"]["outcome"] == "failed"
+
+
+STORE_POLICIES = {
+    "Bath and body": {"category_name": "Bath and body", "return_window_days": 30,
+                      "conditions": "Unopened",
+                      "refund_method": "Original payment method or store credit"},
+    "Home": {"category_name": "Home", "return_window_days": 45,
+             "conditions": "Unused", "refund_method": "Original payment method or store credit"},
+    "default": {"category_name": "default", "return_window_days": 30,
+                "conditions": "Unworn", "refund_method": "Original payment method"},
+}
+
+
+def _case(run: _Run) -> GRAPH._Case:
+    return GRAPH._Case(run=run, run_customer=run, customer_id="CUST-JESSICA",
+                       customer_name="Jessica Nakamura", operator_sub="sub-nadia",
+                       turn_id="turn-" + "a" * 32, emit=lambda _event: None)
+
+
+def test_the_policy_read_follows_the_departments_the_client_returned_from(graph_runtime) -> None:
+    """The robe went back to Bath and body and the diffuser to Home: both policies are read,
+    and the Kitchen and table order that never went back is not."""
+    orders = [
+        {**JESSICA_ORDERS[0], "category": "Bath and body"},
+        {**JESSICA_ORDERS[1], "category": "Home"},
+        {**JESSICA_ORDERS[2], "category": "Kitchen and table"},
+    ]
+    run = _Run(orders=orders, policies=STORE_POLICIES)
+    events: List[Dict[str, Any]] = []
+    _investigate(run, events)
+
+    asked = [params[0] for sql, params in run.calls if "FROM pellier.return_policies" in sql]
+    assert asked == ["Bath and body", "Home"]
+    policies = GRAPH.read_return_policies(_case(_Run(orders=orders, policies=STORE_POLICIES)))
+    assert [(p["department"], p["policy"], p["refund_method"]) for p in policies["policies"]] == [
+        ("Bath and body", "Bath and body", "Original payment method or store credit"),
+        ("Home", "Home", "Original payment method or store credit"),
+    ]
+    done = {e["id"]: e for e in events if e["status"] == "done"}
+    assert done["get_return_policy"]["finding"] == (
+        "30-day returns for Bath and body, 45-day for Home")
+
+
+def test_a_department_with_no_policy_of_its_own_reads_the_default() -> None:
+    orders = [{**JESSICA_ORDERS[0], "category": "Stationery and gifts"}]
+    policies = GRAPH.read_return_policies(_case(_Run(orders=orders, policies=STORE_POLICIES)))
+    assert [(p["department"], p["policy"], p["refund_method"]) for p in policies["policies"]] == [
+        ("Stationery and gifts", "default", "Original payment method"),
+    ]
+
+
+def test_with_nothing_returned_the_policy_read_is_the_store_wide_default() -> None:
+    orders = [{**JESSICA_ORDERS[2], "category": "Kitchen and table"}]
+    policies = GRAPH.read_return_policies(_case(_Run(orders=orders, policies=STORE_POLICIES)))
+    entries = [(p["department"], p["policy"]) for p in policies["policies"]]
+    assert entries == [("default", "default")]
+    assert GRAPH.finding_for("get_return_policy", policies) == "30-day returns, store-wide"
+
+
+def test_the_model_names_no_department_for_the_policy_read(graph_runtime) -> None:
+    """A department the model chose could miss the one a returned item came from."""
+    _investigate(_Run(), [])
+    investigator, _planner = (agent for agent, _ in _FakeBuilder.latest.nodes)
+    schema = investigator.tools["get_return_policy"].tool_spec["inputSchema"]["json"]
+    assert schema.get("properties", {}) == {}

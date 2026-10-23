@@ -4,8 +4,10 @@ The Investigator reads the case with bounded reads, read-only and bound to
 one customer: ``get_orders``, ``get_tickets`` and ``get_return_policy`` from
 ``services/store_tools.py``, and the client's store credits. The orders and
 tickets are read as ``pellier_agent`` with the client named, so row-level
-security holds the Investigator to that one client. It states what the records
-show and what is missing. The Advisor proposes exactly one
+security holds the Investigator to that one client. The policy read follows the
+departments the client's own returned orders come from, so the model never
+chooses which policy governs a return. It states what the records show and what
+is missing. The Advisor proposes exactly one
 ``give_store_credit`` through its one tool, which computes the amount and
 writes the credit's reason from the client's orders whose return was received
 and that no credit or live review already covers, whatever orders the Advisor
@@ -87,10 +89,12 @@ Rules:
 - facts: at most five short sentences, each stating something the records
   show: what was ordered and paid, which orders the records mark as returned
   (the "returned" field, not the ticket's wording), what the open ticket says,
-  which store credits are recorded, the return window. Name items and amounts
-  exactly as the records give them.
+  which store credits are recorded, and the return window and refund method of
+  each department an item went back to. Name items and amounts exactly as the
+  records give them.
 - missing: at most three short sentences on what the records do not show,
-  such as a returned item with no store credit recorded for it.
+  such as a returned item with no store credit recorded for it. Name only what
+  your reads returned no record of; never a record you did not read.
 - Do not recommend an action, write to the client, or guess at anything the
   records do not contain.
 """
@@ -241,11 +245,18 @@ def finding_for(tool: str, parsed: Dict[str, Any]) -> str:
         noun = "store credit" if count == 1 else "store credits"
         return f"{count} {noun} recorded, {_money(parsed.get('total_cents'))}"
     if tool == "get_return_policy":
-        if parsed.get("status") == "not_found":
+        found = [p for p in parsed.get("policies") or []
+                 if isinstance(p, dict) and p.get("status") != "not_found"]
+        if not found:
             return "No return policy found"
-        days = int(parsed.get("return_window_days") or 0)
-        department = str(parsed.get("department") or "default")
-        return f"{days}-day returns, store-wide" if department == "default" else f"{days}-day returns for {department}"
+        first, *rest = found
+        days = int(first.get("return_window_days") or 0)
+        department = str(first.get("department") or "default")
+        line = (f"{days}-day returns, store-wide" if department == "default"
+                else f"{days}-day returns for {department}")
+        return line + "".join(
+            f", {int(p.get('return_window_days') or 0)}-day for {p.get('department')}" for p in rest
+        )
     return "Done"
 
 
@@ -419,6 +430,35 @@ def read_store_credits(run: Run, *, customer_id: str, limit: Any = 5) -> Dict[st
     }
 
 
+def read_return_policies(case: _Case) -> Dict[str, Any]:
+    """The return policy of each department this client returned an item from.
+
+    The departments come from the client's own orders, read as ``get_orders``
+    reads them, so the brief cites the policy that governs each return rather
+    than one the model guessed or the store-wide default it falls back to. A
+    department with no policy of its own reads the default, and ``policy`` says
+    so. With nothing returned, the read is the store-wide default.
+    """
+    orders = store_tools.get_orders(case.run_customer, customer_id=case.customer_id)["orders"]
+    returned = [order for order in orders if order.get("returned") and order.get("category")]
+    departments = sorted({str(order["category"]) for order in returned}) or ["default"]
+    policies: List[Dict[str, Any]] = []
+    for department in departments:
+        policy = store_tools.get_return_policy(case.run, department=department)
+        if policy.get("status") != "success":
+            policies.append({"department": department, "status": "not_found"})
+            continue
+        policies.append({
+            "department": department,
+            "policy": policy["department"],
+            "return_window_days": policy["return_window_days"],
+            "conditions": policy["conditions"],
+            "refund_method": policy["refund_method"],
+        })
+    return {"status": "success", "customer_id": case.customer_id, "count": len(policies),
+            "policies": policies}
+
+
 def _investigator_tools(case: _Case) -> list:
     """The four read-only reads, bound to this customer by closure.
 
@@ -457,13 +497,10 @@ def _investigator_tools(case: _Case) -> list:
         return _reply(read_store_credits(case.run, customer_id=case.customer_id, limit=limit))
 
     @tool
-    def get_return_policy(department: str = "default") -> str:
-        """Read the return window and refund method for a store department.
-
-        Args:
-            department: Store department name, such as "Home" or "Clothing".
-        """
-        return _reply(store_tools.get_return_policy(case.run, department=department))
+    def get_return_policy() -> str:
+        """Read the return window and refund method of each department this client
+        returned an item from."""
+        return _reply(read_return_policies(case))
 
     return [get_orders, get_tickets, get_store_credits, get_return_policy]
 
