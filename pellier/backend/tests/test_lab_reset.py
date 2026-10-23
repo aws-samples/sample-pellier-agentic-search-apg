@@ -253,6 +253,33 @@ def test_lab_four_refuses_after_a_credit_and_changes_nothing(tmp_path: Path) -> 
     assert conn.closed
 
 
+def test_a_reset_refuses_while_a_deploy_runs_and_changes_nothing(tmp_path: Path) -> None:
+    # Event 12 (2026-10-23): a Lab 3 reset during a deploy restored the files, then its starter
+    # deploy was refused by the deploy lock and it said to reset the whole workshop.
+    import deploy_lock
+
+    repo = make_repo(tmp_path)
+    for exercise in all_exercises():
+        edit(repo, exercise)
+    conn = FakeConnection(credits=0)
+    events: List[str] = []
+    held = deploy_lock.hold(deploy_lock.lock_path(repo / ".agentcore-project" / "pellier"),
+                            "participant")
+    try:
+        with pytest.raises(lab_reset.LabResetError) as refused:
+            run_reset(3, repo, conn, events)
+    finally:
+        held.release(0)
+
+    message = " ".join(str(refused.value).split())
+    assert message.startswith("A deploy is already running: a deploy of your changes")
+    assert message.endswith("Wait for it to finish, then run the reset again. Nothing was changed.")
+    assert exercises._check(repo, 3) != []
+    assert events == []
+    assert conn.statements == []
+    assert check.reset_point(3) is None
+
+
 def test_lab_four_resets_while_no_credit_exists(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     for exercise in all_exercises():

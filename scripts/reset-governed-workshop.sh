@@ -323,6 +323,16 @@ _clear_quarantine() {
 
 # Run AFTER quiescing. After it, the only sessions left are ones this script does not
 # control, and the rebuild must not run underneath them.
+# A deploy still running, perhaps in a Code Editor window that was closed, would refuse the
+# starter redeploy below, and that refusal quarantines the box. Ask before stopping anything.
+_assert_no_running_deploy() {
+  [[ -f "$REPO/scripts/deploy_lock.py" ]] || return 0
+  if ! "$PYTHON" "$REPO/scripts/deploy_lock.py" --refuse-if-running --repo "$REPO"; then
+    exit 1
+  fi
+  pass "No deploy is running"
+}
+
 _assert_no_active_execution() {
   local active
   active="$(_psql_scalar "
@@ -394,6 +404,7 @@ _load_restore_functions() {
 echo "Pellier governed reset - $(date '+%H:%M:%S')"
 echo "------------------------------------------------------------"
 
+_assert_no_running_deploy
 _quiesce_services
 _assert_no_active_execution
 _repair_workshop_files

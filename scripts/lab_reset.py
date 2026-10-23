@@ -39,6 +39,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 SCRIPTS = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPTS))
+import deploy_lock  # noqa: E402  (sibling module)
 import reset_participant_exercises as exercises  # noqa: E402  (sibling module)
 import workshop_check as check  # noqa: E402  (sibling module)
 from wait_progress import waiting  # noqa: E402  (sibling module)
@@ -287,6 +288,10 @@ def reset_lab(
     """
     began = time.monotonic()
     steps: List[Step] = []
+    # A running deploy would refuse the reset's own redeploy halfway through, so ask first.
+    busy = deploy_lock.running_message(repo)
+    if busy:
+        raise LabResetError(deploy_lock.wrapped(f"{busy} {deploy_lock.REFUSE_RESET}"))
     conn = _open(connect)
     try:
         if lab == 4:

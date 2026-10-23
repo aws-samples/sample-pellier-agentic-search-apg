@@ -14,6 +14,9 @@ Each numbered Explorer group has the files you edit, a README and solutions.
 This terminal starts at the repository root. Follow the guide's checks.
 WELCOME
 
+# Each new Code Editor window opens a new terminal; say so when a deploy runs in an older one.
+"$(command -v python3.14 || command -v python3)" scripts/deploy_lock.py --notice 2>/dev/null || true
+
 # Retry on the next terminal if the editor CLI was not ready on first open.
 if [ ! -f .local/code-editor-started ]; then
     if code --reuse-window "$REPO_PATH/START_HERE.md" >/dev/null 2>&1; then

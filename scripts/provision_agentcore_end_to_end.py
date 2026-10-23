@@ -43,6 +43,7 @@ for _path in (SCRIPTS_DIR, DEPLOY_DIR):
         sys.path.insert(0, str(_path))
 
 from wait_progress import Progress  # noqa: E402
+import deploy_lock  # noqa: E402
 from gateway_tool_schemas import (  # noqa: E402
     STAFF_ONLY_GATEWAY_TOOLS,
     TOOL_SCHEMAS,
@@ -183,6 +184,19 @@ STEP_SECONDS = {
     "smoke": 25,
     "move": 45,
 }
+
+
+def participant_typical(steps: int | None) -> float:
+    """How long a participant deploy of this many steps usually takes, for a follower's bar.
+
+    Four steps when nothing new is published and Pellier is already on AgentCore (Lab 4); a
+    fifth publishes the policies for newly published tools; a sixth moves Pellier onto
+    AgentCore (Lab 3). Unknown counts as the longest.
+    """
+    four = (STEP_SECONDS["check"] + STEP_SECONDS["deploy"] + STEP_SECONDS["gateway"]
+            + STEP_SECONDS["smoke"])
+    longer = {5: STEP_SECONDS["deploy"], 6: STEP_SECONDS["deploy"] + STEP_SECONDS["move"]}
+    return float(four + longer.get(steps or 6, 0))
 
 
 def _redacted(cmd: Sequence[str]) -> list[str]:
@@ -2987,6 +3001,36 @@ def main() -> int:
     # Before the first _require_env, or the fallback cannot help.
     _load_env_fallback(repo)
     identity = deployment_identity()
+    # Before anything is written, so a second run leaves the running deploy's receipt alone.
+    kind = "reset" if args.reset_to_starters else args.mode
+    lock_path = deploy_lock.lock_path(project_root(repo, identity.suffix))
+    try:
+        lock = deploy_lock.hold(lock_path, kind)
+    except deploy_lock.DeployAlreadyRunning as running:
+        if kind != "participant":
+            print(deploy_lock.wrapped(str(running)), file=sys.stderr, flush=True)
+            return 1
+        # A deploy started in a window Code Editor no longer shows: show it here instead.
+        return deploy_lock.follow(lock_path, kind, typical=participant_typical)
+    lock.tee_output()
+    code = 1
+    try:
+        code = _provision(args, repo=repo, deploy_dir=deploy_dir, output_path=output_path,
+                          identity=identity)
+    finally:
+        lock.release(code)
+    return code
+
+
+def _provision(
+    args: argparse.Namespace,
+    *,
+    repo: Path,
+    deploy_dir: Path,
+    output_path: Path,
+    identity: DeploymentIdentity,
+) -> int:
+    """Everything a deploy does once it holds the lock; returns its exit status."""
     region = _require_env("AWS_REGION")
     required = {
         "db_cluster_arn": _require_env("DB_CLUSTER_ARN"),
