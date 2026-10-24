@@ -92,6 +92,25 @@ def test_off_a_terminal_each_step_prints_a_start_and_an_end_line_and_nothing_red
     assert wait_progress.CLEAR_LINE not in out.getvalue()
 
 
+def test_a_named_progress_says_whose_steps_its_counters_count() -> None:
+    """A catch-up runs a deploy that numbers its own steps; its counters must not look alike."""
+    clock, out = Clock(), io.StringIO()
+    progress = wait_progress.Progress(stream=out, now=clock, interval=None, name="Lab 3 step")
+    progress.expect(2)
+    progress.begin("Deploying", typical=215, done="Deployed", animate=False)
+    clock.seconds += 200
+    progress.begin("Sending Theo's requests", typical=40, animate=False)
+    clock.seconds += 3
+    progress.fail()
+
+    assert out.getvalue().splitlines() == [
+        "  - Lab 3 step 1/2  Deploying (usually about 3:35)",
+        "  + 3:20  Lab 3 step 1/2  Deployed",
+        "  - Lab 3 step 2/2  Sending Theo's requests (usually about 0:40)",
+        "  x 0:03  Lab 3 step 2/2  Sending Theo's requests: failed",
+    ]
+
+
 def test_on_a_terminal_the_running_step_is_a_bar_that_its_end_line_replaces() -> None:
     clock, out = Clock(), Terminal()
     progress = wait_progress.Progress(stream=out, now=clock, interval=None)

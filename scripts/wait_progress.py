@@ -173,12 +173,15 @@ class Progress:
         stream: Where the bar and the step lines go; defaults to stdout at the first step.
         now: The clock, for tests.
         interval: Seconds between redraws; ``None`` redraws only on demand, for tests.
+        name: Whose steps the counters count, as in "Lab 3 step 2/6": a run whose step starts a
+            deploy, which numbers its own steps, names its own so the two never look alike.
     """
 
     def __init__(self, title: str = "", *, stream: Optional[TextIO] = None,
                  now: Callable[[], float] = time.monotonic,
-                 interval: Optional[float] = REDRAW_SECONDS) -> None:
+                 interval: Optional[float] = REDRAW_SECONDS, name: str = "") -> None:
         self.title, self._stream, self.now, self.interval = title, stream, now, interval
+        self.name = name
         self.total: Optional[int] = None
         self.number = 0
         self._began = 0.0
@@ -198,7 +201,8 @@ class Progress:
         self.total = total
 
     def counter(self) -> str:
-        return f"{self.number}/{self.total}" if self.total else str(self.number)
+        count = f"{self.number}/{self.total}" if self.total else str(self.number)
+        return f"{self.name} {count}" if self.name else count
 
     def begin(self, label: str, *, typical: float, done: Optional[str] = None,
               animate: bool = True) -> None:

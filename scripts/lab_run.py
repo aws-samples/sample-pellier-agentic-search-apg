@@ -2,7 +2,8 @@
 """Finish a lab with provided answers and checks, or fast-track Labs 1 and 2.
 
 ``finish --lab N`` finishes just the chosen lab, including its backups,
-restart or deployment, requests and checks:
+restart or deployment, requests and checks. It numbers its steps and says how
+long each usually takes, and the fast track counts both labs' steps as one run:
 
     uv run scripts/lab_run.py finish --lab 1
 
@@ -90,12 +91,13 @@ import textwrap
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, Optional,
+                    Sequence, Tuple)
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import deploy_lock  # noqa: E402  (sibling module)
 import lab_reset  # noqa: E402  (sibling module)
-from wait_progress import waiting  # noqa: E402  (sibling module)
+from wait_progress import Progress, clock, waiting  # noqa: E402  (sibling module)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 # The .env the backend loads; send reads its USE_AGENTCORE_RUNTIME before any request.
@@ -960,54 +962,136 @@ class Finish:
         prove_replay(self.backend, nadia, review)
 
 
-def _finish_in_process(job: Finish) -> None:
-    if job.lab == 2:
-        job.command(_psql(EXERCISES[2]))
-    job.restart()
-    send(job.lab, job.backend, job.token_for)
-    job.check(f"{job.lab}A")
-    job.check(f"{job.lab}B")
+class Step(NamedTuple):
+    """One numbered step of a catch-up: what it does, the line it leaves, its usual seconds."""
+
+    label: str
+    done: str
+    typical: float
+    run: Callable[[], None]
 
 
-def _finish_lab_3(job: Finish) -> None:
-    job.check("3A")
-    job.command(_deploy(job.repo))
-    job.command(_psql(EXERCISES[3]))
-    send(3, job.backend, job.token_for)
-    job.check("3B")
+# Usual seconds for the catch-up steps, on event 14 at fe7f321e (2026-10-24): Lab 3's deploy took
+# 3:31 and 3:50, Lab 4's 1:27, Nadia's part 28 s, Theo's three turns 38 s, Anna's two 20 to 28 s
+# and Marco's two 7 s; a restart about 3 s, and each check and SQL file about a second.
+DEPLOY_TYPICAL = {3: 215, 4: 90}
+SEND_TYPICAL = {1: 25, 2: 7, 3: 40}
+CHECK_TYPICAL = {"3B": 5, "4A": 4, "4B": 2}
+RESTART_STEP_TYPICAL = 3
+CREDIT_TYPICAL = 30
+SHOPPERS = {1: "Anna", 2: "Marco", 3: "Theo"}
+WHERE = {IN_PROCESS: "in process", MANAGED: "on AgentCore"}
 
 
-def _finish_lab_4(job: Finish) -> None:
-    job.command(_psql(EXERCISES[4]))
-    job.command(_deploy(job.repo))
-    job.credit()
-    job.check("4A")
-    job.check("4B")
-    job.command(_psql(ABSENCE_QUERY))
+def _answers_step(job: Finish) -> Step:
+    def install() -> None:
+        for task in (t for t in TASKS if t.startswith(str(job.lab))):
+            install_task(task, job.repo, next_line=False)
+    return Step("Putting the lab's answers in place", "Put the lab's answers in place", 1, install)
 
 
-def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
-           run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO) -> None:
-    """Back up the lab's files, put its answers in place, then run what proves them."""
-    # A running deploy ends by moving Pellier onto AgentCore, under a local lab's turns. Labs 3
-    # and 4 deploy themselves, so their deploy follows the running one instead.
+def _check_step(job: Finish, task: str) -> Step:
+    return Step(f"Running Task {task}'s check", f"Task {task}'s check passed",
+                CHECK_TYPICAL.get(task, 1), lambda: job.check(task))
+
+
+def _sql_step(job: Finish, path: str, what: str) -> Step:
+    return Step(f"Running the {what}", f"Ran the {what}", 1, lambda: job.command(_psql(path)))
+
+
+def _deploy_step(job: Finish, what: str) -> Step:
+    return Step(f"Deploying {what} to AgentCore", f"Deployed {what} to AgentCore",
+                DEPLOY_TYPICAL[job.lab], lambda: job.command(_deploy(job.repo)))
+
+
+def _send_step(job: Finish) -> Step:
+    who, where = SHOPPERS[job.lab], WHERE[LAB_RAIL[job.lab]]
+    return Step(f"Sending {who}'s requests {where}", f"{who}'s requests ran {where}",
+                SEND_TYPICAL[job.lab], lambda: send(job.lab, job.backend, job.token_for))
+
+
+def finish_steps(job: Finish) -> List[Step]:
+    """A lab's catch-up, step by step, in the order of the guide's "Running behind?"."""
+    answers, lab = _answers_step(job), job.lab
+    if lab in (1, 2):
+        restart = Step("Restarting the backend", "Restarted the backend", RESTART_STEP_TYPICAL,
+                       job.restart)
+        sql = [_sql_step(job, EXERCISES[2], "Task 2B SQL file")] if lab == 2 else []
+        return [answers, *sql, restart, _send_step(job), _check_step(job, f"{lab}A"),
+                _check_step(job, f"{lab}B")]
+    if lab == 3:
+        return [answers, _check_step(job, "3A"), _deploy_step(job, "the Task 3A files"),
+                _sql_step(job, EXERCISES[3], "Task 3B SQL file"), _send_step(job),
+                _check_step(job, "3B")]
+    credit = Step("Sending Jessica's request and settling the credit",
+                  "Nadia's credit is recorded once, and its replay wrote nothing", CREDIT_TYPICAL,
+                  job.credit)
+    absence = Step("Running the Lab 4 absence check", "Lab 4 absence check passed", 1,
+                   lambda: job.command(_psql(ABSENCE_QUERY)))
+    return [answers, _sql_step(job, EXERCISES[4], "Task 4B SQL file"),
+            _deploy_step(job, "the Cedar rule"), credit, _check_step(job, "4A"),
+            _check_step(job, "4B"), absence]
+
+
+def _numbered(name: str, steps: Sequence[Step]) -> Progress:
+    """A numbered run of steps, after a line with how many there are and how long they take."""
+    print(f"  {len(steps)} steps, usually about {clock(sum(step.typical for step in steps))}",
+          flush=True)
+    progress = Progress(name=name)
+    progress.expect(len(steps))
+    return progress
+
+
+def _run_steps(progress: Progress, steps: Sequence[Step]) -> None:
+    for step in steps:
+        # A step's checks, SQL files and deploys print to the terminal themselves and its waits
+        # draw their own bars, so the step prints a start and an end line rather than a bar.
+        progress.begin(step.label, typical=step.typical, done=step.done, animate=False)
+        try:
+            step.run()
+        except Exception:
+            progress.fail()
+            raise
+    progress.end()
+
+
+def _refuse_while_deploying(lab: int, repo: pathlib.Path) -> None:
+    """A running deploy ends by moving Pellier onto AgentCore, under a local lab's turns. Labs 3
+    and 4 deploy themselves, so their deploy follows the running one instead."""
     busy = deploy_lock.running_message(repo) if LAB_RAIL[lab] == IN_PROCESS else ""
     if busy:
         raise LabRunError(deploy_lock.wrapped(
             f"{busy} Wait for it to finish, then run this again. Nothing was changed."))
-    for task in (t for t in TASKS if t.startswith(str(lab))):
-        install_task(task, repo, next_line=False)
-    job = Finish(lab, backend, token_for, run, repo)
-    {1: _finish_in_process, 2: _finish_in_process, 3: _finish_lab_3, 4: _finish_lab_4}[lab](job)
+
+
+def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
+           run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO,
+           progress: Optional[Progress] = None) -> None:
+    """Back up the lab's files, put its answers in place, then run what proves them.
+
+    Each step prints a numbered line as it starts and another as it ends; ``progress`` counts
+    them as part of a longer run, such as the fast track.
+    """
+    _refuse_while_deploying(lab, repo)
+    steps = finish_steps(Finish(lab, backend, token_for, run, repo))
+    own = progress is None
+    progress = progress or _numbered(f"Lab {lab} step", steps)
+    _run_steps(progress, steps)
+    if own:
+        progress.finish()
     ok(f"Lab {lab} is finished: every check above passed")
 
 
 def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
                run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO) -> None:
     """Finish the two local labs in order; a failure prevents any later lab from starting."""
+    _refuse_while_deploying(1, repo)
+    plans = [finish_steps(Finish(lab, backend, token_for, run, repo)) for lab in (1, 2)]
+    progress = _numbered("Fast track step", [step for plan in plans for step in plan])
     for lab in (1, 2):
         print(f"Lab {lab}: finish with provided answers and checks", flush=True)
-        finish(lab, backend, token_for, run=run, repo=repo)
+        finish(lab, backend, token_for, run=run, repo=repo, progress=progress)
+    progress.finish()
     ok("Fast track complete: all four checks passed. Continue to From local to AgentCore.")
 
 

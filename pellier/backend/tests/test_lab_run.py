@@ -971,6 +971,58 @@ def test_finish_lab_1_installs_restarts_sends_and_checks(fake: FakeBackend, tmp_
         assert (repo / (entry["alias"] + ".bak")).read_text() == "starter\n"
 
 
+FINISH_STEPS = {
+    1: ["Putting the lab's answers in place", "Restarting the backend",
+        "Sending Anna's requests in process", "Running Task 1A's check",
+        "Running Task 1B's check"],
+    2: ["Putting the lab's answers in place", "Running the Task 2B SQL file",
+        "Restarting the backend", "Sending Marco's requests in process",
+        "Running Task 2A's check", "Running Task 2B's check"],
+    3: ["Putting the lab's answers in place", "Running Task 3A's check",
+        "Deploying the Task 3A files to AgentCore", "Running the Task 3B SQL file",
+        "Sending Theo's requests on AgentCore", "Running Task 3B's check"],
+    4: ["Putting the lab's answers in place", "Running the Task 4B SQL file",
+        "Deploying the Cedar rule to AgentCore",
+        "Sending Jessica's request and settling the credit", "Running Task 4A's check",
+        "Running Task 4B's check", "Running the Lab 4 absence check"],
+}
+
+
+def _started(out: str, name: str) -> List[str]:
+    """Each numbered step's label, from the line it prints as it starts."""
+    prefix = f"  - {name} "
+    return [line[len(prefix):].split("  ", 1)[1].rsplit(" (usually", 1)[0]
+            for line in out.splitlines() if line.startswith(prefix)]
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("lab", [1, 2, 3, 4])
+def test_finish_numbers_its_steps_and_says_how_long_each_usually_takes(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str], lab: int,
+) -> None:
+    fake.rail = lab_run.LAB_RAIL[lab]
+    assert _finish(fake, lab, _scratch_repo(tmp_path), Commands()) == 0
+    out = capsys.readouterr().out
+    total = len(FINISH_STEPS[lab])
+    assert _started(out, f"Lab {lab} step") == FINISH_STEPS[lab]
+    assert f"  - Lab {lab} step {total}/{total}  " in out
+    assert out.count(f"  Lab {lab} step ") == total, "each step leaves one end line"
+    summary = next(line for line in out.splitlines() if line.startswith(f"  {total} steps"))
+    assert summary.startswith(f"  {total} steps, usually about ")
+    assert "  Done in " in out
+
+
+@pytest.mark.usefixtures("box")
+def test_a_failed_step_is_marked_failed_and_the_steps_after_it_never_start(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    commands = Commands(failing="lab1_check.py --task 1A")
+    assert _finish(fake, 1, _scratch_repo(tmp_path), commands) == 1
+    out = capsys.readouterr().out
+    assert "Lab 1 step 4/5  Running Task 1A's check: failed" in out
+    assert "Lab 1 step 5/5" not in out and "Done in" not in out
+
+
 @pytest.mark.usefixtures("box")
 def test_finish_keeps_a_finished_task_and_backs_up_only_the_unfinished_one(
     fake: FakeBackend, tmp_path: Path,
@@ -1211,6 +1263,20 @@ def test_fast_track_finishes_both_labs_and_can_repeat_without_losing_backups(
                 assert backup.read_text() == f"participant {task}\n"
                 assert not Path(str(backup) + ".2").exists()
         assert "Fast track complete: all four checks passed" in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("box")
+def test_the_fast_track_counts_both_labs_steps_as_one_run(
+    fake: FakeBackend, recovery_repo: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    lab_run.fast_track(lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                       run=Commands(), repo=recovery_repo)
+    out = capsys.readouterr().out
+    assert _started(out, "Fast track step") == FINISH_STEPS[1] + FINISH_STEPS[2]
+    assert "  11 steps, usually about " in out
+    assert out.index("Lab 1: finish") < out.index("Fast track step 1/11")
+    assert out.index("Lab 2: finish") < out.index("Fast track step 6/11")
+    assert out.count("  Done in ") == 1
 
 
 @pytest.mark.usefixtures("box")
