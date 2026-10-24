@@ -163,13 +163,14 @@ POLICY_ALLOW, POLICY_DENY, POLICY_INCOMPLETE = "ALLOW", "DENY", "EVALUATION_INCO
 HEALTH_WAIT_SECONDS = 120
 POLICY_WAIT_SECONDS = 420
 RETRY_SECONDS = 30
-# Usual durations for the progress bars: a backend restart, and Cedar's first ALLOW after a
-# Lab 4 deploy (35 s to about a minute on the October 2026 test events).
-HEALTH_TYPICAL_SECONDS = 15
+# Usual durations for the progress bars: the backend answering after a restart (about 2 s on
+# event 14, 2026-10-24), and Cedar's first ALLOW after a Lab 4 deploy (35 s to about a minute on
+# the October 2026 test events).
+HEALTH_TYPICAL_SECONDS = 3
 POLICY_TYPICAL_SECONDS = 60
-# systemctl restart returns once the unit's ExecStartPre frontend build is done: about 13 s
-# on the 2026-10-21 test event.
-RESTART_TYPICAL_SECONDS = 15
+# systemctl restart returns once the unit's ExecStartPre steps are done: 0.4 s on event 14 with
+# the frontend bundle current, about 14 s on the start that has to build it.
+RESTART_TYPICAL_SECONDS = 2
 # A managed turn's steps arrive in one batch at the end: 20 s, 14 s and 5 s for Lab 3's three
 # requests on event 12 (2026-10-23).
 TURN_TYPICAL_SECONDS = 20

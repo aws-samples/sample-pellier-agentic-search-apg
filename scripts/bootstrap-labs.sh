@@ -1154,9 +1154,11 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # build failure must NEVER block the backend: app.py serves /api/* even
 # when dist/ is absent (the SPA 404s with a clear log line). This is the
 # fix for the prior failure mode where an unguarded npm run build under
-# set -e aborted bootstrap before uvicorn ever started.
+# set -e aborted bootstrap before uvicorn ever started. The build runs only
+# when the bundle is not current (about 13 s each time; no lab edits the
+# frontend), so a restart for a lab edit waits for the backend alone.
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3.14 generate_mcp_config.py 2>/dev/null || true'
-ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/frontend && npm run build || true'
+ExecStartPre=-/bin/bash -c 'bash $REPO_PATH/scripts/build-frontend-if-changed.sh $REPO_PATH/pellier/frontend || true'
 ExecStart=/usr/bin/python3.14 -m uvicorn app:app --host 127.0.0.1 --port 8000 $UVICORN_RELOAD_ARGS
 Restart=always
 RestartSec=3

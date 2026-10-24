@@ -53,7 +53,8 @@ AGENTCORE_TIMEOUT_SECONDS = 1500
 # starters: about 3:10 of a 207 s reset --lab 3 on the 2026-10-21 test event. Lab 4 redeploys
 # one Cedar policy; Labs 1 and 2 only move the rail.
 MANAGED_TYPICAL_SECONDS = {1: 5, 2: 5, 3: 195, 4: 90}
-RESTART_TYPICAL_SECONDS = 15
+# 0.4 s on event 14 (2026-10-24) with the frontend bundle current; about 14 s when it is built.
+RESTART_TYPICAL_SECONDS = 2
 SERVICE = "pellier"
 
 # The part of the schema each lab's database piece is read from.
