@@ -49,7 +49,8 @@ def test_a_turn_shows_a_bar_while_pellier_answers(monkeypatch, capsys) -> None:
     monkeypatch.setattr(lab_run, "waiting", bars)
 
     class Streaming:
-        def stream(self, path: str, body: Any, token: str) -> Iterator[Any]:
+        def stream(self, path: str, body: Any, token: str,
+                   timeout: float = 0) -> Iterator[Any]:
             yield "message", {"type": "complete", "response": {"rail": lab_run.MANAGED}}
 
     assert lab_run.send_turn(Streaming(), "token", {}) == {"rail": lab_run.MANAGED}
