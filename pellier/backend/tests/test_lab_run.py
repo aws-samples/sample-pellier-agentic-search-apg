@@ -12,9 +12,10 @@ import json
 import shutil
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, Iterator, List
+from typing import Any, Dict, Iterator, List, Optional
 
 import pytest
 
@@ -33,6 +34,12 @@ def _no_env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(lab_run, "ENV_FILE", tmp_path / "no-such.env")
 
 
+@pytest.fixture(autouse=True)
+def _fresh_retry_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Each test is one command: its first failure opens a new retry budget."""
+    monkeypatch.setattr(lab_run, "_retry_deadline", None)
+
+
 class FakeBackend:
     """What the fake server answers, and every request it received."""
 
@@ -40,6 +47,12 @@ class FakeBackend:
         self.rail = lab_run.IN_PROCESS
         self.health = "healthy"
         self.chat_error = ""
+        # The next turns that fail before succeeding: an error event, or an HTTP status.
+        self.chat_failures: List[Any] = []
+        # The next turns that go silent for this long before answering, and those that go
+        # silent this long after their first event.
+        self.stalls: List[float] = []
+        self.midstream_stalls: List[float] = []
         self.proposal: Dict[str, Any] = dict(PROPOSAL)
         self.policies: List[str] = ["ALLOW"]
         self.requests: List[Dict[str, Any]] = []
@@ -78,7 +91,14 @@ class FakeBackend:
                     "record": {"creditRows": 1 if policy == "ALLOW" else 0}}
         raise AssertionError(f"unexpected path {path}")
 
-    def _turn(self, body: Dict[str, Any]) -> List[Any]:
+    def _turn(self, body: Dict[str, Any]) -> Any:
+        if self.stalls:
+            time.sleep(self.stalls.pop(0))
+        if self.chat_failures:
+            failure = self.chat_failures.pop(0)
+            if isinstance(failure, int):
+                return failure, {"detail": "service_unavailable"}
+            return [(None, {"type": "turn_start"}), (None, {"type": "error", "error": failure})]
         if self.chat_error:
             return [(None, {"type": "turn_start"}),
                     (None, {"type": "error", "error": self.chat_error})]
@@ -105,20 +125,32 @@ def _handler(fake: FakeBackend) -> type:
             if isinstance(result, tuple):
                 self._send(result[0], "application/json", json.dumps(result[1]))
             elif isinstance(result, list):
-                events = "".join(
-                    (f"event: {name}\n" if name else "") + f"data: {json.dumps(data)}\n\n"
-                    for name, data in result)
-                self._send(200, "text/event-stream", events)
+                events = ["".join((f"event: {name}\n" if name else "") +
+                                  f"data: {json.dumps(data)}\n\n") for name, data in result]
+                pause = fake.midstream_stalls.pop(0) if (
+                    self.path == "/api/chat/stream" and fake.midstream_stalls) else 0
+                self._send(200, "text/event-stream", "".join(events), pause_after=events[0],
+                           pause=pause)
             else:
                 self._send(200, "application/json", json.dumps(result))
 
-        def _send(self, status: int, kind: str, text: str) -> None:
+        def _send(self, status: int, kind: str, text: str, pause_after: str = "",
+                  pause: float = 0) -> None:
             payload = text.encode("utf-8")
             self.send_response(status)
             self.send_header("Content-Type", kind)
             self.send_header("Content-Length", str(len(payload)))
             self.end_headers()
-            self.wfile.write(payload)
+            if pause:
+                head = pause_after.encode("utf-8")
+                self.wfile.write(head)
+                self.wfile.flush()
+                time.sleep(pause)
+                payload = payload[len(head):]
+            try:
+                self.wfile.write(payload)
+            except OSError:
+                pass  # the client gave up at its deadline
 
         def do_GET(self) -> None:
             self._reply({})
@@ -135,6 +167,9 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeBackend]:
     monkeypatch.setattr(lab_run, "HEALTH_WAIT_SECONDS", 0)
     monkeypatch.setattr(lab_run, "POLICY_WAIT_SECONDS", 60)
     monkeypatch.setattr(lab_run, "RETRY_SECONDS", 0)
+    monkeypatch.setattr(lab_run, "TURN_RETRY_SECONDS", 0)
+    monkeypatch.setattr(lab_run, "TURN_DEADLINE_SECONDS",
+                        {lab_run.IN_PROCESS: 0.5, lab_run.MANAGED: 0.5})
     backend = FakeBackend()
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(backend))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -577,6 +612,62 @@ def test_a_failed_turn_stops_the_command(
     fake.chat_error = "model_unavailable"
     assert _run(fake, 1) == 1
     assert "the turn failed: model_unavailable" in capsys.readouterr().err
+    assert len(_turns(fake)) == lab_run.TURN_ATTEMPTS, "sent three times, then stopped"
+
+
+@pytest.mark.parametrize("failure", ["ThrottlingException: slow down", 503])
+def test_a_turn_the_model_or_server_fails_is_sent_again(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], failure: Any,
+) -> None:
+    fake.chat_failures = [failure, failure]
+    assert _run(fake, 2) == 0
+    turns = _turns(fake)
+    assert len(turns) == 4, "the first request twice more, then the second once"
+    assert turns[0]["body"] == turns[1]["body"] == turns[2]["body"]
+    assert turns[3]["body"]["conversation_history"][0]["content"] == turns[0]["body"]["message"]
+    out = capsys.readouterr().out
+    assert "sending the same request again (2 of 3)" in out
+    assert "sending the same request again (3 of 3)" in out
+
+
+@pytest.mark.parametrize("where", ["before it answers", "after its first event"])
+def test_a_turn_that_goes_silent_is_cut_at_its_deadline_and_sent_again(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], where: str,
+) -> None:
+    if where == "before it answers":
+        fake.stalls = [3.0]
+    else:
+        fake.midstream_stalls = [3.0]
+    started = time.monotonic()
+    assert _run(fake, 2) == 0
+    assert time.monotonic() - started < 2.5, "the client gave up at its deadline, not the server"
+    assert len(_turns(fake)) == 3
+    assert "no answer after 0.5 s" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("budget,sends", [(0, 1), (60, 3)])
+def test_resends_stop_once_the_retry_budget_is_spent(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    budget: int, sends: int,
+) -> None:
+    monkeypatch.setattr(lab_run, "RETRY_BUDGET_SECONDS", budget)
+    fake.chat_error = "ThrottlingException: slow down"
+    assert _run(fake, 1) == 1
+    assert len(_turns(fake)) == sends
+    err = capsys.readouterr().err
+    assert "your files are fine" in err and "Run the same command again in a minute" in err
+
+
+@pytest.mark.usefixtures("box")
+def test_a_spent_budget_also_stops_a_check_from_sending_again(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run, "RETRY_BUDGET_SECONDS", 0)
+    repo = _scratch_repo(tmp_path)
+    commands = Commands(failing="lab1_check.py --task 1B", times=1)
+    assert _finish(fake, 1, repo, commands) == 1
+    assert commands.ran.count("uv run scripts/lab1_check.py --task 1B") == 1
+    assert len(_turns(fake)) == 2
 
 
 def test_an_http_error_names_the_path_and_the_detail(
@@ -584,6 +675,13 @@ def test_an_http_error_names_the_path_and_the_detail(
 ) -> None:
     assert _run(fake, 1, token_for=lambda user: "expired") == 1
     assert "/api/chat/stream answered HTTP 401: token_expired" in capsys.readouterr().err
+    assert len(_turns(fake)) == 1, "a refused sign-in is not sent again"
+
+
+def test_a_turn_on_the_wrong_path_is_not_sent_again(fake: FakeBackend) -> None:
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 1) == 1
+    assert len(_turns(fake)) == 1
 
 
 def test_an_unhealthy_backend_stops_before_any_turn(
@@ -803,10 +901,11 @@ def test_only_the_shopper_only_send_prints_the_password(
 class Commands:
     """Every command finish runs, with exit statuses scripted by a command's last words."""
 
-    def __init__(self, failing: str = "") -> None:
+    def __init__(self, failing: str = "", times: Optional[int] = None) -> None:
         self.ran: List[str] = []
         self.executed: List[List[str]] = []
         self.failing = failing
+        self.times = times
 
     def __call__(self, argv: List[str], **kwargs: Any) -> Any:
         self.executed.append(list(argv))
@@ -816,6 +915,9 @@ class Commands:
         shown = " ".join(typed)
         self.ran.append(shown)
         failed = bool(self.failing) and shown.endswith(self.failing)
+        if failed and self.times is not None:
+            failed = self.times > 0
+            self.times -= 1
         return type("Completed", (), {"returncode": 1 if failed else 0})()
 
 
@@ -908,6 +1010,42 @@ def test_finish_stops_at_the_first_failed_check(
     err = capsys.readouterr().err
     assert "uv run scripts/lab1_check.py --task 1A exited 1" in err
     assert "uv run scripts/lab_run.py finish --lab 1" in err
+    assert commands.ran.count("uv run scripts/lab1_check.py --task 1A") == 1, (
+        "1A runs the code against stored embeddings; no new turn can change its verdict")
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("lab,task,resent", [
+    (1, "1B", ["Bearer token-anna"]), (2, "2A", ["Bearer token-marco"]),
+    (3, "3B", ["Bearer token-theo"] * 3),
+])
+def test_a_check_that_judges_the_newest_turn_gets_a_new_turn_and_a_second_look(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    lab: int, task: str, resent: List[str],
+) -> None:
+    fake.rail = lab_run.LAB_RAIL[lab]
+    repo = _scratch_repo(tmp_path)
+    check = f"lab{lab}_check.py --task {task}"
+    commands = Commands(failing=check, times=1)
+    sent_by_the_lab = {1: 2, 2: 2, 3: 3}[lab]
+    assert _finish(fake, lab, repo, commands) == 0
+    assert commands.ran.count(f"uv run scripts/{check}") == 2
+    turns = _turns(fake)
+    assert [turn["auth"] for turn in turns[sent_by_the_lab:]] == resent
+    assert f"sending the request Task {task}'s check judges again (2 of 3)" in (
+        capsys.readouterr().out)
+
+
+@pytest.mark.usefixtures("box")
+def test_a_turn_judged_check_that_keeps_failing_stops_after_three_looks(
+    fake: FakeBackend, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    commands = Commands(failing="lab2_check.py --task 2A")
+    assert _finish(fake, 2, repo, commands) == 1
+    assert commands.ran.count("uv run scripts/lab2_check.py --task 2A") == lab_run.CHECK_ATTEMPTS
+    assert "uv run scripts/lab2_check.py --task 2B" not in commands.ran
+    assert "uv run scripts/lab2_check.py --task 2A exited 1" in capsys.readouterr().err
 
 
 @pytest.mark.usefixtures("box")
@@ -1095,6 +1233,23 @@ def test_fast_track_stops_before_later_steps_or_labs_on_failure(
             assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"
         assert not any(turn["auth"] == "Bearer token-marco" for turn in _turns(fake))
     assert "Fast track complete" not in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("lab", [1, 2])
+def test_a_local_lab_will_not_start_while_a_deploy_moves_pellier_onto_agentcore(
+    lab: int, fake: FakeBackend, recovery_repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run.deploy_lock, "running_message",
+                        lambda repo: "A deploy is already running: a deploy of your changes.")
+    commands = Commands()
+    refused = "(?s)A deploy is already running.*Nothing was changed"
+    with pytest.raises(lab_run.LabRunError, match=refused):
+        lab_run.finish(lab, lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                       run=commands, repo=recovery_repo)
+    assert commands.ran == [] and _turns(fake) == []
+    for task in lab_run.TASKS:
+        assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"
 
 
 @pytest.mark.parametrize("arguments,expected", [

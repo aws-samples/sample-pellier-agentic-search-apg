@@ -78,6 +78,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import http.client
 import json
 import os
 import pathlib
@@ -92,6 +93,7 @@ import urllib.request
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import deploy_lock  # noqa: E402  (sibling module)
 import lab_reset  # noqa: E402  (sibling module)
 from wait_progress import waiting  # noqa: E402  (sibling module)
 
@@ -175,10 +177,44 @@ RESTART_TYPICAL_SECONDS = 2
 # requests on event 12 (2026-10-23).
 TURN_TYPICAL_SECONDS = 20
 TURN_TIMEOUT_SECONDS = 300
+# A turn with no complete event by its deadline has failed: about four times the slowest turn on
+# the October 2026 test events (14 s in process, 20 s on AgentCore), and well inside the backend's
+# own 120 s silence limit, so a stalled model is noticed at the deadline rather than at 2 minutes.
+TURN_DEADLINE_SECONDS = {IN_PROCESS: 60, MANAGED: 90}
+# A turn the model or the server fails (a throttled model, a missed deadline, a 5xx) is sent
+# again, up to TURN_ATTEMPTS in all. A shopper turn writes nothing a second send could double:
+# its tools read, and a credit request resolves to the one already open.
+TURN_ATTEMPTS = 3
+TURN_RETRY_SECONDS = 5
+# A check that judges the newest turn reads what the model chose to do, so with the answers in
+# place a failure is that turn's, not the code's: the request is sent again, up to CHECK_ATTEMPTS
+# looks in all. The value is what to send: a task's own request, or the lab's (None).
+CHECK_ATTEMPTS = 3
+TURN_JUDGED_CHECKS: Dict[str, Optional[str]] = {"1B": "1B", "2A": "2A", "3B": None}
+# Every resend in one command, of a turn or of a check's request, starts within this many seconds
+# of the command's first failure. A slow model then costs a bounded wait and a clear message, not
+# nested retries: the fast track stays inside the 5-minute catch-up slot even when every turn
+# stalls.
+RETRY_BUDGET_SECONDS = 90
+SLOW_MODEL = ("Pellier's model is slow or busy right now; your files are fine. Run the same "
+              "command again in a minute.")
+_retry_deadline: Optional[float] = None
+
+
+def may_retry() -> bool:
+    """Whether a resend may start: the command's first failure opens the budget."""
+    global _retry_deadline
+    if _retry_deadline is None:
+        _retry_deadline = time.monotonic() + RETRY_BUDGET_SECONDS
+    return time.monotonic() < _retry_deadline
 
 
 class LabRunError(Exception):
     """A step failed. The message says what happened and what to do next."""
+
+
+class TurnFailed(LabRunError):
+    """The model or the stream failed partway through a turn; the same request may succeed."""
 
 
 class BackendError(LabRunError):
@@ -188,6 +224,10 @@ class BackendError(LabRunError):
         super().__init__(f"{path} answered HTTP {status}: {detail}")
         self.status = status
         self.detail = detail
+
+
+class BackendTimeout(LabRunError):
+    """The backend took the request but did not answer within the timeout."""
 
 
 def ok(message: str) -> None:
@@ -416,6 +456,11 @@ class Backend:
         except urllib.error.HTTPError as exc:
             raise BackendError(exc.code, _error_detail(exc), path) from exc
         except OSError as exc:
+            # A backend that took the request but has not answered is busy, not unreachable.
+            if isinstance(exc, TimeoutError) or isinstance(getattr(exc, "reason", None),
+                                                           TimeoutError):
+                raise BackendTimeout(
+                    f"{self.base_url}{path} gave no answer in {timeout:g} s") from exc
             raise LabRunError(
                 f"cannot reach {self.base_url}{path} ({exc}). Is the backend running? "
                 "Check with: sudo systemctl status pellier") from exc
@@ -430,8 +475,8 @@ class Backend:
             return json.loads(response.read())
 
     def stream(self, path: str, body: Dict[str, Any], token: str,
-               ) -> Iterator[Tuple[str, Dict[str, Any]]]:
-        with self._open(path, body, token, TURN_TIMEOUT_SECONDS) as response:
+               timeout: float = TURN_TIMEOUT_SECONDS) -> Iterator[Tuple[str, Dict[str, Any]]]:
+        with self._open(path, body, token, timeout) as response:
             yield from sse_events(response)
 
 
@@ -525,20 +570,48 @@ def trace_event(event: Dict[str, Any], shown: set) -> None:
     _trace_ranking(builder.get("ranking") or {})
 
 
-def send_turn(backend: Backend, token: str, body: Dict[str, Any],
-              trace: bool = False) -> Dict[str, Any]:
-    """One Ask Pellier turn; returns the complete event's response, printing its trace."""
+def send_turn(backend: Backend, token: str, body: Dict[str, Any], trace: bool = False,
+              deadline: float = TURN_DEADLINE_SECONDS[MANAGED]) -> Dict[str, Any]:
+    """One Ask Pellier turn; returns the complete event's response, printing its trace.
+
+    A turn without its complete event by ``deadline`` seconds has failed: a silent stream is
+    cut by the socket's read timeout, a trickling one by the clock.
+    """
     shown: set = set()
-    with waiting("Waiting for Pellier's answer", typical=TURN_TYPICAL_SECONDS):
-        for name, event in backend.stream("/api/chat/stream", body, token):
-            if name == "error" or event.get("type") == "error":
-                reason = event.get("error") or event.get("message") or json.dumps(event)
-                raise LabRunError(f"the turn failed: {reason}")
-            if trace:
-                trace_event(event, shown)
-            if event.get("type") == "complete":
-                return event.get("response") or {}
-    raise LabRunError("the turn ended without a complete event")
+    started = time.monotonic()
+    late = TurnFailed(f"the turn failed: no answer after {deadline:g} s")
+    with waiting("Waiting for Pellier's answer", typical=TURN_TYPICAL_SECONDS, limit=deadline):
+        try:
+            for name, event in backend.stream("/api/chat/stream", body, token, timeout=deadline):
+                if name == "error" or event.get("type") == "error":
+                    reason = event.get("error") or event.get("message") or json.dumps(event)
+                    raise TurnFailed(f"the turn failed: {reason}")
+                if trace:
+                    trace_event(event, shown)
+                if event.get("type") == "complete":
+                    return event.get("response") or {}
+                if time.monotonic() - started > deadline:
+                    raise late
+        except (OSError, http.client.HTTPException, BackendTimeout) as exc:
+            raise late from exc
+    raise TurnFailed("the turn ended without a complete event")
+
+
+def send_turn_again_on_failure(backend: Backend, token: str, body: Dict[str, Any],
+                               trace: bool, deadline: float) -> Dict[str, Any]:
+    """One turn, sent again when the model or the server failed it; a refusal is not."""
+    for attempt in range(1, TURN_ATTEMPTS + 1):
+        try:
+            return send_turn(backend, token, body, trace=trace, deadline=deadline)
+        except (TurnFailed, BackendError) as exc:
+            if isinstance(exc, BackendError) and exc.status < 500:
+                raise
+            if attempt == TURN_ATTEMPTS or not may_retry():
+                raise TurnFailed(f"{exc} (sent {attempt} time{'s' * (attempt > 1)}). "
+                                 f"{SLOW_MODEL}") from exc
+            wait(f"{exc}; sending the same request again ({attempt + 1} of {TURN_ATTEMPTS})")
+            time.sleep(TURN_RETRY_SECONDS)
+    raise AssertionError("unreachable: the last attempt returns or raises")
 
 
 def _configured_rail(path: Optional[pathlib.Path] = None) -> Optional[str]:
@@ -593,13 +666,13 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
     for message in requests:
         if trace:
             print(f'{TRACE_INDENT}{persona.title()}: "{message}"', flush=True)
-        response = send_turn(backend, token, {
+        response = send_turn_again_on_failure(backend, token, {
             "message": message,
             "session_id": session,
             "customer_id": f"CUST-{persona.upper()}",
             "conversation_history": history,
             "source": "terminal",
-        }, trace=trace)
+        }, trace=trace, deadline=TURN_DEADLINE_SECONDS[LAB_RAIL[lab]])
         served = str(response.get("rail") or "")
         if served != LAB_RAIL[lab]:
             raise LabRunError(_rail_problem(lab, served, response))
@@ -855,6 +928,20 @@ class Finish:
             raise LabRunError(f"{shown} exited {code}; the lines above say why. Fix it, then run "
                               f"uv run scripts/lab_run.py finish --lab {self.lab} again.")
 
+    def check(self, task: str) -> None:
+        """Run a task's check; one that judges the newest turn gets a new turn and another look."""
+        for attempt in range(1, CHECK_ATTEMPTS + 1):
+            try:
+                self.command(_check(task))
+                return
+            except LabRunError:
+                if task not in TURN_JUDGED_CHECKS or attempt == CHECK_ATTEMPTS or not may_retry():
+                    raise
+            print(f"  The answers are in place, so this verdict came from the model's turn: "
+                  f"sending the request Task {task}'s check judges again "
+                  f"({attempt + 1} of {CHECK_ATTEMPTS})", flush=True)
+            send(self.lab, self.backend, self.token_for, task=TURN_JUDGED_CHECKS[task])
+
     def restart(self) -> None:
         restart_backend(self.backend, run=self.run)
 
@@ -878,30 +965,36 @@ def _finish_in_process(job: Finish) -> None:
         job.command(_psql(EXERCISES[2]))
     job.restart()
     send(job.lab, job.backend, job.token_for)
-    job.command(_check(f"{job.lab}A"))
-    job.command(_check(f"{job.lab}B"))
+    job.check(f"{job.lab}A")
+    job.check(f"{job.lab}B")
 
 
 def _finish_lab_3(job: Finish) -> None:
-    job.command(_check("3A"))
+    job.check("3A")
     job.command(_deploy(job.repo))
     job.command(_psql(EXERCISES[3]))
     send(3, job.backend, job.token_for)
-    job.command(_check("3B"))
+    job.check("3B")
 
 
 def _finish_lab_4(job: Finish) -> None:
     job.command(_psql(EXERCISES[4]))
     job.command(_deploy(job.repo))
     job.credit()
-    job.command(_check("4A"))
-    job.command(_check("4B"))
+    job.check("4A")
+    job.check("4B")
     job.command(_psql(ABSENCE_QUERY))
 
 
 def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
            run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO) -> None:
     """Back up the lab's files, put its answers in place, then run what proves them."""
+    # A running deploy ends by moving Pellier onto AgentCore, under a local lab's turns. Labs 3
+    # and 4 deploy themselves, so their deploy follows the running one instead.
+    busy = deploy_lock.running_message(repo) if LAB_RAIL[lab] == IN_PROCESS else ""
+    if busy:
+        raise LabRunError(deploy_lock.wrapped(
+            f"{busy} Wait for it to finish, then run this again. Nothing was changed."))
     for task in (t for t in TASKS if t.startswith(str(lab))):
         install_task(task, repo, next_line=False)
     job = Finish(lab, backend, token_for, run, repo)
@@ -932,6 +1025,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     parser.add_argument("--task", choices=TASKS,
                         help="solution: only that task's answer; send: only that task's request")
     args = parser.parse_args(argv)
+    global _retry_deadline
+    _retry_deadline = None
     if args.action in ("fast-track", "restart"):
         if args.lab is not None or args.task or args.shopper_only or args.quiet:
             parser.error(f"{args.action} takes no options")
