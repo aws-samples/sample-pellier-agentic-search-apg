@@ -112,6 +112,13 @@ def test_stage2_commands_select_versioned_python_after_sudo_resets_path(
     assert script in calls.read_text()
 
 
+def database_setup_call():
+    """Stage 2's database-setup pipeline, from the secrets it pipes in to the setup's output."""
+    start = STAGE2.index("printf '%s\\n%s\\n' \"$DB_PASSWORD\" \"$DATABASE_URL\" | sudo")
+    end = STAGE2.index("2>&1 | tee /var/log/database-setup.log", start)
+    return STAGE2[start:end].rstrip(" \\\n")
+
+
 def test_database_setup_seeds_on_workshop_python_after_sudo_resets_path(interpreters):
     """Bootstrap names python3.14 and scripts/setup/database-setup.sh runs the seeder with it.
 
@@ -123,10 +130,7 @@ def test_database_setup_seeds_on_workshop_python_after_sudo_resets_path(interpre
     psql = system / "psql"
     psql.write_text("#!/bin/bash\nexit 0\n")
     psql.chmod(0o755)
-    end = STAGE2.index('bash "$REPO_PATH/scripts/setup/database-setup.sh"')
-    start = STAGE2.rindex('sudo -u "$CODE_EDITOR_USER" env', 0, end)
-    command = STAGE2[start:STAGE2.index("\n", end)].rstrip(" \\")
-    run('sudo() { shift 2; env -i PATH="$OS_PATH" "$@"; }\n' + command,
+    run('sudo() { shift 2; env -i PATH="$OS_PATH" "$@"; }\n' + database_setup_call(),
         OS_PATH=f"{system}:/usr/bin:/bin", REPO_PATH=str(REPO),
         CODE_EDITOR_USER="participant", DB_HOST="db.invalid", DB_PORT="5432",
         DB_NAME="pellier", DB_USER="pellier", DB_PASSWORD="synthetic",
@@ -205,6 +209,41 @@ def test_operator_secret_write_uses_participant_site_and_keeps_the_password_off_
     ]
     assert password not in logged.read_text() and "OPERATOR_PASSWORD" not in logged.read_text()
     assert not (REPO / "SHOULD_NOT_EXIST").exists()
+
+
+@pytest.mark.parametrize("setup_exit", [0, 7])
+def test_database_setup_keeps_the_master_password_off_sudo_argv(tmp_path, setup_exit):
+    """sudo writes its command line, env NAME=value pairs included, to the journal, and its
+    --preserve-env records the values too (sudo 1.9.15 on event 14, whose journal held the
+    Aurora master password once). The password and the URL that embeds it go in on stdin."""
+    stage = STAGE2[STAGE2.index("printf '%s\\n%s\\n' \"$DB_PASSWORD\""):]
+    block = stage[:stage.index("\n", stage.index("local setup_rc=")) + 1]
+    setup = tmp_path / "scripts/setup/database-setup.sh"
+    setup.parent.mkdir(parents=True)
+    setup.write_text(
+        '#!/bin/bash\nprintf "%s\\n" "$DB_PASSWORD" "$DATABASE_URL" "$DB_HOST" "$PYTHON" '
+        '"$(cat)" > "$REPO/received"\n'
+        f"exit {setup_exit}\n")
+    logged = tmp_path / "sudo-argv"
+    # Edge spaces and backslashes survive only IFS= read -r.
+    password = ' synthetic $(touch SHOULD_NOT_EXIST); `false` $VALUE "quoted" \\n\\back '
+    url = f"postgresql://pellier:{password}@db.invalid:5432/pellier"
+    result = run(
+        'sudo() { printf "%s\\n" "$*" > "$MOCK_SUDO_ARGV"; [ "$1" = -u ]; shift 2;\n'
+        '         env -i PATH=/usr/bin:/bin "$@"; }\n'
+        + block.replace("/var/log/database-setup.log", str(tmp_path / "setup.log"))
+               .replace("local setup_rc=", "setup_rc=")
+        + 'echo "rc=$setup_rc"\n',
+        REPO_PATH=str(tmp_path), CODE_EDITOR_USER="participant", DB_HOST="db.invalid",
+        DB_PORT="5432", DB_NAME="pellier", DB_USER="pellier", DB_PASSWORD=password,
+        DATABASE_URL=url, AWS_REGION="us-east-1", MOCK_SUDO_ARGV=str(logged),
+    )
+    assert result.stdout.splitlines()[-1] == f"rc={setup_exit}"
+    assert (tmp_path / "received").read_text().splitlines() == [
+        password, url, "db.invalid", "python3.14", ""]
+    argv = logged.read_text()
+    assert "synthetic" not in argv and "DB_PASSWORD=" not in argv and "DATABASE_URL=" not in argv
+    assert not (REPO / "SHOULD_NOT_EXIST").exists() and not (tmp_path / "SHOULD_NOT_EXIST").exists()
 
 
 def test_aws_cli_install_reentry_uses_fresh_private_staging_and_owned_cleanup(tmp_path):

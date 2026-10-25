@@ -664,23 +664,26 @@ setup_database() {
         # seeder dies with ModuleNotFoundError and the catalog stays empty, and
         # the seed that follows refuses a catalog without 50000 products. psql runs
         # as that user too and authenticates with PGPASSWORD, as it did as root.
-        # DB_USER/DB_PASSWORD are passed via `env NAME=value`, never
-        # interpolated into a string a nested shell parses, so a literal ' or \
-        # in the generated password cannot break out of shell quoting here. (The
-        # master secret's ExcludeCharacters excludes " @ / \ ' today — see
+        # The master password and the URL that embeds it go in on stdin: sudo
+        # writes its whole command line, env NAME=value pairs included, to the
+        # journal, and --preserve-env records the values too (sudo 1.9.15 on
+        # the 2026-10-24 event). The child reads each with read -r, taken
+        # literally and never parsed by a shell, so a ' or \ in the generated
+        # password cannot break out of quoting. (The master secret's
+        # ExcludeCharacters excludes " @ / \ ' today — see
         # MasterSecret.GenerateSecretString in assets/pellier-database.yml,
         # both Workshop Studio repos — but this site does not depend on it.)
-        sudo -u "$CODE_EDITOR_USER" env \
+        printf '%s\n%s\n' "$DB_PASSWORD" "$DATABASE_URL" | sudo -u "$CODE_EDITOR_USER" env \
             DB_HOST="$DB_HOST" DB_PORT="$DB_PORT" DB_NAME="$DB_NAME" \
-            DB_USER="$DB_USER" DB_PASSWORD="$DB_PASSWORD" \
-            AWS_REGION="$AWS_REGION" \
+            DB_USER="$DB_USER" AWS_REGION="$AWS_REGION" \
             ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}" \
             ASSETS_BUCKET_PREFIX="${ASSETS_BUCKET_PREFIX:-}" \
-            DATABASE_URL="$DATABASE_URL" \
             PYTHON=python3.14 REPO="$REPO_PATH" \
-            bash "$REPO_PATH/scripts/setup/database-setup.sh" \
+            bash -c 'IFS= read -r DB_PASSWORD && IFS= read -r DATABASE_URL &&
+                export DB_PASSWORD DATABASE_URL &&
+                exec bash "$REPO/scripts/setup/database-setup.sh" < /dev/null' \
             2>&1 | tee /var/log/database-setup.log
-        local setup_rc=${PIPESTATUS[0]}
+        local setup_rc=${PIPESTATUS[1]}
         if [ "$setup_rc" -ne 0 ]; then
             warn "Database setup failed (rc=$setup_rc) — see /var/log/database-setup.log"
             return "$setup_rc"
