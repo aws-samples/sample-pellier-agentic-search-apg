@@ -201,11 +201,13 @@ class Timeline:
 
 
 def service_started(value: str) -> Optional[datetime]:
-    """systemd's ActiveEnterTimestamp (``Wed 2026-10-14 14:46:19 UTC``) as UTC; None otherwise."""
+    """systemd's ActiveEnterTimestamp (``Wed 2026-10-14 14:46:19.479163 UTC``, or without the
+    microseconds) as UTC; None otherwise."""
     if not value.endswith((" UTC", " GMT")):
         return None
+    shape = "%a %Y-%m-%d %H:%M:%S.%f" if "." in value else "%a %Y-%m-%d %H:%M:%S"
     try:
-        return datetime.strptime(value[:-4], "%a %Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        return datetime.strptime(value[:-4], shape).replace(tzinfo=timezone.utc)
     except ValueError:
         return None
 
@@ -217,9 +219,12 @@ def edit_timeline(edited_file: pathlib.Path) -> Timeline:
                                                             tz=timezone.utc)
     except OSError:
         edited = None
+    # Microseconds: the solution command writes the file and restarts within one second, and
+    # whole seconds would date that restart before the edit.
     try:
         shown = subprocess.run(
-            ["systemctl", "show", "pellier", "-p", "ActiveEnterTimestamp", "--value"],
+            ["systemctl", "show", "pellier", "-p", "ActiveEnterTimestamp", "--value",
+             "--timestamp=us+utc"],
             capture_output=True, text=True, timeout=5, check=False,
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):

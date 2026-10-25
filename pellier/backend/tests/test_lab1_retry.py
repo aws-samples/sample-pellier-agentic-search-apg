@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -207,6 +208,7 @@ def test_no_timeline_keeps_the_rows_only_reading() -> None:
 
 @pytest.mark.parametrize("value, expected", [
     ("Wed 2026-10-14 14:46:19 UTC", RESTARTED),
+    ("Wed 2026-10-14 14:46:19.479163 UTC", RESTARTED.replace(microsecond=479163)),
     ("", None),
     ("n/a", None),
     ("Wed 2026-10-14 16:46:19 CEST", None),
@@ -228,6 +230,30 @@ def test_the_timeline_reads_the_file_and_systemd(monkeypatch: pytest.MonkeyPatch
     when = lab1.timeline()
     assert when.started_at == RESTARTED
     assert when.edited_at == datetime.fromtimestamp(plan.stat().st_mtime, tz=timezone.utc)
+
+
+def systemd_252(args: List[str], **kwargs: Any) -> Any:
+    """systemctl show as Amazon Linux 2023 answers it: whole seconds unless asked for more."""
+
+    class _Shown:
+        stdout = ("Sun 2026-10-25 15:42:17.479163 UTC\n" if "--timestamp=us+utc" in args
+                  else "Sun 2026-10-25 15:42:17 UTC\n")
+
+    return _Shown()
+
+
+def test_a_restart_in_the_same_second_as_the_edit_serves_it(monkeypatch: pytest.MonkeyPatch,
+                                                            tmp_path: Path) -> None:
+    """The solution command writes the file and restarts within one second, as on the 2026-10-25
+    event: written at 17.116, started at 17.479. Whole seconds read that start as 17.000."""
+    plan = tmp_path / "search_plan.py"
+    plan.write_text("# solution\n")
+    written = datetime(2026, 10, 25, 15, 42, 17, 116017, tzinfo=timezone.utc).timestamp()
+    os.utime(plan, (written, written))
+    monkeypatch.setattr(lab1, "SEARCH_PLAN", plan)
+    monkeypatch.setattr(lab1.check.subprocess, "run", systemd_252)
+    sent = datetime(2026, 10, 25, 15, 42, 25, tzinfo=timezone.utc)
+    assert lab1.stale(_dropped_at(sent), lab1.timeline()) is None
 
 
 def test_no_systemctl_leaves_the_start_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
