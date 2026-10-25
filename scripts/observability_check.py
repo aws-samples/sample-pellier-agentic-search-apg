@@ -217,7 +217,7 @@ def since_lab_3(cluster: Optional[Dict[str, Any]], window_start: datetime,
     """Where O1 and O3 start reading, and the words for it.
 
     Lab 3's check refuses the write, and Lab 4's first step sends the last turn, often well
-    over an hour before Lab 4 reads them back. No earlier step makes row-level security
+    over an hour before the Wrap-up reads them back. No earlier step makes row-level security
     refuse a write, so reading from the cluster's creation starts, in effect, at Lab 3. A
     Lab 3 reset starts it at the reset, as the lab's own checks do. Without a cluster
     description, the window is all there is.
