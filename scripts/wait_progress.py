@@ -229,6 +229,11 @@ class Progress:
         else:
             self._print(f"  - {self.counter()}  {label} (usually about {clock(typical)})")
 
+    def amend(self, done: str) -> None:
+        """Change the line the running step leaves when it ends, once it knows what it found."""
+        if self._step is not None:
+            self._step["done"] = done
+
     def end(self, done: Optional[str] = None) -> None:
         """End the running step: its line says what it did and how long it took."""
         step = self._close()

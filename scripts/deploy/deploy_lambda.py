@@ -1,4 +1,5 @@
 import boto3
+import io
 import json
 import os
 import sys
@@ -8,11 +9,11 @@ import tempfile
 import argparse
 import shutil
 import logging
+import urllib.request
 from subprocess import run as Run
 from pathlib import Path
 import re
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # The Python the function runs, and the one its dependencies are installed for: the
@@ -192,12 +193,13 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
 
 
 # Bootstrap packages this Lambda once, from the checkout participants start
-# with, and Lab 3's participant deploy reuses it rather than repackaging. So
-# Lab 1's search modules ship from their solution copies: each is its live
-# module plus the answers inside the marked regions, and the Gateway searches
-# the same way whatever state a participant's Lab 1 is in. Lab 3B's build
-# fingerprint digests the Runtime package, not this zip;
-# `tests/test_lambda_package.py` keeps the two apart.
+# with, so Lab 1's search modules ship from their solution copies: each is its
+# live module plus the answers inside the marked regions. A participant deploy
+# (Labs 3 and 4) then swaps in the participant's own two modules once both Lab 1
+# checks pass, and the supplied ones while either does not
+# (`provision_agentcore_end_to_end._ship_lab1_search`), so a half-finished Lab 1
+# never reaches the Gateway. Lab 3B's build fingerprint digests the Runtime
+# package, not this zip; `tests/test_lambda_package.py` keeps the two apart.
 SOLUTION_COPIES = {
   'services/store_tools.py': '../../solutions/the-quiet-search/retrieval/store_tools_solution.py',
   'services/search_plan.py': '../../solutions/the-quiet-search/retrieval/search_plan_solution.py',
@@ -244,8 +246,40 @@ def package_files(mcp_server_path, handler):
   return files
 
 
+def replace_package_modules(client, function_name, modules):
+  """Swap modules inside a deployed package and publish it, without rebuilding it.
+
+  ``modules`` maps a path inside the zip to a local file. Only those entries change:
+  the dependencies and every other module stay byte for byte. Returns ``False`` when
+  the package already carries those exact files, so nothing is uploaded.
+  """
+  location = client.get_function(FunctionName=function_name)['Code']['Location']
+  with urllib.request.urlopen(location, timeout=120) as response:
+    deployed = zipfile.ZipFile(io.BytesIO(response.read()))
+  wanted = {name: Path(path).read_bytes() for name, path in modules.items()}
+  if all(name in deployed.namelist() and deployed.read(name) == data
+         for name, data in wanted.items()):
+    return False
+  rebuilt = io.BytesIO()
+  with zipfile.ZipFile(rebuilt, 'w', zipfile.ZIP_DEFLATED) as target:
+    for item in deployed.infolist():
+      if item.filename not in wanted:
+        target.writestr(item, deployed.read(item.filename))
+    for name, data in wanted.items():
+      info = zipfile.ZipInfo(name, time.localtime()[:6])
+      info.compress_type = zipfile.ZIP_DEFLATED
+      info.external_attr = 0o644 << 16  # readable by the Lambda runtime's user
+      target.writestr(info, data)
+  client.update_function_code(FunctionName=function_name, ZipFile=rebuilt.getvalue())
+  client.get_waiter('function_updated_v2').wait(FunctionName=function_name)
+  return True
+
+
 def main():
   global iam_client, lambda_client
+  # Here, not at import: the participant deploy imports this module, and a root
+  # handler there would print every library's INFO lines into the lab terminal.
+  logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
   parser = argparse.ArgumentParser(description="Deploy Lambda function to AWS")
   parser.add_argument('--region', help="AWS Region to use.", default=os.getenv("AWS_REGION", "us-east-1"))

@@ -43,6 +43,7 @@ for _path in (SCRIPTS_DIR, DEPLOY_DIR):
         sys.path.insert(0, str(_path))
 
 from wait_progress import Progress  # noqa: E402
+import deploy_lambda  # noqa: E402
 import deploy_lock  # noqa: E402
 from gateway_tool_schemas import (  # noqa: E402
     STAFF_ONLY_GATEWAY_TOOLS,
@@ -2501,10 +2502,11 @@ def _existing_lambda_arns(
 ) -> dict[str, str]:
     """Read the Gateway targets' Lambda ARNs without republishing them.
 
-    Neither Lab 3 edit changes Lambda code, so the participant update looks the
-    four functions up by their deterministic names instead of repackaging and
-    uploading them. A missing function means the environment was never
-    provisioned, which no participant edit can repair.
+    No Lab 3 or Lab 4 edit changes how the Lambda is built, so the participant
+    update looks the functions up by their deterministic names instead of
+    repackaging them; only Lab 1's two search modules are swapped inside the
+    deployed package (`_ship_lab1_search`). A missing function means the
+    environment was never provisioned, which no participant edit can repair.
     """
     lambda_client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
     arns: dict[str, str] = {}
@@ -2520,6 +2522,44 @@ def _existing_lambda_arns(
             ) from exc
         arns[surface] = response["Configuration"]["FunctionArn"]
     return arns
+
+
+# Lab 1's two search modules, by their path inside the Gateway Lambda's package.
+LAB1_SEARCH_MODULES = ("services/store_tools.py", "services/search_plan.py")
+
+
+def _lab1_checks_failing(repo: Path, env: dict[str, str]) -> list[str]:
+    """The Lab 1 tasks whose check, the command the guide gives, does not pass here."""
+    return [task for task in ("1A", "1B")
+            if subprocess.run([sys.executable, str(repo / "scripts" / "lab1_check.py"),
+                               "--task", task], cwd=repo, env=env, capture_output=True,
+                              text=True).returncode != 0]
+
+
+def _ship_lab1_search(
+    repo: Path,
+    *,
+    region: str,
+    identity: DeploymentIdentity,
+    env: dict[str, str],
+) -> dict[str, Any]:
+    """Put the participant's own Lab 1 search in the Gateway's Lambda once both Lab 1 checks
+    pass, and the supplied answers while either does not.
+
+    Labs 3 and 4 then search with the code the participant built, and a half-finished Lab 1
+    can still never reach the Gateway. Returns what the Gateway runs, for the receipt.
+    """
+    failing = _lab1_checks_failing(repo, env)
+    if failing:
+        sources = {name: (DEPLOY_DIR / deploy_lambda.SOLUTION_COPIES[name]).resolve()
+                   for name in LAB1_SEARCH_MODULES}
+    else:
+        sources = {name: repo / "pellier" / "backend" / name for name in LAB1_SEARCH_MODULES}
+    function_name = f"{_deployment_targets(identity)['store']['server_name']}-function"
+    updated = deploy_lambda.replace_package_modules(
+        boto3.client("lambda", region_name=region, config=AWS_CONFIG), function_name, sources)
+    return {"runs": "supplied" if failing else "yours", "failing_checks": failing,
+            "updated": updated}
 
 
 def _active_policy_names(*, region: str, policy_engine_id: str) -> set[str]:
@@ -2801,6 +2841,10 @@ def _participant_update(
     render reads from ``policies/workshop_credit_limit.cedar``. Either way it
     is one update of the deployed project.
 
+    Its first step also puts the participant's Lab 1 search in the Gateway's
+    Lambda once both Lab 1 checks pass, and keeps the supplied search while
+    either does not (`_ship_lab1_search`); a reset to the starters leaves it.
+
     Environment preparation belongs to the facilitator's full provision. Lambda
     packages, trace and Runtime log groups, Transaction Search activation, the
     CloudTrail control-plane audit, the Cognito claim trigger, Gateway
@@ -2827,6 +2871,12 @@ def _participant_update(
     result["lambdas"] = {
         surface: {"function_arn": arn} for surface, arn in lambda_arns.items()
     }
+    if not reset_to_starters:
+        result["lab1_search"] = _ship_lab1_search(repo, region=region, identity=identity,
+                                                  env=env)
+        progress.amend("Checked your files and the deployed project; the Gateway "
+                       + ("runs your Lab 1 search" if result["lab1_search"]["runs"] == "yours"
+                          else "keeps the supplied Lab 1 search"))
     checkpoint()
 
     root, state = _redeploy_participant_edits(

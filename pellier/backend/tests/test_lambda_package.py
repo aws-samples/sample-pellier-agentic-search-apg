@@ -1,11 +1,11 @@
-"""The Gateway Lambda's zip carries Lab 1's finished search code, and Lab 3B cannot tell.
+"""The Gateway Lambda's zip carries a working Lab 1 search, and Lab 3B cannot tell.
 
 Bootstrap packages the store-tools Lambda once, from the checkout participants
-start with, and Lab 3's participant deploy reuses that function rather than
-repackaging it. A zip built from the live files would therefore ship Lab 1's
-starters to the Gateway for the whole event, however far a participant got. The
-zip instead carries the solution copies of ``services/store_tools.py`` and
-``services/search_plan.py``; every other file comes from the checkout.
+start with, so a zip of the live files would ship Lab 1's starters. It carries
+the solution copies of ``services/store_tools.py`` and ``services/search_plan.py``
+instead; every other file comes from the checkout. A participant deploy later
+swaps in the participant's own two modules, once both Lab 1 checks pass, without
+rebuilding the package (``deploy_lambda.replace_package_modules``).
 
 Lab 3B compares the build fingerprint a Gateway call carries with this
 checkout's. The Runtime stamps that fingerprint from its own package
@@ -145,3 +145,81 @@ def test_lab_3b_proves_the_build_whatever_state_lab_1_is_in(tmp_path: Path) -> N
     for checkout in (BACKEND, solved):
         local = compute_fingerprint(checkout, skills_root=REPO)
         assert lab3_check.judge_build(row, local).state == "PROVED", checkout
+
+
+# ---------------------------------------------------------------------------
+# A participant deploy ships the participant's own Lab 1 search once it passes
+# ---------------------------------------------------------------------------
+
+
+def _zip(entries: dict[str, bytes]) -> bytes:
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, data in entries.items():
+            info = zipfile.ZipInfo(name, (2026, 10, 26, 0, 0, 0))
+            info.external_attr = 0o644 << 16
+            archive.writestr(info, data)
+    return out.getvalue()
+
+
+class _Lambda:
+    """The Lambda API as the swap uses it: read the code, upload a zip, wait for it."""
+
+    def __init__(self, deployed: bytes) -> None:
+        self.deployed, self.uploaded, self.waited = deployed, None, []
+
+    def get_function(self, FunctionName: str) -> dict:  # noqa: N803 - boto3's name
+        return {"Code": {"Location": f"https://code.example.test/{FunctionName}.zip"}}
+
+    def update_function_code(self, FunctionName: str, ZipFile: bytes) -> dict:  # noqa: N803
+        self.uploaded = ZipFile
+        return {"CodeSha256": "new"}
+
+    def get_waiter(self, name: str):
+        client = self
+
+        class Waiter:
+            def wait(self, FunctionName: str) -> None:  # noqa: N803
+                client.waited.append((name, FunctionName))
+
+        return Waiter()
+
+
+@pytest.fixture
+def deployed(monkeypatch) -> _Lambda:
+    deploy_lambda = _deploy_lambda()
+    client = _Lambda(_zip({"services/store_tools.py": b"supplied search",
+                           "services/search_plan.py": b"supplied plan",
+                           "httpx/__init__.py": b"a dependency"}))
+    monkeypatch.setattr(deploy_lambda.urllib.request, "urlopen",
+                        lambda url, timeout: io.BytesIO(client.deployed))
+    client.module = deploy_lambda
+    return client
+
+
+def test_the_swap_changes_only_the_named_modules(deployed, tmp_path: Path) -> None:
+    (tmp_path / "store_tools.py").write_bytes(b"your search")
+    (tmp_path / "search_plan.py").write_bytes(b"your plan")
+    changed = deployed.module.replace_package_modules(
+        deployed, "pellier-store-tools-server-function",
+        {"services/store_tools.py": tmp_path / "store_tools.py",
+         "services/search_plan.py": tmp_path / "search_plan.py"})
+    assert changed
+    archive = zipfile.ZipFile(io.BytesIO(deployed.uploaded))
+    assert archive.read("services/store_tools.py") == b"your search"
+    assert archive.read("services/search_plan.py") == b"your plan"
+    assert archive.read("httpx/__init__.py") == b"a dependency"
+    assert sorted(archive.namelist()) == sorted(
+        ["services/store_tools.py", "services/search_plan.py", "httpx/__init__.py"])
+    for name in archive.namelist():  # the Lambda runtime's user must be able to read them
+        assert (archive.getinfo(name).external_attr >> 16) & 0o444 == 0o444, name
+    assert deployed.waited == [("function_updated_v2", "pellier-store-tools-server-function")]
+
+
+def test_a_package_that_already_carries_the_files_is_not_uploaded(deployed,
+                                                                   tmp_path: Path) -> None:
+    (tmp_path / "store_tools.py").write_bytes(b"supplied search")
+    changed = deployed.module.replace_package_modules(
+        deployed, "pellier-store-tools-server-function",
+        {"services/store_tools.py": tmp_path / "store_tools.py"})
+    assert not changed and deployed.uploaded is None and deployed.waited == []

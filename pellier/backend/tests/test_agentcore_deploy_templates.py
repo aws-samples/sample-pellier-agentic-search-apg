@@ -228,6 +228,62 @@ def test_a_policy_mode_deploy_is_pinned_to_the_lock(tmp_path: Path, monkeypatch)
     assert Path(seen["env"]["UV_CONSTRAINT"]).is_file()
 
 
+LAB1_SEARCH = {
+    "services/store_tools.py": BACKEND_DIR / "services" / "store_tools.py",
+    "services/search_plan.py": BACKEND_DIR / "services" / "search_plan.py",
+}
+SUPPLIED_SEARCH = {
+    "services/store_tools.py": REPO_ROOT / "solutions" / "the-quiet-search" / "retrieval"
+    / "store_tools_solution.py",
+    "services/search_plan.py": REPO_ROOT / "solutions" / "the-quiet-search" / "retrieval"
+    / "search_plan_solution.py",
+}
+
+
+def _ship(monkeypatch, failing: list[str]) -> tuple[dict[str, Any], list[Any]]:
+    provisioner = _load_provisioner()
+    swaps: list[Any] = []
+    monkeypatch.setattr(provisioner, "_lab1_checks_failing", lambda repo, env: failing)
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *args, **kwargs: "lambda-client")
+    monkeypatch.setattr(provisioner.deploy_lambda, "replace_package_modules",
+                        lambda client, name, modules: swaps.append((client, name, modules))
+                        or True)
+    identity = provisioner.deployment_identity()
+    shipped = provisioner._ship_lab1_search(REPO_ROOT, region="us-east-1", identity=identity,
+                                            env={})
+    return shipped, swaps
+
+
+def test_a_passing_lab_1_puts_the_participants_own_search_on_the_gateway(monkeypatch) -> None:
+    shipped, swaps = _ship(monkeypatch, failing=[])
+    ((client, name, modules),) = swaps
+    assert client == "lambda-client" and name.endswith("store-tools-server-function")
+    assert {k: Path(v).resolve() for k, v in modules.items()} == LAB1_SEARCH
+    assert shipped == {"runs": "yours", "failing_checks": [], "updated": True}
+
+
+def test_a_lab_1_that_does_not_pass_keeps_the_supplied_search(monkeypatch) -> None:
+    shipped, swaps = _ship(monkeypatch, failing=["1B"])
+    ((_, _, modules),) = swaps
+    assert {k: Path(v).resolve() for k, v in modules.items()} == SUPPLIED_SEARCH
+    assert shipped == {"runs": "supplied", "failing_checks": ["1B"], "updated": True}
+
+
+def test_the_gate_runs_the_guides_two_lab_1_checks(monkeypatch) -> None:
+    provisioner = _load_provisioner()
+    ran: list[list[str]] = []
+
+    def run(command, **kwargs):
+        ran.append(command)
+        return subprocess.CompletedProcess(command, 0 if command[-1] == "1A" else 1, "", "")
+
+    monkeypatch.setattr(provisioner.subprocess, "run", run)
+    assert provisioner._lab1_checks_failing(REPO_ROOT, {}) == ["1B"]
+    assert [command[1:] for command in ran] == [
+        [str(REPO_ROOT / "scripts" / "lab1_check.py"), "--task", "1A"],
+        [str(REPO_ROOT / "scripts" / "lab1_check.py"), "--task", "1B"]]
+
+
 def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:
     root, project = _render(tmp_path, include_policies=False)
 

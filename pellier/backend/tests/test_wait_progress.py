@@ -265,3 +265,16 @@ def test_a_longer_wait_draws_after_the_grace_period(monkeypatch: pytest.MonkeyPa
         time.sleep(0.3)
     assert "Waiting for Cedar" in out.getvalue()
     assert out.getvalue().endswith(wait_progress.CLEAR_LINE)
+
+
+def test_a_running_step_can_say_what_it_found_when_it_ends() -> None:
+    clock, out = Clock(), io.StringIO()
+    progress = wait_progress.Progress(stream=out, now=clock, interval=None)
+    progress.begin("Checking your files", typical=10, done="Checked your files")
+    progress.amend("Checked your files; the Gateway runs your Lab 1 search")
+    clock.seconds += 3
+    progress.expect(2)
+    progress.end()
+    progress.amend("too late: no step is running")
+    assert out.getvalue().splitlines()[-1] == (
+        "  + 0:03  1/2  Checked your files; the Gateway runs your Lab 1 search")
