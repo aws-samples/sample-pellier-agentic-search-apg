@@ -57,6 +57,7 @@ RAIL_ATTR = "pellier.rail"  # services/evidence_spans.py ATTR_RAIL
 MANAGED_RAIL = "gateway-mcp"
 RLS_REFUSAL = "violates row-level security policy"
 SQL_DIMENSION = "db.sql_tokenized.statement"
+UNATTRIBUTED = "Unknown"
 QUERIES_FINISHED = "db.SQL.queries_finished"
 
 
@@ -153,18 +154,24 @@ def busy_minutes(pi: Any, resource_id: str, minutes: int, now: datetime) -> Tupl
     return sum(1 for point in points if point["Value"] > 0), len(points)
 
 
-def top_sql(pi: Any, resource_id: str, minutes: int, now: datetime) -> List[str]:
-    """The statements carrying the most database load in the window, tokenized."""
+def top_sql(pi: Any, resource_id: str, minutes: int, now: datetime) -> Tuple[List[str], bool]:
+    """The three statements carrying the most database load in the window, tokenized, and
+    whether any load was sampled at all.
+
+    Performance Insights files load it cannot tie to a statement under the name ``Unknown``;
+    that is not a query, so it is left out, and one more key is asked for in its place.
+    """
     found = pi.describe_dimension_keys(
         ServiceType="RDS", Identifier=resource_id, StartTime=now - timedelta(minutes=minutes),
         EndTime=now, Metric="db.load.avg",
-        GroupBy={"Group": "db.sql_tokenized", "Dimensions": [SQL_DIMENSION], "Limit": 3})
+        GroupBy={"Group": "db.sql_tokenized", "Dimensions": [SQL_DIMENSION], "Limit": 4})
+    keys = found.get("Keys", [])
     statements = []
-    for key in found.get("Keys", []):
+    for key in keys:
         statement = " ".join(str((key.get("Dimensions") or {}).get(SQL_DIMENSION, "")).split())
-        if statement:
+        if statement and statement != UNATTRIBUTED:
             statements.append(statement if len(statement) <= 90 else statement[:87] + "...")
-    return statements
+    return statements[:3], bool(keys)
 
 
 def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
@@ -192,7 +199,7 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
                                  "provision from the current template")
     try:
         busy, reported = busy_minutes(pi, writer["DbiResourceId"], minutes, now)
-        statements = top_sql(pi, writer["DbiResourceId"], minutes, now)
+        statements, sampled = top_sql(pi, writer["DbiResourceId"], minutes, now)
     except Exception as exc:  # noqa: BLE001 - the setting is proved; the read is not
         return Finding("O2", "Database Insights on Aurora", UNCHECKED, expected,
                        f"{setting}; could not read its metrics: {aws_code(exc)}")
@@ -203,8 +210,12 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
                                  "wait about a minute and run this again")
     evidence = [f"queries finished in {busy} of the {reported} minutes reported "
                 f"({QUERIES_FINISHED})"]
-    evidence += ([f"top SQL by load: {s}" for s in statements]
-                 or ["top SQL by load: no statement sampled in the window"])
+    if statements:
+        evidence += [f"top SQL by load: {s}" for s in statements]
+    elif sampled:
+        evidence.append("top SQL by load: none; the load sampled in the window names no statement")
+    else:
+        evidence.append("top SQL by load: no statement sampled in the window")
     return Finding("O2", "Database Insights on Aurora", PROVED, expected, setting, evidence)
 
 

@@ -132,8 +132,9 @@ class _Pi:
         self.calls.append(kwargs)
         if self.denied:
             raise _Error("AccessDeniedException")
+        limit = kwargs["GroupBy"]["Limit"]
         return {"Keys": [{"Dimensions": {"db.sql_tokenized.statement": s}, "Total": 0.1}
-                         for s in self.statements]}
+                         for s in self.statements[:limit]]}
 
 
 SQL = "SELECT id, name FROM pellier.product_catalog WHERE price <= $1 ORDER BY embedding <=> $2"
@@ -215,6 +216,22 @@ def test_a_quiet_cluster_is_proved_by_its_counter_without_sampled_sql() -> None:
     _, quiet, _ = _run(statements=())
     assert quiet.state == obs.PROVED
     assert quiet.evidence[1] == "top SQL by load: no statement sampled in the window"
+
+
+def test_load_no_statement_carries_is_left_out_of_top_sql() -> None:
+    # Performance Insights files load it cannot tie to a statement under "Unknown"; it is
+    # not a query, so it neither takes a top-SQL line nor pushes a real statement out.
+    others = ("INSERT INTO lab_2_probes VALUES ($1)", "SELECT 1")
+    _, insights, _ = _run(statements=("Unknown", SQL) + others)
+    assert insights.state == obs.PROVED
+    assert insights.evidence[1:] == [f"top SQL by load: {s}" for s in (SQL,) + others]
+
+
+def test_load_with_no_statement_at_all_says_so() -> None:
+    _, insights, _ = _run(statements=("Unknown",))
+    assert insights.state == obs.PROVED
+    assert insights.evidence[1] == ("top SQL by load: none; the load sampled in the window "
+                                    "names no statement")
 
 
 def test_insights_without_finished_queries_yet_and_without_permission() -> None:
