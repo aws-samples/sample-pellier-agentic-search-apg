@@ -864,7 +864,7 @@ class EnhancedChatService:
         except ImportError as e:
             self.strands_available = False
             logger.error(f"❌ Strands SDK not available: {e}")
-            logger.error("Install with: pip install strands-agents strands-agents-tools")
+            logger.error("Install with: pip install strands-agents")
     
 
     
@@ -1341,7 +1341,7 @@ class EnhancedChatService:
 
         if not self.strands_available:
             diagnostics.append("❌ Strands SDK not installed")
-            diagnostics.append("   Run: pip install strands-agents strands-agents-tools")
+            diagnostics.append("   Run: pip install strands-agents")
 
         error_msg = "Configuration Error:\n\n" + "\n".join(diagnostics) if diagnostics else str(error)
 

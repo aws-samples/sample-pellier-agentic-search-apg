@@ -46,6 +46,25 @@ jobs:
         working-directory: pellier/backend
         run: python -m pytest -q
 
+      # The box installs requirements.lock, and every AgentCore deploy builds the Runtime
+      # from uv.lock (UV_CONSTRAINT), so a known vulnerability in either reaches an event.
+      - name: Audit the locked Python dependencies
+        working-directory: pellier/backend
+        run: |
+          python -m pip install pip-audit==2.10.1
+          pip-audit --disable-pip --require-hashes -r requirements.lock
+          python - > "$RUNNER_TEMP/runtime-lock.txt" <<'PY'
+          import tomllib
+          for package in tomllib.load(open("uv.lock", "rb"))["package"]:
+              if "virtual" not in package.get("source", {}):
+                  print(f"{package['name']}=={package['version']}")
+          PY
+          # GHSA-xcq7-p3pf-p88h (opentelemetry-api tracestate parsing): every
+          # aws-opentelemetry-distro release pins opentelemetry-api below the fix,
+          # 1.45.1. Drop this once a distro release allows it, then relock.
+          pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/runtime-lock.txt" \
+            --ignore-vuln GHSA-xcq7-p3pf-p88h
+
       - name: Validate shell scripts
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
 
