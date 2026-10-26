@@ -344,15 +344,39 @@ def test_the_prepared_request_is_returned_for_requests_to_send():
     assert signer(request) is request
 
 
-def test_the_exporter_posts_to_the_given_endpoint_with_the_signing_hook():
+def test_the_exporter_posts_to_the_given_endpoint_with_the_signing_hook(monkeypatch):
+    """A real span through the real exporter, with only the HTTP send intercepted: the
+    request reaches the endpoint signed. Checked by behaviour because the exporter's
+    internals move between OTLP releases (1.45 replaced its `_session` with a transport)."""
+    import requests
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+
+    sent = []
+
+    def send(self, request, **kwargs):
+        sent.append(request)
+        response = requests.Response()
+        response.status_code, response._content, response.request = 200, b"", request
+        return response
+
+    monkeypatch.setattr(requests.Session, "send", send)
     exporter = build_signing_exporter(
         endpoint="https://xray.ap-south-1.amazonaws.com/v1/traces",
         region="ap-south-1",
         credentials=_FakeCredentials(),
     )
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    with provider.get_tracer("signing-test").start_as_current_span("routing"):
+        pass
+    provider.shutdown()
 
-    assert exporter._endpoint == "https://xray.ap-south-1.amazonaws.com/v1/traces"
-    assert isinstance(exporter._session.auth, SigV4RequestSigner)
+    (request,) = sent
+    assert request.url == "https://xray.ap-south-1.amazonaws.com/v1/traces"
+    assert request.headers["Authorization"].startswith(
+        "AWS4-HMAC-SHA256 Credential=AKIAEXAMPLE/")
+    assert "/ap-south-1/xray/aws4_request" in request.headers["Authorization"]
 
 
 def test_the_exporter_needs_no_aws_distro_package():
