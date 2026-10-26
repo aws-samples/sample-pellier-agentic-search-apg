@@ -74,7 +74,8 @@ def test_the_cedar_action_id_embeds_the_one_target() -> None:
 def test_the_tiers_name_the_one_money_movement() -> None:
     assert gateway.mutation_tool_names() == ["give_store_credit"]
     assert gateway.tools_in_tier(gateway.TIER_ESCALATION) == ["ask_a_person"]
-    assert set(gateway.tools_in_tier(gateway.TIER_READ)) == NINE_TOOLS - {"give_store_credit", "ask_a_person"}
+    assert set(gateway.tools_in_tier(gateway.TIER_READ)) == (
+        NINE_TOOLS - {"give_store_credit", "ask_a_person"})
     assert gateway.tool_tier("_".join(("restock", "inventory"))) == gateway.TIER_OPERATOR_MUTATION
 
 
@@ -304,13 +305,14 @@ def test_an_unknown_intent_cannot_build_a_managed_agent() -> None:
         gateway._managed_specialist_spec("pricing")
 
 
-def test_the_managed_prompt_names_the_agent_and_binds_the_turn() -> None:
+def test_the_managed_prompt_names_the_agent_and_its_customer() -> None:
+    """The turn is bound by the server on each call, not asked of the model."""
     intent, prompt, tools, skills = gateway._managed_specialist_spec(
-        "support", turn_id="turn-" + ("d" * 32), customer_id="CUST-THEO",
+        "support", customer_id="CUST-THEO",
     )
     assert intent == "support" and tools == gateway.SUPPORT_GATEWAY_TOOLS
     assert "Support agent" in prompt
-    assert "turn_id='turn-" in prompt and "CUST-THEO" in prompt
+    assert "CUST-THEO" in prompt and "turn_id" not in prompt
 
 
 def test_the_managed_agent_carries_the_same_fixed_skills_and_reports_them() -> None:
@@ -397,7 +399,8 @@ def test_a_shopper_agent_may_not_bind_the_staff_only_gateway_tool() -> None:
 
 def test_the_result_summary_keeps_only_bounded_fields() -> None:
     summary: Dict[str, Any] = gateway._result_summary(
-        {"content": [{"text": json.dumps({"status": "success", "count": 2, "orders": [{"x": 1}]})}]},
+        {"content": [{"text": json.dumps(
+            {"status": "success", "count": 2, "orders": [{"x": 1}]})}]},
         [{"productId": "7"}, {"name": "unnamed"}],
     )
     assert summary == {"product_count": 2, "product_ids": ["7"], "status": "success", "count": 2}

@@ -11,7 +11,7 @@ real Strands agent; only the model is scripted.
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from strands import Agent, tool
 from strands.hooks.events import AfterToolCallEvent, BeforeToolCallEvent
@@ -273,3 +273,75 @@ def test_a_call_from_an_older_runtime_bundle_reads_its_status() -> None:
     old = TurnSteps().managed({"tool": "check_stock", "status": "error"})
     assert old["status"] == "failed" and old["builder"]["outcome"] == OUTCOME_FAILED
     assert TurnSteps().managed({"tool": "check_stock", "status": "success"})["status"] == "done"
+
+
+class _StockListing(_GatewayListing):
+    """An MCP client that lists check_stock under its Gateway name."""
+
+    def list_tools_sync(self) -> list:
+        from types import SimpleNamespace
+
+        name = "pellier-store-tools___check_stock"
+        return [SimpleNamespace(tool_name=name, mcp_tool=SimpleNamespace(name=name))]
+
+
+class _WatchingModel(ScriptedModel):
+    """A scripted model that keeps the conversation it is shown on its answering turn."""
+
+    shown: List[Dict[str, Any]] = []
+
+    async def stream(self, messages: Any, tool_specs: Any = None, system_prompt: Any = None,
+                     **kwargs: Any):
+        if self.turns == 1:
+            _WatchingModel.shown = json.loads(json.dumps(messages, default=str))
+        async for event in super().stream(messages, tool_specs, system_prompt, **kwargs):
+            yield event
+
+
+def test_the_model_sees_its_own_call_not_the_arguments_the_server_added(monkeypatch) -> None:
+    """The server adds turn_id and build_fingerprint to the call it executes. The model's copy
+    of its call must not show them: on test event 17, shown values it had not written, the
+    Stock agent told Marco it had to correct its lookup's build fingerprint and turn ID."""
+    import strands.models
+    import strands.tools.mcp.mcp_client as mcp_client_module
+
+    from services import agentcore_gateway
+
+    executed: Dict[str, Any] = {}
+
+    @tool(name="check_stock")
+    def recording_check_stock(product_query: str, turn_id: str = "",
+                              build_fingerprint: str = "") -> str:
+        """Units of one piece in each warehouse.
+
+        Args:
+            product_query: The piece to look up.
+            turn_id: Set by the server.
+            build_fingerprint: Set by the server.
+        """
+        executed.update(product_query=product_query, turn_id=turn_id,
+                        build_fingerprint=build_fingerprint)
+        return json.dumps({"status": "not_found", "product_query": product_query})
+
+    monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gateway.example.test/mcp")
+    monkeypatch.setenv("PELLIER_BUILD_FINGERPRINT", "build-abc")
+    monkeypatch.setattr(mcp_client_module, "MCPClient", _StockListing)
+    monkeypatch.setattr(strands.models, "BedrockModel", lambda **_kwargs: _WatchingModel(
+        [("check_stock", {"product_query": "Velvet Opera Cape"})], "Pellier doesn't carry it."))
+    monkeypatch.setattr(agentcore_gateway, "_model_gateway_tools",
+                        lambda _tools: [recording_check_stock])
+
+    dispatcher = agentcore_gateway.ManagedGatewayDispatcher(
+        access_token="marco-token", customer_id="CUST-MARCO",
+        routing_query="Is the Velvet Opera Cape in stock?",
+        trace_attributes={"turn.id": "turn-owned"},
+    )
+    dispatcher("Is the Velvet Opera Cape in stock?")
+
+    assert executed == {"product_query": "Velvet Opera Cape", "turn_id": "turn-owned",
+                        "build_fingerprint": "build-abc"}
+    calls = [block["toolUse"] for message in _WatchingModel.shown
+             for block in message["content"] if "toolUse" in block]
+    assert [call["input"] for call in calls] == [{"product_query": "Velvet Opera Cape"}]
+    (event,) = dispatcher.last_tool_events
+    assert event["input"]["turn_id"] == "turn-owned"

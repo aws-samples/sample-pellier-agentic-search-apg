@@ -19,7 +19,7 @@ SPECIALISTS = ("shopping", "stock", "support")
 
 @pytest.mark.parametrize("specialist", SPECIALISTS)
 def test_the_managed_prompt_ends_with_the_agents_own_output_rules(specialist: str) -> None:
-    prompt = _managed_specialist_prompt(specialist, turn_id="turn-1", customer_id="CUST-THEO")
+    prompt = _managed_specialist_prompt(specialist, customer_id="CUST-THEO")
 
     assert OUTPUT_RULES[specialist] in prompt
     assert "em dashes" in " ".join(OUTPUT_RULES[specialist].split())

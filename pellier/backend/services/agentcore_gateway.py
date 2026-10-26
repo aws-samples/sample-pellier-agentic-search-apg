@@ -16,6 +16,7 @@ a Python import, is the source of the agent's tools.
 
 MCP (Model Context Protocol) docs: https://modelcontextprotocol.io
 """
+import functools
 import logging
 import os
 import re
@@ -165,7 +166,6 @@ def _runtime_or_app_setting(name: str, default: str = "") -> str:
 def _managed_specialist_prompt(
     specialist: str,
     *,
-    turn_id: str = "",
     customer_id: str = "",
     skills: Sequence[Any] = (),
 ) -> str:
@@ -188,11 +188,6 @@ def _managed_specialist_prompt(
         "an action succeeded unless the tool result reports success. Answer "
         "in 1-3 concise sentences without markdown tables or invented details."
     )
-    if turn_id:
-        prompt += (
-            " For every Gateway tool call, include the exact audit correlation "
-            f"argument turn_id={turn_id!r}. Do not invent, shorten, or reuse it."
-        )
     if customer_id:
         prompt += (
             " The Runtime supplied the active workshop profile "
@@ -294,6 +289,48 @@ def _logical_gateway_tool_name(name: str) -> str:
     return name
 
 
+# Arguments the server sets on every managed call (`_bind_server_tool_context`).
+# The Gateway publishes them as optional inputs so a direct call stays valid, but
+# the model never sees them: shown one, a model fills it in and may tell the
+# shopper so.
+_SERVER_SET_TOOL_INPUTS = frozenset({"turn_id", "build_fingerprint"})
+
+
+def _model_input_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """The tool's input schema as the model sees it: without the server-set arguments."""
+    properties = schema.get("properties") or {}
+    if not _SERVER_SET_TOOL_INPUTS & set(properties):
+        return schema
+    shown = dict(schema)
+    shown["properties"] = {name: spec for name, spec in properties.items()
+                           if name not in _SERVER_SET_TOOL_INPUTS}
+    if "required" in schema:
+        shown["required"] = [name for name in schema["required"]
+                             if name not in _SERVER_SET_TOOL_INPUTS]
+    return shown
+
+
+@functools.lru_cache(maxsize=1)
+def _model_gateway_tool_class() -> type:
+    """Strands' MCP agent tool, with the server-set arguments left out of the model's spec.
+
+    It filters the spec Strands builds, never the MCP Tool itself: the Runtime installs
+    newer packages than this lock, and their Tool names its schema differently.
+    """
+    from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
+
+    class ModelGatewayTool(MCPAgentTool):
+        @property
+        def tool_spec(self) -> Any:
+            spec = super().tool_spec
+            schema = (spec.get("inputSchema") or {}).get("json")
+            if isinstance(schema, dict):
+                spec = {**spec, "inputSchema": {"json": _model_input_schema(schema)}}
+            return spec
+
+    return ModelGatewayTool
+
+
 def _model_gateway_tools(tools: Sequence[Any]) -> list[Any]:
     """Give Bedrock short names while preserving Gateway execution identities.
 
@@ -301,9 +338,10 @@ def _model_gateway_tools(tools: Sequence[Any]) -> list[Any]:
     Strands' public name_override changes the model schema only; its MCP
     adapter still calls the original qualified name under the same JWT.
     Ambiguous aliases fail closed instead of selecting a different target.
+    The model's copy of each input schema leaves out the arguments the server
+    sets; the Gateway's own copy, used for the call, is unchanged.
     """
-    from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
-
+    model_tool = _model_gateway_tool_class()
     aliases: set[str] = set()
     adapted: list[Any] = []
     for tool in tools:
@@ -313,7 +351,7 @@ def _model_gateway_tools(tools: Sequence[Any]) -> list[Any]:
         if name in aliases:
             raise RuntimeError(f"Gateway exposes an ambiguous logical tool: {name}")
         aliases.add(name)
-        adapted.append(MCPAgentTool(
+        adapted.append(model_tool(
             tool.mcp_tool,
             tool.mcp_client,
             name_override=name,
@@ -524,7 +562,6 @@ def _result_summary(result: Any, products: list[dict[str, Any]]) -> Dict[str, An
 def _managed_specialist_spec(
     intent: str,
     *,
-    turn_id: str = "",
     customer_id: str = "",
 ) -> tuple[str, str, tuple[str, ...], list[Dict[str, Any]]]:
     """Return the routed agent's intent, prompt, allowed logical tools and skills.
@@ -543,7 +580,6 @@ def _managed_specialist_spec(
         intent,
         _managed_specialist_prompt(
             intent,
-            turn_id=turn_id,
             customer_id=customer_id,
             skills=skills,
         ),
@@ -587,7 +623,6 @@ class ManagedGatewayDispatcher:
         turn_id = str((self.trace_attributes or {}).get("turn.id") or "").strip()
         specialist, system_prompt, allowed_tools, skills = _managed_specialist_spec(
             intent,
-            turn_id=turn_id,
             customer_id=self.customer_id,
         )
         gateway_url = _runtime_or_app_setting("AGENTCORE_GATEWAY_URL")
@@ -742,6 +777,14 @@ class ManagedGatewayDispatcher:
                         **scope_by_id.pop(tool_use_id, {}),
                     }
                 )
+                # The call ran with the arguments before_tool added, and the evidence above
+                # keeps them. The conversation holds this same dict as the model's own call,
+                # so take the server's arguments back out: shown values it did not write, a
+                # model tells the shopper it has to correct them.
+                ran_with = tool_use.get("input")
+                if isinstance(ran_with, dict):
+                    for name in _SERVER_SET_TOOL_INPUTS:
+                        ran_with.pop(name, None)
 
             agent.add_hook(before_tool)
             agent.add_hook(after_tool)
