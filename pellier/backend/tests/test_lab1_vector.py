@@ -95,8 +95,12 @@ def test_the_solution_ranks_by_meaning(conn, monkeypatch) -> None:
      "reports similarity"),
     ("Euclidean operator", {"<=>": "<->"}, "reports similarity"),
     ("a fixed LIMIT", {"LIMIT %s": "LIMIT 5"}, "your vector branch raised an error"),
-    ("limits ignored", {"{_indent_clauses(extra_clauses)}": "{_indent_clauses(extra_clauses)}"
-                        " OR true"},
+    # Each of her limits becomes "(limit OR true)": the photographed-catalog filter stays, so
+    # the self-probes rank the 1,000 visible products on their partial HNSW index, as the
+    # solution does. A bare trailing OR true dropped that filter too and ranked all 50,000 rows
+    # on the approximate full-catalog index, whose recall varies with each graph build.
+    ("limits ignored", {"{_indent_clauses(extra_clauses)}":
+                        "{_indent_clauses(['(' + c + ' OR true)' for c in extra_clauses])}"},
      "came back under Anna's limits, and it is a candle"),
 ])
 def test_the_check_catches_a_realistic_mistake(conn, monkeypatch, mistake: str,
@@ -137,7 +141,8 @@ def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> Non
     assert rows["Housewarming Gift Box"][0] == "1"
     assert rows["Housewarming Gift Box"][2] == "gift, housewarming"
     assert rows["Gift Wrapping Kit"][2] == "gift"
-    assert not {"Stoneware Mugs, Set of 2", "Stoneware Pour-Over Set", "Ceramic Tumblers"} & rows.keys()
+    fitting = {"Stoneware Mugs, Set of 2", "Stoneware Pour-Over Set", "Ceramic Tumblers"}
+    assert not fitting & rows.keys()
     assert len(rows) == 10
 
 
@@ -163,7 +168,8 @@ def test_the_meaning_worksheet_shows_distances_without_ranking_them(fresh_db) ->
     assert "vector_cosine_ops" in indexes["product_catalog_embedding_hnsw"]
 
 
-def test_the_worksheet_ranks_the_fitting_products_outside_the_rerank_pool(fresh_db) -> None:  # noqa: F811
+def test_the_worksheet_ranks_the_fitting_products_outside_the_rerank_pool(
+        fresh_db) -> None:  # noqa: F811
     fitting = {row[0]: row for row in _worksheet_rows(fresh_db)
                if row[0] in {"Stoneware Mugs, Set of 2", "Stoneware Pour-Over Set",
                              "Ceramic Tumblers"}}
