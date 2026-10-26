@@ -4,8 +4,9 @@ Bootstrap packages the store-tools Lambda once, from the checkout participants
 start with, so a zip of the live files would ship Lab 1's starters. It carries
 the solution copies of ``services/store_tools.py`` and ``services/search_plan.py``
 instead; every other file comes from the checkout. A participant deploy later
-swaps in the participant's own two modules, once both Lab 1 checks pass, without
-rebuilding the package (``deploy_lambda.replace_package_modules``).
+swaps in the participant's own search plan, once both Lab 1 checks pass and
+nothing outside its marked region was edited, without rebuilding the package
+(``deploy_lambda.replace_package_modules``).
 
 Lab 3B compares the build fingerprint a Gateway call carries with this
 checkout's. The Runtime stamps that fingerprint from its own package

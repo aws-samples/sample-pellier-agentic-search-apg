@@ -228,22 +228,20 @@ def test_a_policy_mode_deploy_is_pinned_to_the_lock(tmp_path: Path, monkeypatch)
     assert Path(seen["env"]["UV_CONSTRAINT"]).is_file()
 
 
-LAB1_SEARCH = {
-    "services/store_tools.py": BACKEND_DIR / "services" / "store_tools.py",
-    "services/search_plan.py": BACKEND_DIR / "services" / "search_plan.py",
-}
 SUPPLIED_SEARCH = {
     "services/store_tools.py": REPO_ROOT / "solutions" / "the-quiet-search" / "retrieval"
     / "store_tools_solution.py",
     "services/search_plan.py": REPO_ROOT / "solutions" / "the-quiet-search" / "retrieval"
     / "search_plan_solution.py",
 }
+YOUR_SEARCH_PLAN = BACKEND_DIR / "services" / "search_plan.py"
 
 
-def _ship(monkeypatch, failing: list[str]) -> tuple[dict[str, Any], list[Any]]:
+def _ship(monkeypatch, failing: list[str], your_plan: Path = YOUR_SEARCH_PLAN):
     provisioner = _load_provisioner()
     swaps: list[Any] = []
     monkeypatch.setattr(provisioner, "_lab1_checks_failing", lambda repo, env: failing)
+    monkeypatch.setattr(provisioner, "_your_search_plan", lambda repo: your_plan)
     monkeypatch.setattr(provisioner.boto3, "client", lambda *args, **kwargs: "lambda-client")
     monkeypatch.setattr(provisioner.deploy_lambda, "replace_package_modules",
                         lambda client, name, modules: swaps.append((client, name, modules))
@@ -251,22 +249,43 @@ def _ship(monkeypatch, failing: list[str]) -> tuple[dict[str, Any], list[Any]]:
     identity = provisioner.deployment_identity()
     shipped = provisioner._ship_lab1_search(REPO_ROOT, region="us-east-1", identity=identity,
                                             env={})
-    return shipped, swaps
-
-
-def test_a_passing_lab_1_puts_the_participants_own_search_on_the_gateway(monkeypatch) -> None:
-    shipped, swaps = _ship(monkeypatch, failing=[])
     ((client, name, modules),) = swaps
     assert client == "lambda-client" and name.endswith("store-tools-server-function")
-    assert {k: Path(v).resolve() for k, v in modules.items()} == LAB1_SEARCH
-    assert shipped == {"runs": "yours", "failing_checks": [], "updated": True}
+    return shipped, {k: Path(v).resolve() for k, v in modules.items()}
+
+
+def test_a_passing_lab_1_puts_the_participants_own_search_plan_on_the_gateway(
+        monkeypatch) -> None:
+    shipped, modules = _ship(monkeypatch, failing=[])
+    assert modules == {"services/store_tools.py": SUPPLIED_SEARCH["services/store_tools.py"],
+                       "services/search_plan.py": YOUR_SEARCH_PLAN.resolve()}
+    assert shipped == {"runs": "yours", "failing_checks": [], "edited_outside_region": False,
+                       "updated": True}
+
+
+def test_store_tools_always_ships_as_supplied(monkeypatch) -> None:
+    """store_tools.py holds all nine tools, the money tool among them, and Lab 1's change to it
+    is applied by command: a participant's copy never reaches the Gateway."""
+    for failing in ([], ["1B"]):
+        _, modules = _ship(monkeypatch, failing=failing)
+        assert modules["services/store_tools.py"] == SUPPLIED_SEARCH["services/store_tools.py"]
 
 
 def test_a_lab_1_that_does_not_pass_keeps_the_supplied_search(monkeypatch) -> None:
-    shipped, swaps = _ship(monkeypatch, failing=["1B"])
-    ((_, _, modules),) = swaps
-    assert {k: Path(v).resolve() for k, v in modules.items()} == SUPPLIED_SEARCH
-    assert shipped == {"runs": "supplied", "failing_checks": ["1B"], "updated": True}
+    shipped, modules = _ship(monkeypatch, failing=["1B"])
+    assert modules == SUPPLIED_SEARCH
+    assert shipped["runs"] == "supplied" and shipped["failing_checks"] == ["1B"]
+
+
+def test_an_edit_outside_the_marked_region_keeps_the_supplied_search(monkeypatch,
+                                                                      tmp_path: Path) -> None:
+    """The checks test the search, not the rest of the file: a stray edit outside the region
+    the participant builds would pass them and still reach the Gateway."""
+    stray = tmp_path / "search_plan.py"
+    stray.write_text(YOUR_SEARCH_PLAN.read_text() + "\nSTRAY = True\n")
+    shipped, modules = _ship(monkeypatch, failing=[], your_plan=stray)
+    assert modules == SUPPLIED_SEARCH
+    assert shipped["runs"] == "supplied" and shipped["edited_outside_region"] is True
 
 
 def test_the_gate_runs_the_guides_two_lab_1_checks(monkeypatch) -> None:

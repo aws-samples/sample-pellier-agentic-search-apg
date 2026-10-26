@@ -195,10 +195,10 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
 # Bootstrap packages this Lambda once, from the checkout participants start
 # with, so Lab 1's search modules ship from their solution copies: each is its
 # live module plus the answers inside the marked regions. A participant deploy
-# (Labs 3 and 4) then swaps in the participant's own two modules once both Lab 1
-# checks pass, and the supplied ones while either does not
-# (`provision_agentcore_end_to_end._ship_lab1_search`), so a half-finished Lab 1
-# never reaches the Gateway. Lab 3B's build fingerprint digests the Runtime
+# (Labs 3 and 4) then swaps in the participant's own search plan when both Lab 1
+# checks pass and nothing outside its marked region was edited
+# (`provision_agentcore_end_to_end._ship_lab1_search`); store_tools.py, which
+# holds every tool, always ships as supplied. Lab 3B's build fingerprint digests the Runtime
 # package, not this zip; `tests/test_lambda_package.py` keeps the two apart.
 SOLUTION_COPIES = {
   'services/store_tools.py': '../../solutions/the-quiet-search/retrieval/store_tools_solution.py',

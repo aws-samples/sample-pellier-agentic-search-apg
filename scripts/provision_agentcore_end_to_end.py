@@ -2504,8 +2504,8 @@ def _existing_lambda_arns(
 
     No Lab 3 or Lab 4 edit changes how the Lambda is built, so the participant
     update looks the functions up by their deterministic names instead of
-    repackaging them; only Lab 1's two search modules are swapped inside the
-    deployed package (`_ship_lab1_search`). A missing function means the
+    repackaging them; only Lab 1's search plan is swapped inside the deployed
+    package (`_ship_lab1_search`). A missing function means the
     environment was never provisioned, which no participant edit can repair.
     """
     lambda_client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
@@ -2524,8 +2524,26 @@ def _existing_lambda_arns(
     return arns
 
 
-# Lab 1's two search modules, by their path inside the Gateway Lambda's package.
-LAB1_SEARCH_MODULES = ("services/store_tools.py", "services/search_plan.py")
+# Lab 1's two modules in the Gateway Lambda's package, by their path inside it.
+_STORE_TOOLS, _SEARCH_PLAN = "services/store_tools.py", "services/search_plan.py"
+# A region a participant builds, from its START marker to its END marker.
+_MARKED_REGION = re.compile(
+    r"# === WORKSHOP - [^\n]*: START ===.*?# === WORKSHOP - [^\n]*: END ===", re.DOTALL)
+
+
+def _supplied(module: str) -> Path:
+    return (DEPLOY_DIR / deploy_lambda.SOLUTION_COPIES[module]).resolve()
+
+
+def _your_search_plan(repo: Path) -> Path:
+    return repo / "pellier" / "backend" / _SEARCH_PLAN
+
+
+def _edited_outside_region(yours: Path, supplied: Path) -> bool:
+    """Whether ``yours`` differs from ``supplied`` anywhere but inside its marked regions."""
+    def outside(path: Path) -> str:
+        return _MARKED_REGION.sub("", path.read_text(encoding="utf-8"))
+    return outside(yours) != outside(supplied)
 
 
 def _lab1_checks_failing(repo: Path, env: dict[str, str]) -> list[str]:
@@ -2543,23 +2561,27 @@ def _ship_lab1_search(
     identity: DeploymentIdentity,
     env: dict[str, str],
 ) -> dict[str, Any]:
-    """Put the participant's own Lab 1 search in the Gateway's Lambda once both Lab 1 checks
-    pass, and the supplied answers while either does not.
+    """Put the participant's own search plan in the Gateway's Lambda when both Lab 1 checks
+    pass and the file matches the supplied one outside its marked region, and the supplied
+    plan otherwise.
 
-    Labs 3 and 4 then search with the code the participant built, and a half-finished Lab 1
-    can still never reach the Gateway. Returns what the Gateway runs, for the receipt.
+    The search plan holds Task 1B, the Lab 1 code participants build. ``store_tools.py``
+    always ships as supplied: it holds all nine tools, the one that moves money among them,
+    the Lab 1 checks test only its search, and its Lab 1 change (1A) is applied by command.
+    Labs 3 and 4 then search with the participant's own retry, and neither a half-finished
+    Lab 1 nor an edit outside the region can reach the Gateway. Returns what it runs.
     """
     failing = _lab1_checks_failing(repo, env)
-    if failing:
-        sources = {name: (DEPLOY_DIR / deploy_lambda.SOLUTION_COPIES[name]).resolve()
-                   for name in LAB1_SEARCH_MODULES}
-    else:
-        sources = {name: repo / "pellier" / "backend" / name for name in LAB1_SEARCH_MODULES}
+    yours = _your_search_plan(repo)
+    edited = _edited_outside_region(yours, _supplied(_SEARCH_PLAN))
+    ships_yours = not failing and not edited
+    sources = {_STORE_TOOLS: _supplied(_STORE_TOOLS),
+               _SEARCH_PLAN: yours if ships_yours else _supplied(_SEARCH_PLAN)}
     function_name = f"{_deployment_targets(identity)['store']['server_name']}-function"
     updated = deploy_lambda.replace_package_modules(
         boto3.client("lambda", region_name=region, config=AWS_CONFIG), function_name, sources)
-    return {"runs": "supplied" if failing else "yours", "failing_checks": failing,
-            "updated": updated}
+    return {"runs": "yours" if ships_yours else "supplied", "failing_checks": failing,
+            "edited_outside_region": edited, "updated": updated}
 
 
 def _active_policy_names(*, region: str, policy_engine_id: str) -> set[str]:
@@ -2841,9 +2863,10 @@ def _participant_update(
     render reads from ``policies/workshop_credit_limit.cedar``. Either way it
     is one update of the deployed project.
 
-    Its first step also puts the participant's Lab 1 search in the Gateway's
-    Lambda once both Lab 1 checks pass, and keeps the supplied search while
-    either does not (`_ship_lab1_search`); a reset to the starters leaves it.
+    Its first step also puts the participant's Lab 1 search plan in the Gateway's
+    Lambda when both Lab 1 checks pass and nothing outside its marked region was
+    edited, and the supplied one otherwise (`_ship_lab1_search`); a reset to the
+    starters leaves it.
 
     Environment preparation belongs to the facilitator's full provision. Lambda
     packages, trace and Runtime log groups, Transaction Search activation, the
