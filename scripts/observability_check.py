@@ -155,23 +155,27 @@ def busy_minutes(pi: Any, resource_id: str, minutes: int, now: datetime) -> Tupl
 
 
 def top_sql(pi: Any, resource_id: str, minutes: int, now: datetime) -> Tuple[List[str], bool]:
-    """The three statements carrying the most database load in the window, tokenized, and
-    whether any load was sampled at all.
+    """The three lines of statements carrying the most database load in the window,
+    tokenized, and whether any load was sampled at all.
 
     Performance Insights files load it cannot tie to a statement under the name ``Unknown``;
-    that is not a query, so it is left out, and one more key is asked for in its place.
+    that is not a query, so it is left out. A statement is cut to fit one line, so two that
+    begin alike would print the same text twice: they share one line, with their count.
+    More keys are asked for than lines shown, so both still leave three lines.
     """
     found = pi.describe_dimension_keys(
         ServiceType="RDS", Identifier=resource_id, StartTime=now - timedelta(minutes=minutes),
         EndTime=now, Metric="db.load.avg",
-        GroupBy={"Group": "db.sql_tokenized", "Dimensions": [SQL_DIMENSION], "Limit": 4})
+        GroupBy={"Group": "db.sql_tokenized", "Dimensions": [SQL_DIMENSION], "Limit": 6})
     keys = found.get("Keys", [])
-    statements = []
+    counts: Dict[str, int] = {}
     for key in keys:
         statement = " ".join(str((key.get("Dimensions") or {}).get(SQL_DIMENSION, "")).split())
         if statement and statement != UNATTRIBUTED:
-            statements.append(statement if len(statement) <= 90 else statement[:87] + "...")
-    return statements[:3], bool(keys)
+            line = statement if len(statement) <= 90 else statement[:87] + "..."
+            counts[line] = counts.get(line, 0) + 1
+    lines = [line if n == 1 else f"{line} ({n} statements)" for line, n in counts.items()]
+    return lines[:3], bool(keys)
 
 
 def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,

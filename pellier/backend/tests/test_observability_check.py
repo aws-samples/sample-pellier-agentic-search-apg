@@ -227,6 +227,18 @@ def test_load_no_statement_carries_is_left_out_of_top_sql() -> None:
     assert insights.evidence[1:] == [f"top SQL by load: {s}" for s in (SQL,) + others]
 
 
+def test_statements_that_print_alike_share_one_line() -> None:
+    # Two tokenized statements can share their first 87 characters, and cut to fit a line
+    # they printed as the same text twice (test event 17: two INSERT INTO lab_2_probes lines).
+    start = ('INSERT INTO lab_2_probes WITH named AS ( SELECT c.ord, p."productId" AS id '
+             'FROM lab_2_cases c')
+    orders = "SELECT customer_id, count(*)::int AS orders FROM pellier.orders GROUP BY customer_id"
+    _, insights, _ = _run(statements=(start + " JOIN a", start + " JOIN b", "Unknown", orders, SQL))
+    assert insights.state == obs.PROVED
+    assert insights.evidence[1:] == [f"top SQL by load: {start[:87]}... (2 statements)",
+                                     f"top SQL by load: {orders}", f"top SQL by load: {SQL}"]
+
+
 def test_load_with_no_statement_at_all_says_so() -> None:
     _, insights, _ = _run(statements=("Unknown",))
     assert insights.state == obs.PROVED
