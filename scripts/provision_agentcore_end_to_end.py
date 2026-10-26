@@ -62,6 +62,7 @@ from render_agentcore_project import (  # noqa: E402
     FINGERPRINT_ENV_VAR,
     project_root,
     render_project,
+    runtime_build_environment,
 )
 from services.memory_contract import REQUIRED_STRATEGIES  # noqa: E402
 
@@ -1248,6 +1249,8 @@ def _agentcore(
     # CloudWatch log-group name. Keep the CLI's DEFAULT alias in its child
     # process without replacing the application's ARN.
     cli_env = {**env, "AGENTCORE_RUNTIME_ENDPOINT": "DEFAULT"}
+    if args and args[0] == "deploy":
+        cli_env = runtime_build_environment(root, cli_env)
     # Printed as a participant would type it: on the workshop box, `agentcore` is the
     # shell function that runs this pinned CLI from the project folder.
     print("+ agentcore " + " ".join(_redacted(args)), flush=True)

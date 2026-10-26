@@ -160,6 +160,74 @@ def test_each_cli_command_is_printed_as_typed_without_the_token(
     assert "header.payload.signature" not in printed
 
 
+LOCK = BACKEND_DIR / "uv.lock"
+
+
+def _locked(name: str) -> str:
+    import tomllib
+
+    return next(p["version"] for p in tomllib.loads(LOCK.read_text())["package"]
+                if p["name"] == name)
+
+
+def _with_staged_lock(root: Path) -> Path:
+    (root / "runtime-src").mkdir(parents=True)
+    shutil.copy2(LOCK, root / "runtime-src" / "uv.lock")
+    return root
+
+
+def test_the_runtime_build_installs_the_locked_versions(tmp_path: Path) -> None:
+    """The CLI builds the CodeZip with `uv pip install -r pyproject.toml`, which never reads
+    uv.lock: on test event 17 the Runtime ran strands-agents 1.62.0 and mcp 2.1.1 against a
+    lock of 1.48.0 and 1.30.0. UV_CONSTRAINT pins that install to the lock."""
+    env = renderer.runtime_build_environment(_with_staged_lock(tmp_path),
+                                             {"AWS_REGION": "us-east-1"})
+    constraints = Path(env["UV_CONSTRAINT"])
+    pins = constraints.read_text().split()
+    for name in ("strands-agents", "mcp", "bedrock-agentcore", "pydantic", "opentelemetry-sdk"):
+        assert f"{name}=={_locked(name)}" in pins
+    assert not any(pin.startswith("pellier-backend==") for pin in pins)
+    assert env["AWS_REGION"] == "us-east-1"
+    assert constraints.parent == tmp_path  # beside the project, not packaged in runtime-src
+
+
+def test_every_cli_deploy_is_pinned_to_the_lock(tmp_path: Path, monkeypatch) -> None:
+    provisioner = _load_provisioner()
+    seen: list[dict[str, str]] = []
+
+    def run(args, *, cwd, env):
+        seen.append(env)
+        return subprocess.CompletedProcess(args, 0, stdout="")
+
+    monkeypatch.setattr(provisioner, "_run", run)
+    provisioner._agentcore(_with_staged_lock(tmp_path), "deploy", "--yes", "--json", env={})
+    assert Path(seen[0]["UV_CONSTRAINT"]).is_file()
+
+
+def test_a_missing_lock_stops_the_deploy_before_the_cli_runs(tmp_path: Path, monkeypatch) -> None:
+    provisioner = _load_provisioner()
+    monkeypatch.setattr(provisioner, "_run",
+                        lambda *args, **kwargs: pytest.fail("the CLI built an unpinned Runtime"))
+    with pytest.raises(RuntimeError, match="uv.lock"):
+        provisioner._agentcore(tmp_path, "deploy", "--yes", env={})
+
+
+def test_a_policy_mode_deploy_is_pinned_to_the_lock(tmp_path: Path, monkeypatch) -> None:
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    import policy_mode
+
+    seen: dict[str, Any] = {}
+
+    def run(command, **kwargs):
+        seen.update(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", run)
+    returncode, _ = policy_mode.deploy(_with_staged_lock(tmp_path))
+    assert returncode == 0
+    assert Path(seen["env"]["UV_CONSTRAINT"]).is_file()
+
+
 def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:
     root, project = _render(tmp_path, include_policies=False)
 

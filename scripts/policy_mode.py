@@ -263,13 +263,17 @@ def deploy(project_dir: pathlib.Path) -> Tuple[int, str]:
     import shutil
     import subprocess
 
+    sys.path.insert(0, str(_REPO / "scripts" / "deploy"))
+    from render_agentcore_project import runtime_build_environment
+
     command = (
         ["agentcore", "deploy", "--yes"]
         if shutil.which("agentcore")
         else ["npx", "-y", "@aws/agentcore@0.29.0", "deploy", "--yes"]
     )
     result = subprocess.run(
-        command, cwd=str(project_dir), capture_output=True, text=True
+        command, cwd=str(project_dir), capture_output=True, text=True,
+        env=runtime_build_environment(project_dir, os.environ),
     )
     return result.returncode, (result.stdout or "") + (result.stderr or "")
 

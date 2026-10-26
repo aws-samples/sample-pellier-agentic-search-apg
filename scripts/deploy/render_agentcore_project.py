@@ -16,6 +16,8 @@ import os
 import re
 import shutil
 import sys
+import tomllib
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -215,6 +217,34 @@ def _render_runtime_source(root: Path, backend_dir: Path) -> tuple[Path, str]:
 
     # Digest the staged copy, not the working tree: this is the thing that ships.
     return runtime_dir, compute_fingerprint(runtime_dir, skills_root=runtime_dir)
+
+
+# The CLI builds the Runtime's CodeZip with `uv pip install -r pyproject.toml`, which takes
+# the newest release of every dependency and never reads uv.lock. On test event 17 that put
+# strands-agents 1.62.0 and mcp 2.1.1 on the Runtime against a lock of 1.48.0 and 1.30.0, so
+# code the tests passed failed on AgentCore. uv applies UV_CONSTRAINT to that install.
+RUNTIME_CONSTRAINTS_FILE = "runtime-constraints.txt"
+
+
+def runtime_build_environment(root: Path, env: Mapping[str, str]) -> dict[str, str]:
+    """``env`` plus ``UV_CONSTRAINT``: the staged uv.lock's exact versions, so a deploy builds
+    the Runtime the tests ran. The file sits beside ``runtime-src`` and is not packaged.
+
+    Raises:
+        RuntimeError: the staged lock cannot be read, so the build could not be pinned.
+    """
+    lock = root / "runtime-src" / "uv.lock"
+    try:
+        packages = tomllib.loads(lock.read_text(encoding="utf-8"))["package"]
+    except (OSError, KeyError, tomllib.TOMLDecodeError) as exc:
+        raise RuntimeError(
+            f"cannot pin the Runtime build to {lock} ({exc}); render the project again so "
+            "runtime-src holds pyproject.toml and uv.lock") from exc
+    pins = sorted(f"{package['name']}=={package['version']}" for package in packages
+                  if "virtual" not in (package.get("source") or {}))
+    constraints = root / RUNTIME_CONSTRAINTS_FILE
+    constraints.write_text("\n".join(pins) + "\n", encoding="utf-8")
+    return {**env, "UV_CONSTRAINT": str(constraints)}
 
 
 CUSTOMER_CLAIM = "custom:customer_id"
