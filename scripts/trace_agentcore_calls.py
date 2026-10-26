@@ -120,11 +120,14 @@ def runtime_summary(call: Dict[str, Any], runtime: Optional[List[Dict[str, Any]]
                  None)
     if agent is None:
         unread = "not readable" if runtime is None else "not in CloudWatch yet"
-        return f"called by the Runtime (parent span {call['parent_span_id']}); its spans are {unread}"
+        return (f"called by the Runtime (parent span {call['parent_span_id']}); "
+                f"its spans are {unread}")
     attrs = _attrs(agent)
     name = str(attrs.get("gen_ai.agent.name") or "").capitalize() or "An"
-    return (f"{name} agent on {attrs.get('gen_ai.request.model')}, "
-            f"turn {attrs.get('turn.id')}, made this call")
+    # agentcore invoke and the deploy's smoke test call the Runtime outside a Pellier turn.
+    turn = attrs.get("turn.id")
+    where = f"turn {turn}" if turn else "invoked directly with no Pellier turn"
+    return f"{name} agent on {attrs.get('gen_ai.request.model')}, {where}, made this call"
 
 
 def render_call(call: Dict[str, Any], names: Dict[str, str],

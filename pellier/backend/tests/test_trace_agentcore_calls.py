@@ -116,6 +116,17 @@ def test_the_runtime_line_names_the_agent_and_turn_or_says_the_call_was_direct()
     assert trace.runtime_summary(allow, None).endswith("its spans are not readable")
 
 
+def test_a_runtime_call_outside_a_pellier_turn_says_so_instead_of_an_empty_turn() -> None:
+    # agentcore invoke (Lab 3, Go deeper) and the deploy's smoke test call the Runtime with no
+    # Pellier turn, so its agent span carries turn.id "".
+    (allow,) = trace.calls_from_spans(ALLOW, "get_tickets")
+    direct = [dict(RUNTIME[0], attributes=dict(RUNTIME[0]["attributes"], **{"turn.id": ""})),
+              RUNTIME[1]]
+    assert trace.runtime_summary(allow, direct) == (
+        "Support agent on global.anthropic.claude-opus-5, invoked directly with no Pellier "
+        "turn, made this call")
+
+
 class _Logs:
     """FilterLogEvents over the spans above, matching quoted terms as the service does."""
 
