@@ -22,8 +22,10 @@ is enforced by placement in `app.py`'s lifespan and called out there.
 from __future__ import annotations
 
 import importlib
+import json
 import pathlib
 import re
+import sys
 
 import pytest
 
@@ -243,4 +245,80 @@ def test_strands_tracer_keeps_content_when_disabled(monkeypatch):
     assert (
         tracer._redact("gen_ai.input.messages", "Is the linen shirt in Brooklyn?")
         == "Is the linen shirt in Brooklyn?"
+    )
+
+
+# ---- ADOT's MCP client spans ----------------------------------------------
+#
+# Test event 18 (2026-10-27) failed provisioning on this: the Runtime's
+# `mcp tools/call` spans, emitted by aws-opentelemetry-distro's MCP
+# instrumentation, carried gen_ai.tool.call.arguments and
+# gen_ai.tool.call.result in clear text. The Strands token above never
+# reaches that instrumentation, and it has no content switch of its own
+# (0.19.0 to 0.21.0 set both attributes unconditionally).
+
+ADOT_MCP_WRAPPERS = "amazon.opentelemetry.distro.instrumentation.mcp._wrappers"
+# aws-opentelemetry-distro versions whose MCP wrapper was read and found to
+# convert both tool attributes through to_tool_attribute_value.
+ADOT_VERSIONS_CHECKED = {"0.19.0", "0.20.0", "0.21.0"}
+
+
+def _install_fake_adot(monkeypatch, **attributes):
+    """Stand in for ADOT's MCP wrapper module, which only the Runtime bundle installs."""
+    import types as _types
+
+    parts = ADOT_MCP_WRAPPERS.split(".")
+    for depth in range(1, len(parts)):
+        monkeypatch.setitem(sys.modules, ".".join(parts[:depth]),
+                            _types.ModuleType(".".join(parts[:depth])))
+    wrappers = _types.ModuleType(ADOT_MCP_WRAPPERS)
+    for name, value in attributes.items():
+        setattr(wrappers, name, value)
+    monkeypatch.setitem(sys.modules, ADOT_MCP_WRAPPERS, wrappers)
+    return wrappers
+
+
+def test_adot_mcp_tool_content_exports_as_the_redaction_marker(monkeypatch):
+    from services.otel_content_redaction import (
+        REDACTED_VALUE,
+        redact_adot_mcp_tool_content,
+    )
+
+    wrappers = _install_fake_adot(monkeypatch, to_tool_attribute_value=json.dumps)
+
+    assert redact_adot_mcp_tool_content() is True
+    assert wrappers.to_tool_attribute_value({"query": "linen"}) == REDACTED_VALUE
+    assert wrappers.to_tool_attribute_value("Theo's ticket") == REDACTED_VALUE
+    assert wrappers.to_tool_attribute_value(None) is None
+
+
+def test_without_adot_nothing_is_patched(monkeypatch):
+    from services.otel_content_redaction import redact_adot_mcp_tool_content
+
+    monkeypatch.setitem(sys.modules, ADOT_MCP_WRAPPERS, None)
+
+    assert redact_adot_mcp_tool_content() is False
+
+
+def test_an_adot_without_the_converter_fails_loudly(monkeypatch):
+    from services.otel_content_redaction import redact_adot_mcp_tool_content
+
+    _install_fake_adot(monkeypatch)
+
+    with pytest.raises(RuntimeError, match="to_tool_attribute_value"):
+        redact_adot_mcp_tool_content()
+
+
+def test_the_runtime_lock_pins_an_adot_whose_mcp_spans_are_covered():
+    """A new ADOT may add another content path; re-read its MCP wrapper before bumping."""
+    lock = (pathlib.Path(__file__).resolve().parents[1] / "uv.lock").read_text()
+    pinned = re.search(
+        r'^name = "aws-opentelemetry-distro"\nversion = "([^"]+)"', lock, re.MULTILINE
+    )
+
+    assert pinned, "uv.lock does not pin aws-opentelemetry-distro"
+    assert pinned.group(1) in ADOT_VERSIONS_CHECKED, (
+        f"uv.lock pins aws-opentelemetry-distro {pinned.group(1)}; read its "
+        "instrumentation/mcp/_wrappers.py, confirm both tool attributes still go "
+        "through to_tool_attribute_value, then add the version to ADOT_VERSIONS_CHECKED"
     )

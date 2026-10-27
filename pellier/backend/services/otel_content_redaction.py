@@ -38,6 +38,7 @@ still exist, so a reader can tell content was withheld rather than absent.
 """
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 from typing import Optional
@@ -117,3 +118,46 @@ def apply_model_content_redaction(*, enabled: bool) -> str:
         "attributes are set outside Strands' content path and are unaffected."
     )
     return updated
+
+
+# ADOT's MCP client instrumentation (aws-opentelemetry-distro, Runtime bundle
+# only) records gen_ai.tool.call.arguments and gen_ai.tool.call.result on every
+# `mcp tools/call` span, and versions 0.19.0 to 0.21.0 have no switch for it:
+# the Strands token above never reaches that code. Both values pass through the
+# wrapper module's own `to_tool_attribute_value` name, so replacing that name
+# withholds both while the span and the traceparent it injects into the MCP
+# request, which joins the Gateway's spans to the trace, stay as they are.
+REDACTED_VALUE = "[REDACTED]"
+_ADOT_MCP_WRAPPERS = "amazon.opentelemetry.distro.instrumentation.mcp._wrappers"
+_ADOT_TOOL_VALUE = "to_tool_attribute_value"
+
+
+def _redacted_tool_value(value: object) -> Optional[str]:
+    return None if value is None else REDACTED_VALUE
+
+
+def redact_adot_mcp_tool_content() -> bool:
+    """Make ADOT's MCP spans carry the redaction marker instead of tool content.
+
+    Returns:
+        True when ADOT's MCP wrapper was patched; False when ADOT is not
+        installed, as in the local backend, which never loads it.
+
+    Raises:
+        RuntimeError: ADOT is installed but its MCP wrapper no longer converts
+            tool values through `to_tool_attribute_value`; read the installed
+            version's wrapper before shipping, or tool content exports in clear.
+    """
+    try:
+        wrappers = importlib.import_module(_ADOT_MCP_WRAPPERS)
+    except ImportError:
+        return False
+    if not callable(getattr(wrappers, _ADOT_TOOL_VALUE, None)):
+        raise RuntimeError(
+            f"{_ADOT_MCP_WRAPPERS} has no {_ADOT_TOOL_VALUE}; this ADOT version records "
+            "MCP tool content another way. Read its MCP wrapper and redact that path "
+            "before deploying the Runtime."
+        )
+    setattr(wrappers, _ADOT_TOOL_VALUE, _redacted_tool_value)
+    logger.info("✅ ADOT MCP tool arguments and results export as %s.", REDACTED_VALUE)
+    return True

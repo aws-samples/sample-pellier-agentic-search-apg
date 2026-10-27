@@ -99,11 +99,18 @@ def _answered(
 # can build one is imported. app.py does this in its lifespan; the Runtime never
 # runs that lifespan, and the platform's own instrumentation would otherwise
 # ship the shopper's words in clear text.
-from services.otel_content_redaction import apply_model_content_redaction
-
-apply_model_content_redaction(
-    enabled=_env_flag("OTEL_REDACT_MODEL_CONTENT", default=True)
+# ADOT's MCP client spans carry tool arguments and results outside that token,
+# so they are withheld separately (see redact_adot_mcp_tool_content).
+from services.otel_content_redaction import (
+    apply_model_content_redaction,
+    redact_adot_mcp_tool_content,
 )
+
+if _env_flag("OTEL_REDACT_MODEL_CONTENT", default=True):
+    apply_model_content_redaction(enabled=True)
+    redact_adot_mcp_tool_content()
+else:
+    apply_model_content_redaction(enabled=False)
 
 try:
     from bedrock_agentcore.runtime import BedrockAgentCoreApp
