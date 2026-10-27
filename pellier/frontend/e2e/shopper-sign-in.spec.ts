@@ -103,6 +103,7 @@ async function askAndReadPrincipal(page: Page): Promise<string> {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.setItem('pellier-builder-view', 'on')
   })
 })

@@ -164,12 +164,14 @@ async function stubOperator(page: Page) {
 
 interface Visit {
   signedIn?: boolean
+  overlay?: boolean
   cart?: boolean
 }
 
 /** The storage a visit starts with, set before the first script runs. */
-export async function visit(page: Page, { signedIn = true, cart = false }: Visit = {}) {
-  await page.addInitScript(({ persona, signedIn, cart }) => {
+export async function visit(page: Page, { signedIn = true, overlay = false, cart = false }: Visit = {}) {
+  await page.addInitScript(({ persona, signedIn, overlay, cart }) => {
+    if (!overlay) sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.removeItem('pellier-theme')
     localStorage.removeItem('pellier-drawer-storefront')
     localStorage.removeItem('pellier-builder-view')
@@ -185,7 +187,7 @@ export async function visit(page: Page, { signedIn = true, cart = false }: Visit
         image: '/products/theo-stoneware-pour-over-set.webp', origin: 'manual', addedAt: 1,
       }]))
     }
-  }, { persona: ANNA, signedIn, cart })
+  }, { persona: ANNA, signedIn, overlay, cart })
 }
 
 /** Anna asks from the home bar; the page fills with her result and the dock answers. */
@@ -274,6 +276,7 @@ export const SURFACES: Surface[] = [
     fullPage: true,
     open: async (page) => {
       await page.addInitScript(() => {
+        sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
         localStorage.setItem('pellier-auth-session:staff', '1')
         localStorage.removeItem('pellier-theme')
       })

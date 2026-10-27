@@ -26,6 +26,7 @@ import Footer from '../components/Footer'
 import SearchResults, { StoreFailedNotice } from '../components/SearchResults'
 import { useStoreResults } from '../contexts/StoreResultsContext'
 import { useUI } from '../contexts/UIContext'
+import { FirstVisitTour } from '../components/SpotlightTour'
 
 const NAV_ROUTES: Record<NavItem, string> = {
   home: '/',
@@ -87,6 +88,7 @@ export default function PellierPage() {
   return (
     <div className="pellier-page-surface min-h-dvh bg-page">
       <Header current="home" onNavigate={handleNavigate} />
+      <FirstVisitTour />
 
       <main className="bg-page">
         <PellierHero compact={showingResults} query={resultsQuery} />

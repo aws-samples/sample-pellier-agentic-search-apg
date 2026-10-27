@@ -11,6 +11,9 @@ export async function signIn(page: Page, returnTo = '/') {
   const username = process.env.E2E_TEST_USER_EMAIL
   const password = process.env.E2E_TEST_USER_PASSWORD
   test.skip(!username || !password, 'Dedicated Cognito test credentials are required')
+  await page.addInitScript(() => {
+    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
+  })
   await page.goto(`/signin?returnTo=${encodeURIComponent(returnTo)}`)
   await page.getByLabel('Username', { exact: true }).fill(username!)
   await page.getByLabel('Password', { exact: true }).fill(password!)

@@ -119,6 +119,7 @@ async function serve(context: BrowserContext, baseURL: string): Promise<Desk> {
 
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
+    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.setItem('pellier-builder-view', 'on')
   })
 })

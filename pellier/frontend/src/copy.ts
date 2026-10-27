@@ -13,6 +13,34 @@
 
 import { formatCount } from './utils/count'
 
+/** The short Storefront tour: three stops, each ringing one control. */
+export const TOUR = {
+  DIALOG_LABEL: "Pellier tour",
+  SKIP: "Skip",
+  BACK: "Back",
+  NEXT: "Next",
+  DONE: "Done",
+  REPLAY: "Show the tour",
+  progress: (step: number, total: number): string => `${step} of ${total}`,
+  STEPS: [
+    {
+      id: "ask-pellier",
+      title: "Ask Pellier",
+      body: "Ask in your own words. Choose a shopper in the panel, and Pellier answers from the store's records in Aurora PostgreSQL.",
+    },
+    {
+      id: "builder-view",
+      title: "Builder view",
+      body: "On by default. Under each answer: who answered, the tools Pellier called and how the results ranked.",
+    },
+    {
+      id: "operator",
+      title: "The Operator",
+      body: "The staff desk. A store credit waits here until a person approves or declines it.",
+    },
+  ],
+} as const;
+
 /** The announcement bar's store notes, in turn. Service leads: with reduced motion it is the only one shown. */
 export const ANNOUNCEMENTS = [
   { VERB: "Service", TEXT: "Careful packaging, complimentary shipping over $150, and clear 30-day returns." },

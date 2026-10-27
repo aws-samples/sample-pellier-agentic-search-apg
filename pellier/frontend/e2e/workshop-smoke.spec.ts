@@ -8,6 +8,7 @@ const BASE_URL = process.env.E2E_BASE_URL ?? 'http://localhost:8000';
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
+    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true');
   });
 });
 

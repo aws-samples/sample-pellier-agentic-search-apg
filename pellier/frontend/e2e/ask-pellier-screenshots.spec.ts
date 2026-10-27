@@ -85,6 +85,7 @@ async function openDrawerAndAsk(page: Page) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript((persona) => {
+    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
     localStorage.setItem('pellier-session-id', 'session-shots')
     localStorage.setItem('pellier-auth-session:shopper', '1')

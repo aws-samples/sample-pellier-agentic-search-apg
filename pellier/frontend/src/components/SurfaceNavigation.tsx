@@ -4,6 +4,7 @@ import { Menu, X } from 'lucide-react'
 import { NAV } from '../copy'
 import { useUI } from '../contexts/UIContext'
 import ThemeControl from '../theme/ThemeControl'
+import { TourHost, TourReplayButton } from './SpotlightTour'
 import { BuilderViewToggle } from './turn'
 import Wordmark from './Wordmark'
 import '../styles/surface-navigation.css'
@@ -63,6 +64,9 @@ function surfaceFor(path: string): Surface {
  * button, so a phone shows one menu.
  *
  * The whole bar is a labelled region, so the switches sit inside a landmark.
+ * On the Storefront it also holds the short tour (SpotlightTour): its replay
+ * button beside the theme control, and the host that opens it, outside the
+ * menu so a first visit on a phone still opens it.
  */
 export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
@@ -154,6 +158,7 @@ export default function SurfaceNavigation() {
                 className="pellier-surface-link"
                 aria-current={active === surface.id ? 'page' : undefined}
                 data-surface={surface.id}
+                data-tour={surface.id === 'operator' ? 'operator' : undefined}
                 title={`${surface.purpose}. Return to your last ${surface.label} view.`}
               >
                 <span>{surface.label}</span>
@@ -161,6 +166,7 @@ export default function SurfaceNavigation() {
             ))}
           </nav>
           {pathname !== '/signin' ? <BuilderViewToggle className="pellier-builder-toggle" /> : null}
+          {onStorefront ? <TourReplayButton /> : null}
           <ThemeControl />
         </div>
       )}
@@ -171,6 +177,7 @@ export default function SurfaceNavigation() {
             type="button"
             className="pellier-ask-button"
             data-testid="header-ask-pellier"
+            data-tour="ask-pellier"
             data-running={turnRunning ? 'true' : 'false'}
             onClick={() => openModal('drawer')}
           >
@@ -194,6 +201,7 @@ export default function SurfaceNavigation() {
         ) : null}
       </div>
       ) : null}
+      {onStorefront ? <TourHost /> : null}
     </div>
   )
 }

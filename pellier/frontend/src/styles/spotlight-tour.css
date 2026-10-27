@@ -1,0 +1,170 @@
+/* ========================================================================
+ * The first-visit tour (components/SpotlightTour.tsx) and the header's
+ * replay button. The ring's spread shadow is the scrim, so the ringed control
+ * shows through it; a stop with no control on the page gets a plain scrim.
+ * Motion runs only under data-motion="full": a fade for the card and a copper
+ * pulse on the ring.
+ * ======================================================================== */
+
+.spotlight-tour {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  font-family: var(--dl-font-sans);
+}
+
+.spotlight-tour[data-target='none'] {
+  background: var(--dl-scrim);
+}
+
+.spotlight-tour-ring {
+  position: fixed;
+  border-radius: var(--dl-r-pill);
+  box-shadow:
+    0 0 0 2px var(--dl-accent),
+    0 0 0 100vmax var(--dl-scrim);
+  pointer-events: none;
+}
+
+.spotlight-tour-ring::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--dl-accent);
+  border-radius: inherit;
+  opacity: 0;
+}
+
+.spotlight-tour[data-motion='full'] .spotlight-tour-ring::after {
+  animation: spotlight-tour-pulse 1.8s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes spotlight-tour-pulse {
+  0% { opacity: 0.8; transform: scale(1); }
+  70%, 100% { opacity: 0; transform: scale(1.08, 1.3); }
+}
+
+.spotlight-tour-card {
+  position: fixed;
+  width: min(360px, calc(100vw - 32px));
+  padding: 18px 20px 16px;
+  border: 1px solid var(--dl-line);
+  border-radius: var(--dl-r-card);
+  background: var(--dl-paper);
+  box-shadow: var(--dl-sh-deep);
+  color: var(--dl-ink);
+  outline: none;
+}
+
+.spotlight-tour[data-motion='full'] .spotlight-tour-card {
+  animation: spotlight-tour-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes spotlight-tour-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.spotlight-tour-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.spotlight-tour-progress {
+  color: var(--dl-muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.spotlight-tour-title {
+  margin: 6px 0 0;
+  color: var(--dl-ink);
+  font-family: var(--dl-font-sans);
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.spotlight-tour-body {
+  margin: 8px 0 0;
+  color: var(--dl-ink-2);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.spotlight-tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.spotlight-tour-skip,
+.spotlight-tour-back,
+.spotlight-tour-next {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  font-family: var(--dl-font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.spotlight-tour-skip,
+.spotlight-tour-back {
+  background: transparent;
+  color: var(--dl-ink-2);
+}
+
+.spotlight-tour-skip {
+  margin-right: -10px;
+  padding-inline: 10px;
+}
+
+.spotlight-tour-skip:hover,
+.spotlight-tour-back:hover {
+  background: var(--dl-paper-2);
+  color: var(--dl-ink);
+}
+
+.spotlight-tour-next {
+  background: var(--dl-ink);
+  color: var(--dl-on-ink);
+}
+
+.spotlight-tour-next:hover {
+  background: var(--dl-ink-2);
+}
+
+.spotlight-tour-card button:focus-visible {
+  outline: 2px solid var(--dl-accent);
+  outline-offset: 2px;
+}
+
+/* ---- The replay button, beside the theme control ---- */
+.pellier-tour-button {
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  background: var(--dl-paper-2);
+  color: var(--dl-muted);
+  cursor: pointer;
+}
+
+.pellier-tour-button:hover {
+  color: var(--dl-ink);
+}
+
+/* On a phone the first header row holds the wordmark, the theme control and
+   Ask Pellier with no room left; the tour still opens there by itself. */
+@media (max-width: 560px) {
+  .pellier-tour-button { display: none; }
+}
