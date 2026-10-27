@@ -1,6 +1,6 @@
 """Relevance test for the Catalog agent.
 
-  The agent is a Strands `Agent` wrapping `BedrockModel` on Opus 5 with the
+  The agent is a Strands `Agent` wrapping `BedrockModel` on Opus 5.5 with the
          four tools `[search_products, browse_department, compare_products,
          ask_a_person]`.
   The system prompt emphasizes warm, editorial, catalog-style
@@ -155,9 +155,9 @@ def test_shopping_agent_is_constructed_with_the_opus_model_and_four_tools(
 ) -> None:
     """Building the Catalog agent SHALL use:
 
-      - Claude Opus 5 (BEDROCK_OPUS_MODEL)
+      - Claude Opus 5.5 (BEDROCK_OPUS_MODEL)
       - no temperature field; Bedrock rejects that deprecated field for
-        Opus 5
+        Opus 5.5
       - exactly four tools: search_products + browse_department +
         compare_products + ask_a_person.
 
@@ -173,7 +173,7 @@ def test_shopping_agent_is_constructed_with_the_opus_model_and_four_tools(
     kwargs = _StubAgent.last_kwargs
     assert "model" in kwargs, "Agent SHALL be constructed with a model= kwarg"
     assert isinstance(kwargs["model"], _StubBedrockModel)
-    assert kwargs["model"].kwargs["model_id"] == "global.anthropic.claude-opus-5"
+    assert kwargs["model"].kwargs["model_id"] == "global.anthropic.claude-opus-5-5"
     assert kwargs["model"].kwargs["max_tokens"] == 1200
     assert "temperature" not in kwargs["model"].kwargs
 

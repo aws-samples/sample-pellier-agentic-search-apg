@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     # See the Workshop Studio repo's content/90-appendix/index.en.md
     # (the model table) for the rationale:
     #
-    #   Claude Opus 5     — the Catalog agent and the Support agent. They need
+    #   Claude Opus 5.5   — the Catalog agent and the Support agent. They need
     #                       voice and judgment.
     #   Claude Sonnet 5.5 — structured extraction and the Stock agent, which
     #                       reports counts.
@@ -81,15 +81,15 @@ class Settings(BaseSettings):
     # The Catalog and Support agents read
     # BEDROCK_OPUS_MODEL. It is intentionally env-OVERRIDABLE: the model-access
     # preflight (scripts/check_model_access.py, run in bootstrap) detects
-    # whether Opus 5 is reachable on the account, and if it is NOT, writes
+    # whether Opus 5.5 is reachable on the account, and if it is NOT, writes
     #   BEDROCK_OPUS_MODEL=global.anthropic.claude-sonnet-5-5
     # into .env so editorial agents fall back to Sonnet 5.5 cleanly — no code
     # path change, no per-request retry. BEDROCK_SONNET_MODEL is the canonical
     # fallback target (real Sonnet 5.5, not an Opus alias).
     #
-    # The governed release pins the global Opus 5 and Sonnet 5.5 profiles.
+    # The governed release pins the global Opus 5.5 and Sonnet 5.5 profiles.
     # Move config, .env.example, preflight, bootstrap and Studio pins together.
-    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-5"
+    BEDROCK_OPUS_MODEL: str = "global.anthropic.claude-opus-5-5"
     BEDROCK_SONNET_MODEL: str = "global.anthropic.claude-sonnet-5-5"
     BEDROCK_REPORTING_MODEL: str = "global.anthropic.claude-sonnet-5-5"
 

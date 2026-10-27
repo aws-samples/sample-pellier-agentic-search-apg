@@ -63,7 +63,7 @@ class _Dispatcher:
         ]
         self.last_intent = "recommendation"
         self.last_specialist = "recommendation"
-        self.last_model_id = "global.anthropic.claude-opus-5"
+        self.last_model_id = "global.anthropic.claude-opus-5-5"
         self.last_tool_names = ["search_products"]
         self.last_unpublished_tools = ("get_tickets",)
         self.last_skills = [
@@ -178,7 +178,7 @@ def test_entrypoint_runs_fixed_dispatcher_and_returns_observed_evidence(
         "rail": "gateway-mcp",
         "intent": "recommendation",
         "specialist": "recommendation",
-        "model": "global.anthropic.claude-opus-5",
+        "model": "global.anthropic.claude-opus-5-5",
         "gateway_tools": ["search_products"],
         "unpublished_tools": ["get_tickets"],
         "tool_calls": dispatcher.last_tool_events,

@@ -227,7 +227,7 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
             rail="gateway-mcp",
             intent="recommendation",
             specialist="recommendation",
-            model="global.anthropic.claude-opus-5",
+            model="global.anthropic.claude-opus-5-5",
             tool_calls=[
                 {
                     "id": "tool-1",

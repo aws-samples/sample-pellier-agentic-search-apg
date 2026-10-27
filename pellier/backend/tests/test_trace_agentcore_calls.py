@@ -55,7 +55,7 @@ ALLOW = _call("req-allow", 1_000, "get_tickets", THEO_SUB, "ALLOW",
               ["get_tickets_owner_only-abc", "get_tickets_owner_only-abc"], parent="mcp-span")
 RUNTIME = [
     {"name": "invoke_agent support", "traceId": "trace-req-allow", "attributes": {
-        "gen_ai.agent.name": "support", "gen_ai.request.model": "global.anthropic.claude-opus-5",
+        "gen_ai.agent.name": "support", "gen_ai.request.model": "global.anthropic.claude-opus-5-5",
         "turn.id": "turn-abc"}},
     {"name": "MCP send tools/call pellier-store-tools___get_tickets", "spanId": "mcp-span",
      "traceId": "trace-req-allow", "attributes": {}},
@@ -108,7 +108,7 @@ def test_the_runtime_line_names_the_agent_and_turn_or_says_the_call_was_direct()
     allow, deny = trace.calls_from_spans(ALLOW + DENY, "get_tickets")
     assert allow["parent_span_id"] == "mcp-span" and deny["parent_span_id"] is None
     assert trace.render_call(allow, NAMES, RUNTIME)[1] == (
-        "  Runtime   Support agent on global.anthropic.claude-opus-5, turn turn-abc, "
+        "  Runtime   Support agent on global.anthropic.claude-opus-5-5, turn turn-abc, "
         "made this call")
     assert trace.runtime_summary(deny, None) == (
         "none: this call came to the Gateway directly, not through the Runtime")
@@ -123,7 +123,7 @@ def test_a_runtime_call_outside_a_pellier_turn_says_so_instead_of_an_empty_turn(
     direct = [dict(RUNTIME[0], attributes=dict(RUNTIME[0]["attributes"], **{"turn.id": ""})),
               RUNTIME[1]]
     assert trace.runtime_summary(allow, direct) == (
-        "Support agent on global.anthropic.claude-opus-5, invoked directly with no Pellier "
+        "Support agent on global.anthropic.claude-opus-5-5, invoked directly with no Pellier "
         "turn, made this call")
 
 

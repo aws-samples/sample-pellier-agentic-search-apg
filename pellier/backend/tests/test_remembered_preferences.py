@@ -109,7 +109,7 @@ def managed_theo(monkeypatch: pytest.MonkeyPatch, theo_memory: type):
             ids = [item["record_id"] for item in kwargs.get("preferences") or []]
         return ManagedRuntimeResult(
             response="Start with the stoneware.", rail="gateway-mcp", intent="shopping",
-            specialist="shopping", model="global.anthropic.claude-opus-5", remembered=ids,
+            specialist="shopping", model="global.anthropic.claude-opus-5-5", remembered=ids,
         )
 
     class _LocalChatMustNotRun:
@@ -401,7 +401,7 @@ def test_a_slow_runtime_answer_keeps_the_browser_request_open(
         await asyncio.sleep(0.35)
         return ManagedRuntimeResult(
             response="Start with the stoneware.", rail="gateway-mcp", intent="shopping",
-            specialist="shopping", model="global.anthropic.claude-opus-5", remembered=[],
+            specialist="shopping", model="global.anthropic.claude-opus-5-5", remembered=[],
         )
 
     monkeypatch.setattr(sse_keepalive, "HEARTBEAT_SECONDS", 0.1)

@@ -228,7 +228,7 @@ function deltas(text: string): object[] {
 
 const ROUTE_BUILDER = {
   tool: null, rail: 'in-process', intent: 'shopping', agent: 'Catalog agent',
-  model_id: 'global.anthropic.claude-opus-5', skills: SKILLS, skill_mode: 'fixed',
+  model_id: 'global.anthropic.claude-opus-5-5', skills: SKILLS, skill_mode: 'fixed',
   memory: { facts: 1, orders: 5, source: 'Aurora PostgreSQL' },
   grant: { tools: ['search_products', 'browse_department', 'compare_products'], rule: null },
   note: null,
@@ -240,7 +240,7 @@ export const ANNA_TURN_EVENTS: object[] = [
     principal: { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' },
   },
   { type: 'aurora_profile_context', profile: { source: 'Aurora PostgreSQL', customer_id: 'CUST-ANNA', facts_available: 1, orders_available: 5, available: true } },
-  { type: 'intent_signal', intent: 'shopping', agent: 'Catalog agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5' },
+  { type: 'intent_signal', intent: 'shopping', agent: 'Catalog agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5-5' },
   { type: 'status', label: 'Understanding your request' },
   {
     type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent',
@@ -277,7 +277,7 @@ export const ANNA_TURN_EVENTS: object[] = [
       turn_id: 'turn-' + 'a'.repeat(32),
       session_id: 'session-shots',
       railDecision: { rail: 'in-process', managedRequested: false, available: true, reason: null },
-      orchestration: { pattern: 'dispatcher', route: 'shopping', router: 'deterministic', intent: 'shopping', agent: 'Catalog agent', model_id: 'global.anthropic.claude-opus-5', skill_mode: 'fixed', skills: SKILLS, stop_reason: 'end_turn' },
+      orchestration: { pattern: 'dispatcher', route: 'shopping', router: 'deterministic', intent: 'shopping', agent: 'Catalog agent', model_id: 'global.anthropic.claude-opus-5-5', skill_mode: 'fixed', skills: SKILLS, stop_reason: 'end_turn' },
     },
   },
 ]

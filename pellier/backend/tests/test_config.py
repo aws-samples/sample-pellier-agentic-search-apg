@@ -326,7 +326,7 @@ def test_bedrock_model_ids_have_spec_defaults(
 
       - Cohere Embed v4 (us.cohere.embed-v4:0)
       - Cohere Rerank v3.5 (cohere.rerank-v3-5:0)
-      - Claude Opus 5 (global.anthropic.claude-opus-5) for the
+      - Claude Opus 5.5 (global.anthropic.claude-opus-5-5) for the
         editorial-agent default
 
     Settings normally loads ``.env`` via SettingsConfigDict, which would
@@ -358,7 +358,7 @@ def test_bedrock_model_ids_have_spec_defaults(
     assert not hasattr(s, "BEDROCK_CHAT_MODEL")
     # Per-agent model mix should also default cleanly. Sonnet owns structured
     # extraction and reporting; the Router is deterministic and has no model.
-    assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-5"
+    assert s.BEDROCK_OPUS_MODEL == "global.anthropic.claude-opus-5-5"
     assert s.BEDROCK_SONNET_MODEL == "global.anthropic.claude-sonnet-5-5"
     assert not hasattr(s, "BEDROCK_ROUTER_MODEL")
     assert s.BEDROCK_REPORTING_MODEL == "global.anthropic.claude-sonnet-5-5"

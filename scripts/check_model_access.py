@@ -38,8 +38,8 @@ REGION = os.environ.get("AWS_DEFAULT_REGION") or os.environ.get("AWS_REGION") or
 
 MODELS = [
     {
-        "name": "Claude Opus 5",
-        "model_id": "global.anthropic.claude-opus-5",
+        "name": "Claude Opus 5.5",
+        "model_id": "global.anthropic.claude-opus-5-5",
         # The Catalog and Support agents.
         # NOT hard-required: if Opus is denied but a Sonnet fallback
         # below passes, the session still runs (editorial agents fall back to
@@ -299,8 +299,8 @@ def main():
             print(f"    {model['_note']}")
 
     # --- Editorial resolution: Opus OR Sonnet must work ---
-    opus_ok = results.get("Claude Opus 5", (False,))[0]
-    opus_id = results.get("Claude Opus 5", (False, None, ""))[2]
+    opus_ok = results.get("Claude Opus 5.5", (False,))[0]
+    opus_id = results.get("Claude Opus 5.5", (False, None, ""))[2]
     sonnet_name = "Claude Sonnet"
     sonnet_ok = results.get(sonnet_name, (False,))[0]
     sonnet_id = results.get(sonnet_name, (False, None, ""))[2]
@@ -308,11 +308,11 @@ def main():
     editorial_ok = opus_ok or sonnet_ok
     print()
     if opus_ok:
-        print("Editorial agents: \033[32mOpus 5\033[0m (primary).")
+        print("Editorial agents: \033[32mOpus 5.5\033[0m (primary).")
     elif sonnet_ok:
-        print("Editorial agents: \033[33mOpus 5 unavailable → falling back to Sonnet\033[0m.")
+        print("Editorial agents: \033[33mOpus 5.5 unavailable → falling back to Sonnet\033[0m.")
     else:
-        print("\033[31mEditorial agents: NEITHER Opus 5 nor a Sonnet fallback is accessible.\033[0m")
+        print("\033[31mEditorial agents: NEITHER Opus 5.5 nor a Sonnet fallback is accessible.\033[0m")
 
     editorial_id = opus_id if opus_ok else sonnet_id
     if editorial_ok and args.write_env:

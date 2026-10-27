@@ -48,7 +48,7 @@ flowchart LR
     memory["Memory"]
   end
 
-  bedrock["Amazon Bedrock<br/>Claude Opus 5 and Sonnet 5.5<br/>Cohere Embed v4 and Rerank 3.5"]
+  bedrock["Amazon Bedrock<br/>Claude Opus 5.5 and Sonnet 5.5<br/>Cohere Embed v4 and Rerank 3.5"]
   aurora[("Aurora PostgreSQL<br/>full text + pgvector, RRF<br/>catalog, stock, orders,<br/>credits, audit<br/>row-level security")]
 
   shopper --> cognito
@@ -62,7 +62,7 @@ flowchart LR
   agentcore -. models .-> bedrock
 ```
 
-- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Catalog and Support on Claude Opus 5, Stock on Claude Sonnet 5.5. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
+- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Catalog and Support on Claude Opus 5.5, Stock on Claude Sonnet 5.5. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
 - **Store tools.** Nine tools, one implementation for the local agents and the Gateway Lambda: `search_products`, `browse_department`, `compare_products`, `check_stock`, `get_orders`, `get_return_policy`, `get_tickets`, `give_store_credit` and `ask_a_person`. `pellier/backend/services/store_tools.py`
 - **Hybrid search.** The shopper's limits become SQL filters on a pgvector branch and a full-text branch. Reciprocal Rank Fusion (k = 60) merges them and Cohere Rerank 3.5 reorders the pool. Search covers the 1,000 photographed products of a 50,000-row catalog, through a filter applied before ranking and a partial HNSW index. A shopper's search records its ranks in a retrieval receipt, and Builder view shows them as "How it ranked". `pellier/backend/services/search_plan.py`
 - **Managed path.** AgentCore Runtime runs the same Router and agents, with their tools behind AgentCore Gateway. AgentCore Policy evaluates Cedar before the Lambda runs, so a denied call never executes. `pellier/backend/agentcore_runtime.py`, `scripts/deploy/gateway_tool_schemas.py`, `policies/`
@@ -83,7 +83,7 @@ Prerequisites:
 
 - Python 3.14 and Node.js 24. CI, the workshop box, AgentCore Runtime and the Lambdas all run Python 3.14.
 - PostgreSQL 18 or later with the `vector` (pgvector) and `pg_trgm` extensions, a user that can create extensions and roles, and `psql`. The workshop uses Aurora PostgreSQL.
-- AWS credentials with Amazon Bedrock access to Claude Opus 5, Claude Sonnet 5.5, Cohere Embed v4 and Cohere Rerank 3.5.
+- AWS credentials with Amazon Bedrock access to Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4 and Cohere Rerank 3.5.
 
 From the repository root:
 

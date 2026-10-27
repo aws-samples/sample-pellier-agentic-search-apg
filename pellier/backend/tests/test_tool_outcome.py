@@ -184,7 +184,7 @@ def test_a_step_judged_by_its_outcome_fails_where_its_text_looked_empty() -> Non
     """The bug: error prose parsed as no rows, so the step showed done with an empty finding."""
     steps = TurnSteps()
     steps.route(agent="Support agent", intent="support", finding="Sent to the Support agent",
-                model_id="global.anthropic.claude-opus-5", skills=[], skill_mode="fixed")
+                model_id="global.anthropic.claude-opus-5-5", skills=[], skill_mode="fixed")
     outcome = _outcome("get_orders", {"customer_id": "CUST-THEO"})
     step = steps.finished("get_orders", outcome.text, call_id="use-0", outcome=outcome)
 

@@ -78,7 +78,7 @@ the participant edit regions.
 
 - **Router and three agents.** A deterministic Router, with no model call,
   sends each shopper request to the Catalog, Stock or Support agent
-  (Strands). Catalog and Support run on Claude Opus 5, Stock on Claude
+  (Strands). Catalog and Support run on Claude Opus 5.5, Stock on Claude
   Sonnet 5.5. Each agent holds only its own tools; as shipped, the Stock
   agent has the catalog tools and not `check_stock`, until Lab 2A connects
   `check_stock` alone.

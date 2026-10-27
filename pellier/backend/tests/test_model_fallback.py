@@ -18,7 +18,7 @@ from services.model_fallback import (
     run_turn,
 )
 
-OPUS, SONNET = "global.anthropic.claude-opus-5", "global.anthropic.claude-sonnet-5-5"
+OPUS, SONNET = "global.anthropic.claude-opus-5-5", "global.anthropic.claude-sonnet-5-5"
 TEXT = {"contentBlockDelta": {"delta": {"text": "ok"}}}
 
 

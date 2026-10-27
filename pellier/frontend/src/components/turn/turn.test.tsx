@@ -149,13 +149,13 @@ describe('evidenceLine', () => {
   it('says when the answer was cut short, and nothing for a turn that ended normally', () => {
     const route = (stop_reason: string | null) => ({
       id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router'],
-      builder: { tool: null, intent: 'shopping', model_id: 'global.anthropic.claude-opus-5', stop_reason },
+      builder: { tool: null, intent: 'shopping', model_id: 'global.anthropic.claude-opus-5-5', stop_reason },
     })
     expect(evidenceLine(route('max_tokens'))).toBe(
-      'intent shopping; model global.anthropic.claude-opus-5; answer cut short (max_tokens)',
+      'intent shopping; model global.anthropic.claude-opus-5-5; answer cut short (max_tokens)',
     )
-    expect(evidenceLine(route('end_turn'))).toBe('intent shopping; model global.anthropic.claude-opus-5')
-    expect(evidenceLine(route(null))).toBe('intent shopping; model global.anthropic.claude-opus-5')
+    expect(evidenceLine(route('end_turn'))).toBe('intent shopping; model global.anthropic.claude-opus-5-5')
+    expect(evidenceLine(route(null))).toBe('intent shopping; model global.anthropic.claude-opus-5-5')
     expect(evidenceLine(route('guardrail_intervened'))).toContain('stop guardrail_intervened')
   })
 

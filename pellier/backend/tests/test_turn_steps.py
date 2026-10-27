@@ -435,7 +435,7 @@ def test_route_step_names_the_agent_once_and_its_skills() -> None:
         agent="Catalog agent",
         intent="shopping",
         finding="Sent to the Catalog agent",
-        model_id="global.anthropic.claude-opus-5",
+        model_id="global.anthropic.claude-opus-5-5",
         skills=[{"name": "gifts", "loaded": "fixed"}],
         skill_mode="fixed",
         memory={"facts": 3, "orders": 2, "source": "Aurora PostgreSQL"},
@@ -451,7 +451,7 @@ def test_the_route_step_sent_again_carries_how_the_turn_ended() -> None:
     steps = TurnSteps()
     facts = {
         "agent": "Catalog agent", "intent": "shopping", "finding": "Sent to the Catalog agent",
-        "model_id": "global.anthropic.claude-opus-5", "skills": [], "skill_mode": "fixed",
+        "model_id": "global.anthropic.claude-opus-5-5", "skills": [], "skill_mode": "fixed",
     }
     first = steps.route(**facts)
     again = steps.route(**facts, stop_reason="max_tokens")

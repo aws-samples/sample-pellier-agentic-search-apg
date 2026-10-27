@@ -43,7 +43,7 @@ def _support_result(skills: List[Dict[str, Any]]) -> ManagedRuntimeResult:
         rail="gateway-mcp",
         intent="support",
         specialist="support",
-        model="global.anthropic.claude-opus-5",
+        model="global.anthropic.claude-opus-5-5",
         tool_calls=[
             {
                 "id": "tool-1",
@@ -72,7 +72,7 @@ RAW_RUNTIME_RESPONSE = {
     "rail": "gateway-mcp",
     "intent": "support",
     "specialist": "support",
-    "model": "global.anthropic.claude-opus-5",
+    "model": "global.anthropic.claude-opus-5-5",
     "gateway_tools": ["get_tickets", "get_orders"],
     "tool_calls": [{"id": "tool-1", "tool": "get_tickets", "status": "success", "duration_ms": 90,
                     "input": {"limit": 5}, "result": {"count": 2}, "finding": "1 open ticket, 1 closed"}],
@@ -300,7 +300,7 @@ def test_a_managed_search_without_a_readable_receipt_says_ranking_is_unavailable
             rail="gateway-mcp",
             intent="shopping",
             specialist="shopping",
-            model="global.anthropic.claude-opus-5",
+            model="global.anthropic.claude-opus-5-5",
             tool_calls=[
                 {
                     "id": "tool-1",
@@ -341,7 +341,7 @@ def _managed_catalog_turn(tool: str, result: Dict[str, Any]):
             rail="gateway-mcp",
             intent="shopping",
             specialist="shopping",
-            model="global.anthropic.claude-opus-5",
+            model="global.anthropic.claude-opus-5-5",
             tool_calls=[{
                 "id": "tool-1", "tool": tool, "status": "success", "duration_ms": 300,
                 "input": {}, "result": result, "finding": "3 found",
@@ -418,7 +418,7 @@ def _two_managed_searches():
             rail="gateway-mcp",
             intent="shopping",
             specialist="shopping",
-            model="global.anthropic.claude-opus-5",
+            model="global.anthropic.claude-opus-5-5",
             tool_calls=[
                 {"id": f"tool-{index}", "tool": "search_products", "status": "success",
                  "duration_ms": 300, "input": {"query": query},
@@ -523,7 +523,7 @@ def test_managed_product_cards_carry_warehouse_units(
             rail="gateway-mcp",
             intent="shopping",
             specialist="shopping",
-            model="global.anthropic.claude-opus-5",
+            model="global.anthropic.claude-opus-5-5",
             tool_calls=[],
         )
 
