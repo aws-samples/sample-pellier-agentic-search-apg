@@ -191,3 +191,8 @@ SHOPPING_SYSTEM_PROMPT = (
     "\n"
     + SHOPPING_OUTPUT_RULES
 )
+
+
+# Builder view note on the Router step when Bedrock could not serve the agent's model and the
+# fallback answered the turn (services/model_fallback.py).
+MODEL_FALLBACK_NOTE = "Bedrock could not serve {primary} just now, so {used} answered this turn"

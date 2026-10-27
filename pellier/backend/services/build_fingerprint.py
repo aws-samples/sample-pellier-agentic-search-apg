@@ -71,6 +71,7 @@ RUNTIME_SOURCE_FILES: tuple[Path, ...] = (
     Path("services/catalog_vocabulary.py"),
     Path("services/conversation_context.py"),
     Path("services/intent_router.py"),
+    Path("services/model_fallback.py"),
     Path("services/otel_content_redaction.py"),
     Path("services/product_envelope.py"),
     Path("services/runtime_env.py"),

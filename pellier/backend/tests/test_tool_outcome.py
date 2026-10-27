@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from strands import Agent, tool
 from strands.hooks.events import AfterToolCallEvent, BeforeToolCallEvent
 
+from services import model_fallback
 from services.turn_steps import (
     CANCELLED_FINDING,
     DENIED_FINDING,
@@ -233,7 +234,7 @@ def test_a_cedar_denial_on_the_managed_rail_is_a_failed_policy_step(monkeypatch)
 
     monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gateway.example.test/mcp")
     monkeypatch.setattr(mcp_client_module, "MCPClient", _GatewayListing)
-    monkeypatch.setattr(strands.models, "BedrockModel", lambda **_kwargs: ScriptedModel(
+    monkeypatch.setattr(model_fallback, "specialist_bedrock_model", lambda *_args: ScriptedModel(
         [("get_tickets", {"customer_id": "CUST-JESSICA"})], "I can't read those tickets."))
     # The MCP adapter is replaced by a tool that answers as the Gateway does for a DENY.
     monkeypatch.setattr(agentcore_gateway, "_model_gateway_tools", lambda _tools: [get_tickets])
@@ -326,7 +327,7 @@ def test_the_model_sees_its_own_call_not_the_arguments_the_server_added(monkeypa
     monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gateway.example.test/mcp")
     monkeypatch.setenv("PELLIER_BUILD_FINGERPRINT", "build-abc")
     monkeypatch.setattr(mcp_client_module, "MCPClient", _StockListing)
-    monkeypatch.setattr(strands.models, "BedrockModel", lambda **_kwargs: _WatchingModel(
+    monkeypatch.setattr(model_fallback, "specialist_bedrock_model", lambda *_args: _WatchingModel(
         [("check_stock", {"product_query": "Velvet Opera Cape"})], "Pellier doesn't carry it."))
     monkeypatch.setattr(agentcore_gateway, "_model_gateway_tools",
                         lambda _tools: [recording_check_stock])

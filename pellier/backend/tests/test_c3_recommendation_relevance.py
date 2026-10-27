@@ -136,7 +136,8 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
     import agents.shopping_agent as shopping
 
     monkeypatch.setattr(shopping, "Agent", _StubAgent)
-    monkeypatch.setattr(shopping, "BedrockModel", _StubBedrockModel)
+    monkeypatch.setattr(shopping, "specialist_bedrock_model",
+                        lambda model_id, max_tokens: _StubBedrockModel(model_id=model_id, max_tokens=max_tokens))
 
     def run(query: str) -> str:
         return shopping.build_shopping_agent()(query)
@@ -198,7 +199,8 @@ def test_catalog_turn_policy_withholds_the_handoff_tool(
     import agents.shopping_agent as shopping
 
     monkeypatch.setattr(shopping, "Agent", _StubAgent)
-    monkeypatch.setattr(shopping, "BedrockModel", _StubBedrockModel)
+    monkeypatch.setattr(shopping, "specialist_bedrock_model",
+                        lambda model_id, max_tokens: _StubBedrockModel(model_id=model_id, max_tokens=max_tokens))
 
     shopping.build_shopping_agent(allow_handoff=False)
 

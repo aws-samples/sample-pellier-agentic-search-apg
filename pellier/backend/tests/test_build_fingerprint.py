@@ -258,30 +258,25 @@ def test_renderer_and_backend_share_one_file_list() -> None:
 
 
 def test_the_runtime_package_imports_only_what_it_ships() -> None:
-    """Every module a packaged file imports at module scope is itself packaged.
+    """Every module a packaged file imports, at module scope or in a function, is packaged.
 
     The renderer copies exactly ``RUNTIME_SOURCE_FILES`` into the Runtime
-    container, so an entrypoint import of an unlisted backend module passes
-    every local test and then crashes the container at startup, which the
-    service reports only as an initialization timeout. ``config`` is the one
-    module the package resolves another way, through environment variables.
+    container, so an import of an unlisted backend module passes every local
+    test and then fails in the container: at module scope the container never
+    starts, which the service reports only as an initialization timeout; in a
+    function, the first turn that reaches it returns a 500 (the managed
+    dispatcher's import of ``services.model_fallback`` did, 2026-10-26).
+    ``config`` is the one module the package resolves another way, through
+    environment variables.
     """
     import ast
 
     packaged = {path.as_posix() for path in RUNTIME_SOURCE_FILES}
     local_roots = ("services", "agents", "skills", "routes", "pellier_copy")
 
-    def module_scope_imports(tree: ast.Module):
-        stack = list(tree.body)
-        while stack:
-            node = stack.pop()
-            if isinstance(node, (ast.If, ast.Try)):
-                stack.extend(node.body)
-                stack.extend(getattr(node, "orelse", []))
-                stack.extend(getattr(node, "finalbody", []))
-                for handler in getattr(node, "handlers", []):
-                    stack.extend(handler.body)
-            elif isinstance(node, ast.ImportFrom) and node.module:
+    def all_imports(tree: ast.Module):
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 yield node.module
             elif isinstance(node, ast.Import):
                 for alias in node.names:
@@ -292,7 +287,7 @@ def test_the_runtime_package_imports_only_what_it_ships() -> None:
         if not relative.endswith(".py"):
             continue
         tree = ast.parse((BACKEND / relative).read_text())
-        for module in module_scope_imports(tree):
+        for module in all_imports(tree):
             if module.split(".")[0] not in local_roots:
                 continue
             as_file = module.replace(".", "/") + ".py"

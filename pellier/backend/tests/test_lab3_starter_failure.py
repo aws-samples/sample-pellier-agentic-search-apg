@@ -103,7 +103,9 @@ def managed_support(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gateway.example.test/mcp")
     monkeypatch.setattr(mcp_client_module, "MCPClient", _FakeMcpClient)
     monkeypatch.setattr(strands, "Agent", _FakeAgent)
-    monkeypatch.setattr(strands.models, "BedrockModel", lambda **_kwargs: object())
+    from services import model_fallback
+
+    monkeypatch.setattr(model_fallback, "specialist_bedrock_model", lambda *_args: object())
     monkeypatch.setattr(agentcore_gateway, "_model_gateway_tools", lambda tools: list(tools))
     _FakeAgent.built.clear()
 

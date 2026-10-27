@@ -6,7 +6,6 @@ for the ``shopping`` intent: price, compare, browse, gifts, and anything that
 is not a stock count or an after-purchase question.
 """
 from strands import Agent
-from strands.models import BedrockModel
 from services.agent_tools import (
     ask_a_person,
     browse_department,
@@ -16,6 +15,7 @@ from services.agent_tools import (
 from pellier_copy import SHOPPING_SYSTEM_PROMPT
 from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
+from services.model_fallback import specialist_bedrock_model
 from services.specialist_models import specialist_model
 
 # Appended when the shopper did not ask for a person, so an ordinary catalog
@@ -57,10 +57,7 @@ def build_shopping_agent(
     model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="shopping",
-        model=BedrockModel(
-            model_id=model_id,
-            max_tokens=max_tokens,
-        ),
+        model=specialist_bedrock_model(model_id, max_tokens),
         system_prompt=inject_persona_preamble(prompt),
         tools=tools,
         plugins=plugins,

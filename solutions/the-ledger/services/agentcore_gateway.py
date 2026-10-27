@@ -591,7 +591,6 @@ class ManagedGatewayDispatcher:
 
     def __call__(self, prompt: str) -> Any:
         from strands import Agent
-        from strands.models import BedrockModel
         from strands.hooks.events import AfterToolCallEvent, BeforeToolCallEvent
         from strands.tools.mcp.mcp_client import MCPClient
         from services.intent_router import classify_intent
@@ -654,12 +653,11 @@ class ManagedGatewayDispatcher:
                     unpublished, can_hand_off="ask_a_person" in selected_names)
             self.last_unpublished_tools = unpublished
 
+            from services.model_fallback import answered_with, run_turn, specialist_bedrock_model
+
             agent = Agent(
                 name=specialist,
-                model=BedrockModel(
-                    model_id=model_id,
-                    max_tokens=max_tokens,
-                ),
+                model=specialist_bedrock_model(model_id, max_tokens),
                 system_prompt=system_prompt,
                 tools=_model_gateway_tools(selected),
             )
@@ -784,7 +782,8 @@ class ManagedGatewayDispatcher:
             self.last_model_id = model_id
             self.last_tool_names = selected_names
             self.last_skills = skills
-            response = agent(prompt)
+            response = run_turn(agent, prompt)
+            self.last_model_id = answered_with(getattr(agent, "model", None), model_id)
             self.last_tool_events = tool_events
             self.last_products = select_products_for_reply(
                 str(response), products, owned_products=owned_products,

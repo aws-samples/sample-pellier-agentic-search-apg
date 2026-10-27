@@ -8,7 +8,6 @@ signed-in shopper; a store credit is only ever requested, with no amount, for
 a person to review.
 """
 from strands import Agent
-from strands.models import BedrockModel
 from pellier_copy import SUPPORT_OUTPUT_RULES
 from services.agent_tools import (
     ask_a_person,
@@ -18,6 +17,7 @@ from services.agent_tools import (
 )
 from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
+from services.model_fallback import specialist_bedrock_model
 from services.specialist_models import specialist_model
 
 
@@ -70,10 +70,7 @@ def build_support_agent(*, skill_mode: str = SKILL_MODE_FIXED) -> Agent:
     model_id, max_tokens = specialist_model("opus")
     return Agent(
         name="support",
-        model=BedrockModel(
-            model_id=model_id,
-            max_tokens=max_tokens,
-        ),
+        model=specialist_bedrock_model(model_id, max_tokens),
         system_prompt=inject_persona_preamble(prompt),
         tools=[get_orders, get_return_policy, get_tickets, ask_a_person],
         plugins=plugins,

@@ -12,12 +12,13 @@ from typing import List, Dict, Any, Optional, Tuple
 import re
 
 from models.search import ANSWER_CARDS_MAX
-from pellier_copy import CREDIT_REQUEST_PENDING
+from pellier_copy import CREDIT_REQUEST_PENDING, MODEL_FALLBACK_NOTE
 from services import active_requirements, evidence_spans, store_tools, tool_evidence
 from services.chat_error_taxonomy import classify_chat_error
 from services.data_source import database_source_label
 from services.intent_router import classify_intent
 from services.product_envelope import ProductExtractor, select_products_for_reply
+from services.model_fallback import FallbackBedrockModel, answered_with
 from services.specialist_models import agent_name, build_intent_signal, model_for_intent
 from services.turn_steps import (
     STATUS_UNDERSTANDING,
@@ -280,6 +281,24 @@ def _build_dispatcher_specialist(
     from agents.shopping_agent import build_shopping_agent
 
     return build_shopping_agent(allow_handoff=allow_handoff, skill_mode=skill_mode)
+
+
+def _report_model_fallback(agent: Any, steps: Any, route_facts: Dict[str, Any]) -> None:
+    """When Bedrock cannot serve the agent's model, name the model that answered instead.
+
+    The tool steps after the switch carry it, and the Router step, sent again when the turn
+    ends, carries it with a note, so the Builder view never credits a model that did not run.
+    """
+    model = getattr(agent, "model", None)
+    if not isinstance(model, FallbackBedrockModel):
+        return
+
+    def fell_back(primary: str, used: str) -> None:
+        steps.model_id = used
+        route_facts["model_id"] = used
+        route_facts["note"] = MODEL_FALLBACK_NOTE.format(primary=primary, used=used)
+
+    model.on_fallback = fell_back
 
 
 def _agent_grant(intent: str, agent: Any) -> Dict[str, Any]:
@@ -1966,6 +1985,7 @@ class EnhancedChatService:
         # The Router step goes out once the agent exists, so it names the
         # tools this turn's agent was actually built with.
         route_facts["grant"] = _agent_grant(intent, orchestrator)
+        _report_model_fallback(orchestrator, steps, route_facts)
         yield steps.route(**route_facts)
         logger.info(f"🎯 Router | {specialist_name} (intent={intent}, skills={skill_mode})")
 
@@ -2403,14 +2423,14 @@ class EnhancedChatService:
             "router": "deterministic",
             "intent": intent,
             "agent": specialist_name,
-            "model_id": model_for_intent(intent)[0],
+            "model_id": answered_with(getattr(orchestrator, "model", None), model_for_intent(intent)[0]),
             "skill_mode": skill_mode,
             "skills": skill_receipt(
                 intent, skill_mode, [skill["name"] for skill in steps.loaded_skills]
             ),
             "stop_reason": stop_reason,
         }
-        if stop_reason:
+        if stop_reason or getattr(getattr(orchestrator, "model", None), "fell_back_from", None):
             yield steps.route(**route_facts, stop_reason=stop_reason)
 
         # AgentCore STM: mirror this turn for session continuity labs, unless the
