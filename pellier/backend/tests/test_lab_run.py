@@ -626,8 +626,20 @@ def test_a_turn_the_model_or_server_fails_is_sent_again(
     assert turns[0]["body"] == turns[1]["body"] == turns[2]["body"]
     assert turns[3]["body"]["conversation_history"][0]["content"] == turns[0]["body"]["message"]
     out = capsys.readouterr().out
-    assert "sending the same request again (2 of 3)" in out
-    assert "sending the same request again (3 of 3)" in out
+    assert "sending the same request again in 0 s (2 of 3)" in out
+    assert "sending the same request again in 0 s (3 of 3)" in out
+
+
+def test_resends_wait_longer_each_time(
+    fake: FakeBackend, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run, "TURN_RETRY_SECONDS", 0.01)
+    pauses: list[float] = []
+    real_sleep = time.sleep
+    monkeypatch.setattr(lab_run.time, "sleep", lambda s: (pauses.append(s), real_sleep(0))[1])
+    fake.chat_failures = [503, 503]
+    assert _run(fake, 2) == 0
+    assert pauses[:2] == pytest.approx([0.01, 0.04])
 
 
 @pytest.mark.parametrize("where", ["before it answers", "after its first event"])

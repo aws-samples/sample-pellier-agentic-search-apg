@@ -186,8 +186,11 @@ TURN_DEADLINE_SECONDS = {IN_PROCESS: 60, MANAGED: 90}
 # A turn the model or the server fails (a throttled model, a missed deadline, a 5xx) is sent
 # again, up to TURN_ATTEMPTS in all. A shopper turn writes nothing a second send could double:
 # its tools read, and a credit request resolves to the one already open.
+# The resends spread out (5 s, then 20 s): a model that is briefly unavailable, as Bedrock was
+# for minutes at a time on the 2026-10-26 test event, is more likely back by the third send.
 TURN_ATTEMPTS = 3
 TURN_RETRY_SECONDS = 5
+TURN_RETRY_GROWTH = 4
 # A check that judges the newest turn reads what the model chose to do, so with the answers in
 # place a failure is that turn's, not the code's: the request is sent again, up to CHECK_ATTEMPTS
 # looks in all. The value is what to send: a task's own request, or the lab's (None).
@@ -621,8 +624,10 @@ def send_turn_again_on_failure(backend: Backend, token: str, body: Dict[str, Any
             if attempt == TURN_ATTEMPTS or not may_retry():
                 raise TurnFailed(f"{exc} (sent {attempt} time{'s' * (attempt > 1)}). "
                                  f"{SLOW_MODEL}") from exc
-            wait(f"{exc}; sending the same request again ({attempt + 1} of {TURN_ATTEMPTS})")
-            time.sleep(TURN_RETRY_SECONDS)
+            pause = TURN_RETRY_SECONDS * TURN_RETRY_GROWTH ** (attempt - 1)
+            wait(f"{exc}; sending the same request again in {pause:g} s "
+                 f"({attempt + 1} of {TURN_ATTEMPTS})")
+            time.sleep(pause)
     raise AssertionError("unreachable: the last attempt returns or raises")
 
 
