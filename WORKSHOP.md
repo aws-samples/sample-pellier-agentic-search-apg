@@ -35,8 +35,7 @@ Times are elapsed minutes from the start of the session.
 
 | Workshop minutes | Activity | Duration |
 |---|---|---|
-| Before the talk | Getting started, done as people arrive | 0 minutes of the session |
-| 0-20 | Opening talk | 20 minutes |
+| 0-20 | Opening talk, then Getting started (about 3 minutes; early arrivals may do it before) | 20 minutes |
 | 20-35 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
 | 35-50 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
 | 50-55 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |

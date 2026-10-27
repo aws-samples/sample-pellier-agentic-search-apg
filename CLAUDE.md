@@ -157,11 +157,11 @@ Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the task to an
 unpackaged file or infer deployed completion from source inspection.
 
-The schedule is 120 minutes. Getting started happens as people arrive, before the talk.
-Then the talk takes 20 minutes, Lab 1 15, Lab 2 15, Before Lab 3 (the one scheduled catch-up,
-then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 30 and the Wrap-up 10. Reading,
-deployment waits, and explanation share those allocations. These are targets pending a timed
-fresh-account rehearsal.
+The schedule is 120 minutes. The opening block takes 20: the talk, then Getting started (about 3
+minutes; early arrivals may do it before). Then Lab 1 takes 15, Lab 2 15, Before Lab 3 (the one
+scheduled catch-up, then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 30 and the
+Wrap-up 10. Reading, deployment waits, and explanation share those allocations. These are targets
+pending a timed fresh-account rehearsal.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
 documentation.
