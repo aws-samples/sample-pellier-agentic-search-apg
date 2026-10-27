@@ -385,6 +385,22 @@ def test_finished_step_carries_the_builder_payload_and_no_raw_result() -> None:
     assert "productId" not in json.dumps(done)
 
 
+def test_a_search_that_widened_names_what_it_dropped_and_one_that_did_not_claims_no_retry() -> None:
+    strict = _search(5, price=100)
+    widened = _search(5, price=100)
+    widened["search_plan"]["relaxations"] = [
+        {"step": "drop_tags", "reason": "short", "dropped": ["gift", "slow", "home"]},
+    ]
+    first = TurnSteps().finished("search_products", json.dumps(strict))
+    retry = TurnSteps().finished("search_products", json.dumps(widened))
+    assert first["builder"]["relaxation"] is None
+    assert retry["builder"]["relaxation"] == {
+        "steps": ["drop_tags"],
+        "dropped": ["gift", "slow", "home"],
+    }
+    assert "drop_tags" not in json.dumps({k: v for k, v in retry.items() if k != "builder"})
+
+
 def test_a_search_step_shows_the_words_the_agent_searched_for() -> None:
     """Remembered taste reaches a search only through the words the agent chose."""
     query = "hand-thrown   stoneware,\n quiet tactile piece"

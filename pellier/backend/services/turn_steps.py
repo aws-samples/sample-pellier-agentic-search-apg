@@ -325,6 +325,23 @@ def requirement_phrases(
     }
 
 
+def relaxation_facts(plan: Optional[Dict[str, Any]]) -> Optional[Dict[str, List[str]]]:
+    """The Builder view's retry facts: the widening steps a search took and the tags dropped.
+
+    None when the search answered on its first pass, so a step with no retry
+    carries no claim of one.
+    """
+    relaxations = [r for r in (plan or {}).get("relaxations") or [] if isinstance(r, dict)]
+    if not relaxations:
+        return None
+    dropped: List[str] = []
+    for relaxation in relaxations:
+        for value in relaxation.get("dropped") or []:
+            if str(value) not in dropped:
+                dropped.append(str(value))
+    return {"steps": [str(r.get("step")) for r in relaxations], "dropped": dropped}
+
+
 def _limits_said_now(plan: Dict[str, Any], carried: Sequence[str]) -> tuple[List[str], str]:
     """The limits this message stated, and the exclusions clause, for a finding's head."""
     phrases = limit_phrases(plan)
@@ -696,6 +713,7 @@ class TurnSteps:
             "identity": evidence.get("identity"),
             "ranking": evidence.get("ranking"),
             "requirements": requirement_phrases(parsed.get("search_plan"), carried),
+            "relaxation": relaxation_facts(parsed.get("search_plan")),
         }
         query = search_text(tool_input)
         if query:
@@ -817,6 +835,7 @@ class TurnSteps:
             "identity": identity,
             "ranking": tool_call.get("ranking"),
             "requirements": None,
+            "relaxation": None,
         }
         query = search_text(tool_call.get("input"))
         if query:

@@ -1419,6 +1419,28 @@ def test_send_prints_each_turns_trace_as_it_streams(
     assert all(len(line) <= 120 for line in lines)
 
 
+def test_send_names_a_retry_and_what_it_dropped(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    retry = dict(STEPS[2], builder={**STEPS[2]["builder"],
+                                    "relaxation": {"steps": ["drop_tags"],
+                                                   "dropped": ["gift", "slow", "home"]}})
+    fake.steps = [STEPS[0], STEPS[1], retry, *STEPS[3:]]
+    assert _run(fake, 1, None, "--task", "1B") == 0
+    lines = capsys.readouterr().out.splitlines()
+
+    retry_at = lines.index("                    Tried again without the words gift, slow, home")
+    assert lines[retry_at + 1].lstrip().startswith("How it ranked, kept 64 of 100")
+
+
+def test_a_first_attempt_prints_no_retry_line(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = STEPS
+    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert "Tried again" not in capsys.readouterr().out
+
+
 def test_quiet_keeps_the_one_line_output(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:

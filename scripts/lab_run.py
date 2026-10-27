@@ -551,6 +551,15 @@ def _trace_ranking(ranking: Dict[str, Any]) -> None:
               f"{_rank(row.get('vec_rank')):>4}  {score:.4f}", flush=True)
 
 
+def _trace_retry(relaxation: Any) -> None:
+    """Name a retry the way Builder view's pill does: the words the broader try left out."""
+    if not isinstance(relaxation, dict):
+        return
+    dropped = [str(tag) for tag in relaxation.get("dropped") or []]
+    label = f"Tried again without the words {', '.join(dropped)}" if dropped else "Tried again"
+    print(f"{TRACE_INDENT}{'':<{TRACE_LABEL}}{label}", flush=True)
+
+
 def trace_event(event: Dict[str, Any], shown: set) -> None:
     """Print a finished step once, in Builder view's words; running steps print nothing."""
     if event.get("type") != "step" or event.get("status") == "running":
@@ -569,6 +578,7 @@ def trace_event(event: Dict[str, Any], shown: set) -> None:
     timing = f" ({ms} ms)" if isinstance(ms, (int, float)) else ""
     _trace_line("failed" if status == "failed" else "done",
                 f"{label}{timing}" + (f": {finding}" if finding else ""))
+    _trace_retry(builder.get("relaxation"))
     _trace_ranking(builder.get("ranking") or {})
 
 
