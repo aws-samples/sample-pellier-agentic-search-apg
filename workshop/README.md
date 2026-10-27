@@ -53,6 +53,10 @@ a product's own stored embedding: that product sits at distance 0, and the rows 
 in name order, so the ranking and its direction stay Task 1A's to write. The HNSW
 index names its operator class. It only reads.
 
+In Task 1B, `psql -f workshop/lab-1-receipt.sql` prints Anna's latest search receipt as one
+record: the limits she asked for, the limits the search kept, and the soft tags a retry
+dropped. It only reads.
+
 Optional in Lab 1: `psql -f workshop/lab-1-fusion.sql`
 recomputes the fused scores Anna's search recorded from their two ranks, and
 `psql -f workshop/lab-1-index.sql` shows whether

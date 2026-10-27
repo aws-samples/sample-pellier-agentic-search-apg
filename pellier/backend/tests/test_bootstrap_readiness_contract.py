@@ -1311,6 +1311,7 @@ GUIDE_WORKSHEETS = (
     "workshop/lab-1-fusion.sql",
     "workshop/lab-1-index.sql",
     "workshop/lab-1-meaning.sql",
+    "workshop/lab-1-receipt.sql",
     "workshop/lab-3-agent-workload.sql",
     "workshop/lab-3-row-ownership.sql",
     "workshop/lab-4-absence.sql",
