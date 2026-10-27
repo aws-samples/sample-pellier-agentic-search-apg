@@ -3,7 +3,7 @@
  *
  * `BuilderViewToggle` is the one global switch, in the shared header: it
  * governs the page's "How it ranked" panel, the dock's evidence and the
- * Operator's investigation together. Off by default, remembered per browser.
+ * Operator's investigation together. On until the visitor turns it off; the choice is remembered per browser.
  *
  * `SkillModeToggle` stays in the Ask Pellier dock and shows only while the
  * Builder view is on: it lets the agent load its own skills (progressive
@@ -22,12 +22,13 @@ interface ToggleProps {
 function Toggle({ id, label, checked, onChange, className }: ToggleProps) {
   return (
     <label className={['tn-switch', className ?? ''].filter(Boolean).join(' ')} htmlFor={id}>
-      <span className="tn-switch-label">{label}</span>
+      <span className="tn-switch-label" id={`${id}-label`}>{label}</span>
       <button
         id={id}
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-labelledby={`${id}-label`}
         className="tn-switch-track"
         data-state={checked ? 'on' : 'off'}
         onClick={() => onChange(!checked)}

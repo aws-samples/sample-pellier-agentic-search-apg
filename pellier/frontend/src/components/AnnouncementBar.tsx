@@ -1,164 +1,75 @@
 /**
- * AnnouncementBar — storefront service strip above the sticky header.
+ * AnnouncementBar: the storefront's store notes above the sticky header.
  *
- * Cycles through editorial house notes every 5 seconds with a
- * smooth vertical crossfade. Each line reads like a concierge aside —
- * the agent quietly surfacing what it noticed while watching the floor.
- *
- * A pulse dot on the left, a small-caps-style verb (THE HOUSE EDIT /
- * GIFT SERVICE / SERVICE) in sans semibold + wide tracking, and body copy
- * in cream. These are store notes; the Builder view carries proof and trace
- * vocabulary.
+ * The notes take turns every five seconds with a short fade. A pause button
+ * stops them (WCAG 2.2.2), and so does a pointer resting on the bar. With
+ * reduced motion the first note stays and there is no button, because
+ * nothing moves. Every note sits in the same grid cell, so the bar keeps the
+ * tallest note's height and the page never shifts when a note changes. The
+ * colors are the `--dl-announce-*` tokens.
  *
  * Copy lives in copy.ts. It intentionally avoids mutable inventory and
  * verification claims; those belong on a live evidence-bearing surface.
  */
-import { useState, useEffect } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { EDITORIAL_FLOOR_NOTES } from '../copy'
-import { cssVar as c } from '../design/cssVars'
-
-const MONO_STACK = 'var(--mono)'
-
-/* The strip is ink-filled: black in light, ivory in dark. The label takes
-   the on-ink color. The pulse dot is copper in both themes: the copper that
-   reads on an ink fill (`--dl-accent-on-ink`), the dark theme's copper on the
-   black bar and the light theme's on the ivory one. */
-const ON_DARK_ACCENT = 'var(--pellier-accent-on-dark)'
-const COPPER_ON_INK = 'var(--dl-accent-on-ink)'
+import { useEffect, useState } from 'react'
+import { Pause, Play } from 'lucide-react'
+import { useReducedMotion } from 'motion/react'
+import { ANNOUNCEMENTS, ANNOUNCEMENT_CONTROLS } from '../copy'
+import '../styles/announcement-bar.css'
 
 const CYCLE_MS = 5000
 
 export default function AnnouncementBar() {
+  const reduceMotion = Boolean(useReducedMotion())
   const [index, setIndex] = useState(0)
-  const reduceMotion = useReducedMotion()
-  const finding = EDITORIAL_FLOOR_NOTES[index]
+  const [paused, setPaused] = useState(false)
+  const [hovered, setHovered] = useState(false)
+  const rotates = !reduceMotion
+  const turning = rotates && !paused && !hovered
 
   useEffect(() => {
-    if (reduceMotion) return
-    const t = setInterval(() => {
-      setIndex((i) => (i + 1) % EDITORIAL_FLOOR_NOTES.length)
-    }, CYCLE_MS)
-    return () => clearInterval(t)
-  }, [reduceMotion])
+    if (!turning) return
+    const timer = window.setInterval(() => setIndex(i => (i + 1) % ANNOUNCEMENTS.length), CYCLE_MS)
+    return () => window.clearInterval(timer)
+  }, [turning])
+
+  const shown = rotates ? index : 0
 
   return (
     <div
       role="region"
       aria-label="Storefront announcements"
       data-testid="announcement-bar"
-      className="w-full relative overflow-hidden"
-      style={{
-        background: c.ink,
-        color: c.bg,
-        fontFamily: 'var(--sans)',
-        fontSize: '12.5px',
-        letterSpacing: '0.04em',
-        lineHeight: 1.2,
-        padding: '0 24px',
-        height: 44,
-        fontWeight: 400,
-      }}
+      data-rotates={rotates ? 'true' : 'false'}
+      className="pellier-announcement"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
     >
-      <style>{`
-        @keyframes pelliers-floor-pulse {
-          0% { transform: scale(0.6); opacity: 0.9; }
-          100% { transform: scale(1.8); opacity: 0; }
-        }
-      `}</style>
-
-      <AnimatePresence mode="wait">
-        <motion.span
-          key={index}
-          className="absolute inset-0 flex items-center justify-center"
-          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
-          transition={{ duration: reduceMotion ? 0 : 0.35, ease: 'easeOut' }}
-          style={{ padding: '0 60px' }}
-        >
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 10,
-              maxWidth: '100%',
-            }}
+      <div className="pellier-announcement-notes">
+        {ANNOUNCEMENTS.map((note, i) => (
+          <p
+            key={note.VERB}
+            className="pellier-announcement-note"
+            data-active={i === shown ? 'true' : 'false'}
+            aria-hidden={i === shown ? undefined : true}
           >
-            {/* Pulse dot — agent presence cue, anchored to the copy so it
-                never floats orphaned at the bar's edge on wide viewports. */}
-            <span
-              aria-hidden="true"
-              data-testid="announcement-pulse"
-              style={{
-                position: 'relative',
-                width: 8,
-                height: 8,
-                borderRadius: 999,
-                background: COPPER_ON_INK,
-                flexShrink: 0,
-              }}
-            >
-              <span
-                style={{
-                  position: 'absolute',
-                  inset: -6,
-                  borderRadius: 999,
-                  background:
-                    'color-mix(in srgb, var(--dl-accent-on-ink) 35%, transparent)',
-                  animation: reduceMotion
-                    ? 'none'
-                    : 'pelliers-floor-pulse 1.8s ease-out infinite',
-                }}
-              />
-            </span>
-            {finding.verb ? (
-              <span
-                style={{
-                  fontFamily: 'var(--sans)',
-                  fontStyle: 'normal',
-                  fontWeight: 600,
-                  fontSize: '13px',
-                  letterSpacing: '0.22em',
-                  textTransform: 'uppercase',
-                  color: ON_DARK_ACCENT,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {finding.verb}
-              </span>
-            ) : null}
-            <span
-              style={{
-                color: c.bg,
-                opacity: 0.92,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {finding.text}
-            </span>
-            {finding.trace ? (
-              <span
-                aria-hidden="true"
-                style={{
-                  fontFamily: MONO_STACK,
-                  fontSize: '10.5px',
-                  letterSpacing: '0.04em',
-                  color: 'color-mix(in srgb, var(--dl-on-ink) 65%, var(--dl-ink))',
-                  borderLeft: '1px solid color-mix(in srgb, var(--dl-on-ink) 25%, transparent)',
-                  paddingLeft: 12,
-                  marginLeft: 4,
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {finding.trace}
-              </span>
-            ) : null}
-          </span>
-        </motion.span>
-      </AnimatePresence>
+            <span className="pellier-announcement-verb">{note.VERB}</span>
+            <span className="pellier-announcement-text">{note.TEXT}</span>
+          </p>
+        ))}
+      </div>
+      {rotates ? (
+        <button
+          type="button"
+          className="pellier-announcement-pause"
+          data-testid="announcement-pause"
+          aria-label={paused ? ANNOUNCEMENT_CONTROLS.PLAY : ANNOUNCEMENT_CONTROLS.PAUSE}
+          title={paused ? ANNOUNCEMENT_CONTROLS.PLAY : ANNOUNCEMENT_CONTROLS.PAUSE}
+          onClick={() => setPaused(p => !p)}
+        >
+          {paused ? <Play size={14} aria-hidden="true" /> : <Pause size={14} aria-hidden="true" />}
+        </button>
+      ) : null}
     </div>
   )
 }

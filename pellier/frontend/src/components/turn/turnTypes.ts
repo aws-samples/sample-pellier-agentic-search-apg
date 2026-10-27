@@ -112,6 +112,12 @@ export interface StepRequirements {
   carried: string[]
 }
 
+/** What a retry gave up to fill the result. */
+export interface StepRelaxation {
+  steps: string[]
+  dropped: string[]
+}
+
 export interface LoadedSkill {
   name: string
   display_name: string
@@ -130,6 +136,8 @@ export interface StepBuilder {
   identity?: IdentityBinding | null
   ranking?: RankingPayload | null
   requirements?: StepRequirements | null
+  /** Set when the search widened its preferences to fill the result: the steps taken and the tags dropped. */
+  relaxation?: StepRelaxation | null
   intent?: string
   agent?: string
   /** The model that ran this turn's agent: on the Router step, and on each tool step it called. */

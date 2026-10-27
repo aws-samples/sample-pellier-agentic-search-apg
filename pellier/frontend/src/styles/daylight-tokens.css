@@ -49,6 +49,11 @@
   /* Copper on an ink-filled control: the other theme's copper, so a dot on
      a black button in light and on an ivory button in dark both read. */
   --dl-accent-on-ink: #da9562;
+  /* The announcement bar: the ink fill in light; in dark a raised near-black
+     bar with ivory text and the page's copper. */
+  --dl-announce-bg:     var(--dl-ink);
+  --dl-announce-ink:    var(--dl-on-ink);
+  --dl-announce-accent: var(--dl-accent-on-ink);
   /* Over a photograph's scrim, the same in both themes: ivory type and the
      dark theme's copper. */
   --dl-on-photo:        #fbf8f2;
@@ -156,6 +161,9 @@
   --dl-accent-soft:  #2a1d14;
   --dl-accent-ink:   #da9562;
   --dl-accent-on-ink: #9a4d20;
+  --dl-announce-bg:     var(--dl-paper);
+  --dl-announce-ink:    var(--dl-ink);
+  --dl-announce-accent: var(--dl-accent);
   /* 8.0:1 on the bar track, 8.9:1 on the panel. */
   --dl-bar-copper:   #f79a50;
 

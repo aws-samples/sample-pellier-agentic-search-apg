@@ -23,7 +23,6 @@ import PellierApproach from '../components/PellierApproach'
 import PellierServiceStrip from '../components/PellierServiceStrip'
 import HomeGrid from '../components/HomeGrid'
 import Footer from '../components/Footer'
-import PellierSpotlight from '../components/PellierSpotlight'
 import SearchResults, { StoreFailedNotice } from '../components/SearchResults'
 import { useStoreResults } from '../contexts/StoreResultsContext'
 import { useUI } from '../contexts/UIContext'
@@ -130,7 +129,6 @@ export default function PellierPage() {
       </main>
 
       <Footer />
-      <PellierSpotlight />
     </div>
   )
 }

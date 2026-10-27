@@ -52,7 +52,6 @@ vi.mock('./Header', () => ({ default: () => null }))
 vi.mock('./Footer', () => ({ default: () => null }))
 vi.mock('./PellierApproach', () => ({ default: () => null }))
 vi.mock('./PellierServiceStrip', () => ({ default: () => null }))
-vi.mock('./PellierSpotlight', () => ({ default: () => null }))
 vi.mock('./PellierWelcome', () => ({ default: () => null }))
 
 function card(id: number, name: string, quantity = 9) {
@@ -85,6 +84,7 @@ const ROUTE_SHOPPING = {
   builder: { tool: null, intent: 'shopping', agent: 'Catalog agent' },
 }
 const ROUTE_SUPPORT = { ...ROUTE_SHOPPING, finding: 'Sent to the Support agent', builder: { tool: null, intent: 'support', agent: 'Support agent' } }
+const ROUTE_STOCK = { ...ROUTE_SHOPPING, finding: 'Sent to the Stock agent', builder: { tool: null, intent: 'stock', agent: 'Stock agent' } }
 const SEARCH_RUNNING = {
   type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running',
   tags: ['Aurora'], builder: { tool: 'search_products' },
@@ -110,13 +110,14 @@ interface SearchDoneOptions {
   filters?: unknown
   ranking?: unknown
   note?: string
+  relaxation?: unknown
 }
 
-function searchDone(ids: string[], { id = 'step-1', limits = LIMITS, filters = FILTERS, ranking = RANKING, note }: SearchDoneOptions = {}) {
+function searchDone(ids: string[], { id = 'step-1', limits = LIMITS, filters = FILTERS, ranking = RANKING, note, relaxation = null }: SearchDoneOptions = {}) {
   return {
     type: 'step', id, label: 'Searching the catalog in Aurora', status: 'done',
     finding: `${ids.length} found`, tags: ['Aurora'],
-    builder: { tool: 'search_products', rail: 'in-process', ranking },
+    builder: { tool: 'search_products', rail: 'in-process', ranking, relaxation },
     results: { available: true, rail: 'in-process', product_ids: ids, count: ids.length, limits, filters, ...(note ? { note } : {}) },
   }
 }
@@ -220,11 +221,14 @@ describe('the results view', () => {
     expect(await screen.findByTestId('home-grid')).toHaveTextContent('Store Edit Feature')
 
     await askFromTheHomeBar(ANNA_QUESTION)
+    // The grid gives way only once the Router sends the turn to the Catalog agent.
+    expect(screen.queryByTestId('results-view')).toBeNull()
+    await emit(ROUTE_SHOPPING)
     expect(screen.getByTestId('results-title')).toHaveTextContent(`Results for “${ANNA_QUESTION}”`)
     expect(screen.getByTestId('results-skeleton')).toBeInTheDocument()
     expect(screen.getByTestId('pellier-hero')).toHaveAttribute('data-compact', 'true')
 
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    await emit(SEARCH_RUNNING)
     const view = screen.getByTestId('results-view')
     expect(within(view).getByTestId('turn-status')).toHaveTextContent('Searching the catalog in Aurora')
 
@@ -276,8 +280,8 @@ describe('the results view', () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
     const bar = screen.getByTestId('pellier-hero-search')
-    expect(bar).toHaveValue(ANNA_QUESTION)
     await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    expect(bar).toHaveValue(ANNA_QUESTION)
     await finish()
     expect(bar).toHaveValue(ANNA_QUESTION)
 
@@ -311,6 +315,22 @@ describe('the results view', () => {
     await finish()
     expect(gridNames()).toEqual(['Hadley Linen Shirt'])
     expect(screen.getByTestId('results-title')).toHaveTextContent('Something in linen for the trip')
+  })
+
+  it('keeps the grid, with no skeleton, for a stock question from the store', async () => {
+    render(<Storefront />)
+    await screen.findByTestId('home-grid')
+    await askFromTheHomeBar('Is the Hadley Linen Shirt in stock in Brooklyn?')
+    await emit(ROUTE_STOCK, {
+      type: 'step', id: 'step-1', label: 'Checking stock', status: 'running', tags: ['Aurora'],
+      builder: { tool: 'check_stock' },
+    })
+    expect(screen.queryByTestId('results-view')).toBeNull()
+    expect(screen.queryByTestId('results-skeleton')).toBeNull()
+    expect(screen.getByTestId('home-grid')).toBeVisible()
+    await finish()
+    expect(screen.queryByTestId('results-view')).toBeNull()
+    expect(screen.getByTestId('home-grid')).toBeVisible()
   })
 
   it('returns to the store on a support question from the store', async () => {
@@ -415,7 +435,11 @@ describe('the results view', () => {
       SEARCH_RUNNING,
       { ...SEARCH_RUNNING, id: 'step-2' },
       // The second search finishes first; each step carries only its own evidence.
-      searchDone(['12', '65'], { id: 'step-2', ranking: otherRanking }),
+      searchDone(['12', '65'], {
+        id: 'step-2',
+        ranking: otherRanking,
+        relaxation: { steps: ['drop_tags'], dropped: ['gift', 'slow', 'home'] },
+      }),
       searchDone(['36', '22']),
     )
     await finish({
@@ -574,7 +598,11 @@ describe('the results view', () => {
       SEARCH_RUNNING,
       { ...SEARCH_RUNNING, id: 'step-2' },
       searchDone(['36', '22']),
-      searchDone(['12', '65'], { id: 'step-2', ranking: otherRanking }),
+      searchDone(['12', '65'], {
+        id: 'step-2',
+        ranking: otherRanking,
+        relaxation: { steps: ['drop_tags'], dropped: ['gift', 'slow', 'home'] },
+      }),
     )
     await finish({
       ...COMPLETE,
@@ -591,7 +619,11 @@ describe('the results view', () => {
     act(() => writeBuilderView(true))
     const view = screen.getByTestId('results-view')
     const calls = await within(view).findAllByTestId('results-call')
-    expect(calls.map(call => call.textContent)).toEqual(['12 found', '22 found'])
+    // Each pill says which attempt it was, so the retry that kept her limits is visible.
+    expect(calls.map(call => call.textContent)).toEqual([
+      '1First try: 2 found',
+      '2Tried again without the words gift, slow, home: 2 found',
+    ])
     expect(calls[0]).toHaveAttribute('aria-pressed', 'true')
     const panel = within(view).getByTestId('ranking-panel')
     expect(panel).toHaveTextContent('Kept 64 of 100')

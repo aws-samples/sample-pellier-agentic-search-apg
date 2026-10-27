@@ -63,7 +63,7 @@ import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
 import { SkillModeToggle, useBuilderView } from './turn'
 import { useStoreResults } from '../contexts/StoreResultsContext'
-import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
+import { useSignedInShopper } from '../hooks/useShopperSignIn'
 import { ASK_PANEL, HERO_CONCIERGE } from '../copy'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
@@ -333,10 +333,11 @@ export default function ChatDrawer() {
             <PellierMark size={28} className="cd-mark" />
             <div className="cd-head-stack">
               <h3 className="cd-head-title">{ASK_PANEL.TITLE}</h3>
-              {/* The verified session, never the last click. */}
-              <p className="cd-head-meta" data-testid="ask-panel-subtitle">
-                {signedInAs ? ASK_PANEL.signedIn(shopperName(signedInAs)) : ASK_PANEL.PICK}
-              </p>
+              {/* Signed in, the shopper row below names the verified session;
+                  the header does not say it twice. */}
+              {signedInAs ? null : (
+                <p className="cd-head-meta" data-testid="ask-panel-subtitle">{ASK_PANEL.PICK}</p>
+              )}
             </div>
             <button
               type="button"

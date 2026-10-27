@@ -103,7 +103,6 @@ async function stubDesk(page: Page, desk: Desk) {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.setItem('pellier-auth-session:staff', '1')
     localStorage.setItem('pellier-builder-view', 'on')
     localStorage.removeItem('pellier-theme')

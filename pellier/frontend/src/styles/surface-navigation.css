@@ -125,7 +125,18 @@
   outline-offset: 2px;
 }
 
-/* ---- The right cluster: theme control and Ask Pellier ---- */
+/* ---- The menu: the surface switch, the Builder view switch and the theme
+   control. Beside the wordmark it adds no box of its own (its children are
+   the bar's flex items); on a phone it is the dropdown the menu button opens. ---- */
+.pellier-surface-menu {
+  display: contents;
+}
+
+.pellier-builder-toggle {
+  white-space: nowrap;
+}
+
+/* ---- The right cluster: Ask Pellier (and, on a phone, the menu button) ---- */
 .pellier-surface-tools {
   display: flex;
   align-items: center;
@@ -133,15 +144,37 @@
   margin-left: auto;
 }
 
-/* The global Builder view switch sits just before the tools, which then
-   need no auto margin of their own. */
-.pellier-builder-toggle {
-  margin-left: auto;
-  white-space: nowrap;
+@media (min-width: 561px) {
+  /* The first control after the surface switch takes the free space, so the
+     theme control sits against Ask Pellier at the old 10px. */
+  .pellier-surface-menu > :nth-child(2) {
+    margin-left: auto;
+  }
+
+  .pellier-surface-tools {
+    margin-left: 0;
+  }
+
+  .pellier-surface-menu > .pellier-theme-control {
+    margin-right: -10px;
+  }
 }
 
-.pellier-builder-toggle + .pellier-surface-tools {
-  margin-left: 0;
+.pellier-surface-menu-button {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 0;
+  border-radius: var(--dl-r-pill);
+  background: transparent;
+  color: var(--dl-ink);
+  cursor: pointer;
+}
+
+.pellier-surface-menu-button:hover {
+  background: var(--dl-paper-2);
 }
 
 .pellier-ask-button {
@@ -204,16 +237,88 @@
   .pellier-surface-link { padding-inline: 12px; }
 }
 
-/* On a phone the surface switch drops to its own row under the wordmark,
-   with the Builder view switch beside it. */
+/* On a phone the bar is one row: the wordmark, Ask Pellier and the menu
+   button. The surface switch, the Builder view switch and the theme control
+   fold into the menu, and each target there is at least 44px. On the
+   Storefront, Shop, Stories and About lead the menu and the storefront row
+   hides its own menu button, so the page has one. */
 @media (max-width: 560px) {
-  :root { --pellier-surface-bar-height: 104px; }
-  .pellier-surface-bar { flex-wrap: wrap; row-gap: 0; padding-block: 6px 8px; }
-  .pellier-surface-links { order: 3; flex: 1 1 auto; justify-content: center; }
-  .pellier-surface-link { flex: 1; }
-  .pellier-builder-toggle { order: 4; margin-left: 0; }
-  .pellier-builder-toggle + .pellier-surface-tools { margin-left: auto; }
-  .pellier-ask-button { padding-inline: 14px; }
+  .pellier-surface-bar { gap: 8px; }
+
+  .pellier-surface-storefront {
+    display: grid;
+    gap: 2px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--dl-line);
+  }
+  .pellier-surface-storefront .pellier-nav-link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .pellier-storefront-header .pellier-header-menu-toggle { display: none; }
+  .pellier-ask-button { height: 44px; padding-inline: 14px; }
+
+  .pellier-surface-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px 16px;
+    border-bottom: 1px solid var(--dl-line);
+    background: var(--dl-bg);
+    box-shadow: var(--dl-sh-lift);
+  }
+
+  .pellier-surface-links { width: 100%; }
+  .pellier-surface-link { flex: 1; min-height: 44px; }
+
+  .pellier-surface-menu .pellier-builder-toggle {
+    width: 100%;
+    min-height: 44px;
+    justify-content: space-between;
+    padding-inline: 6px;
+    font-size: 14px;
+  }
+
+  /* The switch is drawn small and answers a 44px target. */
+  .pellier-surface-menu .pellier-builder-toggle .tn-switch-track,
+  .pellier-surface-menu .pellier-builder-toggle .tn-switch-track[data-state='on'] {
+    width: 52px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+  }
+  .pellier-surface-menu .pellier-builder-toggle .tn-switch-track::before {
+    content: '';
+    position: absolute;
+    top: calc(50% - 9px);
+    left: calc(50% - 15px);
+    width: 30px;
+    height: 18px;
+    box-sizing: border-box;
+    border: 1px solid var(--dl-line-strong);
+    border-radius: var(--dl-r-pill);
+    background: var(--dl-paper-2);
+  }
+  .pellier-surface-menu .pellier-builder-toggle .tn-switch-track[data-state='on']::before {
+    border-color: var(--dl-ink);
+    background: var(--dl-ink);
+  }
+  .pellier-surface-menu .pellier-builder-toggle .tn-switch-thumb {
+    top: calc(50% - 6px);
+    left: calc(50% - 13px);
+  }
+  .pellier-surface-menu .pellier-builder-toggle .tn-switch-track[data-state='on'] .tn-switch-thumb {
+    transform: translateX(12px);
+  }
+
+  .pellier-surface-menu .pellier-theme-control { width: 100%; }
+  .pellier-surface-menu .pellier-theme-option { flex: 1; width: auto; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

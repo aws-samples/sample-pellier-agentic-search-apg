@@ -87,7 +87,6 @@ for (const theme of ['light', 'dark'] as const) {
   test(`a terminal turn streams into Ask Pellier with its trace (${theme})`, async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.addInitScript(({ persona, theme }) => {
-      sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
       sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
       localStorage.setItem('pellier-session-id', 'session-shots')
       localStorage.setItem('pellier-auth-session:shopper', '1')

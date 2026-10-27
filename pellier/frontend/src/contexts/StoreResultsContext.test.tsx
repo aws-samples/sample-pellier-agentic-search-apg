@@ -41,6 +41,14 @@ function step(tool: string, status: 'running' | 'done', ids?: string[], id?: str
   return { type: 'step', step: event }
 }
 
+/** The Router's step: where the turn was sent. */
+function routed(intent: 'shopping' | 'stock' | 'support'): TurnEvent {
+  return {
+    type: 'step',
+    step: { id: 'route', label: 'Understanding your request', status: 'done', tags: [], builder: { tool: null, intent } },
+  }
+}
+
 /** A search's done step with its own ranking, as the backend streams it. */
 function rankedSearch(id: string, ids: string[]): TurnEvent {
   const event = step('search_products', 'done', ids, id) as Extract<TurnEvent, { type: 'step' }>
@@ -117,12 +125,40 @@ describe('the result a turn shows', () => {
 
   it('shows a skeleton while the first catalog call runs, and the store again if none lands', () => {
     send({ type: 'start', query: 'anything' })
+    // Nothing replaces the grid until the Router sends the turn to the Catalog agent.
+    expect(current!.view).toEqual({ kind: 'store' })
+    send(routed('shopping'))
     expect(current!.view).toEqual({ kind: 'results', query: 'anything', shown: null })
     send(step('search_products', 'running'))
     expect(shownIds()).toBeNull()
     send({ type: 'end', outcome: 'stopped' })
     expect(current!.view).toEqual({ kind: 'store' })
     expect(current!.failed).toBe(false)
+  })
+
+  it('leaves the grid alone for a stock or support turn, with no skeleton at any point', () => {
+    for (const intent of ['stock', 'support'] as const) {
+      send({ type: 'start', query: 'Is the Hadley Linen Shirt in stock in Brooklyn?' })
+      expect(current!.view).toEqual({ kind: 'store' })
+      send(routed(intent), step('check_stock', 'running'), step('check_stock', 'done'))
+      expect(current!.view).toEqual({ kind: 'store' })
+      send({ type: 'end', outcome: 'complete', picks: [] })
+      expect(current!.view).toEqual({ kind: 'store' })
+    }
+  })
+
+  it('keeps a result already on screen through a stock turn', () => {
+    send({ type: 'start', query: 'linen' }, routed('shopping'), step('search_products', 'running'),
+      step('search_products', 'done', ['2', '9']), { type: 'end', outcome: 'complete', picks: [] })
+    const before = current!.view
+    send({ type: 'start', query: 'Is it in stock?' }, routed('stock'), step('check_stock', 'running'),
+      { type: 'end', outcome: 'complete', picks: [] })
+    expect(current!.view).toEqual(before)
+  })
+
+  it('still shows the skeleton when a catalog call starts without a Router step', () => {
+    send({ type: 'start', query: 'mugs' }, step('search_products', 'running'))
+    expect(current!.view).toEqual({ kind: 'results', query: 'mugs', shown: null })
   })
 
   it('lets "Show the whole store" win over a search that lands after it', () => {

@@ -164,14 +164,12 @@ async function stubOperator(page: Page) {
 
 interface Visit {
   signedIn?: boolean
-  overlay?: boolean
   cart?: boolean
 }
 
 /** The storage a visit starts with, set before the first script runs. */
-export async function visit(page: Page, { signedIn = true, overlay = false, cart = false }: Visit = {}) {
-  await page.addInitScript(({ persona, signedIn, overlay, cart }) => {
-    if (!overlay) sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
+export async function visit(page: Page, { signedIn = true, cart = false }: Visit = {}) {
+  await page.addInitScript(({ persona, signedIn, cart }) => {
     localStorage.removeItem('pellier-theme')
     localStorage.removeItem('pellier-drawer-storefront')
     localStorage.removeItem('pellier-builder-view')
@@ -187,7 +185,7 @@ export async function visit(page: Page, { signedIn = true, overlay = false, cart
         image: '/products/theo-stoneware-pour-over-set.webp', origin: 'manual', addedAt: 1,
       }]))
     }
-  }, { persona: ANNA, signedIn, overlay, cart })
+  }, { persona: ANNA, signedIn, cart })
 }
 
 /** Anna asks from the home bar; the page fills with her result and the dock answers. */
@@ -218,16 +216,6 @@ export const SURFACES: Surface[] = [
       await stubStorefront(page, { signedIn: false })
       await page.goto('/')
       await expect(page.getByTestId('pellier-hero-search')).toBeVisible()
-    },
-  },
-  {
-    name: 'home-welcome',
-    fullPage: false,
-    open: async (page) => {
-      await visit(page, { signedIn: false, overlay: true })
-      await stubStorefront(page, { signedIn: false })
-      await page.goto('/')
-      await expect(page.getByRole('dialog', { name: 'Begin with the edit.' })).toBeVisible()
     },
   },
   {
@@ -286,7 +274,6 @@ export const SURFACES: Surface[] = [
     fullPage: true,
     open: async (page) => {
       await page.addInitScript(() => {
-        sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
         localStorage.setItem('pellier-auth-session:staff', '1')
         localStorage.removeItem('pellier-theme')
       })

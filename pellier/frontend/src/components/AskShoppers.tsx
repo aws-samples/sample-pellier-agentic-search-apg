@@ -84,7 +84,7 @@ function useChoice(onChosen?: () => void) {
 export function ShopperCards() {
   const { pick, busy, error, switching } = useChoice()
   return (
-    <div className="cd-shoppers-cards" data-testid="ask-shoppers" data-tour="shoppers">
+    <div className="cd-shoppers-cards" data-testid="ask-shoppers">
       <div className="cd-who-cards" role="group" aria-label={ASK_PANEL.SIGNED_IN_AS}>
         {SHOPPER_ORDER.map(id => (
           <button
@@ -126,7 +126,7 @@ export function ShopperBar() {
   }, [])
 
   return (
-    <div className="cd-shoppers" data-testid="ask-shoppers" data-tour="shoppers">
+    <div className="cd-shoppers" data-testid="ask-shoppers">
       <div className="cd-who-row" role="group" aria-label={ASK_PANEL.SIGNED_IN_AS}>
         {signedInAs ? <Portrait id={signedInAs} size={28} /> : null}
         <span className="cd-who-name" data-testid="ask-signed-in-name">

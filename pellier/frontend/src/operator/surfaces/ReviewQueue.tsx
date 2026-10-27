@@ -126,6 +126,11 @@ export const ReviewList: React.FC = () => {
   if (!queue) {
     return <OperatorState level={2} data-testid="operator-reviews-loading" eyebrow="Reviews" headline="Reading the reviews" busy />
   }
+  // One row per case a person acts on (owner, 2026-10-26: four rows for Jessica confused people).
+  // The Lab 4 check's over-limit probe is the check's own evidence, not a credit to act on, and a
+  // request leaves the list once an investigation answers it with a review.
+  const reviews = queue.reviews.filter(review => !review.policyCheckProbe)
+  const requests = queue.requests.filter(request => request.status === 'open')
   return (
     <nav className="op-list" aria-label="Reviews" data-testid="operator-reviews">
       <div className="op-list-head">
@@ -134,18 +139,18 @@ export const ReviewList: React.FC = () => {
           {waitingLabel(queue.pendingCount)}
         </span>
       </div>
-      {queue.total === 0 ? (
+      {reviews.length === 0 ? (
         <p className="op-note" data-testid="operator-reviews-empty">
           No credit to approve. A credit the Advisor proposes appears here.
         </p>
       ) : (
         <ul>
-          {queue.reviews.map(review => (
+          {reviews.map(review => (
             <ReviewRow key={review.reviewId} review={review} selected={String(review.reviewId) === reviewId} />
           ))}
         </ul>
       )}
-      {queue.requests.length > 0 ? (
+      {requests.length > 0 ? (
         <div className="op-list-group" data-testid="operator-requests">
           <div className="op-list-head">
             <h3 className="op-h3">Requests</h3>
@@ -154,7 +159,7 @@ export const ReviewList: React.FC = () => {
             </span>
           </div>
           <ul aria-label="Store credit requests">
-            {queue.requests.map(request => <RequestRow key={request.requestId} request={request} />)}
+            {requests.map(request => <RequestRow key={request.requestId} request={request} />)}
           </ul>
         </div>
       ) : null}

@@ -8,7 +8,9 @@ import { apiFetch } from '../services/apiBase'
  * question. Under the bar sits one row of suggestions at a time: the store's
  * moments while signed out, and only the signed-in shopper's lab prompts,
  * read from Aurora, once a shopper is chosen. The collection follows
- * directly beneath. Shoppers are chosen in the panel, not here.
+ * directly beneath. Shoppers are chosen in the panel, not here. The
+ * suggestions show only while the panel is closed: it carries the same
+ * starting ideas.
  *
  * While the page shows a question's results, the hero folds to its bar
  * (`compact`): no statement and no suggestions, so the grid sits above the
@@ -54,7 +56,9 @@ interface PellierHeroProps {
 }
 
 export default function PellierHero({ compact = false, query }: PellierHeroProps) {
-  const { openDrawerWithQuery } = useUI()
+  const { openDrawerWithQuery, activeModal } = useUI()
+  // The dock offers its own starting ideas, so the same sentences show once.
+  const dockOpen = activeModal === 'drawer'
   const { persona } = usePersona()
   const [searchValue, setSearchValue] = useState('')
   const [suggestions, setSuggestions] = useState<LiveScenario[]>([])
@@ -175,7 +179,7 @@ export default function PellierHero({ compact = false, query }: PellierHeroProps
           </div>
           {/* One row of suggestions at a time: the shopper's own prompts once
               one is signed in, the store's moments before. */}
-          {compact ? null : persona ? (
+          {compact || dockOpen ? null : persona ? (
             suggestions.length > 0 ? (
               <div
                 className="pellier-chips"

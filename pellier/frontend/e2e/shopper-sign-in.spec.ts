@@ -103,7 +103,6 @@ async function askAndReadPrincipal(page: Page): Promise<string> {
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
-    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.setItem('pellier-builder-view', 'on')
   })
 })
@@ -136,7 +135,7 @@ test('choosing a shopper in the panel signs in, switching changes the principal,
   await page.getByTestId('ask-switch-shopper').click()
   await page.getByTestId('ask-shopper-theo').click()
   await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Theo')
-  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Theo, signed in')
+  await expect(drawer.getByTestId('ask-signed-in-name')).toHaveText('Theo')
   expect(await askAndReadPrincipal(page)).toBe('Workshop sign-in, CUST-THEO')
 
   // With the panel closed, switching to Anna from the header's window signs
@@ -184,7 +183,7 @@ test('while a chosen shopper signs in, the panel takes no request that the switc
   releaseSwitch()
   await expect(composer).toBeEnabled()
   await composer.fill(request)
-  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Anna, signed in')
+  await expect(drawer.getByTestId('ask-signed-in-name')).toHaveText('Anna')
   await expect(composer).toHaveValue(request)
   await expect(starter).toBeEnabled()
 })
@@ -210,6 +209,6 @@ test('a question from the home bar during a shopper sign-in waits for it, then s
   releaseSwitch()
   await expect(drawer.getByText(question, { exact: true })).toBeVisible()
   await expect(drawer.getByTestId('turn-principal').last()).toHaveText('IdentityWorkshop sign-in, CUST-ANNA')
-  await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Anna, signed in')
+  await expect(drawer.getByTestId('ask-signed-in-name')).toHaveText('Anna')
   await expect(drawer.getByText(question, { exact: true })).toBeVisible()
 })

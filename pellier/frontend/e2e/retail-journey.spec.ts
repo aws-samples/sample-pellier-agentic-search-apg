@@ -2,11 +2,6 @@ import { expect, test } from '@playwright/test'
 
 // Live credentials never belong in screenshots, traces, or recordings.
 test.use({ trace: 'off', screenshot: 'off', video: 'off', contextOptions: { reducedMotion: 'reduce' } })
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
-  })
-})
 
 for (const width of [1440, 390]) {
   test(`product image zoom contains focus and returns to shopping at ${width}px`, async ({ page }) => {

@@ -70,6 +70,12 @@ function gridCount(shown: ShownResult | null): number | null {
   return typeof shown?.results.count === 'number' ? shown.ids.length : null
 }
 
+/** Names an attempt from the receipt: the first attempt, a retry and what it dropped, or a later attempt. */
+function attemptLabel(call: RankedCall, index: number): string {
+  if (call.relaxation) return RESULTS.retry(call.relaxation.dropped)
+  return index === 0 ? RESULTS.FIRST_ATTEMPT : RESULTS.laterAttempt(index + 1)
+}
+
 /** Builder view: one button per catalog call of the turn, when there is more than one. */
 function RankedCalls({ calls, selected, onSelect }: {
   calls: RankedCall[]
@@ -88,7 +94,7 @@ function RankedCalls({ calls, selected, onSelect }: {
           onClick={() => onSelect(call.stepId)}
         >
           <span className="results-call-n">{index + 1}</span>
-          {call.finding ?? RESULTS.rankedCall(index + 1)}
+          {call.finding ? `${attemptLabel(call, index)}: ${call.finding}` : attemptLabel(call, index)}
         </button>
       ))}
     </div>

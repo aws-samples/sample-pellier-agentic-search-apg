@@ -383,7 +383,9 @@ describe('ProductDetailPage — Aurora layer', () => {
     )
 
     const brooklyn = screen.getByTestId('product-warehouse-BK-01')
-    expect(brooklyn).toHaveTextContent('Brooklyn')
+    // The warehouse and its city print once: "Brooklyn, NY", not "Brooklyn Brooklyn, NY".
+    expect(brooklyn).toHaveTextContent(/^Brooklyn, NY/)
+    expect(brooklyn.textContent?.match(/Brooklyn/g)).toHaveLength(1)
     expect(brooklyn).toHaveTextContent('20')
     expect(brooklyn).toHaveTextContent(PRODUCT_DETAIL.shipWindow(1, 2))
   })

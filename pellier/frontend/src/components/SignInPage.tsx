@@ -57,7 +57,9 @@ export default function SignInPage() {
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(refused)
   const [notice, setNotice] = useState<string | null>(null)
-  // Offer the hosted sign-in only once the server says this origin can finish it.
+  // The hosted sign-in is offered only to finish a verification step the password form cannot
+  // (owner, 2026-10-26: one way to sign in keeps the page simple), and only once the server
+  // says this origin can finish it.
   const [hosted, setHosted] = useState(false)
   const controller = useRef<AbortController | null>(null)
   const busy = useRef(false)
@@ -153,7 +155,7 @@ export default function SignInPage() {
               {notice ? <p className="pellier-signin-feedback" role="status">{notice}</p> : null}
               <button className="pellier-signin-submit" type="submit" disabled={working}>{working ? <><LoaderCircle size={18} className="spin" aria-hidden="true" />{mode === 'sign-in' ? 'Signing in…' : 'Please wait…'}</> : mode === 'sign-in' ? 'Sign in' : mode === 'forgot' ? 'Send recovery code' : 'Update password'}</button>
             </form>
-            {mode !== 'sign-in' ? <button type="button" className="pellier-signin-back" disabled={working} onClick={() => changeMode('sign-in')}>Back to sign in</button> : hosted ? <a className="pellier-signin-alternative" href={hostedUrl}>{error === ERROR_COPY.verification_required ? 'Continue secure verification' : 'Use another sign-in method'}</a> : null}
+            {mode !== 'sign-in' ? <button type="button" className="pellier-signin-back" disabled={working} onClick={() => changeMode('sign-in')}>Back to sign in</button> : hosted && error === ERROR_COPY.verification_required ? <a className="pellier-signin-alternative" href={hostedUrl}>Continue secure verification</a> : null}
             {mode === 'reset' ? <button type="button" className="pellier-signin-alternative" disabled={working} onClick={() => changeMode('forgot')}>Request a new code</button> : null}
           </div>
           <a href={asset('/')} className="pellier-signin-home">Back to Pellier</a>

@@ -155,7 +155,7 @@ for (const theme of ['light', 'dark'] as const) {
       if (desktop) {
         const drawer = page.getByTestId('chat-drawer')
         await expect(drawer.getByTestId('ask-signed-in-name')).toHaveText('Anna')
-        await expect(drawer.getByTestId('ask-panel-subtitle')).toHaveText('Anna, signed in')
+        await expect(drawer.getByTestId('ask-signed-in-name')).toHaveText('Anna')
         await expect(drawer.getByTestId('ask-sign-out')).toBeVisible()
         await expect(page.getByTestId('persona-pill')).toBeHidden()
       } else {

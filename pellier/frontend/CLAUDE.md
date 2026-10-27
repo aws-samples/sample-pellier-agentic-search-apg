@@ -17,7 +17,7 @@ editing.
 - The **Builder view** is one global switch in the shared header
   (`components/turn/BuilderViewSwitch.tsx`). It shows "How it ranked" over the
   grid, each turn's Router step and tool calls in the dock, and the Operator's
-  investigation steps. Off by default. It shows evidence the backend sent; it
+  investigation steps. On by default; a stored choice wins. It shows evidence the backend sent; it
   never invents proof, and Code Editor, curl and SQL remain the canonical
   workshop proof.
 - There is no inspection surface and no lab navigation in the app. The lab

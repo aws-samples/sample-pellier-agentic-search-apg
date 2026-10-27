@@ -35,6 +35,11 @@ function shipWindowLabel(
   return PRODUCT_DETAIL.shipWindow(min, max)
 }
 
+/** "Brooklyn" and "Brooklyn, NY" name one place: show the longer once. */
+function warehouseNamesItsCity(warehouse: { name: string; city: string }): boolean {
+  return warehouse.city.toLowerCase().startsWith(warehouse.name.toLowerCase())
+}
+
 export default function ProductAvailabilityPanel({
   availability,
   loading,
@@ -112,8 +117,14 @@ export default function ProductAvailabilityPanel({
                       className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5"
                     >
                       <span className="font-sans text-[13px] text-ink">
-                        {warehouse.name}
-                        <span className="ml-2 text-muted">{warehouse.city}</span>
+                        {warehouseNamesItsCity(warehouse) ? (
+                          warehouse.city
+                        ) : (
+                          <>
+                            {warehouse.name}
+                            <span className="ml-2 text-muted">{warehouse.city}</span>
+                          </>
+                        )}
                       </span>
                       <span className="flex items-baseline gap-3">
                         {ships ? (

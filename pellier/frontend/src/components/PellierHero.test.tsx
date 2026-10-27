@@ -83,6 +83,7 @@ const PROFILES = [
 ]
 
 let persona: (typeof PROFILES)[number] | null = null
+let activeModal: string | null = null
 
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
@@ -94,7 +95,7 @@ vi.mock('../contexts/PersonaContext', () => ({
 }))
 
 vi.mock('../contexts/UIContext', () => ({
-  useUI: () => ({ openDrawerWithQuery, openModal }),
+  useUI: () => ({ openDrawerWithQuery, openModal, activeModal }),
 }))
 
 function liveFetch(input: RequestInfo | URL): Promise<Response> {
@@ -124,6 +125,7 @@ function liveFetch(input: RequestInfo | URL): Promise<Response> {
 describe('PellierHero', () => {
   beforeEach(() => {
     persona = null
+    activeModal = null
     switchPersona.mockReset()
     openDrawerWithQuery.mockReset()
     openModal.mockReset()
@@ -132,6 +134,22 @@ describe('PellierHero', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+  })
+
+  it('shows the starting ideas once: the hero chips go while the dock is open', async () => {
+    persona = PROFILES[1]
+    const { rerender } = render(<PellierHero />)
+    expect(await screen.findByTestId('pellier-hero-pills')).toBeInTheDocument()
+    activeModal = 'drawer'
+    rerender(<PellierHero />)
+    expect(screen.queryByTestId('pellier-hero-pills')).toBeNull()
+
+    persona = null
+    rerender(<PellierHero />)
+    expect(screen.queryByTestId('pellier-hero-moments')).toBeNull()
+    activeModal = null
+    rerender(<PellierHero />)
+    expect(screen.getByTestId('pellier-hero-moments')).toBeInTheDocument()
   })
 
   it("leads with the store's statement, then the bar, and chooses no shopper here", () => {

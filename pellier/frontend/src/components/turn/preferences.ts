@@ -1,8 +1,9 @@
 /**
  * Builder view choices, remembered per browser.
  *
- * Both are off by default. They are view and request preferences, not
- * evidence, so browser storage is the right home for them.
+ * Builder view is on until a visitor turns it off; the skill mode is off by
+ * default. They are view and request preferences, not evidence, so browser
+ * storage is the right home for them.
  *
  * Builder view is one global switch in the shared header: the page's ranking
  * panel, the dock's evidence and the Operator's investigation all read it, so
@@ -32,12 +33,12 @@ function write(key: string, value: string): void {
 }
 
 export function readBuilderView(): boolean {
-  return read(BUILDER_VIEW_KEY) === 'on'
+  return read(BUILDER_VIEW_KEY) !== 'off'
 }
 
 const builderViewListeners = new Set<() => void>()
 // Where storage throws, the choice lasts for this page in memory.
-let builderViewInMemory = false
+let builderViewInMemory = true
 
 export function writeBuilderView(on: boolean): void {
   write(BUILDER_VIEW_KEY, on ? 'on' : 'off')
@@ -47,7 +48,7 @@ export function writeBuilderView(on: boolean): void {
 
 function builderViewSnapshot(): boolean {
   try {
-    return localStorage.getItem(BUILDER_VIEW_KEY) === 'on'
+    return localStorage.getItem(BUILDER_VIEW_KEY) !== 'off'
   } catch {
     return builderViewInMemory
   }

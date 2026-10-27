@@ -119,7 +119,6 @@ async function serve(context: BrowserContext, baseURL: string): Promise<Desk> {
 
 test.beforeEach(async ({ context }) => {
   await context.addInitScript(() => {
-    sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.setItem('pellier-builder-view', 'on')
   })
 })
@@ -148,7 +147,7 @@ test('Nadia stays signed in on the Operator while Jessica asks for her credit in
   await store.goto('/')
   await store.getByTestId('ask-shopper-jessica').click()
   await expect(store.getByTestId('ask-signed-in-name')).toHaveText('Jessica')
-  await expect(store.getByTestId('ask-panel-subtitle')).toHaveText('Jessica, signed in')
+  await expect(store.getByTestId('ask-signed-in-name')).toHaveText('Jessica')
 
   // She asks for her credit; the turn runs as Jessica.
   const ask = store.getByTestId('pellier-hero-search')

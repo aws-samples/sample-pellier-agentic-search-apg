@@ -13,5 +13,5 @@ test('a rejected session returns to the current sign-in form with its destinatio
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/operator')
   await expect(page.getByLabel('Username', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Password', { exact: true })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Use another sign-in method' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /another sign-in/i })).toHaveCount(0)
 })

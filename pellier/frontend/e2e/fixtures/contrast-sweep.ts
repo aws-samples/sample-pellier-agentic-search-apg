@@ -317,7 +317,8 @@ export interface GroundReport {
  * not the page's ground. So a section painted with the panel token reads as
  * #0f0f0f here even though, in light, panel and page are both white and the
  * misuse cannot be seen. A band over a photograph is skipped. INK_BANDS are
- * filled with the ink by design, black in light and ivory in dark.
+ * filled by design: the announcement bar is ink in light and a raised
+ * near-black bar in dark.
  */
 export function sweepGrounds(): GroundReport {
   type RGBA = { r: number; g: number; b: number; a: number }

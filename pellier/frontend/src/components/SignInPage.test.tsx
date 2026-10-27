@@ -90,8 +90,6 @@ describe('dedicated Pellier sign-in', () => {
     Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'http://localhost', search: '?returnTo=%2F', assign } })
     calls.passwordAuth.mockRejectedValue(new PasswordAuthError('staff_use_operator'))
     render(<SignInPage />); credentials()
-    expect(await screen.findByRole('link', { name: 'Use another sign-in method' }))
-      .toHaveAttribute('href', '/api/auth/signin?provider=email&returnTo=%2F&surface=shopper')
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('This is a staff account. Sign in from the Operator desk instead.')
     expect(calls.passwordAuth).toHaveBeenCalledWith(
@@ -104,8 +102,22 @@ describe('dedicated Pellier sign-in', () => {
     render(<SignInPage />)
     expect(screen.getByRole('alert')).toHaveTextContent('This is a staff account. Sign in from the Operator desk instead.')
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Welcome to the desk.')
-    expect(await screen.findByRole('link', { name: 'Use another sign-in method' }))
-      .toHaveAttribute('href', '/api/auth/signin?provider=email&returnTo=%2Foperator&surface=staff')
+  })
+  it('offers one way to sign in: no link to another method beside the form', async () => {
+    for (const search of ['?returnTo=%2F', '?returnTo=%2Foperator']) {
+      at(search)
+      const { unmount } = render(<SignInPage />)
+      await settled()
+      expect(screen.queryByRole('link', { name: /another sign-in/i })).not.toBeInTheDocument()
+      unmount()
+    }
+  })
+  it('offers the hosted step only to finish a verification the form cannot', async () => {
+    calls.passwordAuth.mockResolvedValue({ status: 'verification_required' })
+    render(<SignInPage />); await settled(); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    const link = await screen.findByRole('link', { name: 'Continue secure verification' })
+    expect(link.getAttribute('href')).toMatch(/^\/api\/auth\/signin\?provider=email&/)
   })
   it('shows no reason the address names that it does not know', async () => {
     Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'http://localhost', search: '?error=constructor', assign } })
@@ -119,7 +131,7 @@ describe('dedicated Pellier sign-in', () => {
       at(search)
       const { unmount } = render(<SignInPage />)
       await settled()
-      expect(screen.queryByRole('link', { name: 'Use another sign-in method' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('link', { name: /sign-in method|verification/i })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Sign in' })).toBeEnabled()
       unmount()
     }

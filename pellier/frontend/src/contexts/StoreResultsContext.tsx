@@ -6,9 +6,11 @@
  * the browser never runs a search of its own, so the page and the answer
  * cannot disagree. The dock's chat hook reports each turn here (`onTurn`):
  *
- *   - a turn starts: the page shows "Results for <query>" with a skeleton
- *     grid when it was showing the store, and keeps a result already on
- *     screen until a new search starts;
+ *   - a turn starts: the page keeps what it shows; when the Router sends the
+ *     turn to the Catalog agent (the one agent that searches), a page showing
+ *     the store becomes "Results for <query>" with a skeleton grid, and a
+ *     result already on screen stays until a new search starts. A stock or
+ *     support turn never replaces the grid;
  *   - a search or browse starts: the grid becomes a skeleton;
  *   - its step finishes with `results`: the grid shows exactly those ids, in
  *     that order, read in one bounded request (`/api/products?ids=`);
@@ -42,7 +44,7 @@ import { RESULTS } from '../copy'
 import { apiFetch } from '../services/apiBase'
 import type { PellierProduct } from '../services/types'
 import type { TurnEvent } from '../hooks/useAgentChat'
-import type { RankingPayload, StepResults, TurnStep } from '../components/turn/turnTypes'
+import type { RankingPayload, StepRelaxation, StepResults, TurnStep } from '../components/turn/turnTypes'
 import { usePersona } from './PersonaContext'
 
 const CATALOG_TOOLS = new Set(['search_products', 'browse_department'])
@@ -64,6 +66,7 @@ interface CallResult {
   finding: string | null
   results: StepResults
   ranking: RankingPayload | null
+  relaxation: StepRelaxation | null
 }
 
 /** A call of the turn that carried a ranking, for "How it ranked". */
@@ -71,6 +74,8 @@ export interface RankedCall {
   stepId: string
   finding: string | null
   ranking: RankingPayload
+  /** Set when this call widened its preferences: a retry, and what it dropped. */
+  relaxation: StepRelaxation | null
 }
 
 export interface ShownResult {
@@ -175,7 +180,12 @@ function heldPicks(turn: RunningTurn, picks: readonly string[]): string[] {
 function rankedCalls(turn: RunningTurn): RankedCall[] {
   const calls: RankedCall[] = []
   for (const candidate of turn.candidates) {
-    if (candidate.ranking) calls.push({ stepId: candidate.stepId, finding: candidate.finding, ranking: candidate.ranking })
+    if (candidate.ranking) calls.push({
+      stepId: candidate.stepId,
+      finding: candidate.finding,
+      ranking: candidate.ranking,
+      relaxation: candidate.relaxation,
+    })
   }
   const position = (stepId: string) => turn.started.indexOf(stepId)
   return calls.sort((a, b) => position(a.stepId) - position(b.stepId))
@@ -198,6 +208,12 @@ function withTurn(state: State, turn: RunningTurn, choice: CallResult | null | u
   return { ...state, turn, view: { kind: 'results', query: turn.query, shown } }
 }
 
+/** The Router sent the turn to the Catalog agent: the one agent that searches. */
+function routedToTheCatalog(step: TurnStep): boolean {
+  const builder = step.builder
+  return Boolean(builder && builder.tool === null && builder.intent === SHOPPING_INTENT)
+}
+
 /** The Router sent the turn to an agent with no catalog tool: it cannot search. */
 function routedAwayFromTheCatalog(step: TurnStep): boolean {
   const builder = step.builder
@@ -211,6 +227,9 @@ function onStep(state: State, step: TurnStep): State {
   const status = step.status === 'running' && step.label ? step.label : state.status
   if (routedAwayFromTheCatalog(step) && turn.candidates.length === 0 && turn.running === 0) {
     return turn.dismissed ? state : { ...state, view: turn.previous }
+  }
+  if (routedToTheCatalog(step) && !turn.dismissed && state.view.kind === 'store') {
+    return { ...state, status, view: { kind: 'results', query: turn.query, shown: null } }
   }
   if (!isCatalogStep(step)) return { ...state, status }
   return onCatalogStep({ ...state, status }, turn, step)
@@ -232,6 +251,7 @@ function onCatalogStep(state: State, turn: RunningTurn, step: TurnStep): State {
     finding: step.finding ?? null,
     results,
     ranking: step.builder?.ranking ?? null,
+    relaxation: step.builder?.relaxation ?? null,
   }
   const next = { ...finished, candidates: [...finished.candidates, call] }
   return withTurn(state, next, streamingChoice(next))
@@ -258,11 +278,11 @@ function reducer(state: State, action: Action): State {
   const { event } = action
   switch (event.type) {
     case 'start': {
-      const view: ResultsView = state.view.kind === 'store'
-        ? { kind: 'results', query: event.query, shown: null }
-        : state.view
+      // The grid gives way only once the Router sends the turn to the Catalog
+      // agent (or a catalog call starts): a stock or support question returns
+      // no grid, so the store stays as it is.
       return {
-        view,
+        view: state.view,
         turn: {
           query: event.query,
           previous: state.view,

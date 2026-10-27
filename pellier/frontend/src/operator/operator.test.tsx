@@ -452,6 +452,26 @@ describe('the reviews list', () => {
     expect(screen.getAllByTestId('operator-review-41')).toHaveLength(1)
   })
 
+  it("lists one row per case: no Lab 4 probe, no request an investigation has answered", async () => {
+    const { PROBE_REVIEW } = await import('./fixtures')
+    const answered = { ...OPEN_REQUEST, requestId: 39, status: 'investigated' }
+    api.fetchReviewQueue.mockResolvedValue({
+      ...QUEUE, reviews: [PROBE_REVIEW, EXECUTED_REVIEW], total: 2, requests: [answered], openRequestCount: 0,
+    })
+    renderAt('/operator/reviews', <ReviewList />)
+    expect(await screen.findByTestId('operator-reviews')).toBeInTheDocument()
+    expect(screen.getAllByRole('link').map(link => link.getAttribute('href')))
+      .toEqual([`/operator/reviews/${EXECUTED_REVIEW.reviewId}`])
+    expect(screen.queryByTestId('operator-requests')).not.toBeInTheDocument()
+  })
+
+  it('says there is nothing to approve when only the probe exists', async () => {
+    const { PROBE_REVIEW } = await import('./fixtures')
+    api.fetchReviewQueue.mockResolvedValue({ ...QUEUE, reviews: [PROBE_REVIEW], total: 1 })
+    renderAt('/operator/reviews', <ReviewList />)
+    expect(await screen.findByTestId('operator-reviews-empty')).toBeInTheDocument()
+  })
+
   it('never derives an outcome from the human decision alone', () => {
     expect(reviewOutcome(APPROVED_REVIEW).word).toBe('Approved')
     expect(reviewOutcome({ ...APPROVED_REVIEW, executionTurnId: 'turn-x' }).word).toBe('Outcome unverified')

@@ -47,19 +47,32 @@ describe('StatusLine', () => {
     rerender(<StatusLine label="Stopped before an answer" state="failed" />)
     expect(line).toHaveAttribute('data-state', 'failed')
   })
+
+  it('is a polite live region, so a screen reader hears each step change', () => {
+    const { rerender } = render(<StatusLine label="Understanding your request" state="working" />)
+    const line = screen.getByRole('status')
+    expect(line).toHaveAttribute('aria-live', 'polite')
+    expect(line).toHaveAttribute('aria-atomic', 'true')
+    rerender(<StatusLine label="Searching the catalog in Aurora" state="working" />)
+    expect(screen.getByRole('status')).toBe(line)
+    expect(line).toHaveTextContent('Searching the catalog in Aurora')
+  })
 })
 
 describe('Builder view preferences', () => {
   beforeEach(() => localStorage.clear())
 
-  it('is off by default and remembered per browser', () => {
-    expect(readBuilderView()).toBe(false)
+  it('is on by default, and a stored choice wins', () => {
+    expect(readBuilderView()).toBe(true)
     const { result } = renderHook(() => useBuilderView())
-    expect(result.current[0]).toBe(false)
-    act(() => result.current[1](true))
     expect(result.current[0]).toBe(true)
+    act(() => result.current[1](false))
+    expect(result.current[0]).toBe(false)
+    expect(localStorage.getItem(BUILDER_VIEW_KEY)).toBe('off')
+    expect(readBuilderView()).toBe(false)
+    expect(renderHook(() => useBuilderView()).result.current[0]).toBe(false)
+    act(() => result.current[1](true))
     expect(localStorage.getItem(BUILDER_VIEW_KEY)).toBe('on')
-    expect(renderHook(() => useBuilderView()).result.current[0]).toBe(true)
   })
 
   it('keeps the agent on fixed skills unless the flex is switched on', () => {

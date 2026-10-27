@@ -237,17 +237,21 @@ function StorefrontNavigation({
     const handleFocusOut = (event: FocusEvent) => {
       if (event.target instanceof Node && !headerRef.current?.contains(event.target)) setMobileMenuOpen(false)
     }
+    // On a desktop the links are inline; on a phone they move to the shared bar's menu.
     const desktop = window.matchMedia('(min-width: 1024px)')
-    const closeOnDesktop = () => { if (desktop.matches) setMobileMenuOpen(false) }
+    const phone = window.matchMedia('(max-width: 560px)')
+    const closeOnDesktop = () => { if (desktop.matches || phone.matches) setMobileMenuOpen(false) }
     window.addEventListener('keydown', handleKeyDown)
     document.addEventListener('pointerdown', handleOutside)
     document.addEventListener('focusin', handleFocusOut)
     desktop.addEventListener('change', closeOnDesktop)
+    phone.addEventListener('change', closeOnDesktop)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('pointerdown', handleOutside)
       document.removeEventListener('focusin', handleFocusOut)
       desktop.removeEventListener('change', closeOnDesktop)
+      phone.removeEventListener('change', closeOnDesktop)
     }
   }, [mobileMenuOpen])
 
@@ -284,7 +288,7 @@ function StorefrontNavigation({
             {/* Hidden while Ask Pellier is docked open on a desktop width: the
                 panel's "Signed in as" chips do the same job there
                 (chat-drawer.css). */}
-            <div className="pellier-header-chooser" data-tour="shoppers">
+            <div className="pellier-header-chooser">
               <PersonaAccountControl chooserOpen={chooserOpen} onOpenChooser={openChooser} />
             </div>
 
@@ -312,7 +316,7 @@ function StorefrontNavigation({
               aria-expanded={mobileMenuOpen}
               aria-controls="pellier-mobile-navigation"
               onClick={() => setMobileMenuOpen(open => !open)}
-              className="inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-ink hover:bg-recessed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper lg:hidden"
+              className="pellier-header-menu-toggle inline-flex h-[44px] w-[44px] shrink-0 items-center justify-center rounded-full text-ink hover:bg-recessed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-copper lg:hidden"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
             </button>

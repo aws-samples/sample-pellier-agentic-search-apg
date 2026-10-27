@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   retryMessage: vi.fn(),
   addToCart: vi.fn(),
+  signedInAs: null as string | null,
 }))
 
 vi.mock('../contexts/PersonaContext', () => ({
@@ -49,6 +50,10 @@ vi.mock('../hooks/useAgentChat', () => ({
     retryMessage: state.retryMessage,
   }),
 }))
+vi.mock('../hooks/useShopperSignIn', async importOriginal => ({
+  ...await importOriginal<typeof import('../hooks/useShopperSignIn')>(),
+  useSignedInShopper: () => state.signedInAs,
+}))
 vi.mock('./PellierChatBody', () => ({ default: () => null }))
 vi.mock('./PellierWelcome', () => ({ default: () => null }))
 vi.mock('./StatusLines', () => ({ default: () => <dl data-testid="status-lines" /> }))
@@ -58,6 +63,7 @@ import ChatDrawer from './ChatDrawer'
 describe('identity in the Ask Pellier panel', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    state.signedInAs = null
   })
 
   it('chooses a shopper in the empty panel, and offers no other way in', () => {
@@ -78,6 +84,14 @@ describe('identity in the Ask Pellier panel', () => {
     expect(screen.getByTestId('ask-panel-empty')).toHaveTextContent(
       'choose a shopper below to follow their story: finding, checking stock, remembering, then asking a person before money moves.',
     )
+  })
+
+  it('does not name the signed-in shopper twice: the shopper row says it, the header does not', () => {
+    state.signedInAs = 'marco'
+    render(<ChatDrawer />)
+    expect(screen.queryByTestId('ask-panel-subtitle')).toBeNull()
+    expect(screen.queryByText(/, signed in$/)).toBeNull()
+    expect(screen.getByRole('group', { name: 'Signed in as' })).toBeInTheDocument()
   })
 
   it('puts the four shoppers in the empty state, not in a strip above the thread', () => {

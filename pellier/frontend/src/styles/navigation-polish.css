@@ -84,8 +84,10 @@ main, [id='shop'] { scroll-margin-top: 88px; }
 .pellier-retry:hover { background: var(--dl-ink); color: var(--dl-on-ink); }
 
 @media (max-width: 1023px) {
-  [data-testid='mobile-menu'] .pellier-nav-link { justify-content: flex-start; padding-inline: 12px; }
-  [data-testid='mobile-menu'] .pellier-nav-link::after { inset-inline: 12px; }
+  [data-testid='mobile-menu'] .pellier-nav-link,
+  .pellier-surface-storefront .pellier-nav-link { justify-content: flex-start; padding-inline: 12px; }
+  [data-testid='mobile-menu'] .pellier-nav-link::after,
+  .pellier-surface-storefront .pellier-nav-link::after { inset-inline: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
