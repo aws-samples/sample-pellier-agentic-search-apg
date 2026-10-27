@@ -275,6 +275,15 @@ def _investigate(run: _Run, events: List[Dict[str, Any]]) -> GRAPH.Investigation
     )
 
 
+@pytest.mark.parametrize("prompt", ["_INVESTIGATOR_PROMPT", "_PLANNER_PROMPT"])
+def test_both_prompts_require_plain_words_for_staff_not_field_names(prompt: str) -> None:
+    text = " ".join(getattr(GRAPH, prompt).split())
+    assert "Write " in text and "for a staff member, in plain words" in text
+    assert "Never quote a field name" in text
+    assert 'say "received back", not return_status "received"' in text
+    assert 'not credited false' in text
+
+
 def test_the_graph_has_two_ordered_nodes_and_bounded_tools(graph_runtime) -> None:
     events: List[Dict[str, Any]] = []
     _investigate(_Run(), events)

@@ -95,6 +95,10 @@ Rules:
 - missing: at most three short sentences on what the records do not show,
   such as a returned item with no store credit recorded for it. Name only what
   your reads returned no record of; never a record you did not read.
+- Write every sentence for a staff member, in plain words. Never quote a
+  field name, a code or a raw value: say "received back", not
+  return_status "received"; say "not yet credited", not credited false; say
+  "no store credit recorded", not store_credit_id null.
 - Do not recommend an action, write to the client, or guess at anything the
   records do not contain.
 """
@@ -115,6 +119,10 @@ After the tool returns, answer with one plain sentence that names the amount
 it reported and the orders it covers, and that a person must approve it. If
 the tool reports that a review already covers these items, say so. Never claim
 the credit was issued.
+
+Write for a staff member, in plain words. Never quote a field name, a code or a
+raw value: say "received back", not return_status "received"; say "not yet
+credited", not credited false.
 """
 
 
