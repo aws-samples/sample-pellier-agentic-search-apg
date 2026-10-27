@@ -1737,8 +1737,8 @@ if [ -n "$(_pool_id)" ]; then
         fi
         OPERATOR_GROUP_OK=true
         log "✅ $OPERATOR_USERNAME is in $OPERATOR_GROUP"
-        if ! printf 'Staff (Nadia, the Operator desk)\n  Username: %s\n  Password: %s\n  Group:    %s\n\n' \
-            "$OPERATOR_USERNAME" "$OPERATOR_PASSWORD" "$OPERATOR_GROUP" \
+        if ! printf 'Staff (Nadia, the Operator desk)\n  Username: %s\n  Password: %s\n\n' \
+            "$OPERATOR_USERNAME" "$OPERATOR_PASSWORD" \
             >> "$CREDENTIALS_FILE"; then
             fail "Could not add Pellier Operator credentials to $CREDENTIALS_FILE"
         fi
