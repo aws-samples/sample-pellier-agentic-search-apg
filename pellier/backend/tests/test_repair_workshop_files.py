@@ -82,6 +82,9 @@ def test_modified_and_deleted_files_are_restored_and_counted(tmp_path: Path) -> 
     repo = box(tmp_path)
     (repo / "a").mkdir()
     (repo / "a" / "kept.txt").write_text("same")
+    # The tarball's mode, set outright: a box shell under umask 077 would write 0600 and
+    # count the kept file as changed.
+    (repo / "a" / "kept.txt").chmod(0o644)
     (repo / "a" / "edited.txt").write_text("participant edit")
     tarball = tmp_path / "pin.tar.gz"
     make_tarball(tarball, {"a/kept.txt": "same", "a/edited.txt": "original",
