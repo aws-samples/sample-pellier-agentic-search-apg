@@ -568,6 +568,18 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_VSCODE"
 sudo -u "$CODE_EDITOR_USER" python3.14 "$HOME_FOLDER/$REPO_NAME/scripts/configure_participant_workspace.py" --repo "$HOME_FOLDER/$REPO_NAME"
 log "✅ Workspace links, folder settings and terminal task configured"
 
+# Code Editor's workbench can stall on first load of a multi-root workspace: an empty
+# Explorer and no terminal until a reload. The script explains the race and its patch.
+for workbench in "/home/$CODE_EDITOR_USER"/.local/lib/code-editor-*/dist/out/vs/code/browser/workbench/workbench.js; do
+    [ -f "$workbench" ] || { warn "Code Editor workbench not found to patch: $workbench"; continue; }
+    patched="$(sudo -u "$CODE_EDITOR_USER" python3.14 "$HOME_FOLDER/$REPO_NAME/scripts/patch_code_editor_workspace_race.py" "$workbench")" \
+        || error "Could not patch Code Editor's workbench: $workbench"
+    case "$patched" in
+        *": unrecognised"*) warn "$patched. A first load may stall until the participant reloads." ;;
+        *) log "✅ $patched" ;;
+    esac
+done
+
 cat > /etc/systemd/system/code-editor@.service << EOF
 [Unit]
 Description=AWS Code Editor Server
