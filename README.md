@@ -1,14 +1,33 @@
+<div align="center">
+
+<img src="pellier/frontend/public/favicon.svg" alt="Pellier" width="88" height="88">
+
 # Pellier: governed agentic AI search
 
-The application and lab code for the AWS workshop *Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore* (DAT416).
+**An AI shopping assistant that acts on live data in Amazon Aurora PostgreSQL, deployed on Amazon Bedrock AgentCore, with every action authorized, approved and provable.**
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-54644D)](LICENSE)
-[![governed-quality](https://github.com/aws-samples/sample-pellier-agentic-search-apg/actions/workflows/quality.yml/badge.svg?branch=governed)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/actions/workflows/quality.yml?query=branch%3Agoverned)
-[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![PostgreSQL 18+ with pgvector](https://img.shields.io/badge/PostgreSQL-18%2B_with_pgvector-4169E1?logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Amazon Bedrock AgentCore](https://img.shields.io/badge/Amazon_Bedrock-AgentCore-232F3E)](https://aws.amazon.com/bedrock/agentcore/)
-[![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+The application and lab code for the AWS re:Invent 2026 workshop<br>
+**DAT416: Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
 
+[![governed-quality](https://img.shields.io/github/actions/workflow/status/aws-samples/sample-pellier-agentic-search-apg/quality.yml?branch=governed&style=flat-square&logo=githubactions&logoColor=white&label=governed-quality)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/actions/workflows/quality.yml?query=branch%3Agoverned)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0E7C86?style=flat-square)](LICENSE)
+[![Workshop: DAT416](https://img.shields.io/badge/AWS_re%3AInvent_2026-DAT416-232F3E?style=flat-square)](#the-four-labs)
+
+[![Amazon Bedrock AgentCore](https://img.shields.io/badge/Amazon_Bedrock-AgentCore-FF9900?style=for-the-badge&labelColor=232F3E)](https://aws.amazon.com/bedrock/agentcore/)
+[![Amazon Aurora PostgreSQL](https://img.shields.io/badge/Amazon_Aurora-PostgreSQL-FF9900?style=for-the-badge&labelColor=232F3E)](https://aws.amazon.com/rds/aurora/)
+[![pgvector hybrid search](https://img.shields.io/badge/pgvector-hybrid_search-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
+[![Cedar policies](https://img.shields.io/badge/Cedar-policies-3B6E3A?style=for-the-badge)](https://www.cedarpolicy.com/)
+<br>
+[![Strands Agents](https://img.shields.io/badge/Strands-Agents-0F766E?style=for-the-badge)](https://strandsagents.com/)
+[![Claude on Amazon Bedrock](https://img.shields.io/badge/Claude-on_Amazon_Bedrock-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://aws.amazon.com/bedrock/anthropic/)
+[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+
+[The four labs](#the-four-labs)&nbsp;&nbsp;|&nbsp;&nbsp;[Architecture](#architecture)&nbsp;&nbsp;|&nbsp;&nbsp;[Run it](#run-it)&nbsp;&nbsp;|&nbsp;&nbsp;[Take it home](#take-it-home)&nbsp;&nbsp;|&nbsp;&nbsp;[Tests](#tests)
+
+</div>
+
+> [!IMPORTANT]
 > This is an educational sample for a workshop, not production code. See [Security and responsible use](#security-and-responsible-use).
 
 ## What Pellier is
