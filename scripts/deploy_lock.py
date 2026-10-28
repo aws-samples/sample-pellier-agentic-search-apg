@@ -11,7 +11,7 @@ keeps running in a terminal the new one does not show. So a second participant d
 the first instead of starting beside it: it replays the log, prints new lines as they arrive,
 and ends with the first deploy's result. A command whose lines belong in that log runs through
 ``run_logged``, so its lines reach the log as the deploy's own do. A new terminal says when a
-deploy is running (``--notice``, from scripts/open-workshop-terminal.sh), and the
+deploy is running (``--notice``, from scripts/workshop-banner.sh), and the
 whole-workshop reset refuses to start during one (``--refuse-if-running``, from
 scripts/reset-governed-workshop.sh).
 

@@ -51,16 +51,25 @@ def configure(repo: Path) -> None:
     # Bootstrap-owned defaults; retain unrelated preferences across reruns.
     existing = json.loads(path.read_text()) if path.exists() else {}
     path.write_text(json.dumps({**existing, **settings}, indent=2) + "\n")
+    # The workshop terminal: a plain shell the editor opens with the folder. Code Editor
+    # reconnects a task on reload only when it has a problem matcher; without one, every
+    # reload started another terminal and left the last one, and whatever ran in it, out of
+    # sight. This matcher never matches, so the task stays active as long as its shell, a
+    # reload brings the same terminal back, and instanceLimit keeps it to one.
+    never = r"^\b\B$"
     tasks = {
         "version": "2.0.0",
         "tasks": [{
             "label": "Pellier workshop terminal", "type": "shell", "command": "bash",
-            "args": ["-l", "${workspaceFolder}/scripts/open-workshop-terminal.sh"],
-            "options": {"cwd": "${workspaceFolder}"},
-            "runOptions": {"runOn": "folderOpen"}, "isBackground": True,
+            "options": {"cwd": "${workspaceFolder}", "env": {"PELLIER_WORKSHOP_TERMINAL": "1"}},
+            "runOptions": {"runOn": "folderOpen", "instanceLimit": 1}, "isBackground": True,
             "presentation": {"echo": False, "reveal": "always", "focus": True,
                              "panel": "dedicated", "showReuseMessage": False},
-            "problemMatcher": [],
+            "problemMatcher": {
+                "owner": "pellier-terminal", "pattern": {"regexp": never},
+                "background": {"activesBegin": True, "beginsPattern": never,
+                               "endsPattern": never},
+            },
         }],
     }
     (vscode / "tasks.json").write_text(json.dumps(tasks, indent=2) + "\n")

@@ -703,6 +703,11 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # own: every lab Python file then opened with "Import ... could not be resolved"
 # warnings, a yellow file name and a Problems count, as if the participant's
 # edit were wrong. extraPaths points it at the backend, so a warning is real.
+# task.reconnection lets a reload reattach the workshop terminal (its task's
+# problem matcher, in configure_participant_workspace.py, makes it reconnectable)
+# instead of opening another. Explorer badges are off: the lab files are links,
+# and a link arrow beside each one reads as something wrong; a file with a real
+# problem still shows in colour.
 # Keep this block strict JSON - the readiness contract parses it with
 # json.loads, not a JSONC reader.
 cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
@@ -719,6 +724,8 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "explorer.compactFolders": false,
     "explorer.autoReveal": true,
     "python.analysis.extraPaths": ["/workshop/sample-pellier-agentic-search-apg/pellier/backend"],
+    "task.reconnection": true,
+    "explorer.decorations.badges": false,
     "git.enabled": false,
     "git.decorations.enabled": false,
     "git.showProgress": false,
@@ -852,6 +859,16 @@ fi
 
 # Add local bin to PATH
 export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH"
+
+# Every Code Editor terminal starts at the repository root, where the guide's commands run;
+# the workshop terminal (the folderOpen task sets PELLIER_WORKSHOP_TERMINAL) also prints the
+# welcome. A reload reattaches that terminal rather than opening another.
+if [[ $- == *i* && "${TERM_PROGRAM:-}" == "vscode" ]]; then
+    cd /workshop/sample-pellier-agentic-search-apg || true
+    if [[ -n "${PELLIER_WORKSHOP_TERMINAL:-}" ]]; then
+        bash scripts/workshop-banner.sh
+    fi
+fi
 EOF
 
 chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "/home/$CODE_EDITOR_USER/.bashrc"

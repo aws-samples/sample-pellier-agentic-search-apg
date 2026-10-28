@@ -250,7 +250,7 @@ def test_a_reopened_window_is_told_a_deploy_is_running(tmp_path) -> None:
     assert "A deploy is still running, in a terminal this window does not show." in shown
     assert ('uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode '
             "participant") in shown
-    welcome = (REPO / "scripts" / "open-workshop-terminal.sh").read_text()
+    welcome = (REPO / "scripts" / "workshop-banner.sh").read_text()
     assert "scripts/deploy_lock.py --notice" in welcome
 
 

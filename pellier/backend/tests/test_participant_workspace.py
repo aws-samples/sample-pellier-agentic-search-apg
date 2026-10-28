@@ -102,30 +102,33 @@ def test_zip_materialized_link_is_repaired_but_an_edited_file_is_not_overwritten
     assert alias.read_text() == "do not lose my work"
 
 
-@pytest.mark.parametrize("first_exit", ["0", "1"])
-def test_terminal_starts_at_root_and_retries_the_start_page(repo, first_exit):
-    scripts = repo / "scripts"
-    scripts.mkdir(exist_ok=True)
-    launcher = scripts / "open-workshop-terminal.sh"
-    launcher.write_bytes((ROOT / "scripts/open-workshop-terminal.sh").read_bytes())
-    binary = repo / "bin"
+def test_a_reload_reconnects_the_one_workshop_terminal_instead_of_opening_another(repo):
+    """Seen on event 20: the task had no problem matcher, which Code Editor needs to reconnect
+    a task, so every reload opened another terminal and left 22 shells, and whatever ran in
+    them, out of sight."""
+    workspace.configure(repo)
+    [task] = json.loads((repo / ".vscode/tasks.json").read_text())["tasks"]
+    assert task["runOptions"] == {"runOn": "folderOpen", "instanceLimit": 1}
+    assert task["isBackground"] is True
+    matcher = task["problemMatcher"]
+    assert set(matcher["background"]) == {"activesBegin", "beginsPattern", "endsPattern"}
+    assert task["command"] == "bash" and "args" not in task
+    assert task["options"]["env"] == {"PELLIER_WORKSHOP_TERMINAL": "1"}
+
+
+def test_the_welcome_prints_and_opens_nothing_in_the_editor(tmp_path):
+    """The old launcher also opened a start page through the editor's CLI, which could take
+    focus from the terminal, or open late in a second terminal when the CLI was not ready."""
+    binary = tmp_path / "bin"
     binary.mkdir()
-    (binary / "code").write_text(
-        '#!/bin/sh\nprintf "%s\\n" "$PWD" "$@" >> "$PROBE_CODE"\nexit "$PROBE_EXIT"\n'
-    )
-    (binary / "bash").write_text('#!/bin/sh\nprintf "%s\\n" "$PWD" "$@" > "$PROBE_SHELL"\n')
-    for file in binary.iterdir():
-        file.chmod(0o755)
-    env = {**os.environ, "PATH": str(binary) + ":" + os.environ["PATH"],
-           "PROBE_CODE": str(repo / "code.log"), "PROBE_SHELL": str(repo / "shell.log"),
-           "PROBE_EXIT": first_exit}
-    for attempt in range(2):
-        subprocess.run(["/bin/bash", str(launcher)], cwd=repo / "workshop", env=env,
-                       check=True, capture_output=True)
-        assert (repo / "shell.log").read_text().splitlines() == [str(repo), "-l"]
-        started = (repo / ".local/code-editor-started").exists()
-        assert started == (attempt == 1 or first_exit == "0")
-        env["PROBE_EXIT"] = "0"
+    (binary / "code").write_text(f'#!/bin/sh\ntouch "{tmp_path}/code-called"\n')
+    (binary / "code").chmod(0o755)
+    env = {**os.environ, "PATH": f"{binary}:{os.environ['PATH']}"}
+    shown = subprocess.run(["bash", str(ROOT / "scripts/workshop-banner.sh")], cwd=tmp_path,
+                           env=env, capture_output=True, text=True, check=True).stdout
+    assert shown.startswith("Pellier: Retrieve → Ground → Deploy → Govern")
+    assert "This terminal starts at the repository root." in shown
+    assert not (tmp_path / "code-called").exists()
 
 
 def test_bootstrap_opens_workspace_and_revalidates_after_source_extraction():

@@ -1362,6 +1362,21 @@ def test_the_ui_scales_for_a_projector() -> None:
         assert settings["workbench.colorTheme"] == "Default Dark Modern"
 
 
+def test_code_editor_terminals_start_at_the_root_and_a_reload_reattaches() -> None:
+    """Every Code Editor terminal starts where the guide's commands run, only the workshop
+    terminal prints the welcome, and a reload reattaches it; link badges stay off."""
+    user_settings, _workspace = _settings_blocks()
+    assert user_settings["task.reconnection"] is True
+    assert user_settings["explorer.decorations.badges"] is False
+    source = BOOTSTRAP_ENV.read_text(encoding="utf-8")
+    block = source[source.index('if [[ $- == *i* && "${TERM_PROGRAM:-}" == "vscode" ]]'):]
+    block = block[: block.index("\nEOF")]
+    assert "cd /workshop/sample-pellier-agentic-search-apg" in block
+    assert 'if [[ -n "${PELLIER_WORKSHOP_TERMINAL:-}" ]]' in block
+    assert "bash scripts/workshop-banner.sh" in block
+    assert (REPO / "scripts" / "workshop-banner.sh").is_file()
+
+
 def test_the_automatic_terminal_task_can_actually_fire() -> None:
     """A folderOpen task only runs from the .vscode of the folder that opened.
 
