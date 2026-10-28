@@ -1388,6 +1388,15 @@ def test_source_control_is_hidden_from_the_editor() -> None:
     assert user_settings["scm.diffDecorations"] == "none"
 
 
+def test_pyright_resolves_the_backends_own_imports_from_the_lab_files() -> None:
+    """Seen on event 20: without it every lab Python file opened yellow with "Import
+    'services...' could not be resolved", which a participant reads as their edit being wrong."""
+    user_settings, _workspace = _settings_blocks()
+    paths = user_settings["python.analysis.extraPaths"]
+    assert paths == ["/workshop/sample-pellier-agentic-search-apg/pellier/backend"]
+    assert (REPO / "pellier" / "backend" / "services").is_dir()
+
+
 def test_the_explorer_shows_the_whole_source_and_hides_only_noise_and_secrets() -> None:
     """Participants like to go deep with the code. Both the user settings and the workspace
     hide exactly build and cache output, runtime state and the files that hold the box's

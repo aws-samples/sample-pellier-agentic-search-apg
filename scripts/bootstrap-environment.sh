@@ -699,6 +699,10 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # to render here. It is scoped to Default Dark Modern: on a light theme the
 # terminal's minimum contrast ratio would turn forced white into a pale grey
 # (#6C6C6C on #F8F8F8), where the theme's own text is #3B3B3B.
+# The lab files link into pellier/backend, which Pyright does not search on its
+# own: every lab Python file then opened with "Import ... could not be resolved"
+# warnings, a yellow file name and a Problems count, as if the participant's
+# edit were wrong. extraPaths points it at the backend, so a warning is real.
 # Keep this block strict JSON - the readiness contract parses it with
 # json.loads, not a JSONC reader.
 cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
@@ -714,6 +718,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "window.zoomLevel": 1,
     "explorer.compactFolders": false,
     "explorer.autoReveal": true,
+    "python.analysis.extraPaths": ["/workshop/sample-pellier-agentic-search-apg/pellier/backend"],
     "git.enabled": false,
     "git.decorations.enabled": false,
     "git.showProgress": false,
