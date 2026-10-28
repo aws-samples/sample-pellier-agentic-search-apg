@@ -62,8 +62,13 @@ jobs:
           # GHSA-xcq7-p3pf-p88h (opentelemetry-api tracestate parsing): every
           # aws-opentelemetry-distro release pins opentelemetry-api below the fix,
           # 1.45.1. Drop this once a distro release allows it, then relock.
+          # GHSA-f5m9-jfrj-jjj7 (opentelemetry-propagator-jaeger baggage parsing): the
+          # distro pins the propagator at 1.44.0, below the fix, 1.45.0, through
+          # 0.21.0. Nothing sets OTEL_PROPAGATORS and the distro's default is
+          # baggage,xray,tracecontext, so the Jaeger parser never loads. Drop it on
+          # the same terms as the line above.
           pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/runtime-lock.txt" \
-            --ignore-vuln GHSA-xcq7-p3pf-p88h
+            --ignore-vuln GHSA-xcq7-p3pf-p88h --ignore-vuln GHSA-f5m9-jfrj-jjj7
 
       - name: Validate shell scripts
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
