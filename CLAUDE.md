@@ -142,10 +142,10 @@ anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
 |---|---|---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | Search by what she means | Keep her limits on the retry |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | Connect `check_stock` to the Stock agent, alone | Keep "not carried" distinct from sold out |
-| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
-| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the money role write only through the function |
+| 1. Build and measure PostgreSQL hybrid retrieval | Anna | Search by what she means | Keep her limits on the retry |
+| 2. Build a PostgreSQL-grounded agent | Marco | Connect `check_stock` to the Stock agent, alone | Keep "not carried" distinct from sold out |
+| 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
+| 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the money role write only through the function |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
 task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the

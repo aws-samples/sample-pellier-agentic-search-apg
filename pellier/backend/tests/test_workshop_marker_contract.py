@@ -17,13 +17,13 @@ anchor means changing both repositories, which is the point.
 What each lab needs from the source tree
 ----------------------------------------
 
-**Lab 2 - Build a PostgreSQL-Grounded Agent.** Two marker regions to fix and two
+**Lab 2 - Build a PostgreSQL-grounded agent.** Two marker regions to fix and two
 fallback files to copy: 2A connects ``check_stock`` to the Stock agent in Python, and 2B
 writes the not-carried test in the ``pellier.check_stock`` worksheet. A missing marker
 breaks the primary lane; a missing fallback breaks the recovery lane, which is worse,
 because it only fails for the participant who is already behind.
 
-**Lab 1 - Build and Measure PostgreSQL Hybrid Retrieval.** Two marker regions: the
+**Lab 1 - Build and measure PostgreSQL hybrid retrieval.** Two marker regions: the
 vector branch, which starts ranking nothing by meaning, and a search-plan fallback that
 starts by dropping the shopper's limits. The RRF worksheet is Lab 1's Go deeper: it keeps
 its marker region and starter, but it is not a task.
@@ -32,7 +32,7 @@ Each lab's starters fail the way its guide's See it fail step shows, and its sol
 not: ``tests/test_lab1_vector.py``, ``tests/test_lab1_starter_failure.py`` and
 ``tests/test_lab2_starter_failure.py``.
 
-**Lab 3 - Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore.** Three marker
+**Lab 3 - Deploy agents and bind the caller with Amazon Bedrock AgentCore.** Three marker
 regions and their fallback files. 3A publishes ``get_tickets`` on the Gateway and
 matches the tools the Runtime asks the Gateway for, binding that read to the caller.
 One of the two files is a packaged runtime source. Task 3B deploys those edits and checks
@@ -40,7 +40,7 @@ the executed fingerprint, which is how the participant proves their own build an
 and writes the row-ownership predicate in an RLS worksheet whose one expression starts as
 ``false``. The OpenTelemetry trace contract is supplied, with no region to author.
 
-**Lab 4 - Govern Agent Actions with Cedar Policies and PostgreSQL Privileges.** A starter
+**Lab 4 - Govern agent actions with Cedar policies and PostgreSQL privileges.** A starter
 Cedar file that must NOT contain the answer, a reference rule that must (an amount rule on
 ``give_store_credit``, not an identity-pair match), and a credit-writer worksheet whose
 starter over-grants the money role. The keyed absence check is supplied, with no region to
@@ -847,10 +847,10 @@ def test_participant_exercise_reset_restores_only_the_named_marker_region() -> N
 # ---------------------------------------------------------------------------
 
 CANONICAL_LAB_TITLE_PARTS: Tuple[Tuple[str, str], ...] = (
-    ("Lab 2", "Build a PostgreSQL-Grounded Agent"),
-    ("Lab 1", "Build and Measure PostgreSQL Hybrid Retrieval"),
-    ("Lab 3", "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore"),
-    ("Lab 4", "Govern Agent Actions with Cedar Policies and PostgreSQL Privileges"),
+    ("Lab 2", "Build a PostgreSQL-grounded agent"),
+    ("Lab 1", "Build and measure PostgreSQL hybrid retrieval"),
+    ("Lab 3", "Deploy agents and bind the caller with Amazon Bedrock AgentCore"),
+    ("Lab 4", "Govern agent actions with Cedar policies and PostgreSQL privileges"),
 )
 
 # Titles the rename replaced. Present anywhere in the shipped product, they are drift.
@@ -864,6 +864,11 @@ RETIRED_LAB_TITLES: Tuple[str, ...] = (
     "Deploy and Operate Agents with Amazon Bedrock AgentCore",
     "Build Governed Agent Actions with Cedar",
     "Govern Agent Actions with Cedar and PostgreSQL Row-Level Security",
+    # Title case, retired for sentence case on 2026-10-28 (Workshop Studio content scan).
+    "Build and Measure PostgreSQL Hybrid Retrieval",
+    "Build a PostgreSQL-Grounded Agent",
+    "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore",
+    "Govern Agent Actions with Cedar Policies and PostgreSQL Privileges",
 )
 
 # Surfaces a participant actually reads a lab title on, plus the API that supplies one.

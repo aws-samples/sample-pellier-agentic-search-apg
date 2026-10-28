@@ -17,10 +17,10 @@ store's leadership would ask, and each lab answers one:
 
 | Lab | Customer | Leadership question |
 |---|---|---|
-| 1. Build and Measure PostgreSQL Hybrid Retrieval | Anna | "Can we deliver relevant recommendations while preserving every customer requirement?" |
-| 2. Build a PostgreSQL-Grounded Agent | Marco | "Can we rely on the assistant's answers when making commitments to customers?" |
-| 3. Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | Theo | "When we deploy the agent on AgentCore, how do we ensure every request carries the right identity and permissions?" |
-| 4. Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | Jessica, with Nadia (staff) | "Can the assistant act within approved limits, with a record of exactly what changed?" |
+| 1. Build and measure PostgreSQL hybrid retrieval | Anna | "Can we deliver relevant recommendations while preserving every customer requirement?" |
+| 2. Build a PostgreSQL-grounded agent | Marco | "Can we rely on the assistant's answers when making commitments to customers?" |
+| 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "When we deploy the agent on AgentCore, how do we ensure every request carries the right identity and permissions?" |
+| 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia (staff) | "Can the assistant act within approved limits, with a record of exactly what changed?" |
 
 Every task runs the same way: it fails in the terminal, the participant fixes
 the marked region, one command proves the fix, and then they look at it in the
@@ -36,11 +36,11 @@ Times are elapsed minutes from the start of the session.
 | Workshop minutes | Activity | Duration |
 |---|---|---|
 | 0-20 | Opening talk, then Getting started (about 3 minutes; early arrivals may do it before) | 20 minutes |
-| 20-35 | Lab 1: Build and Measure PostgreSQL Hybrid Retrieval | 15 minutes |
-| 35-50 | Lab 2: Build a PostgreSQL-Grounded Agent | 15 minutes |
+| 20-35 | Lab 1: Build and measure PostgreSQL hybrid retrieval | 15 minutes |
+| 35-50 | Lab 2: Build a PostgreSQL-grounded agent | 15 minutes |
 | 50-55 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |
-| 55-80 | Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore | 25 minutes |
-| 80-110 | Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges | 30 minutes |
+| 55-80 | Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore | 25 minutes |
+| 80-110 | Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges | 30 minutes |
 | 110-120 | Wrap-up: reconstruct one credit, discuss the evidence, take home the review skill | 10 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
@@ -121,7 +121,7 @@ to become readable, so it is a Go deeper tab, not the proof.
 
 ## The four labs
 
-### Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
+### Lab 1: Build and measure PostgreSQL hybrid retrieval
 
 Anna wants a housewarming gift under $100, in stock, with no candles.
 
@@ -147,7 +147,7 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
   Gateway's search therefore runs the finished 1A and 1B whatever the
   participant's files hold; Lab 1's tasks change the in-process search.
 
-### Lab 2: Build a PostgreSQL-Grounded Agent
+### Lab 2: Build a PostgreSQL-grounded agent
 
 Marco needs reliable stock and dispatch facts before his trip.
 
@@ -170,7 +170,7 @@ Marco needs reliable stock and dispatch facts before his trip.
 - **Lesson:** an agent can only claim what its tool returns, and a missing
   product is a missing row, not a zero.
 
-### Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
+### Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore
 
 Theo wants his taste remembered and help with his own chipped bowl.
 
@@ -209,7 +209,7 @@ the caller is. In process, the customer comes from the signed token. On the
 Gateway, it is the customer Cedar's owner-only permit admitted. RLS contains a
 wrong query, not an untrusted session.
 
-### Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges
+### Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges
 
 Jessica sent two items back and has no credit yet. Nadia must approve the
 credit, and the system must prove what moved.

@@ -39,7 +39,7 @@ agents (Catalog, Stock, Support).
 
 ## Required path
 
-1. Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
-2. Lab 2: Build a PostgreSQL-Grounded Agent
-3. Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
-4. Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges
+1. Lab 1: Build and measure PostgreSQL hybrid retrieval
+2. Lab 2: Build a PostgreSQL-grounded agent
+3. Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore
+4. Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges

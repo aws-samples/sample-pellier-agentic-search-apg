@@ -6,7 +6,7 @@
     {
       "id": "retrieval-acceptance",
       "name": "Anna",
-      "title": "Build and Measure PostgreSQL Hybrid Retrieval",
+      "title": "Build and measure PostgreSQL hybrid retrieval",
       "storyTitle": "Respect the requirements",
       "worry": "Can we deliver relevant recommendations while preserving every customer requirement?",
       "minutes": 15,
@@ -23,7 +23,7 @@
     {
       "id": "grounded-inventory",
       "name": "Marco",
-      "title": "Build a PostgreSQL-Grounded Agent",
+      "title": "Build a PostgreSQL-grounded agent",
       "storyTitle": "Know the facts",
       "worry": "Can we rely on the assistant's answers when making commitments to customers?",
       "minutes": 15,
@@ -40,7 +40,7 @@
     {
       "id": "managed-agent-path",
       "name": "Theo",
-      "title": "Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore",
+      "title": "Deploy agents and bind the caller with Amazon Bedrock AgentCore",
       "storyTitle": "Establish the caller",
       "worry": "When we deploy the agent on AgentCore, how do we ensure every request carries the right identity and permissions?",
       "minutes": 25,
@@ -57,7 +57,7 @@
     {
       "id": "fail-closed-policy",
       "name": "Jessica",
-      "title": "Govern Agent Actions with Cedar Policies and PostgreSQL Privileges",
+      "title": "Govern agent actions with Cedar policies and PostgreSQL privileges",
       "storyTitle": "Govern the action",
       "worry": "Can the assistant act within approved limits, with a record of exactly what changed?",
       "minutes": 30,

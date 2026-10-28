@@ -4,7 +4,7 @@ These files are facilitator recovery paths and readable reference implementation
 
 The commands below recover one task. To recover a whole lab, `uv run scripts/lab_run.py solution --lab N` copies its tasks' answers, and after the restart or deployment `uv run scripts/lab_run.py send --lab N` makes that lab's requests. Each guide's "Running behind?" block chains them with the lab's SQL files and checks.
 
-## Lab 1: Build and Measure PostgreSQL Hybrid Retrieval
+## Lab 1: Build and measure PostgreSQL hybrid retrieval
 
 Task 1A's recovery restores `pellier/backend/services/store_tools.py` with a
 vector branch that ranks the eligible products by meaning:
@@ -31,7 +31,7 @@ The optional Go deeper Build's answer is
 `solutions/the-quiet-search/sql/lab-1-fusion-solution.sql`; `scripts/lab_run.py solution`
 leaves `workshop/lab-1-fusion.sql` alone.
 
-## Lab 2: Build a PostgreSQL-Grounded Agent
+## Lab 2: Build a PostgreSQL-grounded agent
 
 Task 2A's recovery connects `check_stock` to the Stock agent, alone:
 
@@ -55,7 +55,7 @@ Restart, send Marco's requests again with
 `uv run scripts/lab2_check.py --task 2A` and
 `uv run scripts/lab2_check.py --task 2B`.
 
-## Lab 3: Deploy Agents and Bind the Caller with Amazon Bedrock AgentCore
+## Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore
 
 Task 3A's recovery publishes `get_tickets` and binds it to the signed-in
 caller. A copy changes nothing in AWS until it is deployed, because the
@@ -92,7 +92,7 @@ Gateway answered, and what was paid. It only reads:
 psql -f solutions/the-ledger/sql/forensic_incident.sql
 ```
 
-## Lab 4: Govern Agent Actions with Cedar Policies and PostgreSQL Privileges
+## Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges
 
 Task 4A's recovery is the $100 per-credit limit. Provisioning deployed the
 starter as the policy `workshop_credit_limit`, so the deploy updates it:
