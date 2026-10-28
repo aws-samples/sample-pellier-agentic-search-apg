@@ -26,9 +26,6 @@
     "editor.fontSize": 16,
     "terminal.integrated.fontSize": 18,
     "window.zoomLevel": 1,
-    "workbench.editorAssociations": {
-      "**/START_HERE.md": "vscode.markdown.preview.editor"
-    },
     "markdown.preview.fontSize": 16,
     "explorer.compactFolders": false,
     "explorer.sortOrder": "filesFirst",

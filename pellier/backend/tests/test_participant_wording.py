@@ -3,9 +3,10 @@
 Run (run something supplied and read it), Apply (1A to 4A, a supplied change installed by
 command), Build (1B to 4B and Lab 1's optional fusion file) and Prove (the check that prints
 ``Lab NX check passed``). A file is never labelled a worksheet or an exercise. The rule covers
-what participants read: the lab READMEs, START_HERE.md, the workshop map and SQL files, and
-the messages the checks and lab_run.py print. Internal identifiers, comments in Python and
-history keep their names, and a journey stage id may still be the string "exercise".
+what participants read: the lab READMEs, the workshop map and SQL files, the terminal's
+welcome, and the messages the checks and lab_run.py print. Internal identifiers, comments in
+Python and history keep their names, and a journey stage id may still be the string
+"exercise".
 """
 from __future__ import annotations
 
@@ -21,7 +22,7 @@ RETIRED = re.compile(r"worksheet|\bexercises?\b", re.IGNORECASE)
 
 
 def _documents() -> List[Path]:
-    paths = [REPO / "START_HERE.md", REPO / "workshop" / "README.md"]
+    paths = [REPO / "scripts" / "workshop-banner.sh", REPO / "workshop" / "README.md"]
     paths += sorted(REPO.glob("labs/*/README.md")) + sorted(REPO.glob("labs/*/solution/README.md"))
     paths += sorted((REPO / "workshop").glob("*.sql"))
     return paths

@@ -46,5 +46,3 @@ To finish the whole lab, run `uv run scripts/lab_run.py finish --lab 4`. It back
 files, applies both answers, deploys, performs Nadia's approval and execution once (a rerun only
 replays), runs every check and stops at the first failure. The answers are also in
 [solution/README.md](solution/README.md).
-
-[All labs](../../START_HERE.md)

@@ -211,7 +211,7 @@ def test_preserved_paths_are_recognised(relative: str) -> None:
 
 def test_a_tracked_file_is_not_preserved() -> None:
     for relative in ("scripts/migrations/001_schema.sql", "workshop/lab-2-check-stock.sql",
-                     "pellier/backend/services/store_tools.py", "START_HERE.md",
+                     "pellier/backend/services/store_tools.py", "README.md",
                      "pellier/config/cognito-branding/hosted-ui.css", ".envrc.example"):
         assert not repair.is_preserved(relative), relative
 

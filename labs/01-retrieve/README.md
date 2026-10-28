@@ -35,5 +35,3 @@ In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `uv run scri
 To skip one task, run its apply command above. To finish the whole lab, run
 `uv run scripts/lab_run.py finish --lab 1`. Either way the check still has to pass. The answers
 are also in [solution/README.md](solution/README.md).
-
-[All labs](../../START_HERE.md)

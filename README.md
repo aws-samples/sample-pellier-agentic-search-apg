@@ -75,7 +75,7 @@ flowchart LR
 
 ### In the workshop
 
-At an AWS event, Workshop Studio gives you an AWS account with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide. The guide is the source of truth for every step and check. In Code Editor, start with [START_HERE.md](START_HERE.md); [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, each with a short README, links to its task files and a solution folder.
+At an AWS event, Workshop Studio gives you an AWS account with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide. The guide is the source of truth for every step and check. In Code Editor, [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, each with a short README, links to its task files and a solution folder.
 
 ### Locally
 
