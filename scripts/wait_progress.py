@@ -113,7 +113,13 @@ class _Guard:
 
 
 class _Live:
-    """One line redrawn in place on a terminal, with stdout and stderr guarded meanwhile."""
+    """One line redrawn in place on a terminal, with stdout and stderr guarded meanwhile.
+
+    One bar at a time: a wait or step that starts while another bar is drawn leaves the line
+    to it, since two bars redrawn in place would overwrite each other.
+    """
+
+    active: Optional["_Live"] = None
 
     def __init__(self, stream: TextIO, render: Callable[[int], str],
                  interval: Optional[float] = REDRAW_SECONDS) -> None:
@@ -129,6 +135,7 @@ class _Live:
         """Guard the streams; draw after the grace period, or now when redrawn by hand."""
         self._saved = (sys.stdout, sys.stderr)
         sys.stdout, sys.stderr = _Guard(self, sys.stdout), _Guard(self, sys.stderr)
+        _Live.active = self
         if not self.interval:
             self.draw()
             return
@@ -142,6 +149,8 @@ class _Live:
         with self.lock:
             self.erase()
             sys.stdout, sys.stderr = self._saved
+            if _Live.active is self:
+                _Live.active = None
 
     def draw(self) -> None:
         with self.lock:
@@ -175,13 +184,16 @@ class Progress:
         interval: Seconds between redraws; ``None`` redraws only on demand, for tests.
         name: Whose steps the counters count, as in "Lab 3 step 2/6": a run whose step starts a
             deploy, which numbers its own steps, names its own so the two never look alike.
+        announce: Print each step's start line even while its bar runs, for a run whose steps
+            print lines of their own: the start line heads them once the bar is gone.
     """
 
     def __init__(self, title: str = "", *, stream: Optional[TextIO] = None,
                  now: Callable[[], float] = time.monotonic,
-                 interval: Optional[float] = REDRAW_SECONDS, name: str = "") -> None:
+                 interval: Optional[float] = REDRAW_SECONDS, name: str = "",
+                 announce: bool = False) -> None:
         self.title, self._stream, self.now, self.interval = title, stream, now, interval
-        self.name = name
+        self.name, self.announce = name, announce
         self.total: Optional[int] = None
         self.number = 0
         self._began = 0.0
@@ -223,11 +235,12 @@ class Progress:
         self.number += 1
         self._step = {"label": label, "done": done or label, "typical": typical,
                       "started": self.now()}
-        if animate and can_redraw(self.stream):
+        live = animate and can_redraw(self.stream) and _Live.active is None
+        if self.announce or not live:
+            self._print(f"  - {self.counter()}  {label} (usually about {clock(typical)})")
+        if live:
             self._live = _Live(self.stream, self._render, self.interval)
             self._live.start()
-        else:
-            self._print(f"  - {self.counter()}  {label} (usually about {clock(typical)})")
 
     def amend(self, done: str) -> None:
         """Change the line the running step leaves when it ends, once it knows what it found."""
@@ -287,7 +300,7 @@ def waiting(label: str, *, typical: float, limit: Optional[float] = None,
         interval: Seconds between redraws; ``None`` for tests.
     """
     target = stream or sys.stdout
-    if not can_redraw(target):
+    if not can_redraw(target) or _Live.active is not None:
         yield
         return
     started = now()

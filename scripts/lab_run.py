@@ -1048,20 +1048,30 @@ def finish_steps(job: Finish) -> List[Step]:
             _check_step(job, "4B"), absence]
 
 
+def relayed(argv: List[str], *, cwd: Optional[str] = None, check: bool = False) -> Any:
+    """``subprocess.run`` for a catch-up's commands, with the child's output relayed.
+
+    The checks, SQL files and deploys print lines of their own. Passed through this process's
+    output, those lines land above the run's progress bar instead of through it; on a terminal
+    the child still gets one, so it keeps its colors and its own bars.
+    """
+    return deploy_lock.run_logged(argv, cwd=cwd or str(REPO))
+
+
 def _numbered(name: str, steps: Sequence[Step]) -> Progress:
     """A numbered run of steps, after a line with how many there are and how long they take."""
     print(f"  {len(steps)} steps, usually about {clock(sum(step.typical for step in steps))}",
           flush=True)
-    progress = Progress(name=name)
+    progress = Progress(name=name, announce=True)
     progress.expect(len(steps))
     return progress
 
 
 def _run_steps(progress: Progress, steps: Sequence[Step]) -> None:
     for step in steps:
-        # A step's checks, SQL files and deploys print to the terminal themselves and its waits
-        # draw their own bars, so the step prints a start and an end line rather than a bar.
-        progress.begin(step.label, typical=step.typical, done=step.done, animate=False)
+        # Each step prints its start line, then a bar runs below the lines its commands print,
+        # until its end line replaces the bar. A wait inside the step leaves the line to it.
+        progress.begin(step.label, typical=step.typical, done=step.done)
         try:
             step.run()
         except Exception:
@@ -1080,7 +1090,7 @@ def _refuse_while_deploying(lab: int, repo: pathlib.Path) -> None:
 
 
 def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
-           run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO,
+           run: Callable[..., Any] = relayed, repo: pathlib.Path = REPO,
            progress: Optional[Progress] = None) -> None:
     """Back up the lab's files, put its answers in place, then run what proves them.
 
@@ -1098,7 +1108,7 @@ def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_to
 
 
 def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
-               run: Callable[..., Any] = subprocess.run, repo: pathlib.Path = REPO) -> None:
+               run: Callable[..., Any] = relayed, repo: pathlib.Path = REPO) -> None:
     """Finish the two local labs in order; a failure prevents any later lab from starting."""
     _refuse_while_deploying(1, repo)
     plans = [finish_steps(Finish(lab, backend, token_for, run, repo)) for lab in (1, 2)]

@@ -1520,3 +1520,15 @@ def test_the_rail_precheck_is_skipped_when_env_cannot_be_read(
     monkeypatch.setattr(lab_run, "ENV_FILE", tmp_path / "missing.env")
     fake.rail = lab_run.MANAGED
     assert _run(fake, 3) == 0
+
+
+def test_a_catch_up_command_relays_its_output_through_this_process(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """finish draws a bar below its commands, so their lines must come through this process."""
+    child = "import sys; print('Lab 1A check passed'); print('a warning', file=sys.stderr)"
+    result = lab_run.relayed([sys.executable, "-c", child])
+    out, err = capsys.readouterr()
+    assert result.returncode == 0
+    assert out == "Lab 1A check passed\n" and err == "a warning\n"
+    assert lab_run.relayed([sys.executable, "-c", "raise SystemExit(3)"]).returncode == 3

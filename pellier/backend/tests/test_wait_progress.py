@@ -190,6 +190,42 @@ def test_a_single_wait_draws_only_on_a_terminal() -> None:
     assert out.getvalue().endswith(wait_progress.CLEAR_LINE)
 
 
+def test_a_wait_inside_a_running_bar_leaves_the_line_to_it() -> None:
+    """A catch-up step's restart or answer wait would otherwise redraw over the run's bar."""
+    clock, out = Clock(), Terminal()
+    progress = wait_progress.Progress(stream=out, now=clock, interval=None, name="Lab 1 step")
+    progress.begin("Restarting the backend", typical=3)
+    with wait_progress.waiting("Waiting for the backend to answer", typical=5, stream=out,
+                               now=clock, interval=None):
+        clock.seconds += 2
+    progress._live.draw()
+    progress.end()
+
+    assert "Waiting for the backend to answer" not in out.getvalue()
+    assert "[Lab 1 step 1] Restarting the backend  " in out.getvalue()
+
+    with wait_progress.waiting("Waiting for Cedar", typical=60, stream=out, now=clock,
+                               interval=None):
+        pass
+    assert "Waiting for Cedar" in out.getvalue(), "a wait draws again once the bar has ended"
+
+
+def test_an_announced_step_heads_its_lines_and_still_draws_its_bar() -> None:
+    clock, out = Clock(), Terminal()
+    progress = wait_progress.Progress(stream=out, now=clock, interval=None, name="Lab 1 step",
+                                      announce=True)
+    progress.expect(5)
+    progress.begin("Restarting the backend", typical=3, done="Restarted the backend")
+    clock.seconds += 2
+    progress._live.draw()
+
+    assert out.getvalue().startswith(
+        "  - Lab 1 step 1/5  Restarting the backend (usually about 0:03)\n")
+    assert _last_frame(out.getvalue()).startswith("  [Lab 1 step 1/5] Restarting the backend  ")
+    progress.end()
+    assert out.getvalue().endswith("  + 0:02  Lab 1 step 1/5  Restarted the backend\n")
+
+
 def test_a_dumb_terminal_gets_plain_lines(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TERM", "dumb")
     out = Terminal()
