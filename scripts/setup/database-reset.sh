@@ -12,7 +12,15 @@ set -euo pipefail
 DB_PORT="${DB_PORT:-5432}"
 DB_PASSWORD="${DB_PASSWORD:-}"
 REPO="${REPO:-$(cd "$(dirname "$0")/../.." && pwd)}"
+PYTHON="${PYTHON:-python3}"
 export PGPASSWORD="$DB_PASSWORD"
+
+# The rebuild seeds the catalog in Python. Prove the interpreter can, before anything is
+# dropped: a seeder that dies after the DROP leaves the box with no schema at all.
+if ! "$PYTHON" -c 'import psycopg' >/dev/null 2>&1; then
+  echo "$PYTHON cannot import psycopg, so it cannot seed the catalog; nothing was dropped." >&2
+  exit 1
+fi
 
 echo "Dropping schema pellier"
 psql -X -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \

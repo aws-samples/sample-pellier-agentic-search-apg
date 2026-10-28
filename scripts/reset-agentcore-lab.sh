@@ -22,8 +22,9 @@ REPO="${PELLIER_REPO:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENV_FILE="${REPO}/.env"
 [[ -f "$ENV_FILE" ]] || ENV_FILE="${REPO}/pellier/backend/.env"
 RUN_ENV_FILE="${PELLIER_RUN_ENV:-/etc/pellier/run.env}"
+# A venv only when it can import the backend's packages; an empty one falls to python3.
 PYTHON="${REPO}/pellier/backend/.venv/bin/python"
-[[ -x "$PYTHON" ]] || PYTHON="python3"
+"$PYTHON" -c 'import psycopg, boto3' >/dev/null 2>&1 || PYTHON="python3"
 
 pass() { printf '  [PASS] %s\n' "$1"; }
 fail() { printf '  [FAIL] %s\n' "$1" >&2; }

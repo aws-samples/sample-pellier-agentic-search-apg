@@ -43,7 +43,16 @@ ENV_FILE="${REPO}/.env"
 # switch here first and falls back to ENV_FILE, so a reset that clears only one
 # of the two leaves the box on whichever copy it missed.
 RUN_ENV_FILE="${PELLIER_RUN_ENV:-/etc/pellier/run.env}"
+# A WORKSHOP BOX HAS NO VENV. `bootstrap-environment.sh` installs
+# `pellier/backend/requirements.lock` into the participant's `~/.local` with
+# `python3.14 -m pip install --user`, and systemd runs /usr/bin/python3.14.
+# The private workshop PATH alias resolves `python3` to that interpreter, with the
+# same pinned botocore 1.43.51 as a developer venv. A venv is used only when it can
+# import the backend's packages: a stray `uv run` in pellier/backend leaves an empty
+# one, and the catalog seeder then died on `import psycopg` after the schema was
+# dropped. `deploy_all.sh` and `reset-agentcore-lab.sh` choose the same way.
 PYTHON="${REPO}/pellier/backend/.venv/bin/python"
+"$PYTHON" -c 'import psycopg, boto3' >/dev/null 2>&1 || PYTHON="python3"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
 pass() { printf "  ${GREEN}[PASS]${NC} %s\n" "$1"; }
@@ -94,15 +103,6 @@ else
 fi
 
 cd "$REPO"
-# A WORKSHOP BOX HAS NO VENV. `bootstrap-environment.sh` installs
-# `pellier/backend/requirements.lock` into the participant's `~/.local` with
-# `python3.14 -m pip install --user`, and systemd runs /usr/bin/python3.14.
-# The private workshop PATH alias resolves `python3` to that interpreter, with the
-# same pinned botocore 1.43.51 as a developer venv. `deploy_all.sh` uses the
-# same venv-first, private-PATH fallback.
-if [[ ! -x "$PYTHON" ]]; then
-  PYTHON="python3"
-fi
 # Whether it resolves at all is a separate question from which path it is. `[[ -x name ]]`
 # is a file test relative to the working directory and performs no PATH lookup, so
 # testing the bare string "python3" is always false and would silently skip every step

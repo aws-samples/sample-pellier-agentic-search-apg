@@ -61,10 +61,9 @@ if (( ${#missing[@]} > 0 )); then
   return 1 2>/dev/null || exit 1
 fi
 
+# A venv only when it can import the backend's packages; an empty one falls to python3.
 PYTHON="$REPO_ROOT/pellier/backend/.venv/bin/python"
-if [[ ! -x "$PYTHON" ]]; then
-  PYTHON=python3
-fi
+"$PYTHON" -c 'import psycopg, boto3' >/dev/null 2>&1 || PYTHON=python3
 
 printf 'Deploying Pellier through the pinned AgentCore CLI project...\n'
 "$PYTHON" "$REPO_ROOT/scripts/provision_agentcore_end_to_end.py" \

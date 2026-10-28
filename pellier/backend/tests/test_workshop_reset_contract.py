@@ -21,6 +21,8 @@ from __future__ import annotations
 import pathlib
 import re
 
+import pytest
+
 RESET = pathlib.Path("../../scripts/reset-governed-workshop.sh")
 RESTORE_LIB = pathlib.Path("../../scripts/lib/agentcore-reset.sh")
 BOOTSTRAP = pathlib.Path("../../scripts/bootstrap-labs.sh")
@@ -601,6 +603,59 @@ def test_both_entry_points_resolve_the_interpreter_the_same_way() -> None:
             f"{path.name} does not fall back to python3, so it assumes a venv a "
             "workshop box does not have"
         )
+
+
+RESET_AGENTCORE = pathlib.Path("../../scripts/reset-agentcore-lab.sh")
+
+
+def _choose_python(script: pathlib.Path, root: pathlib.Path, venv_imports: bool) -> str:
+    """Run a script's two interpreter-choosing lines against a fake venv; return $PYTHON."""
+    import subprocess
+
+    lines = script.read_text().splitlines()
+    first = next(i for i, line in enumerate(lines)
+                 if line.startswith("PYTHON=") and ".venv/bin/python" in line)
+    venv = root / "pellier/backend/.venv/bin/python"
+    venv.parent.mkdir(parents=True, exist_ok=True)
+    venv.write_text(f"#!/bin/sh\nexit {0 if venv_imports else 1}\n")
+    venv.chmod(0o755)
+    shell = f'REPO="{root}"; REPO_ROOT="{root}"\n' + "\n".join(lines[first:first + 2])
+    result = subprocess.run(["bash", "-c", shell + '\nprintf %s "$PYTHON"'],
+                            capture_output=True, text=True, check=True)
+    return result.stdout
+
+
+@pytest.mark.parametrize("script", [RESET, DEPLOY_ALL, RESET_AGENTCORE],
+                         ids=["workshop-reset", "deploy-all", "agentcore-lab-reset"])
+def test_a_venv_without_the_backends_packages_is_passed_over(script, tmp_path) -> None:
+    """Seen on event 19: a stray `uv run` in pellier/backend left an empty .venv, the reset
+    chose it for being executable, and the catalog seeder died on `import psycopg` after the
+    schema was already dropped. A venv is chosen for what it can import, not for existing."""
+    assert _choose_python(script, tmp_path, venv_imports=False) == "python3"
+    assert _choose_python(script, tmp_path, venv_imports=True) == str(
+        tmp_path / "pellier/backend/.venv/bin/python")
+
+
+def test_the_database_reset_drops_nothing_when_python_cannot_seed(tmp_path) -> None:
+    import os
+    import subprocess
+
+    calls = tmp_path / "psql-calls"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "psql").write_text(f'#!/bin/sh\necho "$@" >> "{calls}"\n')
+    (bin_dir / "psql").chmod(0o755)
+    broken = tmp_path / "python-without-psycopg"
+    broken.write_text("#!/bin/sh\nexit 1\n")
+    broken.chmod(0o755)
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "DB_HOST": "db.invalid",
+           "DB_NAME": "pellier", "DB_USER": "pellier", "PYTHON": str(broken),
+           "REPO": str(DATABASE_RESET.resolve().parents[2])}
+    result = subprocess.run(["bash", str(DATABASE_RESET)], env=env, capture_output=True,
+                            text=True)
+    assert result.returncode != 0
+    assert not calls.exists(), "the schema was dropped before the seeder was known to run"
+    assert "cannot import psycopg" in result.stderr and "nothing was dropped" in result.stderr
 
 
 def test_no_step_is_guarded_by_a_dash_x_test_on_a_bare_command_name() -> None:
