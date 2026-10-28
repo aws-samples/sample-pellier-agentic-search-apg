@@ -717,9 +717,9 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # edit were wrong. extraPaths points it at the backend, so a warning is real.
 # task.reconnection lets a reload reattach the workshop terminal (its task's
 # problem matcher, in configure_participant_workspace.py, makes it reconnectable)
-# instead of opening another. Explorer badges are off: the lab files are links,
-# and a link arrow beside each one reads as something wrong; a file with a real
-# problem still shows in colour.
+# instead of opening another. Explorer and editor-tab badges are off: the lab
+# files are links, and a link arrow beside each one, in the Explorer or on its
+# tab, reads as something wrong; a file with a real problem still shows in colour.
 # Keep this block strict JSON - the readiness contract parses it with
 # json.loads, not a JSONC reader.
 cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
@@ -738,6 +738,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "python.analysis.extraPaths": ["/workshop/sample-pellier-agentic-search-apg/pellier/backend"],
     "task.reconnection": true,
     "explorer.decorations.badges": false,
+    "workbench.editor.decorations.badges": false,
     "git.enabled": false,
     "git.decorations.enabled": false,
     "git.showProgress": false,

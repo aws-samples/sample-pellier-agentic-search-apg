@@ -1368,6 +1368,7 @@ def test_code_editor_terminals_start_at_the_root_and_a_reload_reattaches() -> No
     user_settings, _workspace = _settings_blocks()
     assert user_settings["task.reconnection"] is True
     assert user_settings["explorer.decorations.badges"] is False
+    assert user_settings["workbench.editor.decorations.badges"] is False
     source = BOOTSTRAP_ENV.read_text(encoding="utf-8")
     block = source[source.index('if [[ $- == *i* && "${TERM_PROGRAM:-}" == "vscode" ]]'):]
     block = block[: block.index("\nEOF")]

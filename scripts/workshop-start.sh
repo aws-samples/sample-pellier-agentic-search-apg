@@ -20,6 +20,10 @@
 #   5. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
 #      --memory, capped at 10 s). Lab 3 needs them; their absence is a facilitator
 #      issue, printed as a warning. Nothing is seeded and nothing waits.
+#   6. Check that Code Editor carries bootstrap's start-up patch. Without it about
+#      one first load in four shows an empty Explorer and no terminal. Code Editor
+#      is not version-pinned, so a newer build can leave it unpatched: a
+#      facilitator warning, so readiness reports it.
 #
 # Participants no longer run this: bootstrap records the same checks for the
 # facilitator (scripts/event_readiness.py). It stays the manual live re-check.
@@ -118,6 +122,22 @@ if memory="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --memory 2>&1)"; then
 else
   warn "$memory"
 fi
+
+# --- 6. Code Editor's start-up patch (scripts/patch_code_editor_workspace_race.py) --
+check_code_editor_patch() {
+  local bundle="dist/out/vs/code/browser/workbench/workbench.js"
+  local patcher="$SCRIPT_DIR/patch_code_editor_workspace_race.py"
+  local workbench editor
+  for workbench in "$HOME"/.local/lib/code-editor-*/$bundle; do
+    [ -f "$workbench" ] || continue
+    if editor="$("$PYTHON" "$patcher" --check "$workbench" 2>&1)"; then
+      pass "$editor"
+    else
+      warn "Facilitator: $editor"
+    fi
+  done
+}
+check_code_editor_patch
 
 echo "------------------------------------------------------------"
 pass "Ready for Lab 1"
