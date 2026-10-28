@@ -54,6 +54,7 @@ class FakeBackend:
         self.stalls: List[float] = []
         self.midstream_stalls: List[float] = []
         self.proposal: Dict[str, Any] = dict(PROPOSAL)
+        self.planner = "no basis"
         self.policies: List[str] = ["ALLOW"]
         self.requests: List[Dict[str, Any]] = []
         self.sessions = 0
@@ -73,7 +74,7 @@ class FakeBackend:
         if path == "/api/chat/stream":
             return self._turn(body)
         if path.endswith("/investigate"):
-            answer = {"type": "answer", "proposal": self.proposal, "planner": "no basis"}
+            answer = {"type": "answer", "proposal": self.proposal, "planner": self.planner}
             return [("status", {"type": "status"}), ("step", {"type": "step"}),
                     ("answer", answer), ("complete", {**answer, "type": "complete"})]
         if path.endswith("/confirm"):
@@ -834,6 +835,18 @@ def test_lab_4_reports_a_planner_that_proposed_nothing(
     fake.proposal = None
     assert _run(fake, 4) == 1
     assert "the Advisor proposed no credit for Jessica: no basis" in capsys.readouterr().err
+
+
+def test_lab_4_quotes_the_advisors_sentence_without_a_doubled_stop(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.proposal = None
+    fake.planner = "Please send the two order ids."
+    assert _run(fake, 4) == 1
+    err = capsys.readouterr().err
+    assert "Please send the two order ids. Rerun this command" in err
+    assert ".." not in err
 
 
 def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_nadia(

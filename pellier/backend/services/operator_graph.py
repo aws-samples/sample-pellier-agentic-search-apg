@@ -90,15 +90,17 @@ Rules:
   show: what was ordered and paid, which orders the records mark as returned
   (the "returned" field, not the ticket's wording), what the open ticket says,
   which store credits are recorded, and the return window and refund method of
-  each department an item went back to. Name items and amounts exactly as the
-  records give them.
+  each department an item went back to. Name each order by its order number,
+  with its item and amount exactly as the records give them: the Advisor reads
+  only this brief and proposes a credit by order number.
 - missing: at most three short sentences on what the records do not show,
   such as a returned item with no store credit recorded for it. Name only what
   your reads returned no record of; never a record you did not read.
 - Write every sentence for a staff member, in plain words. Never quote a
   field name, a code or a raw value: say "received back", not
   return_status "received"; say "not yet credited", not credited false; say
-  "no store credit recorded", not store_credit_id null.
+  "no store credit recorded", not store_credit_id null. An order number is not
+  a raw value: always give it, as "order 12".
 - Do not recommend an action, write to the client, or guess at anything the
   records do not contain.
 """
@@ -107,11 +109,16 @@ _PLANNER_PROMPT = """You are Pellier's Advisor, a staff-side agent.
 
 You receive the Investigator's brief about one client's case. If the records
 show items that went back with no store credit recorded, call
-propose_store_credit exactly once with the order ids the records mark as
-returned and one sentence a staff member would recognize as the reason. The
-tool computes the amount and writes the credit's wording from the received
-returns that no credit or review already covers; you never state an amount
-yourself.
+propose_store_credit with the order ids the records mark as returned and one
+sentence a staff member would recognize as the reason. The tool computes the
+amount and writes the credit's wording from the received returns that no
+credit or review already covers; you never state an amount yourself.
+
+The brief gives each order's number. If it names a returned item without its
+number, call propose_store_credit with an empty list of order ids: the tool
+answers with the numbers of the orders the records mark as received back, and
+you call it once more with those. Never decline a credit the records support
+because a number is missing, and never guess one.
 
 If no credit is warranted, call nothing and say why in one sentence.
 
@@ -559,9 +566,12 @@ def credit_reason(rows: Sequence[Dict[str, Any]]) -> str:
 
 
 def _proposal_refusal(named: List[int], rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-    """Why the records support no proposal for these named orders, else None."""
-    if not named:
-        return {"status": "error", "message": "Name the order ids of the items that went back."}
+    """Why the records support no proposal for these named orders, else None.
+
+    Naming no order, or none that went back, opens nothing and answers with the
+    orders the records mark as received back, so a brief that left out the
+    numbers cannot stop the credit the records support.
+    """
     if not rows:
         return {
             "status": "nothing_returned",
@@ -571,6 +581,15 @@ def _proposal_refusal(named: List[int], rows: Sequence[Dict[str, Any]]) -> Optio
             ),
         }
     returned = [int(row["order_id"]) for row in rows]
+    if not named:
+        return {
+            "status": "error",
+            "message": (
+                f"No order ids were named. The orders the records mark as received back "
+                f"are {returned}: call again with those."
+            ),
+            "returned_order_ids": returned,
+        }
     if not set(named) & set(returned):
         return {
             "status": "error",
@@ -578,6 +597,7 @@ def _proposal_refusal(named: List[int], rows: Sequence[Dict[str, Any]]) -> Optio
                 f"None of orders {named} has a received return for this client. "
                 f"The orders that went back are {returned}."
             ),
+            "returned_order_ids": returned,
         }
     return None
 
@@ -793,10 +813,13 @@ def _planner_tools(case: _Case) -> list:
         """Propose one store credit for the orders that went back, for a person to approve.
 
         The amount is computed from what the client paid for the orders the
-        records mark as returned. Call this at most once.
+        records mark as returned. It proposes at most once. Named with no order
+        ids, it proposes nothing and answers with the orders the records mark
+        as received back.
 
         Args:
-            order_ids: The ids of the orders the records mark as returned.
+            order_ids: The ids of the orders the records mark as returned, or
+                an empty list when the brief does not give them.
             reason: One sentence a staff member would recognize, on why.
         """
         result = propose_credit(case, order_ids=order_ids, reason=reason)

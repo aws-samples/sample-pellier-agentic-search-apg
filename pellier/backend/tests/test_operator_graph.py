@@ -422,6 +422,46 @@ def test_no_received_return_means_no_proposal(graph_runtime) -> None:
     assert run.reviews == [] and result.proposal is None
 
 
+def test_the_investigator_must_give_each_order_its_number() -> None:
+    """Seen on event 19: Sonnet 5.5 briefs named the robe and the diffuser but no order
+    number, 12 of 12 times, and the Advisor, which reads only the brief, proposed nothing.
+    The plain-words rule must not read as a ban on order numbers."""
+    text = " ".join(GRAPH._INVESTIGATOR_PROMPT.split())
+    assert "Name each order by its order number" in text
+    assert "An order number is not a raw value" in text
+
+
+def _jessicas_case(run: _Run) -> GRAPH._Case:
+    return GRAPH._Case(run=run, run_customer=run, customer_id="CUST-JESSICA",
+                       customer_name="Jessica Nakamura", operator_sub="sub-nadia",
+                       turn_id="turn-" + "a" * 32, emit=lambda _event: None)
+
+
+def test_naming_no_order_answers_with_the_received_returns_from_the_records() -> None:
+    """A brief without order numbers cannot block the credit the records support."""
+    run = _Run()
+    case = _jessicas_case(run)
+    first = GRAPH.propose_credit(case, order_ids=[], reason="Two items went back.")
+    assert first["status"] == "error" and first["returned_order_ids"] == [301, 302]
+    assert "301" in first["message"] and "302" in first["message"]
+    assert run.reviews == [] and case.proposal is None
+    second = GRAPH.propose_credit(case, order_ids=first["returned_order_ids"],
+                                  reason="Two items went back.")
+    assert second["status"] == "review_opened" and second["amount_cents"] == 10000
+
+
+def test_naming_no_order_with_nothing_returned_is_the_no_credit_finding() -> None:
+    run = _Run([{**o, "return_status": None} for o in JESSICA_ORDERS])
+    result = GRAPH.propose_credit(_jessicas_case(run), order_ids=[], reason="Checking.")
+    assert result["status"] == "nothing_returned"
+
+
+def test_the_advisor_is_told_to_ask_the_tool_for_missing_order_numbers() -> None:
+    text = " ".join(GRAPH._PLANNER_PROMPT.split())
+    assert "with an empty list of order ids" in text
+    assert "Never decline a credit the records support because a number is missing" in text
+
+
 def test_two_investigations_in_different_words_resolve_to_one_review(graph_runtime) -> None:
     """The fingerprint is the case's, not the model's, so a rerun cannot open a twin."""
     run = _Run()

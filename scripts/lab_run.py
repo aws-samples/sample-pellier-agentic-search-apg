@@ -732,8 +732,8 @@ def investigate(backend: Backend, token: str, client: str) -> Dict[str, Any]:
         if name == "answer":
             proposal = event.get("proposal")
             if not proposal:
-                raise LabRunError("the Advisor proposed no credit for Jessica: "
-                                  f"{event.get('planner') or event.get('status')}. Rerun this "
+                why = str(event.get("planner") or event.get("status")).rstrip(". ")
+                raise LabRunError(f"the Advisor proposed no credit for Jessica: {why}. Rerun this "
                                   "command, or investigate in the Operator to read the brief.")
             return proposal
     raise LabRunError("the investigation ended without an answer")
