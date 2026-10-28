@@ -20,7 +20,7 @@ agent actually held from its audit row, so it needs Marco's requests sent again 
 change. The 2B file changes the live `pellier.check_stock` only when its four probes
 match, and the 2B check runs that live function, so it needs no restart.
 
-After the 2B token, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
+After `Lab 2B check passed`, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
 view** on, and send his requests again. Both are there, marked **Sent from the terminal**:
 the cape now reads **Not a piece Pellier carries**, and the Hadley one shows the Stock agent,
 one `check_stock` call and the Brooklyn warehouse row.

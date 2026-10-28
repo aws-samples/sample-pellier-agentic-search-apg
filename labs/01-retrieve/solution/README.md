@@ -14,8 +14,8 @@ keeps your file as `.bak`, restarts the backend when needed and prints the next 
 uv run scripts/lab_run.py solution --lab 1 --task 1A   # or 1B
 ```
 
-Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
-requests and run every check, stopping at the first failure. It leaves the optional Go deeper
+Finish the whole lab: back up your files, apply the answers, restart, send the requests and
+run every check, stopping at the first failure. It leaves the optional Go deeper
 Build alone.
 
 ```bash

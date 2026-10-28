@@ -14,9 +14,9 @@ keeps your file as `.bak`, restarts the backend when needed and prints the next 
 uv run scripts/lab_run.py solution --lab 3 --task 3A   # or 3B
 ```
 
-Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
-requests and run every check, stopping at the first failure. It deploys to AgentCore, which
-takes about three minutes, and runs the row-ownership file.
+Finish the whole lab: back up your files, apply the answers, deploy, send the requests and
+run every check, stopping at the first failure. The deploy to AgentCore takes about
+four minutes; it also runs the row-ownership file.
 
 ```bash
 uv run scripts/lab_run.py finish --lab 3

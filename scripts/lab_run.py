@@ -1217,7 +1217,8 @@ def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
         print(f"Lab {lab}: finish with provided answers and checks", flush=True)
         finish(lab, backend, token_for, run=run, repo=repo, progress=progress)
     progress.finish()
-    ok("Fast track complete: all four checks passed. Continue to From local to AgentCore.")
+    ok("Fast track complete: all four checks passed. Continue to From Local Agents to Amazon "
+       "Bedrock AgentCore.")
 
 
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,

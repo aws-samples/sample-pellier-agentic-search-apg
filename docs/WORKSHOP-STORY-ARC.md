@@ -132,8 +132,8 @@ workshop and takes no teaching time in the Wrap-up.
 
 ## Timing
 
-The schedule is 20 minutes for the opening talk, 10 for the Introduction and
-Getting started, then 15, 20, 25 and 25 minutes for Labs 1 to 4, and 5 for the
-Wrap-up: all 120 minutes of the slot, with no time held for recovery. These are
+The schedule is 20 minutes for the opening talk and Getting started, then 15 and 15
+minutes for Labs 1 and 2, 5 for the catch-up before Lab 3, 25 and 30 for Labs 3 and 4, and
+10 for the Wrap-up: all 120 minutes of the slot, with no time held for recovery. These are
 targets until a timed fresh-account rehearsal confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
 each of those labs runs its SQL task during its wait.

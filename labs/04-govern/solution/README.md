@@ -13,8 +13,8 @@ keeps your file as `.bak`, restarts the backend when needed and prints the next 
 uv run scripts/lab_run.py solution --lab 4 --task 4A   # or 4B
 ```
 
-Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
-requests and run every check, stopping at the first failure. It deploys the Cedar rule and also
+Finish the whole lab: back up your files, apply the answers, deploy, send the requests and
+run every check, stopping at the first failure. It deploys the Cedar rule and also
 performs Nadia's approval and execution once; a rerun only replays.
 
 ```bash

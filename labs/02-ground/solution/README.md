@@ -13,8 +13,8 @@ keeps your file as `.bak`, restarts the backend when needed and prints the next 
 uv run scripts/lab_run.py solution --lab 2 --task 2A   # or 2B
 ```
 
-Finish the whole lab: back up your files, apply the answers, restart or deploy, send the
-requests and run every check, stopping at the first failure. It runs the 2B file, which
+Finish the whole lab: back up your files, apply the answers, restart, send the requests and
+run every check, stopping at the first failure. It runs the 2B file, which
 commits the function.
 
 ```bash

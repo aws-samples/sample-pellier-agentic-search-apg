@@ -60,7 +60,7 @@
       "title": "Govern Agent Actions with Cedar Policies and PostgreSQL Privileges",
       "storyTitle": "Govern the action",
       "worry": "Can the assistant act within approved limits, with a record of exactly what changed?",
-      "minutes": 25,
+      "minutes": 30,
       "need": "Jessica sent two items back and has no credit yet. Nadia must approve the credit, and the system must prove what moved.",
       "spot": "In the terminal, uv run scripts/lab4_check.py --task 4A shows the starter forbid denying Nadia's approved 1, 9999 and 10000 cents, and workshop/lab-4-credit-writer.sql shows the starter's grants letting the money role raise an approved $25 credit to $500 directly. In the Operator, Nadia approves Jessica's $100.00 credit and Execute reads DENY.",
       "a": "Cap the credit at $100 in Cedar",

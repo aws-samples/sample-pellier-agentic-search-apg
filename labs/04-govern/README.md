@@ -26,8 +26,8 @@ Its last line prints Nadia's sign-in for the Operator. Nadia's decision is the o
 happens in the app. In **PellierURL**, select **Operator**, sign in as `nadia`, investigate
 Jessica's case, approve the proposed credit and select **Execute**: with the rule as shipped,
 Policy reads DENY. After the deploy, select **Execute again** and then **Replay with the same
-key**. Their proof comes back here: the two checks above, then the supplied absence check, which
-ends `Lab 4 absence check passed`:
+key**. Then prove them here: the two checks above, then the supplied absence check, which ends
+`Lab 4 absence check passed`:
 
 ```bash
 psql -f workshop/lab-4-absence.sql

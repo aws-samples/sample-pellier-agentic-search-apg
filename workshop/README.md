@@ -2,25 +2,17 @@
 
 For the participant entry point, open [Pellier.code-workspace](../Pellier.code-workspace). The numbered `labs/` groups link to these same files.
 
-Workshop Studio contains the instructions and recovery answers for the four labs.
-This directory is the source map and portable notebook for the **governed** track.
-The Builders event informed its pacing and tasks; `main` is a different track.
+Workshop Studio holds the instructions and recovery answers for the four labs; this
+directory is the source map for the **governed** track.
 
-Every task runs the same way: it fails in the terminal, you fix the marked region,
-one command proves the fix with one pass token, and then you look at it in the app.
-Every check prints what was expected, what was observed, and the evidence behind
-it. `uv run scripts/workshop_evidence.py` exports that proof for all four labs.
-Tasks 1B, 2A and 2B are read from rows alone (`pellier.retrieval_receipts`,
-`pellier.tool_audit`, the catalog and warehouse tables), so no code of yours
-runs: Lab 2's lines pass only after Marco's requests are sent again on the finished lab.
-1A runs your vector branch, 3A reads the Gateway catalogue and binding in
-source, 3B reads Theo's turns, his Memory record and your live row policies, 4A
-evaluates your Cedar rule beside its stored Gateway denial and Jessica's credit,
-and 4B reads your live credit function and probes the money role; a region that
-still holds its starter is NOT YET there. The Wrap-up's cleanup restores the
-Cedar starter, so save the export before it. A supplied answer, an open page,
-or a successful conversation is not a completed task; a recovered task keeps
-the same checks.
+Every task runs the same way: it fails in the terminal, you fix the marked region, one check
+proves the fix with one pass line, and then you look at it in the app. Every check prints what
+it expected, what it observed and the evidence; `uv run scripts/workshop_evidence.py` exports
+that proof for all four labs. The export reads 1B, 2A and 2B from recorded rows
+(`pellier.retrieval_receipts`, `pellier.tool_audit`, the catalog and warehouse tables), so Lab 2's
+lines pass only after Marco's requests are sent again on the finished lab. A supplied answer, an open page or a successful conversation
+is not a completed task. The Wrap-up's cleanup restores the Cedar starter, so save the export
+before it.
 
 | Lab and task | Work you do | Check |
 |---|---|---|
@@ -41,27 +33,22 @@ ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -f workshop/lab-4-absence.sql`.
 
 Two more supplied SQL files read the agent from the database's side and change nothing.
-After Lab 3's token, `psql -f workshop/lab-3-agent-workload.sql`
+After `Lab 3B check passed`, `psql -f workshop/lab-3-agent-workload.sql`
 lists the statements each role ran, from `pg_stat_statements`, and one plan with the row
 policy inside it; it ends `Lab 3 workload check passed`. At the Wrap-up,
 `psql -f workshop/wrap-up-reconstruct.sql` rebuilds
 Jessica's credit from her request to the row with joins, and ends
 `Wrap-up reconstruction passed`.
 
-Before Task 1A's edit, `psql -f workshop/lab-1-meaning.sql` measures eight products against
-a product's own stored embedding: that product sits at distance 0, and the rows come
-in name order, so the ranking and its direction stay Task 1A's to write. The HNSW
-index names its operator class. It only reads.
-
 In Task 1B, `psql -f workshop/lab-1-receipt.sql` prints Anna's latest search receipt as one
 record: the limits she asked for, the limits the search kept, and the soft tags a retry
 dropped. It only reads.
 
-Optional in Lab 1: `psql -f workshop/lab-1-fusion.sql`
-recomputes the fused scores Anna's search recorded from their two ranks, and
-`psql -f workshop/lab-1-index.sql` shows whether
-Aurora uses the HNSW index at this catalog's size, and what a filter does to the
-index when it is used. Both only read.
+Optional, in Lab 1's Go deeper: `psql -f workshop/lab-1-words.sql` ranks her words with
+full-text search; `psql -f workshop/lab-1-meaning.sql` measures eight products against one
+product's own embedding, which sits at distance 0; `psql -f workshop/lab-1-fusion.sql`
+recomputes the fused scores her search recorded; and `psql -f workshop/lab-1-index.sql`
+compares exact and HNSW search, with and without the storefront filter. All four only read.
 
 Only edit the lab's marked regions; there are nine. Python edits in Labs 1 and
 2 need the guide's backend restart. Lab 3's edits and Lab 4's rule reach AWS
@@ -73,8 +60,8 @@ Provisioning deploys Lab 4's starter rule, so the deploy updates it.
 
 **Respect the requirements → know the facts → establish the caller → govern the action.**
 
-Each customer introduces the next responsibility. Keep the code and evidence from
-each chapter, while using a separate identity and conversation for each customer.
+Each customer introduces the next responsibility. Keep the code and evidence from each lab,
+with a separate identity and conversation for each customer.
 See [the task contract](../docs/WORKSHOP-STORY-ARC.md) for edit locations, rejected
 implementations and evidence boundaries.
 
