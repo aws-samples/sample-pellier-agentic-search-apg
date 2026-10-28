@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib
 import json
+import re
 import shutil
 import sys
 import threading
@@ -1427,21 +1428,105 @@ def test_send_prints_each_turns_trace_as_it_streams(
     out = capsys.readouterr().out
     lines = out.splitlines()
 
-    assert '          Anna: "' in out
     assert [line for line in lines if "Router" in line] == [
-        "          Router    Sent to the Catalog agent"]
-    done = lines.index("          done      Searching the catalog in Aurora (731 ms): 5 found from 64 that "
+        "          1 Router  Sent to the Catalog agent"]
+    done = lines.index("          2 done    Searching the catalog in Aurora (731 ms): 5 found from 64 that "
                        "fit under $100 and in stock, candles")
     assert lines[done + 1] == "                    left out"
-    assert "                    How it ranked, kept 64 of 100: full text, vector, fused" in lines
-    rows = [line for line in lines if line.startswith("                    ") and "  #" in line]
-    assert len(rows) == 5
-    assert rows[0].split() == ["1", "Stoneware", "Pour-Over", "Set", "-", "#1", "0.0164"]
+    assert "                    How it ranked: kept 64 of 100" in lines
+    rows = [line.strip() for line in lines if line.strip().startswith("│")]
+    assert [cell.strip() for cell in rows[0].strip("│").split("│")] == [
+        "#", "Product", "Full text", "Vector", "Fused score", "Rerank"]
+    assert len(rows) == 6
+    assert [cell.strip() for cell in rows[1].strip("│").split("│")] == [
+        "1", "Stoneware Pour-Over Set", "–", "#1", "0.0164", "–"]
     assert "Stoneware Mugs" not in out
-    assert "          failed    Reading your tickets (12 ms): The ticket read was refused" in lines
+    assert "          3 failed  Reading your tickets (12 ms): The ticket read was refused" in lines
     assert out.count("Searching the catalog in Aurora") == 1
     assert "  + OK    ran in process (turn " in out
     assert all(len(line) <= 120 for line in lines)
+
+
+def test_each_request_says_what_is_sent_as_whom_to_where_and_from_which_file(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Participants send requests long before they see the store, so the terminal shows what
+    the request is: the shopper's sentence, sent signed in as them, as Ask Pellier sends it."""
+    fake.steps = STEPS
+    assert _run(fake, 1, None, "--task", "1B") == 0
+    lines = capsys.readouterr().out.splitlines()
+    start = next(index for index, line in enumerate(lines) if line.startswith("          Message"))
+    end = next(index for index, line in enumerate(lines) if line.startswith("          As"))
+    shown = " ".join(line[20:] for line in lines[start:end])
+    [sent] = [turn["body"]["message"] for turn in _turns(fake)]
+    assert shown == f'"{sent}"'
+    assert lines[end:end + 4] == [
+        "          As        Anna, signed in",
+        "          To        Pellier's chat API (/api/chat/stream): the request Ask Pellier sends "
+        "when Anna types this",
+        "          From      data/scenarios.json",
+        ""]
+    assert lines[end + 4].startswith("          1 Router")
+
+
+def test_the_terminal_ranking_uses_the_stores_column_names_and_chip_words() -> None:
+    """A terminal turn and the same turn in the store's Builder view must read alike."""
+    panel = (REPO / "pellier/frontend/src/components/turn/RankingPanel.tsx").read_text("utf-8")
+    headings = re.search(r"\{\[(.*?)\]\.map\(head =>", panel).group(1)
+    assert [name for name, _, _ in lab_run.RANKING_COLUMNS] == re.findall(r"'([^']+)'", headings)
+    for reason, words in lab_run.REMOVED.items():
+        assert f"{reason}: n => `${{formatCount(n)}} {words}`" in panel
+    assert "How it ranked" in panel and "Kept " in panel
+    store_note = re.search(r"export function merchandisingNote.*?return `(.*?)`", panel, re.S).group(1)
+    assert re.sub(r"\$\{[^}]*\}", "X", store_note) == re.sub(r"\{\w+\}", "X",
+                                                             lab_run.MERCHANDISING_NOTE)
+
+
+def test_a_ranking_row_shows_how_far_rerank_moved_it_and_its_similarity(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    lab_run._ranking_key_shown = False
+    lab_run._trace_ranking({"available": True, "method": "hybrid+rerank", "rrf_k": 60,
+                            "rerank_pool": 15, "arms": {"full_text": 20, "vector": 20},
+                            "filters": {"kept": 828, "of": 1000,
+                                        "removed": {"budget": 86, "stock": 82, "exclusions": 4},
+                                        "excluded": [{"value": "candle", "count": 4,
+                                                      "noun": "candles"}]},
+                            "rows": [{"name": "Tall Stoneware Vase", "fts_rank": 7, "vec_rank": 9,
+                                      "similarity": 0.552, "rrf_score": 0.0283,
+                                      "rerank_score": 0.62, "before": 6, "after": 2,
+                                      "moved": 4}]})
+    lines = [line.strip() for line in capsys.readouterr().out.splitlines()]
+    assert lines[0] == "How it ranked: kept 828 of 1,000; left out 86 over budget, 82 sold out, 4 candles"
+    assert lines[1] == ("Full text 20, Vector 20; fused with RRF (k=60), then Cohere Rerank 3.5 "
+                        "on the top 15")
+    row = next(line for line in lines if "Tall Stoneware Vase" in line)
+    assert [cell.strip() for cell in row.strip("│").split("│")] == [
+        "2 ↑4", "Tall Stoneware Vase", "#7", "#9  0.55", "0.0283", "0.62"]
+    key = " ".join(lines[lines.index(next(line for line in lines if line.startswith("└"))) + 1:])
+    assert key == lab_run.RANKING_KEY.format(k=60)
+
+
+def test_a_row_a_declared_rule_moved_is_starred_and_named(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Anna's vase is put first after rerank by a declared rule; without the note its low rerank
+    score at #1 reads as a broken ranking."""
+    lab_run._ranking_key_shown = True
+    lab_run._trace_ranking({"available": True, "method": "hybrid+rerank", "rrf_k": 60,
+                            "merchandising": [{"rule_id": "merch.milestone-home-gift.v1",
+                                               "product": "Tall Stoneware Vase", "from": 4,
+                                               "to": 1}],
+                            "rows": [{"name": "Tall Stoneware Vase", "fts_rank": 7,
+                                      "vec_rank": None, "rrf_score": 0.0274,
+                                      "rerank_score": 0.10, "before": 4, "after": 1, "moved": 3,
+                                      "rule": "merch.milestone-home-gift.v1"}]})
+    lines = [line.strip() for line in capsys.readouterr().out.splitlines()]
+    row = next(line for line in lines if "Tall Stoneware Vase" in line and "│" in line)
+    assert row.strip("│").split("│")[0].strip() == "1 ↑3*"
+    note = " ".join(lines[lines.index(next(line for line in lines if line.startswith("└"))) + 1:])
+    assert note == ("* Tall Stoneware Vase: moved from 4 to 1 after rerank by the declared "
+                    "merchandising rule merch.milestone-home-gift.v1")
 
 
 def test_send_names_a_retry_and_what_it_dropped(
@@ -1455,7 +1540,7 @@ def test_send_names_a_retry_and_what_it_dropped(
     lines = capsys.readouterr().out.splitlines()
 
     retry_at = lines.index("                    Tried again without the words gift, slow, home")
-    assert lines[retry_at + 1].lstrip().startswith("How it ranked, kept 64 of 100")
+    assert lines[retry_at + 1].lstrip() == "How it ranked: kept 64 of 100"
 
 
 def test_a_first_attempt_prints_no_retry_line(

@@ -364,6 +364,7 @@ def _search_evidence(
             final_rows=payload.get("final_rows") or [],
             counts=counts,
             rrf_k=int(payload.get("rrf_k") or 60),
+            merchandising=payload.get("merchandising") or (),
         )
     except Exception as exc:  # noqa: BLE001 - evidence must not break the turn
         logger.warning("search ranking evidence skipped: %s", exc)

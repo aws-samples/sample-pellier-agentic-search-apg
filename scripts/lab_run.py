@@ -509,7 +509,7 @@ def wait_until_healthy(backend: Backend) -> None:
 def required_requests(persona: str, stages: Sequence[str],
                       repo: pathlib.Path = REPO) -> List[str]:
     """The shopper's required requests for these journey stages, in this order."""
-    scenarios = json.loads((repo / "data" / "scenarios.json").read_text("utf-8"))
+    scenarios = json.loads((repo / SCENARIOS).read_text("utf-8"))
     by_stage = {s["journey_stage"]: s["prompt"] for s in scenarios
                 if s["persona"] == persona and s["journey_role"] == "required"}
     missing = [stage for stage in stages if stage not in by_stage]
@@ -521,6 +521,8 @@ def required_requests(persona: str, stages: Sequence[str],
 
 # The live trace: each step as Builder view shows it, printed as the turn streams.
 TRACE_WIDTH = 120
+CHAT_PATH = "/api/chat/stream"
+SCENARIOS = "data/scenarios.json"
 TRACE_INDENT = " " * 10
 TRACE_LABEL = 10
 RANKING_ROWS = 5
@@ -534,24 +536,113 @@ def _trace_line(label: str, text: str) -> None:
         print(f"{TRACE_INDENT}{'':<{TRACE_LABEL}}{line}", flush=True)
 
 
+# The ranking in the Builder view's words (pellier/frontend/src/components/turn/RankingPanel.tsx),
+# so a terminal turn reads like the same turn in the store.
+EMPTY, UP, DOWN = "\u2013", "\u2191", "\u2193"
+RANKING_KEY = ("#: final position; an arrow is how far it moved from the fused order, by Cohere "
+               "Rerank or, marked *, by a declared rule. "
+               "Full text and Vector: its rank in each search, and the vector similarity. "
+               "Fused score: 1 / ({k} + rank) from each search, added.")
+RANKING_COLUMNS = (("#", 6, "<"), ("Product", 37, "<"), ("Full text", 9, ">"),
+                   ("Vector", 10, ">"), ("Fused score", 11, ">"), ("Rerank", 6, ">"))
+REMOVED = {"budget": "over budget", "stock": "sold out", "department": "in other departments"}
+RERANKED, RERANK_FALLBACK = "hybrid+rerank", "hybrid (rerank fallback to RRF order)"
+MERCHANDISING_NOTE = ("* {product}: moved from {start} to {end} after rerank by the declared "
+                      "merchandising rule {rule_id}")
+_ranking_key_shown = False
+
+
+def _table_border(left: str, middle: str, right: str) -> str:
+    return left + middle.join("\u2500" * (width + 2) for _, width, _ in RANKING_COLUMNS) + right
+
+
+def _table_row(cells: Sequence[str]) -> str:
+    return "\u2502" + "\u2502".join(f" {cell:{align}{width}} " for cell, (_, width, align)
+                                      in zip(cells, RANKING_COLUMNS)) + "\u2502"
+
+
+def _number(value: Any, digits: int) -> str:
+    return EMPTY if value is None else f"{float(value):.{digits}f}"
+
+
 def _rank(value: Any) -> str:
-    return "-" if value in (None, "") else f"#{value}"
+    return EMPTY if value in (None, "") else f"#{value}"
+
+
+def _position(row: Dict[str, Any], index: int) -> str:
+    moved = row.get("moved")
+    arrow = f" {UP if moved > 0 else DOWN}{abs(moved)}" if moved else ""
+    return f"{row.get('after') or index}{arrow}{'*' if row.get('rule') else ''}"
+
+
+def _vector(row: Dict[str, Any]) -> str:
+    if row.get("vec_rank") in (None, ""):
+        return EMPTY
+    similarity = row.get("similarity")
+    return _rank(row["vec_rank"]) + (f"  {float(similarity):.2f}" if similarity is not None else "")
+
+
+def _method(ranking: Dict[str, Any], k: int) -> str:
+    """How the list was ordered, as the Builder view's legend says it."""
+    method, fused = ranking.get("method"), f"fused with RRF (k={k})"
+    if method == "vector":
+        return "ordered by vector similarity"
+    if method == "hybrid":
+        return fused
+    if method == RERANK_FALLBACK:
+        return f"{fused}; rerank was unavailable, so this is RRF order"
+    if method == RERANKED:
+        pool = ranking.get("rerank_pool")
+        return f"{fused}, then Cohere Rerank 3.5" + (f" on the top {pool}" if pool else "")
+    return "ranking method was not recorded"
+
+
+def _kept(filters: Dict[str, Any]) -> str:
+    """The Builder view's chips: what the limits kept, then what each limit left out."""
+    removed = []
+    for reason, count in (filters.get("removed") or {}).items():
+        if reason == "exclusions":
+            removed += [f"{value['count']:,} {value['noun']}" for value in
+                        filters.get("excluded") or [] if value.get("count")]
+        elif count:
+            removed.append(f"{count:,} {REMOVED.get(reason, 'excluded')}")
+    kept = f"kept {filters['kept']:,} of {filters['of']:,}"
+    return kept + (f"; left out {', '.join(removed)}" if removed else "")
 
 
 def _trace_ranking(ranking: Dict[str, Any]) -> None:
+    """How it ranked: the Builder view's counts and table, with a one-time key to the columns."""
+    global _ranking_key_shown
     rows = ranking.get("rows") if ranking.get("available") else None
     if not rows:
         return
-    filters = ranking.get("filters") or {}
-    kept = (f", kept {filters['kept']} of {filters['of']}"
-            if filters.get("kept") is not None and filters.get("of") is not None else "")
-    pad = f"{TRACE_INDENT}{'':<{TRACE_LABEL}}"
-    print(f"{pad}How it ranked{kept}: full text, vector, fused", flush=True)
+    k = int(ranking.get("rrf_k") or 60)
+    filters, arms = ranking.get("filters") or {}, ranking.get("arms") or {}
+    title = "How it ranked"
+    if filters.get("kept") is not None and filters.get("of") is not None:
+        title += f": {_kept(filters)}"
+    _trace_line("", title)
+    counts = (f"Full text {arms.get('full_text', 0):,}, Vector {arms.get('vector', 0):,}; "
+              if arms else "")
+    _trace_line("", counts + _method(ranking, k))
+    lines = [_table_border("\u250c", "\u252c", "\u2510"),
+             _table_row([name for name, _, _ in RANKING_COLUMNS]),
+             _table_border("\u251c", "\u253c", "\u2524")]
     for index, row in enumerate(rows[:RANKING_ROWS], 1):
-        name = _one_line(str(row.get("name") or row.get("product_id") or "?"), 34)
-        score = float(row.get("rrf_score") or 0)
-        print(f"{pad}{index:<3}{name:<35}{_rank(row.get('fts_rank')):>4}  "
-              f"{_rank(row.get('vec_rank')):>4}  {score:.4f}", flush=True)
+        name = _one_line(str(row.get("name") or row.get("product_id") or "?"), 37)
+        lines.append(_table_row([_position(row, index), name, _rank(row.get("fts_rank")),
+                                 _vector(row), _number(row.get("rrf_score"), 4),
+                                 _number(row.get("rerank_score"), 2)]))
+    lines.append(_table_border("\u2514", "\u2534", "\u2518"))
+    pad = f"{TRACE_INDENT}{'':<{TRACE_LABEL}}"
+    for line in lines:
+        print(f"{pad}{line}", flush=True)
+    for move in ranking.get("merchandising") or []:
+        _trace_line("", MERCHANDISING_NOTE.format(product=move["product"], start=move["from"],
+                                                  end=move["to"], rule_id=move["rule_id"]))
+    if not _ranking_key_shown:
+        _ranking_key_shown = True
+        _trace_line("", RANKING_KEY.format(k=k))
 
 
 def _trace_retry(relaxation: Any) -> None:
@@ -571,15 +662,16 @@ def trace_event(event: Dict[str, Any], shown: set) -> None:
     if (step_id, status) in shown:
         return
     shown.add((step_id, status))
+    number = len(shown)
     label = str(event.get("label") or "")
     finding = str(event.get("finding") or "")
     builder = event.get("builder") or {}
     if step_id == "route":
-        _trace_line("Router", finding or label)
+        _trace_line(f"{number} Router", finding or label)
         return
     ms = builder.get("duration_ms")
     timing = f" ({ms} ms)" if isinstance(ms, (int, float)) else ""
-    _trace_line("failed" if status == "failed" else "done",
+    _trace_line(f"{number} {'failed' if status == 'failed' else 'done'}",
                 f"{label}{timing}" + (f": {finding}" if finding else ""))
     _trace_retry(builder.get("relaxation"))
     _trace_ranking(builder.get("ranking") or {})
@@ -597,7 +689,7 @@ def send_turn(backend: Backend, token: str, body: Dict[str, Any], trace: bool = 
     late = TurnFailed(f"the turn failed: no answer after {deadline:g} s")
     with waiting("Waiting for Pellier's answer", typical=TURN_TYPICAL_SECONDS, limit=deadline):
         try:
-            for name, event in backend.stream("/api/chat/stream", body, token, timeout=deadline):
+            for name, event in backend.stream(CHAT_PATH, body, token, timeout=deadline):
                 if name == "error" or event.get("type") == "error":
                     reason = event.get("error") or event.get("message") or json.dumps(event)
                     raise TurnFailed(f"the turn failed: {reason}")
@@ -682,7 +774,13 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
     history: List[Dict[str, str]] = []
     for message in requests:
         if trace:
-            print(f'{TRACE_INDENT}{persona.title()}: "{message}"', flush=True)
+            print(flush=True)
+            _trace_line("Message", f'"{message}"')
+            _trace_line("As", f"{persona.title()}, signed in")
+            _trace_line("To", f"Pellier's chat API ({CHAT_PATH}): the request Ask Pellier sends "
+                              f"when {persona.title()} types this")
+            _trace_line("From", SCENARIOS)
+            print(flush=True)
         response = send_turn_again_on_failure(backend, token, {
             "message": message,
             "session_id": session,
@@ -878,6 +976,8 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
          shopper_only: bool = False, trace: bool = True, task: Optional[str] = None) -> None:
     """Make the lab's requests on the lab's path, or one task's with ``task``, and for Lab 4
     do Nadia's part unless ``shopper_only``."""
+    global _ranking_key_shown
+    _ranking_key_shown = False
     configured = _configured_rail()
     if configured is not None and configured != LAB_RAIL[lab]:
         raise LabRunError(_rail_problem(lab, configured, {}, before=True))

@@ -10,7 +10,8 @@
  * The filter counts come first as chips: what the limits kept, what each
  * limit removed (an excluded value by its own word, "4 candles"), then how
  * many rows each arm returned. Then one row per product: its final position
- * and how far rerank moved it, its full-text rank, its vector rank with the
+ * and how far it moved from the fused order (an asterisk when a declared
+ * merchandising rule moved it), its full-text rank, its vector rank with the
  * cosine similarity, the fused RRF score with a stacked bar of each arm's
  * 1 / (k + rank), and the rerank score. Every number is the turn's evidence;
  * the browser computes only the bar widths. An empty cell is an en dash.
@@ -21,7 +22,7 @@
 import { useState } from 'react'
 import { ChevronRight } from 'lucide-react'
 import StatusTag from './StatusTag'
-import type { RankingFilters, RankingPayload, RankingRow } from './turnTypes'
+import type { MerchandisingMove, RankingFilters, RankingPayload, RankingRow } from './turnTypes'
 import { formatCount } from '../../utils/count'
 
 export interface RankingPanelProps {
@@ -45,6 +46,11 @@ const REMOVED_LABELS: Record<string, (n: number) => string> = {
 }
 
 /** A row whose name the receipt did not record: say what the number is, so it never reads as a count. */
+/** The note under the table for a product a declared rule moved after rerank; the terminal says the same. */
+export function merchandisingNote(move: MerchandisingMove): string {
+  return `* ${move.product}: moved from ${move.from ?? EMPTY} to ${move.to ?? EMPTY} after rerank by the declared merchandising rule ${move.rule_id}`
+}
+
 export function unnamedProduct(productId: string): string {
   return `Product ${productId}`
 }
@@ -105,6 +111,12 @@ function Row({ row, k, maxFused, fused }: { row: RankingRow; k: number; maxFused
       <span className="tn-rank-pos" role="cell">
         {row.after}
         <Movement moved={row.moved} />
+        {row.rule ? (
+          <span className="tn-rank-rule" title={row.rule}>
+            <span aria-hidden="true">*</span>
+            <span className="gov-visually-hidden">moved by a declared merchandising rule</span>
+          </span>
+        ) : null}
       </span>
       <span className="tn-rank-name" role="cell">{row.name ?? unnamedProduct(row.product_id)}</span>
       <span className="tn-rank-num" role="cell">{row.fts_rank ? `#${row.fts_rank}` : EMPTY}</span>
@@ -178,6 +190,11 @@ export default function RankingPanel({ ranking, id, className, resultsNote }: Ra
           </div>
         </div>
       )}
+      {(ranking.merchandising ?? []).map(move => (
+        <span key={`${move.rule_id}:${move.product}`} className="tn-rank-note" data-testid="ranking-merchandising">
+          {merchandisingNote(move)}
+        </span>
+      ))}
       {ranking.note && <span className="tn-rank-note">{ranking.note}</span>}
       {footNote}
     </section>

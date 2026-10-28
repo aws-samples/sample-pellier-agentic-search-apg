@@ -195,8 +195,27 @@ def _int(value: Any) -> Optional[int]:
 
 
 def _moved(before: Optional[int], after: int) -> Optional[int]:
-    """How many places rerank moved a row: up is positive; unknown without a fused rank."""
+    """How many places a row moved from the fused order: up is positive; unknown without a fused rank."""
     return None if before is None else before - after
+
+
+def merchandising_moves(rules: Any) -> List[Dict[str, Any]]:
+    """The declared merchandising rules that moved a product after rerank, one entry each.
+
+    Rerank alone does not set the final order: a declared rule can promote a curated product
+    (``store_tools.apply_merchandising_rules``). The panel and the terminal name the rule, so a
+    first row with a low rerank score reads as the rule's doing, not as an error.
+    """
+    moves: List[Dict[str, Any]] = []
+    for rule in rules if isinstance(rules, list) else []:
+        if isinstance(rule, dict) and rule.get("product") and rule.get("ruleId"):
+            moves.append({"rule_id": str(rule["ruleId"]), "product": str(rule["product"]),
+                          "from": _int(rule.get("fromRank")), "to": _int(rule.get("toRank"))})
+    return moves
+
+
+def _rule_for(name: Any, moves: Sequence[Dict[str, Any]]) -> Optional[str]:
+    return next((move["rule_id"] for move in moves if move["product"] == name), None)
 
 
 def ranking_from_execution(
@@ -206,6 +225,7 @@ def ranking_from_execution(
     counts: Optional[Dict[str, Any]],
     rrf_k: int = RRF_K_DEFAULT,
     top: int = TOP_ROWS,
+    merchandising: Sequence[Dict[str, Any]] = (),
 ) -> Dict[str, Any]:
     """The in-process ranking payload, from one real ``SearchExecution``.
 
@@ -217,9 +237,12 @@ def ranking_from_execution(
         counts: The filter counts, or ``None`` when they were not taken.
         rrf_k: The RRF constant, so a reader can redraw ``1 / (k + rank)``.
         top: How many final rows to carry.
+        merchandising: The declared rules that fired, as ``apply_merchandising_rules``
+            reports them.
     """
     candidates = list(getattr(execution, "candidates", None) or [])
     before = {str(row.get("product_id")): index + 1 for index, row in enumerate(candidates)}
+    moves = merchandising_moves(list(merchandising))
     rows: List[Dict[str, Any]] = []
     for index, row in enumerate(list(final_rows)[:top]):
         pid = str(row.get("product_id"))
@@ -234,6 +257,7 @@ def ranking_from_execution(
             "before": before.get(pid),
             "after": index + 1,
             "moved": _moved(before.get(pid), index + 1),
+            "rule": _rule_for(row.get("name"), moves),
         })
     payload: Dict[str, Any] = {
         "available": True,
@@ -248,6 +272,7 @@ def ranking_from_execution(
         },
         "filters": counts,
         "rows": rows,
+        "merchandising": moves,
     }
     if counts:
         # The strict first pass also asks for the preferences the shopper
@@ -292,6 +317,7 @@ def ranking_from_receipt(
             names.setdefault(str(snapshot["entity_id"]), str(snapshot["quote"]).split(":")[0])
 
     before = {pid: index + 1 for index, pid in enumerate(candidates)}
+    moves = merchandising_moves(_jsonb(receipt.get("merchandising_rules"), []))
     final = receipt_final_order(receipt)
     rows: List[Dict[str, Any]] = []
     for index, pid in enumerate(final[:top]):
@@ -306,6 +332,7 @@ def ranking_from_receipt(
             "before": before.get(pid),
             "after": index + 1,
             "moved": _moved(before.get(pid), index + 1),
+            "rule": _rule_for(names.get(pid), moves),
         })
     config = _jsonb(receipt.get("retrieval_config"), {})
     return {
@@ -322,6 +349,7 @@ def ranking_from_receipt(
         },
         "filters": None,
         "rows": rows,
+        "merchandising": moves,
         "note": "Read from the retrieval receipt: no vector similarity or filter counts on this rail",
     }
 

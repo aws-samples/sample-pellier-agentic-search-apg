@@ -1753,6 +1753,7 @@ def search_products(
         evidence({
             "execution": execution,
             "final_rows": ordered,
+            "merchandising": merchandising,
             "receipt_id": receipt_id,
             "rrf_k": int(knobs.get("rrf_k") or DEFAULT_RETRIEVAL_CONFIG["rrf_k"]),
             "result_ids": result_product_ids(

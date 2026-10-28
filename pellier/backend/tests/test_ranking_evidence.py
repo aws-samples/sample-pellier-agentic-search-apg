@@ -246,3 +246,42 @@ def test_unavailable_payload_says_so_plainly() -> None:
         "rail": "gateway-mcp",
         "reason": "No retrieval receipt was written for this turn",
     }
+
+
+def test_a_declared_merchandising_rule_is_named_on_the_row_it_moved() -> None:
+    """Rerank does not set the final order alone: Anna's housewarming hero is promoted by a
+    declared rule after rerank. The panel and the terminal name the rule on that row, so a first
+    row with a low rerank score reads as the rule's doing, not as a broken ranking."""
+    execution = _fixture_execution()
+    promoted, rules = store_tools.apply_merchandising_rules("a housewarming vase", list(
+        reversed(execution.ordered)))
+    assert promoted[0]["name"] == "Tall Stoneware Vase" and rules
+    ranking = ranking_from_execution(execution, final_rows=promoted, counts=None,
+                                     merchandising=rules)
+
+    assert ranking["merchandising"] == [{"rule_id": "merch.milestone-home-gift.v1",
+                                         "product": "Tall Stoneware Vase",
+                                         "from": rules[0]["fromRank"], "to": 1}]
+    assert ranking["rows"][0]["rule"] == "merch.milestone-home-gift.v1"
+    assert all(row["rule"] is None for row in ranking["rows"][1:])
+
+    plain = ranking_from_execution(execution, final_rows=execution.ordered, counts=None)
+    assert plain["merchandising"] == [] and all(row["rule"] is None for row in plain["rows"])
+
+
+def test_the_receipt_rail_names_the_same_rule() -> None:
+    receipt = {
+        "candidate_product_ids": json.dumps(["1", "3"]),
+        "vector_ranks": json.dumps({"1": 1, "3": 2}),
+        "lexical_ranks": json.dumps({}),
+        "rrf_scores": json.dumps({"1": 0.0164, "3": 0.0161}),
+        "rerank_scores": json.dumps({"1": 0.2, "3": 0.9}),
+        "citation_ids": json.dumps(["1", "3"]),
+        "merchandising_rules": json.dumps([{"ruleId": "merch.milestone-home-gift.v1",
+                                            "product": "Tall Stoneware Vase",
+                                            "fromRank": 2, "toRank": 1}]),
+    }
+    ranking = ranking_from_receipt(receipt, names={"1": "Tall Stoneware Vase",
+                                                   "3": "Brass Photo Frame"})
+    assert ranking["merchandising"][0]["from"] == 2
+    assert [row["rule"] for row in ranking["rows"]] == ["merch.milestone-home-gift.v1", None]

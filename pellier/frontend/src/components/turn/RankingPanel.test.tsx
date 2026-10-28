@@ -28,6 +28,22 @@ const RANKING: RankingPayload = {
 }
 
 describe('RankingPanel', () => {
+  it('names a declared merchandising rule on the row it moved, so a low rerank score at #1 reads right', () => {
+    const rows = RANKING.rows!.map((row, index) => (index === 0 ? { ...row, rule: 'merch.milestone-home-gift.v1' } : row))
+    render(<RankingPanel ranking={{ ...RANKING, rows, merchandising: [{ rule_id: 'merch.milestone-home-gift.v1', product: 'Stoneware Mugs, Set of 2', from: 4, to: 1 }] }} />)
+    const [first, second] = screen.getAllByTestId('ranking-row')
+    expect(first).toHaveTextContent('moved by a declared merchandising rule')
+    expect(second).not.toHaveTextContent('declared merchandising rule')
+    expect(screen.getByTestId('ranking-merchandising')).toHaveTextContent(
+      '* Stoneware Mugs, Set of 2: moved from 4 to 1 after rerank by the declared merchandising rule merch.milestone-home-gift.v1',
+    )
+  })
+
+  it('adds no rule note when no rule fired', () => {
+    render(<RankingPanel ranking={RANKING} />)
+    expect(screen.queryByTestId('ranking-merchandising')).toBeNull()
+  })
+
   it('matches the prototype head: title, legend and method line', () => {
     render(<RankingPanel ranking={RANKING} />)
     const panel = screen.getByTestId('ranking-panel')

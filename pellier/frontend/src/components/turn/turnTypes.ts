@@ -42,8 +42,18 @@ export interface RankingRow {
   rerank_score: number | null
   before: number | null
   after: number
-  /** How many places rerank moved the row, up positive; null without a fused rank. */
+  /** How many places the row moved from the fused order, up positive; null without a fused rank. */
   moved: number | null
+  /** The declared merchandising rule that moved this row after rerank, when one did. */
+  rule?: string | null
+}
+
+/** A declared merchandising rule that moved a product after rerank, from one position to another. */
+export interface MerchandisingMove {
+  rule_id: string
+  product: string
+  from: number | null
+  to: number | null
 }
 
 /** One excluded value and how many products it removed, with the noun to show ("4 candles"). */
@@ -71,6 +81,8 @@ export interface RankingPayload {
   arms?: { full_text: number; vector: number; fused: number }
   filters?: RankingFilters | null
   rows?: RankingRow[]
+  /** Declared merchandising rules that moved a product after rerank. */
+  merchandising?: MerchandisingMove[]
   note?: string
   receipt_id?: number | null
 }
