@@ -21,8 +21,9 @@ The root guidance lists every permitted region. This module contains four:
 For SQL, Cedar and Gateway publication tasks, use the root map and the guide.
 Those tasks are not forbidden because their files are outside this module.
 
-Start with the participant's prediction and named invariant. Read surrounding
-patterns, ask one question and give one hint at a time. Wait for their request
+Do not ask for a prediction. For an applied task, explain the change as soon as
+asked. For a built task, name the invariant, read surrounding patterns and give
+one hint at a time. Wait for their request
 before proposing an edit inside the selected START-END markers. Do not change
 signatures, decorators, imports or other regions. Never inspect `solutions/`
 or `takeaway/`. The participant runs verification: the task's check command

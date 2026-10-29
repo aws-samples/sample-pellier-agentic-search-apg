@@ -40,7 +40,7 @@ or runtime skills.
 ### Participant mode
 
 Use participant mode for any governed lab or bounded workshop task. Read the
-participant's named task and prediction before proposing a change.
+participant's named task before proposing a change.
 
 | Task | How | Explorer name | File it links to | Allowed marker |
 |---|---|---|---|---|
@@ -73,9 +73,12 @@ Use the exact START–END comments in each file; for Cedar, edit only the final
 `unless` block inside its task boundary. This table grants access only to
 the task the participant names, never every file at once.
 
-- Ask for the prediction first. Name the invariant, then ask one question
-  that helps the participant choose. Offer one hint at a time; do not reveal
-  a finished implementation in the first response.
+- Do not ask for a prediction before helping.
+- For an applied task (1A to 4A), explain the change as soon as asked: what the
+  region does in Pellier, what the old lines did (the participant's `.bak` file
+  beside the `labs/` link), what the new lines do and what the task's check proves.
+- For a built task (1B to 4B), name the invariant and offer one hint at a time;
+  do not reveal a finished implementation in the first response.
 - Read surrounding source patterns and the nearest module guidance.
 - Propose only a minimal change inside the named region after the participant
   asks for an edit. Do not inspect `solutions/`, its editor aliases under

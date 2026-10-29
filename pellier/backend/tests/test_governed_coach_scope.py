@@ -21,7 +21,8 @@ def test_coach_scope_covers_every_marker_without_revealing_answers():
     for exercise in module.FILE_EXERCISES:
         assert exercise.destination in root
     assert 'Lab 2 only' not in backend
-    assert 'prediction' in root and 'one hint' in root
+    assert 'one hint' in root and 'explain the change as soon as asked' in root
+    assert 'Ask for the prediction' not in root and 'participant\'s prediction' not in backend
     assert 'Never inspect `solutions/`' in backend
 
 
