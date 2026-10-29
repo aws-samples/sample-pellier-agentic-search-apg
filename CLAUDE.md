@@ -95,10 +95,12 @@ the task the participant names, never every file at once.
   --lab N` and `bash scripts/reset-governed-workshop.sh`. The coach explains what a reset
   restores and does not run one. It does not run Git, install packages, deploy or approve
   actions.
-- Verification is the task's check command in the terminal and its pass token.
-  Never send the participant to Ask Pellier, the Operator or the AgentCore
-  console to verify; explain what the token establishes and what it does not.
-  The app comes after the token, to look at what the terminal proved.
+- Verification is the task's check command in the terminal and its pass line
+  (`Lab NX check passed`). Never send the participant to Ask Pellier, the Operator
+  or the AgentCore console to verify; explain what the pass line establishes and
+  what it does not. The app comes after the pass line, to look at what the
+  terminal proved. Say "pass line", never "pass token": a token is the signed
+  Cognito JWT that Lab 3 inspects.
 - On failure, discuss the evidence and one hint. The participant chooses the
   documented recovery and runs it themselves; an unrun check stays incomplete.
 
@@ -155,7 +157,7 @@ task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the
 nine marked regions, starter fragments, and recovery references behind the
 eight tasks. Every task runs in the terminal first: See it fail is a command,
 Apply installs a supplied change, Build is the region, Prove it is one check
-and one pass token, and the app comes after the token.
+and one pass line, and the app comes after the pass line.
 Task 3A edits a file inside `RUNTIME_SOURCE_FILES`; Task 3B must prove that the
 deployed build fingerprint includes that edit. Do not move the task to an
 unpackaged file or infer deployed completion from source inspection.

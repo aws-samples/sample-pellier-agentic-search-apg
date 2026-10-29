@@ -26,8 +26,8 @@ evidence: a supplied SQL file, a check, or `uv run scripts/lab_run.py send`, whi
 sends the customer's exact sentence. The fix is one of two verbs: Apply installs a
 supplied change by command (1A to 4A) and Build is the edit in the named region (1B to 4B and
 Lab 1's optional fusion file). Run is for a supplied file you only run and read.
-Prove it is one command and one pass token. The Storefront's Builder view, the
-Operator and the AgentCore console come after the token and show what the
+Prove it is one command and one pass line. The Storefront's Builder view, the
+Operator and the AgentCore console come after the pass line and show what the
 terminal proved; nothing the proof depends on happens there. Lab 4's decisions
 are the exception: Nadia's approval and the Operator's **Execute**, **Execute
 again** and **Replay with the same key** happen in the Operator, and their proof comes
@@ -51,7 +51,7 @@ check prints `Lab NB check passed`; a SQL file a task's Build runs prints
 `Lab NB <thing> check passed`; a SQL file that belongs to no task carries no
 task letter.
 
-| Task | Region | Check | Pass token |
+| Task | Region | Check | Pass line |
 |---|---|---|---|
 | 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `uv run scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
 | 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `uv run scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |

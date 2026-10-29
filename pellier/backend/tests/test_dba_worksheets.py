@@ -3,7 +3,7 @@
 ``workshop/lab-3-agent-workload.sql`` reads pg_stat_statements role by role after
 Lab 3, and ``workshop/wrap-up-reconstruct.sql`` rebuilds Jessica's credit from her
 request to the row at the Wrap-up. Both are supplied, so nothing here has a region:
-these tests hold their shape (laptop width, read-only, one token) and the two
+these tests hold their shape (laptop width, read-only, one pass line) and the two
 things each one depends on staying true in the source.
 """
 
@@ -88,7 +88,7 @@ def test_the_workload_worksheet_says_unchecked_without_the_library() -> None:
     (r"SELECT ticket_id, subject, status, channel, last_note", store_tools._TICKETS_SQL),
 ], ids=["get_orders", "get_tickets"])
 def test_the_token_counts_the_tools_own_statements(marker: str, sql: str) -> None:
-    """The pass token counts get_orders and get_tickets by their SQL, so the
+    """The pass line counts get_orders and get_tickets by their SQL, so the
     worksheet's markers must keep matching the statements the tools run. The
     row-ownership worksheet's own probes (also run as pellier_agent) must not."""
     assert f"'{marker}'" in WORKLOAD.read_text(encoding="utf-8")

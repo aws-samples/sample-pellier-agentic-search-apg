@@ -27,7 +27,7 @@ one hint at a time. Wait for their request
 before proposing an edit inside the selected START-END markers. Do not change
 signatures, decorators, imports or other regions. Never inspect `solutions/`
 or `takeaway/`. The participant runs verification: the task's check command
-and its pass token, in the terminal. Never send them to the app to verify;
+and its pass line, in the terminal. Never send them to the app to verify;
 explain what the result establishes and what it does not. A passing
 in-process check is not managed execution proof.
 

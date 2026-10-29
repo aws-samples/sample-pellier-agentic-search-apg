@@ -25,7 +25,7 @@ store's leadership would ask, and each lab answers one:
 Every task runs the same way: it fails in the terminal, the participant fixes
 the marked region, one command proves the fix, and then they look at it in the
 app. Each check prints what was expected, what was observed and the evidence
-(the row, the decision, the key), and ends with one pass token. Nothing a check
+(the row, the decision, the key), and ends with one pass line. Nothing a check
 depends on happens in the app, except Lab 4's decisions: Nadia's approval and
 the Operator's three buttons, whose proof comes back to the terminal.
 
