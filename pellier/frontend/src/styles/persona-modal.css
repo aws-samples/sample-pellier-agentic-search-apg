@@ -46,7 +46,7 @@
   margin-bottom: 7px;
   color: var(--red-1);
   font-family: var(--mono);
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 650;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -67,7 +67,7 @@
   margin: 8px 0 0;
   color: var(--ink-3);
   font-family: var(--sans);
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.5;
 }
 
@@ -200,7 +200,7 @@
 .pm-tag {
   color: var(--red-1);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   letter-spacing: 0.08em;
   line-height: 1.2;
@@ -211,7 +211,7 @@
   margin-top: 8px;
   color: var(--ink-3);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.45;
 }
 
@@ -225,7 +225,7 @@
   padding-right: 36px;
   color: var(--ink-4);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -295,7 +295,7 @@
   border-radius: 6px;
   background: color-mix(in srgb, var(--red-1) 7%, var(--cream-1));
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -310,7 +310,7 @@
   background: var(--cream-2);
   color: var(--ink-3);
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .pm-foot strong {
@@ -326,7 +326,7 @@
   color: var(--red-1);
   cursor: pointer;
   font-family: var(--sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
 }
 

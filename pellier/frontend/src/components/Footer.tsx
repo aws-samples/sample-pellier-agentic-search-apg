@@ -89,7 +89,7 @@ function BrandColumn() {
     >
       <p
         data-testid="footer-brand-tagline"
-        className="text-[13px] leading-relaxed text-ink-2 m-0 max-w-[260px]"
+        className="text-[14px] leading-relaxed text-ink-2 m-0 max-w-[260px]"
       >
         {FOOTER.BRAND.TAGLINE}
       </p>
@@ -124,7 +124,7 @@ function ExploreColumn() {
     >
       <h3
         id="footer-column-explore-heading"
-        className="font-sans text-[13px] font-medium text-ink m-0"
+        className="font-sans text-[14px] font-medium text-ink m-0"
       >
         {FOOTER.EXPLORE.HEADING}
       </h3>
@@ -171,17 +171,17 @@ function EditorialColumn({
     >
       <h3
         id={`${testId}-heading`}
-        className="font-sans text-[13px] font-medium text-ink m-0"
+        className="font-sans text-[14px] font-medium text-ink m-0"
       >
         {heading}
       </h3>
-      <p className="font-sans text-[15px] leading-[1.55] text-ink-2 m-0">
+      <p className="font-sans text-[16px] leading-[1.55] text-ink-2 m-0">
         {copy}
       </p>
       <Link
         to={ctaHref}
         data-testid={`${testId}-cta`}
-        className="pellier-action-quiet mt-1 w-fit text-[13px] no-underline"
+        className="pellier-action-quiet mt-1 w-fit text-[14px] no-underline"
       >
         {ctaLabel}
       </Link>

@@ -136,7 +136,7 @@ export const PolicyDecisionBadge: React.FC<PolicyDecisionBadgeProps> = ({
         alignItems: 'center',
         gap: '5px',
         fontFamily: 'var(--dl-font-mono)',
-        fontSize: size === 'md' ? '12px' : '11px',
+        fontSize: size === 'md' ? '13px' : '12px',
         letterSpacing: '0.1em',
         fontWeight: 600,
         color: p.fg,

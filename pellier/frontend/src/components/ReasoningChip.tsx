@@ -79,7 +79,7 @@ function PickedChip({ chip }: ReasoningChipProps) {
         color: c.ink2,
         fontFamily: SANS_STACK,
         fontStyle: 'normal',
-        fontSize: 13,
+        fontSize: 14,
         lineHeight: 1.45,
       }}
     >
@@ -99,7 +99,7 @@ function MatchedChip({ chip }: ReasoningChipProps) {
       style={{
         color: c.muted,
         fontFamily: MONO_STACK,
-        fontSize: 10,
+        fontSize: 11,
         letterSpacing: '0.06em',
         lineHeight: 1.5,
       }}
@@ -120,7 +120,7 @@ function PricingChip({ chip }: ReasoningChipProps) {
       style={{
         color: c.ink2,
         fontFamily: 'var(--sans)',
-        fontSize: 12,
+        fontSize: 13,
         lineHeight: 1.5,
         letterSpacing: '0.01em',
       }}
@@ -152,7 +152,7 @@ function ContextChip({ chip }: ReasoningChipProps) {
         color: c.ink2,
         fontFamily: SANS_STACK,
         fontStyle: 'normal',
-        fontSize: 13,
+        fontSize: 14,
         lineHeight: 1.45,
       }}
     >

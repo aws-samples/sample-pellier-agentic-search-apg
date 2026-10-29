@@ -83,7 +83,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
         </span>
         <span
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 600,
             letterSpacing: '0.16em',
             textTransform: 'uppercase',
@@ -97,7 +97,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
       <p
         style={{
           margin: 0,
-          fontSize: 14,
+          fontSize: 15,
           lineHeight: 1.55,
           color: 'var(--ink-soft)',
         }}
@@ -115,7 +115,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
             display: 'flex',
             flexDirection: 'column',
             gap: 4,
-            fontSize: 13,
+            fontSize: 14,
             lineHeight: 1.5,
             color: 'var(--ink-quiet)',
           }}
@@ -129,7 +129,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
                 aria-hidden="true"
                 style={{
                   fontFamily: 'var(--mono)',
-                  fontSize: 11,
+                  fontSize: 12,
                   color: 'color-mix(in srgb, var(--accent) 70%, transparent)',
                   minWidth: 14,
                 }}
@@ -156,7 +156,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
       >
         <span
           style={{
-            fontSize: 11,
+            fontSize: 12,
             color: 'var(--ink-quiet)',
           }}
         >
@@ -175,7 +175,7 @@ export default function StylistHandoffCard({ handoff }: StylistHandoffCardProps)
             borderRadius: 999,
             background: 'var(--ink)',
             color: 'var(--cream)',
-            fontSize: 12,
+            fontSize: 13,
             fontWeight: 500,
             letterSpacing: '0.02em',
             textDecoration: 'none',

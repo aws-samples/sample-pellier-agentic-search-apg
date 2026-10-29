@@ -2,7 +2,7 @@
  * SectionEyebrow contract.
  *
  * The whole point of the primitive is that one recipe replaces five, so the
- * recipe itself is what is asserted: sans, 13px, 600, sentence case. A
+ * recipe itself is what is asserted: sans, 14px, 600, sentence case. A
  * snapshot would pass while someone quietly moved it to mono at 10px, which is
  * exactly the drift this component exists to end.
  */
@@ -18,7 +18,7 @@ describe('SectionEyebrow', () => {
     const eyebrow = screen.getByTestId('eyebrow')
     expect(eyebrow).toHaveStyle({
       fontFamily: 'var(--obs-heading)',
-      fontSize: '13px',
+      fontSize: '14px',
       fontWeight: '600',
     })
     expect(eyebrow.style.textTransform).toBe('')
@@ -53,7 +53,7 @@ describe('SectionEyebrow', () => {
     )
     const muted = screen.getByTestId('muted')
     expect(muted).toHaveAttribute('data-tone', 'muted')
-    // ink-3, not ink-4: at 13px, ink-4 on the cream card measured 3.85:1 against
+    // ink-3, not ink-4: at 14px, ink-4 on the cream card measured 3.85:1 against
     // the 4.5:1 floor (axe, /observatory/architecture/runtime).
     expect(muted).toHaveStyle({ color: 'var(--obs-ink-3)' })
   })

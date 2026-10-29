@@ -1,5 +1,5 @@
 /**
- * The Operator desk never renders text below 11px.
+ * The Operator desk never renders text below 12px.
  *
  * WORKSHOP.md states this to co-speakers as a shipped property of the surface,
  * and until this test existed nothing enforced it. Half the Observatory had
@@ -8,7 +8,7 @@
  * made two surfaces that share the storefront's palette and typefaces read as
  * a different, smaller product.
  *
- * 11px is the storefront's eyebrow size. Below it, tracked uppercase stops
+ * 12px is the storefront's eyebrow size (--text-label). Below it, tracked uppercase stops
  * being text and becomes texture, and on a 14-inch workshop laptop at the back
  * of a room it stops being anything at all.
  *
@@ -50,7 +50,7 @@ const ALLOWED_BELOW_FLOOR = new Map<string, string>([
   // (empty today; add with a reason rather than lowering the floor)
 ])
 
-const FLOOR_PX = 11
+const FLOOR_PX = 12
 
 // `font-size: 9.5px` in CSS and `fontSize: '10px'` in inline React styles.
 // Matches only explicit px values -- rem, em, clamp() and var() are resolved
@@ -128,7 +128,7 @@ function findViolations(): Violation[] {
 }
 
 describe('Operator type floor', () => {
-  it('renders no text below 11px', () => {
+  it('renders no text below 12px', () => {
     const violations = findViolations()
     const report = violations
       .map((v) => `  ${v.file}:${v.line}  ${v.size}px  ${v.text}`)

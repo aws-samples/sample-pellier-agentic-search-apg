@@ -180,8 +180,8 @@ describe('AuthModal structure (storefront.md)', () => {
 
     const footer = screen.getByTestId('auth-modal-footer')
     expect(footer).toHaveTextContent(AUTH_MODAL.FOOTER)
-    // 10px mono strip per storefront.md.
-    expect(footer.style.fontSize).toBe('10px')
+    // 11px mono strip, a step above storefront.md's 10px.
+    expect(footer.style.fontSize).toBe('11px')
     expect(footer.style.fontFamily.toLowerCase()).toMatch(/mono/)
 
     // Shield icon is present for visual hygiene.

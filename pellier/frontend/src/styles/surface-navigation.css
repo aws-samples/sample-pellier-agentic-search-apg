@@ -11,7 +11,7 @@
   --pellier-journey-height: 0px;
   --pellier-chrome-height: calc(var(--pellier-surface-bar-height) + var(--pellier-journey-height));
   --pellier-storefront-nav-height: 56px;
-  --pellier-nav-font-size: 13.5px;
+  --pellier-nav-font-size: 14.5px;
 }
 
 .pellier-surface-bar {
@@ -188,7 +188,7 @@
   background: var(--dl-ink);
   color: var(--dl-on-ink);
   font-family: var(--dl-font-sans);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -232,7 +232,7 @@
 /* The wordmark keeps its 31px at every width; on a 390px phone it still
    clears the theme control and the Ask Pellier button on one line. */
 @media (max-width: 760px) {
-  :root { --pellier-nav-font-size: 13px; }
+  :root { --pellier-nav-font-size: 14px; }
   .pellier-surface-bar { gap: 12px; padding-inline: 16px; }
   .pellier-surface-link { padding-inline: 12px; }
 }
@@ -282,7 +282,7 @@
     min-height: 44px;
     justify-content: space-between;
     padding-inline: 6px;
-    font-size: 14px;
+    font-size: 15px;
   }
 
   /* The switch is drawn small and answers a 44px target. */

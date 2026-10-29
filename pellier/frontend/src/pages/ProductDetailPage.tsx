@@ -288,7 +288,7 @@ export default function ProductDetailPage() {
               to="/#shop"
               className="
                 mt-8 inline-flex items-center gap-2 rounded-full bg-ink
-                px-7 py-3 font-sans text-[13px] font-medium text-on-ink
+                px-7 py-3 font-sans text-[14px] font-medium text-on-ink
                 transition-colors duration-fade hover:bg-ink-2
               "
             >
@@ -313,7 +313,7 @@ export default function ProductDetailPage() {
       <main className="bg-page">
         <nav
           aria-label="Breadcrumb"
-          className="mx-auto max-w-[1200px] px-container-x pt-3 font-sans text-[13px] text-muted"
+          className="mx-auto max-w-[1200px] px-container-x pt-3 font-sans text-[14px] text-muted"
         >
           <ol className="flex flex-wrap items-center gap-2">
             <li>
@@ -407,7 +407,7 @@ export default function ProductDetailPage() {
                 >
                   {view.name}
                 </h1>
-                <div className="mt-3 flex flex-wrap items-center gap-2 font-sans text-[13px] text-muted">
+                <div className="mt-3 flex flex-wrap items-center gap-2 font-sans text-[14px] text-muted">
                   <span>{view.color}</span>
                   <span aria-hidden="true">/</span>
                   <span>{view.category}</span>
@@ -443,21 +443,21 @@ export default function ProductDetailPage() {
               <section aria-labelledby="product-description-heading">
                 <h2
                   id="product-description-heading"
-                  className="font-sans text-[13px] font-medium text-ink"
+                  className="font-sans text-[14px] font-medium text-ink"
                 >
                   {PRODUCT_DETAIL.DESCRIPTION_HEADING}
                 </h2>
                 {description ? (
                   <p
                     data-testid="product-description"
-                    className="mt-3 max-w-[52ch] font-sans text-[15px] leading-relaxed text-ink-2"
+                    className="mt-3 max-w-[52ch] font-sans text-[16px] leading-relaxed text-ink-2"
                   >
                     {description}
                   </p>
                 ) : (
                   <p
                     data-testid="product-description-degraded"
-                    className="mt-3 font-sans text-[13px] text-muted"
+                    className="mt-3 font-sans text-[14px] text-muted"
                   >
                     {loading
                       ? PRODUCT_DETAIL.AVAILABILITY_READING
@@ -499,7 +499,7 @@ export default function ProductDetailPage() {
                 <section aria-labelledby="product-why-heading">
                   <h2
                     id="product-why-heading"
-                    className="font-sans text-[13px] font-medium text-ink"
+                    className="font-sans text-[14px] font-medium text-ink"
                   >
                     {PRODUCT_DETAIL.WHY_HEADING}
                   </h2>
@@ -513,7 +513,7 @@ export default function ProductDetailPage() {
                 <section aria-labelledby="product-signals-heading">
                   <h2
                     id="product-signals-heading"
-                    className="font-sans text-[13px] font-medium text-ink"
+                    className="font-sans text-[14px] font-medium text-ink"
                   >
                     {PRODUCT_DETAIL.SIGNALS_HEADING}
                   </h2>

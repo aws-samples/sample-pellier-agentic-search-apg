@@ -126,7 +126,7 @@ export const GovernedSeal: React.FC<GovernedSealProps> = ({
         alignItems: 'center',
         gap: '6px',
         fontFamily: 'var(--dl-font-mono)',
-        fontSize: '11px',
+        fontSize: '12px',
         letterSpacing: '0.12em',
         textTransform: 'uppercase',
         fontWeight: 600,
@@ -159,7 +159,7 @@ export const GovernedSeal: React.FC<GovernedSealProps> = ({
       <p
         style={{
           fontFamily: 'var(--dl-font-sans)',
-          fontSize: '13px',
+          fontSize: '14px',
           lineHeight: 1.55,
           color: 'var(--dl-ink-2)',
           margin: 0,
@@ -171,7 +171,7 @@ export const GovernedSeal: React.FC<GovernedSealProps> = ({
         <p
           style={{
             fontFamily: 'var(--dl-font-mono)',
-            fontSize: '11px',
+            fontSize: '12px',
             color: 'var(--gov-degraded-fg)',
             margin: 0,
           }}

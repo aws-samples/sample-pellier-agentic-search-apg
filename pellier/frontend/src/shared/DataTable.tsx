@@ -71,22 +71,22 @@ export interface DataTableProps<Row> {
 const ALIGN_STYLE: Record<DataTableAlign, React.CSSProperties> = {
   text: {
     fontFamily: 'var(--obs-sans)',
-    fontSize: '13px',
+    fontSize: '14px',
   },
   numeric: {
     fontFamily: 'var(--obs-mono)',
-    fontSize: '13px',
+    fontSize: '14px',
     fontVariantNumeric: 'tabular-nums',
   },
   code: {
     fontFamily: 'var(--obs-mono)',
-    fontSize: '13px',
+    fontSize: '14px',
   },
 }
 
 const HEADER_STYLE: React.CSSProperties = {
   fontFamily: 'var(--obs-heading)',
-  fontSize: '12px',
+  fontSize: '13px',
   fontWeight: 600,
   color: 'var(--obs-ink-4)',
   whiteSpace: 'nowrap',
@@ -117,7 +117,7 @@ export function DataTable<Row>({
           borderCollapse: 'collapse',
           borderSpacing: 0,
           fontFamily: 'var(--obs-sans)',
-          fontSize: '13px',
+          fontSize: '14px',
           lineHeight: 1.45,
           color: 'var(--obs-ink-2)',
         }}

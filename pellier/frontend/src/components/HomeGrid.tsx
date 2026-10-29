@@ -191,7 +191,7 @@ export default function HomeGrid() {
           <p className="pellier-statement mt-3" style={{ fontSize: 'var(--text-section)' }}>
             {HOME_GRID.UNAVAILABLE_TITLE}
           </p>
-          <p className="mt-4 font-sans text-[14px] text-ink-2" role="alert">{HOME_GRID.UNAVAILABLE_BODY}</p>
+          <p className="mt-4 font-sans text-[15px] text-ink-2" role="alert">{HOME_GRID.UNAVAILABLE_BODY}</p>
           <button type="button" className="pellier-retry mt-5" onClick={() => setRevision(v => v + 1)}>
             {HOME_GRID.RELOAD}
           </button>
@@ -201,7 +201,7 @@ export default function HomeGrid() {
       {ready && ready.products.length === 0 ? (
         <div className="mx-auto max-w-[760px] py-16 text-center">
           <p className="pellier-eyebrow">{HOME_GRID.EMPTY_EYEBROW}</p>
-          <p className="mt-4 font-sans text-[14px] text-ink-2">{HOME_GRID.EMPTY_BODY}</p>
+          <p className="mt-4 font-sans text-[15px] text-ink-2">{HOME_GRID.EMPTY_BODY}</p>
         </div>
       ) : null}
 

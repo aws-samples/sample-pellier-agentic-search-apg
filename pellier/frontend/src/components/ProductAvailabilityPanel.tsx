@@ -57,7 +57,7 @@ export default function ProductAvailabilityPanel({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2
           id="product-availability-heading"
-          className="font-sans text-[13px] font-medium text-ink"
+          className="font-sans text-[14px] font-medium text-ink"
         >
           {PRODUCT_DETAIL.AVAILABILITY_HEADING}
         </h2>
@@ -65,7 +65,7 @@ export default function ProductAvailabilityPanel({
         {wasRead ? (
           <span
             data-testid="product-availability-source"
-            className="font-sans text-[12px] text-muted"
+            className="font-sans text-[13px] text-muted"
           >
             {PRODUCT_DETAIL.AVAILABILITY_SOURCE}
           </span>
@@ -73,7 +73,7 @@ export default function ProductAvailabilityPanel({
       </div>
 
       {loading ? (
-        <p className="mt-3 font-sans text-[13px] text-muted">
+        <p className="mt-3 font-sans text-[14px] text-muted">
           {PRODUCT_DETAIL.AVAILABILITY_READING}
         </p>
       ) : null}
@@ -81,7 +81,7 @@ export default function ProductAvailabilityPanel({
       {!loading && !wasRead ? (
         <p
           data-testid="product-availability-degraded"
-          className="mt-3 font-sans text-[13px] text-ink-2"
+          className="mt-3 font-sans text-[14px] text-ink-2"
         >
           {PRODUCT_DETAIL.AVAILABILITY_UNAVAILABLE}
         </p>
@@ -116,7 +116,7 @@ export default function ProductAvailabilityPanel({
                       data-testid={`product-warehouse-${warehouse.warehouseId}`}
                       className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-2.5"
                     >
-                      <span className="font-sans text-[13px] text-ink">
+                      <span className="font-sans text-[14px] text-ink">
                         {warehouseNamesItsCity(warehouse) ? (
                           warehouse.city
                         ) : (
@@ -128,11 +128,11 @@ export default function ProductAvailabilityPanel({
                       </span>
                       <span className="flex items-baseline gap-3">
                         {ships ? (
-                          <span className="font-sans text-[12px] text-muted">
+                          <span className="font-sans text-[13px] text-muted">
                             {ships}
                           </span>
                         ) : null}
-                        <span className="font-mono text-[13px] text-ink">
+                        <span className="font-mono text-[14px] text-ink">
                           {warehouse.quantity}
                         </span>
                       </span>
@@ -140,12 +140,12 @@ export default function ProductAvailabilityPanel({
                   )
                 })}
               </ul>
-              <p className="mt-3 font-sans text-[12px] text-muted">
+              <p className="mt-3 font-sans text-[13px] text-muted">
                 {PRODUCT_DETAIL.WAREHOUSE_CAPTION}
               </p>
             </>
           ) : (
-            <p className="mt-3 font-sans text-[13px] text-muted">
+            <p className="mt-3 font-sans text-[14px] text-muted">
               {PRODUCT_DETAIL.WAREHOUSE_EMPTY}
             </p>
           )}

@@ -85,11 +85,11 @@
   --text-section:  clamp(26px, 3vw, 36px);   /* section head, sans 500 */
   --text-sub:      22px;                     /* sub-section, sans 500 */
   --text-card:     20px;                     /* card title, sans 500 */
-  --text-body:     15px;                     /* running text, sans 400 */
-  --text-meta:     13px;                     /* secondary, sans 400/500 */
-  --text-data:     12px;                     /* IDs and values, mono 400 */
-  --text-label:    11px;                     /* eyebrow, sans 600 upper */
-  --text-min:      11px;                     /* nothing renders below this */
+  --text-body:     16px;                     /* running text, sans 400 */
+  --text-meta:     14px;                     /* secondary, sans 400/500 */
+  --text-data:     13px;                     /* IDs and values, mono 400 */
+  --text-label:    12px;                     /* eyebrow, sans 600 upper */
+  --text-min:      12px;                     /* nothing renders below this */
 
   --tracking-display: -0.035em;
   --tracking-label:   0.08em;

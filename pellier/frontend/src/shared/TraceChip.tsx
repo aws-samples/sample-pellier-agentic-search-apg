@@ -57,7 +57,7 @@ export const TraceChip: React.FC<TraceChipProps> = ({
     alignItems: 'center',
     gap: isProvenance ? 5 : 6,
     fontFamily: 'var(--mono)',
-    fontSize: isProvenance ? 10.5 : 11,
+    fontSize: isProvenance ? 11.5 : 12,
     fontWeight: isProvenance ? 600 : 500,
     letterSpacing: isProvenance ? '0.08em' : '0.05em',
     fontFeatureSettings: "'calt' 1, 'liga' 1",

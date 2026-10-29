@@ -10,14 +10,14 @@
 .pellier-signin-content { width: 100%; margin-block: auto; padding-block: 34px; }
 .pellier-signin-content h1 { margin: 0; font: 500 clamp(28px, 3vw, 36px)/1.16 var(--dl-font-heading); letter-spacing: var(--dl-track-tight); text-wrap: balance; }
 .pellier-signin-content h1:focus { outline: none; }
-.pellier-signin-description { margin: 14px 0 30px; color: var(--dl-muted); font-size: 16px; line-height: 1.55; max-width: 34ch; }
+.pellier-signin-description { margin: 14px 0 30px; color: var(--dl-muted); font-size: 17px; line-height: 1.55; max-width: 34ch; }
 .pellier-signin form { display: grid; gap: 20px; }
 .pellier-signin-field { display: grid; gap: 8px; }
-.pellier-signin-field label { padding-inline: 4px; font-size: 14px; font-weight: 500; line-height: 1.5; }
+.pellier-signin-field label { padding-inline: 4px; font-size: 15px; font-weight: 500; line-height: 1.5; }
 .pellier-signin-label-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-block: -10px -6px; }
-.pellier-signin-label-row button { min-height: 44px; padding-inline: 10px; margin-right: -6px; border-radius: var(--dl-r-pill); color: var(--dl-accent); font-size: 13px; }
+.pellier-signin-label-row button { min-height: 44px; padding-inline: 10px; margin-right: -6px; border-radius: var(--dl-r-pill); color: var(--dl-accent); font-size: 14px; }
 .pellier-signin-label-row button:hover { background: var(--dl-paper-2); }
-.pellier-signin-field input { width: 100%; min-width: 0; min-height: 54px; border: 1px solid var(--dl-line-strong); border-radius: var(--dl-r-field); background: var(--dl-bg); color: var(--dl-ink); font: 400 16px/1.5 var(--dl-font-sans); padding: 14px 18px; caret-color: var(--dl-accent); transition: border-color 160ms ease-out; }
+.pellier-signin-field input { width: 100%; min-width: 0; min-height: 54px; border: 1px solid var(--dl-line-strong); border-radius: var(--dl-r-field); background: var(--dl-bg); color: var(--dl-ink); font: 400 17px/1.5 var(--dl-font-sans); padding: 14px 18px; caret-color: var(--dl-accent); transition: border-color 160ms ease-out; }
 .pellier-signin-field input:focus-visible { outline: 2px solid var(--dl-accent); outline-offset: 3px; border-color: var(--dl-line-strong); }
 .pellier-signin-field input:-webkit-autofill { -webkit-text-fill-color: var(--dl-ink); box-shadow: 0 0 0 1000px var(--dl-bg) inset; }
 .pellier-signin-field input[readonly] { opacity: 0.75; }
@@ -25,14 +25,14 @@
 .pellier-signin-password input { padding-right: 58px; }
 .pellier-signin-password button { position: absolute; right: 6px; top: 5px; display: grid; place-items: center; min-width: 44px; min-height: 44px; color: var(--dl-muted); border-radius: 50%; }
 .pellier-signin-password button:hover { background: var(--dl-paper-2); color: var(--dl-ink); }
-.pellier-signin-submit { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 54px; border-radius: var(--dl-r-pill); border: 1px solid var(--dl-ink); background: var(--dl-ink); color: var(--dl-on-ink); font: 500 15px/1.4 var(--dl-font-sans); margin-top: 4px; padding: 14px 20px; transition: background-color 180ms ease-out; }
+.pellier-signin-submit { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 54px; border-radius: var(--dl-r-pill); border: 1px solid var(--dl-ink); background: var(--dl-ink); color: var(--dl-on-ink); font: 500 16px/1.4 var(--dl-font-sans); margin-top: 4px; padding: 14px 20px; transition: background-color 180ms ease-out; }
 .pellier-signin-submit:hover:not(:disabled) { background: var(--dl-ink-2); border-color: var(--dl-ink-2); }
 .pellier-signin-submit:disabled { opacity: 0.65; cursor: wait; }
-.pellier-signin-feedback { padding: 12px 16px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-field); background: var(--dl-paper-2); font-size: 14px; line-height: 1.55; margin: 0; }
+.pellier-signin-feedback { padding: 12px 16px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-field); background: var(--dl-paper-2); font-size: 15px; line-height: 1.55; margin: 0; }
 .pellier-signin-feedback[data-tone='error'] { color: var(--dl-err); }
-.pellier-signin-alternative, .pellier-signin-back { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; width: 100%; margin-top: 12px; padding: 11px 18px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-pill); font: 400 13px/1.5 var(--dl-font-sans); color: var(--dl-ink); text-align: center; text-decoration: none; }
+.pellier-signin-alternative, .pellier-signin-back { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; width: 100%; margin-top: 12px; padding: 11px 18px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-pill); font: 400 14px/1.5 var(--dl-font-sans); color: var(--dl-ink); text-align: center; text-decoration: none; }
 .pellier-signin-alternative:hover, .pellier-signin-back:hover { border-color: var(--dl-line-strong); background: var(--dl-paper-2); }
-.pellier-signin-home { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; align-self: flex-start; padding: 10px 16px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-pill); font-size: 13px; color: var(--dl-muted); text-decoration: none; }
+.pellier-signin-home { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; align-self: flex-start; padding: 10px 16px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-pill); font-size: 14px; color: var(--dl-muted); text-decoration: none; }
 .pellier-signin-home:hover { border-color: var(--dl-line-strong); color: var(--dl-ink); }
 .pellier-signin a:focus-visible, .pellier-signin button:focus-visible { outline: 2px solid var(--dl-accent); outline-offset: 4px; }
 .pellier-signin-portrait { position: relative; isolation: isolate; min-width: 0; margin: 12px 12px 12px 0; overflow: hidden; border-radius: var(--pellier-image-radius-lg); box-shadow: var(--dl-frame); }

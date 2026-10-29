@@ -153,7 +153,7 @@ export default function PersonaTransitionOverlay() {
               <div
                 style={{
                   fontFamily: 'var(--mono)',
-                  fontSize: 10,
+                  fontSize: 11,
                   letterSpacing: '0.24em',
                   textTransform: 'uppercase',
                   color: 'var(--red-1)',
@@ -200,7 +200,7 @@ export default function PersonaTransitionOverlay() {
                   style={{
                     fontFamily: 'var(--sans)',
                     fontWeight: 400,
-                    fontSize: 15,
+                    fontSize: 16,
                     lineHeight: 1.6,
                     color: 'var(--ink-2)',
                     margin: '14px auto 0',

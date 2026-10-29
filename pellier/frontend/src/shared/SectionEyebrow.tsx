@@ -70,7 +70,7 @@ export const SectionEyebrow: React.FC<SectionEyebrowProps> = ({
         alignItems: 'center',
         gap: '8px',
         fontFamily: 'var(--obs-heading)',
-        fontSize: '13px',
+        fontSize: '14px',
         fontWeight: 600,
         letterSpacing: 0,
         lineHeight: 1.2,

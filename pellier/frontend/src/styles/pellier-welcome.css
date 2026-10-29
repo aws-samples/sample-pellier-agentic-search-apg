@@ -46,7 +46,7 @@
 .sf-cover-eyebrow {
   color: var(--dl-on-photo);
   font-family: var(--dl-font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -67,7 +67,7 @@
   gap: 7px;
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -93,7 +93,7 @@
 .sf-context {
   color: var(--dl-ink-2);
   font-family: var(--dl-font-sans);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
 }
 
@@ -131,7 +131,7 @@
   background: var(--dl-paper);
   color: var(--dl-ink);
   font-family: var(--dl-font-sans);
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
@@ -173,7 +173,7 @@
   margin-bottom: 6px;
   color: var(--dl-ink);
   font-family: var(--dl-font-sans);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   line-height: 1.5;
 }
@@ -195,7 +195,7 @@
   background: none;
   color: var(--dl-ink-2);
   font-family: var(--dl-font-sans);
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.45;
   text-align: left;
   cursor: pointer;

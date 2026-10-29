@@ -104,7 +104,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             margin: 0,
             maxWidth: '52ch',
             fontFamily: pageSize ? 'var(--sans)' : 'var(--obs-sans)',
-            fontSize: pageSize ? '16px' : '15px',
+            fontSize: pageSize ? '17px' : '16px',
             lineHeight: pageSize ? 1.65 : 1.55,
             color: 'var(--obs-ink-3)',
           }}
@@ -127,7 +127,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             margin: 0,
             maxWidth: '52ch',
             fontFamily: 'var(--obs-mono)',
-            fontSize: '12px',
+            fontSize: '13px',
             lineHeight: 1.5,
             letterSpacing: '0.02em',
             color: 'var(--obs-ink-4)',

@@ -63,7 +63,7 @@ function ProviderButton({ provider, label, testId, onClick }: ProviderButtonProp
         color: c.ink,
         border: `1px solid ${c.muted}`,
         fontFamily: 'var(--sans)',
-        fontSize: 14,
+        fontSize: 15,
         fontWeight: 500,
         letterSpacing: '0.02em',
         cursor: 'pointer',
@@ -188,7 +188,7 @@ export default function AuthModal() {
             data-testid="auth-modal-subheader"
             style={{
               margin: 0,
-              fontSize: 14,
+              fontSize: 15,
               color: c.ink2,
               lineHeight: 1.45,
             }}
@@ -202,7 +202,7 @@ export default function AuthModal() {
           <span
             data-testid="auth-modal-eyebrow"
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
               letterSpacing: '0.14em',
               color: c.ink2,
@@ -240,7 +240,7 @@ export default function AuthModal() {
           style={{
             marginTop: 20,
             textAlign: 'center',
-            fontSize: 12,
+            fontSize: 13,
             color: c.ink2,
             lineHeight: 1.45,
           }}
@@ -261,7 +261,7 @@ export default function AuthModal() {
             gap: 8,
             color: c.muted,
             fontFamily: MONO_STACK,
-            fontSize: 10,
+            fontSize: 11,
             letterSpacing: '0.04em',
           }}
         >

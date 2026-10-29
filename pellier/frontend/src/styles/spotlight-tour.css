@@ -74,7 +74,7 @@
 
 .spotlight-tour-progress {
   color: var(--dl-muted);
-  font-size: 13px;
+  font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -90,7 +90,7 @@
 .spotlight-tour-body {
   margin: 8px 0 0;
   color: var(--dl-ink-2);
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.5;
 }
 
@@ -109,7 +109,7 @@
   border: 0;
   border-radius: var(--dl-r-pill);
   font-family: var(--dl-font-sans);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   cursor: pointer;
 }

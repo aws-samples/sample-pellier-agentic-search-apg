@@ -158,7 +158,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                       >
                         Your bag is empty
                       </p>
-                      <p style={{ fontSize: '14px', lineHeight: 1.55, color: TEXT_QUIET }}>
+                      <p style={{ fontSize: '15px', lineHeight: 1.55, color: TEXT_QUIET }}>
                         Pieces you add from the collection or a conversation will appear here.
                       </p>
                       <button type="button" onClick={onClose} className="mt-6 min-h-11 rounded-full px-6 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ background: TEXT, color: ON_TEXT }}>
@@ -199,19 +199,19 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                                 <div>
                                   <h3
                                     className="font-medium leading-snug line-clamp-2 mb-1"
-                                    style={{ fontSize: '13px', color: TEXT }}
+                                    style={{ fontSize: '14px', color: TEXT }}
                                   >
                                     {item.name}
                                   </h3>
                                   <div className="flex items-center gap-2">
                                     <span
                                       className="font-semibold"
-                                      style={{ fontSize: '15px', color: TEXT }}
+                                      style={{ fontSize: '16px', color: TEXT }}
                                     >
                                       ${(item.price * item.quantity).toFixed(2)}
                                     </span>
                                     {item.quantity > 1 && (
-                                      <span style={{ fontSize: '11px', color: TEXT_QUIET }}>
+                                      <span style={{ fontSize: '12px', color: TEXT_QUIET }}>
                                         ${item.price.toFixed(2)} each
                                       </span>
                                     )}
@@ -263,7 +263,7 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                                   <button
                                     onClick={() => removeFromCart(item.productId)}
                                     type="button"
-                                    className="inline-flex min-h-11 items-center rounded-md px-3 text-[13px] font-medium transition-all duration-200
+                                    className="inline-flex min-h-11 items-center rounded-md px-3 text-[14px] font-medium transition-all duration-200
                                              hover:bg-err-tint active:scale-95"
                                     style={{ color: TEXT_QUIET }}
                                   >
@@ -294,14 +294,14 @@ const CartPanel = ({ isOpen, onClose }: CartPanelProps) => {
                     transition={{ delay: 0.1 }}
                   >
                     <div className="flex items-center justify-between">
-                      <span style={{ fontSize: '14px', color: TEXT_SOFT }}>
+                      <span style={{ fontSize: '15px', color: TEXT_SOFT }}>
                         Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})
                       </span>
-                      <span className="font-medium" style={{ fontSize: '14px', color: TEXT }}>
+                      <span className="font-medium" style={{ fontSize: '15px', color: TEXT }}>
                         ${total.toFixed(2)}
                       </span>
                     </div>
-                    <p className="mt-3" style={{ fontSize: '12px', lineHeight: 1.5, color: TEXT_QUIET }}>
+                    <p className="mt-3" style={{ fontSize: '13px', lineHeight: 1.5, color: TEXT_QUIET }}>
                       Pellier is a workshop store, so your bag keeps a list and places no order.
                     </p>
                   </motion.div>

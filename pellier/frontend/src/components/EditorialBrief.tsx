@@ -20,7 +20,7 @@ import ResponsiveImage from './ResponsiveImage'
 const BRIEF_IMAGE = ABOUT_BRIEF.IMAGE
 
 const BODY_STYLE = {
-  fontSize: '15px',
+  fontSize: '16px',
   lineHeight: 1.7,
   maxWidth: '520px',
   color: 'var(--ink-soft)',
@@ -61,13 +61,13 @@ export default function EditorialBrief() {
 
             <div className="lg:col-start-2 flex flex-col gap-6">
               <div className="flex items-center gap-2">
-                <span aria-hidden style={{ color: 'var(--accent)', fontSize: '9px' }}>
+                <span aria-hidden style={{ color: 'var(--accent)', fontSize: '10px' }}>
                   &#9679;
                 </span>
                 <span
                   className="font-sans"
                   style={{
-                    fontSize: '12px',
+                    fontSize: '13px',
                     fontWeight: 600,
                     letterSpacing: '0.22em',
                     textTransform: 'uppercase',
@@ -101,7 +101,7 @@ export default function EditorialBrief() {
               <div
                 className="font-sans"
                 style={{
-                  fontSize: '12px',
+                  fontSize: '13px',
                   fontWeight: 600,
                   letterSpacing: '0.2em',
                   textTransform: 'uppercase',
@@ -127,7 +127,7 @@ export default function EditorialBrief() {
                     key={tech}
                     className="font-mono"
                     style={{
-                      fontSize: '11px',
+                      fontSize: '12px',
                       fontWeight: 500,
                       letterSpacing: '0.06em',
                       padding: '4px 10px',
@@ -156,7 +156,7 @@ export default function EditorialBrief() {
         <p
           className="font-sans"
           style={{
-            fontSize: '15px',
+            fontSize: '16px',
             lineHeight: 1.5,
             color: 'var(--ink-soft)',
             letterSpacing: '0.01em',

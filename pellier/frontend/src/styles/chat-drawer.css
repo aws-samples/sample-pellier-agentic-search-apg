@@ -65,7 +65,7 @@
   margin: 0;
   color: var(--dl-ink);
   font-family: var(--dl-font-heading);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;
@@ -73,7 +73,7 @@
 .cd-head-meta {
   margin: 0;
   color: var(--dl-muted);
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.4;
 }
 .cd-close {
@@ -113,7 +113,7 @@
   min-width: 0;
   overflow: hidden;
   color: var(--dl-ink);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
   line-height: 1.3;
   text-overflow: ellipsis;
@@ -133,7 +133,7 @@
   border: 0;
   background: none;
   color: var(--dl-ink-2);
-  font: 400 12.5px/1.4 var(--dl-font-sans);
+  font: 400 13.5px/1.4 var(--dl-font-sans);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -168,7 +168,7 @@
   border-radius: var(--dl-r-card);
   background: var(--dl-paper);
   color: var(--dl-ink-2);
-  font: 500 14px/1.3 var(--dl-font-sans);
+  font: 500 15px/1.3 var(--dl-font-sans);
   text-align: left;
   cursor: pointer;
   transition:
@@ -208,7 +208,7 @@
   border: 0;
   background: none;
   color: var(--dl-ink-2);
-  font: 400 12.5px/1.4 var(--dl-font-sans);
+  font: 400 13.5px/1.4 var(--dl-font-sans);
   text-decoration: underline;
   text-underline-offset: 3px;
   white-space: nowrap;
@@ -234,7 +234,7 @@
   border-radius: var(--dl-r-card);
   background: var(--dl-paper);
   color: var(--dl-ink);
-  font: 500 14px/1.3 var(--dl-font-sans);
+  font: 500 15px/1.3 var(--dl-font-sans);
   text-align: left;
   cursor: pointer;
   transition: border-color 160ms ease-out;
@@ -250,13 +250,13 @@
 .cd-who-note {
   margin: 10px 0 0;
   color: var(--dl-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.45;
 }
 .cd-who-alert {
   margin: 6px 0 0;
   color: var(--dl-tag-blocked-ink);
-  font-size: 12.5px;
+  font-size: 13.5px;
   line-height: 1.45;
 }
 
@@ -279,7 +279,7 @@
 .cd-empty-text {
   margin: 0;
   color: var(--dl-ink-2);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -320,7 +320,7 @@
   background: transparent;
   color: var(--dl-ink);
   font-family: var(--dl-font-sans);
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.5;
   outline: none;
   resize: none;
@@ -363,7 +363,7 @@
   gap: 12px;
   margin-top: 8px;
   color: var(--dl-muted);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .cd-keyboard-hint { white-space: nowrap; }
@@ -397,14 +397,14 @@
   gap: 8px;
   padding: 12px 16px 12px 18px;
   background: transparent;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 500;
 }
 .cd-continue-clear {
   padding: 0 14px;
   border-left: 1px solid color-mix(in srgb, var(--dl-on-ink) 16%, transparent);
   background: color-mix(in srgb, var(--dl-on-ink) 8%, transparent);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 .cd-continue-main:hover,
@@ -413,7 +413,7 @@
 }
 .cd-continue-key {
   font-family: var(--dl-font-mono);
-  font-size: 11px;
+  font-size: 12px;
   opacity: 0.6;
 }
 
@@ -433,14 +433,14 @@
 }
 .cd-status-lines dt {
   color: var(--dl-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
 }
 .cd-status-lines dd {
   margin: 0;
   color: var(--dl-ink);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
@@ -462,7 +462,7 @@
   gap: 12px;
   padding: 8px 16px;
   color: var(--dl-ink-2);
-  font: 500 12px/1.4 var(--dl-font-sans);
+  font: 500 13px/1.4 var(--dl-font-sans);
   cursor: pointer;
   list-style: none;
 }
@@ -490,7 +490,7 @@
   background: var(--dl-ink);
   color: var(--dl-on-ink);
   box-shadow: var(--dl-sh-lift);
-  font: 500 13px/1.4 var(--dl-font-sans);
+  font: 500 14px/1.4 var(--dl-font-sans);
 }
 
 /* The welcome state inside the panel. */

@@ -86,7 +86,7 @@ export default function FieldNotes() {
           <p
             style={{
               fontFamily: 'var(--sans)',
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: '0.24em',
               textTransform: 'uppercase',
               color: c.accent,
@@ -155,7 +155,7 @@ export default function FieldNotes() {
               <p
                 style={{
                   fontFamily: 'var(--sans)',
-                  fontSize: 11,
+                  fontSize: 12,
                   letterSpacing: '0.22em',
                   textTransform: 'uppercase',
                   color: c.muted,
@@ -184,7 +184,7 @@ export default function FieldNotes() {
                   key={j}
                   style={{
                     fontFamily: 'var(--sans)',
-                    fontSize: 15,
+                    fontSize: 16,
                     lineHeight: 1.7,
                     letterSpacing: '-0.003em',
                     color: c.ink,
@@ -198,7 +198,7 @@ export default function FieldNotes() {
                 style={{
                   fontFamily: 'var(--sans)',
                   fontWeight: 500,
-                  fontSize: 13,
+                  fontSize: 14,
                   letterSpacing: '0.01em',
                   color: c.muted,
                   margin: '16px 0 0',
@@ -221,7 +221,7 @@ export default function FieldNotes() {
           <p
             style={{
               fontFamily: 'var(--sans)',
-              fontSize: 14,
+              fontSize: 15,
               lineHeight: 1.6,
               color: c.ink2,
               textAlign: 'center',

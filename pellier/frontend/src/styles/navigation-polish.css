@@ -25,7 +25,7 @@ main, [id='shop'] { scroll-margin-top: 88px; }
   background: transparent;
   color: var(--ink-soft);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 15px;
   text-decoration: none;
   cursor: pointer;
   transition: color 160ms ease-out;
@@ -58,7 +58,7 @@ main, [id='shop'] { scroll-margin-top: 88px; }
   gap: 10px 16px;
   padding: 14px 0;
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--ink);
 }
@@ -75,7 +75,7 @@ main, [id='shop'] { scroll-margin-top: 88px; }
   background: transparent;
   color: var(--dl-ink);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
   cursor: pointer;
@@ -103,7 +103,7 @@ main, [id='shop'] { scroll-margin-top: 88px; }
   background: var(--cream-warm);
   color: var(--ink);
   border-bottom: 1px solid var(--rule-1);
-  font-size: 0.9375rem;
+  font-size: 1rem;
 }
 
 .pellier-session-notice p {

@@ -34,7 +34,7 @@ export default function StoryboardTeaser({ headingLevel = 2 }: { headingLevel?: 
           <p
             style={{
               fontFamily: 'var(--sans)',
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: '0.22em',
               textTransform: 'uppercase',
               color: c.muted,
@@ -137,7 +137,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           data-testid={`storyboard-card-eyebrow-${index}`}
           style={{
             fontFamily: 'var(--sans)',
-            fontSize: 11,
+            fontSize: 12,
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
             color: c.muted,
@@ -164,7 +164,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
           data-testid={`storyboard-card-excerpt-${index}`}
           style={{
             fontFamily: 'var(--sans)',
-            fontSize: 14,
+            fontSize: 15,
             lineHeight: 1.6,
             color: c.ink2,
             margin: 0,
@@ -179,7 +179,7 @@ function StoryboardCard({ card, index }: StoryboardCardProps) {
             // Req 1.9.2 - terracotta link.
             color: c.accent,
             fontFamily: 'var(--sans)',
-            fontSize: 13,
+            fontSize: 14,
             fontWeight: 500,
             letterSpacing: '0.02em',
             textDecoration: 'none',

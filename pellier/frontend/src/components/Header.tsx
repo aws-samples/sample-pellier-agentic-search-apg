@@ -122,7 +122,7 @@ function SignedOutPersonaTrigger({
       type="button"
       onClick={onOpen}
       data-testid="persona-pill"
-      className="pellier-account-pill flex min-h-[44px] items-center gap-2 px-3.5 text-[13.5px]"
+      className="pellier-account-pill flex min-h-[44px] items-center gap-2 px-3.5 text-[14.5px]"
       aria-label={SHOPPER.CHOOSE}
       aria-haspopup="dialog"
       aria-expanded={open}
@@ -147,7 +147,7 @@ function AuthenticatedPersonaTrigger({ shopper }: { shopper: string }) {
         type="button"
         onClick={() => setOpen(true)}
         data-testid="persona-pill"
-        className="pellier-account-pill pellier-account-pill-active flex min-h-[44px] items-center gap-2 py-1 pl-1 pr-3 text-[13.5px]"
+        className="pellier-account-pill pellier-account-pill-active flex min-h-[44px] items-center gap-2 py-1 pl-1 pr-3 text-[14.5px]"
         aria-expanded={open}
         aria-haspopup="dialog"
       >
@@ -157,7 +157,7 @@ function AuthenticatedPersonaTrigger({ shopper }: { shopper: string }) {
           photoUrl={getPersonaPhoto(shopper)}
           size="sm"
         />
-        <span className="max-w-[118px] truncate text-[13px] font-medium">
+        <span className="max-w-[118px] truncate text-[14px] font-medium">
           {name}
         </span>
         <ChevronDown size={14} className="opacity-60" aria-hidden />
@@ -302,7 +302,7 @@ function StorefrontNavigation({
               {cartItemCount > 0 && (
                 <span
                   data-testid="bag-count"
-                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[10px] font-semibold bg-ink text-on-ink pointer-events-none"
+                  className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[11px] font-semibold bg-ink text-on-ink pointer-events-none"
                 >
                   {cartItemCount}
                 </span>

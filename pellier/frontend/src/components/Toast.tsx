@@ -61,7 +61,7 @@ const Toast = ({ message, show, onClose, duration = 3000 }: ToastProps) => {
         />
         <span
           style={{
-            fontSize: '14px',
+            fontSize: '15px',
             fontWeight: 500,
             lineHeight: 1.35,
             maxWidth: '260px',

@@ -61,12 +61,12 @@ function renderTable(props: Partial<React.ComponentProps<typeof DataTable<Row>>>
 }
 
 describe('DataTable', () => {
-  it('renders one header recipe: sans 12/600 in sentence case', () => {
+  it('renders one header recipe: sans 13/600 in sentence case', () => {
     renderTable()
     const header = screen.getByRole('columnheader', { name: 'Recall' })
     expect(header).toHaveStyle({
       fontFamily: 'var(--obs-heading)',
-      fontSize: '12px',
+      fontSize: '13px',
       fontWeight: '600',
     })
     expect(header.style.textTransform).toBe('')
@@ -77,7 +77,7 @@ describe('DataTable', () => {
     const cell = screen.getByRole('cell', { name: '0.98' })
     expect(cell).toHaveStyle({
       fontFamily: 'var(--obs-mono)',
-      fontSize: '13px',
+      fontSize: '14px',
       fontVariantNumeric: 'tabular-nums',
     })
     expect(cell).toHaveAttribute('data-align', 'numeric')
@@ -94,7 +94,7 @@ describe('DataTable', () => {
     )
   })
 
-  it('keeps prose columns in sans at 13px', () => {
+  it('keeps prose columns in sans at 14px', () => {
     renderTable({
       columns: [
         { key: 'strategy', header: 'Strategy', render: (r: Row) => r.strategy },
@@ -103,7 +103,7 @@ describe('DataTable', () => {
     const cell = screen.getByRole('cell', { name: 'HNSW' })
     expect(cell).toHaveStyle({
       fontFamily: 'var(--obs-sans)',
-      fontSize: '13px',
+      fontSize: '14px',
     })
     expect(cell).toHaveAttribute('data-align', 'text')
   })

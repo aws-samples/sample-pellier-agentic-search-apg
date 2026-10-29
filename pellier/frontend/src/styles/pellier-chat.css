@@ -45,7 +45,7 @@
   gap: 8px;
   color: var(--dl-on-photo);
   font-family: var(--dl-font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.02em;
 }
@@ -84,7 +84,7 @@
   gap: 6px;
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
-  font-size: 11px;
+  font-size: 12px;
 }
 .ec-msg-user-dot {
   display: inline-block;
@@ -104,7 +104,7 @@
   background: var(--dl-ink);
   color: var(--dl-on-ink);
   font-family: var(--dl-font-sans);
-  font-size: 14.5px;
+  font-size: 15.5px;
   line-height: 1.5;
   letter-spacing: -0.003em;
 }
@@ -124,13 +124,13 @@
   margin-bottom: -2px;
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 .ec-msg-body {
   color: var(--dl-ink);
   font-family: var(--dl-font-sans);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1.65;
   letter-spacing: -0.003em;
@@ -153,7 +153,7 @@
   border-left: 2px solid var(--dl-line);
   color: var(--dl-ink-2);
   font-family: var(--dl-font-sans);
-  font-size: 13.5px;
+  font-size: 14.5px;
   line-height: 1.55;
 }
 .ec-credit-request-pending p { margin: 0; }
@@ -161,7 +161,7 @@
   display: inline-block;
   margin-top: 7px;
   color: var(--dl-accent);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -209,7 +209,7 @@
 .ec-owned-artifacts-label {
   color: var(--dl-muted);
   font-family: var(--dl-font-sans);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 
@@ -230,7 +230,7 @@
   background: var(--dl-paper-2);
   color: var(--dl-ink-2);
   font-family: var(--dl-font-sans);
-  font-size: 12.5px;
+  font-size: 13.5px;
   font-weight: 500;
   letter-spacing: -0.003em;
   text-align: left;

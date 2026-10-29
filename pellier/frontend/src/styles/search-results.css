@@ -63,7 +63,7 @@
   border: 0;
   background: none;
   color: var(--dl-ink-2);
-  font: 400 13.5px/1.4 var(--dl-font-sans);
+  font: 400 14.5px/1.4 var(--dl-font-sans);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -83,12 +83,12 @@
 .results-note {
   margin: 0;
   color: var(--dl-ink-2);
-  font: 400 14px/1.5 var(--dl-font-sans);
+  font: 400 15px/1.5 var(--dl-font-sans);
 }
 
 .results-note {
   color: var(--dl-muted);
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* A turn that failed from the store: one calm line above the store. */
@@ -105,7 +105,7 @@
 }
 
 .results-ranking .tn-rank-head b {
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .results-ranking .tn-rank-table {
@@ -116,11 +116,11 @@
   grid-template-columns: 64px minmax(160px, 1.4fr) 80px 120px minmax(150px, 1.4fr) 70px;
   gap: 12px;
   padding: 8px 0;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .results-ranking .tn-rank-hdr {
-  font-size: 11.5px;
+  font-size: 12.5px;
 }
 
 /* Builder view: which of the turn's catalog calls the table shows. */
@@ -141,7 +141,7 @@
   border-radius: var(--dl-r-pill);
   background: var(--dl-paper);
   color: var(--dl-ink-2);
-  font: 400 13px/1.35 var(--dl-font-sans);
+  font: 400 14px/1.35 var(--dl-font-sans);
   text-align: left;
   cursor: pointer;
 }
@@ -154,7 +154,7 @@
   border-radius: var(--dl-r-pill);
   background: var(--dl-paper-2);
   color: var(--dl-ink);
-  font: 500 12px/1 var(--dl-font-mono);
+  font: 500 13px/1 var(--dl-font-mono);
 }
 
 .results-call[aria-pressed='true'] {
@@ -184,7 +184,7 @@
   border-radius: var(--dl-r-pill);
   background: transparent;
   color: var(--dl-ink);
-  font: 500 14px/1.4 var(--dl-font-sans);
+  font: 500 15px/1.4 var(--dl-font-sans);
   cursor: pointer;
 }
 
@@ -239,7 +239,7 @@
   border: 1px dashed var(--dl-line-strong);
   border-radius: var(--dl-r-card);
   color: var(--dl-ink-2);
-  font: 400 15px/1.5 var(--dl-font-sans);
+  font: 400 16px/1.5 var(--dl-font-sans);
 }
 
 .results-empty p {

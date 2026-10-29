@@ -85,7 +85,7 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
           </h1>
           <p
             style={{
-              fontSize: '15px',
+              fontSize: '16px',
               lineHeight: 1.6,
               color: 'var(--dl-ink-2)',
               maxWidth: '480px',
@@ -100,7 +100,7 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
               onClick={this.handleReload}
               style={{
                 fontFamily: 'inherit',
-                fontSize: '14px',
+                fontSize: '15px',
                 fontWeight: 500,
                 padding: '10px 18px',
                 borderRadius: '10px',
@@ -117,7 +117,7 @@ class AppErrorBoundary extends React.Component<AppErrorBoundaryProps, AppErrorBo
               to="/"
               onClick={() => this.setState({ hasError: false, error: null })}
               style={{
-                fontSize: '14px',
+                fontSize: '15px',
                 fontWeight: 500,
                 color: 'var(--dl-ink-2)',
                 textDecoration: 'underline',

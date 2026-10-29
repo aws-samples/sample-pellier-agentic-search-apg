@@ -53,6 +53,14 @@ export default {
       borderColor: {
         DEFAULT: 'var(--dl-line)',
       },
+      // One step above Tailwind's defaults (12, 14, 16px), the same step the
+      // stylesheets take for running and small text; the line heights keep
+      // Tailwind's ratios.
+      fontSize: {
+        xs: ['13px', { lineHeight: '1.3333' }],
+        sm: ['15px', { lineHeight: '1.4286' }],
+        base: ['17px', { lineHeight: '1.5' }],
+      },
       boxShadow: {
         // Soft and low; the ask field is the one surface with a resting shadow.
         'ask': 'var(--dl-sh-ask)',
