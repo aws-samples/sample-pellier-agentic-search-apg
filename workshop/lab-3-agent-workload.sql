@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 1 \pset linestyle ascii \pset expanded off
 
 -- Lab 3: what did the agent do to your database?
 --
