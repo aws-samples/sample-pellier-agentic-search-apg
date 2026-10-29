@@ -10,6 +10,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -215,3 +216,240 @@ def test_an_unreadable_runtime_group_leaves_the_gateway_chain_standing() -> None
     assert trace.runtime_spans(_Logs([]), None, calls, 60) == {"trace-req-allow": None}
     assert trace.runtime_spans(_Logs([]), "/aws/x-DEFAULT",
                                trace.calls_from_spans(DENY, "get_tickets"), 60) == {}
+
+
+# ---------------------------------------------------------------------------
+# Aurora: pgAudit's record of writes to pellier.store_credits, under each credit call
+# ---------------------------------------------------------------------------
+# The line shape is Aurora's PostgreSQL log prefix, then pgAudit's CSV: AUDIT_TYPE,
+# STATEMENT_ID, SUBSTATEMENT_ID, CLASS, COMMAND, OBJECT_TYPE, OBJECT_NAME, STATEMENT and,
+# with pgaudit.log_parameter on, PARAMETER as one quoted CSV field. The READ line is the
+# example in the Aurora User Guide's "Auditing database objects" page, wrapped as the page
+# prints it; the ROLE line is AWS re:Post's (rds-postgresql-cleartext-logging), with the
+# PARAMETER field a session line carries when it logs none.
+
+DOCS_READ_LINE = ("2017-06-12 19:09:49 UTC:...:rds_test@postgres:[11701]:LOG: AUDIT:\n"
+                  "OBJECT,1,1,READ,SELECT,TABLE,public.t1,select * from t1;")
+DOCS_ROLE_LINE = ("2020-07-09 13:33:50 UTC:x.x.x.x(58670):grysa@pg:[26513]:LOG: AUDIT: "
+                  "SESSION,3,1,ROLE,CREATE ROLE,,,CREATE ROLE test_role WITH LOGIN "
+                  "PASSWORD <REDACTED>,<not logged>")
+KEY = "operator-review:1:c281de75b2622180306edddcfdf76873"
+INSERT_LINE = (
+    "2026-10-29 15:42:10 UTC:10.0.12.34(51234):pellier_admin@pellier:[23456]:LOG:  AUDIT: "
+    "OBJECT,7,3,WRITE,INSERT,TABLE,pellier.store_credits,"
+    '"INSERT INTO pellier.store_credits\n'
+    "               (approval_id, customer_id, amount_cents, reason, issued_by, idempotency_key)\n"
+    "        VALUES (v_review.id, p_customer_id, p_amount_cents, v_reason,\n"
+    "                nullif(btrim(coalesce(p_issued_by, '')), ''), v_key)\n"
+    '        RETURNING credit_id",'
+    '"1,CUST-JESSICA,10000,""Store credit for 2 returned items: Waffle Bath Robe, Sage '
+    '(order 20); Reed Diffuser (order 21)."",04c8b408-nadia,' + KEY + '"')
+INSERT_SECOND = 1793288530.0  # 2026-10-29 15:42:10 UTC
+
+
+def _event(message: str, ms: int = 0) -> Dict[str, Any]:
+    return {"message": message, "timestamp": ms}
+
+
+def _credit(request: str, start_s: float, ran: bool = True,
+            gateway_ms: int = 900) -> Dict[str, Any]:
+    return {"request_id": request, "started_ns": int(start_s * 1e9), "gateway_ms": gateway_ms,
+            "lambda_ms": 600 if ran else None}
+
+
+def test_a_pgaudit_line_from_the_aurora_docs_parses_and_is_not_a_credit_write() -> None:
+    line = trace.parse_audit_event(_event(DOCS_READ_LINE))
+    assert line is not None and line["second"] == 1497294589.0
+    assert (line["audit_type"], line["class"], line["command"], line["object"]) == (
+        "OBJECT", "READ", "SELECT", "public.t1")
+    assert line["key"] is None
+    role = trace.parse_audit_event(_event(DOCS_ROLE_LINE))
+    assert role is not None and (role["audit_type"], role["class"], role["object"]) == (
+        "SESSION", "ROLE", "")
+    assert role["key"] is None
+    assert trace.audited_writes([_event(DOCS_READ_LINE), _event(DOCS_ROLE_LINE)]) == []
+    assert trace.parse_audit_event(_event("2026-10-29 15:42:10 UTC:...:LOG:  checkpoint")) is None
+
+
+def test_the_credit_insert_keeps_its_multiline_statement_and_names_its_key() -> None:
+    (write,) = trace.audited_writes([_event(INSERT_LINE), _event(DOCS_READ_LINE)])
+    assert write["second"] == INSERT_SECOND
+    assert (write["class"], write["command"], write["object"]) == (
+        "WRITE", "INSERT", "pellier.store_credits")
+    assert write["statement"].startswith("INSERT INTO pellier.store_credits\n")
+    assert write["statement"].endswith("RETURNING credit_id")
+    # Only the shape apply_store_credit admits reads as the key; the reason's ": " does not.
+    assert write["key"] == KEY
+
+
+def test_without_logged_parameters_the_write_still_counts_but_names_no_key() -> None:
+    bare = INSERT_LINE[:INSERT_LINE.rindex(',"1,CUST')]
+    (write,) = trace.audited_writes([_event(bare + ",<none>"), _event(bare)])[:1]
+    assert write["key"] is None and write["command"] == "INSERT"
+    assert len(trace.audited_writes([_event(bare + ",<none>"), _event(bare)])) == 2
+
+
+def test_deny_allow_and_replay_read_as_nothing_one_insert_and_nothing() -> None:
+    deny = _credit("req-deny", INSERT_SECOND - 300, ran=False, gateway_ms=200)
+    allow = _credit("req-allow", INSERT_SECOND - 0.4)
+    replay = _credit("req-replay", INSERT_SECOND + 4)
+    writes = trace.audited_writes([_event(INSERT_LINE)])
+    lines = trace.aurora_lines([deny, allow, replay], writes, None, now=INSERT_SECOND + 600)
+    when = datetime.fromtimestamp(INSERT_SECOND).strftime("%H:%M:%S")
+    assert lines == {
+        "req-deny": "pgAudit: no write to pellier.store_credits during this call",
+        "req-allow": f"pgAudit: INSERT into pellier.store_credits at {when}, key {KEY}",
+        "req-replay": "pgAudit: no write to pellier.store_credits during this call",
+    }
+
+
+def test_the_aurora_line_does_not_take_the_policy_decision_on_trust() -> None:
+    # pgAudit is the database's own record: a write inside a DENY's window shows, so a DENY
+    # that somehow reached the table could not hide behind its span.
+    deny = _credit("req-deny", INSERT_SECOND - 0.2, ran=False)
+    lines = trace.aurora_lines([deny], trace.audited_writes([_event(INSERT_LINE)]), None,
+                               now=INSERT_SECOND + 600)
+    assert lines["req-deny"].startswith("pgAudit: INSERT into pellier.store_credits at ")
+
+
+def test_a_second_of_clock_skew_keeps_the_write_with_its_call() -> None:
+    # The write's second is [S, S + 1): one call ends 0.6 s before it, one starts 0.8 s after.
+    late = _credit("req-allow", INSERT_SECOND - 1.1, gateway_ms=500)
+    early = _credit("req-allow", INSERT_SECOND + 1.8, gateway_ms=500)
+    far = _credit("req-other", INSERT_SECOND + 2.5, gateway_ms=500)
+    writes = trace.audited_writes([_event(INSERT_LINE)])
+    for call in (late, early):
+        line = trace.aurora_lines([call], writes, None, now=INSERT_SECOND + 600)["req-allow"]
+        assert line.startswith("pgAudit: INSERT into"), line
+    assert trace.aurora_lines([far], writes, None, now=INSERT_SECOND + 600)["req-other"] == (
+        "pgAudit: no write to pellier.store_credits during this call")
+
+
+def test_a_call_inside_the_export_lag_waits_instead_of_claiming_nothing_reached_aurora() -> None:
+    deny = _credit("req-deny", 10_000, ran=False)
+    lines = trace.aurora_lines([deny], [], None, now=10_030)
+    assert lines["req-deny"] == ("pgAudit: not exported yet; the PostgreSQL log lags about a "
+                                 "minute, so run this again shortly")
+    assert "no write" not in lines["req-deny"]
+    later = trace.aurora_lines([deny], [], None, now=10_000 + trace.LOG_EXPORT_LAG_S + 5)
+    assert later["req-deny"] == "pgAudit: no write to pellier.store_credits during this call"
+
+
+def test_a_write_in_the_second_two_calls_share_goes_to_the_earlier_and_says_so() -> None:
+    first = _credit("req-1", INSERT_SECOND + 0.1, ran=True, gateway_ms=300)
+    second = _credit("req-2", INSERT_SECOND + 0.6, ran=True, gateway_ms=300)
+    writes = trace.audited_writes([_event(INSERT_LINE)])
+    lines = trace.aurora_lines([first, second], writes, None, now=INSERT_SECOND + 600)
+    assert lines["req-1"].endswith("(the next call began in the same second)")
+    assert lines["req-2"] == "pgAudit: no write to pellier.store_credits during this call"
+
+
+def test_with_pgaudit_off_every_call_says_why_and_claims_no_absence() -> None:
+    assert trace.pgaudit_off_reason({"extension": False}) == (
+        "the pgaudit extension is not installed (the library did not load)")
+    assert trace.pgaudit_off_reason({"extension": True, "audit_role": None}) == (
+        "pgaudit.role is unset, not rds_pgaudit")
+    assert trace.pgaudit_off_reason({"extension": True, "audit_role": "rds_pgaudit",
+                                     "granted": False}) == (
+        "rds_pgaudit holds no INSERT and UPDATE on pellier.store_credits")
+    assert trace.pgaudit_off_reason({"extension": True, "audit_role": "rds_pgaudit",
+                                     "granted": True}) is None
+
+
+def test_the_aurora_line_sits_under_the_gateway_line_only_when_given() -> None:
+    (credit,) = trace.calls_from_spans(CREDIT, "give_store_credit")
+    plain = trace.render_call(credit, NAMES)
+    with_db = trace.render_call(credit, NAMES, aurora="pgAudit: no write to x")
+    assert len(plain) == 6 and len(with_db) == 7
+    assert with_db[4].startswith("  Gateway") and with_db[5] == "  Aurora    pgAudit: no write to x"
+    assert with_db[6] == plain[5]
+
+
+class _Cursor:
+    def __init__(self, status: Dict[str, Any]) -> None:
+        self.status = status
+
+    def __enter__(self) -> _Cursor:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def execute(self, sql: str) -> _Cursor:
+        assert "pg_extension" in sql and "has_table_privilege" in sql
+        return self
+
+    def fetchone(self) -> Dict[str, Any]:
+        return self.status
+
+
+class _Conn(_Cursor):
+    def cursor(self) -> _Cursor:
+        return _Cursor(self.status)
+
+
+class _AuditLogs:
+    def __init__(self, events: List[Dict[str, Any]], error: str = "") -> None:
+        self.events, self.error, self.asked = events, error, {}
+
+    def get_paginator(self, name: str) -> _AuditLogs:
+        assert name == "filter_log_events"
+        return self
+
+    def paginate(self, **kw: Any) -> List[Dict[str, Any]]:
+        self.asked = kw
+        if self.error:
+            raise _ClientError(self.error)
+        return [{"events": self.events}]
+
+
+class _ClientError(Exception):
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.response = {"Error": {"Code": code}}
+
+
+ON = {"extension": True, "audit_role": "rds_pgaudit", "granted": True}
+ARN = "arn:aws:rds:us-west-2:123456789012:cluster:pellier-db-cluster"
+
+
+def _db(monkeypatch: Any, status: Dict[str, Any], arn: str = ARN) -> None:
+    check = importlib.import_module("workshop_check")
+    monkeypatch.setattr(check, "db_config", lambda: {"host": "h"})
+    monkeypatch.setattr(check, "connect", lambda cfg: _Conn(status))
+    monkeypatch.setenv("DB_CLUSTER_ARN", arn)
+
+
+def test_read_aurora_reads_the_clusters_postgresql_group_for_credit_writes(monkeypatch) -> None:
+    _db(monkeypatch, ON)
+    logs = _AuditLogs([_event(DOCS_READ_LINE), _event(INSERT_LINE)])
+    writes, unavailable = trace.read_aurora(logs, 60)
+    assert unavailable is None and [w["key"] for w in writes] == [KEY]
+    assert logs.asked["logGroupName"] == "/aws/rds/cluster/pellier-db-cluster/postgresql"
+    assert logs.asked["filterPattern"] == '"AUDIT:" "pellier.store_credits"'
+
+
+def test_read_aurora_says_off_plainly_and_never_reads_the_log(monkeypatch) -> None:
+    _db(monkeypatch, {"extension": False})
+    logs = _AuditLogs([_event(INSERT_LINE)])
+    writes, unavailable = trace.read_aurora(logs, 60)
+    assert writes == [] and logs.asked == {}
+    assert unavailable == ("pgAudit is off on this cluster: the pgaudit extension is not "
+                           "installed (the library did not load)")
+
+
+def test_read_aurora_tells_an_unreadable_log_from_an_empty_one(monkeypatch) -> None:
+    _db(monkeypatch, ON)
+    assert trace.read_aurora(_AuditLogs([], "ResourceNotFoundException"), 60) == ([], None)
+    _, unavailable = trace.read_aurora(_AuditLogs([], "AccessDeniedException"), 60)
+    assert unavailable == ("pgAudit is on, but /aws/rds/cluster/pellier-db-cluster/postgresql "
+                           "could not be read: AccessDeniedException")
+    _db(monkeypatch, ON, arn="")
+    assert trace.read_aurora(_AuditLogs([]), 60)[1] == (
+        "pgAudit is on, but DB_CLUSTER_ARN is not set, so its log group has no name")
+
+
+def test_an_audit_line_cut_after_its_first_line_still_counts_the_write() -> None:
+    first_line = INSERT_LINE.split("\n", 1)[0]
+    (write,) = trace.audited_writes([_event(first_line)])
+    assert write["command"] == "INSERT" and write["key"] is None

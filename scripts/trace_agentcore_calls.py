@@ -10,6 +10,14 @@ reads both, and never writes, so each call reads as one chain:
     Identity   the Gateway checked the caller's Cognito access token
     Policy     Cedar's decision, and the policy that determined it
     Gateway    the call, and whether the Lambda target ran
+    Aurora     give_store_credit only: what pgAudit logged reaching pellier.store_credits
+
+The Aurora line is database evidence, not AgentCore's: pgAudit's object audit writes one line
+to the cluster's PostgreSQL log for each INSERT or UPDATE of pellier.store_credits, whoever
+runs it (scripts/migrations/001_schema.sql grants rds_pgaudit those two privileges). A line is
+matched to the call whose Gateway window holds its second; the log line's own time has
+one-second precision. A DENY never reaches the table, an allowed call that writes leaves one
+INSERT, and a retry with the same key leaves none.
 
 A call made by the Runtime has the Runtime's MCP span as its parent. An ALLOW
 has a Lambda invocation span. A DENY has none, because the Gateway never
@@ -18,18 +26,23 @@ called the Lambda:
     uv run scripts/trace_agentcore_calls.py --tool get_tickets
     uv run scripts/trace_agentcore_calls.py --tool give_store_credit
 
-Spans reach CloudWatch about ten seconds after a call.
+Spans reach CloudWatch about ten seconds after a call; the PostgreSQL log, about a minute
+after the statement.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
+import io
 import json
+import os
+import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pellier" / "backend"))
@@ -51,6 +64,28 @@ _NAME = {
     "target": "AgentCore.Gateway.TargetInvocation",
 }
 _DECISION = "aws.agentcore.policy.authorization_decision"
+
+# pgAudit, for the one tool that writes money.
+AUDITED_TOOL = "give_store_credit"
+AUDITED_TABLE = "pellier.store_credits"
+# The exported PostgreSQL log arrives about a minute after a statement (as observability_check
+# says); a call newer than this has no absence to claim yet.
+LOG_EXPORT_LAG_S = 90
+# Aurora's log clock and AgentCore's span clock are separate hosts; a second of slack each side
+# keeps a write inside its call when they differ by less than that.
+CLOCK_SLACK_S = 1.0
+_LINE_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC:")
+_AUDIT = re.compile(r"AUDIT:\s+")
+# The one key shape apply_store_credit admits (store_tools.execution_idempotency_key).
+_CREDIT_KEY = re.compile(r"operator-review:\d+:[0-9a-f]{32}")
+PGAUDIT_STATUS_SQL = """
+SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgaudit') AS extension,
+       current_setting('pgaudit.role', true) AS audit_role,
+       CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rds_pgaudit')
+            THEN has_table_privilege('rds_pgaudit', 'pellier.store_credits', 'INSERT')
+             AND has_table_privilege('rds_pgaudit', 'pellier.store_credits', 'UPDATE')
+            ELSE false END AS granted
+"""
 
 
 def _attrs(span: Dict[str, Any]) -> Dict[str, Any]:
@@ -134,8 +169,12 @@ def runtime_summary(call: Dict[str, Any], runtime: Optional[List[Dict[str, Any]]
 
 
 def render_call(call: Dict[str, Any], names: Dict[str, str],
-                runtime: Optional[List[Dict[str, Any]]] = None) -> List[str]:
-    """Five lines for one call: when and who, then Runtime, Identity, Policy and Gateway."""
+                runtime: Optional[List[Dict[str, Any]]] = None,
+                aurora: Optional[str] = None) -> List[str]:
+    """Five lines for one call: when and who, then Runtime, Identity, Policy and Gateway.
+
+    ``aurora``, when given, adds one more under Gateway: what pgAudit saw reach Aurora.
+    """
     when = datetime.fromtimestamp(call["started_ns"] / 1e9).strftime("%H:%M:%S")
     subject = call["subject"] or ""
     who = names.get(subject) or (f"sub {subject[:8]}..." if subject else "no token")
@@ -154,6 +193,7 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
             f"  Identity  {identity}",
             f"  Policy    {policy}",
             f"  Gateway   {gateway}",
+            *([f"  Aurora    {aurora}"] if aurora is not None else []),
             f"  trace {call['trace_id']}  request {call['request_id']}"]
 
 
@@ -214,6 +254,137 @@ def runtime_spans(logs: Any, group: Optional[str], calls: List[Dict[str, Any]],
     return found
 
 
+def parse_audit_event(event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """One pgAudit line from the exported PostgreSQL log, or ``None`` for any other line.
+
+    The line is ``<UTC time>:<host>:<user>@<db>:[<pid>]:LOG:  AUDIT: `` and then the CSV
+    AUDIT_TYPE, STATEMENT_ID, SUBSTATEMENT_ID, CLASS, COMMAND, OBJECT_TYPE, OBJECT_NAME,
+    STATEMENT and, with pgaudit.log_parameter on, PARAMETER (itself CSV, or ``<none>``).
+    """
+    message = str(event.get("message") or "")
+    audit = _AUDIT.search(message)
+    if audit is None:
+        return None
+    try:
+        fields = next(csv.reader(io.StringIO(message[audit.end():].strip())))
+    except (StopIteration, csv.Error):
+        return None
+    if len(fields) < 8:
+        return None
+    stamp = _LINE_TIME.match(message)
+    if stamp:
+        second = datetime.strptime(stamp.group(1), "%Y-%m-%d %H:%M:%S").replace(
+            tzinfo=timezone.utc).timestamp()
+    else:
+        second = int(event.get("timestamp") or 0) // 1000
+    params: List[str] = []
+    if len(fields) > 8 and fields[8] not in ("", "<none>", "<not logged>"):
+        params = next(csv.reader(io.StringIO(fields[8])), [])
+    key = next((param for param in params if _CREDIT_KEY.fullmatch(param)), None)
+    return {"second": float(second), "audit_type": fields[0], "class": fields[3],
+            "command": fields[4], "object": fields[6], "statement": fields[7], "key": key}
+
+
+def audited_writes(events: Iterable[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The pgAudit WRITE lines on the credits table, oldest first."""
+    lines = (parse_audit_event(event) for event in events)
+    writes = [line for line in lines if line and line["class"] == "WRITE"
+              and line["object"] == AUDITED_TABLE]
+    return sorted(writes, key=lambda line: line["second"])
+
+
+def pgaudit_off_reason(status: Dict[str, Any]) -> Optional[str]:
+    """Why pgAudit cannot vouch for the credits table, or ``None`` when it can."""
+    if not status.get("extension"):
+        return "the pgaudit extension is not installed (the library did not load)"
+    if status.get("audit_role") != "rds_pgaudit":
+        return f"pgaudit.role is {status.get('audit_role') or 'unset'}, not rds_pgaudit"
+    if not status.get("granted"):
+        return f"rds_pgaudit holds no INSERT and UPDATE on {AUDITED_TABLE}"
+    return None
+
+
+def _window(call: Dict[str, Any]) -> Tuple[float, float]:
+    start = call["started_ns"] / 1e9
+    end = start + float(call.get("gateway_ms") or 0) / 1000
+    return start - CLOCK_SLACK_S, end + CLOCK_SLACK_S
+
+
+def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
+                 unavailable: Optional[str], now: float) -> Dict[str, str]:
+    """The Aurora line for each call, by request id.
+
+    A write belongs to the earliest call whose Gateway window, with CLOCK_SLACK_S each side,
+    overlaps the write's second.
+    A call with no write says so only once the PostgreSQL log has had time to arrive.
+    ``unavailable``, when set, is every call's line: why there is no record to read.
+    """
+    if unavailable:
+        return {call["request_id"]: unavailable for call in calls}
+    owned: Dict[str, List[Dict[str, Any]]] = {call["request_id"]: [] for call in calls}
+    shared: Dict[str, bool] = {}
+    for write in writes:
+        second = write["second"]
+        hits = [c for c in calls if _window(c)[0] < second + 1 and second <= _window(c)[1]]
+        if hits:
+            first = hits[0]["request_id"]
+            owned[first].append(write)
+            shared[first] = shared.get(first, False) or len(hits) > 1
+    lines: Dict[str, str] = {}
+    for call in calls:
+        mine = owned[call["request_id"]]
+        if mine:
+            parts = []
+            for write in mine:
+                when = datetime.fromtimestamp(write["second"]).strftime("%H:%M:%S")
+                key = f", key {write['key']}" if write["key"] else ""
+                parts.append(f"{write['command']} into {AUDITED_TABLE} at {when}{key}")
+            note = " (the next call began in the same second)" if shared[call["request_id"]] else ""
+            lines[call["request_id"]] = "pgAudit: " + "; ".join(parts) + note
+        elif now - _window(call)[1] < LOG_EXPORT_LAG_S:
+            lines[call["request_id"]] = ("pgAudit: not exported yet; the PostgreSQL log lags "
+                                         "about a minute, so run this again shortly")
+        else:
+            lines[call["request_id"]] = f"pgAudit: no write to {AUDITED_TABLE} during this call"
+    return lines
+
+
+def read_aurora(logs: Any, minutes: int) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """pgAudit's status and its credit-table writes, read without writing: (writes, why not).
+
+    ``why not`` is ``None`` when the log was read; otherwise it is the Aurora line to print.
+    """
+    import workshop_check as check
+    from observability_check import aws_code, cluster_id
+
+    cfg = check.db_config()
+    if cfg is None:
+        return [], f"pgAudit not checked: {check.missing_settings_reason()}"
+    try:
+        with check.connect(cfg) as conn, conn.cursor() as cur:
+            status = cur.execute(PGAUDIT_STATUS_SQL).fetchone() or {}
+    except Exception as exc:  # noqa: BLE001 - the line names the failure instead of guessing
+        return [], f"pgAudit not checked: the database could not be read ({type(exc).__name__})"
+    reason = pgaudit_off_reason(status)
+    if reason:
+        return [], f"pgAudit is off on this cluster: {reason}"
+    cluster = cluster_id(os.environ.get("DB_CLUSTER_ARN", ""))
+    if not cluster:
+        return [], "pgAudit is on, but DB_CLUSTER_ARN is not set, so its log group has no name"
+    group = f"/aws/rds/cluster/{cluster}/postgresql"
+    start_ms = int((time.time() - minutes * 60) * 1000)
+    events: List[Dict[str, Any]] = []
+    try:
+        for page in logs.get_paginator("filter_log_events").paginate(
+                logGroupName=group, startTime=start_ms,
+                filterPattern=f'"AUDIT:" "{AUDITED_TABLE}"'):
+            events.extend(page.get("events", []))
+    except Exception as exc:  # noqa: BLE001 - the group appears with its first exported line
+        if aws_code(exc) != "ResourceNotFoundException":
+            return [], f"pgAudit is on, but {group} could not be read: {aws_code(exc)}"
+    return audited_writes(events), None
+
+
 def subject_names(cognito: Any, pool_id: Optional[str]) -> Dict[str, str]:
     """The workshop sign-ins by Cognito subject; empty when the pool cannot be read."""
     names: Dict[str, str] = {}
@@ -265,9 +436,14 @@ def main() -> int:
     except ValueError:
         group = None
     runtime = runtime_spans(logs, group, calls, args.minutes)
+    aurora: Dict[str, str] = {}
+    if args.tool == AUDITED_TOOL:
+        writes, unavailable = read_aurora(logs, args.minutes)
+        aurora = aurora_lines(calls, writes, unavailable, time.time())
     for call in calls:
         print()
-        print("\n".join(render_call(call, names, runtime.get(call["trace_id"]))))
+        print("\n".join(render_call(call, names, runtime.get(call["trace_id"]),
+                                     aurora.get(call["request_id"]))))
     return 0
 
 

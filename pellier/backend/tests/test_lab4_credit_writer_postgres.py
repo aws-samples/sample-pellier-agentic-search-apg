@@ -134,3 +134,7 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
                              "Lab 4B privileges sha256 ")
     assert fresh_db.psql("SELECT count(*) FROM information_schema.role_table_grants "
                          "WHERE grantee = 'pellier_credit_writer'") == "0"
+    # Its REVOKE names the money role alone, so pgAudit still audits the credits table.
+    assert fresh_db.psql("SELECT string_agg(privilege_type, ' ' ORDER BY privilege_type) "
+                         "FROM information_schema.role_table_grants "
+                         "WHERE grantee = 'rds_pgaudit'") == "INSERT UPDATE"

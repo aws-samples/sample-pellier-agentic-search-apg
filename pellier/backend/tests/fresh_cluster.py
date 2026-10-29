@@ -102,20 +102,21 @@ def start_cluster(root: Path, server_options: str = "") -> Cluster:
     return cluster
 
 
-def _run(script: Path, cluster: Cluster) -> None:
+def _run(script: Path, cluster: Cluster) -> subprocess.CompletedProcess:
     done = subprocess.run(["bash", str(script)], env=cluster.env(),
                           capture_output=True, text=True, timeout=900)
     if done.returncode:
         raise AssertionError(f"{script.name} failed ({done.returncode}):\n"
                              f"{done.stdout[-4000:]}\n{done.stderr[-4000:]}")
+    return done
 
 
-def run_setup(cluster: Cluster) -> None:
-    _run(SETUP, cluster)
+def run_setup(cluster: Cluster) -> subprocess.CompletedProcess:
+    return _run(SETUP, cluster)
 
 
-def run_reset(cluster: Cluster) -> None:
-    _run(RESET, cluster)
+def run_reset(cluster: Cluster) -> subprocess.CompletedProcess:
+    return _run(RESET, cluster)
 
 
 @pytest.fixture(scope="module")

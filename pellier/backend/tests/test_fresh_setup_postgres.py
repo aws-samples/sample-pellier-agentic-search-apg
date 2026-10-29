@@ -65,6 +65,7 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     ]
     assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%' "
                            "ORDER BY 1") == ["pellier_agent", "pellier_credit_writer"]
+    # This cluster has no pgAudit library, so the schema built without the extension.
     assert _rows(fresh_db, "SELECT extname FROM pg_extension ORDER BY 1") == [
         "pg_stat_statements", "pg_trgm", "plpgsql", "vector",
     ]
@@ -395,13 +396,63 @@ def test_the_photographed_run_comes_back_short_until_the_partial_index(fresh_db)
 def test_reset_rebuilds_the_same_dataset(fresh_db):
     fresh_db.psql("INSERT INTO pellier.approvals (customer_id, tool, status) "
                   "VALUES ('CUST-JESSICA', 'store_credit_request', 'open')")
-    run_reset(fresh_db)
+    done = run_reset(fresh_db)
     assert fresh_db.psql("SELECT count(*) FROM pellier.approvals") == "0"
+    assert "WARNING:  pgAudit is off (" in done.stderr
+    test_pgaudit_audits_the_credit_table_writes_and_nothing_else(fresh_db)
     test_the_schema_is_exactly_the_ten_tables(fresh_db)
     test_the_customers_are_the_four_shoppers_exactly(fresh_db)
     test_jessicas_case_is_exactly_one_hundred_dollars_and_nothing_is_credited(fresh_db)
     test_three_rows_per_product_and_the_catalog_agrees(fresh_db)
     test_teaching_products_have_exact_stock(fresh_db)
+
+
+# ---------------------------------------------------------------------------
+# pgAudit: the database's record of what reached the credits table
+# ---------------------------------------------------------------------------
+
+PGAUDIT_PRIVILEGES = (
+    "SELECT c.oid::regclass || ' ' || e.privilege_type FROM pg_class c, aclexplode(c.relacl) e "
+    "WHERE e.grantee = 'rds_pgaudit'::regrole "
+    "UNION ALL SELECT 'column ' || a.attrelid::regclass || '.' || a.attname "
+    "FROM pg_attribute a, aclexplode(a.attacl) e WHERE e.grantee = 'rds_pgaudit'::regrole "
+    "UNION ALL SELECT 'function ' || p.oid::regprocedure FROM pg_proc p, aclexplode(p.proacl) e "
+    "WHERE e.grantee = 'rds_pgaudit'::regrole "
+    "UNION ALL SELECT 'member of ' || roleid::regrole FROM pg_auth_members "
+    "WHERE member = 'rds_pgaudit'::regrole "
+    "UNION ALL SELECT 'granted to ' || member::regrole FROM pg_auth_members "
+    "WHERE roleid = 'rds_pgaudit'::regrole ORDER BY 1"
+)
+
+
+def test_pgaudit_audits_the_credit_table_writes_and_nothing_else(fresh_db):  # noqa: F811
+    """pgaudit.role's privileges choose what object auditing logs, so they are pinned here.
+
+    rds_pgaudit is Aurora's one allowed pgaudit.role. It cannot log in and nobody holds it:
+    its two privileges only mark INSERT and UPDATE on the credits table as audited.
+    """
+    assert _rows(fresh_db, "SELECT rolcanlogin || ' ' || rolsuper || ' ' || rolbypassrls "
+                           "FROM pg_roles WHERE rolname = 'rds_pgaudit'") == ["false false false"]
+    assert _rows(fresh_db, PGAUDIT_PRIVILEGES) == [
+        "pellier.store_credits INSERT", "pellier.store_credits UPDATE",
+    ]
+
+
+def test_the_schema_builds_without_pgaudit_and_says_so(fresh_db, tmp_path):  # noqa: F811
+    # The extension's block alone, as the schema runs it, on a cluster with no pgAudit library.
+    schema = (REPO / "scripts" / "migrations" / "001_schema.sql").read_text(encoding="utf-8")
+    block = re.search(r"DO \$pgaudit\$.*?END \$pgaudit\$;", schema, re.S)
+    assert block is not None
+    script = tmp_path / "pgaudit.sql"
+    script.write_text(block.group(0), encoding="utf-8")
+    done = subprocess.run(
+        [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
+         "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-f", str(script)],
+        capture_output=True, text=True, timeout=60)
+    assert done.returncode == 0, done.stderr
+    assert "WARNING:  pgAudit is off (" in done.stderr
+    assert "Writes to pellier.store_credits are not audited" in done.stderr
+    assert fresh_db.psql("SELECT count(*) FROM pg_extension WHERE extname = 'pgaudit'") == "0"
 
 
 def test_the_credit_function_is_the_money_roles_only_way_in(fresh_db):  # noqa: F811

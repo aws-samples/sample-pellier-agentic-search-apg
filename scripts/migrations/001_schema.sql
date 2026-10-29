@@ -17,6 +17,20 @@ CREATE EXTENSION IF NOT EXISTS vector;   -- embeddings: Cohere Embed v4, 1024 nu
 CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- fast "name contains" lookups
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA public;  -- the workload, by role
 
+-- pgAudit: the database's own record of every write to pellier.store_credits (the grant
+-- to rds_pgaudit in section 11 chooses the table). The cluster loads the library at start,
+-- from its parameter group; without it the extension cannot be created, so the database is
+-- built without it, with a warning, and the credit trace says audit is off. In public, so
+-- a schema rebuild keeps it.
+DO $pgaudit$
+BEGIN
+    CREATE EXTENSION IF NOT EXISTS pgaudit WITH SCHEMA public;
+EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'pgAudit is off (%). Writes to pellier.store_credits are not audited; '
+                  'the database stack''s parameter group loads the library on a new cluster.',
+                  SQLERRM;
+END $pgaudit$;
+
 CREATE SCHEMA pellier;
 
 
@@ -729,8 +743,9 @@ CREATE TRIGGER retrieval_receipts_append_only
 -- In production, give each role its own login and secret, so the money
 -- path's connection can be nothing but the writer.
 
--- The role is shared by every database on the cluster, so it is created once.
--- NOBYPASSRLS keeps the policies binding; the owner joins it to SET ROLE into it.
+-- Roles are shared by every database on the cluster, so each is created once.
+-- NOBYPASSRLS keeps the policies binding; the owner joins the two pellier roles to
+-- SET ROLE into them. Nobody joins rds_pgaudit (see below).
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_agent') THEN
@@ -739,9 +754,20 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_credit_writer') THEN
         CREATE ROLE pellier_credit_writer NOLOGIN NOINHERIT NOBYPASSRLS;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rds_pgaudit') THEN
+        CREATE ROLE rds_pgaudit NOLOGIN NOBYPASSRLS;
+    END IF;
 END $$;
 GRANT pellier_agent TO CURRENT_USER;
 GRANT pellier_credit_writer TO CURRENT_USER;
+
+-- Database evidence for the money path. pgAudit's object auditing logs every statement
+-- that touches a table its audit role (pgaudit.role, rds_pgaudit on Aurora) holds a
+-- privilege on, whoever runs it: the credit function under its owner's rights included.
+-- rds_pgaudit cannot log in and is never a session's role; these two privileges only mark
+-- what is audited. tool_audit records what the application ran; this records what reached
+-- the table, one log line per INSERT or UPDATE, in the cluster's exported PostgreSQL log.
+GRANT INSERT, UPDATE ON pellier.store_credits TO rds_pgaudit;
 
 -- What the role may touch: the two customer tables, the catalog get_orders
 -- joins, and the two customer columns the policies read. INSERT on tickets is
