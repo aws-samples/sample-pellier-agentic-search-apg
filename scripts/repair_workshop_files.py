@@ -2,10 +2,11 @@
 """Put every tracked workshop file back to the revision this box was built from.
 
 A workshop box has no git checkout: bootstrap clones the pinned revision, records it in
-``.workshop-ref.json`` and deletes ``.git``. A participant who edits or deletes a file
+``.workshop-ref.json`` and moves ``.git`` out of the workspace (``/opt/pellier/source.git``). A participant who edits or deletes a file
 outside the marked regions therefore has nothing to ``git checkout`` from. This command
-downloads that exact revision's tarball and writes back every file that differs or is
-missing, so the tree matches the pin again.
+reads that exact revision from the kept history (no network needed), or downloads its tarball
+when the history is missing or at another commit, and writes back every file that differs or
+is missing, so the tree matches the pin again.
 
     uv run scripts/repair_workshop_files.py            repair the files
     uv run scripts/repair_workshop_files.py --check    count what differs, change nothing
@@ -37,6 +38,9 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Callable, Iterator
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lab_reference  # noqa: E402  (sibling module)
 
 REPO = Path(__file__).resolve().parents[1]
 GITHUB_REPO = "aws-samples/sample-pellier-agentic-search-apg"
@@ -131,6 +135,30 @@ def download_tarball(sha: str, destination: Path) -> None:
         raise RepairUnavailable(f"cannot download {url}: {exc}") from exc
 
 
+def local_tarball(sha: str, destination: Path) -> None:
+    """Write the pinned revision from the history bootstrap kept outside the workspace.
+
+    Raises:
+        RepairUnavailable: there is no such history, or its HEAD is not ``sha``.
+    """
+    source = lab_reference.source_dir()
+    head = lab_reference.head_commit(source)
+    if head != sha:
+        raise RepairUnavailable(f"the local history {source} is at {head}, not {sha}")
+    prefix = GITHUB_REPO.split("/")[1] + "-" + sha
+    if not lab_reference.write_archive(source, prefix, destination):
+        raise RepairUnavailable(f"cannot read the revision from {source}")
+
+
+def fetch_pinned(sha: str, destination: Path) -> None:
+    """The pinned revision as a tarball: the local history first, GitHub when it is not there."""
+    try:
+        local_tarball(sha, destination)
+    except RepairUnavailable as local:
+        print(f"  local history not used ({local}); downloading instead", flush=True)
+        download_tarball(sha, destination)
+
+
 def _safe_relative(name: str) -> str | None:
     """The member path below the top-level directory, or None for the directory itself.
 
@@ -185,11 +213,15 @@ def _same(target: Path, member: tarfile.TarInfo, archive: tarfile.TarFile) -> bo
         return source.read() == current.read()
 
 
-def _write(target: Path, member: tarfile.TarInfo, archive: tarfile.TarFile) -> None:
-    """Replace ``target`` with the member, atomically, keeping a symlink or the file's mode."""
-    target.parent.mkdir(parents=True, exist_ok=True)
+def _write(repo: Path, target: Path, member: tarfile.TarInfo, archive: tarfile.TarFile) -> None:
+    """Replace ``target`` with the member, atomically, keeping a symlink or the file's mode.
+
+    What a root run creates or rewrites is handed to the repository's owner.
+    """
+    created = lab_reference.new_parents(repo, target.relative_to(repo).as_posix())
     temporary = target.with_name(f".{target.name}.repair-{os.getpid()}")
     try:
+        target.parent.mkdir(parents=True, exist_ok=True)
         if member.issym():
             os.symlink(member.linkname, temporary)
         else:
@@ -203,6 +235,7 @@ def _write(target: Path, member: tarfile.TarInfo, archive: tarfile.TarFile) -> N
     finally:
         if temporary.is_symlink() or temporary.exists():
             temporary.unlink()
+        lab_reference.adopt(repo, [*created, target])
 
 
 def apply_archive(repo: Path, archive: tarfile.TarFile, sha: str, write: bool = True) -> Report:
@@ -225,7 +258,7 @@ def apply_archive(repo: Path, archive: tarfile.TarFile, sha: str, write: bool = 
         existed = target.is_symlink() or target.exists()
         (report.restored if existed else report.recreated).append(relative)
         if write:
-            _write(target, member, archive)
+            _write(repo, target, member, archive)
     return report
 
 
@@ -239,7 +272,8 @@ def repair(
     Args:
         repo: The repository root.
         write: False counts what differs without changing anything.
-        fetch: Writes the tarball for a SHA to a path; defaults to the GitHub download.
+        fetch: Writes the tarball for a SHA to a path; defaults to the local history, then
+            the GitHub download.
 
     Raises:
         RepairUnavailable: the revision is unknown, cannot be downloaded or is not the pin.
@@ -247,7 +281,7 @@ def repair(
     sha = pinned_sha(repo)
     with tempfile.TemporaryDirectory(prefix="pellier-repair-") as scratch:
         tarball = Path(scratch) / "revision.tar.gz"
-        (fetch or download_tarball)(sha, tarball)
+        (fetch or fetch_pinned)(sha, tarball)
         try:
             with tarfile.open(tarball, "r:gz") as archive:
                 return apply_archive(repo, archive, sha, write)
@@ -263,7 +297,8 @@ def main(argv: list[str] | None = None) -> int:
     repo = args.repo.expanduser().resolve()
     try:
         sha = pinned_sha(repo)
-        print(f"Pinned revision {sha[:12]}: downloading its tarball", flush=True)
+        print(f"Pinned revision {sha[:12]}: reading it from the local history, else GitHub",
+              flush=True)
         report = repair(repo, write=not args.check)
     except RepairUnavailable as exc:
         print(f"workshop files NOT repaired: {exc}", file=sys.stderr)

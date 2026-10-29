@@ -903,6 +903,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
+    if check.refuse_missing_lab_file(4):
+        return 1
     rule_text = POLICY_FILE.read_text(encoding="utf-8")
     local = local_check(rule_text, STARTER_FILE.read_text(encoding="utf-8"))
     print("Lab 4A, part 1: your rule, evaluated with Cedar beside the baseline (nothing deployed)")

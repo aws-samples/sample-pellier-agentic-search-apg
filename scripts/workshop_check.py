@@ -26,10 +26,14 @@ import pathlib
 import re
 import shutil
 import subprocess
+import sys
 import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import reset_participant_exercises as _exercises  # noqa: E402  (sibling module)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_ENV = REPO / "pellier" / "backend" / ".env"
@@ -42,6 +46,11 @@ STATES = (PROVED, NOT_YET, UNCHECKED, CONTRADICTED)
 
 _KEYS = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
 _REQUIRED = ("DB_HOST", "DB_NAME", "DB_USER")
+
+
+def refuse_missing_lab_file(lab: int) -> bool:
+    """Print the FILE MISSING line and return True when a file Lab ``lab`` reads is gone."""
+    return _exercises.refuse_if_gap(lab, REPO)
 
 
 @dataclass

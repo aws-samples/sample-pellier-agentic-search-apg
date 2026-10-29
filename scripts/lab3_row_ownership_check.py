@@ -400,6 +400,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
+    if check.refuse_missing_lab_file(3):
+        return 1
     findings = collect()
     print("Lab 3B, live: your deployed predicate, then the policies as Theo on both "
           "database paths")

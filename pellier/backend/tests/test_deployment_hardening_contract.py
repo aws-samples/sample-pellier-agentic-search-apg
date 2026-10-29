@@ -68,9 +68,9 @@ def test_git_is_removed_outside_the_fallback_clone_branch(labs: str) -> None:
     """
     guard = 'if [ -d "$REPO_PATH/.git" ]; then'
     assert guard in labs, "no unconditional .git presence check"
-    removal = 'rm -rf "$REPO_PATH/.git"'
+    removal = 'mv "$REPO_PATH/.git" "$LAB_SOURCE_GIT"'
     assert removal in labs[labs.index(guard) :], (
-        "the unconditional block does not remove .git, so the event path keeps "
+        "the unconditional block does not move .git out, so the event path keeps "
         "a live repository"
     )
 
@@ -86,8 +86,8 @@ def test_provenance_is_recorded_before_git_is_destroyed(labs: str) -> None:
     guard = labs.index('if [ -d "$REPO_PATH/.git" ]; then')
     tail = labs[guard:]
     ref_at = tail.index(".workshop-ref.json")
-    rm_at = tail.index('rm -rf "$REPO_PATH/.git"')
-    assert ref_at < rm_at, "provenance must be written before .git is removed"
+    rm_at = tail.index('mv "$REPO_PATH/.git" "$LAB_SOURCE_GIT"')
+    assert ref_at < rm_at, "provenance must be written before .git leaves the workspace"
 
 
 def test_workspace_detachment_is_logged(labs: str) -> None:

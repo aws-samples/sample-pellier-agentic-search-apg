@@ -207,8 +207,32 @@ if [ -d "$REPO_PATH/.git" ]; then
 }
 EOF
     fi
-    rm -rf "$REPO_PATH/.git"
-    log "✅ Workspace detached from git (participants cannot revert the task files)"
+    # A deleted lab file or lab folder cannot come back from the workspace, so the pinned
+    # history moves outside it, root-owned and read-only, instead of being deleted. A lab
+    # reset reads the shipped files from it with `git --git-dir=... show HEAD:<path>`. The
+    # workspace still has no .git, and GIT_DIR is never set for the participant. This stops
+    # the habitual `git checkout -- .`; it is not a defence against deliberate Git plumbing.
+    LAB_SOURCE_GIT="/opt/pellier/source.git"
+    install -d -m 0755 /opt/pellier
+    rm -rf "$LAB_SOURCE_GIT"
+    mv "$REPO_PATH/.git" "$LAB_SOURCE_GIT" \
+        || fail "Could not move the pinned history to ${LAB_SOURCE_GIT}"
+    chown -hR root:root "$LAB_SOURCE_GIT"
+    chmod -R a+rX,go-w "$LAB_SOURCE_GIT"
+    # A history the participant cannot read would only show at the event, as a failed reset.
+    # Run from / so Git never needs the working directory (root's may be unreadable to the
+    # participant), and keep stderr out of the revision so a warning cannot fail the compare.
+    probe_err=$(mktemp)
+    pinned_head=$(cd / && sudo -u "$CODE_EDITOR_USER" git -c "safe.directory=$LAB_SOURCE_GIT" \
+        --git-dir="$LAB_SOURCE_GIT" rev-parse HEAD 2>"$probe_err") \
+        || fail "${CODE_EDITOR_USER} cannot read the pinned history at ${LAB_SOURCE_GIT}: $(cat "$probe_err")"
+    rm -f "$probe_err"
+    recorded_sha=$(jq -r '.resolved_sha // empty' "$REPO_PATH/.workshop-ref.json" 2>/dev/null || true)
+    if [ -n "$recorded_sha" ] && [ "$recorded_sha" != "unknown" ] \
+        && [ "$pinned_head" != "$recorded_sha" ]; then
+        fail "The pinned history at ${LAB_SOURCE_GIT} is at ${pinned_head}, expected ${recorded_sha}"
+    fi
+    log "✅ Workspace detached from git (history kept read-only at ${LAB_SOURCE_GIT})"
 fi
 
 # ============================================================================

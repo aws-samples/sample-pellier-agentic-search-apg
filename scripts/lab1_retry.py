@@ -336,6 +336,8 @@ def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     del argv
+    if check.refuse_missing_lab_file(1):
+        return 1
     finding, rows = run()
     print("Lab 1B: every product in Anna's latest search keeps the limits she asked for")
     if rows:

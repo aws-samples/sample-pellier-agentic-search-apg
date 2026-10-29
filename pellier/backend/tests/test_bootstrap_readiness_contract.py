@@ -1463,8 +1463,9 @@ def test_the_workspace_is_detached_from_git_on_every_path() -> None:
     their work went. Both paths must converge.
     """
     source = (REPO / "scripts" / "bootstrap-labs.sh").read_text(encoding="utf-8")
-    removals = re.findall(r'rm -rf "\$REPO_PATH/\.git"', source)
-    assert removals, "bootstrap no longer removes .git"
+    moves = re.findall(r'mv "\$REPO_PATH/\.git" "\$LAB_SOURCE_GIT"', source)
+    assert moves, "bootstrap no longer moves .git out of the workspace"
+    assert 'rm -rf "$REPO_PATH/.git"' not in source
 
     # The removal must not be reachable only from inside the clone branch.
     guard = 'if [ -d "$REPO_PATH/.git" ]; then'

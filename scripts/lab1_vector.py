@@ -185,6 +185,8 @@ def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     del argv
+    if check.refuse_missing_lab_file(1):
+        return 1
     finding, rows = run()
     print("Lab 1A: the vector branch ranks Anna's eligible products by meaning")
     if rows:

@@ -643,7 +643,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--task", choices=("3A", "3B"), required=True,
                         help="3A checks the two Task 3A regions from source; 3B reads Theo's "
                              "managed turns")
-    if parser.parse_args(argv).task == "3A":
+    task = parser.parse_args(argv).task
+    if check.refuse_missing_lab_file(3):
+        return 1
+    if task == "3A":
         return main_3a()
     print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory, the Gateway "
           "and the row policies", flush=True)

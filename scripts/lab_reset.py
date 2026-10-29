@@ -106,7 +106,7 @@ COMMENT ON FUNCTION {_CREDIT_FUNCTION} IS NULL;""",
 # Labs whose Python or deployed package changed need the backend started again.
 RESTARTS_BACKEND = frozenset({1, 2, 3})
 
-LAB_DIRECTORY = {1: "01-retrieve", 2: "02-ground", 3: "03-deploy", 4: "04-govern"}
+LAB_DIRECTORY = exercises.lab_reference.LAB_FOLDERS
 START_TASK = {1: "1A", 2: "2A", 3: "3A", 4: "4A"}
 NOT_RESET = {
     1: "retrieval_receipts rows from earlier searches stay (append-only); Lab 1's check ignores "
@@ -300,7 +300,10 @@ def reset_lab(
             if blocked:
                 raise LabResetError(blocked)
         started = time.monotonic()
-        restored = exercises.restore_lab(repo, lab)
+        try:
+            restored = exercises.restore_lab(repo, lab)
+        except FileNotFoundError as exc:
+            raise LabResetError(f"{exc} Nothing else was changed.") from exc
         _timed(steps, f"files: {', '.join(restored)}", started)
         report(f"  + OK    restored {len(restored)} file region(s) to their starters "
                f"({', '.join(restored)})")

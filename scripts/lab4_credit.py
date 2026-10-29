@@ -371,6 +371,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.parse_args(argv)
+    if check.refuse_missing_lab_file(4):
+        return 1
     findings = collect()
     print("Lab 4B: your deployed privileges, then the money role on both database paths")
     for finding in findings:

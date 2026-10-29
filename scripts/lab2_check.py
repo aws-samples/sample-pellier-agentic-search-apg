@@ -676,6 +676,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--sold-out", dest="sold_out",
                         help="A carried piece with no units (Task 2B)")
     args = parser.parse_args(argv)
+    if check.refuse_missing_lab_file(2):
+        return 1
     finding, rows = run(args.task, _inputs(args))
     if args.task == "2A":
         print("Lab 2A: Marco's latest stock answer comes from check_stock alone")

@@ -12,10 +12,17 @@ as shipped. ``--lab N`` restores one lab's files only; scripts/lab_reset.py (run
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import lab_reference  # noqa: E402  (sibling module)
+
+REPO = Path(__file__).resolve().parents[1]
 
 
 @dataclass(frozen=True)
@@ -201,20 +208,95 @@ def _restore(repo: Path, lab: int | None = None) -> None:
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
 
-def restore_lab(repo: Path, lab: int | None = None) -> list[str]:
+def _labs(lab: int | None) -> tuple[int, ...]:
+    return tuple(lab_reference.LAB_FOLDERS) if lab is None else (lab,)
+
+
+def put_back_deleted_files(repo: Path, lab: int | None, source: Path | None = None) -> list[str]:
+    """Restore the lab's deleted files from the pinned history; never overwrite a file.
+
+    Covers the lab's ``labs/0N-*`` entries (links, README, solution aliases), the files those
+    links point at (a deleted application module returns whole, so its marked region is its
+    starter), and the lab's starters and destinations.
+
+    Raises:
+        FileNotFoundError: a starter or destination is still missing; the pinned history
+            holds no copy of it.
+    """
+    source = source or lab_reference.source_dir()
+    markers, files = exercises_for(lab)
+    needed = [path for e in (*markers, *files) for path in (e.starter, e.destination)]
+    entries = [lab_reference.PARTICIPANT_FILES, *needed]
+    for number in _labs(lab):
+        entries += lab_reference.lab_entries(source, number)
+    restored = lab_reference.restore_missing(repo, source, entries)
+    for path in restored:
+        print(f"put back {path} from the pinned history; edits you made to it are gone")
+    for path in needed:
+        if not (repo / path).is_file():
+            message = (lab_reference.not_a_file_message(path) if os.path.lexists(repo / path)
+                       else lab_reference.missing_message(path, source))
+            raise lab_reference.LabFileMissing(message)
+    return restored
+
+
+def restore_lab(repo: Path, lab: int | None = None, source: Path | None = None) -> list[str]:
     """Restore one lab's files (every lab's when None); return the exercise ids restored.
 
     Raises:
         ValueError: the lab has no participant task files, or a marker pair is damaged.
-        FileNotFoundError: a starter or destination file is missing.
+        FileNotFoundError: a file is missing and the pinned history cannot bring it back.
         RuntimeError: a file still differs from its starter after the restore.
     """
+    exercises_for(lab)
+    put_back_deleted_files(repo, lab, source)
     _restore(repo, lab)
     mismatches = _check(repo, lab)
     if mismatches:
         raise RuntimeError("participant task file reset failed: " + ", ".join(mismatches))
     markers, files = exercises_for(lab)
     return [exercise.exercise_id for exercise in (*markers, *files)]
+
+
+def _lab_paths(repo: Path, lab: int, solutions: bool) -> tuple[list[str], list[str]]:
+    """The files and the editor links the lab's commands read, each in the order a gap is named."""
+    markers, files = exercises_for(lab)
+    paths = [e.destination for e in (*markers, *files)] + [e.starter for e in (*markers, *files)]
+    listing = repo / lab_reference.PARTICIPANT_FILES
+    if not listing.is_file():
+        return [lab_reference.PARTICIPANT_FILES, *paths], []
+    mine = [entry for entry in json.loads(listing.read_text(encoding="utf-8"))
+            if entry["alias"].startswith(f"labs/0{lab}-")]
+    if solutions:
+        paths += [entry["solution"] for entry in mine]
+    return paths, [entry["alias"] for entry in mine]
+
+
+def lab_gap(lab: int, repo: Path | None = None, solutions: bool = False) -> str | None:
+    """The FILE MISSING line for the first lab file that is gone, or None when all are there.
+
+    A link to nothing where a file belongs counts as gone: reading it would fail the same way.
+    A reset cannot fix that case, so it gets the facilitator message, not the reset command.
+    """
+    repo = repo or REPO
+    files, aliases = _lab_paths(repo, lab, solutions)
+    gone = [p for p in files if not (repo / p).is_file()]
+    gone += [p for p in aliases if not os.path.lexists(repo / p)]
+    if not gone:
+        return None
+    if os.path.lexists(repo / gone[0]):
+        return f"Lab {lab}: {lab_reference.not_a_file_message(gone[0])}"
+    return (f"Lab {lab}: FILE MISSING ({gone[0]}). Next: run uv run scripts/lab_run.py "
+            f"reset --lab {lab} to put back its starting code; your edits to that file "
+            "are gone either way.")
+
+
+def refuse_if_gap(lab: int, repo: Path | None = None, solutions: bool = False) -> bool:
+    """Print the FILE MISSING line and return True when a file the lab's commands read is gone."""
+    message = lab_gap(lab, repo, solutions)
+    if message:
+        print(message, flush=True)
+    return message is not None
 
 
 def main() -> int:
@@ -241,6 +323,8 @@ def main() -> int:
 
     try:
         if args.check:
+            if any(refuse_if_gap(number, repo) for number in _labs(args.lab)):
+                return 1
             mismatches = _check(repo, args.lab)
             if mismatches:
                 print(

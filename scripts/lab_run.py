@@ -97,6 +97,7 @@ from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, O
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import deploy_lock  # noqa: E402  (sibling module)
 import lab_reset  # noqa: E402  (sibling module)
+import reset_participant_exercises as exercises  # noqa: E402  (sibling module)
 import workshop_check as check  # noqa: E402  (sibling module)
 from wait_progress import Progress, clock, waiting  # noqa: E402  (sibling module)
 
@@ -1219,6 +1220,15 @@ def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
        "Bedrock AgentCore.")
 
 
+def _a_lab_file_is_missing(action: str, lab: Optional[int]) -> bool:
+    """Name the first missing lab file instead of crashing on it; reset is what fixes it."""
+    if action in ("reset", "restart"):
+        return False
+    labs = (1, 2) if action == "fast-track" else (lab,)
+    needs_answers = action in ("solution", "diff", "finish", "fast-track")
+    return any(exercises.refuse_if_gap(number, REPO, solutions=needs_answers) for number in labs)
+
+
 def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
@@ -1258,6 +1268,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
         print("Restart the backend so it serves your edits", flush=True)
     else:
         print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
+    if _a_lab_file_is_missing(args.action, args.lab):
+        return 1
     try:
         if args.action == "fast-track":
             fast_track(Backend(base_url), token_for)
