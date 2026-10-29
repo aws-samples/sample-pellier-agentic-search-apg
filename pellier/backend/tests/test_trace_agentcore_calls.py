@@ -167,6 +167,19 @@ def test_fetch_keeps_the_newest_calls_and_reports_none_when_there_are_none() -> 
     assert trace.fetch_calls(_Logs(LIST), "get_tickets", 60, 6) == []
 
 
+def test_the_default_limit_keeps_nadias_first_deny_in_a_busy_lab_4() -> None:
+    # Eighteen credit calls in the hour (the first Execute, then retries while a deploy settles,
+    # Execute again, the replay and reruns of the 4A check): the Wrap-up still finds the first.
+    calls = [_call("req-first", 1_000, "give_store_credit", NADIA_SUB, "DENY",
+                   ["workshop_credit_limit-xyz"], ran=False)]
+    calls += [_call(f"req-{n}", 2_000 + n * 10, "give_store_credit", NADIA_SUB, "DENY",
+                    ["workshop_credit_limit-xyz"], ran=False) for n in range(17)]
+    logs = _Logs([span for call in calls for span in call])
+    fetched = trace.fetch_calls(logs, "give_store_credit", 60, trace.CALL_LIMIT)
+    assert len(fetched) == 18
+    assert fetched[0]["request_id"] == "req-first"
+
+
 def test_subject_names_maps_the_workshop_sign_ins() -> None:
     class _Cognito:
         def admin_get_user(self, UserPoolId: str, Username: str) -> Dict[str, Any]:  # noqa: N803

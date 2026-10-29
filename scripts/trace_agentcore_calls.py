@@ -36,6 +36,9 @@ sys.path.insert(0, str(ROOT / "pellier" / "backend"))
 sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
 
 LOG_GROUP = "aws/spans"
+# The Wrap-up names Nadia's first DENY, the oldest of her credit calls in the hour. Extra Execute
+# again clicks, 4A check reruns and finish's 30 s retries can add a dozen more, so read enough.
+CALL_LIMIT = 20
 RUNTIME_STREAM = "spans"
 TARGET = "pellier-store-tools"
 # The workshop sign-ins, so a token subject prints as a name.
@@ -232,7 +235,7 @@ def main() -> int:
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tool", required=True, help="a store tool, for example get_tickets")
     parser.add_argument("--minutes", type=int, default=60, help="how far back to read")
-    parser.add_argument("--limit", type=int, default=6, help="the newest calls to show")
+    parser.add_argument("--limit", type=int, default=CALL_LIMIT, help="the newest calls to show")
     args = parser.parse_args()
 
     import boto3
