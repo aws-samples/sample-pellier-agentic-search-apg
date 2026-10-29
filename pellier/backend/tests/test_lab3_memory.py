@@ -93,7 +93,7 @@ def test_the_finding_prints_event_ids_beside_record_ids() -> None:
     rendered = check.render(finding)
     assert "source event 0000001-theo-1" in rendered
     assert "PellierUserPreferences record mem-theo-1" in rendered
-    assert "  Expected  " in rendered and "  Evidence  " in rendered
+    assert "\u2502 Expected \u2502" in rendered and "\u2502 Evidence \u2502" in rendered
 
 
 def test_no_record_yet_is_not_yet_and_no_conversation_contradicts() -> None:

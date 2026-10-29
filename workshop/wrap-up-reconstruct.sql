@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 
 -- Wrap-up: rebuild Jessica's store credit, from her request to the row.
 --

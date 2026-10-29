@@ -6,6 +6,7 @@ import importlib.util
 import json
 import pathlib
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -2491,7 +2492,7 @@ def test_a_deploy_refuses_a_lab_4_rule_the_cedar_check_contradicts(tmp_path, cap
     widened = _lab4_repo(tmp_path, lab4.widen_action(solution))
     with pytest.raises(RuntimeError, match="fails the Cedar check, so it was not deployed"):
         provisioner._lab4_rule_gate(widened)
-    assert "Task 4A  CONTRADICTED" in capsys.readouterr().err
+    assert re.search(r"Task 4A\s+\u2502 CONTRADICTED", capsys.readouterr().err)
 
 
 @pytest.mark.parametrize("which, state", [("starter", "NOT YET"), ("solution", "PROVED")])

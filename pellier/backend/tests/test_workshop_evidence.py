@@ -99,10 +99,10 @@ class TestTheEightLines:
     def test_the_report_prints_three_things_per_line(self, tmp_path: Path, starters: None) -> None:
         report = evidence.render_report(evidence.collect(tmp_path / "absent.env",
                                                          connect=_no_database))
-        assert report.count("\nTask ") == 8
-        assert report.count("  Expected  ") == 8
-        assert report.count("  Observed  ") == 8
-        assert report.count("  Evidence  ") == 8
+        assert report.count("\u2502 Task ") == 8
+        assert report.count("\u2502 Expected \u2502") == 8
+        assert report.count("\u2502 Observed \u2502") == 8
+        assert report.count("\u2502 Evidence \u2502") == 8
         assert "0 of 8 tasks proved" in report
 
     def test_save_writes_the_report(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,

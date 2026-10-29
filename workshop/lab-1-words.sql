@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 SET client_min_messages = warning;
 
 -- Lab 1A: what Anna's first sentence finds by its words alone.

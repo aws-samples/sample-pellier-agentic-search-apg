@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 
 -- Lab 1, Go deeper: recompute Anna's recorded ranking.
 --

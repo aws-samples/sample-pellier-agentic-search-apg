@@ -217,8 +217,8 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
     done = _worksheet(fresh_db, RECONSTRUCT)
     assert done.returncode == 0, done.stdout + done.stderr
     assert done.stdout.rstrip().endswith("Wrap-up reconstruction passed")
-    story = [line for line in done.stdout.splitlines() if " | " in line][1:8]
-    assert [line.split(" | ")[1].strip() for line in story] == [
+    story = [line for line in done.stdout.splitlines() if " \u2502 " in line][1:8]
+    assert [line.split(" \u2502 ")[1].strip() for line in story] == [
         "Jessica asked for a person about a store credit",
         "ask_a_person ran in her turn (gateway)",
         "The investigation proposed $100.00 for orders 20, 21",

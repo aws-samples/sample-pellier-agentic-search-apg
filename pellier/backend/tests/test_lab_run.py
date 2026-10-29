@@ -1433,7 +1433,8 @@ def test_send_prints_each_turns_trace_as_it_streams(
     done = lines.index("          2 done    Searching the catalog in Aurora (731 ms): 5 found from 64 that "
                        "fit under $100 and in stock, candles")
     assert lines[done + 1] == "                    left out"
-    assert "                    How it ranked: kept 64 of 100" in lines
+    assert "                    How it ranked" in lines
+    assert "                    Limits: kept 64 of 100 products" in lines
     rows = [line.strip() for line in lines if line.strip().startswith("│")]
     assert [cell.strip() for cell in rows[0].strip("│").split("│")] == [
         "#", "Product", "Full text", "Vector", "Fused score", "Rerank"]
@@ -1473,7 +1474,7 @@ def test_the_terminal_ranking_uses_the_stores_column_names_and_chip_words() -> N
     """A terminal turn and the same turn in the store's Builder view must read alike."""
     panel = (REPO / "pellier/frontend/src/components/turn/RankingPanel.tsx").read_text("utf-8")
     headings = re.search(r"\{\[(.*?)\]\.map\(head =>", panel).group(1)
-    assert [name for name, _, _ in lab_run.RANKING_COLUMNS] == re.findall(r"'([^']+)'", headings)
+    assert [name for name, _ in lab_run.RANKING_COLUMNS] == re.findall(r"'([^']+)'", headings)
     for reason, words in lab_run.REMOVED.items():
         assert f"{reason}: n => `${{formatCount(n)}} {words}`" in panel
     assert "How it ranked" in panel and "Kept " in panel
@@ -1497,8 +1498,10 @@ def test_a_ranking_row_shows_how_far_rerank_moved_it_and_its_similarity(
                                       "rerank_score": 0.62, "before": 6, "after": 2,
                                       "moved": 4}]})
     lines = [line.strip() for line in capsys.readouterr().out.splitlines()]
-    assert lines[0] == "How it ranked: kept 828 of 1,000; left out 86 over budget, 82 sold out, 4 candles"
-    assert lines[1] == ("Full text 20, Vector 20; fused with RRF (k=60), then Cohere Rerank 3.5 "
+    assert lines[0] == "How it ranked"
+    assert lines[1] == ("Limits: kept 828 of 1,000 products; left out 86 over budget, 82 sold out, "
+                        "4 candles")
+    assert lines[2] == ("Full text 20, Vector 20; fused with RRF (k=60), then Cohere Rerank 3.5 "
                         "on the top 15")
     row = next(line for line in lines if "Tall Stoneware Vase" in line)
     assert [cell.strip() for cell in row.strip("│").split("│")] == [
@@ -1539,8 +1542,9 @@ def test_send_names_a_retry_and_what_it_dropped(
     assert _run(fake, 1, None, "--task", "1B") == 0
     lines = capsys.readouterr().out.splitlines()
 
-    retry_at = lines.index("                    Tried again without the words gift, slow, home")
-    assert lines[retry_at + 1].lstrip() == "How it ranked: kept 64 of 100"
+    retry_at = lines.index("                    Too few matches, so Pellier tried again without the "
+                           "words gift, slow, home")
+    assert lines[retry_at + 1].lstrip() == "How it ranked"
 
 
 def test_a_first_attempt_prints_no_retry_line(
@@ -1548,7 +1552,14 @@ def test_a_first_attempt_prints_no_retry_line(
 ) -> None:
     fake.steps = STEPS
     assert _run(fake, 1, None, "--task", "1B") == 0
-    assert "Tried again" not in capsys.readouterr().out
+    assert "tried again" not in capsys.readouterr().out
+
+
+def test_limits_that_left_nothing_out_say_so(capsys: pytest.CaptureFixture[str]) -> None:
+    lab_run._trace_ranking({"available": True, "filters": {"kept": 1000, "of": 1000},
+                            "rows": [{"name": "Sunday Morning Candle", "fts_rank": 3}]})
+    lines = [line.strip() for line in capsys.readouterr().out.splitlines()]
+    assert lines[1] == "Limits: kept 1,000 of 1,000 products; no limit left any out"
 
 
 def test_quiet_keeps_the_one_line_output(

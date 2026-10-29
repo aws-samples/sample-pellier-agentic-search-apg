@@ -3,7 +3,8 @@
 Every check prints three things: what was expected, what was observed, and the
 evidence behind it (the row, the decision, the key). A check that did not pass
 also says what to look at next. The lab checks and the evidence export render
-through :func:`render`, so a participant reads one shape everywhere.
+through :func:`render` and :func:`table`, bordered boxes that wrap inside their
+columns, so a participant reads one shape everywhere.
 
 A finding is in one of four states, never two:
 
@@ -23,11 +24,12 @@ import json
 import os
 import pathlib
 import re
+import shutil
 import subprocess
 import textwrap
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_ENV = REPO / "pellier" / "backend" / ".env"
@@ -65,44 +67,112 @@ class Finding:
     next_step: str = ""
 
 
-# A laptop-size Code Editor terminal is about 124 columns wide.
+# A laptop-size Code Editor terminal is about 124 columns wide; beside the guide it is narrower,
+# so every box and table is sized to the terminal it prints in, never wider than WIDTH.
 WIDTH = 120
-_INDENT = " " * 12
+_NARROWEST = 40
 # A command a participant may copy stays on one line: from its first word to the next
 # clause break or the end of the sentence.
-_COMMAND = re.compile(r"\b(?:psql|python3|bash|sudo) .*?(?=, |; |\. |\.?$)")
+_COMMAND = re.compile(r"\b(?:uv run|psql|python3|bash|sudo) .*?(?=, |; |\. |\.?$)")
+# The narrowest a wrapped column may get before a table gives each row its own box.
+_MIN_COLUMN = 8
 
 
-def _wrapped(label: str, text: str) -> List[str]:
-    """One field as lines no wider than WIDTH, the label on the first."""
+def terminal_width() -> int:
+    """The terminal's width in columns, at most WIDTH; WIDTH when output is not a terminal."""
+    columns = shutil.get_terminal_size((WIDTH + 1, 24)).columns
+    return max(_NARROWEST, min(WIDTH, columns - 1))
+
+
+def _lines(text: str, width: int) -> List[str]:
+    """A cell's text wrapped to its column; a copyable command stays on one line."""
     kept = _COMMAND.sub(lambda match: match.group(0).replace(" ", "\0"), text)
-    lines = textwrap.wrap(kept, width=WIDTH - len(_INDENT), break_long_words=False,
+    lines = textwrap.wrap(kept, width=width, break_long_words=False,
                           break_on_hyphens=False) or [""]
-    first = f"  {label:<8}  " if label else _INDENT
-    return [(first if index == 0 else _INDENT) + line.replace("\0", " ")
-            for index, line in enumerate(lines)]
+    return [line.replace("\0", " ") for line in lines]
+
+
+def _longest_word(text: str) -> int:
+    kept = _COMMAND.sub(lambda match: match.group(0).replace(" ", "\0"), text)
+    return max((len(word) for word in kept.split()), default=0)
+
+
+def _fit(widths: Sequence[int], floors: Sequence[int], room: int) -> Optional[List[int]]:
+    """Narrow the widest columns until the bordered rows fit ``room``; None when they cannot."""
+    widths = list(widths)
+    while sum(widths) + 3 * len(widths) + 1 > room:
+        index = max(range(len(widths)), key=lambda i: widths[i] - floors[i])
+        if widths[index] <= floors[index]:
+            return None
+        widths[index] -= 1
+    return widths
+
+
+def _grid(rows: Sequence[Sequence[str]], widths: Sequence[int], rules: Iterable[int],
+          align: Sequence[str]) -> str:
+    """Rows of cells inside box-drawing borders, with a rule after each row in ``rules``."""
+    rules = set(rules)
+
+    def border(left: str, middle: str, right: str) -> str:
+        return left + middle.join("\u2500" * (width + 2) for width in widths) + right
+
+    out = [border("\u250c", "\u252c", "\u2510")]
+    for number, row in enumerate(rows):
+        cells = [_lines(value, widths[i]) for i, value in enumerate(row)]
+        for depth in range(max(len(cell) for cell in cells)):
+            parts = [f"{(cell[depth] if depth < len(cell) else ''):{align[i]}{widths[i]}}"
+                     for i, cell in enumerate(cells)]
+            out.append("\u2502 " + " \u2502 ".join(parts) + " \u2502")
+        if number in rules:
+            out.append(border("\u251c", "\u253c", "\u2524"))
+    out.append(border("\u2514", "\u2534", "\u2518"))
+    return "\n".join(out)
+
+
+def _pairs(rows: Sequence[Sequence[str]], separators: Iterable[int], room: int) -> str:
+    """Label and value rows in a two-column box, the value wrapped to whatever room is left."""
+    label = max(len(row[0]) for row in rows)
+    floor = max(_MIN_COLUMN, max(_longest_word(row[1]) for row in rows))
+    value = max(len(row[1]) for row in rows)
+    widths = _fit([label, value], [label, floor], room) or [label, floor]
+    return _grid(rows, widths, separators, "<<")
+
+
+def table(header: Sequence[str], rows: Sequence[Sequence[Any]],
+          align: Optional[Sequence[str]] = None, width: Optional[int] = None) -> str:
+    """A bordered table that fits the terminal: wide cells wrap, and when even that is too
+    wide, each row gets its own box of header and value, as psql's expanded display does.
+
+    Args:
+        header: The column names.
+        rows: The cells, one sequence per row.
+        align: ``<`` or ``>`` per column; left-aligned when omitted.
+        width: The columns available; the terminal's width when omitted.
+    """
+    cells = [[str(value) for value in header]] + [[str(value) for value in row] for row in rows]
+    room = width or terminal_width()
+    align = align or ["<"] * len(header)
+    natural = [max(len(row[i]) for row in cells) for i in range(len(header))]
+    floors = [max(min(natural[i], _MIN_COLUMN), max(_longest_word(row[i]) for row in cells))
+              for i in range(len(header))]
+    widths = _fit(natural, floors, room)
+    if widths:
+        return _grid(cells, widths, {0}, align)
+    records = [[name, value] for row in cells[1:] for name, value in zip(cells[0], row)]
+    ends = {len(header) * (n + 1) - 1 for n in range(len(cells) - 2)}
+    return _pairs(records, ends, room)
 
 
 def render(finding: Finding) -> str:
-    """The finding as the lines a participant reads, wrapped to the terminal."""
-    lines = [f"Task {finding.task}  {finding.state}  {finding.title}"]
-    lines += _wrapped("Expected", finding.expected)
-    lines += _wrapped("Observed", finding.observed)
+    """The finding as one bordered box sized to the terminal: the task and its state, then
+    each field on its own row."""
+    rows = [[f"Task {finding.task}", f"{finding.state}  {finding.title}"],
+            ["Expected", finding.expected], ["Observed", finding.observed]]
     for index, line in enumerate(finding.evidence or ["(none)"]):
-        lines += _wrapped("Evidence" if index == 0 else "", line)
+        rows.append(["Evidence" if index == 0 else "", line])
     if finding.state != PROVED and finding.next_step:
-        lines += _wrapped("Next", finding.next_step)
-    return "\n".join(lines)
-
-
-def table(header: Sequence[str], rows: Sequence[Sequence[Any]]) -> str:
-    """A plain left-aligned table, sized to its widest cell."""
-    cells = [[str(value) for value in header]] + [[str(value) for value in row] for row in rows]
-    widths = [max(len(row[i]) for row in cells) for i in range(len(header))]
-    return "\n".join(
-        "  " + "  ".join(value.ljust(widths[i]) for i, value in enumerate(row)).rstrip()
-        for row in cells
-    )
+        rows.append(["Next", finding.next_step])
+    return _pairs(rows, {0}, terminal_width())
 
 
 def parse_dotenv(env_path: pathlib.Path) -> Dict[str, str]:

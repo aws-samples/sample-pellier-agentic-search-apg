@@ -646,20 +646,17 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
 
 
 def cases_table(rows: Sequence[Sequence[str]]) -> str:
-    """The 2B cases, narrow enough for a laptop terminal.
-
-    Each case is one line (case, query, chosen by, verdict); what the catalog expects
-    and what check_stock said go on the two lines beneath it.
-    """
-    head = check.table(("case", "query", "chosen by", "verdict"),
-                       [(case, query, chosen_by, verdict)
-                        for case, query, chosen_by, _expected, _observed, verdict in rows])
-    lines = head.split("\n")
-    indent = " " * (4 + max(len("case"), *(len(row[0]) for row in rows)))
-    out = [lines[0]]
-    for line, row in zip(lines[1:], rows):
-        out += [line, f"{indent}expected  {row[3]}", f"{indent}observed  {row[4]}"]
-    return "\n".join(out)
+    """The 2B cases as bordered tables: each case with its verdict and what check_stock said,
+    then each case that differs with what the catalog expects beside what it said."""
+    table = check.table(("case", "query", "chosen by", "verdict", "observed"),
+                        [(case, query, chosen_by, verdict, observed)
+                         for case, query, chosen_by, _expected, observed, verdict in rows])
+    differs = [(case, expected, observed)
+               for case, _query, _chosen_by, expected, observed, verdict in rows
+               if verdict != "matches"]
+    if differs:
+        table += "\n" + check.table(("differs", "expected", "observed"), differs)
+    return table
 
 
 def marco_line(rows: Sequence[Sequence[str]], request: str) -> str:

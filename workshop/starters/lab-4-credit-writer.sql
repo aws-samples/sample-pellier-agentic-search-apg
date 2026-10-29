@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 
 -- Lab 4, Task 4B: what the money role may do.
 --
@@ -202,17 +202,11 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
 \echo 'Evidence  pellier.apply_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
 \echo '          a probe case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
 \echo ''
--- One block per probe: the verdict and the probe, then what was expected, what was
--- observed and where it came from, each value continuing on its own lines.
-\pset tuples_only on
-\pset format unaligned
-SELECT format(E'%s  %s\n         expected  %s\n         observed  %s\n         source    %s\n',
-              CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END, probe,
-              replace(expected, E'\n', E'\n                   '),
-              replace(observed, E'\n', E'\n                   '), source)
+-- Each probe on one row with the reason it came out as it did; after a failed run, each probe
+-- that differs again, with what was expected beside what was observed.
+SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
+       probe AS "Probe", observed AS "Observed", source AS "Source"
   FROM lab_4_probes ORDER BY ord;
-\pset format aligned
-\pset tuples_only off
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes
 \gset lab_4_
@@ -234,6 +228,8 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \echo '         ' :credits_rows
   \echo 'Lab 4B privileges check passed'
 \else
+  SELECT probe AS "Differs", expected AS "Expected", observed AS "Observed"
+    FROM lab_4_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
   SELECT format('store_credits rows before %s, after %s', :credits_before, count(*)) AS rows
     FROM pellier.store_credits \gset credits_

@@ -267,7 +267,8 @@ class TestTask3AToken:
         out = capsys.readouterr().out
         assert out.count("Task 3A  ") == 4
         assert "get_tickets is not published" in out
-        assert "Theo's household request needs get_orders and get_tickets" in " ".join(out.split())
+        assert "Theo's household request needs get_orders and get_tickets" in " ".join(
+            out.replace("\u2502", " ").split())
         assert out.rstrip().endswith("Lab 3A check failed")
         assert "Lab 3B" not in out
 

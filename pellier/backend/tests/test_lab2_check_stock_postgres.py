@@ -23,6 +23,8 @@ from psycopg.rows import dict_row
 
 from tests.fresh_cluster import fresh_db, run_reset  # noqa: F401  (fixture import)
 
+from tests import psql_tables  # noqa: E402  (the tests' own helper)
+
 REPO = Path(__file__).resolve().parents[3]
 LIVE = REPO / "workshop" / "lab-2-check-stock.sql"
 STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
@@ -41,19 +43,8 @@ def _run(cluster: Any, path: Path) -> subprocess.CompletedProcess:
 
 
 def _probes(stdout: str) -> Dict[str, List[str]]:
-    """Each probe block as name -> [expected, observed, source, verdict]."""
-    blocks: Dict[str, Dict[str, str]] = {}
-    name = None
-    for line in stdout.splitlines():
-        head = re.match(r"^(matches|differs)  (.+)$", line)
-        value = re.match(r"^ {9}(expected|observed|source) +(.*)$", line)
-        if head:
-            name = head.group(2)
-            blocks[name] = {"verdict": head.group(1)}
-        elif name and value:
-            blocks[name][value.group(1)] = value.group(2)
-    return {name: [b.get("expected", ""), b.get("observed", ""), b.get("source", ""),
-                   b["verdict"]] for name, b in blocks.items()}
+    """Each probe as name -> [expected, observed, source, verdict], from the bordered tables."""
+    return psql_tables.probes(stdout)
 
 
 def _body(path: Path) -> str:
@@ -134,7 +125,7 @@ def test_the_starter_fails_only_not_carried_and_shows_the_null_sum(fresh_db) -> 
     assert probes['several: "Linen shirt"'][1].endswith("rows, one per piece, no count")
     assert probes['sold out: "Quilted Silk Vest"'][1].startswith("1 row: 0 units; ")
     # The cause, printed as a row: no warehouse rows, a NULL sum, a 0 after COALESCE.
-    assert re.search(r"^\s+0 \|\s+NULL \|\s+0 ?$", done.stdout, re.MULTILINE), done.stdout
+    assert re.search(r"^\u2502\s+0 \u2502\s+NULL \u2502\s+0 \u2502$", done.stdout, re.MULTILINE), done.stdout
     assert "3 of 4 probes match; rolled back, the live function is unchanged" in done.stdout
     assert "Lab 2B function check failed" in done.stdout
     assert _live(fresh_db) == before

@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 
 -- Lab 3, Task 3B: the row-ownership predicate.
 --
@@ -207,10 +207,9 @@ INSERT INTO lab_3_probes VALUES
 \echo 'Evidence  policies orders_owner and support_tickets_owner, rewritten inside this transaction'
 \echo '          sign-in names in pellier.customers:' :owner_names
 \echo ''
-SELECT probe, bound_as,
-       expected,
-       observed,
-       CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS verdict
+SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
+       probe AS "Probe", bound_as AS "Signed in as", expected AS "Expected",
+       observed AS "Observed"
   FROM lab_3_probes;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_3_probes

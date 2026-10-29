@@ -14,9 +14,12 @@ from pathlib import Path
 
 import pytest
 
+from tests import psql_tables
+
 SCRIPTS = Path(__file__).resolve().parents[3] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 check = importlib.import_module("lab2_check")
+workshop_check = importlib.import_module("workshop_check")
 
 VEST = {"product_id": "43", "name": "Quilted Silk Vest"}
 SHIRTS = [{"product_id": "2", "name": "Hadley Linen Shirt"},
@@ -166,7 +169,8 @@ def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(re
 
 
 def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
-    """The event's rows ran to about 150 columns and wrapped at 133; each now fits in 100."""
+    """The event's rows ran to about 150 columns and wrapped at 133; each now fits the
+    renderer's width, and a case that differs repeats with what the catalog expects."""
     rows = [
         ("not carried", "Velvet Opera Cape", "default", "not_found: no product matches",
          "success, 0 units (no rows)", "differs"),
@@ -175,11 +179,13 @@ def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
         ("in stock", "Hadley Linen Shirt", "fixed", "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)",
          "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)", "matches"),
     ]
-    lines = check.cases_table(rows).splitlines()
-    assert max(len(line) for line in lines) <= 100
-    assert lines[0].split() == ["case", "query", "chosen", "by", "verdict"]
-    assert lines[1].split()[:2] == ["not", "carried"] and lines[1].rstrip().endswith("differs")
-    assert lines[2].split()[:1] == ["expected"] and lines[3].split()[:1] == ["observed"]
+    text = check.cases_table(rows)
+    assert max(len(line) for line in text.splitlines()) <= workshop_check.WIDTH
+    cases, differs = psql_tables.tables(text)
+    assert list(cases[0]) == ["case", "query", "chosen by", "verdict", "observed"]
+    assert [row["verdict"] for row in cases] == ["differs", "matches", "matches"]
+    assert differs == [{"differs": "not carried", "expected": "not_found: no product matches",
+                        "observed": "success, 0 units (no rows)"}]
 
 
 @pytest.mark.parametrize("guide, recorded", [("PROVED", "PROVED"), ("CONTRADICTED", "NOT YET")])

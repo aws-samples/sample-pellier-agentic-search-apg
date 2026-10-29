@@ -21,6 +21,8 @@ import pytest
 
 from tests.fresh_cluster import fresh_db  # noqa: F401  (fixture import)
 
+from tests import psql_tables  # noqa: E402  (the tests' own helper)
+
 REPO = Path(__file__).resolve().parents[3]
 LIVE = REPO / "workshop" / "lab-4-credit-writer.sql"
 STARTER = REPO / "workshop" / "starters" / "lab-4-credit-writer.sql"
@@ -37,29 +39,8 @@ def _run(cluster: Any, path: Path) -> subprocess.CompletedProcess:
 
 
 def _probes(stdout: str) -> Dict[str, List[str]]:
-    """Each probe block as name -> [expected, observed, source, verdict].
-
-    A block is the verdict and the probe on one line, then expected, observed and source
-    indented under it; a value that continues keeps its lines, joined by newlines.
-    """
-    blocks: Dict[str, Dict[str, List[str]]] = {}
-    name = field = None
-    for line in stdout.splitlines():
-        head = re.match(r"^(matches|differs)  (.+)$", line)
-        value = re.match(r"^ {9}(expected|observed|source) +(.*)$", line)
-        if head:
-            name, field = head.group(2), None
-            blocks[name] = {"verdict": [head.group(1)], "expected": [], "observed": [],
-                            "source": []}
-        elif name and value:
-            field = value.group(1)
-            blocks[name][field].append(value.group(2))
-        elif name and field and line.startswith(" " * 19):
-            blocks[name][field].append(line.strip())
-        else:
-            field = None
-    return {name: ["\n".join(b[key]) for key in ("expected", "observed", "source", "verdict")]
-            for name, b in blocks.items()}
+    """Each probe as name -> [expected, observed, source, verdict], from the bordered tables."""
+    return psql_tables.probes(stdout)
 
 
 def _state(cluster: Any) -> str:

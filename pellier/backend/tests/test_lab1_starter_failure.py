@@ -211,7 +211,7 @@ def test_the_starter_expression_misses_every_one_list_product(
     done = _psql_file(fresh_db, lab_variants.LAB1_RRF[lab_variants.STARTER])
     assert done.returncode != 0
     assert "Lab 1 fusion check failed" in done.stdout
-    assert done.stdout.count("| differs") == one_list, done.stdout
+    assert done.stdout.count("\u2502 differs") == one_list, done.stdout
     assert "Expected  every recomputed score equals the score receipt" in done.stdout
     assert "persona-anna-starter" in done.stdout
 
@@ -223,7 +223,7 @@ def test_the_solution_expression_matches_every_recorded_score(
     done = _psql_file(fresh_db, lab_variants.LAB1_RRF[lab_variants.SOLUTION])
     assert done.returncode == 0, done.stdout + done.stderr
     assert "Lab 1 fusion check passed" in done.stdout
-    assert "| differs" not in done.stdout
+    assert "\u2502 differs" not in done.stdout
 
 
 def test_the_worksheet_says_what_to_do_without_a_receipt(fresh_db) -> None:  # noqa: F811

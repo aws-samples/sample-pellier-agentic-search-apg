@@ -55,8 +55,9 @@ def test_bootstrap_and_readiness_pin_the_same_uv() -> None:
     assert 'UV_VERSION="0.11.26"' in STAGE2 and 'UV_VERSION="0.11.26"' in start
 
 
-def test_bootstrap_writes_a_psqlrc_that_stops_on_error_without_a_pager() -> None:
-    assert ("printf '%s\\n' '\\set QUIET 1' '\\pset pager off' '\\set ON_ERROR_STOP on' "
+def test_bootstrap_writes_a_psqlrc_that_stops_on_error_and_borders_tables() -> None:
+    assert ("printf '%s\\n' '\\set QUIET 1' '\\pset pager off' '\\set ON_ERROR_STOP on' \\\n"
+            "        '\\pset border 2' '\\pset linestyle unicode' '\\pset expanded auto' "
             "'\\unset QUIET'") in STAGE2
     assert '"$PGPASS_DIR/.psqlrc"' in STAGE2
 

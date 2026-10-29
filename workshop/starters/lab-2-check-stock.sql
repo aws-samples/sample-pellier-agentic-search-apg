@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 \pset null NULL
 
 -- Lab 2, Task 2B: what check_stock says about a piece Pellier does not carry.
@@ -169,16 +169,11 @@ SELECT count(w.*) AS warehouse_rows, sum(w.quantity) AS "sum(quantity)",
                          WHERE strpos(lower(p.name), 'velvet') > 0
                            AND strpos(lower(p.name), 'opera') > 0
                            AND strpos(lower(p.name), 'cape') > 0);
--- One block per probe: the verdict and the probe, then what was expected, what was
--- observed and where it came from.
-\pset tuples_only on
-\pset format unaligned
-SELECT format(E'%s  %s\n         expected  %s\n         observed  %s\n         source    %s\n',
-              CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END, probe,
-              expected, observed, source)
+-- Each probe on one row; after a failed run, each probe that differs again, with what was
+-- expected beside what was observed and the call that observed it.
+SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
+       probe AS "Probe", observed AS "Observed"
   FROM lab_2_probes ORDER BY ord;
-\pset format aligned
-\pset tuples_only off
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_2_probes
 \gset lab_2_
@@ -191,6 +186,8 @@ SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
   \echo 'Deployed  pellier.check_stock, sha256' :stamp_short
   \echo 'Lab 2B function check passed'
 \else
+  SELECT probe AS "Differs", expected AS "Expected", observed AS "Observed", source AS "Source"
+    FROM lab_2_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
   \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'probes match; rolled back, the live function is unchanged'
   \echo 'Next      what should a piece Pellier does not carry return? Read the aggregate above: over'

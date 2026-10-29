@@ -132,8 +132,9 @@ def _worksheet_rows(cluster: Any, worksheet: Path = WORKSHEET, bars: int = 2) ->
     )
     assert done.returncode == 0, done.stderr
     assert "NOTICE" not in done.stdout + done.stderr
-    return [[cell.strip() for cell in line.split("|")]
-            for line in done.stdout.splitlines() if line.count("|") >= bars]
+    return [[cell.strip() for cell in line.strip().strip("\u2502").split("\u2502")]
+            for line in done.stdout.splitlines()
+            if line.lstrip().startswith("\u2502") and line.count("\u2502") >= bars + 2]
 
 
 def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> None:  # noqa: F811

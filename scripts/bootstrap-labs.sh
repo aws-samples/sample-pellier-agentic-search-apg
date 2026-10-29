@@ -385,10 +385,12 @@ EOF
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PGPASS_DIR/.pgpass"
 
     # .psqlrc lets the guide teach plain `psql -f file.sql`: a lab script
-    # stops at its first error, and results print without a pager. QUIET
+    # stops at its first error, and results print without a pager, in bordered
+    # tables that become one box per row when wider than the terminal. QUIET
     # keeps \pset from announcing itself every time psql starts. Automation
     # keeps passing -X and its own flags, so it never depends on this file.
-    printf '%s\n' '\set QUIET 1' '\pset pager off' '\set ON_ERROR_STOP on' '\unset QUIET' \
+    printf '%s\n' '\set QUIET 1' '\pset pager off' '\set ON_ERROR_STOP on' \
+        '\pset border 2' '\pset linestyle unicode' '\pset expanded auto' '\unset QUIET' \
         > "$PGPASS_DIR/.psqlrc"
     chmod 644 "$PGPASS_DIR/.psqlrc"
     chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$PGPASS_DIR/.psqlrc"
@@ -967,14 +969,14 @@ log "Performing final verification..."
 
 # Verify database setup
 if [ -n "$DB_HOST" ]; then
-    PRODUCT_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pellier.product_catalog;" 2>/dev/null | xargs || echo "0")
+    PRODUCT_COUNT=$(PGPASSWORD="$DB_PASSWORD" psql -X -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pellier.product_catalog;" 2>/dev/null | xargs || echo "0")
     if [ "$PRODUCT_COUNT" -gt 0 ]; then
         log "✅ Database verified ($PRODUCT_COUNT products)"
     else
         warn "⚠️  Database may not be set up correctly (0 products found)"
     fi
 
-    WAREHOUSE_ROWS=$(PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pellier.warehouse_inventory;" 2>/dev/null | xargs || echo "0")
+    WAREHOUSE_ROWS=$(PGPASSWORD="$DB_PASSWORD" psql -X -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT COUNT(*) FROM pellier.warehouse_inventory;" 2>/dev/null | xargs || echo "0")
     if [ "$WAREHOUSE_ROWS" -gt 0 ]; then
         log "✅ Warehouse inventory verified ($WAREHOUSE_ROWS rows)"
     else

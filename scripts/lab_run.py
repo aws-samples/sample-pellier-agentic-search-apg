@@ -97,6 +97,7 @@ from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, O
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import deploy_lock  # noqa: E402  (sibling module)
 import lab_reset  # noqa: E402  (sibling module)
+import workshop_check as check  # noqa: E402  (sibling module)
 from wait_progress import Progress, clock, waiting  # noqa: E402  (sibling module)
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
@@ -519,8 +520,8 @@ def required_requests(persona: str, stages: Sequence[str],
     return [by_stage[stage] for stage in stages]
 
 
-# The live trace: each step as Builder view shows it, printed as the turn streams.
-TRACE_WIDTH = 120
+# The live trace: each step as Builder view shows it, printed as the turn streams, wrapped to
+# the terminal it prints in.
 CHAT_PATH = "/api/chat/stream"
 SCENARIOS = "data/scenarios.json"
 TRACE_INDENT = " " * 10
@@ -529,7 +530,7 @@ RANKING_ROWS = 5
 
 
 def _trace_line(label: str, text: str) -> None:
-    room = TRACE_WIDTH - len(TRACE_INDENT) - TRACE_LABEL
+    room = check.terminal_width() - len(TRACE_INDENT) - TRACE_LABEL
     lines = textwrap.wrap(text, width=room) or [""]
     print(f"{TRACE_INDENT}{label:<{TRACE_LABEL}}{lines[0]}", flush=True)
     for line in lines[1:]:
@@ -543,22 +544,14 @@ RANKING_KEY = ("#: final position; an arrow is how far it moved from the fused o
                "Rerank or, marked *, by a declared rule. "
                "Full text and Vector: its rank in each search, and the vector similarity. "
                "Fused score: 1 / ({k} + rank) from each search, added.")
-RANKING_COLUMNS = (("#", 6, "<"), ("Product", 37, "<"), ("Full text", 9, ">"),
-                   ("Vector", 10, ">"), ("Fused score", 11, ">"), ("Rerank", 6, ">"))
+RANKING_COLUMNS = (("#", "<"), ("Product", "<"), ("Full text", ">"), ("Vector", ">"),
+                   ("Fused score", ">"), ("Rerank", ">"))
+RANKING_NAME = 37
 REMOVED = {"budget": "over budget", "stock": "sold out", "department": "in other departments"}
 RERANKED, RERANK_FALLBACK = "hybrid+rerank", "hybrid (rerank fallback to RRF order)"
 MERCHANDISING_NOTE = ("* {product}: moved from {start} to {end} after rerank by the declared "
                       "merchandising rule {rule_id}")
 _ranking_key_shown = False
-
-
-def _table_border(left: str, middle: str, right: str) -> str:
-    return left + middle.join("\u2500" * (width + 2) for _, width, _ in RANKING_COLUMNS) + right
-
-
-def _table_row(cells: Sequence[str]) -> str:
-    return "\u2502" + "\u2502".join(f" {cell:{align}{width}} " for cell, (_, width, align)
-                                      in zip(cells, RANKING_COLUMNS)) + "\u2502"
 
 
 def _number(value: Any, digits: int) -> str:
@@ -598,7 +591,7 @@ def _method(ranking: Dict[str, Any], k: int) -> str:
 
 
 def _kept(filters: Dict[str, Any]) -> str:
-    """The Builder view's chips: what the limits kept, then what each limit left out."""
+    """The Builder view's chips in a sentence: what the limits kept and what each left out."""
     removed = []
     for reason, count in (filters.get("removed") or {}).items():
         if reason == "exclusions":
@@ -606,8 +599,10 @@ def _kept(filters: Dict[str, Any]) -> str:
                         filters.get("excluded") or [] if value.get("count")]
         elif count:
             removed.append(f"{count:,} {REMOVED.get(reason, 'excluded')}")
-    kept = f"kept {filters['kept']:,} of {filters['of']:,}"
-    return kept + (f"; left out {', '.join(removed)}" if removed else "")
+    kept = f"kept {filters['kept']:,} of {filters['of']:,} products"
+    if removed:
+        return f"{kept}; left out {', '.join(removed)}"
+    return f"{kept}; no limit left any out" if filters["kept"] == filters["of"] else kept
 
 
 def _trace_ranking(ranking: Dict[str, Any]) -> None:
@@ -618,24 +613,25 @@ def _trace_ranking(ranking: Dict[str, Any]) -> None:
         return
     k = int(ranking.get("rrf_k") or 60)
     filters, arms = ranking.get("filters") or {}, ranking.get("arms") or {}
-    title = "How it ranked"
+    _trace_line("", "How it ranked")
     if filters.get("kept") is not None and filters.get("of") is not None:
-        title += f": {_kept(filters)}"
-    _trace_line("", title)
+        _trace_line("", f"Limits: {_kept(filters)}")
     counts = (f"Full text {arms.get('full_text', 0):,}, Vector {arms.get('vector', 0):,}; "
               if arms else "")
     _trace_line("", counts + _method(ranking, k))
-    lines = [_table_border("\u250c", "\u252c", "\u2510"),
-             _table_row([name for name, _, _ in RANKING_COLUMNS]),
-             _table_border("\u251c", "\u253c", "\u2524")]
-    for index, row in enumerate(rows[:RANKING_ROWS], 1):
-        name = _one_line(str(row.get("name") or row.get("product_id") or "?"), 37)
-        lines.append(_table_row([_position(row, index), name, _rank(row.get("fts_rank")),
-                                 _vector(row), _number(row.get("rrf_score"), 4),
-                                 _number(row.get("rerank_score"), 2)]))
-    lines.append(_table_border("\u2514", "\u2534", "\u2518"))
-    pad = f"{TRACE_INDENT}{'':<{TRACE_LABEL}}"
-    for line in lines:
+    cells = [[_position(row, index),
+              _one_line(str(row.get("name") or row.get("product_id") or "?"), RANKING_NAME),
+              _rank(row.get("fts_rank")), _vector(row), _number(row.get("rrf_score"), 4),
+              _number(row.get("rerank_score"), 2)]
+             for index, row in enumerate(rows[:RANKING_ROWS], 1)]
+    header = [name for name, _ in RANKING_COLUMNS]
+    align = [side for _, side in RANKING_COLUMNS]
+    # Under the step's text when the whole table fits there, else from the left margin.
+    pad, width = f"{TRACE_INDENT}{'':<{TRACE_LABEL}}", check.terminal_width()
+    natural = max(len(line) for line in check.table(header, cells, align, 10**6).splitlines())
+    if natural > width - len(pad):
+        pad = "  "
+    for line in check.table(header, cells, align, width - len(pad)).splitlines():
         print(f"{pad}{line}", flush=True)
     for move in ranking.get("merchandising") or []:
         _trace_line("", MERCHANDISING_NOTE.format(product=move["product"], start=move["from"],
@@ -646,12 +642,13 @@ def _trace_ranking(ranking: Dict[str, Any]) -> None:
 
 
 def _trace_retry(relaxation: Any) -> None:
-    """Name a retry the way Builder view's pill does: the words the broader try left out."""
+    """Name a retry in Builder view's pill words, with why it ran: the first search was sparse."""
     if not isinstance(relaxation, dict):
         return
     dropped = [str(tag) for tag in relaxation.get("dropped") or []]
-    label = f"Tried again without the words {', '.join(dropped)}" if dropped else "Tried again"
-    print(f"{TRACE_INDENT}{'':<{TRACE_LABEL}}{label}", flush=True)
+    label = "Too few matches, so Pellier tried again"
+    label += f" without the words {', '.join(dropped)}" if dropped else ""
+    _trace_line("", label)
 
 
 def trace_event(event: Dict[str, Any], shown: set) -> None:
@@ -797,7 +794,8 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
             ok(f"ran {RAIL_NAMES[served]} {turn}")
         else:
             ok(f'{persona.title()}: "{message}" ran {RAIL_NAMES[served]} {turn}')
-        print(f"{TRACE_INDENT}Pellier: {_one_line(answer, TRACE_WIDTH - 19)}", flush=True)
+        print(f"{TRACE_INDENT}Pellier: {_one_line(answer, check.terminal_width() - 19)}",
+              flush=True)
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
 
 
