@@ -720,6 +720,10 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # instead of opening another. Explorer and editor-tab badges are off: the lab
 # files are links, and a link arrow beside each one, in the Explorer or on its
 # tab, reads as something wrong; a file with a real problem still shows in colour.
+# Terminal tabs are off, so a drop-down in the panel title picks the terminal. The
+# tab list is narrow, and hovering the workshop terminal's tab covers its name with
+# Split, Rerun Task and Kill: returning to a running deploy by clicking that name
+# reran the task, which started a fresh terminal and stopped the deploy.
 # Keep this block strict JSON - the readiness contract parses it with
 # json.loads, not a JSONC reader.
 cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
@@ -737,6 +741,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     "explorer.autoReveal": true,
     "python.analysis.extraPaths": ["/workshop/sample-pellier-agentic-search-apg/pellier/backend"],
     "task.reconnection": true,
+    "terminal.integrated.tabs.enabled": false,
     "explorer.decorations.badges": false,
     "workbench.editor.decorations.badges": false,
     "git.enabled": false,
