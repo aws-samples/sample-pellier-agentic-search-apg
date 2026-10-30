@@ -108,7 +108,7 @@ git clone https://github.com/aws-samples/sample-pellier-agentic-search-apg.git &
 **Step 2.** Deploy. The script creates the service-linked role if it is missing, creates a
 private bucket named `pellier-own-account-<account>-<region>` in the Region (Block Public
 Access on, SSE-S3, TLS only, tagged as this script's), uploads the four templates under
-`pellier/`, waits until S3's global endpoint serves the new bucket, creates the stack with
+`pellier/`, waits until the Region's S3 endpoint serves the new bucket, creates the stack with
 that bucket as its two asset parameters, the checked-out commit as the source and your
 `--deployment-suffix` if you need one, then prints
 one line per stack event until the stack is complete, followed by `Stack ready in` and the
