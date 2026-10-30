@@ -25,6 +25,7 @@ lab2/frontend/.env
 # settings are all machine-local and should never be committed.
 .claude/
 .local/
+.worktrees/
 
 # Internal design docs — working notes, not shipping content.
 docs/
