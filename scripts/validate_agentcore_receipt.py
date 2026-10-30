@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -640,6 +641,54 @@ def validate_live_policy_proof(payload: dict[str, Any]) -> list[str]:
     return errors
 
 
+_CAUSE_PATTERNS = (
+    # CloudFormation's resource handler message, as the AgentCore CLI relays it.
+    re.compile(r'Resource handler returned message: \\*"([^"\\\n]+)'),
+    # A boto exception line, as a Lambda deploy or an SDK call relays it.
+    re.compile(r"((?:AccessDenied|Validation|Conflict|ResourceNotFound|Throttling)Exception[^\n\"]{0,260})"),
+    re.compile(r"(Model access is denied[^\n\"]{0,200})"),
+    # The AgentCore CLI's invoke failure, with the Runtime's status in it.
+    re.compile(r"(Invoke failed \(\d+\)[^}]{0,220})"),
+    # Any other CLI JSON error field.
+    re.compile(r'\\"error\\":\\"((?:[^"\\]|\\.){1,240})'),
+)
+FIELDS_SHOWN_AFTER_A_CAUSE = 3
+
+
+def failure_headline(receipt: dict[str, Any]) -> str | None:
+    """One line naming why provisioning failed, from the receipt's own stage and error.
+
+    The provisioner records ``status: failed``, the stage it was in and the command's
+    error text. A facilitator reads this line first; the contract fields that are missing
+    because of it follow, shortened.
+    """
+    if receipt.get("status") != "failed":
+        return None
+    stage = str(receipt.get("stage") or "an unknown stage")
+    error = str(receipt.get("error") or "")
+    cause = ""
+    for pattern in _CAUSE_PATTERNS:
+        match = pattern.search(error)
+        if match:
+            cause = match.group(1)
+            break
+    if not cause:
+        cause = " ".join(error.split())[:240] or "no error recorded"
+    cause = " ".join(cause.split()).rstrip(";,: ")
+    return f"provisioning failed at stage '{stage}': {cause}"
+
+
+def report_lines(receipt: dict[str, Any], errors: list[str]) -> str:
+    """The validator's one-line report: the cause first, then the contract fields."""
+    headline = failure_headline(receipt)
+    if headline is None:
+        return "; ".join(errors)
+    shown = errors[:FIELDS_SHOWN_AFTER_A_CAUSE]
+    rest = len(errors) - len(shown)
+    tail = f"; and {rest} more receipt fields" if rest > 0 else ""
+    return "; ".join([headline, *shown]) + tail
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("receipt", type=Path)
@@ -662,7 +711,7 @@ def main() -> int:
 
     errors = validate_receipt(payload, participant)
     if errors:
-        print("; ".join(errors), file=sys.stderr)
+        print(report_lines(payload, errors), file=sys.stderr)
         return 1
     return 0
 

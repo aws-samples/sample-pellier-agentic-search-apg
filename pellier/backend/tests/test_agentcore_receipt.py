@@ -680,3 +680,56 @@ def test_receipt_without_user_preferences_cannot_pass():
     receipt = _valid_receipt()
     del receipt["memory"]["seed"]["acceptance"]["strategies"]["preferences"]
     assert any("preferences" in error for error in _load_validator().validate_receipt(receipt))
+
+
+CDK_CONFLICT = (
+    "Command failed: npx -y @aws/agentcore@0.29.0 deploy --yes --json\nstdout:\n"
+    '{"success":false,"error":"CDK deploy failed: AgentCore-pellier-default failed: '
+    "DeploymentError: Resource updates failed:\\n Policybaseline_permit_workshop_tools "
+    '(AWS::BedrockAgentCore::Policy ...)\\n Resource handler returned message: \\"Policy with '
+    "the same name already exists (Service: Bedrock AgentCore Control;\\n Operation: "
+    'CreatePolicy; Status Code: 409; Error Code: ConflictException)\\" (RequestToken: x)"}'
+)
+RUNTIME_500 = (
+    "Command failed: npx -y @aws/agentcore@0.29.0 invoke --runtime pellier_orchestrator "
+    "--session-id s --bearer-token <redacted> --prompt Smoke test --json\nstdout:\n"
+    '{"success":false,"error":"Invoke failed (424): {\\"message\\":\\"Received error (500) '
+    'from runtime. Please check your CloudWatch logs for more information.\\"}"}'
+)
+
+
+@pytest.mark.parametrize(
+    ("stage", "error", "cause"),
+    [
+        (
+            "managed resource provisioning",
+            CDK_CONFLICT,
+            "Policy with the same name already exists (Service: Bedrock AgentCore Control",
+        ),
+        (
+            "authenticated shopper Runtime",
+            RUNTIME_500,
+            "Invoke failed (424)",
+        ),
+        ("memory extraction", "", "no error recorded"),
+    ],
+)
+def test_a_failed_receipt_names_its_cause_before_the_contract_fields(
+    stage: str, error: str, cause: str
+) -> None:
+    validator = _load_validator()
+    receipt = {"status": "failed", "stage": stage, "error": error, "region": "us-east-1"}
+    errors = validator.validate_receipt(receipt, None)
+    assert len(errors) > validator.FIELDS_SHOWN_AFTER_A_CAUSE
+    report = validator.report_lines(receipt, errors)
+    assert report.startswith(f"provisioning failed at stage '{stage}': {cause}")
+    assert "and " in report and report.endswith("more receipt fields")
+    assert report.count("; ") == validator.FIELDS_SHOWN_AFTER_A_CAUSE + 1
+
+
+def test_a_ready_receipt_reports_only_the_contract_fields() -> None:
+    validator = _load_validator()
+    receipt = {"status": "ready"}
+    errors = validator.validate_receipt(receipt, None)
+    assert validator.failure_headline(receipt) is None
+    assert validator.report_lines(receipt, errors) == "; ".join(errors)
