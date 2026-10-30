@@ -11,8 +11,7 @@ it expected, what it observed and the evidence; `uv run scripts/workshop_evidenc
 that proof for all four labs. The export reads 1B, 2A and 2B from recorded rows
 (`pellier.retrieval_receipts`, `pellier.tool_audit`, the catalog and warehouse tables), so Lab 2's
 lines pass only after Marco's requests are sent again on the finished lab. A supplied answer, an open page or a successful conversation
-is not a completed task. The Wrap-up's cleanup restores the Cedar starter, so save the export
-before it.
+is not a completed task.
 
 | Lab and task | Work you do | Check |
 |---|---|---|

@@ -116,8 +116,9 @@ conversation, and AgentCore Memory extracts his preference from it. In Lab 3,
 `scripts/lab3_check.py` reads that record the way the managed rail does and
 prints its id; afterwards the Builder view of Theo's new-session turn names the
 same record (`Remembered: AgentCore Memory record <id> (user preference)`). A
-participant's own stated preference takes about two to two and a half minutes
-to become readable, so it is a Go deeper tab, not the proof.
+preference a participant states in a live turn is extracted under a session actor
+that no shopper read looks at, so the agent never recalls it; the Go deeper tab
+shows that extraction, and the proof uses the seeded record.
 
 ## The four labs
 

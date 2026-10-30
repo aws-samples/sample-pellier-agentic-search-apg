@@ -44,13 +44,13 @@ pellier/config/mcp-server-config.json
 # directory is itself excluded, so excluding the CONTENTS is what makes the negation
 # below work at all.
 docs/*
-# The maintainer docs that ship with the repository, and the release history.
+# The maintainer docs that ship with the repository. The release-readiness
+# evidence stays local: dated rehearsal records with machine paths in them.
 !docs/AGENTCORE-READINESS.md
 !docs/E2E-IDENTITIES.md
 !docs/MEMORY-ACTOR-SESSION.md
 !docs/WORKSHOP-STORY-ARC.md
 !docs/WORKSHOP-TRANSPORT.md
-!docs/release-readiness/
 
 # IDE
 .vscode/

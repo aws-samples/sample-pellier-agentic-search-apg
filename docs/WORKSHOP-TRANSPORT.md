@@ -13,7 +13,7 @@ capacity, quota, lifecycle and extra-instance dependencies.
 ## Source and template contract
 
 - EC2 has no public IP. Its security group permits port 80 only from the
-  us-east-1 CloudFront origin-facing prefix list. nginx additionally requires a
+  CloudFront origin-facing prefix list for the stack's Region. nginx additionally requires a
   separate per-deployment origin credential supplied by the distribution.
 - `scripts/bootstrap-environment.sh` preserves `/editor/` for Code Editor and
   strips `/ports/8000/` before forwarding to Pellier. Both services listen on

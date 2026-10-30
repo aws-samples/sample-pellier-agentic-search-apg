@@ -73,7 +73,7 @@ The Workshop Studio AMI ships with the pinned `@aws/agentcore` Node CLI. Verify 
 
 ```bash
 npx -y @aws/agentcore@0.29.0 --version
-node --version  # >= 20.x
+node --version  # >= 24.x
 ```
 
 If the CLI is missing (or you're testing a fresh AMI build):

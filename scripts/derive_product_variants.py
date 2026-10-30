@@ -22,7 +22,7 @@ Usage
     uv run scripts/derive_product_variants.py --check
 
     # Take masters from a drop folder, then derive.
-    uv run scripts/derive_product_variants.py --from ~/Desktop/DAT416-UI-rehaul
+    uv run scripts/derive_product_variants.py --from <drop-folder>
 
     # Re-derive variants for masters already in the repository.
     uv run scripts/derive_product_variants.py

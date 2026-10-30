@@ -9,6 +9,8 @@
 The application and lab code for the AWS re:Invent 2026 workshop<br>
 **DAT416: Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
 
+The one-hour Builders' Session is on the [`main` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/main).
+
 [![governed-quality](https://img.shields.io/github/actions/workflow/status/aws-samples/sample-pellier-agentic-search-apg/quality.yml?branch=governed&style=flat-square&logo=githubactions&logoColor=white&label=governed-quality)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/actions/workflows/quality.yml?query=branch%3Agoverned)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0E7C86?style=flat-square)](LICENSE)
 [![Workshop: DAT416](https://img.shields.io/badge/AWS_re%3AInvent_2026-DAT416-232F3E?style=flat-square)](#the-four-labs)
@@ -181,6 +183,10 @@ This is an educational sample. Review it carefully before you use any part of it
 - **Demo accounts.** Choosing a shopper in Ask Pellier signs in one of four demo shoppers (Anna, Marco, Theo and Jessica) with a real Cognito sign-in that the server performs. It is a workshop convenience, not a production pattern. Staff accounts are never offered; Nadia signs in to the Operator with her password.
 - **Imagery.** AI-generated imagery is for illustrative purposes only.
 - **Reporting a security issue.** If you discover a potential security issue in this project, notify AWS Security through the [vulnerability reporting page](https://aws.amazon.com/security/vulnerability-reporting/). Do not create a public GitHub issue.
+
+## Contributing
+
+Contributions follow [CONTRIBUTING.md](CONTRIBUTING.md). This project has adopted the [Amazon Open Source Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## License
 

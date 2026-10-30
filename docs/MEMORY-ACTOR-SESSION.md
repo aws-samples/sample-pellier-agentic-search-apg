@@ -27,7 +27,7 @@ looks at. Pellier cannot recall anything a shopper says in a live turn.
 
 ## Evidence
 
-Measured on 2026-10-13 against `pelliercap1006c_PellierCap1006cMemory-6TIO8TE4gK`
+Measured on 2026-10-13 against `<memory-id>`
 (USER_PREFERENCE strategy, namespace `/pellier/preferences/{actorId}/`), with
 throwaway actors whose events and records were deleted afterwards:
 

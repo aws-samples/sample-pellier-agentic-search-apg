@@ -24,7 +24,7 @@ or runtime skills.
 
 ## Branch and source contract
 
-- `governed` is the flagship 100-minute re:Invent workshop application.
+- `governed` is the flagship 120-minute re:Invent workshop application.
 - `main` supports the shorter one-hour builders session. Do not backport,
   merge, or simplify `governed` changes into `main` unless explicitly asked.
 - The application repository is the source of truth for code and runtime
