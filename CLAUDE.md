@@ -190,10 +190,10 @@ documentation.
   inspection surface (Observatory, and before it Pellier Labs and Agent Trace
   with its `--at-` variable prefix). No component, module, file, route, class,
   test id, API path, CSS variable, or database object carries them. The
-  exceptions are history under `docs/release-readiness/` and
-  `docs/superpowers/`, the route test that proves old paths land on the
-  Storefront, and this file. `pellier/backend/tests/test_surface_naming.py`
-  enforces this by scanning the repository.
+  exceptions are history under `docs/superpowers/`, the route test that
+  proves old paths land on the Storefront, and this file.
+  `pellier/backend/tests/test_surface_naming.py` enforces this by scanning
+  the repository.
 - Boutique is fully retired on the same terms. `VOICE.md` bans "boutique" in
   shopper copy, model prompts, runtime skills, and product descriptions.
 - The Catalog and Support agents use the configured Opus profile; the Stock

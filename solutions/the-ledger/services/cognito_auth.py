@@ -62,6 +62,9 @@ logger = logging.getLogger(__name__)
 #    cp solutions/the-ledger/services/cognito_auth.py pellier/backend/services/cognito_auth.py
 
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour per Req 4.2.1
+# An unknown ``kid`` refreshes the JWKS at most this often: a real rotation is
+# accepted on the first such token, and a stream of forged kids is one fetch.
+JWKS_UNKNOWN_KID_REFRESH_COOLDOWN_SECONDS = 60
 # Cognito and the verifier can straddle a clock tick. Keep the allowance small
 # and fixed; signature, issuer, client and token-use validation remain required.
 JWT_CLOCK_SKEW_SECONDS = 5
@@ -90,6 +93,7 @@ class CognitoAuthService:
 
         self._jwks_cache: Optional[Dict[str, Any]] = None
         self._jwks_cache_time: float = 0.0
+        self._jwks_unknown_kid_refresh_time: float = 0.0
         self._jwks_lock = asyncio.Lock()
 
     # ------------------------------------------------------------------
@@ -159,12 +163,17 @@ class CognitoAuthService:
         # Cognito rotates signing keys. If the cache predates the rotation,
         # refresh exactly once under the same lock used by the normal cache
         # path. The identity check prevents concurrent misses from stampeding
-        # the JWKS endpoint after the first caller has refreshed it.
+        # the JWKS endpoint after the first caller has refreshed it, and the
+        # cooldown keeps a stream of tokens with invented kids from refetching
+        # on every request.
         async with self._jwks_lock:
-            if self._jwks_cache is jwks:
+            now = time.time()
+            cooled = now - self._jwks_unknown_kid_refresh_time
+            if self._jwks_cache is jwks and cooled >= JWKS_UNKNOWN_KID_REFRESH_COOLDOWN_SECONDS:
                 refreshed = await asyncio.to_thread(self._fetch_jwks)
                 self._jwks_cache = refreshed
-                self._jwks_cache_time = time.time()
+                self._jwks_cache_time = now
+                self._jwks_unknown_kid_refresh_time = now
             else:
                 refreshed = self._jwks_cache or {}
 
