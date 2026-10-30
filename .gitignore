@@ -51,6 +51,9 @@ docs/*
 !docs/MEMORY-ACTOR-SESSION.md
 !docs/WORKSHOP-STORY-ARC.md
 !docs/WORKSHOP-TRANSPORT.md
+# The own-account path and the proof records it quotes ship too.
+!docs/run-in-your-own-account.md
+!docs/evidence/
 
 # IDE
 .vscode/

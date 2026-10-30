@@ -57,6 +57,8 @@ failure. Either lab can still be finished individually with its `finish --lab` c
 
 Code Editor opens `Pellier.code-workspace` with the workshop terminal at the bottom. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the task files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files deploy themselves when run: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional Build; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` and `finish` leave it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
+Outside an event, [Run Pellier in your own account](docs/run-in-your-own-account.md) deploys the same stack into an account you own and removes it afterwards; the guide is unchanged from Getting started on.
+
 To see where a stuck participant's files depart from the answer without overwriting them, run `uv run scripts/lab_run.py diff --lab N` from the repository root. '-' lines are the finished version that `scripts/lab_run.py` would write with `solution`; '+' lines are the participant's file as it is now. The guide does not show this command.
 
 | Surface | Use | What it proves |

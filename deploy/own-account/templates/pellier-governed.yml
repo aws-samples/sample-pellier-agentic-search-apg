@@ -1,0 +1,238 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: "Pellier Governed: 100-minute workshop (Aurora PostgreSQL with pgvector, private Code Editor on EC2, CloudFront HTTPS with a private HTTP VPC origin)"
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Workshop Studio Assets
+        Parameters:
+          - AssetsBucketName
+          - AssetsBucketPrefix
+      - Label:
+          default: Database
+        Parameters:
+          - AuroraEngineVersion
+      - Label:
+          default: Code Editor
+        Parameters:
+          - EditorInstanceType
+      - Label:
+          default: Shared trace log ownership
+        Parameters:
+          - AllowSharedTraceLogChanges
+          - ExistingRuntimeLogKmsKeyArn
+      - Label:
+          default: Source Repository
+        Parameters:
+          - RepoUrl
+          - RepoRevision
+          - InfrastructureRevision
+      - Label:
+          default: Isolated facilitator rehearsal
+        Parameters:
+          - DeploymentSuffix
+
+Parameters:
+  AssetsBucketName:
+    Type: String
+    Description: >
+      S3 bucket name where Workshop Studio uploaded the lab assets.
+      Populated by Workshop Studio from {{.AssetsBucketName}}.
+
+  AssetsBucketPrefix:
+    Type: String
+    Description: >
+      Key prefix under AssetsBucketName (already includes the trailing
+      slash). Populated by Workshop Studio from {{.AssetsBucketPrefix}}.
+
+  AuroraEngineVersion:
+    Type: String
+    Default: "18.3"
+    Description: Aurora PostgreSQL engine version.
+
+  EditorInstanceType:
+    Type: String
+    Default: c6g.2xlarge
+    AllowedValues: [c6g.xlarge, c6g.2xlarge, c6g.4xlarge, t4g.large, t4g.xlarge]
+    Description: >-
+      Preferred Graviton editor instance type. When no supported zone has capacity for it,
+      the same size in c6g, c7g, m6g or m7g replaces it.
+
+  DeploymentSuffix:
+    Type: String
+    Default: ""
+    AllowedPattern: ^$|^[a-z][a-z0-9]{0,11}$
+    Description: >
+      Optional isolated rehearsal namespace for AgentCore and tool deployments.
+      Leave empty for the standard participant path in a fresh account.
+
+  AllowSharedTraceLogChanges:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Set true only with account-owner approval to change existing shared trace
+      log keys or retention. The workshop log key is retained after teardown;
+      assign its owner and review encrypted-log dependencies before retirement.
+
+  ExistingRuntimeLogKmsKeyArn:
+    Type: String
+    Default: ""
+    AllowedPattern: ^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|mrk-[0-9a-f]{32})$
+    Description: >
+      Optional approved symmetric CloudWatch Logs key ARN in this account and
+      Region. Leave empty to create a retained key. Bootstrap validates the
+      existing key; this stack does not alter its policy or manage its lifecycle.
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/aws-samples/sample-pellier-agentic-search-apg.git
+
+  RepoRevision:
+    Type: String
+    Default: 739be98f710ca5a5e81516b3238f0484340ba99a
+    AllowedPattern: ^[0-9a-f]{40}$
+    ConstraintDescription: Use the full 40-character commit SHA tested for this event.
+    Description: Immutable source commit checked out on the Code Editor instance.
+
+  InfrastructureRevision:
+    Type: String
+    Default: "d867ceb58472272b"
+    AllowedPattern: ^[0-9a-f]{16}$
+    ConstraintDescription: Use the 16-character release-tooling digest.
+    Description: >
+      Release digest consumed by replacement-sensitive infrastructure so a
+      stack update cannot retain stale Code Editor bootstrap state.
+
+  EventName:
+    Type: String
+    Default: dat416-governed
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,63}$
+    Description: Event-neutral tag applied to workshop resources.
+
+  # NOTE: AgentCore identity (Cognito user pool, app client, and client/test
+  # secrets) is no longer parameterized. The child CodeEditorStack creates the
+  # identity resources; the pinned AgentCore CLI/CDK project owns Runtime and
+  # Gateway execution roles. The parent neither declares nor passes them down.
+
+Resources:
+  # Each child stack uses WorkshopId for resource names that have
+  # strict character rules (Aurora identifiers, EC2 tags). Workshop
+  # Studio stack names contain mixed case and slashes, so we derive
+  # a stable 9-char lowercase identifier from the StackId UUID:
+  #   "p" + first 8 hex chars of the UUID head.
+
+  VpcStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub https://${AssetsBucketName}.s3.${AWS::Region}.${AWS::URLSuffix}/${AssetsBucketPrefix}pellier-vpc.yml
+      Parameters:
+        WorkshopId: !Sub
+          - "p${UuidHead}"
+          - UuidHead:
+              !Select [
+                0,
+                !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]],
+              ]
+        EventName: !Ref EventName
+        EditorInstanceType: !Ref EditorInstanceType
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
+  DatabaseStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub https://${AssetsBucketName}.s3.${AWS::Region}.${AWS::URLSuffix}/${AssetsBucketPrefix}pellier-database.yml
+      Parameters:
+        WorkshopId: !Sub
+          - "p${UuidHead}"
+          - UuidHead:
+              !Select [
+                0,
+                !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]],
+              ]
+        PrivateSubnetA: !GetAtt VpcStack.Outputs.PrivateSubnetA
+        PrivateSubnetB: !GetAtt VpcStack.Outputs.PrivateSubnetB
+        AuroraSecurityGroupId: !GetAtt VpcStack.Outputs.AuroraSecurityGroupId
+        AuroraEngineVersion: !Ref AuroraEngineVersion
+        EventName: !Ref EventName
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
+  CodeEditorStack:
+    Type: AWS::CloudFormation::Stack
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      TemplateURL: !Sub https://${AssetsBucketName}.s3.${AWS::Region}.${AWS::URLSuffix}/${AssetsBucketPrefix}pellier-code-editor.yml
+      Parameters:
+        WorkshopId: !Sub
+          - "p${UuidHead}"
+          - UuidHead:
+              !Select [
+                0,
+                !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]],
+              ]
+        PrivateSubnetA: !GetAtt VpcStack.Outputs.PrivateSubnetA
+        CodeEditorSecurityGroupId: !GetAtt VpcStack.Outputs.CodeEditorSecurityGroupId
+        InstanceType: !GetAtt VpcStack.Outputs.EditorInstanceType
+        DBSecretArn: !GetAtt DatabaseStack.Outputs.MasterSecretArn
+        DBClusterArn: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseStack.Outputs.ClusterIdentifier}
+        DBClusterEndpoint: !GetAtt DatabaseStack.Outputs.ClusterEndpoint
+        DeploymentSuffix: !Ref DeploymentSuffix
+        ExistingRuntimeLogKmsKeyArn: !Ref ExistingRuntimeLogKmsKeyArn
+        AllowSharedTraceLogChanges: !Ref AllowSharedTraceLogChanges
+        RepoUrl: !Ref RepoUrl
+        RepoRevision: !Ref RepoRevision
+        InfrastructureRevision: !Ref InfrastructureRevision
+        EventName: !Ref EventName
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
+Outputs:
+  WorkshopId:
+    Description: Lowercase 9-char identifier shared across all child stacks.
+    Value: !Sub
+      - "p${UuidHead}"
+      - UuidHead:
+          !Select [
+            0,
+            !Split ["-", !Select [2, !Split ["/", !Ref "AWS::StackId"]]],
+          ]
+  AuroraClusterEndpoint:
+    Value: !GetAtt DatabaseStack.Outputs.ClusterEndpoint
+  AuroraMasterSecretArn:
+    Value: !GetAtt DatabaseStack.Outputs.MasterSecretArn
+  CodeEditorURL:
+    Description: Open Code Editor to edit files and run lab commands.
+    Value: !GetAtt CodeEditorStack.Outputs.CodeEditorURL
+  PellierURL:
+    Description: Open Pellier. Ask Pellier is on the Storefront, and the Operator opens from its navigation.
+    Value: !GetAtt CodeEditorStack.Outputs.PellierURL
+  ParticipantCredentialsFile:
+    Description: In Code Editor, open this per-deployment file for the throwaway Cognito accounts. The Operator's sign-in is also the OperatorUsername and OperatorPassword outputs.
+    Value: !GetAtt CodeEditorStack.Outputs.ParticipantCredentialsFile
+  OperatorUsername:
+    Description: Sign in to the Pellier Operator (Staff sign-in) with this username.
+    Value: !GetAtt CodeEditorStack.Outputs.OperatorUsername
+  OperatorPassword:
+    Description: The Operator's throwaway password for this event only.
+    Value: !GetAtt CodeEditorStack.Outputs.OperatorPassword
+  AgentCoreRuntimeLogKmsKeyArn:
+    Description: Customer-managed KMS key used by AgentCore Runtime and trace log groups.
+    Value: !GetAtt CodeEditorStack.Outputs.AgentCoreRuntimeLogKmsKeyArn

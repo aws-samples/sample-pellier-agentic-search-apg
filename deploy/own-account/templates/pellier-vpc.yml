@@ -1,0 +1,575 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  Pellier - VPC with 2 public + 2 private subnets across 2 AZs, NAT per
+  public subnet, IGW, security groups for Aurora and Code Editor, and VPC endpoints for Bedrock,
+  Secrets Manager, and STS. CloudFront reaches private EC2 over HTTP using a VPC origin.
+
+Parameters:
+  WorkshopId:
+    Type: String
+    Description: >
+      Workshop identifier used for tagging and resource naming. The
+      orchestrator derives this from the StackId UUID - always
+      lowercase hex, 9 chars total ("p" + 8-char UUID head).
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,40}$
+    ConstraintDescription: Lowercase letters, digits, hyphens, 3-41 chars.
+
+  EventName:
+    Type: String
+    Default: dat416-governed
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,63}$
+    Description: Event-neutral tag applied to workshop resources.
+
+  EditorInstanceType:
+    Type: String
+    Default: c6g.2xlarge
+    AllowedValues: [c6g.xlarge, c6g.2xlarge, c6g.4xlarge, t4g.large, t4g.xlarge]
+    Description: >-
+      Preferred editor instance type. When no supported zone has capacity for it, the
+      same size in c6g, c7g, m6g or m7g replaces it; output EditorInstanceType names the choice.
+
+  VpcCidr:
+    Type: String
+    Default: 10.215.0.0/16
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+
+  PublicSubnetACidr:
+    Type: String
+    Default: 10.215.10.0/24
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+
+  PublicSubnetBCidr:
+    Type: String
+    Default: 10.215.20.0/24
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+
+  PrivateSubnetACidr:
+    Type: String
+    Default: 10.215.30.0/24
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+
+  PrivateSubnetBCidr:
+    Type: String
+    Default: 10.215.40.0/24
+    AllowedPattern: ^(\d{1,3}\.){3}\d{1,3}/\d{1,2}$
+
+
+Mappings:
+  # AWS-managed prefix list com.amazonaws.global.cloudfront.origin-facing. Prefix list IDs
+  # are Region-scoped; looked up with ec2 DescribeManagedPrefixLists in each Region.
+  CloudFrontOriginPrefixList:
+    us-east-1:
+      Id: pl-3b927c52
+    us-west-2:
+      Id: pl-82a045eb
+
+Resources:
+  AvailabilityZoneSelectorRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SelectAvailableOriginZones
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeAvailabilityZones
+                  - ec2:DescribeInstanceTypeOfferings
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # Hold the editor's capacity in its zone (see reserve() below).
+              - Effect: Allow
+                Action: ec2:CreateCapacityReservation
+                Resource: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:capacity-reservation/*
+
+  # SKIP in the code below lists the Availability Zone IDs, per Region, where CloudFront
+  # VPC origins are not supported. Source: "Supported AWS Regions for VPC origins",
+  # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-vpc-origins.html
+  # (us-east-1 except use1-az3; us-west-2 has no exception). Add a Region only after
+  # checking that page. A Region missing from SKIP fails the stack with a clear message.
+  AvailabilityZoneSelectorFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.13
+      Handler: index.handler
+      Role: !GetAtt AvailabilityZoneSelectorRole.Arn
+      Timeout: 120
+      Code:
+        ZipFile: |
+          import hashlib
+          from datetime import datetime, timedelta, timezone
+          import boto3
+          import cfnresponse
+          from botocore.config import Config
+          from botocore.exceptions import ClientError
+
+          FAMILIES = ("c6g", "c7g", "m6g", "m7g")
+          SKIP = {"us-east-1": {"use1-az3"}, "us-west-2": set()}
+
+          def offered(ec2, itype):
+              return {item["Location"] for item in ec2.describe_instance_type_offerings(
+                  LocationType="availability-zone-id",
+                  Filters=[{"Name": "instance-type", "Values": [itype]}])["InstanceTypeOfferings"]}
+
+          def reserve(ec2, itype, zone):
+              # The editor launches into this open reservation once Aurora is up; it then expires.
+              try:
+                  ec2.create_capacity_reservation(InstanceType=itype, InstancePlatform="Linux/UNIX",
+                      AvailabilityZoneId=zone, InstanceCount=1, InstanceMatchCriteria="open",
+                      EndDateType="limited", EndDate=datetime.now(timezone.utc) + timedelta(hours=2))
+                  return True
+              except ClientError as exc:
+                  return False if exc.response["Error"]["Code"] == "InsufficientInstanceCapacity" else None
+
+          def choose(ec2, available, requested, offset):
+              size = requested.split(".")[1]
+              for itype in dict.fromkeys([requested] + [f"{f}.{size}" for f in FAMILIES]):
+                  offers = offered(ec2, itype)
+                  hosts = [zone for zone in available if zone in offers]
+                  start = offset % max(len(hosts), 1)
+                  for zone in hosts[start:] + hosts[:start]:
+                      if reserve(ec2, itype, zone) is not False:  # None: probe refused, keep zone
+                          return zone, itype
+              raise ValueError("No supported zone has capacity for an editor instance type")
+
+          def handler(event, context):
+              physical_id = event.get("PhysicalResourceId", "")
+              try:
+                  if event["RequestType"] == "Delete":
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physical_id)
+                      return
+                  props = event["ResourceProperties"]
+                  region = props["Region"]
+                  if region not in SKIP:
+                      raise ValueError(f"No VPC origin zone policy for {region}; add it to SKIP")
+                  ec2 = boto3.client("ec2", region_name=region, config=Config(
+                      connect_timeout=5, read_timeout=10, retries={"total_max_attempts": 2}))
+                  zones = ec2.describe_availability_zones(Filters=[
+                      {"Name": "state", "Values": ["available"]},
+                      {"Name": "zone-type", "Values": ["availability-zone"]},
+                  ])["AvailabilityZones"]
+                  available = sorted({zone["ZoneId"] for zone in zones if zone["ZoneId"] not in SKIP[region]
+                                      and zone.get("OptInStatus") in ("opt-in-not-required", "opted-in")})
+                  if len(available) < 2:
+                      raise ValueError("Need two supported available AZs")
+                  if event["RequestType"] == "Update":
+                      parts = physical_id.split(":")
+                      if len(parts) not in (4, 5) or parts[:2] != ["pellier-azs", region]:
+                          raise ValueError("Cannot change an unrecognized existing AZ selection")
+                      first, second, itype = (parts + [props["InstanceType"]])[2:5]
+                      if first not in available or second not in available or first == second:
+                          raise ValueError("Existing AZ selection is unavailable; refusing subnet replacement")
+                  else:
+                      # Spread independent accounts/roots while remaining stable on retries.
+                      offset = int(hashlib.sha256(event["StackId"].encode()).hexdigest(), 16)
+                      first, itype = choose(ec2, available, props["InstanceType"], offset)
+                      alternatives = [zone for zone in available if zone != first]
+                      second = alternatives[offset % len(alternatives)]
+                      physical_id = f"pellier-azs:{region}:{first}:{second}:{itype}"
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS,
+                      {"ZoneAId": first, "ZoneBId": second, "InstanceType": itype}, physical_id)
+              except Exception as exc:
+                  print(f"AZ selection failed: {type(exc).__name__}: {exc}")
+                  cfnresponse.send(event, context, cfnresponse.FAILED,
+                      {"Error": str(exc)}, physical_id or context.log_stream_name)
+
+  OriginAvailabilityZones:
+    Type: Custom::PellierOriginAvailabilityZones
+    Properties:
+      ServiceToken: !GetAtt AvailabilityZoneSelectorFunction.Arn
+      ServiceTimeout: 180
+      Region: !Ref AWS::Region
+      InstanceType: !Ref EditorInstanceType
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-vpc
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-igw
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetACidr
+      AvailabilityZoneId: !GetAtt OriginAvailabilityZones.ZoneAId
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-public-a
+        - Key: Project
+          Value: pellier
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PublicSubnetBCidr
+      AvailabilityZoneId: !GetAtt OriginAvailabilityZones.ZoneBId
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-public-b
+        - Key: Project
+          Value: pellier
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetACidr
+      AvailabilityZoneId: !GetAtt OriginAvailabilityZones.ZoneAId
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-private-a
+        - Key: Project
+          Value: pellier
+
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: !Ref PrivateSubnetBCidr
+      AvailabilityZoneId: !GetAtt OriginAvailabilityZones.ZoneBId
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-private-b
+        - Key: Project
+          Value: pellier
+
+  NatEipA:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-nat-eip-a
+        - Key: Project
+          Value: pellier
+
+  NatEipB:
+    Type: AWS::EC2::EIP
+    DependsOn: GatewayAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-nat-eip-b
+        - Key: Project
+          Value: pellier
+
+  NatGatewayA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipA.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-nat-a
+        - Key: Project
+          Value: pellier
+
+  NatGatewayB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEipB.AllocationId
+      SubnetId: !Ref PublicSubnetB
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-nat-b
+        - Key: Project
+          Value: pellier
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-public-rt
+        - Key: Project
+          Value: pellier
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetA
+
+  PublicSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnetB
+
+  PrivateRouteTableA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-private-rt-a
+        - Key: Project
+          Value: pellier
+
+  PrivateRouteA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayA
+
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableA
+      SubnetId: !Ref PrivateSubnetA
+
+  PrivateRouteTableB:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-private-rt-b
+        - Key: Project
+          Value: pellier
+
+  PrivateRouteB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGatewayB
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTableB
+      SubnetId: !Ref PrivateSubnetB
+
+  # --------------------------------------------------------------------------
+  # Security Groups
+  # --------------------------------------------------------------------------
+  AuroraSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Aurora - 5432 from private subnets and Code Editor
+      VpcId: !Ref VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 127.0.0.1/32
+          Description: no egress required
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-aurora-sg
+        - Key: Project
+          Value: pellier
+
+  AuroraIngressFromPrivateA:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AuroraSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: !Ref PrivateSubnetACidr
+      Description: Postgres from private subnet A
+
+  AuroraIngressFromPrivateB:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AuroraSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      CidrIp: !Ref PrivateSubnetBCidr
+      Description: Postgres from private subnet B
+
+  CodeEditorSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Private editor - HTTP only from CloudFront origin-facing addresses
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId: !FindInMap [CloudFrontOriginPrefixList, !Ref "AWS::Region", Id]
+          Description: Private CloudFront VPC origin for editor and app
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: Outbound for package installs, AWS APIs and Aurora
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-code-editor-sg
+        - Key: Project
+          Value: pellier
+
+  AuroraIngressFromCodeEditor:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AuroraSecurityGroup
+      IpProtocol: tcp
+      FromPort: 5432
+      ToPort: 5432
+      SourceSecurityGroupId: !Ref CodeEditorSecurityGroup
+      Description: Postgres from Code Editor SG
+
+  # --------------------------------------------------------------------------
+  # VPC endpoints for private AWS API access
+  # --------------------------------------------------------------------------
+  VpcEndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: VPC endpoints - 443 from VPC CIDR
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref VpcCidr
+          Description: HTTPS from within VPC
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          CidrIp: 0.0.0.0/0
+          Description: outbound all
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-vpce-sg
+        - Key: Project
+          Value: pellier
+
+  BedrockRuntimeEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.bedrock-runtime
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  SecretsManagerEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.secretsmanager
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+  StsEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref VPC
+      ServiceName: !Sub com.amazonaws.${AWS::Region}.sts
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds:
+        - !Ref PrivateSubnetA
+        - !Ref PrivateSubnetB
+      SecurityGroupIds:
+        - !Ref VpcEndpointSecurityGroup
+
+Outputs:
+  VpcId:
+    Value: !Ref VPC
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcId
+  VpcCidr:
+    Value: !Ref VpcCidr
+    Export:
+      Name: !Sub ${AWS::StackName}-VpcCidr
+  PublicSubnetA:
+    Value: !Ref PublicSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetA
+  PublicSubnetB:
+    Value: !Ref PublicSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnetB
+  PrivateSubnetA:
+    Value: !Ref PrivateSubnetA
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnetA
+  PrivateSubnetB:
+    Value: !Ref PrivateSubnetB
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnetB
+  PrivateSubnets:
+    Value: !Join [",", [!Ref PrivateSubnetA, !Ref PrivateSubnetB]]
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateSubnets
+  PublicSubnets:
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB]]
+    Export:
+      Name: !Sub ${AWS::StackName}-PublicSubnets
+  AuroraSecurityGroupId:
+    Value: !Ref AuroraSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-AuroraSecurityGroupId
+  CodeEditorSecurityGroupId:
+    Value: !Ref CodeEditorSecurityGroup
+    Export:
+      Name: !Sub ${AWS::StackName}-CodeEditorSecurityGroupId
+  EditorInstanceType:
+    Description: Instance type with capacity held in PrivateSubnetA's zone for the editor.
+    Value: !GetAtt OriginAvailabilityZones.InstanceType

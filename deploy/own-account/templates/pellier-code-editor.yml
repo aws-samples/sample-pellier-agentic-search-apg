@@ -1,0 +1,1801 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: >
+  Pellier - VS Code Server (code-server) on c6g.2xlarge Graviton,
+  in a private subnet, accessed through CloudFront VPC origins. Browser HTTPS
+  terminates at CloudFront; the private origin connection uses HTTP, like Mosaic.
+  Pre-clones repo to
+  /workshop/sample-pellier-agentic-search-apg and runs
+  bootstrap-environment.sh + bootstrap-labs.sh via user data.
+
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W3037
+
+Parameters:
+  WorkshopId:
+    Type: String
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,31}$
+
+  EventName:
+    Type: String
+    Default: dat416-governed
+    AllowedPattern: ^[a-z0-9][a-z0-9-]{2,63}$
+    Description: Event-neutral tag applied to workshop resources.
+
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet::Id
+
+  CodeEditorSecurityGroupId:
+    Type: AWS::EC2::SecurityGroup::Id
+
+  RepoUrl:
+    Type: String
+    Default: https://github.com/aws-samples/sample-pellier-agentic-search-apg.git
+
+  RepoRevision:
+    Type: String
+    Default: 739be98f710ca5a5e81516b3238f0484340ba99a
+    AllowedPattern: ^[0-9a-f]{40}$
+    Description: >
+      Immutable 40-character Git commit SHA tested for this event.
+
+  InfrastructureRevision:
+    Type: String
+    AllowedPattern: ^[0-9a-f]{16}$
+    Description: >
+      Release digest embedded in the primary network interface so changes
+      replace the Code Editor host and rerun bootstrap from a clean instance.
+
+  InstanceType:
+    Type: String
+    Default: c6g.2xlarge
+    # The VPC stack's zone selector may replace the requested type with the same
+    # size in another Graviton family when no zone has capacity for it.
+    AllowedPattern: ^(c6g|c7g|m6g|m7g|t4g)\.(large|xlarge|2xlarge|4xlarge)$
+    ConstraintDescription: must be a Graviton c6g, c7g, m6g, m7g or t4g type, large to 4xlarge.
+
+  VolumeSize:
+    Type: Number
+    Default: 100
+    MinValue: 40
+    MaxValue: 500
+
+  DBSecretArn:
+    Type: String
+    Description: Aurora master secret ARN.
+
+  DBClusterArn:
+    Type: String
+    Description: Aurora cluster ARN used by MCP Lambda Data API calls.
+
+  DBClusterEndpoint:
+    Type: String
+
+  DeploymentSuffix:
+    Type: String
+    Default: ""
+    AllowedPattern: ^$|^[a-z][a-z0-9]{0,11}$
+    Description: >
+      Optional isolated rehearsal namespace for AgentCore and tool deployments.
+      Leave empty for the standard participant path in a fresh account.
+
+  ExistingRuntimeLogKmsKeyArn:
+    Type: String
+    Default: ""
+    AllowedPattern: ^$|^arn:[a-z0-9-]+:kms:[a-z0-9-]+:[0-9]{12}:key/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|mrk-[0-9a-f]{32})$
+    Description: >
+      Optional approved symmetric CloudWatch Logs key ARN in this account and
+      Region. Leave empty to create a retained key. Bootstrap validates the
+      existing key; this stack does not alter its policy or manage its lifecycle.
+
+  AllowSharedTraceLogChanges:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >
+      Explicit account-owner approval to change existing shared trace log keys
+      or retention. Keep the retained workshop key until every encrypted-log
+      dependency is retired; false refuses changes to existing shared groups.
+
+  # AgentCore identity (Cognito pool/client/secrets) is created as real
+  # resources in THIS template. Runtime and Gateway execution roles are owned
+  # by the pinned AgentCore CLI/CDK project. There is no demo mode: a Level-400
+  # session runs the production JWT path.
+
+  CodeEditorUser:
+    Type: String
+    Default: participant
+    Description: >
+      System user that owns Code Editor + the cloned repo. Must match
+      bootstrap-environment.sh's default (`participant`); the scripts
+      hard-code paths under /home/$CODE_EDITOR_USER and would need
+      edits if this changes.
+
+  HomeFolder:
+    Type: String
+    Default: /workshop
+    Description: >
+      Workspace root that holds the cloned repo. The bootstrap scripts
+      hard-code /workshop/sample-pellier-agentic-search-apg in 14
+      places, so changing this requires aligned edits in the scripts.
+
+  # Amazon Linux 2023 (arm64) SSM parameter
+  AmiParameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+
+Conditions:
+  CreateRuntimeLogKey: !Equals [!Ref ExistingRuntimeLogKmsKeyArn, ""]
+  # CLOUDFRONT-scope WAFv2 resources exist only in us-east-1.
+  InUsEast1: !Equals [!Ref "AWS::Region", us-east-1]
+
+Resources:
+  # Per-deployment Code Editor credential.
+  #
+  # This value is the Code Editor `--connection-token` AND the Linux password
+  # for the participant user (both set in scripts/bootstrap-environment.sh), so
+  # it must be unique per stack. A shared literal would mean every governed
+  # deployment answered to the same known credential, and the participant CodeEditorURL supplies it to Code Editor.
+  CodeEditorSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Name: !Sub pellier/code-editor/${WorkshopId}
+      Description: Per-deployment Code Editor credentials.
+      GenerateSecretString:
+        PasswordLength: 32
+        SecretStringTemplate: !Sub '{"username":"${CodeEditorUser}"}'
+        GenerateStringKey: password
+        ExcludePunctuation: true
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Workshop
+          Value: !Ref WorkshopId
+
+  SecretPlaintextRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: ReadCodeEditorSecret
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: [!Ref CodeEditorSecret, !Ref OriginVerifySecret, !Ref CognitoTestCredentialsSecret]
+
+  SecretPlaintextFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.13
+      Handler: index.lambda_handler
+      Timeout: 30
+      Role: !GetAtt SecretPlaintextRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+
+          FALLBACK_PASSWORD = "See test-credentials.txt in Code Editor"
+
+          def read_secret(arn):
+              secret = boto3.client("secretsmanager").get_secret_value(SecretId=arn)
+              return json.loads(secret["SecretString"])
+
+          def sign_in(arn, username):
+              # A convenience output must never fail the stack after hours of setup: on
+              # any error the outputs point at the credentials file, and the log says why.
+              try:
+                  for user in read_secret(arn).get("users", []):
+                      if user["username"].casefold() == username.casefold():
+                          return {"username": user["username"], "password": user["password"]}
+                  print(f"{username} is not in the test-users secret; see /var/log/bootstrap-labs.log")
+              except Exception as exc:
+                  print(f"Could not read {username}'s sign-in: {type(exc).__name__}")
+              return {"username": username, "password": FALLBACK_PASSWORD}
+
+          def lambda_handler(event, context):
+              physical_id = event.get("PhysicalResourceId", "pellier-code-editor-secret")
+              try:
+                  if event["RequestType"] == "Delete":
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, physicalResourceId=physical_id)
+                      return
+                  properties = event["ResourceProperties"]
+                  # The test-users secret holds {"users": [{"username", "password"}]}.
+                  if properties.get("Username"):
+                      data = sign_in(properties["SecretArn"], properties["Username"])
+                  else:
+                      data = read_secret(properties["SecretArn"])
+                  cfnresponse.send(
+                      event, context, cfnresponse.SUCCESS, data,
+                      physicalResourceId=physical_id, noEcho=True,
+                  )
+              except Exception as exc:
+                  cfnresponse.send(
+                      event, context, cfnresponse.FAILED, {},
+                      reason=str(exc), physicalResourceId=physical_id,
+                  )
+
+  SecretPlaintext:
+    Type: Custom::SecretPlaintext
+    Properties:
+      ServiceToken: !GetAtt SecretPlaintextFunction.Arn
+      SecretArn: !Ref CodeEditorSecret
+
+  OriginVerifySecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Description: Separate per-deployment CloudFront origin credential; never a participant output.
+      GenerateSecretString:
+        PasswordLength: 48
+        SecretStringTemplate: '{}'
+        GenerateStringKey: password
+        ExcludePunctuation: true
+
+  OriginSecretPlaintext:
+    Type: Custom::SecretPlaintext
+    Properties:
+      ServiceToken: !GetAtt SecretPlaintextFunction.Arn
+      SecretArn: !Ref OriginVerifySecret
+
+  # Nadia's sign-in for the OperatorUsername and OperatorPassword outputs. The box
+  # generates her password (bootstrap-labs.sh) and stores it in the test-users secret;
+  # WorkshopReadyGate is signaled only after the health gate signs her in, so the
+  # entry exists by then. Resets do not regenerate it.
+  OperatorCredential:
+    Type: Custom::SecretPlaintext
+    DependsOn: WorkshopReadyGate
+    Properties:
+      ServiceToken: !GetAtt SecretPlaintextFunction.Arn
+      SecretArn: !Ref CognitoTestCredentialsSecret
+      Username: nadia
+
+  AgentCoreRuntimeLogKey:
+    Type: AWS::KMS::Key
+    Condition: CreateRuntimeLogKey
+    # Runtime and shared trace logs can outlive this root and still need this key.
+    # Retire it manually only after reviewing every encrypted-log dependency.
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub Customer-managed key for Pellier AgentCore Runtime and trace logs (${WorkshopId})
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnableRootAccountAdministration
+            Effect: Allow
+            Principal:
+              AWS: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Sid: AllowCloudWatchLogsForAgentCoreObservability
+            Effect: Allow
+            Principal:
+              Service: !Sub logs.${AWS::Region}.amazonaws.com
+            Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Resource: "*"
+            Condition:
+              ArnLike:
+                kms:EncryptionContext:aws:logs:arn:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/vendedlogs/bedrock-agentcore/*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:aws/spans
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/application-signals/data
+
+  AgentCoreRuntimeLogKeyAlias:
+    Type: AWS::KMS::Alias
+    Condition: CreateRuntimeLogKey
+    Properties:
+      AliasName: !Sub alias/pellier-agentcore-runtime-logs-${WorkshopId}
+      TargetKeyId: !Ref AgentCoreRuntimeLogKey
+
+  WorkshopCheckPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    # Kept out of the instance role's inline policy, which is close to IAM's
+    # 10,240-character cap. Two checks run on the editor and change nothing:
+    # scripts/observability_check.py reads the steps outside AgentCore's trace
+    # (the app's spans are granted inline in AgentCoreSpanRead), and
+    # scripts/lab3_row_ownership_check.py probes row-level security on the Gateway path.
+    Properties:
+      Description: Evidence the workshop checks read on the editor.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # Lab 3B binds Theo as the Gateway Lambda does, inside a Data API
+          # transaction that it always rolls back; it never commits.
+          - Sid: RowSecurityProbeTransaction
+            Effect: Allow
+            Action:
+              - rds-data:BeginTransaction
+              - rds-data:RollbackTransaction
+            Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:*
+          - Sid: PostgresqlLogRead
+            Effect: Allow
+            Action:
+              - logs:FilterLogEvents
+            Resource:
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/rds/cluster/*/postgresql
+              - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/rds/cluster/*/postgresql:*
+          - Sid: AuroraWriterRead
+            Effect: Allow
+            Action:
+              - rds:DescribeDBInstances
+            Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:db:*
+          - Sid: DatabaseInsightsRead
+            Effect: Allow
+            Action:
+              - pi:GetResourceMetrics
+              - pi:DescribeDimensionKeys
+            Resource: !Sub arn:${AWS::Partition}:pi:${AWS::Region}:${AWS::AccountId}:metrics/rds/*
+
+  CdkBootstrapPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    # Keep bootstrap grants separate: IAM caps all role inline policies at
+    # 10,240 characters, while each managed policy has a 6,144-character cap.
+    Properties:
+      Description: Scoped CDK bootstrap and deployment permissions for the workshop editor.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          # CDK deploy support. @aws/agentcore 0.29.0 `deploy` is CDK-based:
+          # it synthesizes a CloudFormation stack and deploys it through the
+          # CDK toolkit (the CDKToolkit "bootstrap" stack + cdk-hnb659fds-*
+          # roles/bucket/SSM param). The Sids below grant exactly what a
+          # `cdk bootstrap` + `cdk deploy` of the runtime stack needs, scoped
+          # to the cdk-hnb659fds-* / CDKToolkit / agentcore-* resource
+          # families. Without these the Runtime deploy fails after the
+          # Gateway is already up. (Bootstrap itself runs once in UserData;
+          # see bootstrap-environment.sh.)
+          - Sid: CdkCloudFormation
+            Effect: Allow
+            Action:
+              - cloudformation:CreateStack
+              - cloudformation:UpdateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
+              - cloudformation:GetTemplate
+              - cloudformation:CreateChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:GetTemplateSummary
+            Resource:
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/pellier-*
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/agentcore-*
+              # The CLI names its CDK stack AgentCore-${!project}-${!target}
+              # (capital A). IAM matching is case-sensitive, so lowercase
+              # agentcore-* above does NOT cover it — without this line the
+              # Runtime deploy 403s on DescribeStacks (box-verified 2026-06-12).
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/AgentCore-*
+              - !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/Pellier*
+          - Sid: CdkAssetsS3
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetBucketLocation
+              - s3:ListBucket
+              - s3:PutBucketPolicy
+              - s3:GetBucketPolicy
+              - s3:DeleteBucketPolicy
+              - s3:PutBucketAcl
+              - s3:PutBucketTagging
+              - s3:GetBucketAcl
+              - s3:PutBucketVersioning
+              - s3:GetBucketVersioning
+              - s3:PutEncryptionConfiguration
+              - s3:PutBucketPublicAccessBlock
+              # CDK bootstrap (modern template) sets a lifecycle rule on the
+              # staging bucket to expire old assets; without these the
+              # CDKToolkit StagingBucket hits CREATE_FAILED with
+              # "not authorized to perform: s3:PutLifecycleConfiguration".
+              - s3:PutLifecycleConfiguration
+              - s3:GetLifecycleConfiguration
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - !Sub arn:${AWS::Partition}:s3:::cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}/*
+          # CloudFormation's S3 read handler inspects configuration during
+          # stabilization and drift checks, even for properties left unset.
+          # These reads are restricted to this account's CDK staging bucket.
+          - Sid: CdkAssetsMetadataRead
+            Effect: Allow
+            Action:
+              - s3:GetAccelerateConfiguration
+              - s3:GetBucketPublicAccessBlock
+              - s3:GetAnalyticsConfiguration
+              - s3:GetBucketCORS
+              - s3:GetEncryptionConfiguration
+              - s3:GetInventoryConfiguration
+              - s3:GetBucketLogging
+              - s3:GetMetricsConfiguration
+              - s3:GetBucketNotification
+              - s3:GetReplicationConfiguration
+              - s3:GetBucketWebsite
+              - s3:GetBucketObjectLockConfiguration
+              - s3:GetBucketTagging
+              - s3:ListTagsForResource
+              - s3:GetBucketAbac
+              - s3:GetBucketOwnershipControls
+              - s3:GetIntelligentTieringConfiguration
+              - s3:GetBucketMetadataTableConfiguration
+            Resource: !Sub arn:${AWS::Partition}:s3:::cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+          - Sid: CdkBootstrapSsm
+            Effect: Allow
+            Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:PutParameter
+              - ssm:ListTagsForResource
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+              - ssm:DeleteParameter
+            Resource: !Sub arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cdk-bootstrap/hnb659fds/*
+          - Sid: CdkContainerEcr
+            Effect: Allow
+            Action:
+              - ecr:CreateRepository
+              - ecr:DescribeRepositories
+              - ecr:GetRepositoryPolicy
+              - ecr:GetLifecyclePolicy
+              - ecr:ListTagsForResource
+              - ecr:TagResource
+              - ecr:UntagResource
+              - ecr:SetRepositoryPolicy
+              - ecr:PutLifecyclePolicy
+              - ecr:DeleteRepositoryPolicy
+              - ecr:DeleteLifecyclePolicy
+              - ecr:DeleteRepository
+              - ecr:PutImageTagMutability
+              - ecr:BatchCheckLayerAvailability
+              - ecr:PutImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+            Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/cdk-hnb659fds-container-assets-*
+          # CDK creates its bootstrap roles (cdk-hnb659fds-*-role) during
+          # `cdk bootstrap`, then assumes + passes them during `deploy`.
+          # CreateRole/AttachRolePolicy are needed for the one-time bootstrap;
+          # AssumeRole + PassRole(to cloudformation) for every deploy.
+          #
+          # iam:GetRolePolicy + ListRolePolicies are REQUIRED: the CDKToolkit
+          # stack's inline policies (e.g. FilePublishingRoleDefaultPolicy,
+          # an AWS::IAM::Policy) are read back by the CloudFormation resource
+          # handler right after PutRolePolicy. Without GetRolePolicy the
+          # handler 403s and the policy resource lands in CREATE_FAILED,
+          # taking the whole CDKToolkit stack down. The Detach/Delete/Untag
+          # actions cover bootstrap UPDATEs and re-runs (a newer bootstrap
+          # template rewrites these roles) so we don't trip the next missing
+          # action on the second provision.
+          - Sid: CdkToolkitRoles
+            Effect: Allow
+            Action:
+              - iam:CreateRole
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListRolePolicies
+              - iam:ListAttachedRolePolicies
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:TagRole
+              - iam:UntagRole
+              - iam:DeleteRole
+              - iam:UpdateRole
+              - iam:UpdateAssumeRolePolicy
+              - sts:AssumeRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-*
+          - Sid: CdkPassRole
+            Effect: Allow
+            Action:
+              - iam:PassRole
+            Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-*
+            Condition:
+              StringEquals:
+                iam:PassedToService: cloudformation.amazonaws.com
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    # Trusted provisioner for disposable workshop accounts. The policy uses
+    # resource scopes where listed and retains a broad regional AgentCore
+    # grant for the pinned CLI lifecycle; see that statement's boundary below.
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - !Ref CdkBootstrapPolicy
+        - !Ref WorkshopCheckPolicy
+        # Pellier exports its OpenTelemetry spans from this instance to the
+        # CloudWatch OTLP traces endpoint (services/otel_cloudwatch_export.py,
+        # SigV4-signed). This is the policy AWS documents for OTLP export of
+        # traces, logs and metrics; without it every export is refused.
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: pellier-instance-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # Signal only this nested stack's WorkshopReadyGate.
+              - Effect: Allow
+                Action: cloudformation:SignalResource
+                Resource: !Ref AWS::StackId
+              # Live model-invoke path (every persona turn). Scoped to the two
+              # ARN families an invoke actually touches — foundation models and
+              # inference profiles (system + application) — per the AWS canonical
+              # inference-profile policy. This is REGION-WILDCARDED on purpose:
+              #
+              #   The editorial agents use *global* inference profiles
+              #   (global.anthropic.claude-*). A global profile routes the
+              #   request with `aws:RequestedRegion = unspecified`, so the
+              #   previous `StringEquals aws:RequestedRegion: <region>` condition
+              #   never matched and IAM implicit-denied every Opus/Sonnet/Cohere
+              #   call (backend reported bedrock: inaccessible). AWS documents
+              #   `RequestedRegion = unspecified` as the *Deny* knob for global
+              #   routing — so conditioning an *Allow* on a concrete region is
+              #   exactly backwards. ARN-family scoping is the correct bound: the
+              #   inference-profile ARNs below cover global.*, us.*, eu.* profiles
+              #   (those ARNs carry the account id + a concrete source region, so
+              #   account-scoping matches them), and the two foundation-model ARNs
+              #   cover BOTH the in-region FM leg (empty account, wildcard region)
+              #   AND the global-routing FM leg (empty account AND empty region) —
+              #   the latter is the third resource AWS's global-CRIS policy
+              #   requires. No region condition, so global routing is never broken.
+              #
+              # ListFoundationModels is a no-resource discovery call, split out.
+              - Sid: BedrockModelInvoke
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                  - bedrock:GetFoundationModel
+                Resource:
+                  # Regional foundation model (region wildcard, EMPTY account) —
+                  # this is the in-region FM leg of any invoke.
+                  - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/*
+                  # GLOBAL foundation model — EMPTY region AND EMPTY account. AWS
+                  # global cross-region inference (the editorial agents use
+                  # global.anthropic.claude-*) evaluates a THIRD resource on the
+                  # cross-region routing leg, gated on RequestedRegion=unspecified:
+                  # arn:aws:bedrock:::foundation-model/<model>. The region-wildcard
+                  # line above very likely already matches an empty region segment,
+                  # but the AWS-documented global-CRIS policy lists this ARN
+                  # explicitly, so we make it explicit too — global routing is then
+                  # never denied regardless of IAM empty-vs-wildcard semantics.
+                  # Docs: bedrock/latest/userguide/global-cross-region-inference.html
+                  - !Sub arn:${AWS::Partition}:bedrock:::foundation-model/*
+                  # System-defined (cross-region, incl. global.*) AND application
+                  # inference profiles. These ARNs DO carry the account id and a
+                  # concrete (source) region — e.g.
+                  # arn:aws:bedrock:us-east-1:<acct>:inference-profile/global.anthropic.claude-*
+                  # so account-scoping here is correct and matches global.* too.
+                  - !Sub arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*
+                  - !Sub arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:application-inference-profile/*
+              - Sid: BedrockListModels
+                Effect: Allow
+                Action:
+                  - bedrock:ListFoundationModels
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # Cohere Rerank v3.5 is reached through the bedrock-agent-runtime
+              # `Rerank` API, not InvokeModel, so it needs its own action. That
+              # action defines no resource types: IAM evaluates it against "*"
+              # even when the request names a specific reranking-model ARN, so
+              # it cannot join the scoped statement above.
+              #
+              # Missing this does not raise for a participant. Lab 2 calls the
+              # in-process comparison on this instance role, and both rerank
+              # implementations catch the Bedrock exception and fall back to RRF
+              # order. The strategy still reports as "hybrid + rerank" while
+              # having reranked nothing, so the one lab whose purpose is choosing
+              # a retrieval path from evidence would hand out wrong evidence.
+              #
+              # The Lambda execution role already grants this the same way, in
+              # scripts/deploy/deploy_lambda.py; the instance role was the half
+              # that never got it.
+              - Sid: BedrockRerank
+                Effect: Allow
+                Action:
+                  - bedrock:Rerank
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              - Sid: BedrockMarketplace
+                Effect: Allow
+                Action:
+                  - aws-marketplace:Subscribe
+                  - aws-marketplace:ViewSubscriptions
+                  - aws-marketplace:Unsubscribe
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:CalledViaLast: bedrock.amazonaws.com
+                    aws:RequestedRegion: !Ref AWS::Region
+              # Bedrock AgentCore - one IAM namespace for BOTH planes.
+              #
+              # IMPORTANT: there is no `bedrock-agentcore-control` IAM
+              # service. The boto3 CLIENT is named
+              # "bedrock-agentcore-control", but every IAM action -
+              # control-plane (CreateMemory, CreateGateway,
+              # CreateAgentRuntime) AND data-plane (InvokeAgentRuntime,
+              # RetrieveMemories) - lives under the single prefix
+              # `bedrock-agentcore:`. A prior revision used
+              # `bedrock-agentcore-control:` and invented action names
+              # (CreateRuntime, GetSession, InvokeGateway, ...); IAM
+              # evaluated those as a non-existent service and denied
+              # every call - including ListMemories at provisioning.
+              #
+              # This trusted workshop provisioner retains broad AgentCore
+              # control/data-plane access for CLI deployment and recovery.
+              # The region condition limits where it acts; PassRole below
+              # limits the roles it can delegate. This is an intentional
+              # development/testing grant, not a least-privilege production
+              # policy or a claim that every create API requires Resource "*".
+              # Some AgentCore actions support resource scoping; replacing this
+              # grant requires checking the complete pinned CLI lifecycle.
+              # The separate Studio participant role is inspection-only.
+              - Sid: AgentCore
+                Effect: Allow
+                Action:
+                  - bedrock-agentcore:*
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # AgentCore Runtime's CUSTOM_JWT authorizer support (Pellier's
+              # Cognito-gated Runtime) auto-creates its own service-linked
+              # role, AWSServiceRoleForBedrockAgentCoreRuntimeIdentity, the
+              # first time a Runtime is created or updated on an account that
+              # has never used the feature - unconditionally, not only for
+              # VPC or private-endpoint configurations. Unlike many AWS
+              # services, AgentCore does NOT create this SLR purely
+              # server-side: per AWS's AgentCore service-linked-role
+              # reference ("Permissions required to create a service-linked
+              # role"), the CALLING principal must hold this exact grant, or
+              # the create 403s. Scoped to the one role name and gated on
+              # iam:AWSServiceName, mirroring ApplicationSignalsCreateServiceRole
+              # below for the same class of gap (that one already cost a
+              # fresh-account AccessDenied once). The other four AgentCore
+              # SLRs (Network, Gateway, Identity Network, Runtime Instances)
+              # are conditioned on VPC/private-endpoint/capacity-provider
+              # configurations this deployment does not use, so they are
+              # intentionally not granted here.
+              - Sid: AgentCoreRuntimeIdentityServiceLinkedRole
+                Effect: Allow
+                Action:
+                  - iam:CreateServiceLinkedRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/runtime-identity.bedrock-agentcore.amazonaws.com/AWSServiceRoleForBedrockAgentCoreRuntimeIdentity
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName: runtime-identity.bedrock-agentcore.amazonaws.com
+              # deploy_lambda.py creates the four MCP Lambda functions and
+              # their pellier-* execution roles. Runtime, Memory, Gateway,
+              # targets, Policy, and their roles are owned by AgentCore CLI.
+              - Sid: AgentCoreProvisioningLambda
+                Effect: Allow
+                Action:
+                  - lambda:CreateFunction
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:GetFunction
+                  # GetFunctionConfiguration is required by the
+                  # get_waiter('function_updated') poll on the UPDATE path
+                  # (deploy_lambda.py). The original bootstrap takes the CREATE
+                  # path (no waiter), so this only surfaces when provisioning is
+                  # RE-RUN against already-existing functions — exactly what a
+                  # facilitator recovery does. Keep it so re-runs are idempotent.
+                  - lambda:GetFunctionConfiguration
+                  - lambda:AddPermission
+                  - lambda:TagResource
+                Resource: !Sub arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:pellier-*
+              - Sid: AgentCoreProvisioningIam
+                Effect: Allow
+                Action:
+                  - iam:CreateRole
+                  - iam:GetRole
+                  - iam:PutRolePolicy
+                  - iam:AttachRolePolicy
+                  - iam:TagRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/pellier-*
+              - Sid: AgentCorePassRole
+                Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/pellier-*
+                Condition:
+                  StringEquals:
+                    iam:PassedToService:
+                      - lambda.amazonaws.com
+                      - bedrock-agentcore.amazonaws.com
+              # scripts/deploy/output_guardrail.py::ensure_permission grants the
+              # deployed Gateway's OWN execution role bedrock:InvokeGuardrailChecks
+              # (the managed output-suppression check Lab 4's five-outcome proof
+              # needs) via iam:PutRolePolicy on that role, looked up live through
+              # GetGateway. That role is NOT one of "our" pellier-* roles above —
+              # it is a resource of the CDK-deployed AgentCore-pellier-default
+              # stack, and CloudFormation auto-names stack resources from the
+              # stack name when no RoleName is set. Confirmed against a live
+              # gateway created by this same pinned CLI
+              # (arn:aws:iam::<acct>:role/AgentCore-pellierrc-defau-McpGateway...):
+              # the physical name is prefixed by the stack name, never by
+              # "pellier-". Without this Sid, ensure_permission's PutRolePolicy
+              # 403s on a fresh account and the managed output-suppression policy
+              # never attaches — exactly the gap REHEARSAL.md and
+              # FACILITATOR-READINESS.md flag as unverified.
+              - Sid: AgentCoreGatewayOutputGuardrailRole
+                Effect: Allow
+                Action:
+                  - iam:PutRolePolicy
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/AgentCore-pellier${DeploymentSuffix}-*
+              # S3 deployment packages. Two bucket families: deploy_lambda.py
+              # auto-creates lambda-deploy-{account}-{region} for the MCP
+              # Lambda zips, and the @aws/agentcore toolkit uses
+              # bedrock-agentcore-* for the Runtime build context. Scoped to
+              # both (AWS documents the toolkit's bedrock-agentcore-* naming in
+              # the AgentCore CLI IAM reference).
+              - Sid: AgentCoreProvisioningS3
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:PutBucketTagging
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource:
+                  - !Sub arn:${AWS::Partition}:s3:::lambda-deploy-${AWS::AccountId}-${AWS::Region}
+                  - !Sub arn:${AWS::Partition}:s3:::lambda-deploy-${AWS::AccountId}-${AWS::Region}/*
+                  - !Sub arn:${AWS::Partition}:s3:::bedrock-agentcore-*
+                  - !Sub arn:${AWS::Partition}:s3:::bedrock-agentcore-*/*
+              # ECR repository writes — the @aws/agentcore toolkit creates and
+              # pushes to bedrock-agentcore-* repositories (per the AgentCore
+              # CLI IAM reference). Scoped to that repository name family.
+              - Sid: AgentCoreProvisioningEcr
+                Effect: Allow
+                Action:
+                  - ecr:CreateRepository
+                  - ecr:DescribeRepositories
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                Resource: !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/bedrock-agentcore-*
+              # CodeBuild — the toolkit may build the ARM container image in a
+              # bedrock-agentcore-* project (per the AgentCore CLI IAM
+              # reference). Scoped to project + build of that name family.
+              - Sid: AgentCoreProvisioningCodeBuild
+                Effect: Allow
+                Action:
+                  - codebuild:CreateProject
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                Resource:
+                  - !Sub arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:project/bedrock-agentcore-*
+                  - !Sub arn:${AWS::Partition}:codebuild:${AWS::Region}:${AWS::AccountId}:build/bedrock-agentcore-*
+              # ecr:GetAuthorizationToken returns an account-wide token and
+              # AWS does not support resource-level scoping for it (confirmed in
+              # the AgentCore CLI IAM reference). This is the only ECR action
+              # that must stay on "*".
+              - Sid: AgentCoreProvisioningEcrAuth
+                Effect: Allow
+                Action:
+                  - ecr:GetAuthorizationToken
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # UserData creates the workshop test users (admin-create
+              # + set permanent password), mints a JWT for the Runtime smoke
+              # test, and reads the app-client config. All of these are scoped
+              # to THIS stack's user pool ARN for least privilege.
+              # The stack-owned callback registrar below, rather than the
+              # instance, updates the Hosted UI callback after the CloudFront distribution is
+              # created.
+              - Sid: AgentCoreProvisioningCognito
+                Effect: Allow
+                Action:
+                  - cognito-idp:AdminInitiateAuth
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:CreateGroup
+                  - cognito-idp:AdminAddUserToGroup
+                  - cognito-idp:AdminListGroupsForUser
+                  - cognito-idp:DescribeUserPoolClient
+                  # The customer-claim pre-token trigger is attached by the
+                  # provisioner and refreshed by the governed reset. UpdateUserPool
+                  # replaces the pool's mutable settings, which is why the deployer
+                  # reads them all back first.
+                  - cognito-idp:DescribeUserPool
+                  - cognito-idp:UpdateUserPool
+                Resource: !GetAtt CognitoUserPool.Arn
+              # The claim map is rendered from pellier.customers over the
+              # Data API, the same read path the MCP Lambdas use.
+              - Sid: AgentCoreClaimMappingRead
+                Effect: Allow
+                Action:
+                  - rds-data:ExecuteStatement
+                Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:*
+              # Gateway application logs and traces are vended-log deliveries. The
+              # policy engine's decision attributes only reach aws/spans once the
+              # traces delivery exists.
+              - Sid: AgentCoreGatewayObservability
+                Effect: Allow
+                Action:
+                  - logs:PutDeliverySource
+                  - logs:GetDeliverySource
+                  - logs:PutDeliveryDestination
+                  - logs:GetDeliveryDestination
+                  - logs:CreateDelivery
+                  - logs:GetDelivery
+                  - logs:DescribeDeliveries
+                Resource: "*"
+              - Sid: AgentCoreGatewayVendedLogGroup
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/vendedlogs/bedrock-agentcore/*
+              # sts:GetCallerIdentity resolves the account id for ARN
+              # construction. It takes no resource and cannot be scoped — AWS
+              # evaluates it against "*" only.
+              - Sid: AgentCoreProvisioningSts
+                Effect: Allow
+                Action:
+                  - sts:GetCallerIdentity
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # Data API pre-flight in provision_agentcore_end_to_end.py:
+              # the four MCP Lambdas reach Aurora exclusively through rds-data,
+              # so provisioning verifies HttpEndpointEnabled (describe) and
+              # heals older stacks (enable — the flip is async, it polls).
+              # Without these a template-drifted cluster fails only at the
+              # first tool SQL with HttpEndpointNotEnabledException
+              # (box-verified 2026-06-12).
+              - Sid: AuroraDataApiPreflight
+                Effect: Allow
+                Action:
+                  - rds:DescribeDBClusters
+                  - rds:EnableHttpEndpoint
+                Resource: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:*
+              # Aurora master secret + the Cognito client-secret and
+              # test-credentials secrets that provision_agentcore_end_to_end.py
+              # reads to mint a JWT for the Runtime smoke test. UserData also
+              # WRITES those two Cognito secrets (PutSecretValue) after it reads
+              # the generated client secret and creates the test users — the
+              # secrets themselves are created (empty) by this stack. Scoped to
+              # pellier/* plus the Aurora master secret.
+              - Sid: SecretsManagerReadWrite
+                Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                  - secretsmanager:PutSecretValue
+                Resource:
+                  - !Ref DBSecretArn
+                  - !Sub arn:${AWS::Partition}:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:pellier/*
+              - Sid: CloudWatchLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/pellier/*
+              # provision_agentcore_end_to_end.py enables Transaction Search,
+              # installs the X-Ray delivery resource policy, then uses the
+              # pinned AgentCore CLI to query aws/spans. These control/query
+              # actions do not all support resource-level permissions, so the
+              # deploy-region condition is the effective boundary.
+              - Sid: AgentCoreObservabilitySetup
+                Effect: Allow
+                Action:
+                  - logs:PutResourcePolicy
+                  - logs:DescribeResourcePolicies
+                  - logs:DeleteResourcePolicy
+                  # CreateDelivery needs these to install the X-Ray destination
+                  # policy for Gateway traces in a fresh account.
+                  - xray:PutResourcePolicy
+                  - xray:ListResourcePolicies
+                  - xray:GetTraceSegmentDestination
+                  - xray:UpdateTraceSegmentDestination
+                  - xray:GetIndexingRules
+                  - xray:UpdateIndexingRule
+                  # UpdateTraceSegmentDestination enables Application Signals
+                  # discovery in a fresh account as a dependent operation.
+                  - application-signals:StartDiscovery
+                  # The provisioner requires a recent, resource-correlated
+                  # AgentCore management event before it emits a ready receipt.
+                  - cloudtrail:LookupEvents
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # Enabling Transaction Search creates the destination streams
+              # using the caller's permissions, before X-Ray starts delivery.
+              - Sid: AgentCoreTransactionSearchStreams
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:aws/spans:log-stream:*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/application-signals/data:log-stream:*
+              # Bootstrap protects Runtime log groups before the first invoke.
+              # Complete their ADOT destinations explicitly: precreating only
+              # the group leaves the exporter without its required streams.
+              - Sid: AgentCoreRuntimeTelemetryStreams
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/pellier*-DEFAULT:log-stream:runtime-logs
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/pellier*-DEFAULT:log-stream:spans
+              # Transaction Search prerequisites include both the service-linked
+              # role and CloudTrail channel that StartDiscovery creates.
+              - Sid: ApplicationSignalsCreateServiceRole
+                Effect: Allow
+                Action:
+                  - iam:CreateServiceLinkedRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/application-signals.cloudwatch.amazonaws.com/AWSServiceRoleForCloudWatchApplicationSignals
+                Condition:
+                  StringEquals:
+                    iam:AWSServiceName: application-signals.cloudwatch.amazonaws.com
+              - Sid: ApplicationSignalsInspectServiceRole
+                Effect: Allow
+                Action:
+                  - iam:GetRole
+                Resource: !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/application-signals.cloudwatch.amazonaws.com/AWSServiceRoleForCloudWatchApplicationSignals
+              - Sid: ApplicationSignalsCloudTrailChannel
+                Effect: Allow
+                Action:
+                  - cloudtrail:CreateServiceLinkedChannel
+                Resource: !Sub arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:channel/aws-service-channel/application-signals/*
+              - Sid: AgentCoreTraceQuery
+                Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                  - logs:StartQuery
+                  - logs:GetQueryResults
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # Labs 3 and 4 trace a Gateway call from the terminal
+              # (scripts/trace_agentcore_calls.py): AgentCore's Identity, Policy
+              # and Gateway spans in Transaction Search, and the Runtime agent's
+              # spans in its own log group, joined by trace id. Read-only.
+              - Sid: AgentCoreSpanRead
+                Effect: Allow
+                Action:
+                  - logs:FilterLogEvents
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:aws/spans
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:aws/spans:*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*
+              # pellier/backend/services/policy_decisions.py::_observe_from_aws
+              # reads the managed AWS/Bedrock-AgentCore LogOnlyMatches /
+              # LogOnlyDecisionFlips / LogOnlyEvalIncomplete metrics on every
+              # governed turn (the cloudwatch-metric source, tried unconditionally
+              # alongside the gateway-span source, not gated behind LOG_ONLY mode).
+              # cloudwatch:ListMetrics/GetMetricData take no resource type, so
+              # Resource stays "*"; the region condition is the bound. Without
+              # this the call is caught and recorded as an error rather than
+              # crashing the turn, but the WOULD_DENY / EVALUATION_INCOMPLETE
+              # signal the LOG_ONLY monitor-mode exercise depends on never reads.
+              - Sid: AgentCorePolicyLogOnlyMetrics
+                Effect: Allow
+                Action:
+                  - cloudwatch:ListMetrics
+                  - cloudwatch:GetMetricData
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+              # The provisioner owns the Runtime payload groups. Existing
+              # shared Transaction Search groups require the explicit opt-in.
+              # CloudWatch Logs, not the instance profile, uses the KMS key for
+              # encryption and decryption. The instance can only create the
+              # exact groups, associate that key, and set bounded retention.
+              - Sid: AgentCoreObservabilityLogGroupProtection
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:AssociateKmsKey
+                  - logs:DisassociateKmsKey
+                  - logs:PutRetentionPolicy
+                  - logs:DeleteRetentionPolicy
+                  - logs:DeleteLogGroup
+                Resource:
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/vendedlogs/bedrock-agentcore/*
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:aws/spans
+                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/application-signals/data
+              - Sid: AgentCoreObservabilityLogKeyInspection
+                Effect: Allow
+                Action:
+                  - kms:DescribeKey
+                Resource: !If
+                  - CreateRuntimeLogKey
+                  - !GetAtt AgentCoreRuntimeLogKey.Arn
+                  - !Ref ExistingRuntimeLogKmsKeyArn
+              # Voice search: routes/transcribe.py opens a streaming
+              # transcription from the backend process, which runs under
+              # THIS InstanceRole (TranscribeStreamingClient uses the
+              # default credential chain → instance profile). The
+              # participant-role policy (static/iam_policy.json) also has
+              # this, but that role is the console/CLI identity, not the
+              # role the backend assumes — so it must live here too.
+              # StartStreamTranscription does not support resource-level
+              # scoping, so Resource is "*".
+              - Sid: TranscribeStreaming
+                Effect: Allow
+                Action:
+                  - transcribe:StartStreamTranscription
+                Resource: "*"
+                Condition:
+                  StringEquals:
+                    aws:RequestedRegion: !Ref AWS::Region
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref InstanceRole
+
+  # --------------------------------------------------------------------------
+  # Cognito identity — REAL, not demo. This is a Level-400 session: the
+  # AgentCore Gateway and Runtime are JWT-gated (CUSTOM_JWT authorizer), so a
+  # genuine Cognito user pool, app client, and four seeded test users are
+  # required infrastructure, not optional scaffolding. The pool's JWKS is the
+  # issuer the Runtime/Gateway discovery URL points at; the app client is the
+  # allowed JWT audience; the test users let the bootstrap smoke test mint a
+  # real token and prove the managed Runtime end to end.
+  # --------------------------------------------------------------------------
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub pellier-workshop-${WorkshopId}
+      # Admins (UserData) create the four workshop shoppers, named after the
+      # personas (Marco / Anna / Theo / Jessica); participants do not self-register in the
+      # workshop. The pool is USERNAME-based (not email-as-username) on
+      # purpose: a Cognito access token carries a `username` claim but not
+      # `email`/`given_name`, so that username rides through the JWT-gated
+      # Gateway as the caller's identity. Naming the users after the personas
+      # makes that identity passthrough visible in the authenticated proof.
+      # Email is kept as a verified attribute for the hosted-UI profile scope,
+      # never as the login.
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      # Case-insensitive sign-in also normalizes Cognito's returned username to
+      # lowercase. The policy can therefore compare `username = theo` directly
+      # with the lowercase `customer_id = theo` tool argument.
+      UsernameConfiguration:
+        CaseSensitive: false
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      UserPoolTags:
+        Project: pellier
+        Event: !Ref EventName
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub pellier-${WorkshopId}-client
+      UserPoolId: !Ref CognitoUserPool
+      # GenerateSecret=true: the bootstrap smoke test and seed-sample-preferences
+      # compute SECRET_HASH = HMAC-SHA256(client_secret, username+client_id).
+      GenerateSecret: true
+      ExplicitAuthFlows:
+        # ADMIN_USER_PASSWORD_AUTH is the contract flow used by the server-side
+        # JWT smoke test (provision_agentcore_end_to_end.py) and preference
+        # seeding. USER_SRP + REFRESH support the frontend hosted-UI sign-in.
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      # Cognito exact-matches redirect_uri. The stack-owned
+      # CognitoCallbackRegistration resource adds the final CloudFront callback
+      # only after the distribution exists. The loopback value keeps the client
+      # valid while CloudFormation creates those two independent resources; it
+      # is not the workshop sign-in path.
+      CallbackURLs:
+        - https://localhost/
+      LogoutURLs:
+        - https://localhost/
+      AccessTokenValidity: 60
+      IdTokenValidity: 60
+      RefreshTokenValidity: 30
+      TokenValidityUnits:
+        AccessToken: minutes
+        IdToken: minutes
+        RefreshToken: days
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      # Domain prefixes are globally unique; WorkshopId (p + 8 hex) keeps it
+      # collision-free per account/stack.
+      Domain: !Sub pellier-${WorkshopId}
+      UserPoolId: !Ref CognitoUserPool
+
+  # CFN creates these secrets empty; UserData fills them after it can read the
+  # generated client secret (describe-user-pool-client) and after it creates
+  # the four customer principals with permanent passwords (admin-set-user-password).
+  # Names live under pellier/* so the InstanceRole secrets scope matches.
+  CognitoClientSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub pellier/cognito/client-secret-${WorkshopId}
+      Description: "Cognito app client secret JSON: {client_secret}."
+
+  CognitoTestCredentialsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub pellier/cognito/test-users-${WorkshopId}
+      Description: "Workshop test users JSON with a users array of username/password objects."
+
+  # The callback cannot be a direct property of CognitoUserPoolClient: the
+  # client is needed by Instance UserData, while the callback contains the
+  # CloudFront distribution domain. A custom resource breaks that
+  # cycle without a post-boot race. CloudFormation waits for this resource, so
+  # a new environment cannot report CREATE_COMPLETE with Hosted UI sign-in
+  # still pointing only at localhost.
+  CognitoCallbackRegistrarRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: register-pellier-cognito-callback
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:DescribeUserPoolClient
+                  - cognito-idp:UpdateUserPoolClient
+                Resource: !GetAtt CognitoUserPool.Arn
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/pellier-cognito-callback-*
+
+  CognitoCallbackRegistrar:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub pellier-cognito-callback-${WorkshopId}
+      Description: Registers the CloudFront Hosted UI callback before workshop readiness.
+      Role: !GetAtt CognitoCallbackRegistrarRole.Arn
+      Runtime: python3.12
+      Handler: index.handler
+      Timeout: 60
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import logging
+          import urllib.request
+
+          LOG = logging.getLogger()
+          LOG.setLevel(logging.INFO)
+          CLIENT_FIELDS = (
+              "ClientName",
+              "RefreshTokenValidity",
+              "AccessTokenValidity",
+              "IdTokenValidity",
+              "TokenValidityUnits",
+              "ExplicitAuthFlows",
+              "SupportedIdentityProviders",
+              "AllowedOAuthFlows",
+              "AllowedOAuthScopes",
+              "AllowedOAuthFlowsUserPoolClient",
+              "DefaultRedirectURI",
+              "EnableTokenRevocation",
+              "PreventUserExistenceErrors",
+              "EnablePropagateAdditionalUserContextData",
+              "AuthSessionValidity",
+              "RefreshTokenRotation",
+          )
+
+          def respond(event, context, status, data, reason=None):
+              body = {
+                  "Status": status,
+                  "Reason": reason or f"See CloudWatch Logs: {context.log_stream_name}",
+                  "PhysicalResourceId": event.get("PhysicalResourceId")
+                      or f"{event['ResourceProperties']['UserPoolId']}:{event['ResourceProperties']['ClientId']}",
+                  "StackId": event["StackId"],
+                  "RequestId": event["RequestId"],
+                  "LogicalResourceId": event["LogicalResourceId"],
+                  "NoEcho": False,
+                  "Data": data,
+              }
+              encoded = json.dumps(body).encode("utf-8")
+              request = urllib.request.Request(
+                  event["ResponseURL"],
+                  data=encoded,
+                  method="PUT",
+                  headers={"content-type": "", "content-length": str(len(encoded))},
+              )
+              with urllib.request.urlopen(request) as response:
+                  LOG.info("CloudFormation response status=%s", response.status)
+
+          def handler(event, context):
+              props = event["ResourceProperties"]
+              physical_id = event.get("PhysicalResourceId") or (
+                  f"{props['UserPoolId']}:{props['ClientId']}"
+              )
+              try:
+                  if event["RequestType"] != "Delete":
+                      cognito = boto3.client("cognito-idp")
+                      current = cognito.describe_user_pool_client(
+                          UserPoolId=props["UserPoolId"], ClientId=props["ClientId"]
+                      )["UserPoolClient"]
+                      update = {
+                          "UserPoolId": props["UserPoolId"],
+                          "ClientId": props["ClientId"],
+                      }
+                      update.update(
+                          {
+                              field: current[field]
+                              for field in CLIENT_FIELDS
+                              if current.get(field) is not None
+                          }
+                      )
+                      update["CallbackURLs"] = sorted(
+                          set(current.get("CallbackURLs", [])) | {props["CallbackUrl"]}
+                      )
+                      update["LogoutURLs"] = sorted(
+                          set(current.get("LogoutURLs", [])) | {props["LogoutUrl"]}
+                      )
+                      cognito.update_user_pool_client(**update)
+                      LOG.info("Registered Hosted UI callback %s", props["CallbackUrl"])
+                  respond(
+                      event,
+                      context,
+                      "SUCCESS",
+                      {
+                          "CallbackUrl": props.get("CallbackUrl", ""),
+                          "PhysicalResourceId": physical_id,
+                      },
+                  )
+              except Exception as exc:
+                  LOG.exception("Could not register Hosted UI callback")
+                  respond(event, context, "FAILED", {}, f"{type(exc).__name__}: {exc}")
+
+  CognitoCallbackRegistrarInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CognitoCallbackRegistrar
+      Principal: cloudformation.amazonaws.com
+      SourceAccount: !Ref AWS::AccountId
+
+  CodeEditorInstance:
+    Type: AWS::EC2::Instance
+    # No CreationPolicy here: WorkshopReadyGate below takes the bootstrap
+    # signal, so the CloudFront VPC origin can build while the box bootstraps.
+    Properties:
+      ImageId: !Ref AmiParameter
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref InstanceProfile
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: false
+          DeleteOnTermination: true
+          Description: !Sub pellier-${InfrastructureRevision}-${WorkshopId}-editor
+          DeviceIndex: "0"
+          GroupSet:
+            - !Ref CodeEditorSecurityGroupId
+          SubnetId: !Ref PrivateSubnetA
+      MetadataOptions:
+        HttpEndpoint: enabled
+        HttpTokens: required
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: !Ref VolumeSize
+            VolumeType: gp3
+            Encrypted: true
+      Tags:
+        - Key: Name
+          Value: !Sub pellier-${WorkshopId}-editor
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+      UserData:
+        Fn::Base64: !Sub
+        - |
+          #!/bin/bash
+          set -Eeuo pipefail
+          umask 077
+          # Persist the worker before any package install; account-managed patching may reboot this host.
+          install -d -o root -g root -m 0700 /var/lib/pellier-bootstrap
+          cat > /var/lib/pellier-bootstrap/inputs.env.tmp <<'PELLIER_INPUTS'
+          export WORKSHOP_ID="${WorkshopId}"
+          export WORKSHOP_SOURCE_REVISION="${RepoRevision}"
+          export PELLIER_DEPLOYMENT_SUFFIX="${DeploymentSuffix}"
+          export PELLIER_PRIVATE_ORIGIN="true"
+          export CODE_EDITOR_BASE_PATH="/editor"
+          export AWS_REGION="${AWS::Region}"
+          export AWS_DEFAULT_REGION="${AWS::Region}"
+          export DB_SECRET_ARN="${DBSecretArn}"
+          export DB_CLUSTER_ARN="${DBClusterArn}"
+          export DB_HOST="${DBClusterEndpoint}"
+          export DB_NAME="pellier"
+          export AUTH_MODE="cognito"
+          export COGNITO_USER_POOL_ID="${CognitoUserPool}"
+          export COGNITO_CLIENT_ID="${CognitoUserPoolClient}"
+          export COGNITO_CLIENT_SECRET_ARN="${CognitoClientSecret}"
+          export COGNITO_TEST_CREDENTIALS_SECRET_ARN="${CognitoTestCredentialsSecret}"
+          export COGNITO_HOSTED_UI_URL="https://pellier-${WorkshopId}.auth.${AWS::Region}.amazoncognito.com/login?client_id=${CognitoUserPoolClient}&response_type=code&scope=openid+email+profile"
+          export COGNITO_DOMAIN="pellier-${WorkshopId}.auth.${AWS::Region}.amazoncognito.com"
+          export VITE_COGNITO_DOMAIN="pellier-${WorkshopId}.auth.${AWS::Region}.amazoncognito.com"
+          export VITE_COGNITO_CLIENT_ID="${CognitoUserPoolClient}"
+          export AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN="${RuntimeLogKeyArn}"
+          export AGENTCORE_RUNTIME_LOG_RETENTION_DAYS="30"
+          export AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES="${AllowSharedTraceLogChanges}"
+          export CODE_EDITOR_USER="${CodeEditorUser}"
+          export HOME_FOLDER="${HomeFolder}"
+          export WORKSHOP_FORMAT="governed"
+          export CODE_EDITOR_PASSWORD="${SecretPlaintext.password}"
+          export ORIGIN_VERIFY_TOKEN="${OriginSecretPlaintext.password}"
+          PELLIER_INPUTS
+          install -o root -g root -m 0600 /var/lib/pellier-bootstrap/inputs.env.tmp /var/lib/pellier-bootstrap/inputs.env
+          rm /var/lib/pellier-bootstrap/inputs.env.tmp
+          cat > /var/lib/pellier-bootstrap/run.sh.tmp <<'PELLIER_WORKER'
+          #!/bin/bash
+          set -Eeuo pipefail
+          umask 077
+          STATE=/var/lib/pellier-bootstrap
+          exec 9>"$STATE/lock"
+          flock -n 9 || exit 0
+          test ! -f "$STATE/completed" || exit 0
+          test ! -f "$STATE/failed" || exit 1
+          source "$STATE/inputs.env"
+          # Keep the worker portable across AL2023 and local contract fixtures.
+          # Durable file logging is sufficient here; CloudFormation receives the
+          # authoritative signal below, and this avoids process-substitution
+          # dependencies in minimal bootstrap shells.
+          exec >> /var/log/pellier-bootstrap-worker.log 2>&1
+          phase=initializing
+
+          mark_done() {
+            printf '%s\n' '${RepoRevision}' > "$STATE/$1.tmp"
+            mv -f "$STATE/$1.tmp" "$STATE/$1"
+          }
+          host_stopping() {
+            test "$(systemctl is-system-running 2>/dev/null || true)" = stopping && return 0
+            systemctl list-jobs --no-legend 2>/dev/null | awk '$2 ~ /^(shutdown|reboot|poweroff|halt)\.target$/ && $3 == "start" {found=1} END {exit !found}'
+          }
+          archive_receipts() {
+            # Copy bounded regular files without following participant-owned symlinks.
+            /usr/bin/python3 - "$STATE/receipts" <<'PY_RECEIPTS'
+          import hashlib, os, stat, sys
+          from pathlib import Path
+          dest = Path(sys.argv[1])
+          dest.mkdir(mode=0o700, exist_ok=True)
+          for source in ('/tmp/pellier-agentcore-managed.json', '/tmp/workshop-ready.json'):
+              try:
+                  fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+              except FileNotFoundError:
+                  continue
+              with os.fdopen(fd, 'rb') as stream:
+                  info = os.fstat(stream.fileno())
+                  if not stat.S_ISREG(info.st_mode) or info.st_size > 16 * 1024 * 1024:
+                      raise RuntimeError('Invalid bootstrap receipt')
+                  data = stream.read(16 * 1024 * 1024 + 1)
+                  if len(data) > 16 * 1024 * 1024:
+                      raise RuntimeError('Oversized bootstrap receipt')
+              target = dest / (Path(source).stem + '-' + hashlib.sha256(data).hexdigest() + '.json')
+              try:
+                  out = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+              except FileExistsError:
+                  continue
+              with os.fdopen(out, 'wb') as stream:
+                  stream.write(data)
+                  stream.flush()
+                  os.fsync(stream.fileno())
+              with (dest / 'paths.txt').open('a') as index:
+                  index.write(str(target) + '\n')
+              print('Retained bootstrap receipt:', target)
+          PY_RECEIPTS
+          }
+          signal_bootstrap() {
+            local status="$1"
+            local attempt
+            for attempt in 1 2 3; do
+              if aws cloudformation signal-resource \
+                --stack-name '${AWS::StackId}' \
+                --logical-resource-id WorkshopReadyGate \
+                --unique-id '${InfrastructureRevision}' \
+                --status "$status" --region '${AWS::Region}' \
+                --cli-connect-timeout 5 --cli-read-timeout 10; then
+                return 0
+              fi
+              sleep "$attempt"
+            done
+            return 1
+          }
+          signal_failure() {
+            exit_code=$?
+            if [ "$#" -gt 0 ]; then exit_code="$1"; fi
+            trap - ERR TERM INT
+            archive_receipts || echo 'Receipt archive failed; preserve raw files before cleanup' >&2
+            if host_stopping; then
+              printf '%s\n' "$phase" > "$STATE/interrupted"
+              echo "Host stopping during $phase; resume incomplete bootstrap next boot"
+              exit 0
+            fi
+            printf '%s %s\n' "$phase" "$exit_code" > "$STATE/failed.tmp"
+            mv -f "$STATE/failed.tmp" "$STATE/failed"
+            signal_bootstrap FAILURE || true
+            exit "$exit_code"
+          }
+          trap signal_failure ERR
+          trap 'signal_failure 143' TERM
+          trap 'signal_failure 130' INT
+
+          phase=packages
+          if [ ! -f "$STATE/packages.done" ]; then
+            dnf update -y
+            dnf install -y git jq unzip tar gzip python3 aws-cfn-bootstrap
+
+            mark_done packages.done
+          fi
+          if ! id "${CodeEditorUser}" &>/dev/null; then
+            useradd -m -s /bin/bash ${CodeEditorUser}
+          fi
+
+          mkdir -p ${HomeFolder}
+
+          phase=repository
+          if [ ! -f "$STATE/repository.done" ]; then
+            cd ${HomeFolder}
+            if [ ! -d sample-pellier-agentic-search-apg/.git ]; then
+              rm -rf sample-pellier-agentic-search-apg
+              git init sample-pellier-agentic-search-apg
+            fi
+            if git -C sample-pellier-agentic-search-apg remote get-url origin >/dev/null 2>&1; then
+              git -C sample-pellier-agentic-search-apg remote set-url origin '${RepoUrl}'
+            else
+              git -C sample-pellier-agentic-search-apg remote add origin '${RepoUrl}'
+            fi
+            git -C sample-pellier-agentic-search-apg fetch --depth 1 origin '${RepoRevision}'
+            git -C sample-pellier-agentic-search-apg checkout --detach FETCH_HEAD
+            test "$(git -C sample-pellier-agentic-search-apg rev-parse HEAD)" = '${RepoRevision}'
+            chown -R ${CodeEditorUser}:${CodeEditorUser} sample-pellier-agentic-search-apg
+
+            mark_done repository.done
+          fi
+          phase=cognito
+          if [ ! -f "$STATE/cognito.done" ]; then
+            POOL_ID="${CognitoUserPool}"
+            CLIENT_ID="${CognitoUserPoolClient}"
+            REGION="${AWS::Region}"
+            {
+              CLIENT_SECRET=$(aws cognito-idp describe-user-pool-client \
+                --user-pool-id "$POOL_ID" --client-id "$CLIENT_ID" \
+                --region "$REGION" \
+                --query 'UserPoolClient.ClientSecret' --output text)
+              aws secretsmanager put-secret-value \
+                --secret-id '${CognitoClientSecret}' --region "$REGION" \
+                --secret-string "$(jq -nc --arg s "$CLIENT_SECRET" '{client_secret:$s}')"
+
+              # Secret schema: test-users = {"users":[{"username","password"}, x4]}
+              USERS_JSON='{"users":[]}'
+              for UNAME in Marco Anna Theo Jessica; do
+                UPASS="$(python3 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
+                EMAIL="$(echo "$UNAME" | tr 'A-Z' 'a-z')@pellier.example.com"
+                aws cognito-idp admin-create-user \
+                  --user-pool-id "$POOL_ID" --username "$UNAME" \
+                  --message-action SUPPRESS --region "$REGION" \
+                  --user-attributes Name=email,Value="$EMAIL" Name=email_verified,Value=true || true
+                aws cognito-idp admin-set-user-password \
+                  --user-pool-id "$POOL_ID" --username "$UNAME" \
+                  --password "$UPASS" --permanent --region "$REGION"
+                USERS_JSON=$(echo "$USERS_JSON" | jq -c \
+                  --arg u "$UNAME" --arg p "$UPASS" '.users += [{username:$u,password:$p}]')
+              done
+              aws secretsmanager put-secret-value \
+                --secret-id '${CognitoTestCredentialsSecret}' --region "$REGION" \
+                --secret-string "$USERS_JSON"
+            } 2>&1 | tee /var/log/pellier-cognito-provision.log
+
+            mark_done cognito.done
+          fi
+          # Participant convenience exports exclude the two secret values. Root never sources this copy.
+          sed '/^export CODE_EDITOR_PASSWORD=/d; /^export ORIGIN_VERIFY_TOKEN=/d' "$STATE/inputs.env" > '${HomeFolder}/.pellier-env'
+          chown ${CodeEditorUser}:${CodeEditorUser} '${HomeFolder}/.pellier-env'
+          chmod 600 '${HomeFolder}/.pellier-env'
+          cd '${HomeFolder}/sample-pellier-agentic-search-apg'
+          phase=environment
+          if [ ! -f "$STATE/environment.done" ]; then
+            bash scripts/bootstrap-environment.sh 2>&1 | tee -a /var/log/bootstrap-environment.log
+            mark_done environment.done
+          fi
+          phase=labs
+          if [ ! -f "$STATE/labs.done" ]; then
+            # Stage 2 may rebaseline an interrupted initial setup; never reenter after completion.
+            archive_receipts
+            bash scripts/bootstrap-labs.sh 2>&1 | tee -a /var/log/bootstrap-labs.log
+            archive_receipts
+            mark_done labs.done
+          fi
+          phase=health
+          sudo -u ${CodeEditorUser} env \
+            PELLIER_REPO=${HomeFolder}/sample-pellier-agentic-search-apg \
+            WORKSHOP_FORMAT=governed \
+            bash scripts/health-gate.sh 2>&1 | tee -a /var/log/pellier-health-gate-cfn.log
+          phase=signal
+          signal_bootstrap SUCCESS
+          mark_done completed
+          PELLIER_WORKER
+          install -o root -g root -m 0700 /var/lib/pellier-bootstrap/run.sh.tmp /var/lib/pellier-bootstrap/run.sh
+          rm /var/lib/pellier-bootstrap/run.sh.tmp
+          cat > /etc/systemd/system/pellier-bootstrap.service <<'PELLIER_UNIT'
+          [Unit]
+          Description=Pellier initial bootstrap (resume after host reboot)
+          Wants=network-online.target
+          After=network-online.target cloud-final.service
+          ConditionPathExists=!/var/lib/pellier-bootstrap/completed
+          ConditionPathExists=!/var/lib/pellier-bootstrap/failed
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/bin/bash /var/lib/pellier-bootstrap/run.sh
+          UMask=0077
+          TimeoutStartSec=10200
+          TimeoutStopSec=30
+          KillMode=control-group
+          Restart=no
+
+          [Install]
+          WantedBy=multi-user.target
+          PELLIER_UNIT
+          systemctl daemon-reload
+          systemctl enable pellier-bootstrap.service
+          # cloud-final must return before this worker starts; do not synchronously wait here.
+          systemctl start --no-block pellier-bootstrap.service
+        - RuntimeLogKeyArn: !If
+            - CreateRuntimeLogKey
+            - !GetAtt AgentCoreRuntimeLogKey.Arn
+            - !Ref ExistingRuntimeLogKmsKeyArn
+
+  # The stack completes only after bootstrap proves the box and signals this
+  # gate. The VPC origin needs a running instance, not a proved one, so
+  # CloudFront builds beside the bootstrap instead of after it. No handle: a
+  # persistent WaitConditionHandle can carry an earlier instance's success
+  # signal. A stack update that replaces the instance is not gated again;
+  # Workshop Studio creates each event's stack fresh.
+  WorkshopReadyGate:
+    Type: AWS::CloudFormation::WaitCondition
+    DependsOn: CodeEditorInstance
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        # Includes first-account activation, managed provisioning and delayed
+        # unified-trace delivery.
+        Timeout: PT3H
+
+  BrowserVpcOrigin:
+    Type: AWS::CloudFront::VpcOrigin
+    Properties:
+      VpcOriginEndpointConfig:
+        Name: !Sub pellier-${WorkshopId}-${InfrastructureRevision}
+        Arn: !Sub arn:${AWS::Partition}:ec2:${AWS::Region}:${AWS::AccountId}:instance/${CodeEditorInstance}
+        HTTPPort: 80
+        OriginProtocolPolicy: http-only
+      Tags:
+        - Key: Project
+          Value: pellier
+
+  BrowserWebACL:
+    Type: AWS::WAFv2::WebACL
+    Condition: InUsEast1
+    Properties:
+      Description: Known-bad input filtering and API rate limiting for the short-lived workshop
+      Scope: CLOUDFRONT
+      DefaultAction: {Allow: {}}
+      # A rate block answers 429 with this body, which the shopper sign-in names as rate limited.
+      CustomResponseBodies:
+        RequestsLimited:
+          ContentType: APPLICATION_JSON
+          Content: '{"detail":"requests_limited"}'
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: PellierBrowser
+        SampledRequestsEnabled: false
+      Rules:
+        - Name: AWSKnownBadInputs
+          Priority: 0
+          OverrideAction: {None: {}}
+          Statement:
+            ManagedRuleGroupStatement:
+              VendorName: AWS
+              Name: AWSManagedRulesKnownBadInputsRuleSet
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: PellierKnownBadInputs
+            SampledRequestsEnabled: false
+        # One participant per WAF: a heavy five minutes is about 140 /api requests, a Storefront
+        # reload 17. 1000 leaves room for that and still stops a scripted flood.
+        - Name: ApiRateLimit
+          Priority: 1
+          Action:
+            Block:
+              CustomResponse:
+                ResponseCode: 429
+                CustomResponseBodyKey: RequestsLimited
+          Statement:
+            RateBasedStatement:
+              AggregateKeyType: IP
+              EvaluationWindowSec: 300
+              Limit: 1000
+              ScopeDownStatement:
+                OrStatement:
+                  Statements:
+                    - ByteMatchStatement:
+                        FieldToMatch: {UriPath: {}}
+                        PositionalConstraint: STARTS_WITH
+                        SearchString: /ports/8000/api/
+                        TextTransformations: [{Priority: 0, Type: NONE}]
+                    - ByteMatchStatement:
+                        FieldToMatch: {UriPath: {}}
+                        PositionalConstraint: STARTS_WITH
+                        SearchString: /app/api/
+                        TextTransformations: [{Priority: 0, Type: NONE}]
+                    - ByteMatchStatement:
+                        FieldToMatch: {UriPath: {}}
+                        PositionalConstraint: STARTS_WITH
+                        SearchString: /api/
+                        TextTransformations: [{Priority: 0, Type: NONE}]
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: PellierApiRateLimit
+            SampledRequestsEnabled: false
+
+  BrowserDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: !Sub Pellier editor and application (${WorkshopId})
+        HttpVersion: http2and3
+        PriceClass: PriceClass_100
+        WebACLId: !If [InUsEast1, !GetAtt BrowserWebACL.Arn, !Ref AWS::NoValue]
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        DefaultCacheBehavior:
+          TargetOriginId: private-editor
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods: [GET, HEAD, OPTIONS, PUT, POST, PATCH, DELETE]
+          CachedMethods: [GET, HEAD]
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          # Forward Host, Authorization, cookies, query strings, and WebSocket
+          # headers. The generated editor token is checked by Code Editor.
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          Compress: false
+        Origins:
+          - Id: private-editor
+            DomainName: !GetAtt CodeEditorInstance.PrivateDnsName
+            OriginCustomHeaders:
+              - HeaderName: X-Pellier-Origin-Verify
+                HeaderValue: !GetAtt OriginSecretPlaintext.password
+              - HeaderName: X-Forwarded-Proto
+                HeaderValue: https
+            VpcOriginConfig:
+              VpcOriginId: !GetAtt BrowserVpcOrigin.Id
+              OriginReadTimeout: 60
+              OriginKeepaliveTimeout: 60
+      Tags:
+        - Key: Project
+          Value: pellier
+
+  CognitoCallbackRegistration:
+    Type: Custom::PellierCognitoCallbackRegistration
+    DependsOn:
+      - CognitoCallbackRegistrarInvokePermission
+    Properties:
+      ServiceToken: !GetAtt CognitoCallbackRegistrar.Arn
+      UserPoolId: !Ref CognitoUserPool
+      ClientId: !Ref CognitoUserPoolClient
+      CallbackUrl: !Sub https://${BrowserDistribution.DomainName}/ports/8000/api/auth/callback
+      LogoutUrl: !Sub https://${BrowserDistribution.DomainName}/ports/8000/
+
+Outputs:
+  InstanceId:
+    Value: !Ref CodeEditorInstance
+    Export:
+      Name: !Sub ${AWS::StackName}-InstanceId
+  PrivateDnsName:
+    Value: !GetAtt CodeEditorInstance.PrivateDnsName
+    Export:
+      Name: !Sub ${AWS::StackName}-PrivateDnsName
+  CodeEditorURL:
+    Description: Open Code Editor to edit files and run lab commands. The deployment-specific editor credential is included in this link.
+    Value: !Sub https://${BrowserDistribution.DomainName}/editor/?tkn=${SecretPlaintext.password}
+  PellierURL:
+    Description: Open Pellier. Ask Pellier is on the Storefront, and the Operator opens from its navigation.
+    Value: !Sub https://${BrowserDistribution.DomainName}/ports/8000/
+    Export:
+      Name: !Sub ${AWS::StackName}-PellierURL
+  ParticipantCredentialsFile:
+    Description: In Code Editor, open this per-deployment file for the throwaway Cognito accounts. The Operator's sign-in is also the OperatorUsername and OperatorPassword outputs.
+    Value: !Sub ${HomeFolder}/test-credentials.txt
+    Export:
+      Name: !Sub ${AWS::StackName}-ParticipantCredentialsFile
+  OperatorUsername:
+    Description: Sign in to the Pellier Operator (Staff sign-in) with this username.
+    Value: !GetAtt OperatorCredential.username
+  OperatorPassword:
+    Description: The Operator's throwaway password for this event only.
+    Value: !GetAtt OperatorCredential.password
+  AgentCoreRuntimeLogKmsKeyArn:
+    Description: Customer-managed KMS key used by AgentCore Runtime and trace log groups.
+    Value: !If
+      - CreateRuntimeLogKey
+      - !GetAtt AgentCoreRuntimeLogKey.Arn
+      - !Ref ExistingRuntimeLogKmsKeyArn
+    Export:
+      Name: !Sub ${AWS::StackName}-AgentCoreRuntimeLogKmsKeyArn
+  WorkshopReady:
+    Value: !Ref CodeEditorInstance
+    Description: Editor instance whose governed health gate signaled WorkshopReadyGate.

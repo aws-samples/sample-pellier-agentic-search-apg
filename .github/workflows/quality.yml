@@ -76,7 +76,12 @@ jobs:
       # Deploy and lab-check scripts run on a provisioned box, not under the test
       # suite, so an unbound name there surfaces only during a deploy.
       - name: Check scripts for undefined names
-        run: pipx run ruff==0.16.10 check --select F821 scripts/
+        run: pipx run ruff==0.16.10 check --select F821 scripts/ deploy/
+
+      # The own-account path deploys these templates straight from the repository, and
+      # the Workshop Studio repo copies them at each repin.
+      - name: Lint the CloudFormation templates
+        run: pipx run cfn-lint deploy/own-account/templates/*.yml
 
   frontend:
     name: Frontend tests, build, and dependency audit

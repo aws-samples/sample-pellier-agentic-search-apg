@@ -134,7 +134,7 @@ Locally the agents run in process. Ask Pellier works signed out, and AgentCore M
 
 The code is in the labs' starting state: some marked regions are incomplete on purpose, and `solutions/` holds reference versions.
 
-To deploy the managed path to your own account, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`). It expects an existing Aurora cluster and Cognito user pool, which the Workshop Studio templates create; those templates are not in this repository.
+To run the whole workshop in your own account, follow [Run Pellier in your own account](docs/run-in-your-own-account.md): `deploy/own-account/deploy.py` creates the stack from the templates under `deploy/own-account/templates/`, the ones Workshop Studio deploys at an event, and tears it down again. On the host, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`).
 
 ## Take it home
 
