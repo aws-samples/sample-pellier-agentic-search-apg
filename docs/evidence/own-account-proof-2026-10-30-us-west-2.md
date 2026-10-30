@@ -6,12 +6,12 @@ commands named, on the date given; nothing is rounded or recalled.
 
 | Item | Value |
 |---|---|
-| Account | 619763002613, Region us-west-2, the maintainer's own account |
+| Account | the maintainer's own account, ID withheld; Region us-west-2 |
 | Source the host fetched | `739be98f710ca5a5e81516b3238f0484340ba99a` on `governed` |
 | Templates deployed | `deploy/own-account/templates/` at this commit, infrastructure revision `d867ceb58472272b` (nested stacks named through the regional S3 endpoint) |
 | Deploy command | `uv run deploy/own-account/deploy.py deploy --region us-west-2 --source-revision 739be98f710ca5a5e81516b3238f0484340ba99a --allow-shared-trace-log-changes` |
 | Stack name | `pellier-governed`, no deployment suffix |
-| Bucket | `pellier-own-account-619763002613-us-west-2`, created by an earlier attempt the same day and reused by its tag |
+| Bucket | `pellier-own-account-<account>-us-west-2`, created by an earlier attempt the same day and reused by its tag |
 
 ## Deploy
 
@@ -53,8 +53,8 @@ is why the deploy needed `--allow-shared-trace-log-changes`.
 
 | Setting | Before the deploy | While deployed | After the teardown |
 |---|---|---|---|
-| `aws/spans` | no KMS key, retention 30 days | stack key `7974b3d4…`, 30 days | no KMS key, retention 30 days |
-| `/aws/application-signals/data` | no KMS key, no retention | stack key `7974b3d4…`, 30 days | no KMS key, no retention |
+| `aws/spans` | no KMS key, retention 30 days | the stack's key, 30 days | no KMS key, retention 30 days |
+| `/aws/application-signals/data` | no KMS key, no retention | the stack's key, 30 days | no KMS key, no retention |
 | X-Ray trace segment destination | CloudWatchLogs, ACTIVE | CloudWatchLogs, ACTIVE | CloudWatchLogs, ACTIVE |
 | X-Ray indexing rule `Default` | 100 percent | 100 percent | 100 percent |
 | Logs resource policy `TransactionSearchXRayAccess` | present (put by an earlier attempt) | present | present |
@@ -82,11 +82,11 @@ reported `"status": "restored"` eight times, then the script deleted the AgentCo
 log groups, the AgentCore log groups, and the workshop stack, printing `Stack deleted in 31
 min 7 s` (the Code Editor stack about 12 minutes, the database stack about 13, the VPC stack
 the rest), then `delete 4 object versions` and `delete bucket
-pellier-own-account-619763002613-us-west-2`.
+pellier-own-account-<account>-us-west-2`.
 
-Its `Left in place` list, verbatim:
+Its `Left in place` list, verbatim except for the account and key IDs:
 
-- the retained KMS key `arn:aws:kms:us-west-2:619763002613:key/7974b3d4-145c-449d-a65f-dcc9ff08d2d9` stays; rerun with `--schedule-kms-key-deletion 7`, or schedule it in the console
+- the retained KMS key `arn:aws:kms:us-west-2:<account>:key/<key-id>` stays; rerun with `--schedule-kms-key-deletion 7`, or schedule it in the console
 - log group `/aws/pellier/readiness` stays: every Pellier deployment in this Region shares it
 - the CDKToolkit stack and its `cdk-hnb659fds-*` bucket stay: other CDK apps in the account may use them
 
