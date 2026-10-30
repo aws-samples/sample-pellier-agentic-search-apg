@@ -25,7 +25,7 @@ pellier/frontend/
 ```
 1. public/design-system/daylight/tokens.css     ← --dl-* values
 2. public/design-system/daylight/daylight.css   ← .dl-* component styles
-3. src/styles/daylight-bridge.css               ← --cream / --ink / --accent / --obs-* → --dl-*
+3. src/styles/daylight-bridge.css               ← --cream / --ink / --accent / --shared-* → --dl-*
 4. tailwind base / components / utilities        (inside @layer base)
 5. component-level CSS / inline styles
 ```
@@ -55,13 +55,13 @@ component file needs editing.
 | `--ink-quiet` | `--dl-muted` | Captions, eyebrows |
 | `--accent` | `--dl-accent` | Terracotta accent |
 | `--rule-1` | `--dl-line` | Hairline borders |
-| `--obs-cream-1` | `--dl-bg` | Second alias family, still read by `src/shared/` and `components/ui/` |
-| `--obs-ink-1` | `--dl-ink` | Primary text, same family |
-| `--obs-red-1` | `--pellier-accent` | Accent, same family |
-| `--obs-green-1` | `--dl-ok` | "Shipped" status, same family |
-| `--serif` / `--obs-serif` | `--dl-font-serif` | Instrument Serif → Fraunces → Georgia |
-| `--sans` / `--obs-sans` | `--dl-font-sans` | Instrument Sans → system UI |
-| `--mono` / `--obs-mono` | `--dl-font-mono` | JetBrains Mono |
+| `--shared-cream-1` | `--dl-bg` | Second alias family, still read by `src/shared/` and `components/ui/` |
+| `--shared-ink-1` | `--dl-ink` | Primary text, same family |
+| `--shared-red-1` | `--pellier-accent` | Accent, same family |
+| `--shared-green-1` | `--dl-ok` | "Shipped" status, same family |
+| `--serif` / `--shared-serif` | `--dl-font-serif` | Instrument Serif → Fraunces → Georgia |
+| `--sans` / `--shared-sans` | `--dl-font-sans` | Instrument Sans → system UI |
+| `--mono` / `--shared-mono` | `--dl-font-mono` | JetBrains Mono |
 
 Full list in `src/styles/daylight-bridge.css`.
 

@@ -42,6 +42,9 @@ RETIRED = (
     "Agent Trace",
     "AGENT TRACE",
     "--at-",
+    # The inspection surface's second custom-property prefix, aliased in
+    # daylight-bridge.css and consumed by the shared primitives until 2026-10-30.
+    "--obs-",
     "pellier-labs",
     "pellier_labs",
     "PellierLabs",
@@ -87,50 +90,6 @@ OBSERVATORY = "observatory"
 # directory is already skipped above as `superpowers`.
 HISTORY_PREFIXES = ("docs/release-readiness/",)
 
-# Frontend files that still name the retired surface in comments, class names
-# or the localStorage keys a returning browser clears. Cut 5c owns
-# `pellier/frontend/src` while this guard lands, so they are swept after it.
-# The list may only shrink: a file that is not on it fails on its first
-# mention, and nothing outside `pellier/frontend/` may be added.
-PENDING_FRONTEND_SWEEP = frozenset({
-    "pellier/frontend/src/__tests__/operator_type_floor.test.ts",
-    "pellier/frontend/src/components/AnnouncementBar.tsx",
-    "pellier/frontend/src/components/ChatFailureCard.tsx",
-    "pellier/frontend/src/components/ChatOutcomeCards.test.tsx",
-    "pellier/frontend/src/components/EditorialBrief.tsx",
-    "pellier/frontend/src/components/Footer.test.tsx",
-    "pellier/frontend/src/components/ProductArtifactCard.tsx",
-    "pellier/frontend/src/contexts/AuthContext.test.tsx",
-    "pellier/frontend/src/contexts/PersonaContext.tsx",
-    "pellier/frontend/src/data/personaCurations.ts",
-    "pellier/frontend/src/data/workshopJourneys.test.ts",
-    "pellier/frontend/src/design/cssVars.ts",
-    "pellier/frontend/src/design/primitives/index.ts",
-    "pellier/frontend/src/hooks/useAgentChat.test.tsx",
-    "pellier/frontend/src/hooks/useScrollAndFlash.ts",
-    "pellier/frontend/src/services/chat.ts",
-    "pellier/frontend/src/shared/AppErrorBoundary.test.tsx",
-    "pellier/frontend/src/shared/AppErrorBoundary.tsx",
-    "pellier/frontend/src/shared/DataTable.test.tsx",
-    "pellier/frontend/src/shared/EmptyState.test.tsx",
-    "pellier/frontend/src/shared/EmptyState.tsx",
-    "pellier/frontend/src/shared/EvidenceCard.test.tsx",
-    "pellier/frontend/src/shared/EvidenceCard.tsx",
-    "pellier/frontend/src/shared/SectionEyebrow.test.tsx",
-    "pellier/frontend/src/shared/SectionEyebrow.tsx",
-    "pellier/frontend/src/shared/TraceChip.tsx",
-    "pellier/frontend/src/shared/agentVocabulary.ts",
-    "pellier/frontend/src/shared/governedTypes.ts",
-    "pellier/frontend/src/shared/index.ts",
-    "pellier/frontend/src/shared/primitives.css",
-    "pellier/frontend/src/styles/chat-outcomes.css",
-    "pellier/frontend/src/styles/daylight-bridge.css",
-    "pellier/frontend/src/styles/governed-tokens.css",
-    "pellier/frontend/src/utils/assetPath.test.ts",
-    "pellier/frontend/src/utils/resolveProductImageUrl.ts",
-    "pellier/frontend/tsconfig.build.json",
-})
-
 # Files permitted to name a retired path, each for a reason that would break if
 # the name were updated. Keyed by repo-relative path.
 ALLOWED: Dict[str, str] = {
@@ -138,6 +97,10 @@ ALLOWED: Dict[str, str] = {
     # can show that they do.
     "pellier/frontend/src/App.routes.test.tsx":
         "asserts that retired paths land on the storefront",
+    # A returning browser may still hold the retired chat keys; clearing them
+    # needs the exact old key names.
+    "pellier/frontend/src/contexts/PersonaContext.tsx":
+        "clears localStorage keys that old browsers still hold",
     # The invariant has to name what it retires to be actionable.
     "CLAUDE.md":
         "states the one-name rule by naming both retired names",
@@ -181,7 +144,7 @@ def _observatory_scan() -> List[Tuple[str, int]]:
     """Return (path, line) for every "observatory", in any casing, outside the exceptions."""
     findings: List[Tuple[str, int]] = []
     for relative, text in _scanned_files():
-        if relative in ALLOWED or relative in PENDING_FRONTEND_SWEEP:
+        if relative in ALLOWED:
             continue
         if relative.startswith(HISTORY_PREFIXES):
             continue
@@ -214,13 +177,6 @@ def test_the_retired_inspection_surface_is_not_named() -> None:
     assert not findings, '"Observatory" found outside history and the exceptions:\n' + "\n".join(
         f"  {path}:{line}" for path, line in sorted(findings)[:40]
     )
-
-
-def test_the_pending_sweep_is_frontend_only() -> None:
-    """The pending list is for the files cut 5c owns, never a general escape hatch."""
-    outside = sorted(p for p in PENDING_FRONTEND_SWEEP if not p.startswith("pellier/frontend/"))
-
-    assert not outside, f"pending sweep entries outside the frontend: {outside}"
 
 
 def test_every_allowance_is_still_needed() -> None:

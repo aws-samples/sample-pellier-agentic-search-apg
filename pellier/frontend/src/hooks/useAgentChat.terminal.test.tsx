@@ -6,6 +6,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { sendChatMessageStreaming } from '../services/chat'
 import {
   applyStreamEvent,
   completeMessage,
@@ -115,6 +116,38 @@ describe('turns sent from the terminal', () => {
     expect(shown[1].content).toBe('For a slow morning, the mugs.')
   })
 
+  it('keeps a typed stream in its own bubble when a relayed turn lands mid-stream', async () => {
+    let onUpdate: (data: unknown) => void = () => {}
+    let finish: (value: unknown) => void = () => {}
+    vi.mocked(sendChatMessageStreaming).mockImplementationOnce(((_q: string, _h: unknown, cb: (d: unknown) => void) => {
+      onUpdate = cb
+      return new Promise(resolve => { finish = resolve })
+    }) as unknown as typeof sendChatMessageStreaming)
+    const { result } = renderHook(() => useAgentChat({ watchTerminal: true }), { wrapper })
+    await waitFor(() => expect(watches.length).toBeGreaterThan(0))
+    act(() => { void result.current.sendMessage('typed question') })
+    await waitFor(() => expect(result.current.isLoading).toBe(true))
+    deliver(frames().slice(0, 5))
+    act(() => { onUpdate({ type: 'content_delta', delta: 'typed answer' }) })
+
+    const relayed = terminal(result.current.messages).at(-1)
+    expect(relayed?.content).not.toContain('typed answer')
+    const typed = result.current.messages.find(m => m.role === 'assistant' && m.source !== 'terminal')
+    expect(typed?.content).toBe('typed answer')
+    await act(async () => { finish({ response: 'typed answer', products: [], suggestions: [] }) })
+  })
+
+  it('does not report a replayed turn to the results page', async () => {
+    const reported: TurnEvent[] = []
+    renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(watches.length).toBeGreaterThan(0))
+    deliver(frames(true))
+    expect(reported).toEqual([])
+  })
+
   it('keeps relayed turns out of the browser', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     const { result } = renderHook(
@@ -153,6 +186,79 @@ describe('turns sent from the terminal', () => {
     await waitFor(() => expect(live()).toHaveLength(1))
     expect(first.signal.aborted).toBe(true)
     expect(live()[0]).not.toBe(first)
+  })
+
+  it('drops the old shopper turn and lets the new shopper send when the shopper changes', async () => {
+    const calls: Array<{ signal?: AbortSignal; onUpdate: (data: unknown) => void }> = []
+    vi.mocked(sendChatMessageStreaming).mockImplementation(((
+      _q: string, _h: unknown, onUpdate: (d: unknown) => void,
+      _m?: unknown, _g?: unknown, _c?: unknown, signal?: AbortSignal,
+    ) => {
+      calls.push({ signal, onUpdate })
+      return new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
+    }) as unknown as typeof sendChatMessageStreaming)
+    const { result, rerender } = renderHook(() => useAgentChat({ watchTerminal: true }), { wrapper })
+    await waitFor(() => expect(watches.length).toBeGreaterThan(0))
+    act(() => { void result.current.sendMessage('first shopper question') })
+    await waitFor(() => expect(calls).toHaveLength(1))
+
+    persona = { id: 'marco', customer_id: 'CUST-MARCO' }
+    rerender()
+    await waitFor(() => expect(calls[0].signal?.aborted).toBe(true))
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    act(() => { void result.current.sendMessage('second shopper question') })
+    await waitFor(() => expect(calls).toHaveLength(2))
+    vi.mocked(sendChatMessageStreaming).mockReset()
+  })
+
+  it('reports the end of a live turn that a reconnect replayed in flight', async () => {
+    const reported: TurnEvent[] = []
+    renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(watches.length).toBeGreaterThan(0))
+    deliver(frames().slice(0, 5))
+    deliver(frames(true).slice(0, 5))
+    deliver(frames().slice(5))
+    expect(reported.filter(event => event.type === 'start')).toHaveLength(1)
+    expect(reported.at(-1)).toEqual({ type: 'end', outcome: 'complete' })
+  })
+
+  it('does not report a finished live turn again when a reconnect replays it', async () => {
+    const reported: TurnEvent[] = []
+    renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(watches.length).toBeGreaterThan(0))
+    deliver(frames())
+    const before = reported.length
+    deliver(frames(true))
+    expect(reported).toHaveLength(before)
+    expect(reported.filter(event => event.type === 'end')).toHaveLength(1)
+  })
+
+  it('stops a guest turn in flight when a shopper arrives, instead of leaving it thinking', async () => {
+    persona = null
+    vi.mocked(sendChatMessageStreaming).mockImplementationOnce(((
+      _q: string, _h: unknown, _cb: unknown, _m?: unknown, _g?: unknown, _c?: unknown, signal?: AbortSignal,
+    ) => new Promise((_resolve, reject) => {
+      signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+    })) as unknown as typeof sendChatMessageStreaming)
+    const { result, rerender } = renderHook(() => useAgentChat({ watchTerminal: true }), { wrapper })
+    act(() => { void result.current.sendMessage('guest question') })
+    await waitFor(() => expect(result.current.isLoading).toBe(true))
+
+    persona = { id: 'anna', customer_id: 'CUST-ANNA' }
+    rerender()
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    const bubble = result.current.messages.at(-1)
+    expect(bubble).toMatchObject({ role: 'assistant', agentStatus: 'complete', stopped: true, live: false })
   })
 
   it('does not watch without a signed-in shopper or when the panel does not ask', async () => {

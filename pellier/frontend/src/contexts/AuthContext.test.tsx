@@ -157,7 +157,7 @@ describe('AuthContext hydration', () => {
   })
 
   it('preserves the last verified session during an outage and recovers on retry', async () => {
-    installLocation('/observatory')
+    installLocation('/')
     const fetchMock = mockAuthFetch()
     vi.stubGlobal('fetch', fetchMock)
     const { result } = renderHook(() => useAuth(), { wrapper })

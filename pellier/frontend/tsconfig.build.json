@@ -11,7 +11,7 @@
    *
    * Why this exists: the storefront SPA must build on every fresh workshop box.
    * The old `tsc && vite build` type-checked all 48 test files as a build gate,
-   * so one test-only error left `dist/` unbuilt and the Pellier/Observatory blank.
+   * so one test-only error left `dist/` unbuilt and the Storefront and the Operator blank.
    */
   "extends": "./tsconfig.json",
   "exclude": [

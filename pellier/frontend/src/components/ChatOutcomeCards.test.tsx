@@ -51,7 +51,6 @@ describe('ChatFailureCard', () => {
         onRetry={onRetry}
         onEditRequest={vi.fn()}
         onAuthenticate={onAuthenticate}
-        surface="observatory"
       />,
     )
 
@@ -68,7 +67,6 @@ describe('ChatFailureCard', () => {
         onRetry={onRetry}
         onEditRequest={vi.fn()}
         onAuthenticate={onAuthenticate}
-        surface="observatory"
       />,
     )
 

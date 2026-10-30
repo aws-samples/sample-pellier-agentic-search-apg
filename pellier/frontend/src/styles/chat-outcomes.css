@@ -131,11 +131,6 @@
   outline-offset: 2px;
 }
 
-.chat-failure--observatory {
-  max-width: 92%;
-  align-self: flex-start;
-}
-
 @media (max-width: 520px) {
   .chat-failure {
     grid-template-columns: 28px minmax(0, 1fr);
@@ -145,9 +140,5 @@
   .chat-failure__icon {
     width: 28px;
     height: 28px;
-  }
-
-  .chat-failure--observatory {
-    max-width: 100%;
   }
 }

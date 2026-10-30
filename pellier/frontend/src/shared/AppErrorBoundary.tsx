@@ -8,11 +8,9 @@
  * every lazy chunk) rendered with only a `<Suspense>` loading fallback and
  * no `componentDidCatch`, so a render throw, or a stale chunk hash 404 after
  * a redeploy, produced a blank white page with the navigation gone too.
- * `ObservatoryFrame` already wraps its own `<Outlet />` in
- * `ObservatoryErrorBoundary` for exactly this reason; this component gives
- * every surface -- Pellier, Operator, and Observatory itself if the frame
- * chunk fails to load -- the same protection at the point where the
- * persistent top bar must survive the failure.
+ * This component gives every surface -- Pellier and Operator, including
+ * a lazy chunk that fails to load -- the same protection at the point where
+ * the persistent top bar must survive the failure.
  *
  * React Error Boundaries must be class components -- there is no hook
  * equivalent for componentDidCatch / getDerivedStateFromError.

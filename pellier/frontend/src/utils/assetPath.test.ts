@@ -33,7 +33,7 @@ describe('assetPath helpers', () => {
   it('routePath() prefixes in-app routes for plain anchors', async () => {
     vi.stubEnv('BASE_URL', '/ports/8000/')
     const { routePath } = await import('./assetPath')
-    expect(routePath('/observatory/memory')).toBe('/ports/8000/observatory/memory')
+    expect(routePath('/operator')).toBe('/ports/8000/operator')
   })
 
   it('uses the 960px WebP derivative when a legacy product source names PNG', async () => {
@@ -63,8 +63,8 @@ describe('assetPath helpers', () => {
   it('preserves an explicit PNG screenshot derivative', async () => {
     vi.stubEnv('BASE_URL', '/')
     const { imageSrc } = await import('./assetPath')
-    expect(imageSrc('/products/tour-observatory-top-panel-960.png')).toBe(
-      '/products/tour-observatory-top-panel-960.png',
+    expect(imageSrc('/products/tour-operator-top-panel-960.png')).toBe(
+      '/products/tour-operator-top-panel-960.png',
     )
   })
 

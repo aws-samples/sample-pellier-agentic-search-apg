@@ -264,7 +264,7 @@ export interface ChatResponse {
   agent_execution?: AgentExecution
   /**
    * Stable per-turn identifier minted server-side (`app.new_turn_id`).
-   * Used to deep-link this exact turn's evidence in Observatory. Optional
+   * Used to tie this exact turn to its evidence (Builder view, Operator review). Optional
    * because a turn served from smoke mode or an older backend emits none —
    * consumers must degrade to a session-scoped link rather than invent one.
    */
@@ -324,7 +324,7 @@ export async function sendChatMessageStreaming(
   }
 
   try {
-    const response = await apiFetch(`${API_BASE_URL}/api/chat/stream`, {
+    const post = () => apiFetch(`${API_BASE_URL}/api/chat/stream`, {
       method: 'POST',
       credentials: 'include',
       headers: { ...getAuthHeaders(), Accept: 'text/event-stream' },
@@ -353,6 +353,10 @@ export async function sendChatMessageStreaming(
       }),
     })
 
+    let response = await post()
+    if (response.status === 401 && await refreshAuthTokens('shopper').catch(() => false)) {
+      response = await post()
+    }
     if (!response.ok) {
       throw await errorFromResponse(response)
     }

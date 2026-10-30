@@ -12,7 +12,7 @@
  *   - Siblings come from the live catalog response, not the active profile's
  *     browser fixture.
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -405,6 +405,16 @@ describe('ProductDetailPage — Aurora layer', () => {
     expect(labels[0]).toContain(SUBJECT.tags[0])
     // A shopper reads the tag itself, never the catalog signal's internal name.
     expect(labels.join(' ')).not.toContain('tag.match')
+  })
+
+  it('enlarges a catalog photo from a file that ships', async () => {
+    stubFetch(() => jsonResponse(detailPayload({ imageUrl: '/products/marco-italian-linen-camp-shirt.png' })))
+
+    renderAt(`/product/${SUBJECT.id}`)
+
+    await userEvent.click(await screen.findByTestId('product-detail-zoom'))
+    const enlarged = within(screen.getByTestId('product-detail-zoom-dialog')).getByRole('img')
+    expect(enlarged.getAttribute('src')).toMatch(/marco-italian-linen-camp-shirt-960\.webp$/)
   })
 
   it('contains keyboard focus in image zoom and restores focus and scrolling on Escape', async () => {

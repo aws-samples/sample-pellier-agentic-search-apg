@@ -219,7 +219,7 @@ describe('useAgentChat — StrictMode purity', () => {
 
 describe('useAgentChat — unmount mid-stream', () => {
   // `ShopperChatSlot` (App.tsx) unmounts ChatDrawer -- and this hook with
-  // it -- on every navigation to /operator or /observatory. Before this
+  // it -- on every navigation to /operator. Before this
   // fix, a turn already in flight kept running: every streamed event kept
   // calling setMessages on a gone component and writing "latest" keys to
   // localStorage that other surfaces read as current.
@@ -357,6 +357,37 @@ describe('useAgentChat — the step contract', () => {
       expect(result.current.messages.at(-1)?.status?.state).toBe('done')
       expect(result.current.messages.at(-1)?.agentStatus).toBe('complete')
     })
+  })
+
+  it('restores a turn saved mid-stream as stopped, not as a pending answer', () => {
+    localStorage.setItem('k', JSON.stringify([
+      { role: 'user', content: 'linen?', timestamp: '2026-10-29T10:00:00Z' },
+      {
+        role: 'assistant', content: 'Partly', timestamp: '2026-10-29T10:00:01Z',
+        agentStatus: 'streaming', status: { label: 'Writing', state: 'working' },
+        steps: [{ id: 'a', label: 'Looking', status: 'running' }],
+      },
+    ]))
+    const { result } = renderHook(() => useAgentChat({ persistKey: 'k' }), { wrapper })
+    const restored = result.current.messages.at(-1)
+    expect(restored?.agentStatus).toBe('complete')
+    expect(restored?.status?.state).toBe('failed')
+    expect(restored?.steps?.some(step => step.status === 'running')).toBe(false)
+    expect(restored?.failure).toBeUndefined()
+  })
+
+  it('never persists or restores a typed turn\'s local id', async () => {
+    localStorage.setItem('k', JSON.stringify([
+      { role: 'assistant', content: 'Earlier', timestamp: '2026-10-29T10:00:00Z', agentStatus: 'complete', localId: 'typed-1' },
+    ]))
+    const { result } = renderHook(() => useAgentChat({ persistKey: 'k' }), { wrapper })
+    expect(result.current.messages[0].localId).toBeUndefined()
+    act(() => {
+      void result.current.sendMessage('another')
+    })
+    await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+    await waitFor(() => expect(localStorage.getItem('k')).toContain('another'), { timeout: 2000 })
+    expect(localStorage.getItem('k')).not.toContain('localId')
   })
 
   it('never persists a step identity binding with the conversation', async () => {

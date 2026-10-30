@@ -2,13 +2,12 @@
  * AppErrorBoundary — a render throw anywhere in the route tree must not
  * blank the whole app.
  *
- * Before this component existed, `App.tsx` mounted every route (Pellier,
- * Operator, and Observatory's own lazy chunk) behind only a `<Suspense>`
+ * Before this component existed, `App.tsx` mounted every route (Pellier and
+ * Operator's own lazy chunk) behind only a `<Suspense>`
  * loading fallback, with no `componentDidCatch` above it. A throw during
  * render — including a stale content-hashed chunk after a redeploy, which
  * `vite.config.ts` explicitly hashes for "workshop reliability" — crashed
- * past React's tree with nothing to show and no recovery action. Only the
- * Observatory's own nested outlet had a boundary of its own.
+ * past React's tree with nothing to show and no recovery action.
  */
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'

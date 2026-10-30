@@ -2,7 +2,7 @@
  * SectionEyebrow — the one label that opens a section.
  *
  * Both technical surfaces had drifted to five eyebrow recipes. The
- * Observatory shipped a sans version with a dot, a legacy `.at-section-eyebrow`
+ * One surface shipped a sans version with a dot, a legacy `.at-section-eyebrow`
  * class, and three mono recipes; the Operator desk carried six more selectors,
  * one of them mono at 10px. Five registers for one job is what makes a surface
  * read as several products.
@@ -39,8 +39,8 @@ export interface SectionEyebrowProps {
 }
 
 const TONE_COLOR: Record<SectionEyebrowTone, string> = {
-  brand: 'var(--obs-ink-2)',
-  muted: 'var(--obs-ink-3)',
+  brand: 'var(--shared-ink-2)',
+  muted: 'var(--shared-ink-3)',
 }
 
 const DOT_COLOR: Record<SectionEyebrowTone, string> = {
@@ -69,7 +69,7 @@ export const SectionEyebrow: React.FC<SectionEyebrowProps> = ({
         display: 'inline-flex',
         alignItems: 'center',
         gap: '8px',
-        fontFamily: 'var(--obs-heading)',
+        fontFamily: 'var(--shared-heading)',
         fontSize: '14px',
         fontWeight: 600,
         letterSpacing: 0,

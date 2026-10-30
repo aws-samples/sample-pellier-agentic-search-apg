@@ -5,14 +5,14 @@
  * inline styles, deliberately: that is the house pattern (PolicyDecisionBadge,
  * TraceChip, Eyebrow), it keeps the contract assertable under `css: false` in
  * vitest, and it keeps every size visible to the type-floor guard in
- * `src/__tests__/observatory_type_floor.test.ts`.
+ * `src/__tests__/operator_type_floor.test.ts`.
  *
  * What lands here is only what inline styles genuinely cannot do: media
  * queries, pseudo-elements, and sticky-header stacking. Values still come from
  * tokens, never from literals.
  *
- * Namespace: `gov-`. These primitives are shared by the Observatory and the
- * Operator desk, so they take neither surface's prefix.
+ * Namespace: `gov-`. These primitives are shared across surfaces, so they take
+ * neither surface's prefix.
  * ==================================================================== */
 
 /* ---- EvidenceCard ---------------------------------------------------- */
@@ -42,7 +42,7 @@
   /* The scrollbar is part of the surface. Left to the browser it is the one
      grey element on a warm page. */
   scrollbar-width: thin;
-  scrollbar-color: var(--obs-rule-3) transparent;
+  scrollbar-color: var(--shared-rule-3) transparent;
 }
 
 .gov-data-table-scroll::-webkit-scrollbar {
@@ -51,7 +51,7 @@
 
 .gov-data-table-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: var(--obs-rule-3);
+  background: var(--shared-rule-3);
 }
 
 .gov-data-table-scroll::-webkit-scrollbar-track {
@@ -69,7 +69,7 @@
 .gov-data-table th,
 .gov-data-table td {
   padding: 9px 12px 9px 0;
-  border-top: 1px solid var(--obs-rule-1);
+  border-top: 1px solid var(--shared-rule-1);
   vertical-align: top;
   font-weight: 400;
 }
@@ -96,7 +96,7 @@
   position: sticky;
   z-index: 1;
   padding-top: 9px;
-  background: var(--obs-panel);
+  background: var(--shared-panel);
 }
 
 /* Below 560px a three-column table is not a table. Rows become stacked
@@ -112,7 +112,7 @@
     display: grid;
     gap: 4px;
     padding: 10px 0;
-    border-top: 1px solid var(--obs-rule-1);
+    border-top: 1px solid var(--shared-rule-1);
   }
 
   .gov-data-table[data-stacked='true'] th,

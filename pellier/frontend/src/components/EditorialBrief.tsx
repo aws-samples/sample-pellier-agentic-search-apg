@@ -4,7 +4,7 @@
  * Two-part closer before the footer:
  *
  *   1. About band: editorial still life left; eyebrow, headline,
- *      Pellier/Observatory label, two paragraphs, and stack chips right.
+ *      Pellier + Pellier Operator label, two paragraphs, and stack chips right.
  *      Every string comes from `ABOUT_BRIEF` in copy.ts so the page and
  *      the copy file cannot drift apart.
  *   2. Colophon strip: a single centred line under a hairline, doubling as

@@ -7,7 +7,7 @@
  * design system that no rendered pixel came from. A component tree nobody
  * mounts is not a system, it is a second answer to questions already settled
  * elsewhere, so it has been removed rather than deprecated. Shared visual
- * contracts live in `observatory/styles/base.css`, `styles/`, and `shared/`.
+ * contracts live in `operator/styles/operator.css`, `styles/`, and `shared/`.
  */
 
 export { Avatar, type AvatarProps } from './Avatar'

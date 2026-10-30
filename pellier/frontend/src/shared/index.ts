@@ -1,11 +1,11 @@
 /**
- * Shared atoms used by BOTH the Pellier storefront and the Observatory
- * observatory. Importing from `../../shared` (or `../shared`) keeps
+ * Shared atoms used by BOTH the Pellier storefront and the Operator
+ * desk. Importing from `../../shared` (or `../shared`) keeps
  * the two surfaces visually and semantically aligned.
  */
 
 /* ---- Design primitives ---------------------------------------------------
- * The four shapes the Observatory and the Operator desk both compose:
+ * The four shapes the Operator desk composes:
  * a section label, a card, a table, and an absence. Their sizes are
  * inside the type-floor guard's scan roots, so a drift here fails a test
  * rather than reaching two surfaces at once.

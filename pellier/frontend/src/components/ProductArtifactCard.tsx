@@ -6,8 +6,7 @@
  * 160px image area, Instrument Sans name, ink "Add to bag" pill,
  * outlined heart button. Mounts with artifact-mount keyframe (380ms).
  *
- * Used exclusively in PellierChat. The observatory branch continues
- * to use the dedicated storefront artifact treatment.
+ * Used exclusively in PellierChat.
  */
 import { useState } from 'react'
 import { Heart } from 'lucide-react'

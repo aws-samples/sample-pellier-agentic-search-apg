@@ -44,6 +44,39 @@ describe('chat service auth transport', () => {
     expect(result.response).toBe('done')
   })
 
+  it('refreshes the shopper session once and replays a 401 typed chat POST', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(
+          'data: {"type":"complete","response":{"response":"done","products":[]}}\n\n',
+          { status: 200 },
+        ),
+      )
+
+    const { sendChatMessageStreaming } = await import('./chat')
+    const result = await sendChatMessageStreaming('hello', [], vi.fn())
+
+    const urls = fetchMock.mock.calls.map(call => String(call[0]))
+    expect(urls[1]).toContain('/api/auth/refresh?surface=shopper')
+    expect(urls[2]).toContain('/api/chat/stream')
+    expect(result.response).toBe('done')
+  })
+
+  it('sends the POST once when the session cannot be refreshed', async () => {
+    fetchMock
+      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
+      .mockResolvedValueOnce(new Response('{}', { status: 401 }))
+
+    const { sendChatMessageStreaming } = await import('./chat')
+    await expect(sendChatMessageStreaming('hello', [], vi.fn())).rejects.toBeDefined()
+
+    const urls = fetchMock.mock.calls.map(call => String(call[0]))
+    expect(urls.filter(url => url.includes('/api/chat/stream'))).toHaveLength(1)
+    expect(urls).toHaveLength(2)
+  })
+
   it('sends the selected live agent configuration', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(

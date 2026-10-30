@@ -1,15 +1,15 @@
 /**
  * agentVocabulary — canonical names + one-line glossaries for every
- * agent concept that appears in BOTH Pellier and Observatory.
+ * agent concept that appears in BOTH Pellier and the Operator.
  *
  * One source of truth so a workshop participant crossing between the
- * shopper-facing storefront and the operator-facing observatory sees
+ * shopper-facing storefront and the operator-facing desk sees
  * the same chip with the same name in both places. When a name needs
  * to change, change it here and both surfaces update.
  *
  * Naming rule: snake_dot — `<noun>.<verb>` lowercase, dot-separated.
  * Examples: memory.recall, inventory.live, trend.signal. Stays
- * consistent with the Observatory's existing tool-registry vocabulary
+ * consistent with the existing tool-registry vocabulary
  * (`product_search`, `discover_tools`, `aurora_*`) while keeping the
  * Pellier-facing names compact enough to fit inline on a product
  * card.
@@ -35,7 +35,7 @@ export type AgentToolName =
 interface AgentToolEntry {
   /** Canonical machine-readable name. */
   name: AgentToolName
-  /** Human-readable label for tooltips and Observatory deep links. */
+  /** Human-readable label for tooltips and Operator deep links. */
   label: string
   /** One-line glossary, attendee-friendly. */
   description: string

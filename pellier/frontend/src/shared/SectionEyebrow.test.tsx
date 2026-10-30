@@ -17,7 +17,7 @@ describe('SectionEyebrow', () => {
 
     const eyebrow = screen.getByTestId('eyebrow')
     expect(eyebrow).toHaveStyle({
-      fontFamily: 'var(--obs-heading)',
+      fontFamily: 'var(--shared-heading)',
       fontSize: '14px',
       fontWeight: '600',
     })
@@ -40,7 +40,7 @@ describe('SectionEyebrow', () => {
     )
     const brand = screen.getByTestId('brand')
     expect(brand).toHaveAttribute('data-tone', 'brand')
-    expect(brand).toHaveStyle({ color: 'var(--obs-ink-2)' })
+    expect(brand).toHaveStyle({ color: 'var(--shared-ink-2)' })
     // Burgundy is the mark, not the text: it stays on the dot only.
     const dot = brand.querySelector('[aria-hidden="true"]') as HTMLElement
     expect(dot.style.background).toBe('var(--pellier-accent)')
@@ -54,8 +54,8 @@ describe('SectionEyebrow', () => {
     const muted = screen.getByTestId('muted')
     expect(muted).toHaveAttribute('data-tone', 'muted')
     // ink-3, not ink-4: at 14px, ink-4 on the cream card measured 3.85:1 against
-    // the 4.5:1 floor (axe, /observatory/architecture/runtime).
-    expect(muted).toHaveStyle({ color: 'var(--obs-ink-3)' })
+    // the 4.5:1 floor (axe contrast audit).
+    expect(muted).toHaveStyle({ color: 'var(--shared-ink-3)' })
   })
 
   it('hides the dot from assistive technology and can drop it entirely', () => {

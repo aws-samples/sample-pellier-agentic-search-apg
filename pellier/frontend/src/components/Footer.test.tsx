@@ -6,10 +6,10 @@
  * rewrite replaced it with a living spec, and these tests hold that line while
  * covering the masthead and trust row added later:
  *
- *   - Four sections only: Brand, Explore, Storyboard, Pellier Observatory.
+ *   - Three sections only: Brand, Explore, Storyboard.
  *   - Every Explore link points at a real router route.
- *   - Storyboard + Pellier Observatory each carry an italic blurb and a single
- *     call-to-action link to `/storyboard` / `/observatory`.
+ *   - Storyboard carries an italic blurb and a single call-to-action link
+ *     to `/storyboard`.
  *   - No checkout and no payment marks: the bag keeps a list and places no
  *     order, so nothing may suggest a payment.
  *   - The disclaimer states plainly that nothing is charged, the catalog is

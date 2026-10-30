@@ -70,25 +70,25 @@ export interface DataTableProps<Row> {
    style beats a media query. */
 const ALIGN_STYLE: Record<DataTableAlign, React.CSSProperties> = {
   text: {
-    fontFamily: 'var(--obs-sans)',
+    fontFamily: 'var(--shared-sans)',
     fontSize: '14px',
   },
   numeric: {
-    fontFamily: 'var(--obs-mono)',
+    fontFamily: 'var(--shared-mono)',
     fontSize: '14px',
     fontVariantNumeric: 'tabular-nums',
   },
   code: {
-    fontFamily: 'var(--obs-mono)',
+    fontFamily: 'var(--shared-mono)',
     fontSize: '14px',
   },
 }
 
 const HEADER_STYLE: React.CSSProperties = {
-  fontFamily: 'var(--obs-heading)',
+  fontFamily: 'var(--shared-heading)',
   fontSize: '13px',
   fontWeight: 600,
-  color: 'var(--obs-ink-4)',
+  color: 'var(--shared-ink-4)',
   whiteSpace: 'nowrap',
 }
 
@@ -116,10 +116,10 @@ export function DataTable<Row>({
           width: '100%',
           borderCollapse: 'collapse',
           borderSpacing: 0,
-          fontFamily: 'var(--obs-sans)',
+          fontFamily: 'var(--shared-sans)',
           fontSize: '14px',
           lineHeight: 1.45,
-          color: 'var(--obs-ink-2)',
+          color: 'var(--shared-ink-2)',
         }}
       >
         <thead>

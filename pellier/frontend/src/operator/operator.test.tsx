@@ -53,7 +53,7 @@ import ClientBook, { ClientList, shortDate } from './surfaces/ClientBook'
 import ClientRecord from './surfaces/ClientRecord'
 import ReviewRecord from './surfaces/ReviewRecord'
 import { ReviewList, reviewOutcome } from './surfaces/ReviewQueue'
-import { gatewayDetail, splitDetail } from './components/ProposedCreditCard'
+import ProposedCreditCard, { gatewayDetail, splitDetail } from './components/ProposedCreditCard'
 import { ReviewQueueContext } from './hooks/useReviewQueue'
 import OperatorFrame, { operatorTitleForPath } from './shell/OperatorFrame'
 
@@ -412,6 +412,57 @@ describe('the review record', () => {
     renderAt('/operator/reviews/41', <ReviewRecord />)
     fireEvent.click(await screen.findByTestId('operator-review-execute'))
     expect(await screen.findByTestId('operator-review-decision-error')).toHaveTextContent('Missing: AGENTCORE_GATEWAY_URL')
+  })
+})
+
+describe('after a decision', () => {
+  it('moves keyboard focus to the next action when Approve goes away', async () => {
+    api.fetchReview.mockResolvedValueOnce(detail(PENDING_REVIEW)).mockResolvedValue(detail(APPROVED_REVIEW))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const approve = await screen.findByTestId('operator-review-confirm')
+    approve.focus()
+    fireEvent.click(approve)
+    const execute = await screen.findByTestId('operator-review-execute')
+    await waitFor(() => expect(execute).toHaveFocus())
+  })
+
+  it('pulls focus to the card once after a decision, not on every later refresh', () => {
+    const controller = (busy: 'approving' | null, review = APPROVED_REVIEW) => ({
+      detail: detail(review), error: null, busy, execution: null, decisionError: null,
+      decisionErrorMissing: [], approve: vi.fn(), decline: vi.fn(), execute: vi.fn(), reload: vi.fn(),
+    })
+    const { rerender } = render(<MemoryRouter><ProposedCreditCard controller={controller('approving')} /></MemoryRouter>)
+    rerender(<MemoryRouter><ProposedCreditCard controller={controller(null)} /></MemoryRouter>)
+    const execute = screen.getByTestId('operator-review-execute')
+    expect(execute).toHaveFocus()
+
+    execute.blur()
+    rerender(<MemoryRouter><ProposedCreditCard controller={controller(null)} /></MemoryRouter>)
+    expect(document.body).toHaveFocus()
+  })
+
+  it('announces a refused decision', async () => {
+    const { OperatorApiError } = await import('../services/operator')
+    api.confirmReview.mockRejectedValueOnce(new OperatorApiError('operator_group_required', 403))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-confirm'))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveAttribute('data-testid', 'operator-review-decision-error')
+  })
+
+  it('keeps the record on screen and offers Try again when the re-read fails', async () => {
+    const { OperatorApiError } = await import('../services/operator')
+    api.fetchReview
+      .mockResolvedValueOnce(detail(PENDING_REVIEW))
+      .mockRejectedValueOnce(new OperatorApiError('operator_unavailable', 503))
+      .mockResolvedValue(detail(APPROVED_REVIEW))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-confirm'))
+    const retry = await screen.findByRole('button', { name: 'Try again' })
+    expect(screen.getByTestId('operator-review-record')).toBeInTheDocument()
+    fireEvent.click(retry)
+    expect(await screen.findByText('Approved by Nadia')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
   })
 })
 

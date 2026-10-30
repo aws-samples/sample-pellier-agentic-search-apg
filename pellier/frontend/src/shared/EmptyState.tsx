@@ -3,7 +3,7 @@
  *
  * These two surfaces are evidence instruments, so an empty panel is a claim
  * and not a gap: nothing was recorded, nothing was provisioned, nothing was
- * denied. The Observatory and the desk had eighteen of these between them and
+ * denied. The tool surfaces had eighteen of these between them and
  * every one said it differently, several of them in 14px muted grey that read
  * as a rendering failure rather than as an answer.
  *
@@ -92,7 +92,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           fontWeight: 600,
           lineHeight: 1.25,
           letterSpacing: '-0.02em',
-          color: 'var(--obs-ink-1)',
+          color: 'var(--shared-ink-1)',
         }}
       >
         {headline}
@@ -103,10 +103,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           style={{
             margin: 0,
             maxWidth: '52ch',
-            fontFamily: pageSize ? 'var(--sans)' : 'var(--obs-sans)',
+            fontFamily: pageSize ? 'var(--sans)' : 'var(--shared-sans)',
             fontSize: pageSize ? '17px' : '16px',
             lineHeight: pageSize ? 1.65 : 1.55,
-            color: 'var(--obs-ink-3)',
+            color: 'var(--shared-ink-3)',
           }}
         >
           {body}
@@ -126,11 +126,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           style={{
             margin: 0,
             maxWidth: '52ch',
-            fontFamily: 'var(--obs-mono)',
+            fontFamily: 'var(--shared-mono)',
             fontSize: '13px',
             lineHeight: 1.5,
             letterSpacing: '0.02em',
-            color: 'var(--obs-ink-4)',
+            color: 'var(--shared-ink-4)',
             overflowWrap: 'anywhere',
           }}
         >

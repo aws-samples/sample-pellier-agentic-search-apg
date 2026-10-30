@@ -2,7 +2,7 @@
  * The Operator desk never renders text below 12px.
  *
  * WORKSHOP.md states this to co-speakers as a shipped property of the surface,
- * and until this test existed nothing enforced it. Half the Observatory had
+ * and until this test existed nothing enforced it. Half of the technical surfaces had
  * drifted to caption sizes and 22% of the Operator desk sat below 10px --
  * stat tiles, table headers, definition terms, status chips -- which is what
  * made two surfaces that share the storefront's palette and typefaces read as
@@ -31,10 +31,8 @@ const SRC = resolve(HERE, '..')
 // drifts everywhere they render, which is the worst version of this defect,
 // so the primitives are inside the fence from the day they land.
 //
-// `styles/observatory-arch.css` used to be listed here. It was retired with
-// the rest of the legacy `at-*` architecture set (`components/observatory/`
-// plus `styles/observatory-shared.css`), which no file imported: the
-// architecture pages render through `observatory/surfaces/understand/`. The
+// A legacy architecture stylesheet used to be listed here. It was retired with
+// the rest of the legacy `at-*` architecture set, which no file imported. The
 // entry is gone rather than kept as a dead path, because `walk` returns an
 // empty list for a missing file and a scan root that matches nothing passes
 // forever.
@@ -61,7 +59,7 @@ const INLINE_PX = /fontSize:\s*'(\d+(?:\.\d+)?)px'/g
 // The `font` shorthand (`font: [style] [variant] [weight] size[/line-height]
 // family`) buries its size between optional leading keywords/numeric weights
 // and the mandatory family. This surface uses the shorthand throughout
-// (`font: 600 11px/1.5 var(--obs-sans)`), and CSS_PX above only matches the
+// (`font: 600 11px/1.5 var(--shared-sans)`), and CSS_PX above only matches the
 // longhand `font-size:` property, so a shorthand line could drift below the
 // floor with nothing to catch it. The leading group consumes style/variant
 // keywords and numeric weights (100-900) so the captured group is always the
@@ -146,17 +144,17 @@ describe('Operator type floor', () => {
 
   it('catches font shorthand sizes, not just the font-size longhand', () => {
     // A bare shorthand size, the pattern this surface uses everywhere.
-    expect(detectPxSizesInLine('.a { font: 9px/1.4 var(--obs-sans); }')).toEqual([9])
+    expect(detectPxSizesInLine('.a { font: 9px/1.4 var(--shared-sans); }')).toEqual([9])
     // Numeric weight before the size must not be captured as the size.
     expect(
-      detectPxSizesInLine('.b { font: 600 9.5px/1.2 var(--obs-mono); }'),
+      detectPxSizesInLine('.b { font: 600 9.5px/1.2 var(--shared-mono); }'),
     ).toEqual([9.5])
     // Style keyword before a numeric weight before the size.
     expect(
-      detectPxSizesInLine('.c { font: italic 700 10px/1.5 var(--obs-sans); }'),
+      detectPxSizesInLine('.c { font: italic 700 10px/1.5 var(--shared-sans); }'),
     ).toEqual([10])
     // A compliant shorthand line reports its real size, not a false floor hit.
-    expect(detectPxSizesInLine('.d { font: 600 14px/1.5 var(--obs-sans); }')).toEqual([14])
+    expect(detectPxSizesInLine('.d { font: 600 14px/1.5 var(--shared-sans); }')).toEqual([14])
     // `font: inherit` and other non-numeric shorthand values must not match.
     expect(detectPxSizesInLine('.e { font: inherit; }')).toEqual([])
     // The longhand and inline-style patterns still work alongside the new one.

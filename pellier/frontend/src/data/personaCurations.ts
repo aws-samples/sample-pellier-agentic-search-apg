@@ -352,7 +352,7 @@ export const PERSONA_HERO_PILLS: Record<string, string[]> = {
   ],
 }
 
-/** Marco Pellier / Observatory Turn 3 — warehouse ask (Stock agent · `check_stock`). */
+/** Marco, Ask Pellier Turn 3 — warehouse ask (Stock agent · `check_stock`). */
 export const MARCO_BUILDER_SESSION_QUERY = PERSONA_HERO_PILLS.marco[2]
 
 /**

@@ -3,8 +3,8 @@
  * a result.
  *
  * The same atom appears in Pellier (under product cards, in the
- * Live Floor Strip, on the Memory Handoff card) and on the Observatory
- * (Tools surface, Sessions, Observatory). Importing both surfaces
+ * Live Floor Strip, on the Memory Handoff card) and on the Operator
+ * desk. Importing both surfaces
  * from this single file is the cohesion guarantee — when the visual
  * treatment evolves, every place that names a tool updates together.
  *

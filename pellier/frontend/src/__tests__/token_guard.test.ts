@@ -305,7 +305,7 @@ const TYPE_ALLOWED = new Map<string, string>([
 const SERIF_PATTERNS = [
   /fraunces/gi,
   /--(?:dl-font-|obs-)?display\b/g,
-  /--(?:dl-font-|obs-)?serif\b/g,
+  /--(?:dl-font-|shared-)?serif\b/g,
   /(?<![\w-])serif\b/gi,
   /\bfont-serif\b/g,
   /\bgeorgia\b/gi,
@@ -345,7 +345,7 @@ describe('type guard (Fraunces only in the wordmark)', () => {
       'font: 400 31px/1.2 var(--dl-font-display);',
       "fontFamily: 'var(--display, serif)'",
       'font-family: var(--serif);',
-      '--obs-serif: var(--x);',
+      '--shared-serif: var(--x);',
       'className="font-serif italic"',
       "fontFamily: '\"Instrument Serif\", Times New Roman'",
     ]

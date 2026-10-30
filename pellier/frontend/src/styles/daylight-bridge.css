@@ -3,7 +3,7 @@
  *
  * Aliases the custom-property names Pellier's components and the
  * Operator desk already reference (`--cream`, `--ink`, `--accent`,
- * `--rule-1`, `--obs-*`) onto the Daylight tokens in
+ * `--rule-1`, `--shared-*`) onto the Daylight tokens in
  * daylight-tokens.css. The values switch with `[data-theme]` there;
  * this file only renames, it never forks a value.
  *
@@ -53,30 +53,30 @@
   --sans:    var(--dl-font-sans);
   --mono:    var(--dl-font-mono);
 
-  /* ---- Observatory aliases (--obs-* family) ------------------------- */
-  --obs-cream-1:    var(--dl-bg);
-  --obs-cream-2:    var(--dl-paper-2);
-  --obs-cream-elev: var(--dl-paper);
-  --obs-ink-1:      var(--dl-ink);
-  --obs-ink-2:      var(--dl-ink-2);
-  --obs-ink-3:      var(--dl-ink-2);
-  --obs-ink-4:      var(--dl-muted);
-  --obs-ink-5:      var(--dl-faint);
-  --obs-rule-1:     var(--dl-line);
-  --obs-rule-2:     var(--dl-line);
-  --obs-rule-3:     var(--dl-line-strong);
-  --obs-red-1:      var(--pellier-accent);
-  --obs-red-soft:   var(--pellier-accent-tint);
-  --obs-green-1:    var(--dl-ok);
-  --obs-green-soft: var(--dl-ok-soft);
-  --obs-espresso-1: var(--dl-ink);
-  --obs-espresso-2: var(--dl-ink-2);
-  --obs-amber-1:    var(--dl-warn);
-  --obs-accent-2:   var(--pellier-accent-soft);
-  --obs-shipped:    var(--dl-ok);
-  --obs-heading: var(--dl-font-heading);
-  --obs-sans:    var(--dl-font-sans);
-  --obs-mono:    var(--dl-font-mono);
+  /* ---- Aliases for the shared primitives (--shared-* family) ---- */
+  --shared-cream-1:    var(--dl-bg);
+  --shared-cream-2:    var(--dl-paper-2);
+  --shared-cream-elev: var(--dl-paper);
+  --shared-ink-1:      var(--dl-ink);
+  --shared-ink-2:      var(--dl-ink-2);
+  --shared-ink-3:      var(--dl-ink-2);
+  --shared-ink-4:      var(--dl-muted);
+  --shared-ink-5:      var(--dl-faint);
+  --shared-rule-1:     var(--dl-line);
+  --shared-rule-2:     var(--dl-line);
+  --shared-rule-3:     var(--dl-line-strong);
+  --shared-red-1:      var(--pellier-accent);
+  --shared-red-soft:   var(--pellier-accent-tint);
+  --shared-green-1:    var(--dl-ok);
+  --shared-green-soft: var(--dl-ok-soft);
+  --shared-espresso-1: var(--dl-ink);
+  --shared-espresso-2: var(--dl-ink-2);
+  --shared-amber-1:    var(--dl-warn);
+  --shared-accent-2:   var(--pellier-accent-soft);
+  --shared-shipped:    var(--dl-ok);
+  --shared-heading: var(--dl-font-heading);
+  --shared-sans:    var(--dl-font-sans);
+  --shared-mono:    var(--dl-font-mono);
 
   /* ---- One type scale -------------------------------------------
      Size and family carry hierarchy, weight does not. Headings are

@@ -176,11 +176,20 @@ export default function ChatDrawer() {
   const [builderView] = useBuilderView()
 
   // Conversation, draft, and reading position belong to the current persona.
+  // A first shopper arriving without a choice made here is the reload restoring
+  // the one the saved conversation belongs to.
   const prevPersonaId = useRef(persona?.id ?? null)
+  const choseShopperRef = useRef(false)
+  useEffect(() => {
+    if (switching) choseShopperRef.current = true
+  }, [switching])
   useEffect(() => {
     const currentId = persona?.id ?? null
     if (prevPersonaId.current !== currentId) {
+      const restored = prevPersonaId.current === null && !choseShopperRef.current
       prevPersonaId.current = currentId
+      choseShopperRef.current = false
+      if (restored) return
       clearChat(initialMessages)
       setInputValue('')
       followLatestRef.current = true

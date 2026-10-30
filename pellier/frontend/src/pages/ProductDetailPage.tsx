@@ -25,7 +25,7 @@ import Footer from '../components/Footer'
 import Header, { type NavItem } from '../components/Header'
 import ProductAvailabilityPanel from '../components/ProductAvailabilityPanel'
 import ProductCard from '../components/ProductCard'
-import { asset } from '../utils/assetPath'
+import { imageSrc } from '../utils/assetPath'
 import ReasoningChip from '../components/ReasoningChip'
 import ResponsiveImage from '../components/ResponsiveImage'
 import ProductPhotoUnavailable from '../components/ProductPhotoUnavailable'
@@ -375,7 +375,7 @@ export default function ProductDetailPage() {
                 onClick={() => setZoomOpen(false)}
               >
                 <img
-                  src={asset(view.imageUrl)}
+                  src={imageSrc(view.imageUrl)}
                   alt={view.name}
                   className="max-h-[92vh] max-w-[92vw] rounded-[var(--pellier-image-radius-lg)] object-contain shadow-deep"
                   onClick={(event) => event.stopPropagation()}

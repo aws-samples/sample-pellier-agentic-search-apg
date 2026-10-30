@@ -17,8 +17,8 @@ describe('EvidenceCard', () => {
 
     expect(screen.getByTestId('card')).toHaveStyle({
       borderRadius: 'var(--gov-radius-lg)',
-      border: '1px solid var(--obs-rule-1)',
-      background: 'var(--obs-panel)',
+      border: '1px solid var(--shared-rule-1)',
+      background: 'var(--shared-panel)',
       boxShadow: 'var(--gov-shadow-card)',
       padding: '24px',
     })
@@ -26,7 +26,7 @@ describe('EvidenceCard', () => {
 
   it('does not tint its shadow cool', () => {
     // The card shadow used to be rgb(20 28 24), a green-grey left over from
-    // the Observatory's cool-canvas period. On warm paper it read as a smudge.
+    // an earlier cool-canvas period. On warm paper it read as a smudge.
     render(<EvidenceCard data-testid="card">Receipt</EvidenceCard>)
     const style = screen.getByTestId('card').getAttribute('style') ?? ''
     expect(style).not.toMatch(/20 28 24/)
@@ -42,7 +42,7 @@ describe('EvidenceCard', () => {
     expect(card).toHaveAttribute('data-quiet', 'true')
     expect(card).toHaveStyle({
       boxShadow: 'none',
-      background: 'var(--obs-panel-muted)',
+      background: 'var(--shared-panel-muted)',
     })
   })
 
@@ -64,7 +64,7 @@ describe('EvidenceCard', () => {
     const card = screen.getByTestId('card')
     expect(card).toHaveAttribute('data-tone', 'degraded')
     expect(card.style.getPropertyValue('--gov-card-tone')).toBe(
-      'var(--obs-status-degraded-fg, var(--dl-warn))',
+      'var(--shared-status-degraded-fg, var(--dl-warn))',
     )
   })
 
@@ -98,12 +98,12 @@ describe('EvidenceCard', () => {
 
   it('keeps the class hook the stylesheet needs alongside a caller class', () => {
     render(
-      <EvidenceCard className="observatory-thing" data-testid="card">
+      <EvidenceCard className="custom-class" data-testid="card">
         Receipt
       </EvidenceCard>,
     )
     const card = screen.getByTestId('card')
     expect(card).toHaveClass('gov-evidence-card')
-    expect(card).toHaveClass('observatory-thing')
+    expect(card).toHaveClass('custom-class')
   })
 })

@@ -2,14 +2,14 @@
  * Governed semantic tokens.
  *
  * Design stance: quiet governance in Pellier, complete accountability in
- * Observatory. Both surfaces must speak one status language, or an attendee
+ * the Operator. Both surfaces must speak one status language, or an attendee
  * learns two vocabularies for the same system state.
  *
  * This file EXTENDS the Daylight token system. It defines no new colors:
  * every value resolves to an existing `--dl-*` primitive, mixed with
  * `transparent` for a tint, so a palette change stays in one place and both
  * themes follow it. It is imported after `daylight-bridge.css`,
- * which is where the `--dl-*` → `--obs-*` aliases are established.
+ * which is where the `--dl-*` → `--shared-*` aliases are established.
  *
  * Color discipline (from the design package, enforced here):
  *
@@ -21,8 +21,8 @@
  *   decoration, never for "probably fine".
  *
  *   Red (`--dl-err`) is reserved for BLOCKED or UNSAFE state — a Cedar
- *   DENY. Note this is deliberately NOT `--obs-red-1`, which the Observatory
- *   aliases to terracotta; a DENY must not share a swatch with a button.
+ *   DENY. Note this is deliberately NOT `--shared-red-1`, which the `--shared-*`
+ *   aliases map to terracotta; a DENY must not share a swatch with a button.
  *
  *   Amber (`--dl-warn`) is DEGRADED or ACTION REQUIRED — the managed rail
  *   was requested but unavailable, evidence is modeled rather than
@@ -38,11 +38,11 @@
 
 :root {
   /* ---- Surfaces -------------------------------------------------- */
-  /* Pellier is the shopper surface, Observatory the operator surface, and
+  /* Pellier is the shopper surface, the Operator the staff surface, and
      evidence blocks appear on both — so evidence gets its own surface
      token rather than borrowing whichever page it lands on. */
   --gov-surface-pellier: var(--dl-bg);
-  --gov-surface-observatory: var(--dl-paper-2);
+  --gov-surface-operator: var(--dl-paper-2);
   --gov-surface-evidence: var(--dl-paper);
   --gov-surface-evidence-sunken: var(--dl-paper-2);
 

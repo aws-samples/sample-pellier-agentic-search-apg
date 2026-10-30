@@ -6,6 +6,7 @@
  */
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useLayout, type WorkshopMode } from './LayoutContext'
+import { usePersona } from './PersonaContext'
 
 // --- Types ---
 
@@ -152,6 +153,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setMetrics(emptyMetrics())
     prevModeRef.current = workshopMode
   }, [workshopMode])
+
+  // Choosing a different shopper empties the bag. A first sign-in (no shopper
+  // before) or a reload restoring the same shopper keeps it.
+  const { persona } = usePersona()
+  const personaId = persona?.id ?? null
+  const prevPersonaIdRef = useRef(personaId)
+  useEffect(() => {
+    const previous = prevPersonaIdRef.current
+    prevPersonaIdRef.current = personaId
+    if (previous !== null && previous !== personaId) setItems([])
+  }, [personaId])
 
   // Persist cart to localStorage + stamp the session so stale carts
   // from prior sessions don't resurrect on the next page load.

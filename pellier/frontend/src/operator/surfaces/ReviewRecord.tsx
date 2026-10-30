@@ -30,9 +30,9 @@ const ReviewRecordPage: React.FC = () => {
   const { reviewId } = useParams<{ reviewId: string }>()
   const numericId = Number(reviewId)
   const controller = useReview(Number.isFinite(numericId) ? numericId : null)
-  const { detail, error } = controller
+  const { detail, error, reload } = controller
 
-  if (error || (reviewId && !Number.isFinite(numericId))) {
+  if ((error && !detail) || (reviewId && !Number.isFinite(numericId))) {
     const code = error ?? 'review_not_found'
     const described = describeOperatorError(code, 'open this review')
     return (
@@ -58,6 +58,12 @@ const ReviewRecordPage: React.FC = () => {
   return (
     <>
       <article className="op-record" data-testid="operator-review-record" aria-labelledby="op-review-title">
+        {error ? (
+          <p className="op-error" role="alert" data-testid="operator-review-stale">
+            The record could not be read again, so this page may be out of date.{' '}
+            <button type="button" className="op-button op-button-quiet" onClick={() => void reload()}>Try again</button>
+          </p>
+        ) : null}
         <header className="op-record-head">
           <ClientAvatar customerId={client.customerId} name={client.name} personaId={client.personaId} size="lg" />
           <div>

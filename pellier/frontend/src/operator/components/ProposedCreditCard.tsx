@@ -264,6 +264,23 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
   const auth = useOptionalAuth()
   const signedIn = auth?.isAuthenticated ? auth.user : null
   const approver = signedIn ? presentIdentity(signedIn.username || signedIn.givenName || signedIn.email) : null
+  const cardRef = React.useRef<HTMLElement>(null)
+  const actionsRef = React.useRef<HTMLDivElement>(null)
+  const decided = React.useRef(false)
+  // A decision removes or replaces the button that held focus. Once the record
+  // settles, keyboard focus goes to the next action, or to the card.
+  React.useEffect(() => {
+    if (busy) {
+      decided.current = true
+      return
+    }
+    if (!decided.current) return
+    const focused = document.activeElement
+    if (focused && focused !== document.body) return
+    const next = actionsRef.current?.querySelector<HTMLButtonElement>('button:not([disabled])')
+    ;(next ?? cardRef.current)?.focus()
+    decided.current = false
+  }, [busy, detail])
   if (!detail) return null
   const { review, record: storedRecord } = detail
   const record = execution?.record ?? storedRecord
@@ -288,7 +305,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
     ? STAFF_PORTRAIT : null
 
   return (
-    <section className="op-credit" data-state={review.humanState} data-testid="operator-proposed-credit">
+    <section ref={cardRef} tabIndex={-1} className="op-credit" data-state={review.humanState} data-testid="operator-proposed-credit">
       <header className="op-credit-head">
         <p className="op-eyebrow">Proposed store credit</p>
         <p className="op-credit-amount" data-testid="operator-credit-amount">${review.amount}</p>
@@ -326,7 +343,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
         </p>
       ) : null}
 
-      <div className="op-credit-actions">
+      <div ref={actionsRef} className="op-credit-actions">
         {pending ? (
           <>
             <button type="button" className="op-button" onClick={() => void approve()} disabled={Boolean(busy)} data-testid="operator-review-confirm">
@@ -388,7 +405,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
         </dl>
       ) : null}
       {decisionError ? (
-        <p className="op-error" data-testid="operator-review-decision-error">
+        <p className="op-error" role="alert" data-testid="operator-review-decision-error">
           {describeDecisionError(decisionError, decisionErrorMissing)}
         </p>
       ) : null}

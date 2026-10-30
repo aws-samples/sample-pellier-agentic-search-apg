@@ -4,7 +4,7 @@
  * Two things must hold or the primitive is pointless.
  *
  * The headline is a real heading in the tools' heading voice, Instrument Sans
- * at 600. The storefront's Fraunces does not appear on the Observatory or the
+ * at 600. The storefront's Fraunces does not appear on the
  * Operator desk, so the test pins the tag as well as the family.
  *
  * And the reason line stays monospace and separate from the prose, because it
@@ -67,21 +67,21 @@ describe('EmptyState', () => {
         eyebrow="No telemetry"
         headline="Nothing was recorded."
         body="Panels appear as the system processes each step."
-        reason="pellier.observatory_spans: 0 rows for this session"
+        reason="pellier.tool_audit: 0 rows for this session"
         data-testid="empty"
       />,
     )
 
     const reason = screen.getByText(
-      'pellier.observatory_spans: 0 rows for this session',
+      'pellier.tool_audit: 0 rows for this session',
     )
     expect(reason).toHaveAttribute('data-empty-reason', 'true')
-    expect(reason).toHaveStyle({ fontFamily: 'var(--obs-mono)' })
+    expect(reason).toHaveStyle({ fontFamily: 'var(--shared-mono)' })
 
     const body = screen.getByText(
       'Panels appear as the system processes each step.',
     )
-    expect(body).toHaveStyle({ fontFamily: 'var(--obs-sans)' })
+    expect(body).toHaveStyle({ fontFamily: 'var(--shared-sans)' })
 
     // The Operator desk passes a `<details>` disclosure as the reason. Inside a
     // `<p>` the browser closes the paragraph early, so the disclosure escapes

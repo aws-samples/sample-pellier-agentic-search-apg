@@ -2,7 +2,7 @@
  * EvidenceCard — the container an evidence panel sits in.
  *
  * The two technical surfaces were carrying six card radii between them: 16px
- * for the Observatory working card, 12px for the proof tabs and the desk, 10px
+ * for the working card, 12px for the proof tabs and the desk, 10px
  * for the cheat sheet, 8px for the Proof Board's inline panels, 14px for the
  * section frame. Nothing distinguished them semantically; they were written on
  * different days. One radius, 14px, and the differences that remain say
@@ -56,9 +56,9 @@ export interface EvidenceCardProps {
 const TONE_COLOR: Record<EvidenceCardTone, string> = {
   neutral: 'transparent',
   brand: 'var(--pellier-accent)',
-  ok: 'var(--obs-status-ok-fg, var(--dl-ok))',
-  attention: 'var(--obs-status-attention-fg, var(--dl-accent))',
-  degraded: 'var(--obs-status-degraded-fg, var(--dl-warn))',
+  ok: 'var(--shared-status-ok-fg, var(--dl-ok))',
+  attention: 'var(--shared-status-attention-fg, var(--dl-accent))',
+  degraded: 'var(--shared-status-degraded-fg, var(--dl-warn))',
 }
 
 export const EvidenceCard: React.FC<EvidenceCardProps> = ({
@@ -86,9 +86,9 @@ export const EvidenceCard: React.FC<EvidenceCardProps> = ({
     style={{
       position: 'relative',
       padding: padding === 'compact' ? '20px' : '24px',
-      border: '1px solid var(--obs-rule-1)',
+      border: '1px solid var(--shared-rule-1)',
       borderRadius: 'var(--gov-radius-lg)',
-      background: quiet ? 'var(--obs-panel-muted)' : 'var(--obs-panel)',
+      background: quiet ? 'var(--shared-panel-muted)' : 'var(--shared-panel)',
       boxShadow: quiet ? 'none' : 'var(--gov-shadow-card)',
       ['--gov-card-tone' as string]: TONE_COLOR[tone] ?? TONE_COLOR.neutral,
       ...style,

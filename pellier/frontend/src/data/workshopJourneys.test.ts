@@ -105,7 +105,7 @@ describe('four-lab workshop journey contract', () => {
     })
   })
 
-  it('maps every Observatory lab id to its named anchor', () => {
+  it('maps every lab id to its named anchor', () => {
     expect(journeyForLab('grounded-inventory')).toBe(WORKSHOP_JOURNEYS.marco)
     expect(journeyForLab('retrieval-acceptance')).toBe(WORKSHOP_JOURNEYS.anna)
     expect(journeyForLab('managed-agent-path')).toBe(WORKSHOP_JOURNEYS.theo)

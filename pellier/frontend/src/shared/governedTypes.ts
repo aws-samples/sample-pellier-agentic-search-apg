@@ -1,5 +1,5 @@
 /**
- * Shared governed status vocabulary for Pellier and Observatory.
+ * Shared governed status vocabulary for Pellier and the Operator.
  *
  * These types deliberately mirror what the backend already emits. Nothing
  * here is invented:
@@ -13,7 +13,7 @@
  *     already render.
  *
  * The reason this file exists rather than each surface declaring its own
- * union: when Pellier and Observatory disagree about what "governed" means,
+ * union: when Pellier and the Operator disagree about what "governed" means,
  * an attendee cannot trust either. One vocabulary, two presentations.
  *
  * Deliberate omission: there is no `turnId` here. Deriving one from array

@@ -1,9 +1,9 @@
 import { apiFetch } from '../services/apiBase'
 /**
- * PersonaContext — workshop persona state shared across storefront + Observatory.
+ * PersonaContext — workshop persona state shared across the Storefront and the Operator.
  *
- * One source of truth for the active persona. Both the storefront header
- * pill and the Observatory breadcrumb indicator read from this context. The
+ * One source of truth for the active persona. The storefront header
+ * pill reads from this context. The
  * persona modal (shared component, two entry points) writes to it via
  * ``switchPersona()``.
  *

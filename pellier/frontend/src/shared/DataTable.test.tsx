@@ -38,8 +38,8 @@ interface Row {
 }
 
 const ROWS: Row[] = [
-  { strategy: 'HNSW', recall: '0.98', path: '/observatory/search' },
-  { strategy: 'IVFFlat', recall: '0.91', path: '/observatory/performance' },
+  { strategy: 'HNSW', recall: '0.98', path: '/operator/cases' },
+  { strategy: 'IVFFlat', recall: '0.91', path: '/operator/reviews' },
 ]
 
 const COLUMNS: DataTableColumn<Row>[] = [
@@ -65,7 +65,7 @@ describe('DataTable', () => {
     renderTable()
     const header = screen.getByRole('columnheader', { name: 'Recall' })
     expect(header).toHaveStyle({
-      fontFamily: 'var(--obs-heading)',
+      fontFamily: 'var(--shared-heading)',
       fontSize: '13px',
       fontWeight: '600',
     })
@@ -76,7 +76,7 @@ describe('DataTable', () => {
     renderTable()
     const cell = screen.getByRole('cell', { name: '0.98' })
     expect(cell).toHaveStyle({
-      fontFamily: 'var(--obs-mono)',
+      fontFamily: 'var(--shared-mono)',
       fontSize: '14px',
       fontVariantNumeric: 'tabular-nums',
     })
@@ -102,7 +102,7 @@ describe('DataTable', () => {
     })
     const cell = screen.getByRole('cell', { name: 'HNSW' })
     expect(cell).toHaveStyle({
-      fontFamily: 'var(--obs-sans)',
+      fontFamily: 'var(--shared-sans)',
       fontSize: '14px',
     })
     expect(cell).toHaveAttribute('data-align', 'text')
@@ -110,8 +110,8 @@ describe('DataTable', () => {
 
   it('sets identifiers in mono without tabular figures', () => {
     renderTable()
-    const cell = screen.getByRole('cell', { name: '/observatory/search' })
-    expect(cell).toHaveStyle({ fontFamily: 'var(--obs-mono)' })
+    const cell = screen.getByRole('cell', { name: '/operator/cases' })
+    expect(cell).toHaveStyle({ fontFamily: 'var(--shared-mono)' })
     expect(cell).toHaveAttribute('data-align', 'code')
     expect(cell.getAttribute('style') ?? '').not.toMatch(/tabular-nums/)
   })
@@ -124,7 +124,7 @@ describe('DataTable', () => {
 
   it('separates rows with a hairline and no zebra fill', () => {
     expect(PRIMITIVES_CSS).toMatch(
-      /border-top:\s*1px solid var\(--obs-rule-1\)/,
+      /border-top:\s*1px solid var\(--shared-rule-1\)/,
     )
     renderTable()
     const style =

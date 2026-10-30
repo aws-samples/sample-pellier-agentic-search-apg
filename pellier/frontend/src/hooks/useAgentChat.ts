@@ -66,6 +66,8 @@ export interface CreditRequestPending {
 }
 
 export interface AgentChatMessage {
+  /** Names a typed turn's answer while it streams, so no other bubble takes its patches. */
+  localId?: string
   role: 'user' | 'assistant'
   content: string
   timestamp: Date
@@ -326,8 +328,20 @@ export function completeMessage(
   }
 }
 
+let typedTurns = 0
+
+function stoppedMessage(msg: AgentChatMessage): AgentChatMessage {
+  return {
+    ...msg,
+    agentStatus: 'complete',
+    stopped: true,
+    status: STOPPED,
+    steps: (msg.steps ?? []).filter(step => step.status !== 'running'),
+  }
+}
+
 function forStorage(messages: AgentChatMessage[]): AgentChatMessage[] {
-  return messages.filter(message => message.source !== 'terminal').map(message => {
+  return messages.filter(message => message.source !== 'terminal').map(({ localId: _localId, ...message }) => {
     const bound = message.steps?.some(step => step.builder?.identity)
     if (!bound && !message.principal) return message
     const { principal: _principal, ...kept } = message
@@ -369,10 +383,18 @@ function loadPersistedMessages(
     const saved = localStorage.getItem(persistKey)
     if (saved) {
       const parsed = JSON.parse(saved)
-      return parsed.map(({ live: _live, ...msg }: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }))
+      return parsed.map(({ live: _live, localId: _localId, ...msg }: any) => {
+        const cutOff = msg.role === 'assistant' && msg.agentStatus && msg.agentStatus !== 'complete'
+        const restored = cutOff
+          ? {
+            ...msg,
+            agentStatus: 'complete',
+            status: FAILED,
+            steps: (msg.steps ?? []).filter((step: { status?: string }) => step.status !== 'running'),
+          }
+          : msg
+        return { ...restored, timestamp: new Date(msg.timestamp) }
+      })
     }
   } catch {
     // ignore corrupted persistence
@@ -469,6 +491,24 @@ export function useAgentChat(
     }
   }, [])
 
+  // A turn belongs to the shopper who asked it: choosing another shopper ends
+  // it, so its stream cannot patch the new shopper's panel or block their send.
+  const personaKey = persona?.id ?? null
+  const seenPersonaKey = useRef(personaKey)
+  const turnLocalIdRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (seenPersonaKey.current === personaKey) return
+    seenPersonaKey.current = personaKey
+    if (!sendingRef.current) return
+    onTurnRef.current?.({ type: 'end', outcome: 'stopped' })
+    turnAbortRef.current?.abort()
+    turnAbortRef.current = null
+    sendingRef.current = false
+    setIsLoading(false)
+    const ended = turnLocalIdRef.current
+    setMessages(prev => prev.map(msg => (msg.localId === ended ? { ...stoppedMessage(msg), live: false } : msg)))
+  }, [personaKey])
+
   // Turns the signed-in shopper sends from the terminal, relayed live beside
   // the ones typed here. One watch per shopper: a new shopper reconnects, and
   // a dropped stream (a backend restart) reconnects with backoff and replays
@@ -479,6 +519,8 @@ export function useAgentChat(
     const controller = new AbortController()
     let stopped = false
     let delayMs = 1000
+    const replayed = new Set<string>()
+    const started = new Set<string>()
     const updateRelayed = (
       turnId: string,
       patch: (msg: AgentChatMessage) => AgentChatMessage | null,
@@ -529,13 +571,20 @@ export function useAgentChat(
             fresh,
           ]
         })
-        report({ type: 'start', query })
+        if (frame.replay === true) replayed.add(turnId)
+        else replayed.delete(turnId)
+        if (frame.replay !== true) {
+          started.add(turnId)
+          report({ type: 'start', query })
+        }
       } else if (frame.type === 'relay_event') {
         const event = frame.event
         if (!event || typeof event !== 'object') return
-        if (event.type === 'status' && typeof event.label === 'string') {
+        // A replayed turn rebuilds its bubble only; the results page already saw it.
+        const reportable = !replayed.has(turnId) || started.has(turnId)
+        if (reportable && event.type === 'status' && typeof event.label === 'string') {
           report({ type: 'status', label: event.label })
-        } else if (event.type === 'step') {
+        } else if (reportable && event.type === 'step') {
           report({ type: 'step', step: toTurnStep(event) })
         }
         updateRelayed(turnId, msg =>
@@ -554,7 +603,10 @@ export function useAgentChat(
               steps: (msg.steps ?? []).filter(step => step.status !== 'running'),
             },
         )
-        report({ type: 'end', outcome: frame.outcome === 'error' ? 'failed' : 'complete' })
+        if (!replayed.has(turnId) || started.has(turnId)) {
+          report({ type: 'end', outcome: frame.outcome === 'error' ? 'failed' : 'complete' })
+          started.delete(turnId)
+        }
       }
     }
     const watch = async () => {
@@ -639,10 +691,12 @@ export function useAgentChat(
         status: SENDING,
         steps: [],
         live: true,
+        localId: `typed-${(typedTurns += 1)}`,
       }
       // This turn's message as the panel will hold it, from the same patches,
       // so the turn's end can report the cards the panel shows.
       let answer = loadingMessage
+      turnLocalIdRef.current = loadingMessage.localId
       // CRITICAL: every updater below must be PURE. React 18 StrictMode
       // double-invokes state updaters in dev to surface impurity; any
       // mutation of `prev[i]` leaks across invocations and doubles additive
@@ -654,14 +708,13 @@ export function useAgentChat(
       ) => {
         answer = patch(answer) ?? answer
         setMessages(prev => {
-          if (prev.length === 0) return prev
-          const lastIdx = prev.length - 1
-          const lastMsg = prev[lastIdx]
-          if (lastMsg.role !== 'assistant') return prev
-          const next = patch(lastMsg)
-          if (next === null || next === lastMsg) return prev
+          const index = prev.map(msg => msg.localId).lastIndexOf(loadingMessage.localId)
+          if (index === -1) return prev
+          const current = prev[index]
+          const next = patch(current)
+          if (next === null || next === current) return prev
           const updated = prev.slice()
-          updated[lastIdx] = next
+          updated[index] = next
           return updated
         })
       }
@@ -676,8 +729,9 @@ export function useAgentChat(
           text,
           historyBeforeUser,
           data => {
-            // The hook unmounted mid-stream (see the mount effect above).
-            if (!activeRef.current) return
+            // The hook unmounted mid-stream (see the mount effect above), or
+            // a new shopper ended this turn.
+            if (!activeRef.current || turnAbortRef.current !== controller) return
             if (data.type === 'status' && typeof data.label === 'string') {
               report({ type: 'status', label: data.label })
             } else if (data.type === 'step') {
@@ -692,8 +746,8 @@ export function useAgentChat(
           readSkillMode(),
         )
 
-        // Resolved after an unmount that fired mid-await. Nothing left to update.
-        if (!activeRef.current) return
+        // Resolved after an unmount or a shopper change mid-await. Nothing left to update.
+        if (!activeRef.current || turnAbortRef.current !== controller) return
 
         if (response.estimated_cost_usd) {
           setSessionCost(prev => prev + response.estimated_cost_usd!)
@@ -705,17 +759,11 @@ export function useAgentChat(
       } catch (error) {
         // An unmount aborts `controller`, which surfaces here as a rejected
         // fetch. There is no drawer left to show a failure card in.
-        if (!activeRef.current) return
+        if (!activeRef.current || turnAbortRef.current !== controller) return
         if (stoppedRef.current) {
           report({ type: 'end', outcome: 'stopped' })
           // The shopper pressed stop: what streamed is the answer so far.
-          updateLast(lastMsg => ({
-            ...lastMsg,
-            agentStatus: 'complete',
-            stopped: true,
-            status: STOPPED,
-            steps: (lastMsg.steps ?? []).filter(step => step.status !== 'running'),
-          }))
+          updateLast(stoppedMessage)
           return
         }
         const chatError = normalizeChatError(error)
@@ -738,8 +786,11 @@ export function useAgentChat(
           !['network_error', 'service_unavailable'].includes(chatError.code),
         )
       } finally {
-        if (activeRef.current) setIsLoading(false)
-        sendingRef.current = false
+        if (turnAbortRef.current === controller) {
+          turnLocalIdRef.current = undefined
+          if (activeRef.current) setIsLoading(false)
+          sendingRef.current = false
+        }
       }
     },
     [inputValue, isLoading, workshopMode, guardrailsEnabled, persona?.customer_id, report],

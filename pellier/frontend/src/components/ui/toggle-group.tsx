@@ -9,7 +9,7 @@ const ToggleGroup = React.forwardRef<
   <ToggleGroupPrimitive.Root
     ref={ref}
     className={cn(
-      'inline-flex overflow-hidden rounded-md border border-[var(--obs-rule-1)] bg-[var(--obs-cream-2)] p-0.5',
+      'inline-flex overflow-hidden rounded-md border border-[var(--shared-rule-1)] bg-[var(--shared-cream-2)] p-0.5',
       className,
     )}
     {...props}
@@ -28,9 +28,9 @@ const ToggleGroupItem = React.forwardRef<
     className={cn(
       [
         'inline-flex min-h-8 flex-1 items-center justify-center rounded-[4px] px-2.5',
-        'font-sans text-xs font-semibold text-[var(--obs-ink-3)] transition-colors',
-        'hover:text-[var(--obs-ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper',
-        'data-[state=on]:bg-[var(--obs-cream-elev)] data-[state=on]:text-ink-2 data-[state=on]:shadow-sm',
+        'font-sans text-xs font-semibold text-[var(--shared-ink-3)] transition-colors',
+        'hover:text-[var(--shared-ink-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-copper',
+        'data-[state=on]:bg-[var(--shared-cream-elev)] data-[state=on]:text-ink-2 data-[state=on]:shadow-sm',
         'disabled:pointer-events-none disabled:opacity-50',
       ],
       className,
