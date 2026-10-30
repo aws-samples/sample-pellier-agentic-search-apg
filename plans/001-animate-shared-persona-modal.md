@@ -103,11 +103,11 @@ const cardExit = reduceMotion
 - [Header.tsx](../pellier/frontend/src/components/Header.tsx) uses
   `AnimatePresence initial={false}`, full `transform` strings, and
   `useReducedMotion()` for menu entry and exit.
-- [Modal.tsx](../pellier/frontend/src/design/primitives/Modal.tsx:91) is the
+- [Modal.tsx](../pellier/frontend/src/design/primitives/Modal.tsx) is the
   shared modal exemplar: it fades the backdrop for `0.18s`, uses a
   `0.24s` card entrance and a `0.18s` card exit, and uses
   `[0.23, 1, 0.32, 1]` as its modal easing.
-- [CartPanel.tsx](../pellier/frontend/src/components/CartPanel.tsx:45) shows
+- [CartPanel.tsx](../pellier/frontend/src/components/CartPanel.tsx) shows
   the preferred reduced-motion hook style:
   `const reduceMotion = Boolean(useReducedMotion())`.
 
