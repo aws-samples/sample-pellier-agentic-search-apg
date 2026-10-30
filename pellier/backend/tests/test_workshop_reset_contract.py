@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import pathlib
 import re
+import subprocess
 
 import pytest
 
@@ -452,6 +453,19 @@ def test_the_reset_quarantines_incomplete_memory_or_policy_restoration() -> None
     assert "pellier_restore_lab4_agentcore || { _quarantine_for_failed_step; exit 1; }" in body
 
 
+@pytest.mark.parametrize("step", ["policy-declare", "policy-validate", "policy-deploy",
+                                  "policy-pin", "policy-mode", "starter-deploy"])
+def test_every_failed_policy_step_quarantines_the_box(step: str) -> None:
+    """A failure after a policy state change must leave a marker, not a startable Lab 4."""
+    body = _reset_body()
+    start = body.index("_quarantine_for_failed_step() {")
+    function = body[start:body.index("\n}\n", start) + 3]
+    script = ('_quarantine() { echo "QUARANTINE $1"; }\n' + function
+              + f'\nPELLIER_RESET_FAILED_STEP={step}\n_quarantine_for_failed_step\n')
+    done = subprocess.run(["bash", "-c", script], capture_output=True, text=True, check=True)
+    assert done.stdout.startswith("QUARANTINE "), (step, done.stdout)
+
+
 def test_the_reset_redeploys_the_starters_after_a_participant_deploy() -> None:
     """A reset box must match a fresh one: Lab 3's catalogue and permit go back too.
 
@@ -558,7 +572,8 @@ def test_the_two_cycle_proof_runs_reset_then_smoke_twice() -> None:
     assert "run_cycle 1 || exit 1" in body and "run_cycle 2 || exit 1" in body
     # The smoke is an authenticated turn using the seeded shopper credentials.
     smoke = body[body.index("_smoke_turn() {"):body.index("run_cycle() {")]
-    assert "/api/chat" in smoke
+    assert "/api/chat/stream" in smoke
+    assert 'e.get("type") == "complete"' in smoke, "the smoke reads the SSE complete event"
     assert "Authorization: Bearer" in smoke
     assert "test-credentials.txt" in body
     assert "A housewarming gift under $100 that is currently in stock." in body

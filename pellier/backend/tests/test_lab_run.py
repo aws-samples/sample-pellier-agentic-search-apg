@@ -239,6 +239,19 @@ def test_the_go_deeper_worksheet_is_not_a_task_file(tmp_path: Path) -> None:
     assert (repo / "workshop/lab-1-fusion.sql").read_text() == "my fusion attempt\n"
 
 
+def test_solution_keeps_the_participants_file_beside_the_link(tmp_path: Path) -> None:
+    repo = _scratch_repo(tmp_path)
+    plan = next(e for e in lab_run.solution_files(1, repo) if e["alias"].endswith("1B-search-plan.py"))
+    (repo / plan["source"]).write_text("my 1B\n")
+
+    lab_run.install_solution(1, repo)
+    assert (repo / (plan["alias"] + ".bak")).read_text() == "my 1B\n"
+
+    (repo / plan["source"]).write_text("my second 1B\n")
+    lab_run.install_solution(1, repo)
+    assert (repo / (plan["alias"] + ".bak.2")).read_text() == "my second 1B\n"
+
+
 def _scratch_repo(tmp_path: Path) -> Path:
     shutil.copytree(REPO / "workshop", tmp_path / "workshop")
     for entry in json.loads((REPO / "workshop/participant-files.json").read_text("utf-8")):

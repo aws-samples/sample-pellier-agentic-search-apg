@@ -100,7 +100,7 @@ pellier_agentcore_init() {
 
 _agentcore() {
   (
-    cd "$AGENTCORE_PROJECT"
+    cd "$AGENTCORE_PROJECT" || exit 1
     # The CLI expects an endpoint alias; Pellier's parent environment stores an ARN.
     export AGENTCORE_RUNTIME_ENDPOINT=DEFAULT
     if command -v agentcore >/dev/null 2>&1; then
@@ -195,9 +195,9 @@ PY
 }
 
 # The check above reads the CLI project file, which is the declared intent. The
-# live engine can disagree: a participant who switches a policy to LOG_ONLY
-# during the monitor-mode exercise leaves enforcement off while the file still
-# says ENFORCE. Restoring only the file would report a reset workshop whose
+# live engine can disagree: a policy switched to LOG_ONLY with
+# `scripts/policy_mode.py` leaves enforcement off while the file still says
+# ENFORCE. Restoring only the file would report a reset workshop whose
 # denials silently do not happen, so the live mode is restored at both scopes
 # (per-policy `enforcementMode`, gateway `policyEngineConfiguration.mode`).
 #
@@ -210,9 +210,9 @@ pellier_restore_policy_mode() {
     >/tmp/pellier-governed-reset-policy-mode.log 2>&1 || rc=$?
   if [[ "$rc" -eq 0 ]]; then
     pass "Live Cedar enforcement mode restored at both scopes"
-  elif [[ "$rc" -eq 2 ]]; then
-    # `policy_mode.py` reserves exit 2 for "AGENTCORE_POLICY_ENGINE_ID is not set, so
-    # there is no engine to read".
+  elif [[ "$rc" -eq 4 ]]; then
+    # `policy_mode.py` reserves exit 4 for "AGENTCORE_POLICY_ENGINE_ID is not set, so
+    # there is no engine to read". Exit 2 (no CLI project, bad flags) is a failed restore.
     pass "AgentCore Policy not provisioned here; live enforcement is NOT_EVALUATED"
   else
     fail "Could not restore live Cedar enforcement mode (see /tmp/pellier-governed-reset-policy-mode.log)"

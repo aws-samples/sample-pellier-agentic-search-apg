@@ -264,7 +264,8 @@ async def claim_execution_turn(db: Any, review_id: int) -> str:
 # both tables with no timestamp heuristic.
 _AUDIT_FOR_KEY = """
 SELECT audit_id, caller, created_at,
-       result->>'status' AS status, result->>'idempotent_replay' AS replay
+       result->>'status' AS status, result->>'idempotent_replay' AS replay,
+       result
   FROM pellier.tool_audit
  WHERE tool = 'give_store_credit'
    AND args->>'idempotency_key' = %s
@@ -305,6 +306,9 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
         # Who wrote the row that applied the credit, else the first row:
         # 'gateway' for the Lambda, the staff member's subject in process.
         "auditCaller": None,
+        # The newest audit row's stored tool envelope, so a reload classifies the
+        # Aurora axis with the same classifier the live execution used.
+        "lastResult": {},
         "readable": True,
     }
     if not key:
@@ -327,6 +331,8 @@ async def evidence_for_key(db: Any, idempotency_key: str) -> Dict[str, Any]:
     record["appliedAuditIds"] = [int(a["audit_id"]) for a in applied if a.get("audit_id") is not None]
     first = (applied or audits)[:1]
     record["auditCaller"] = (str(first[0].get("caller") or "") or None) if first else None
+    stored = audits[-1].get("result") if audits else None
+    record["lastResult"] = stored if isinstance(stored, dict) else {}
     return record
 
 
@@ -531,6 +537,18 @@ class RailSelection:
     missing: tuple[str, ...] = ()
 
 
+def is_governed_format() -> bool:
+    """True unless ``WORKSHOP_FORMAT`` is ``builders``.
+
+    An empty value (an ``.env`` line ``WORKSHOP_FORMAT=``) fails closed to
+    governed: only an explicit ``builders`` selects the in-process credit rail.
+    """
+    from config import settings
+
+    value = str(getattr(settings, "WORKSHOP_FORMAT", "") or "").strip().lower()
+    return value != "builders"
+
+
 def select_rail(access_token: Optional[str]) -> RailSelection:
     """Gateway when it is usable; refused in the governed format when it is not.
 
@@ -548,9 +566,8 @@ def select_rail(access_token: Optional[str]) -> RailSelection:
     from config import settings
 
     gateway_url = str(getattr(settings, "AGENTCORE_GATEWAY_URL", "") or "").strip()
-    governed = str(getattr(settings, "WORKSHOP_FORMAT", "") or "").lower() == "governed"
 
-    if not governed:
+    if not is_governed_format():
         if gateway_url and access_token:
             return RailSelection(rail=RAIL_GATEWAY)
         return RailSelection(rail=RAIL_IN_PROCESS)
@@ -582,22 +599,23 @@ def require_enforced_engine(
     """
     if selection.rail != RAIL_GATEWAY:
         return selection
-    from config import settings
-
-    governed = str(getattr(settings, "WORKSHOP_FORMAT", "") or "").lower() == "governed"
-    if not governed:
+    if not is_governed_format():
         return selection
     if engine_state is not None and engine_state.enforcement_is_on:
         return selection
     observed = (engine_state.gateway_mode if engine_state else "") or "unreadable"
+    non_active = engine_state.first_non_active_policy if engine_state else None
     missing = f"policy_engine_mode=ENFORCE (observed: {observed})"
+    cause = f"The Gateway attachment is {observed}"
+    if non_active is not None and observed.upper() == "ENFORCE":
+        missing = f"policy {non_active[0]} ACTIVE (observed: {non_active[1] or 'no mode'})"
+        cause = f"Policy {non_active[0]} is {non_active[1] or 'without an enforcement mode'}"
     return RailSelection(
         rail=RAIL_REFUSED,
         refusal_reason=(
             "This deployment runs the governed format, where a write executes only "
-            "under an enforcing policy engine. The Gateway attachment is "
-            f"{observed}, so no enforced verdict was possible. Missing: {missing}. "
-            "Nothing was executed."
+            f"under an enforcing policy engine. {cause}, so no enforced verdict was "
+            f"possible. Missing: {missing}. Nothing was executed."
         ),
         missing=(missing,),
     )
@@ -983,8 +1001,25 @@ class PolicyEngineState:
         )
 
     @property
+    def first_non_active_policy(self) -> Optional[tuple[str, str]]:
+        """The first reported policy not ACTIVE, as ``(name, mode)``; empty mode counts."""
+        for name, (_effect, mode) in self.policies.items():
+            if str(mode).upper() != "ACTIVE":
+                return name, str(mode)
+        return None
+
+    @property
     def enforcement_is_on(self) -> bool:
-        return str(self.gateway_mode).upper() == "ENFORCE"
+        """True only when the gateway is ENFORCE and every reported policy is ACTIVE.
+
+        Every policy on the engine counts, not only those naming the action: a
+        LOG_ONLY policy anywhere means the engine is not wholly enforcing. The
+        reset restores both scopes, so a healthy event never trips this.
+        """
+        return (
+            str(self.gateway_mode).upper() == "ENFORCE"
+            and self.first_non_active_policy is None
+        )
 
 
 def resolve_permissive_policy_state(
@@ -1002,6 +1037,13 @@ def resolve_permissive_policy_state(
         )
     if engine.enforcement_is_on:
         return POLICY_ALLOW, "AgentCore Policy evaluated the action and permitted it."
+    non_active = engine.first_non_active_policy
+    if str(engine.gateway_mode).upper() == "ENFORCE" and non_active is not None:
+        name, mode = non_active
+        return POLICY_EVALUATION_INCOMPLETE, (
+            f"Policy {name} is {mode or 'without an enforcement mode'}, not ACTIVE, "
+            "so the call returning is not a decision."
+        )
     return POLICY_EVALUATION_INCOMPLETE, (
         f"The gateway is {engine.gateway_mode or 'not in ENFORCE'}, so the call "
         "returning is not a decision."

@@ -261,8 +261,8 @@ def test_dispatcher_path_attaches_audit_hooks(chat_module_source: str) -> None:
 
 
 def test_nonstreaming_chat_runs_the_streamed_turn() -> None:
-    """POST /api/chat and the in-process Runtime fallback reuse the streamed
-    turn, so no in-process rail can execute a tool off-ledger."""
+    """The in-process Runtime fallback reuses the streamed turn, so no
+    in-process rail can execute a tool off-ledger."""
     import textwrap
 
     from services import chat as chat_mod
@@ -357,3 +357,19 @@ def test_make_tool_audit_hooks_uses_the_bound_turn_identity(monkeypatch) -> None
         "principal_sub": "sub-theo",
         "turn_id": "turn-theo",
     }
+
+
+def test_no_ungoverned_blocking_chat_route_is_registered() -> None:
+    """Every chat turn resolves its rail. The removed POST /api/chat called the
+    in-process service without ``resolve_rail``, so with the managed rail
+    requested it served a turn with no Gateway, no Cedar and no degradation
+    notice. This fails if that route comes back."""
+    from app import app
+
+    blocking = [
+        route.path
+        for route in app.routes
+        if getattr(route, "path", "") == "/api/chat"
+        and "POST" in (getattr(route, "methods", None) or set())
+    ]
+    assert blocking == []

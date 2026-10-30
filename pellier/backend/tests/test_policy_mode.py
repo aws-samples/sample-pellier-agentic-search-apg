@@ -360,3 +360,18 @@ def test_live_mismatch_after_deploy_is_a_failure(tmp_path, monkeypatch):
     monkeypatch.setattr(tool, "verify_live", lambda *a, **kw: ["gateway: live='LOG_ONLY'"])
 
     assert tool._apply(project, object(), "engine", "gw", gateway_mode="ENFORCE") == 1
+
+
+def test_no_engine_has_its_own_exit_code_apart_from_a_wrong_project(tmp_path, monkeypatch, capsys):
+    tool = _load_tool()
+    monkeypatch.setattr(tool, "_load_env", lambda: {})
+    assert tool.main(["--restore-shipped", "--project", str(tmp_path)]) == tool.EXIT_NO_ENGINE
+
+    monkeypatch.setattr(tool, "_load_env", lambda: {"AGENTCORE_POLICY_ENGINE_ID": "engine-1"})
+    monkeypatch.syspath_prepend(str(Path(tool.__file__).parent / "deploy"))
+    import sdk_preflight
+
+    monkeypatch.setattr(sdk_preflight, "require_policy_mode_support", lambda: None)
+    code = tool.main(["--restore-shipped", "--project", str(tmp_path / "missing")])
+    assert code == 2
+    assert "no AgentCore CLI project" in capsys.readouterr().err

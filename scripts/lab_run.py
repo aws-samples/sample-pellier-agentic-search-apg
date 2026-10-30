@@ -280,6 +280,7 @@ def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
         if target.read_bytes() == answer.read_bytes():
             ok(f"{entry['alias']} already holds the solution")
             continue
+        ok(_keep(repo, entry["alias"], target.read_bytes()))
         shutil.copyfile(answer, target)
         ok(f"{entry['alias']} now holds the solution ({entry['source']})")
     print_next(NEXT_AFTER_SOLUTION[lab])

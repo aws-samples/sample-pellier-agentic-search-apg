@@ -175,7 +175,7 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
 
     ``aurora``, when given, adds one more under Gateway: what pgAudit saw reach Aurora.
     """
-    when = datetime.fromtimestamp(call["started_ns"] / 1e9).strftime("%H:%M:%S")
+    when = datetime.fromtimestamp(call["started_ns"] / 1e9, tz=timezone.utc).strftime("%H:%M:%S")
     subject = call["subject"] or ""
     who = names.get(subject) or (f"sub {subject[:8]}..." if subject else "no token")
     ran = call["lambda_ms"] is not None
@@ -336,7 +336,7 @@ def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
         if mine:
             parts = []
             for write in mine:
-                when = datetime.fromtimestamp(write["second"]).strftime("%H:%M:%S")
+                when = datetime.fromtimestamp(write["second"], tz=timezone.utc).strftime("%H:%M:%S")
                 key = f", key {write['key']}" if write["key"] else ""
                 parts.append(f"{write['command']} into {AUDITED_TABLE} at {when}{key}")
             note = " (the next call began in the same second)" if shared[call["request_id"]] else ""

@@ -44,7 +44,7 @@ def mock_db_with_loop(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
     import asyncio
 
-    def _sync_run(coro: Any) -> Any:
+    def _sync_run(coro: Any, tool: str = "") -> Any:
         # Each call gets its own loop — we never have a "running" loop
         # in pytest's default config, so this is safe.
         return asyncio.new_event_loop().run_until_complete(coro)
@@ -137,7 +137,7 @@ class TestRecordAllow:
             tool_audit_writer, "_db_service", MagicMock(fetch_one=MagicMock())
         )
 
-        def _raise(_: Any) -> None:
+        def _raise(_: Any, tool: str = "") -> None:
             raise RuntimeError("insert unavailable")
 
         monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
@@ -234,7 +234,7 @@ class TestRecordAfter:
         )
         tool_audit_writer._pending_audits["abc-123"] = 99
 
-        def _raise(_: Any) -> None:
+        def _raise(_: Any, tool: str = "") -> None:
             raise RuntimeError("update unavailable")
 
         monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
@@ -304,7 +304,7 @@ class TestFillOnceAlignment:
         )
         tool_audit_writer._pending_audits["abc-123"] = 12345
 
-        def _raise(_: Any) -> None:
+        def _raise(_: Any, tool: str = "") -> None:
             raise RuntimeError("tool_audit row 12345 already finalized")
 
         monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
@@ -313,3 +313,79 @@ class TestFillOnceAlignment:
                 tool_use_id="abc-123", result={"status": "success"}, latency_ms=12,
             )
         assert "already finalized" in caplog.text
+
+
+class TestUnauditedExecutionIsLoud:
+    """An ALLOWed call that executes without a row must say so at warning."""
+
+    def test_missing_main_loop_warns_with_the_tool_name(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        monkeypatch.setattr(
+            tool_audit_writer, "_db_service", MagicMock(fetch_one=MagicMock())
+        )
+        monkeypatch.setattr(tool_audit_writer, "_main_loop", None)
+
+        with caplog.at_level(logging.WARNING, logger=tool_audit_writer.__name__):
+            tool_audit_writer.record_allow(
+                tool_use_id="tu-1",
+                tool_name="give_store_credit",
+                caller="agent",
+                args={},
+                session_id="sess-1",
+            )
+
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("give_store_credit" in r.getMessage() for r in warnings)
+
+    def test_timeout_warns_with_the_tool_name(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        import concurrent.futures
+
+        class _Future:
+            def result(self, timeout: float) -> None:
+                raise concurrent.futures.TimeoutError()
+
+        monkeypatch.setattr(tool_audit_writer, "_main_loop", object())
+        monkeypatch.setattr(
+            tool_audit_writer.asyncio,
+            "run_coroutine_threadsafe",
+            lambda _coro, _loop: _Future(),
+        )
+
+        async def _never() -> None:
+            return None
+
+        coro = _never()
+        with caplog.at_level(logging.WARNING, logger=tool_audit_writer.__name__):
+            assert tool_audit_writer._run_async(coro, tool="check_stock") is None
+        coro.close()
+
+        warnings = [r for r in caplog.records if r.levelno >= logging.WARNING]
+        assert any("check_stock" in r.getMessage() for r in warnings)
+
+
+def test_a_coroutine_the_bridge_cannot_schedule_is_closed(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A closed loop refuses before the coroutine runs; it is closed, not leaked."""
+    import inspect
+
+    async def _write() -> None:
+        return None
+
+    coro = _write()
+
+    def _closed(_coro: Any, _loop: Any) -> None:
+        raise RuntimeError("Event loop is closed")
+
+    monkeypatch.setattr(tool_audit_writer, "_main_loop", object())
+    monkeypatch.setattr(tool_audit_writer.asyncio, "run_coroutine_threadsafe", _closed)
+
+    with caplog.at_level(logging.WARNING, logger=tool_audit_writer.__name__):
+        assert tool_audit_writer._run_async(coro, tool="check_stock") is None
+
+    assert inspect.getcoroutinestate(coro) == inspect.CORO_CLOSED
+    assert "Event loop is closed (tool=check_stock)" in caplog.text

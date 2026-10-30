@@ -40,6 +40,7 @@ class FileExercise:
     lab: int
     starter: str
     destination: str
+    optional: bool = False
 
 
 MARKER_EXERCISES = (
@@ -98,6 +99,7 @@ FILE_EXERCISES = (
         lab=1,
         starter="workshop/starters/lab-1-fusion.sql",
         destination="workshop/lab-1-fusion.sql",
+        optional=True,
     ),
     FileExercise(
         exercise_id="lab-4-cedar",
@@ -186,16 +188,35 @@ def _check(repo: Path, lab: int | None = None) -> list[str]:
     return mismatches
 
 
-def _restore(repo: Path, lab: int | None = None) -> None:
+def _keep_optional_edit(destination: Path, starter: Path) -> None:
+    """Save a Go deeper worksheet the participant edited beside it before it is overwritten."""
+    if not destination.is_file() or destination.read_bytes() == starter.read_bytes():
+        return
+    edited = destination.read_bytes()
+    number = 1
+    while True:
+        backup = destination.with_name(
+            destination.name + (".bak" if number == 1 else f".bak.{number}"))
+        if not backup.exists():
+            backup.write_bytes(edited)
+            print(f"your version of {destination.name} is kept in {backup.name}")
+            return
+        if backup.read_bytes() == edited:
+            return
+        number += 1
+
+
+def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> None:
     markers, files = exercises_for(lab)
     for exercise in markers:
         starter = _read(repo / exercise.starter)
         destination_path = repo / exercise.destination
         destination = _read(destination_path)
-        destination_path.write_text(
-            _restore_marker(destination, starter, exercise.marker),
-            encoding="utf-8",
-        )
+        try:
+            restored = _restore_marker(destination, starter, exercise.marker)
+        except ValueError as exc:
+            raise ValueError(f"{exercise.destination}: {exc}") from exc
+        destination_path.write_text(restored, encoding="utf-8")
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
     for exercise in files:
@@ -204,6 +225,8 @@ def _restore(repo: Path, lab: int | None = None) -> None:
         if not starter_path.is_file():
             raise FileNotFoundError(starter_path)
         destination_path.parent.mkdir(parents=True, exist_ok=True)
+        if keep_edits and exercise.optional:
+            _keep_optional_edit(destination_path, starter_path)
         shutil.copyfile(starter_path, destination_path)
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
@@ -240,8 +263,23 @@ def put_back_deleted_files(repo: Path, lab: int | None, source: Path | None = No
     return restored
 
 
-def restore_lab(repo: Path, lab: int | None = None, source: Path | None = None) -> list[str]:
+def _require_one_marker_pair(repo: Path, lab: int | None) -> None:
+    """Refuse a damaged marker pair before any file is written."""
+    markers, _files = exercises_for(lab)
+    for exercise in markers:
+        text = _read(repo / exercise.destination)
+        try:
+            _marker_bounds(text, exercise.marker)
+        except ValueError as exc:
+            raise ValueError(f"{exercise.destination}: {exc}") from exc
+
+
+def restore_lab(
+    repo: Path, lab: int | None = None, source: Path | None = None, keep_edits: bool = False,
+) -> list[str]:
     """Restore one lab's files (every lab's when None); return the exercise ids restored.
+
+    ``keep_edits`` saves an edited optional file as ``.bak`` first; a lab reset sets it.
 
     Raises:
         ValueError: the lab has no participant task files, or a marker pair is damaged.
@@ -250,7 +288,8 @@ def restore_lab(repo: Path, lab: int | None = None, source: Path | None = None) 
     """
     exercises_for(lab)
     put_back_deleted_files(repo, lab, source)
-    _restore(repo, lab)
+    _require_one_marker_pair(repo, lab)
+    _restore(repo, lab, keep_edits)
     mismatches = _check(repo, lab)
     if mismatches:
         raise RuntimeError("participant task file reset failed: " + ", ".join(mismatches))

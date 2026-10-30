@@ -547,10 +547,13 @@ if [[ "${PELLIER_RESET_SKIP_AGENTCORE:-0}" == "1" ]]; then
   exit 0
 fi
 
+# A policy-declare or policy-pin failure can fire before any Cedar change; the box is still
+# quarantined, because the database was already reset and the next Lab 4 must not start on it.
 _quarantine_for_failed_step() {
   case "$PELLIER_RESET_FAILED_STEP" in
     starter-deploy) _quarantine starter-deploy "Could not redeploy the managed project from the starters" ;;
     policy-mode) _quarantine policy "Could not restore live Cedar enforcement mode" ;;
+    policy-*) _quarantine policy "Could not restore the Lab 4 policy (${PELLIER_RESET_FAILED_STEP})" ;;
   esac
 }
 

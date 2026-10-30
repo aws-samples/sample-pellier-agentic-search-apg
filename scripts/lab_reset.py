@@ -185,8 +185,9 @@ def apply_database(conn: Any, lab: int, repo: pathlib.Path = REPO) -> datetime:
     except Exception as exc:  # noqa: BLE001 - a psycopg error rolls the transaction back
         conn.rollback()
         raise LabResetError(f"the database piece of Lab {lab} was not restored ({exc}). "
-                            f"Nothing in the database changed. Run the whole-workshop reset: "
-                            f"{FULL_RESET}") from exc
+                            f"Lab {lab}'s files were already put back at their starters; the "
+                            f"database was left as it was. Run the reset again, or reset the whole "
+                            f"workshop: {FULL_RESET}") from exc
 
 
 def restart_backend() -> str:
@@ -251,8 +252,9 @@ def run_agentcore_step(lab: int, repo: pathlib.Path = REPO) -> None:
         raise LabResetError(f"the managed reset ran longer than "
                             f"{AGENTCORE_TIMEOUT_SECONDS // 60} minutes") from exc
     if returncode != 0:
-        raise LabResetError(f"Lab {lab}'s managed state was not restored. Nothing else is "
-                            f"half done. To start clean, run the whole-workshop reset: "
+        raise LabResetError(f"Lab {lab}'s managed state was not restored. The files and "
+                            f"the database were already put back, so the reset is half done. To "
+                            f"start clean, run the whole-workshop reset: "
                             f"{FULL_RESET}")
 
 
@@ -301,9 +303,14 @@ def reset_lab(
                 raise LabResetError(blocked)
         started = time.monotonic()
         try:
-            restored = exercises.restore_lab(repo, lab)
+            restored = exercises.restore_lab(repo, lab, keep_edits=True)
         except FileNotFoundError as exc:
             raise LabResetError(f"{exc} Nothing else was changed.") from exc
+        except (ValueError, RuntimeError) as exc:
+            raise LabResetError(f"Lab {lab}'s task files could not be restored ({exc}). The "
+                                f"database and AgentCore were not touched. Repair the files with "
+                                f"uv run scripts/repair_workshop_files.py, or reset the whole "
+                                f"workshop: {FULL_RESET}") from exc
         _timed(steps, f"files: {', '.join(restored)}", started)
         report(f"  + OK    restored {len(restored)} file region(s) to their starters "
                f"({', '.join(restored)})")

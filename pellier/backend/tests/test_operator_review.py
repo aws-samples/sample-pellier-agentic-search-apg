@@ -456,7 +456,8 @@ def test_the_lab4_probe_review_is_flagged_so_the_desk_names_its_real_origin() ->
      "PERMITTED", "RECEIPTED"),
     ({"readable": True, "creditRows": 0, "auditRows": 0, "appliedAuditRows": 0},
      "NOT_REACHED", "NO_EXECUTION"),
-    ({"readable": True, "creditRows": 0, "auditRows": 1, "appliedAuditRows": 0},
+    ({"readable": True, "creditRows": 0, "auditRows": 1, "appliedAuditRows": 0,
+      "lastResult": {"status": "error", "sqlstate": "23514", "message": "limit"}},
      "DENIED", "ATTEMPT_RECEIPT"),
     ({"readable": False, "creditRows": 0, "auditRows": 0, "appliedAuditRows": 0},
      "OUTCOME_UNKNOWN", "PENDING"),
@@ -465,3 +466,23 @@ def test_a_committed_credit_outranks_a_missing_receipt(record, aurora, evidence)
     row = {"execution_turn_id": "turn-x", "last_attempt": None}
     axes = operator_module._assurance_from_record("confirmed", row, record)
     assert (axes["aurora"], axes["evidence"]) == (aurora, evidence)
+
+
+@pytest.mark.parametrize(("last_result", "aurora"), [
+    ({"status": "policy_blocked", "message": "over the safety ceiling"}, "NOT_REACHED"),
+    ({"status": "error", "sqlstate": "42601", "message": "syntax error"}, "NOT_REACHED"),
+    ({"status": "approval_guard", "denied_by": "approval_guard"}, "DENIED"),
+    ({"status": "error", "sqlstate": "23514", "message": "limit"}, "DENIED"),
+    ({}, "OUTCOME_UNKNOWN"),
+])
+def test_a_reload_reads_the_aurora_axis_with_the_live_classifier(last_result, aurora) -> None:
+    """An audit row without a credit keeps the axis the live execution reported."""
+    from services import governed_execution as ge
+
+    record = {"readable": True, "creditRows": 0, "auditRows": 1, "appliedAuditRows": 0,
+              "lastResult": last_result}
+    row = {"execution_turn_id": "turn-x", "last_attempt": None}
+    axes = operator_module._assurance_from_record("confirmed", row, record)
+    assert axes["aurora"] == aurora
+    if last_result:
+        assert axes["aurora"] == ge.classify_aurora(last_result)[0]

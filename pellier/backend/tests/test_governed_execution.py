@@ -764,6 +764,33 @@ def test_the_mode_precondition_applies_only_to_the_governed_managed_rail(
     assert ge.require_enforced_engine(gateway, None) is gateway
 
 
+@pytest.mark.parametrize("value", ["", "  ", "Governed", "governed "])
+def test_an_empty_workshop_format_is_the_governed_format(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    """`WORKSHOP_FORMAT=` in an .env must not select the Cedar-less in-process rail."""
+    from config import settings
+
+    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", value, raising=False)
+    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "", raising=False)
+
+    assert ge.select_rail("jwt").rail == ge.RAIL_REFUSED
+    gateway = ge.RailSelection(rail=ge.RAIL_GATEWAY)
+    assert ge.require_enforced_engine(gateway, None).rail == ge.RAIL_REFUSED
+
+
+@pytest.mark.parametrize("value", ["builders", "BUILDERS"])
+def test_only_builders_keeps_the_in_process_rail(
+    monkeypatch: pytest.MonkeyPatch, value: str
+) -> None:
+    from config import settings
+
+    monkeypatch.setattr(settings, "WORKSHOP_FORMAT", value, raising=False)
+    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_URL", "", raising=False)
+
+    assert ge.select_rail("jwt").rail == ge.RAIL_IN_PROCESS
+
+
 # ---------------------------------------------------------------------------
 # Task 2.5: fail closed for governed writes
 # ---------------------------------------------------------------------------
@@ -1157,7 +1184,8 @@ async def test_the_record_is_read_from_the_two_tables_that_hold_the_evidence() -
     assert record == {
         "idempotencyKey": "operator-review:41:abc", "creditRows": 1, "creditIds": [12],
         "amountCents": 10000, "auditRows": 1, "auditIds": [4051], "appliedAuditRows": 1,
-        "appliedAuditIds": [4051], "auditCaller": "nadia", "readable": True,
+        "appliedAuditIds": [4051], "auditCaller": "nadia", "lastResult": {},
+        "readable": True,
     }
 
 
@@ -1407,3 +1435,42 @@ def test_the_denial_text_in_a_successful_result_is_not_a_deny() -> None:
     state, envelope, _note = ge.classify_gateway_result(_Result(body, is_error=False))
     assert state == ge.POLICY_ALLOW
     assert envelope["status"] == "success"
+
+
+class _FakeControlPlaneWithoutMode(_FakeControlPlane):
+    """A control plane read through a botocore that drops ``enforcementMode``."""
+
+    def get_policy(self, *, policyEngineId: str, policyId: str) -> Dict[str, Any]:  # noqa: N803
+        detail = super().get_policy(policyEngineId=policyEngineId, policyId=policyId)
+        detail.pop("enforcementMode")
+        return detail
+
+
+@pytest.mark.asyncio
+async def test_a_policy_read_without_a_mode_is_an_unreadable_control_plane(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """botocore older than 1.43.51 drops ``enforcementMode`` (scripts/deploy/sdk_preflight.py).
+
+    That must read as a control plane the process cannot see, not as every policy
+    switched off: the desk then says the state could not be read, instead of
+    naming the first policy as not ACTIVE and refusing every credit.
+    """
+    from services import managed_policy as mp
+
+    _governed(monkeypatch)
+    from config import settings
+
+    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_ARN", "arn:aws:x:y:z:gateway/gw-1",
+                        raising=False)
+    import boto3
+
+    monkeypatch.setattr(
+        boto3, "client", lambda *_a, **_k: _FakeControlPlaneWithoutMode("ENFORCE")
+    )
+
+    with pytest.raises(mp.ControlPlaneUnavailable, match="enforcementMode"):
+        await mp.engine_state_for_action("pellier-store-tools___give_store_credit")
+    verdict, reason = ge.resolve_permissive_policy_state(None)
+    assert verdict == ge.POLICY_EVALUATION_INCOMPLETE
+    assert "could not be read" in reason

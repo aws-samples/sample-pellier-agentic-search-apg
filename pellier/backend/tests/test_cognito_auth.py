@@ -301,6 +301,27 @@ def test_unknown_kid_forces_one_jwks_refresh() -> None:
     assert calls["n"] == 2
 
 
+def test_unknown_kids_refresh_the_jwks_at_most_once_per_cooldown() -> None:
+    """Forged tokens with made-up kids cannot turn every request into a JWKS fetch."""
+    signer = _Signer(kid="real-kid")
+    forged = _Signer(kid="made-up-kid")
+    calls = {"n": 0}
+    service = CognitoAuthService(pool_id=POOL_ID, region=REGION, client_id=CLIENT_ID)
+
+    def _fetch() -> Dict[str, Any]:
+        calls["n"] += 1
+        return _build_jwks([signer])
+
+    service._fetch_jwks = _fetch  # type: ignore[assignment]
+    _run(service.validate_jwt(signer.sign(_valid_access_claims())))
+    assert calls["n"] == 1
+    for _ in range(3):
+        with pytest.raises(Exception):
+            _run(service.validate_jwt(forged.sign(_valid_access_claims())))
+    # The first unknown kid refreshes once; the next two, inside the cooldown, do not.
+    assert calls["n"] == 2
+
+
 def test_tampered_signature_fails(auth_service: CognitoAuthService, signer: _Signer) -> None:
     token = signer.sign(_valid_access_claims())
     # JWTs are ``header.payload.signature``. Replace the signature block

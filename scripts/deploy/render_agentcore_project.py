@@ -537,7 +537,9 @@ def render_project(
     runtime_arns: dict[str, str] | None = None,
 ) -> Path:
     """Write agentcore.json, aws-targets.json, and the one tool-schema file."""
-    governed = os.environ.get("WORKSHOP_FORMAT", "").strip().lower() == "governed"
+    # Only "builders" is another format: empty or unset is governed, as
+    # `services.governed_execution.is_governed_format` reads it.
+    governed = os.environ.get("WORKSHOP_FORMAT", "").strip().lower() != "builders"
     identity = identity or deployment_identity()
     root = project_root(repo, identity.suffix)
     config_dir = root / "agentcore"

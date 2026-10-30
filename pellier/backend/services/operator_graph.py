@@ -924,7 +924,9 @@ class _NodeHooks:
             from services import tool_audit_writer
 
             audit_id = tool_audit_writer.pending_audit_id(tool_use_id)
-            tool_audit_writer.record_after(tool_use_id, parsed, duration or 0)
+            tool_audit_writer.record_after(
+                tool_use_id, parsed, duration or 0, tool_name=name,
+            )
         if name in STEP_LABELS:
             if outcome.kind == OUTCOME_FAILED:
                 finding = _READ_FAILED

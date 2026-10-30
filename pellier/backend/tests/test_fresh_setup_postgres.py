@@ -471,3 +471,29 @@ def test_the_credit_function_is_the_money_roles_only_way_in(fresh_db):  # noqa: 
                            "WHERE grantee = 'pellier_credit_writer'") == ["0"]
     assert _rows(fresh_db, "SELECT count(*) FROM information_schema.role_column_grants "
                            "WHERE grantee = 'pellier_credit_writer'") == ["0"]
+
+
+# ---------------------------------------------------------------------------
+# get_return_policy: a department is matched as the shopper writes it
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(("asked", "answered", "fallback"), [
+    ("Kitchen and table", "Kitchen and table", False),
+    ("kitchen AND Table", "Kitchen and table", False),
+    ("home", "Home", False),
+    ("Garden", "default", True),
+    ("", "default", False),
+])
+def test_return_policy_matches_a_department_in_any_case(fresh_db, asked, answered, fallback):
+    from services import store_tools
+
+    with _connect(fresh_db) as conn:
+        def run(sql, params=()):
+            return conn.execute(sql, params).fetchall()
+
+        policy = store_tools.get_return_policy(run, department=asked)
+
+    assert policy["status"] == "success"
+    assert policy["department"] == answered
+    assert policy.get("fallback", False) is fallback

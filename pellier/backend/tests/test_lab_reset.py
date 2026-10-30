@@ -193,6 +193,8 @@ class FakeCursor:
 
     def execute(self, sql: str, params: Any = None) -> None:
         self.conn.statements.append(sql)
+        if self.conn.fail_on and self.conn.fail_on in sql:
+            raise RuntimeError("simulated database failure")
         if "store_credits" in sql:
             self.row = {"n": self.conn.credits}
         else:
@@ -209,6 +211,7 @@ class FakeConnection:
         self.statements: List[str] = []
         self.commits = 0
         self.closed = False
+        self.fail_on = ""
 
     def cursor(self) -> FakeCursor:
         return FakeCursor(self)
@@ -289,6 +292,79 @@ def test_lab_four_resets_while_no_credit_exists(tmp_path: Path) -> None:
 
     assert exercises._check(repo, 4) == []
     assert exercises._check(repo, 3) != []
+
+
+@pytest.mark.parametrize("damage", ["duplicate", "missing"])
+def test_a_damaged_marker_pair_is_a_reset_error_naming_the_file(tmp_path: Path, damage: str) -> None:
+    repo = make_repo(tmp_path)
+    exercise = next(e for e in exercises.MARKER_EXERCISES if e.lab == 1)
+    path = repo / exercise.destination
+    text = path.read_text(encoding="utf-8")
+    start = f"# === {exercise.marker}: START ==="
+    path.write_text(text + "\n" + start + "\n" if damage == "duplicate"
+                    else text.replace(start, "# gone"), encoding="utf-8")
+
+    with pytest.raises(lab_reset.LabResetError) as refused:
+        run_reset(1, repo, FakeConnection(), [])
+
+    message = str(refused.value)
+    assert exercise.destination in message
+    assert "repair_workshop_files" in message and "reset-governed-workshop.sh" in message
+
+
+def test_a_database_failure_says_the_files_are_already_restored(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    for exercise in all_exercises():
+        edit(repo, exercise)
+    conn = FakeConnection()
+    conn.fail_on = "pellier.check_stock"
+
+    with pytest.raises(lab_reset.LabResetError) as refused:
+        run_reset(2, repo, conn, [])
+
+    message = " ".join(str(refused.value).split())
+    assert "files" in message and "already" in message
+    assert "Nothing else" not in message and "Nothing in the database changed" not in message
+
+
+def test_a_lab_reset_keeps_the_go_deeper_worksheet_the_participant_edited(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    fusion = repo / "workshop" / "lab-1-fusion.sql"
+    fusion.write_text("-- my fusion attempt\n", encoding="utf-8")
+
+    exercises.restore_lab(repo, 1, keep_edits=True)
+
+    assert fusion.read_bytes() == (REPO / "workshop/starters/lab-1-fusion.sql").read_bytes()
+    assert (repo / "workshop" / "lab-1-fusion.sql.bak").read_text() == "-- my fusion attempt\n"
+
+
+def test_the_whole_workshop_restore_writes_no_backup(tmp_path: Path) -> None:
+    repo = make_repo(tmp_path)
+    (repo / "workshop" / "lab-1-fusion.sql").write_text("-- mine\n", encoding="utf-8")
+
+    exercises.restore_lab(repo, None)
+
+    assert list(repo.rglob("*.bak*")) == []
+
+
+@pytest.mark.parametrize("lab", [1, 3])
+def test_a_damaged_second_marker_pair_aborts_before_any_file_is_written(
+    tmp_path: Path, lab: int,
+) -> None:
+    repo = make_repo(tmp_path)
+    first, second = [e for e in exercises.MARKER_EXERCISES if e.lab == lab]
+    for exercise in all_exercises():
+        edit(repo, exercise)
+    second_path = repo / second.destination
+    second_path.write_text(second_path.read_text().replace(
+        f"# === {second.marker}: END ===", "# gone"), encoding="utf-8")
+    first_before = (repo / first.destination).read_bytes()
+
+    with pytest.raises(lab_reset.LabResetError) as refused:
+        run_reset(lab, repo, FakeConnection(), [])
+
+    assert (repo / first.destination).read_bytes() == first_before
+    assert second.destination in str(refused.value)
 
 
 # ---------------------------------------------------------------------------

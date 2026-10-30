@@ -62,6 +62,9 @@ GATEWAY_MODES = ("ENFORCE", "LOG_ONLY")
 # The shipped state a reset restores: everything enforcing.
 SHIPPED_POLICY_MODE = "ACTIVE"
 SHIPPED_GATEWAY_MODE = "ENFORCE"
+# Exit 2 stays for usage errors and a missing CLI project; scripts/lib/agentcore-reset.sh
+# reads 4 as "no engine to restore", so the two never look alike.
+EXIT_NO_ENGINE = 4
 
 # Mode changes are not guaranteed to be read-your-writes, so a change is
 # confirmed by re-reading rather than by a successful call.
@@ -446,7 +449,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             "and a turn's policy evidence is NOT_EVALUATED rather than ALLOW.",
             file=sys.stderr,
         )
-        return 2
+        return EXIT_NO_ENGINE
 
     try:
         import boto3

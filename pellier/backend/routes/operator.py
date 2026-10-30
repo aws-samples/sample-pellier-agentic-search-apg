@@ -940,7 +940,15 @@ def _assurance_from_record(
         return {**base, "policy": policy, "aurora": "PERMITTED", "evidence": evidence}
     if not record.get("auditRows"):
         return {**base, "policy": policy, "aurora": "NOT_REACHED", "evidence": "NO_EXECUTION"}
-    return {**base, "policy": policy, "aurora": "DENIED", "evidence": "ATTEMPT_RECEIPT"}
+    from services import governed_execution as ge
+
+    # An audit row without a credit: the stored envelope says why, and the live
+    # path's classifier reads it, so a desk refresh never changes the axis.
+    last_result = record.get("lastResult")
+    aurora = (
+        ge.classify_aurora(last_result)[0] if last_result else ge.AURORA_OUTCOME_UNKNOWN
+    )
+    return {**base, "policy": policy, "aurora": aurora, "evidence": "ATTEMPT_RECEIPT"}
 
 
 def _execution_payload(

@@ -10,7 +10,7 @@
 # The journey smoke is:
 #   1. validate_agentcore_receipt.py over the provisioning receipt, so the managed
 #      Runtime, Gateway, Memory and Policy proof still holds after the reset;
-#   2. one authenticated /api/chat turn with the first seeded shopper from the
+#   2. one authenticated /api/chat/stream turn with the first seeded shopper from the
 #      participant credentials file (write-test-credentials.sh output).
 #
 # Usage: bash scripts/prove-reset-cycles.sh
@@ -101,16 +101,20 @@ _smoke_turn() {
   session="reset-proof-cycle-${cycle}-$(date +%s)"
   body="$(python3 -c 'import json,sys;print(json.dumps({"message": sys.argv[1], "session_id": sys.argv[2]}))' \
     "$SMOKE_MESSAGE" "$session")"
-  if ! reply="$(curl -fs --max-time 120 -X POST "${BASE_URL}/api/chat" \
+  if ! reply="$(curl -fs --max-time 120 -X POST "${BASE_URL}/api/chat/stream" \
       -H "Authorization: Bearer ${token}" \
       -H 'Content-Type: application/json' -d "$body" 2>/dev/null)"; then
-    fail "Authenticated /api/chat turn failed (session ${session})"
+    fail "Authenticated /api/chat/stream turn failed (session ${session})"
     return 1
   fi
-  if printf '%s' "$reply" | python3 -c 'import json,sys;d=json.load(sys.stdin);sys.exit(0 if d.get("success", True) and str(d.get("response", "")).strip() else 1)' 2>/dev/null; then
-    pass "Authenticated /api/chat turn answered (session ${session})"
+  if printf '%s' "$reply" | python3 -c '
+import json, sys
+done = [json.loads(l[6:]) for l in sys.stdin if l.startswith("data: ")]
+done = [e["response"] for e in done if e.get("type") == "complete"]
+sys.exit(0 if done and done[-1].get("success", True) and str(done[-1].get("response", "")).strip() else 1)' 2>/dev/null; then
+    pass "Authenticated /api/chat/stream turn answered (session ${session})"
   else
-    fail "Authenticated /api/chat turn returned no answer (first 200: ${reply:0:200})"
+    fail "Authenticated /api/chat/stream turn returned no answer (first 200: ${reply:0:200})"
     return 1
   fi
 }

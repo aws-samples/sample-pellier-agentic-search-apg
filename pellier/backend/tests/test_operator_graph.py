@@ -841,3 +841,19 @@ def test_the_model_names_no_department_for_the_policy_read(graph_runtime) -> Non
     investigator, _planner = (agent for agent, _ in _FakeBuilder.latest.nodes)
     schema = investigator.tools["get_return_policy"].tool_spec["inputSchema"]["json"]
     assert schema.get("properties", {}) == {}
+
+
+def test_the_investigators_audit_completion_names_the_tool(graph_runtime, monkeypatch) -> None:
+    """A failed audit UPDATE then warns with the tool's name, as the shopper path does."""
+    from services import tool_audit_writer
+
+    _FakeAgent.scripts[GRAPH.INVESTIGATOR_NODE] = [("get_store_credits", {"limit": 500})]
+    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    completed: List[Dict[str, Any]] = []
+    monkeypatch.setattr(
+        tool_audit_writer, "record_after",
+        lambda *args, **kwargs: completed.append({"args": args, **kwargs}),
+    )
+    _investigate(_Run(), [])
+    assert completed, "the Investigator's tool call completes its audit row"
+    assert completed[0]["tool_name"] == "get_store_credits"

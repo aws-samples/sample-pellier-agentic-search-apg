@@ -220,3 +220,24 @@ def test_tool_arguments_never_reach_the_span(hooks):
     assert "shirt" not in serialized
     # ...and it did reach the ledger, so this is a boundary, not a drop.
     assert writer.allows[0]["args"]["product_query"] == "shirt"
+
+
+def test_audit_write_failures_are_warnings_naming_the_tool(hooks, caplog, monkeypatch):
+    """A raised audit write is evidence loss, not debug noise; the call goes on."""
+    import logging
+
+    build, _writer, tracer, _exporter = hooks
+
+    def _boom(**_kwargs):
+        raise RuntimeError("audit pool closed")
+
+    import services.tool_audit_writer as writer_module
+
+    monkeypatch.setattr(writer_module, "record_allow", _boom)
+    monkeypatch.setattr(writer_module, "record_after", _boom)
+
+    with caplog.at_level(logging.WARNING, logger="services.chat"):
+        _run_tool(build, tracer)
+
+    warnings = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert sum("check_stock" in m for m in warnings) == 2, warnings

@@ -77,24 +77,46 @@ def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
     _main_loop = loop
 
 
-def _run_async(coro: Any) -> Any:
+def _run_async(coro: Any, tool: str = "") -> Any:
     """Bridge from sync (Strands callback) to async (DB driver).
 
     The Strands hook callbacks fire in a thread that is NOT the main
     uvicorn loop. ``run_coroutine_threadsafe`` schedules the coroutine
     on the captured main loop and blocks until it returns.
 
-    Returns None if the loop isn't captured yet (audit silently no-ops
-    so a bootstrap-order issue doesn't blow up tool calls).
+    Returns None, after a warning naming ``tool``, when the loop isn't
+    captured yet or the write fails or passes the 5 s deadline: the tool
+    call proceeds, but the executed call is then missing from the audit.
     """
     if _main_loop is None:
+        coro.close()
+        logger.warning(
+            "tool_audit _run_async: main event loop not captured, so the executed "
+            "call to %s is not audited; call set_main_loop at startup",
+            tool or "an unnamed tool",
+        )
         return None
     try:
         future = asyncio.run_coroutine_threadsafe(coro, _main_loop)
+    except Exception as exc:
+        # A closed or stopped loop refuses before the coroutine runs; close it
+        # here so it does not surface as "never awaited" somewhere else.
+        coro.close()
+        _warn_unaudited(exc, tool)
+        return None
+    try:
         return future.result(timeout=5.0)
     except Exception as exc:
-        logger.warning("tool_audit _run_async: %s", exc)
+        _warn_unaudited(exc, tool)
         return None
+
+
+def _warn_unaudited(exc: BaseException, tool: str) -> None:
+    logger.warning(
+        "tool_audit _run_async: %s (tool=%s)",
+        str(exc) or exc.__class__.__name__,
+        tool or "an unnamed tool",
+    )
 
 
 # -----------------------------------------------------------------
@@ -140,7 +162,8 @@ def record_allow(
                 caller or "agent",
                 json.dumps(args, default=str),
                 _build(),
-            )
+            ),
+            tool=tool_name,
         )
     except Exception as exc:
         logger.warning("tool_audit INSERT failed: %s", exc)
@@ -235,6 +258,7 @@ def record_after(
     tool_use_id: Optional[str],
     result: Any,
     latency_ms: int,
+    tool_name: str = "",
 ) -> None:
     """UPDATE the previously-INSERTed audit row with result + latency.
 
@@ -277,7 +301,8 @@ def record_after(
     )
     try:
         _run_async(
-            _db_service.execute_query(sql, result_str, int(latency_ms), audit_id)
+            _db_service.execute_query(sql, result_str, int(latency_ms), audit_id),
+            tool=tool_name,
         )
     except Exception as exc:
         logger.warning("tool_audit UPDATE failed: %s", exc)

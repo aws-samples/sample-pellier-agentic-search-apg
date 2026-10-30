@@ -26,7 +26,6 @@ from pellier_copy import MEMORY_WRITE_WARNING
 from models.search import (
     HealthResponse,
     ChatRequest,
-    ChatResponse,
     PerfCompareRequest,
     PerfIterativeScanRequest,
     PerfQuantizationRequest,
@@ -149,8 +148,9 @@ async def lifespan(app: FastAPI):
     # cannot move money on either setting. A local `.env` written without the
     # export once left a box executing operator writes with no verdict, and
     # nothing said so. Say it at startup instead.
-    _format = str(getattr(settings, "WORKSHOP_FORMAT", "") or "").lower()
-    if _format == "governed":
+    from services.governed_execution import is_governed_format
+
+    if is_governed_format():
         logger.info("✅ WORKSHOP_FORMAT=governed: governed writes are managed-rail only")
     else:
         logger.warning(
@@ -158,7 +158,7 @@ async def lifespan(app: FastAPI):
             "the Operator executes a confirmed credit in process with no AgentCore "
             "Policy verdict and no Gateway receipt. Set WORKSHOP_FORMAT=governed "
             "for this lineage.",
-            _format or "<unset>",
+            settings.WORKSHOP_FORMAT,
         )
     
     global db_service, embedding_service, chat_service, query_logger, index_performance_service
@@ -594,42 +594,6 @@ async def general_exception_handler(request, exc):
         status_code=500,
         content={"detail": "Internal server error"}
     )
-
-
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest, user=Depends(get_current_user)):
-    """
-    Chat endpoint with Aurora AI using Strands SDK and Custom Tools
-    """
-    if not chat_service:
-        raise HTTPException(status_code=503, detail="Chat service not initialized")
-
-    try:
-        # Convert bounded conversation history to the service shape.
-        history = [
-            {
-                "role": msg.role,
-                "content": msg.content,
-                "products": [product.model_dump() for product in msg.products],
-            }
-            for msg in request.conversation_history
-        ]
-
-        # Get chat response with session persistence
-        response = await chat_service.chat(
-            message=request.message,
-            conversation_history=history,
-            session_id=request.session_id,
-            workshop_mode=request.workshop_mode,
-            guardrails_enabled=request.guardrails_enabled,
-            user=user
-        )
-        
-        return ChatResponse(**response)
-        
-    except Exception as e:
-        logger.error(f"Chat failed: {e}")
-        raise HTTPException(status_code=500, detail="chat_failed")
 
 
 # Re-exported from services.turn_identity so `app.new_turn_id` keeps working for

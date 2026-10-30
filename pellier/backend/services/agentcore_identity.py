@@ -50,7 +50,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from models import VerifiedUser
 from services.cognito_auth import (
@@ -195,10 +195,14 @@ class AgentCoreIdentityService:
         if user is None:
             try:
                 user = await self._auth_service().extract_user(request)
+            except HTTPException:
+                # extract_user returns None for a 401. Any other status (503
+                # auth_unavailable) means the verifier could not decide, so
+                # the shopper must not be demoted to anonymous.
+                raise
             except Exception as exc:  # pragma: no cover - defensive
-                # extract_user already swallows HTTPException. Any other
-                # exception (e.g., Cognito not configured) should still
-                # let the caller proceed anonymously rather than 500.
+                # Any other exception (e.g., Cognito not configured) should
+                # still let the caller proceed anonymously rather than 500.
                 logger.warning(
                     "AgentCoreIdentity anonymous fallback after extract_user "
                     "failure: %s",

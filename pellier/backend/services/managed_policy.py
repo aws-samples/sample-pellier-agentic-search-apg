@@ -304,7 +304,16 @@ def _read_engine_state(
         # control plane does not return `effect` on this shape, and inferring
         # "forbid" from a name would break the moment a policy is renamed.
         effect = policy_effect(statement)
-        policies[name] = (effect, str(detail.get("enforcementMode") or ""))
+        if "enforcementMode" not in detail:
+            # botocore older than 1.43.51 drops the field from GetPolicy (see
+            # scripts/deploy/sdk_preflight.py). That is a control plane this
+            # process cannot see, not a policy without a mode: the caller then
+            # reports the state as unreadable instead of blaming the first policy.
+            raise ControlPlaneUnavailable(
+                f"Policy {name} was read without enforcementMode; the installed "
+                "botocore cannot see the field (see scripts/deploy/sdk_preflight.py)"
+            )
+        policies[name] = (effect, str(detail["enforcementMode"] or ""))
         policy_ids[name] = str(summary["policyId"])
         statements[name] = statement
         if effect == "forbid" and action_id in statement:

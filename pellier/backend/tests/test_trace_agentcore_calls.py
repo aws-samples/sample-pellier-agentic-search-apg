@@ -10,7 +10,7 @@ from __future__ import annotations
 import importlib
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -295,7 +295,7 @@ def test_deny_allow_and_replay_read_as_nothing_one_insert_and_nothing() -> None:
     replay = _credit("req-replay", INSERT_SECOND + 4)
     writes = trace.audited_writes([_event(INSERT_LINE)])
     lines = trace.aurora_lines([deny, allow, replay], writes, None, now=INSERT_SECOND + 600)
-    when = datetime.fromtimestamp(INSERT_SECOND).strftime("%H:%M:%S")
+    when = datetime.fromtimestamp(INSERT_SECOND, tz=timezone.utc).strftime("%H:%M:%S")
     assert lines == {
         "req-deny": "pgAudit: no write to pellier.store_credits during this call",
         "req-allow": f"pgAudit: INSERT into pellier.store_credits at {when}, key {KEY}",

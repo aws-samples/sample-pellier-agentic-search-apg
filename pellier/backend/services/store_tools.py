@@ -521,7 +521,7 @@ def get_orders(run: Run, *, customer_id: str, limit: int = 10) -> Dict[str, Any]
 _RETURN_POLICY_SQL = """
     SELECT category_name, return_window_days, conditions, refund_method
       FROM pellier.return_policies
-     WHERE category_name IN (%s, 'default')
+     WHERE lower(category_name) IN (lower(%s), 'default')
      ORDER BY (category_name = 'default'), category_name
      LIMIT 1
 """
@@ -534,13 +534,17 @@ def get_return_policy(run: Run, *, department: str = "default") -> Dict[str, Any
     if not rows:
         return {"status": "not_found", "error": f"No return policy found for {name}."}
     row = rows[0]
-    return {
+    answered = row.get("category_name")
+    policy = {
         "status": "success",
-        "department": row.get("category_name"),
+        "department": answered,
         "return_window_days": _integer(row.get("return_window_days")),
         "conditions": row.get("conditions"),
         "refund_method": row.get("refund_method"),
     }
+    if answered == "default" and name.lower() != "default":
+        policy["fallback"] = True
+    return policy
 
 
 # ---------------------------------------------------------------------------

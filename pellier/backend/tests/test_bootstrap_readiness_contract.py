@@ -1796,7 +1796,7 @@ def test_a_failed_restore_leg_actually_writes_the_marker_the_gate_reads(
 
 
 def test_a_box_with_no_policy_engine_is_reported_not_quarantined(tmp_path: Path) -> None:
-    """Exit 2 from policy_mode.py means "no engine provisioned", not "restore failed".
+    """Exit 4 from policy_mode.py means "no engine provisioned", not "restore failed".
 
     Quarantining on it strands the box permanently: only a full successful reset
     clears the marker, and on a box with no engine that reset can never happen, so
@@ -1804,7 +1804,7 @@ def test_a_box_with_no_policy_engine_is_reported_not_quarantined(tmp_path: Path)
     """
     proc, quarantine_file = _run_reset(
         tmp_path,
-        policy_exit=2,
+        policy_exit=4,
         quarantine_seed='{"reason": "stale", "step": "policy", "at": "2026-09-01T00:00:00Z"}',
         backend_listening=True,
     )
@@ -1812,6 +1812,15 @@ def test_a_box_with_no_policy_engine_is_reported_not_quarantined(tmp_path: Path)
     assert not quarantine_file.exists(), proc.stdout
     assert "NOT_EVALUATED" in proc.stdout
     assert "Could not restore live Cedar enforcement mode" not in proc.stdout
+
+
+def test_a_policy_mode_usage_or_project_error_is_a_failed_restore(tmp_path: Path) -> None:
+    """Exit 2 is "no CLI project here" or a bad flag: the mode was not restored."""
+    proc, quarantine_file = _run_reset(tmp_path, policy_exit=2, backend_listening=True)
+    assert proc.returncode == 1, proc.stdout + proc.stderr
+    assert quarantine_file.exists(), proc.stdout
+    assert "NOT_EVALUATED" not in proc.stdout
+    assert "Could not restore live Cedar enforcement mode" in proc.stdout
 
 
 def test_a_box_with_no_memory_resource_is_reported_not_quarantined(tmp_path: Path) -> None:

@@ -31,7 +31,7 @@ import asyncio
 from typing import Any, Coroutine, Dict, List, Optional, TypeVar
 
 import pytest
-from fastapi import Request
+from fastapi import HTTPException, Request
 
 from models import VerifiedUser
 from services.agentcore_identity import (
@@ -331,3 +331,38 @@ def test_missing_state_user_triggers_extract(
 
     assert ctx.user_id == "cookie-auth-user"
     assert ctx.namespace == "user-cookie-auth-user-session-sess-fallthrough"
+
+
+# ---------------------------------------------------------------------------
+# An unavailable verifier is not an anonymous shopper
+# ---------------------------------------------------------------------------
+
+
+class _UnavailableVerifier(CognitoAuthService):
+    """Real ``extract_user``; the JWKS fetch behind ``validate_jwt`` fails."""
+
+    def __init__(self, status_code: int) -> None:
+        self._status_code = status_code
+
+    async def validate_jwt(self, token: str) -> VerifiedUser:  # type: ignore[override]
+        raise HTTPException(status_code=self._status_code, detail="auth_unavailable")
+
+
+def test_unavailable_verifier_with_a_bearer_token_raises_instead_of_going_anonymous() -> None:
+    service = AgentCoreIdentityService(cognito_auth=_UnavailableVerifier(503))
+    req = _make_request(headers={"Authorization": "Bearer signed-in-shopper-token"})
+
+    with pytest.raises(HTTPException) as caught:
+        _run(service.get_verified_user_context(req))
+
+    assert caught.value.status_code == 503
+
+
+def test_a_rejected_bearer_token_is_anonymous() -> None:
+    service = AgentCoreIdentityService(cognito_auth=_UnavailableVerifier(401))
+    req = _make_request(headers={"Authorization": "Bearer expired-token"})
+
+    ctx = _run(service.get_verified_user_context(req))
+
+    assert ctx.user_id is None
+    assert ctx.namespace.startswith("anon-")

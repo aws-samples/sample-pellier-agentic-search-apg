@@ -674,7 +674,7 @@ def make_tool_audit_hooks(
     two-phase ``pellier.tool_audit`` evidence row for the in-process rail.
 
     Shared by the streamed storefront turn and the non-streaming
-    orchestrator path (``POST /api/chat``) so no in-process rail can execute a
+    orchestrator path (``EnhancedChatService.chat``) so no in-process rail can execute a
     tool off-ledger. Raises ``ImportError``/``AttributeError`` when the
     Strands hook events are unavailable; callers keep their existing
     fallback behavior.
@@ -774,7 +774,9 @@ def make_tool_audit_hooks(
                 session_id=session_id,
             )
         except Exception as exc:  # audit is decoration, never fatal
-            logger.debug("in-process tool_audit record_allow failed: %s", exc)
+            logger.warning(
+                "in-process tool_audit record_allow failed for %s: %s", tool_name, exc
+            )
 
     def on_after_tool_audit(event: AfterToolCallEvent) -> None:
         tool_use = getattr(event, "tool_use", None) or {}
@@ -806,9 +808,12 @@ def make_tool_audit_hooks(
                 tool_use_id=tool_use_id,
                 result=audited_result,
                 latency_ms=latency_ms,
+                tool_name=tool_name,
             )
         except Exception as exc:
-            logger.debug("in-process tool_audit record_after failed: %s", exc)
+            logger.warning(
+                "in-process tool_audit record_after failed for %s: %s", tool_name, exc
+            )
 
     return on_before_tool_audit, on_after_tool_audit
 

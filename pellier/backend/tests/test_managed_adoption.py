@@ -140,8 +140,8 @@ def test_governed_labels_preserve_resources_target_and_deployed_state(
     )
 
 
-@pytest.mark.parametrize("workshop_format", ["", "builders"])
-def test_builders_defaults_do_not_gain_governed_tags_or_scaffold_changes(
+@pytest.mark.parametrize("workshop_format", ["builders", " Builders "])
+def test_the_builders_format_does_not_gain_governed_tags_or_scaffold_changes(
     tmp_path: Path, monkeypatch, workshop_format: str
 ) -> None:
     renderer = _load_renderer(monkeypatch, workshop_format=workshop_format)
@@ -230,3 +230,13 @@ def test_configuration_only_render_then_scaffold_rerender(tmp_path: Path, monkey
 
     assert rerendered == project
     assert "...spec.tags," in entrypoint.read_text()
+
+
+def test_an_empty_workshop_format_renders_the_governed_tags(tmp_path: Path, monkeypatch) -> None:
+    """`WORKSHOP_FORMAT=` is the governed format, as `is_governed_format` reads it."""
+    renderer = _load_renderer(monkeypatch, suffix="rc", workshop_format="")
+    repo = tmp_path / "repo"
+    _seed_sources(repo, renderer)
+    _, project = _render(renderer, repo)
+    assert project["tags"]["Name"] == "pellier-governed-managed"
+    assert project["tags"]["PellierVariant"] == "governed"

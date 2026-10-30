@@ -66,6 +66,23 @@ def test_enforcement_on_turns_a_returned_call_into_a_real_allow() -> None:
     assert "evaluated the action and permitted it" in note
 
 
+@pytest.mark.parametrize("mode", ["LOG_ONLY", ""])
+def test_a_non_active_policy_under_an_enforcing_gateway_is_not_an_allow(mode: str) -> None:
+    """A forbid in LOG_ONLY denies nothing, so a returned call is not a decision."""
+    state = GE.PolicyEngineState(
+        gateway_mode="ENFORCE",
+        policies={
+            "credit_limit_forbid": ("forbid", mode),
+            "other_permit": ("permit", "ACTIVE"),
+        },
+    )
+    assert state.enforcement_is_on is False
+    policy, note = GE.resolve_permissive_policy_state(state)
+    assert policy == GE.POLICY_EVALUATION_INCOMPLETE
+    assert "credit_limit_forbid" in note
+    assert (mode or "without an enforcement mode") in note
+
+
 # ---------------------------------------------------------------------------
 # An RLS-hidden row never becomes a business falsehood
 # ---------------------------------------------------------------------------
