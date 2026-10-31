@@ -249,7 +249,7 @@ async def ask_pellier(live_db, monkeypatch):
         "services.otel_trace_extractor",
         types.SimpleNamespace(extract_agent_execution_from_otel=lambda **kwargs: {}),
     )
-    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "catalog")
     monkeypatch.setattr(
         chat_module, "_build_dispatcher_specialist",
         lambda *_a, **_k: _RecordingAgent([], THEOS_ANSWER),

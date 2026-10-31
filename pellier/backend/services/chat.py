@@ -278,9 +278,9 @@ def _build_dispatcher_specialist(
         from agents.support_agent import build_support_agent
 
         return build_support_agent(skill_mode=skill_mode)
-    from agents.shopping_agent import build_shopping_agent
+    from agents.catalog_agent import build_catalog_agent
 
-    return build_shopping_agent(allow_handoff=allow_handoff, skill_mode=skill_mode)
+    return build_catalog_agent(allow_handoff=allow_handoff, skill_mode=skill_mode)
 
 
 def _report_model_fallback(agent: Any, steps: Any, route_facts: Dict[str, Any]) -> None:

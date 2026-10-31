@@ -20,13 +20,13 @@ STORE_LAMBDA = DEPLOY / "pellier_store_tools.py"
 PROVISIONER = REPO_ROOT / "scripts" / "provision_agentcore_end_to_end.py"
 DEPLOY_ALL = DEPLOY / "deploy_all.sh"
 RESET_GOVERNED = REPO_ROOT / "scripts" / "reset-governed-workshop.sh"
-STARTER_CEDAR = REPO_ROOT / "policies" / "workshop_credit_limit.cedar"
+STARTER_CEDAR = REPO_ROOT / "policies" / "credit_limit.cedar"
 SOLUTION_CEDAR = (
     REPO_ROOT
     / "solutions"
-    / "the-concierge"
+    / "lab-4-govern"
     / "policies"
-    / "workshop_credit_limit.cedar"
+    / "credit_limit.cedar"
 )
 
 if str(DEPLOY) not in sys.path:
@@ -153,14 +153,14 @@ def test_reset_restores_the_starter_policy_through_cli() -> None:
     assert "@aws/agentcore@0.29.0" in source
     assert "remove policy" not in source
     assert "declare_credit_limit" in source
-    assert "workshop/starters/workshop_credit_limit.cedar" in source
+    assert "workshop/starters/credit_limit.cedar" in source
     assert "_agentcore validate --json" in source
     assert "_agentcore deploy --yes --json" in source
     # A failed CLI call prints [FAIL] and exits, rather than set -e ending silently.
     for command in ("validate --json", "deploy --yes --json"):
         guarded = f"_agentcore {command} >>/tmp/pellier-governed-reset-policy.log || {{\n      fail "
         assert guarded in source, command
-    assert "policy_name=workshop_credit_limit" in source
+    assert "policy_name=credit_limit" in source
     assert "policyEngineConfiguration.mode" in source
     assert "ENFORCE" in source
     assert "workshop_policy_rule.py" not in source

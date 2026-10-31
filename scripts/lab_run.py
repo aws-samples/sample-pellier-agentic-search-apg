@@ -120,7 +120,7 @@ CONVERSATIONS = {
     4: [("jessica", ("establish",))],
 }
 # A task can open with its own request, sent alone with ``--task``; each builds on the one
-# before. 1A is Anna's first sentence, whose ranking shows the vector branch, and 1B the same
+# before. 1A is Anna's first sentence, whose ranking shows the vector search, and 1B the same
 # sentence with her limits, which needs the fallback. 2A is Marco's Brooklyn count, which
 # only check_stock can answer, and 2B the cape Pellier never carried, which check_stock
 # misreads once 2A connects it. 3A is Theo's ticket question on the managed starter, which
@@ -830,7 +830,7 @@ def investigate(backend: Backend, token: str, client: str) -> Dict[str, Any]:
         if name == "answer":
             proposal = event.get("proposal")
             if not proposal:
-                why = str(event.get("planner") or event.get("status")).rstrip(". ")
+                why = str(event.get("advisor") or event.get("status")).rstrip(". ")
                 raise LabRunError(f"the Advisor proposed no credit for Jessica: {why}. Rerun this "
                                   "command, or investigate in the Operator to read the brief.")
             return proposal

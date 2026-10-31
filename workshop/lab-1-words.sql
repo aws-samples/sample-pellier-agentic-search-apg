@@ -6,7 +6,7 @@ SET client_min_messages = warning;
 
 -- Lab 1A: what Anna's first sentence finds by its words alone.
 --
--- Pellier's word search (the full-text branch, store_tools.fts_branch_sql) turns
+-- Pellier's word search (the full-text search, store_tools.fts_search_sql) turns
 -- the shopper's words into one OR query: a product matches if its name, brand,
 -- department, colour, tags or description contain any of them, and ts_rank_cd
 -- ranks the matches by how many it contains and how close together. This is the

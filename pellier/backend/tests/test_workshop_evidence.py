@@ -31,9 +31,9 @@ check = importlib.import_module("workshop_check")
 
 PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
     check.PROVED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
-SOLVED_VECTOR = REPO / "solutions" / "the-quiet-search" / "retrieval" / "store_tools_solution.py"
-SOLVED_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
-SOLVED_WRITER = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-credit-writer-solution.sql"
+SOLVED_VECTOR = REPO / "solutions" / "lab-1-retrieve" / "retrieval" / "store_tools_solution.py"
+SOLVED_RULE = REPO / "solutions" / "lab-4-govern" / "policies" / "credit_limit.cedar"
+SOLVED_WRITER = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
 TASKS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B"]
 BUILD = "b" * 64
 CREDIT = {
@@ -222,16 +222,16 @@ class TestLabsThreeAndFour:
         finding = evidence.task_4b(must_not_probe)
         assert finding.state == NOT_YET and "lab-4-credit-writer.sql" in finding.observed
 
-    def test_3a_reads_the_catalogue_once_the_regions_are_edited(
+    def test_3a_reads_the_catalog_once_the_regions_are_edited(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         lab3 = importlib.import_module("lab3_check")
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
-        monkeypatch.setattr(lab3, "source_catalogue", lambda: (
+        monkeypatch.setattr(lab3, "source_catalog", lambda: (
             frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"),
             frozenset({"get_orders", "get_tickets"})))
         assert evidence.task_3a().state == PROVED
-        monkeypatch.setattr(lab3, "source_catalogue", lambda: (
+        monkeypatch.setattr(lab3, "source_catalog", lambda: (
             frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"), frozenset()))
         assert evidence.task_3a().state == NOT_YET
 
@@ -265,8 +265,8 @@ def solved(monkeypatch: pytest.MonkeyPatch) -> None:
     _path, label, starter = regions["1A"]
     regions["1A"] = (SOLVED_VECTOR, label, starter)
     monkeypatch.setattr(evidence, "REGIONS", regions)
-    monkeypatch.setattr(store_tools, "vector_branch_sql",
-                        lab_variants.vector_branch(lab_variants.SOLUTION))
+    monkeypatch.setattr(store_tools, "vector_search_sql",
+                        lab_variants.vector_search(lab_variants.SOLUTION))
 
 
 def _cfg(cluster: Any) -> Dict[str, str]:

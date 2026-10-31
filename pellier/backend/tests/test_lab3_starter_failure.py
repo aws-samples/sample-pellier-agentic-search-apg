@@ -174,7 +174,7 @@ def test_the_starter_builder_view_names_the_tool_as_not_published() -> None:
 
 def _rules(variant: str, probes=None):
     managed, bound = lab_variants.support_contract(variant)
-    return lab3.judge_catalogue(_published(variant), managed, bound, probes)
+    return lab3.judge_catalog(_published(variant), managed, bound, probes)
 
 
 def test_the_starter_check_names_the_reads_and_the_unpublished_tool() -> None:
@@ -195,18 +195,18 @@ def test_the_starter_check_names_the_reads_and_the_unpublished_tool() -> None:
 def test_the_solution_meets_all_four_rules() -> None:
     findings = _rules(lab_variants.SOLUTION)
     assert [f.state for f in findings] == [lab3.check.PROVED] * 4
-    verdict = lab3.catalogue_verdict(findings)
+    verdict = lab3.catalog_verdict(findings)
     assert verdict.state == lab3.check.PROVED
     assert verdict.observed.startswith("9 of the nine tools published, get_tickets among them")
 
 
 def test_a_staff_only_tool_on_the_support_agent_is_refused() -> None:
     managed, bound = lab_variants.support_contract(lab_variants.SOLUTION)
-    findings = lab3.judge_catalogue(_published(lab_variants.SOLUTION),
+    findings = lab3.judge_catalog(_published(lab_variants.SOLUTION),
                                     managed + ("give_store_credit",), bound)
     assert findings[3].state == lab3.check.CONTRADICTED
     assert "published is not permitted" in findings[3].observed
-    assert lab3.catalogue_verdict(findings) is findings[3]
+    assert lab3.catalog_verdict(findings) is findings[3]
 
 
 # ---------------------------------------------------------------------------
@@ -278,7 +278,7 @@ def test_published_and_asked_but_unbound_names_the_forged_customer(monkeypatch) 
     """Task 3A two-thirds done: the reads published and asked for, the region binding none."""
     managed, _bound = lab_variants.support_contract(lab_variants.SOLUTION)
     probes = _probes(lab_variants.STARTER, monkeypatch)
-    findings = lab3.judge_catalogue(_published(lab_variants.SOLUTION), managed, frozenset(),
+    findings = lab3.judge_catalog(_published(lab_variants.SOLUTION), managed, frozenset(),
                                     probes)
     assert [f.state for f in findings[:2]] == [lab3.check.PROVED] * 2
     bound = findings[2]
@@ -318,7 +318,7 @@ def test_the_tickets_finding_is_unchecked_when_the_forged_call_cannot_run(monkey
     def broken() -> tuple:
         raise ModuleNotFoundError("strands.vended_plugins")
 
-    monkeypatch.setattr(lab3, "source_catalogue", broken)
+    monkeypatch.setattr(lab3, "source_catalog", broken)
     finding = lab3.tickets_finding(THEO_READS)
     assert finding.state == lab3.check.UNCHECKED
     assert "ModuleNotFoundError: strands.vended_plugins" in finding.evidence[0]

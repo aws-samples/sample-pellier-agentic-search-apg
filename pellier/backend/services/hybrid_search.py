@@ -2,8 +2,8 @@
 Hybrid Search Service — pgvector + Postgres full-text + RRF.
 
 Not on Ask Pellier's path. The agents search through ``search_products`` in
-``services/store_tools.py``, which runs the same ``vector_branch_sql`` and
-``fts_branch_sql`` this class runs, then fuses and reranks. The class stays for
+``services/store_tools.py``, which runs the same ``vector_search_sql`` and
+``fts_search_sql`` this class runs, then fuses and reranks. The class stays for
 its tests. Where the workshop's labs sit:
     Anna, Lab 1   → vector + full text in parallel → RRF → Cohere Rerank 3.5
     Marco, Lab 2  → check_stock answers from warehouse rows
@@ -43,7 +43,7 @@ from typing import Any, Dict, List, Sequence
 from config import settings
 from services.database import DatabaseService
 from services.sql_query_logger import QueryLog, get_query_logger
-from services.store_tools import fts_branch_sql, or_tsquery, rrf_merge, vector_branch_sql
+from services.store_tools import fts_search_sql, or_tsquery, rrf_merge, vector_search_sql
 
 logger = logging.getLogger(__name__)
 
@@ -90,8 +90,8 @@ class HybridSearch:
             query: Raw user query text. Used for FTS only.
             query_embedding: 1024-dim Cohere Embed v4 vector. Used for
                 pgvector cosine search.
-            k_vector: Pool size for the vector branch (default 20).
-            k_fts: Pool size for the FTS branch (default 20).
+            k_vector: Pool size for the vector search (default 20).
+            k_fts: Pool size for the full-text search (default 20).
             rrf_k: RRF damping constant (default 60).
             top_n: Maximum candidates returned after fusion (default 30).
                 The downstream reranker typically asks for top_n=30 so
@@ -156,7 +156,7 @@ class HybridSearch:
         hard_clauses: Sequence[str] = (),
         hard_params: Sequence[Any] = (),
     ) -> List[Dict[str, Any]]:
-        """Run the vector branch alone, annotated like a fused row.
+        """Run the vector search alone, annotated like a fused row.
 
         This is the ``vector`` retrieval strategy a ``SearchPlan`` may
         declare. Rows carry ``vec_rank`` (1-based) with ``fts_rank`` and
@@ -165,7 +165,7 @@ class HybridSearch:
 
         Args:
             query_embedding: 1024-dim Cohere Embed v4 vector.
-            k: Pool size for the vector branch (default ``HYBRID_VECTOR_K``).
+            k: Pool size for the vector search (default ``HYBRID_VECTOR_K``).
             hard_clauses: Compiled hard predicates ANDed into the WHERE.
             hard_params: Bound parameters for ``hard_clauses``.
         """
@@ -184,7 +184,7 @@ class HybridSearch:
         hard_clauses: Sequence[str] = (),
         hard_params: Sequence[Any] = (),
     ) -> List[Dict[str, Any]]:
-        """Run the full-text branch alone, annotated like a fused row.
+        """Run the full-text search alone, annotated like a fused row.
 
         Rows carry ``fts_rank`` (1-based) with ``vec_rank`` and ``rrf_score``
         set to ``None``, mirroring ``vector_only``. A query made only of stop
@@ -192,7 +192,7 @@ class HybridSearch:
 
         Args:
             query: Raw user query text.
-            k: Pool size for the full-text branch (default ``HYBRID_FTS_K``).
+            k: Pool size for the full-text search (default ``HYBRID_FTS_K``).
             hard_clauses: Compiled hard predicates ANDed into the WHERE.
             hard_params: Bound parameters for ``hard_clauses``.
         """
@@ -228,7 +228,7 @@ class HybridSearch:
         the same evidence produced by the shipped search path.
 
         Returns a dict with:
-          - ``vector_rows``  — ordered vector-branch rows (carry ``similarity``)
+          - ``vector_rows``  — ordered vector-search rows (carry ``similarity``)
           - ``fts_rows``    — ordered FTS-branch rows (carry ``fts_rank_score``)
           - ``merged``       — RRF-merged rows, each annotated with
             ``vec_rank`` / ``fts_rank`` (1-based, or ``None`` when the row
@@ -262,12 +262,12 @@ class HybridSearch:
                 "rrf_k": rrf_k,
                 "top_n": top_n,
             },
-            "vector_sql": vector_branch_sql(),
-            "fts_sql": fts_branch_sql(),
+            "vector_sql": vector_search_sql(),
+            "fts_sql": fts_search_sql(),
         }
 
     # -----------------------------------------------------------------
-    # Internal — vector branch
+    # Internal — vector search
     # -----------------------------------------------------------------
     async def _vector_search(
         self,
@@ -286,7 +286,7 @@ class HybridSearch:
         therefore safe here: iterative scan keeps walking the graph until
         the filtered LIMIT is met instead of returning a short list.
 
-        Two things this branch does not do. The FTS branch is an independent
+        Two things this branch does not do. The full-text search is an independent
         lexical signal fused by RRF; it does not backfill vector recall and
         it cannot see what this branch failed to retrieve. The reranker only
         reorders the pool it is given; a candidate absent from both branches
@@ -298,7 +298,7 @@ class HybridSearch:
             extra_clauses: Compiled hard predicates ANDed into the WHERE.
             extra_params: Bound parameters for those predicates.
         """
-        sql = vector_branch_sql(extra_clauses)
+        sql = vector_search_sql(extra_clauses)
         params: List[Any] = [embedding, *extra_params, k]
         start = time.time()
         async with self.db.get_connection() as conn:
@@ -310,7 +310,7 @@ class HybridSearch:
         try:
             get_query_logger().queries.append(
                 QueryLog(
-                    query_type="hybrid_vector_branch",
+                    query_type="hybrid_vector_search",
                     sql=sql,
                     params=["<embedding>", *extra_params, k],
                     execution_time_ms=(time.time() - start) * 1000,
@@ -323,7 +323,7 @@ class HybridSearch:
         return results
 
     # -----------------------------------------------------------------
-    # Internal — Postgres FTS branch
+    # Internal — Postgres full-text search
     # -----------------------------------------------------------------
     async def _fts_search(
         self,
@@ -368,7 +368,7 @@ class HybridSearch:
             # Pure stop-word query (rare). Return empty so RRF falls
             # back to vector-only ranking.
             return []
-        sql = fts_branch_sql(extra_clauses)
+        sql = fts_search_sql(extra_clauses)
         params: List[Any] = [or_query, *extra_params, k]
         start = time.time()
         async with self.db.get_connection() as conn:
@@ -380,7 +380,7 @@ class HybridSearch:
         try:
             get_query_logger().queries.append(
                 QueryLog(
-                    query_type="hybrid_fts_branch",
+                    query_type="hybrid_fts_search",
                     sql=sql,
                     params=params,
                     execution_time_ms=(time.time() - start) * 1000,

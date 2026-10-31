@@ -298,8 +298,8 @@ def test_a_managed_search_without_a_readable_receipt_says_ranking_is_unavailable
             response="Start with the Stoneware Mugs, Set of 2.",
             products=[{"productId": "65", "name": "Stoneware Mugs, Set of 2", "price": 38}],
             rail="gateway-mcp",
-            intent="shopping",
-            specialist="shopping",
+            intent="catalog",
+            specialist="catalog",
             model="global.anthropic.claude-opus-5-5",
             tool_calls=[
                 {
@@ -339,8 +339,8 @@ def _managed_catalog_turn(tool: str, result: Dict[str, Any]):
             response="Start with the Stoneware Mugs, Set of 2.",
             products=[{"productId": "65", "name": "Stoneware Mugs, Set of 2", "price": 38}],
             rail="gateway-mcp",
-            intent="shopping",
-            specialist="shopping",
+            intent="catalog",
+            specialist="catalog",
             model="global.anthropic.claude-opus-5-5",
             tool_calls=[{
                 "id": "tool-1", "tool": tool, "status": "success", "duration_ms": 300,
@@ -416,8 +416,8 @@ def _two_managed_searches():
             response="Start with the Stoneware Mugs, Set of 2.",
             products=[{"productId": "65", "name": "Stoneware Mugs, Set of 2", "price": 38}],
             rail="gateway-mcp",
-            intent="shopping",
-            specialist="shopping",
+            intent="catalog",
+            specialist="catalog",
             model="global.anthropic.claude-opus-5-5",
             tool_calls=[
                 {"id": f"tool-{index}", "tool": "search_products", "status": "success",
@@ -521,8 +521,8 @@ def test_managed_product_cards_carry_warehouse_units(
                 {"productId": "999", "name": "Unknown", "price": 1},
             ],
             rail="gateway-mcp",
-            intent="shopping",
-            specialist="shopping",
+            intent="catalog",
+            specialist="catalog",
             model="global.anthropic.claude-opus-5-5",
             tool_calls=[],
         )

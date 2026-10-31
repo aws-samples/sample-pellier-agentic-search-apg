@@ -115,7 +115,7 @@ _agentcore() {
 # the whole managed project from source - the Gateway's tool schemas, the Runtime
 # package and the Cedar policies - and records it in the participant receipt. The
 # files were restored above, but the live Gateway still publishes get_tickets with its
-# owner-only permit, and the receipt still names that catalogue, so lab3-start.sh
+# owner-only permit, and the receipt still names that catalog, so lab3-start.sh
 # (which Lab 3's deploy runs) and the health gate both refused the reset box. The same deploy
 # from the restored starters puts the live project back to what provisioning built;
 # --reset-to-starters lets it retire the permit the starters no longer render, permit
@@ -147,9 +147,9 @@ pellier_restore_lab3_agentcore() {
 # with its live DENY. The participant files must already be restored, so the
 # starter is declared from workshop/starters and the CLI converges it.
 pellier_restore_lab4_policy() {
-  local policy_changed=false policy_name=workshop_credit_limit declare_rc=0
+  local policy_changed=false policy_name=credit_limit declare_rc=0
   "$PYTHON" - "$AGENTCORE_CONFIG" "$POLICY_ENGINE_NAME" \
-      "$REPO/workshop/starters/workshop_credit_limit.cedar" "$REPO/scripts/deploy" <<'PY' || declare_rc=$?
+      "$REPO/workshop/starters/credit_limit.cedar" "$REPO/scripts/deploy" <<'PY' || declare_rc=$?
 import sys
 from pathlib import Path
 

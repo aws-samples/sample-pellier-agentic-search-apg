@@ -29,7 +29,7 @@ sys.path.insert(0, str(REPO / "scripts" / "deploy"))
 sys.path.insert(0, str(REPO / "scripts"))
 rls = importlib.import_module("lab3_row_ownership_check")
 
-POLICIES = ("orders_owner ON pellier.orders", "support_tickets_owner ON pellier.support_tickets")
+POLICIES = ("orders_own_rows ON pellier.orders", "support_tickets_own_rows ON pellier.support_tickets")
 
 
 @pytest.fixture(scope="module")
@@ -72,7 +72,7 @@ def _policies(conn: psycopg.Connection, predicate: str) -> Iterator[None]:
     with conn.cursor() as cur:
         cur.execute("SELECT policyname, qual, with_check FROM pg_policies "
                     "WHERE schemaname = 'pellier' AND policyname IN "
-                    "('orders_owner', 'support_tickets_owner')")
+                    "('orders_own_rows', 'support_tickets_own_rows')")
         shipped = {row["policyname"]: row for row in cur.fetchall()}
     try:
         for policy in POLICIES:
@@ -163,7 +163,7 @@ def test_the_data_api_module_is_pointed_at_the_box_cluster_even_if_already_impor
 # Deployed: the live policies carry the predicate in the participant's file
 # ---------------------------------------------------------------------------
 
-SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-row-ownership-solution.sql"
+SOLUTION = REPO / "solutions" / "lab-3-deploy" / "sql" / "lab-3-row-ownership-solution.sql"
 
 
 def _stamp(worksheet: Path) -> str:
@@ -181,7 +181,7 @@ def test_a_starter_worksheet_is_not_yet_deployed() -> None:
 
 def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
     finding = rls.judge_deployed(_stamp(SOLUTION), is_starter=False,
-                                  deployed={"orders_owner": "", "support_tickets_owner": ""})
+                                  deployed={"orders_own_rows": "", "support_tickets_own_rows": ""})
     assert finding.state == rls.check.NOT_YET
     assert "shipped" in finding.observed
     assert "psql" in finding.next_step and "workshop/lab-3-row-ownership.sql" in finding.next_step
@@ -190,7 +190,7 @@ def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
 def test_a_file_edited_after_it_was_deployed_is_named() -> None:
     old = "Lab 3B predicate sha256 " + "0" * 64
     finding = rls.judge_deployed(_stamp(SOLUTION), is_starter=False,
-                                  deployed={"orders_owner": old, "support_tickets_owner": old})
+                                  deployed={"orders_own_rows": old, "support_tickets_own_rows": old})
     assert finding.state == rls.check.NOT_YET
     assert "different predicate" in finding.observed
     assert "again" in finding.next_step
@@ -199,7 +199,7 @@ def test_a_file_edited_after_it_was_deployed_is_named() -> None:
 def test_both_policies_carrying_the_file_stamp_is_proved() -> None:
     stamp = _stamp(SOLUTION)
     finding = rls.judge_deployed(stamp, is_starter=False,
-                                  deployed={"orders_owner": stamp, "support_tickets_owner": stamp})
+                                  deployed={"orders_own_rows": stamp, "support_tickets_own_rows": stamp})
     assert finding.state == rls.check.PROVED
     assert stamp.rsplit(" ", 1)[1][:12] in finding.observed
 
@@ -231,7 +231,7 @@ def test_the_solution_worksheet_deploys_a_predicate_the_check_recognises(
         finding = rls.judge_deployed(_stamp(SOLUTION), False,
                                       {k: v["stamp"] for k, v in after.items()})
         assert finding.state == rls.check.PROVED, finding
-        assert "cognito_username" in after["orders_owner"]["qual"]
+        assert "cognito_username" in after["orders_own_rows"]["qual"]
     finally:
         for policy in POLICIES:
             row = before[policy.split()[0]]

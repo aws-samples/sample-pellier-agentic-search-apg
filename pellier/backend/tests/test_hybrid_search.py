@@ -26,15 +26,15 @@ from tests import lab_variants
 
 
 @pytest.fixture(autouse=True)
-def _solved_vector_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+def _solved_vector_search(monkeypatch: pytest.MonkeyPatch) -> None:
     """These tests exercise the retrieval pipeline, not Lab 1A's region.
 
-    The live ``vector_branch_sql`` holds the participant's starter, which ranks
-    nothing, so the pipeline runs on the solution's vector branch here.
+    The live ``vector_search_sql`` holds the participant's starter, which ranks
+    nothing, so the pipeline runs on the solution's vector search here.
     """
-    solved = lab_variants.vector_branch(lab_variants.SOLUTION)
-    monkeypatch.setattr(store_tools, "vector_branch_sql", solved)
-    monkeypatch.setattr(hybrid_search, "vector_branch_sql", solved)
+    solved = lab_variants.vector_search(lab_variants.SOLUTION)
+    monkeypatch.setattr(store_tools, "vector_search_sql", solved)
+    monkeypatch.setattr(hybrid_search, "vector_search_sql", solved)
 
 
 def _run(coro: Any) -> Any:
@@ -105,7 +105,7 @@ class TestBuildOrTsquery:
 # ---------------------------------------------------------------------------
 # Fake psycopg machinery — same pattern as test_vector_search.py but the
 # fake cursor returns different result sets on consecutive `execute` calls
-# (vector branch first, FTS branch second). asyncio.gather schedules both
+# (vector search first, full-text search second). asyncio.gather schedules both
 # coroutines concurrently but they end up sharing this cursor, which is the
 # canonical test pattern for concurrent reads through a single mock.
 # ---------------------------------------------------------------------------
@@ -129,7 +129,7 @@ class FakeCursor:
     ) -> None:
         self.calls.append((sql, params))
         # Pick the next result set based on which branch's SQL is running.
-        # The vector branch SQL uses '<=>' (cosine distance); FTS uses
+        # The vector search SQL uses '<=>' (cosine distance); FTS uses
         # 'plainto_tsquery'. This is the cleanest way to give each branch
         # the right rows without coupling to call order.
         # Matches both plainto_tsquery and websearch_to_tsquery so the test
@@ -288,7 +288,7 @@ class TestHybridSearchEndToEnd:
         ids = sorted([r["product_id"] for r in results])
         assert ids == [1, 2, 3]
         # All rows have rrf_score; the duplicate (id=1) keeps the
-        # vector-branch projection (so similarity field survives).
+        # vector-search projection (so similarity field survives).
         head = next(r for r in results if r["product_id"] == 1)
         assert "rrf_score" in head
         assert head.get("similarity") == 0.92  # vector row preserved
@@ -307,7 +307,7 @@ class TestHybridSearchEndToEnd:
         ))
         assert len(results) == 5
 
-    def test_empty_fts_branch_falls_back_to_vector(
+    def test_empty_fts_search_falls_back_to_vector(
         self, embedding: List[float]
     ) -> None:
         v_rows = [_make_row(i) for i in range(1, 4)]
@@ -334,39 +334,39 @@ class TestHybridSearchEndToEnd:
         db = FakeDB(v_rows, b_rows)
         svc = HybridSearch(db)  # type: ignore[arg-type]
         # Use a query with real content tokens so or_tsquery
-        # produces a non-empty OR-query and the FTS branch actually
+        # produces a non-empty OR-query and the full-text search actually
         # executes its SQL (bare "q" would short-circuit to []).
         _run(svc.search("linen shirt", embedding, top_n=30))
         types = [q.query_type for q in isolated_query_logger.queries]
-        # vector branch + fts branch + outer hybrid_search summary
-        assert "hybrid_vector_branch" in types
-        assert "hybrid_fts_branch" in types
+        # vector search + fts branch + outer hybrid_search summary
+        assert "hybrid_vector_search" in types
+        assert "hybrid_fts_search" in types
         assert "hybrid_search" in types
 
-    def test_pure_stop_word_query_skips_fts_branch(
+    def test_pure_stop_word_query_skips_fts_search(
         self, embedding: List[float],
         isolated_query_logger: SQLQueryLogger,
     ) -> None:
         """When the user query is all stop-words, _fts_search short-
-        circuits to [] without executing SQL. Vector branch still runs.
+        circuits to [] without executing SQL. Vector search still runs.
         """
         v_rows = [_make_row(1)]
         b_rows: List[Dict[str, Any]] = []
         db = FakeDB(v_rows, b_rows)
         svc = HybridSearch(db)  # type: ignore[arg-type]
         results = _run(svc.search("the and for what who", embedding, top_n=30))
-        # Vector branch produced results; FTS contributed nothing.
+        # Vector search produced results; FTS contributed nothing.
         assert len(results) == 1
         types = [q.query_type for q in isolated_query_logger.queries]
-        assert "hybrid_vector_branch" in types
+        assert "hybrid_vector_search" in types
         # No FTS SQL executed.
-        assert "hybrid_fts_branch" not in types
+        assert "hybrid_fts_search" not in types
 
 
 class TestKeywordOnly:
-    """The keyword strategy is the full-text branch alone, ranked from 1."""
+    """The keyword strategy is the full-text search alone, ranked from 1."""
 
-    def test_returns_only_the_fts_branch_with_one_based_ranks(self) -> None:
+    def test_returns_only_the_fts_search_with_one_based_ranks(self) -> None:
         v_rows = [_make_row(1), _make_row(2)]
         b_rows = [_make_row(3, fts_rank_score=0.9), _make_row(4, fts_rank_score=0.4)]
         svc = HybridSearch(FakeDB(v_rows, b_rows))  # type: ignore[arg-type]
@@ -376,13 +376,13 @@ class TestKeywordOnly:
         assert all(row["vec_rank"] is None for row in results)
         assert all(row["rrf_score"] is None for row in results)
 
-    def test_never_runs_the_vector_branch(
+    def test_never_runs_the_vector_search(
         self, isolated_query_logger: SQLQueryLogger
     ) -> None:
         db = FakeDB([_make_row(1)], [_make_row(2)])
         _run(HybridSearch(db).keyword_only("linen shirt"))  # type: ignore[arg-type]
         types = [q.query_type for q in isolated_query_logger.queries]
-        assert types == ["hybrid_fts_branch"]
+        assert types == ["hybrid_fts_search"]
         assert all("<=>" not in sql for sql, _ in db.cursor.calls)
 
     def test_pure_stop_word_query_returns_nothing_without_running_sql(self) -> None:

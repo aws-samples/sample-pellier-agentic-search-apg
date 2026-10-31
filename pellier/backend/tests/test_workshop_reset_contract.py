@@ -467,10 +467,10 @@ def test_every_failed_policy_step_quarantines_the_box(step: str) -> None:
 
 
 def test_the_reset_redeploys_the_starters_after_a_participant_deploy() -> None:
-    """A reset box must match a fresh one: Lab 3's catalogue and permit go back too.
+    """A reset box must match a fresh one: Lab 3's catalog and permit go back too.
 
     The participant files are restored, but a participant deploy left get_tickets
-    published and its owner-only permit active, and its receipt names that catalogue,
+    published and its owner-only permit active, and its receipt names that catalog,
     so lab3-start.sh and the health gate refused the reset box. The same deploy from
     the restored starters puts the live project back; it is gated on that receipt,
     runs before Lab 4's policy leg, and quarantines the box when it fails.

@@ -39,7 +39,7 @@ Key design choices (Req 4.3):
     at sign-in. The anon namespace is left orphaned and reclaimed by
     AgentCore Memory's TTL sweep.
 
-The workshop ``solutions/the-ledger/services/agentcore_identity.py`` file
+The workshop ``solutions/lab-3-deploy/services/agentcore_identity.py`` file
 mirrors the reference block below byte-for-byte (enforced by solution
 parity tests).
 """
@@ -80,7 +80,7 @@ logger = logging.getLogger(__name__)
 # [a-zA-Z0-9][a-zA-Z0-9-_]*.)
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/the-ledger/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
+#    cp solutions/lab-3-deploy/services/agentcore_identity.py pellier/backend/services/agentcore_identity.py
 
 SESSION_ID_HEADER = "X-Session-Id"
 SESSION_ID_COOKIE = "session_id"

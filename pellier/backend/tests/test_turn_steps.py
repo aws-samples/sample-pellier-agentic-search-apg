@@ -341,12 +341,12 @@ def test_a_skill_opened_twice_is_loaded_once() -> None:
 
 def test_on_demand_mode_tags_the_router_step_before_any_load() -> None:
     route = TurnSteps().route(
-        agent="Catalog agent", intent="shopping", finding="Sent to the Catalog agent",
+        agent="Catalog agent", intent="catalog", finding="Sent to the Catalog agent",
         model_id="m", skills=[], skill_mode="on_demand",
     )
     assert route["tags"] == ["Router", "Skills (on demand)"]
     fixed = TurnSteps().route(
-        agent="Catalog agent", intent="shopping", finding="Sent to the Catalog agent",
+        agent="Catalog agent", intent="catalog", finding="Sent to the Catalog agent",
         model_id="m", skills=[], skill_mode="fixed",
     )
     assert fixed["tags"] == ["Router"]
@@ -433,7 +433,7 @@ def test_route_step_names_the_agent_once_and_its_skills() -> None:
     steps = TurnSteps()
     route = steps.route(
         agent="Catalog agent",
-        intent="shopping",
+        intent="catalog",
         finding="Sent to the Catalog agent",
         model_id="global.anthropic.claude-opus-5-5",
         skills=[{"name": "gifts", "loaded": "fixed"}],
@@ -450,7 +450,7 @@ def test_route_step_names_the_agent_once_and_its_skills() -> None:
 def test_the_route_step_sent_again_carries_how_the_turn_ended() -> None:
     steps = TurnSteps()
     facts = {
-        "agent": "Catalog agent", "intent": "shopping", "finding": "Sent to the Catalog agent",
+        "agent": "Catalog agent", "intent": "catalog", "finding": "Sent to the Catalog agent",
         "model_id": "global.anthropic.claude-opus-5-5", "skills": [], "skill_mode": "fixed",
     }
     first = steps.route(**facts)

@@ -1,4 +1,4 @@
-"""Two sessions race one approved credit through pellier.apply_store_credit on PostgreSQL 18.
+"""Two sessions race one approved credit through pellier.give_store_credit on PostgreSQL 18.
 
 The function holds "write once" without raising the isolation level: it locks the customer's
 approved reviews FOR UPDATE, then reads the key in a new statement. At READ COMMITTED that
@@ -17,7 +17,7 @@ import pytest
 
 from tests.fresh_cluster import Cluster, fresh_db  # noqa: F401
 
-CALL = "SELECT pellier.apply_store_credit(%s, %s, 2500, 'race', NULL) AS result"
+CALL = "SELECT pellier.give_store_credit(%s, %s, 2500, 'race', NULL) AS result"
 BLOCKED_SECONDS = 1.0
 
 

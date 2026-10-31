@@ -14,7 +14,7 @@ const ROUTE: TurnStep = {
   tags: ['Router', 'Skills'],
   builder: {
     tool: null,
-    intent: 'shopping',
+    intent: 'catalog',
     agent: 'Catalog agent',
     model_id: 'global.anthropic.claude-opus-5-5',
     skills: [{ name: 'gifts', display_name: 'The Gift Table', path: 'skills/gifts/SKILL.md', loaded: 'fixed' }],
@@ -126,7 +126,7 @@ describe('StepList', () => {
     expect(tags).toEqual(['Router', 'Skills', 'Aurora'])
     const [router, search] = screen.getAllByTestId('turn-evidence')
     expect(factRows(router)).toEqual({
-      Intent: 'shopping',
+      Intent: 'catalog',
       Model: 'global.anthropic.claude-opus-5-5',
       Skills: 'gifts(fixed)',
     })
@@ -241,7 +241,7 @@ describe('StepList evidence rows', () => {
     const raw = screen.getByTestId('turn-evidence-raw')
     expect(raw).not.toHaveAttribute('open')
     expect(within(raw).getByText(SHOW_RAW_STEP)).toBeInTheDocument()
-    expect(raw).toHaveTextContent('intent shopping; model global.anthropic.claude-opus-5-5; Catalog agent may call:')
+    expect(raw).toHaveTextContent('intent catalog; model global.anthropic.claude-opus-5-5; Catalog agent may call:')
     expect(raw).toHaveTextContent('Remembered: AgentCore Memory record mem-923e37b1-4c2a (user preference)')
   })
 

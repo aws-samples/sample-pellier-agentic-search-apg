@@ -102,7 +102,7 @@ def test_the_deferred_set_is_the_lab_three_read() -> None:
 
 
 def test_the_published_set_is_derived_not_hand_copied() -> None:
-    """Catalogue minus deferred. A second literal list would drift on the next tool."""
+    """Catalog minus deferred. A second literal list would drift on the next tool."""
     assert workshop_published_tools() == canonical_tool_names() - UNPUBLISHED_TOOLS
     assert canonical_tool_names() == EXPECTED_CANONICAL
     assert len(canonical_tool_names()) == 9
@@ -126,7 +126,7 @@ def test_no_deferred_name_is_published() -> None:
     assert workshop_published_tools() & UNPUBLISHED_TOOLS == set()
 
 
-def test_the_store_target_publishes_eight_and_the_full_catalogue_nine() -> None:
+def test_the_store_target_publishes_eight_and_the_full_catalog_nine() -> None:
     """`get_tickets` lives on this target and must not ship before Lab 3A."""
     served = [t["name"] for t in schema_for("store", workshop=True)]
     assert set(served) == EXPECTED_PUBLISHED
@@ -303,7 +303,7 @@ def test_the_baseline_permits_exactly_the_five_shopper_safe_reads() -> None:
         "ask_a_person takes a customer_id, so it needs the caller-bound permit"
     )
     assert not any("give_store_credit" in action for action in actual), (
-        "the unconditional catalogue permit must never reach the staff-only credit"
+        "the unconditional catalog permit must never reach the staff-only credit"
     )
     assert not any(
         tool in action for action in actual for tool in ("get_orders", "get_tickets")
@@ -376,8 +376,8 @@ def test_policies_cannot_render_without_the_gateway_arn() -> None:
         baseline_policies(gateway_arn="")
 
 
-def test_an_authenticated_stranger_may_only_read_the_catalogue() -> None:
-    """Only the catalogue permit is unconditional.
+def test_an_authenticated_stranger_may_only_read_the_catalog() -> None:
+    """Only the catalog permit is unconditional.
 
     A stranger may also ask for a person without naming a customer; the matrix
     above evaluates that case through the caller-bound permit.
@@ -530,10 +530,10 @@ def test_a_future_published_tool_is_denied_by_default() -> None:
 # Lab 4: before and after the participant's own Policy work
 # ---------------------------------------------------------------------------
 
-CHALLENGE = pathlib.Path("../../policies/workshop_credit_limit.cedar")
-STARTER = pathlib.Path("../../workshop/starters/workshop_credit_limit.cedar")
+CHALLENGE = pathlib.Path("../../policies/credit_limit.cedar")
+STARTER = pathlib.Path("../../workshop/starters/credit_limit.cedar")
 SOLUTION = pathlib.Path(
-    "../../solutions/the-concierge/policies/workshop_credit_limit.cedar")
+    "../../solutions/lab-4-govern/policies/credit_limit.cedar")
 OVER_LIMIT = _credit(25000)
 WITHIN_LIMIT = _credit(10000)
 
@@ -602,13 +602,13 @@ def test_the_participant_files_name_the_canonical_action() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> None:
+def test_the_application_catalog_reconciles_with_the_workshop_contract() -> None:
     """The application's tier map and the Gateway schemas name the same nine tools.
 
     Three places name the tool set and each has a different job:
 
         agent_tools.py @tool          what the process can execute
-        GATEWAY_TOOL_TIERS            the application's view of the Gateway catalogue
+        GATEWAY_TOOL_TIERS            the application's view of the Gateway catalog
         workshop_published_tools()    what a fresh workshop provision publishes (8, 9 after Lab 3A)
 
     Asserted as a DERIVED relationship rather than a fourth literal list, so adding a
@@ -622,12 +622,12 @@ def test_the_application_catalogue_reconciles_with_the_workshop_contract() -> No
         _sys.path.insert(0, backend)
     from services.agentcore_gateway import GATEWAY_TARGET, GATEWAY_TOOL_TIERS
 
-    catalogue = set(GATEWAY_TOOL_TIERS)
-    assert catalogue == canonical_tool_names(), (
-        "the application catalogue and the Gateway schemas disagree: "
-        f"{sorted(catalogue ^ canonical_tool_names())}"
+    catalog = set(GATEWAY_TOOL_TIERS)
+    assert catalog == canonical_tool_names(), (
+        "the application catalog and the Gateway schemas disagree: "
+        f"{sorted(catalog ^ canonical_tool_names())}"
     )
-    assert catalogue - UNPUBLISHED_TOOLS == workshop_published_tools()
+    assert catalog - UNPUBLISHED_TOOLS == workshop_published_tools()
     assert GATEWAY_TARGET == STORE
 
 

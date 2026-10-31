@@ -55,7 +55,7 @@ class FakeBackend:
         self.stalls: List[float] = []
         self.midstream_stalls: List[float] = []
         self.proposal: Dict[str, Any] = dict(PROPOSAL)
-        self.planner = "no basis"
+        self.advisor = "no basis"
         self.policies: List[str] = ["ALLOW"]
         self.requests: List[Dict[str, Any]] = []
         self.sessions = 0
@@ -75,7 +75,7 @@ class FakeBackend:
         if path == "/api/chat/stream":
             return self._turn(body)
         if path.endswith("/investigate"):
-            answer = {"type": "answer", "proposal": self.proposal, "planner": self.planner}
+            answer = {"type": "answer", "proposal": self.proposal, "advisor": self.advisor}
             return [("status", {"type": "status"}), ("step", {"type": "step"}),
                     ("answer", answer), ("complete", {**answer, "type": "complete"})]
         if path.endswith("/confirm"):
@@ -232,7 +232,7 @@ def test_each_lab_installs_exactly_its_own_task_files() -> None:
 def test_the_go_deeper_worksheet_is_not_a_task_file(tmp_path: Path) -> None:
     """A catch-up must not overwrite the optional worksheet a participant may be editing."""
     assert [Path(e["alias"]).name for e in lab_run.solution_files(1)] == [
-        "1A-vector-branch.py", "1B-search-plan.py"]
+        "1A-vector-search.py", "1B-search-plan.py"]
     repo = _scratch_repo(tmp_path)
     (repo / "workshop/lab-1-fusion.sql").write_text("my fusion attempt\n")
     lab_run.install_solution(1, repo)
@@ -488,7 +488,7 @@ def test_diff_reports_a_finished_lab_and_writes_nothing(
 
     out = capsys.readouterr().out
     assert "--- expected" not in out
-    assert "4A-credit-policy.cedar matches the solution" in out
+    assert "4A-credit-limit.cedar matches the solution" in out
     assert "4B-credit-writer.sql matches the solution" in out
     assert {s: (repo / s).read_bytes() for s in before} == before
 
@@ -842,7 +842,7 @@ def test_lab_4_gives_up_when_cedar_keeps_denying(
     assert "last: Policy DENY" in err
 
 
-def test_lab_4_reports_a_planner_that_proposed_nothing(
+def test_lab_4_reports_an_advisor_that_proposed_nothing(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
     fake.rail = lab_run.MANAGED
@@ -856,7 +856,7 @@ def test_lab_4_quotes_the_advisors_sentence_without_a_doubled_stop(
 ) -> None:
     fake.rail = lab_run.MANAGED
     fake.proposal = None
-    fake.planner = "Please send the two order ids."
+    fake.advisor = "Please send the two order ids."
     assert _run(fake, 4) == 1
     err = capsys.readouterr().err
     assert "Please send the two order ids. Rerun this command" in err

@@ -82,7 +82,7 @@ def _expected_policy_mode() -> str:
 def _validate_participant_receipt(
     payload: dict[str, Any], participant: dict[str, Any]
 ) -> list[str]:
-    """Bind a later catalogue/build proof to the original provisioned resources."""
+    """Bind a later catalog/build proof to the original provisioned resources."""
     errors: list[str] = []
     expected = {
         "status": "ready",
@@ -295,12 +295,12 @@ def validate_receipt(
     if _value(payload, "verification.runtime_invoke_smoke.build_fingerprint") != expected_build:
         errors.append("runtime smoke must match the expected package fingerprint")
 
-    # Provisioning publishes the catalogue but proves discovery with a seeded
+    # Provisioning publishes the catalog but proves discovery with a seeded
     # shopper token. Staff-only tools must remain absent from that listing.
-    # A participant deploy changes the catalogue, not the historical bootstrap
-    # trace/Memory proof. Validate that current catalogue against the separate,
+    # A participant deploy changes the catalog, not the historical bootstrap
+    # trace/Memory proof. Validate that current catalog against the separate,
     # resource-bound update receipt while retaining every full-provision gate.
-    catalogue_receipt = participant if participant is not None else payload
+    catalog_receipt = participant if participant is not None else payload
     target_tools = workshop_target_tools()
     published_tools = {name for names in target_tools.values() for name in names}
     shopper_tools = discoverable_tools_for_claims(
@@ -318,7 +318,7 @@ def validate_receipt(
         "verification.gateway_tool_count": len(shopper_tools),
     }
     for path, expected in expected_counts.items():
-        actual = _value(catalogue_receipt, path)
+        actual = _value(catalog_receipt, path)
         if type(actual) is not int or actual != expected:
             errors.append(f"{path}={actual!r}, expected {expected}")
 
@@ -329,7 +329,7 @@ def validate_receipt(
         "verification.gateway_prefixed_tool_names": prefixed_tools,
     }
     for path, expected in expected_lists.items():
-        actual = _value(catalogue_receipt, path)
+        actual = _value(catalog_receipt, path)
         if (
             not isinstance(actual, list)
             or not all(isinstance(name, str) for name in actual)
@@ -337,7 +337,7 @@ def validate_receipt(
             or set(actual) != expected
         ):
             errors.append(
-                f"{path} must match the source catalogue: {sorted(expected)}"
+                f"{path} must match the source catalog: {sorted(expected)}"
             )
 
     span_count = _value(payload, "observability.unified_trace.span_count")
@@ -581,7 +581,7 @@ def validate_receipt(
     return errors
 
 
-# The two calls the provisioner makes, pinned: a shopper's catalogue read that
+# The two calls the provisioner makes, pinned: a shopper's catalog read that
 # must be allowed, and the same shopper's store credit that must be denied. A
 # receipt that probed anything else does not prove this boundary.
 PROBED = {

@@ -1,1 +1,1 @@
-../../../solutions/the-ledger/sql/lab-3-row-ownership-solution.sql
+../../../solutions/lab-3-deploy/sql/lab-3-row-ownership-solution.sql

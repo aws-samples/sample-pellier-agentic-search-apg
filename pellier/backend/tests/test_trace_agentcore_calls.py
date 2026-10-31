@@ -66,7 +66,7 @@ DENY = _call("req-deny", 2_000, "get_tickets", THEO_SUB, "DENY", [],
 LIST = [_span("AgentCore.Policy.PartiallyAuthorizeActions", "req-list", 3_000, **{
     "aws.agentcore.policy.allowed_tools": ["pellier-store-tools___get_tickets"]})]
 CREDIT = _call("req-credit", 4_000, "give_store_credit", NADIA_SUB, "DENY",
-               ["workshop_credit_limit-xyz"], reason="request missing field(s)", ran=False)
+               ["credit_limit-xyz"], reason="request missing field(s)", ran=False)
 NAMES = {THEO_SUB: "theo", NADIA_SUB: "nadia"}
 
 
@@ -96,7 +96,7 @@ def test_the_deny_says_the_lambda_was_never_invoked() -> None:
 def test_a_determining_policy_is_named_instead_of_the_service_reason() -> None:
     (credit,) = trace.calls_from_spans(CREDIT, "give_store_credit")
     lines = trace.render_call(credit, NAMES)
-    assert lines[3] == "  Policy    DENY, determined by workshop_credit_limit-xyz"
+    assert lines[3] == "  Policy    DENY, determined by credit_limit-xyz"
     assert "missing field" not in "\n".join(lines)
 
 
@@ -172,9 +172,9 @@ def test_the_default_limit_keeps_nadias_first_deny_in_a_busy_lab_4() -> None:
     # Eighteen credit calls in the hour (the first Execute, then retries while a deploy settles,
     # Execute again, the replay and reruns of the 4A check): the Wrap-up still finds the first.
     calls = [_call("req-first", 1_000, "give_store_credit", NADIA_SUB, "DENY",
-                   ["workshop_credit_limit-xyz"], ran=False)]
+                   ["credit_limit-xyz"], ran=False)]
     calls += [_call(f"req-{n}", 2_000 + n * 10, "give_store_credit", NADIA_SUB, "DENY",
-                    ["workshop_credit_limit-xyz"], ran=False) for n in range(17)]
+                    ["credit_limit-xyz"], ran=False) for n in range(17)]
     logs = _Logs([span for call in calls for span in call])
     fetched = trace.fetch_calls(logs, "give_store_credit", 60, trace.CALL_LIMIT)
     assert len(fetched) == 18
@@ -278,7 +278,7 @@ def test_the_credit_insert_keeps_its_multiline_statement_and_names_its_key() -> 
         "WRITE", "INSERT", "pellier.store_credits")
     assert write["statement"].startswith("INSERT INTO pellier.store_credits\n")
     assert write["statement"].endswith("RETURNING credit_id")
-    # Only the shape apply_store_credit admits reads as the key; the reason's ": " does not.
+    # Only the shape give_store_credit admits reads as the key; the reason's ": " does not.
     assert write["key"] == KEY
 
 

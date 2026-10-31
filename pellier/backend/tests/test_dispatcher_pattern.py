@@ -163,7 +163,7 @@ def test_dispatcher_is_the_only_routing_mode(chat_module_source: str) -> None:
 def test_dispatcher_imports_every_specialist_factory(chat_module_source: str) -> None:
     """The dispatcher builds each agent from its own factory."""
     for factory_import in (
-        "build_shopping_agent",
+        "build_catalog_agent",
         "build_stock_agent",
         "build_support_agent",
     ):
@@ -186,7 +186,7 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
     from services.chat import _build_dispatcher_specialist
 
     sentinels = {
-        "shopping": object(),
+        "catalog": object(),
         "stock": object(),
         "support": object(),
     }
@@ -195,8 +195,8 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
         for intent, sentinel in sentinels.items()
     }
     modules = {
-        "agents.shopping_agent": SimpleNamespace(
-            build_shopping_agent=factories["shopping"]
+        "agents.catalog_agent": SimpleNamespace(
+            build_catalog_agent=factories["catalog"]
         ),
         "agents.stock_agent": SimpleNamespace(
             build_stock_agent=factories["stock"]
@@ -216,7 +216,7 @@ def test_each_dispatcher_intent_constructs_a_distinct_specialist() -> None:
     for intent, agent in built.items():
         assert agent is sentinels[intent]
         factories[intent].assert_called_once()
-    factories["shopping"].assert_called_once_with(allow_handoff=False, skill_mode="fixed")
+    factories["catalog"].assert_called_once_with(allow_handoff=False, skill_mode="fixed")
 
 
 # ---------------------------------------------------------------------------

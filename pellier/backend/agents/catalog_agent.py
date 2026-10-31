@@ -1,8 +1,8 @@
 """
 Catalog agent: helps a shopper find, browse and compare products.
 
-``build_shopping_agent()`` returns the configured Strands Agent the Router runs
-for the ``shopping`` intent: price, compare, browse, gifts, and anything that
+``build_catalog_agent()`` returns the configured Strands Agent the Router runs
+for the ``catalog`` intent: price, compare, browse, gifts, and anything that
 is not a stock count or an after-purchase question.
 """
 from strands import Agent
@@ -12,7 +12,7 @@ from services.agent_tools import (
     compare_products,
     search_products,
 )
-from pellier_copy import SHOPPING_SYSTEM_PROMPT
+from pellier_copy import CATALOG_SYSTEM_PROMPT
 from skills import SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND, inject_skills, on_demand_plugin, skills_for
 from services.persona_context import inject_persona_preamble
 from services.model_fallback import specialist_bedrock_model
@@ -27,7 +27,7 @@ _CATALOG_TURN_POLICY = (
 )
 
 
-def build_shopping_agent(
+def build_catalog_agent(
     *, allow_handoff: bool = True, skill_mode: str = SKILL_MODE_FIXED
 ) -> Agent:
     """Return the configured Catalog agent.
@@ -42,7 +42,7 @@ def build_shopping_agent(
             ``on_demand`` lists their names and adds the loader tool instead.
     """
     tools = [search_products, browse_department, compare_products]
-    prompt = SHOPPING_SYSTEM_PROMPT
+    prompt = CATALOG_SYSTEM_PROMPT
     if allow_handoff:
         tools.append(ask_a_person)
     else:
@@ -50,13 +50,13 @@ def build_shopping_agent(
 
     plugins = None
     if skill_mode == SKILL_MODE_ON_DEMAND:
-        plugins = [on_demand_plugin("shopping")]
+        plugins = [on_demand_plugin("catalog")]
     else:
-        prompt = inject_skills(prompt, skills_for("shopping"))
+        prompt = inject_skills(prompt, skills_for("catalog"))
 
     model_id, max_tokens = specialist_model("opus")
     return Agent(
-        name="shopping",
+        name="catalog",
         model=specialist_bedrock_model(model_id, max_tokens),
         system_prompt=inject_persona_preamble(prompt),
         tools=tools,

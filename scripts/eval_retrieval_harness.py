@@ -1036,7 +1036,7 @@ def main() -> int:
         "--pool-k",
         type=int,
         default=20,
-        help="Candidate count per vector/FTS branch before RRF, and the rerank pool bound.",
+        help="Candidate count per vector/full-text search before RRF, and the rerank pool bound.",
     )
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")

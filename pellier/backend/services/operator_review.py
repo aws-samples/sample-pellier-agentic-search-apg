@@ -31,7 +31,7 @@ or approved) per exact credit, so there is one approved row and one key to
 bind to. That index keys on the terms, not the orders: two live reviews with
 different terms may cover the same order, and the Advisor does not propose
 one. If a person approved both, the order guard in
-``pellier.apply_store_credit`` pays only the first. The function holds the
+``pellier.give_store_credit`` pays only the first. The function holds the
 write to these rules, and a trigger on ``pellier.store_credits`` holds any
 other writer to them too.
 

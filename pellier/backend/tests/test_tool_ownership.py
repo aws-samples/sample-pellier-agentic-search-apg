@@ -102,7 +102,7 @@ def test_the_scan_finds_the_tools_and_the_agents() -> None:
     bound = _bound_tools()
     assert "give_store_credit" not in tools, "the Operator's write grew an agent wrapper"
     assert tools == EXPECTED_TOOLS, f"@tool functions differ from the eight: {sorted(tools ^ EXPECTED_TOOLS)}"
-    assert set(bound) == {"shopping_agent.py", "stock_agent.py", "support_agent.py"}
+    assert set(bound) == {"catalog_agent.py", "stock_agent.py", "support_agent.py"}
 
 
 def test_every_tool_is_bound_or_recorded_as_unbound() -> None:
@@ -119,7 +119,7 @@ def test_every_tool_is_bound_or_recorded_as_unbound() -> None:
 def test_each_agent_binds_its_documented_tools() -> None:
     """The module docstring of agent_tools.py is the ownership table."""
     bound = _bound_tools()
-    assert bound["shopping_agent.py"] == {
+    assert bound["catalog_agent.py"] == {
         "search_products", "browse_department", "compare_products", "ask_a_person",
     }
     assert "check_stock" in bound["stock_agent.py"]

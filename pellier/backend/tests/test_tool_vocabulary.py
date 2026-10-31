@@ -230,7 +230,7 @@ def test_gateway_publishes_the_canonical_names() -> None:
     expected = set(CANONICAL_TOOLS)
 
     assert published == expected, (
-        f"Gateway catalogue differs from the canonical nine: "
+        f"Gateway catalog differs from the canonical nine: "
         f"missing {sorted(expected - published)}, extra {sorted(published - expected)}"
     )
 
@@ -259,7 +259,7 @@ def test_no_replaced_tool_name_survives_in_runtime_source() -> None:
 def test_the_one_write_function_keeps_its_name() -> None:
     """``store_tools.give_store_credit`` calls the function by this literal name."""
     schema = (REPO / "scripts" / "migrations" / "001_schema.sql").read_text()
-    assert "CREATE FUNCTION pellier.apply_store_credit(" in schema
+    assert "CREATE FUNCTION pellier.give_store_credit(" in schema
     for retired in ("process_return_idempotent", "restock_shelf_idempotent"):
         assert retired not in schema
 

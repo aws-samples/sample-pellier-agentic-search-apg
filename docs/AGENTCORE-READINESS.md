@@ -9,8 +9,8 @@ participant still runs the checks for their own changes.
 | AgentCore capability | Supplied implementation | Where participants prove it |
 |---|---|---|
 | **Runtime** | One Python CodeZip runtime, `pellier_orchestrator` (with the deployment suffix when one is set), entrypoint `pellier/backend/agentcore_runtime.py`. It runs the same Router and three agents as the app and gets every tool through Gateway. Invocation requires a Cognito access token (`CUSTOM_JWT`). The package carries a build fingerprint over `RUNTIME_SOURCE_FILES` (`pellier/backend/services/build_fingerprint.py`). | Lab 3 switches the Storefront to the managed rail (`scripts/lab3-start.sh`), deploys the 3A edits with `--mode participant`, and `scripts/lab3_check.py` compares the executed build with the checkout's. |
-| **Gateway** | One Lambda target, `pellier-store-tools`, with nine tool schemas: eight published at baseline and nine after Lab 3A publishes `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`). Discovery is filtered by policy per caller. Managed turns fail closed when Gateway is unavailable. | Lab 3A publishes `get_tickets` and binds it to the caller; `scripts/workshop_doctor.py --lab 3 --phase prerequisites` reads the catalogue. |
-| **Policy** | A managed Cedar engine attached to Gateway in `ENFORCE` mode. Baseline permits: an exact allow-list of the five shopper-safe reads, `get_orders_owner_only` (and `get_tickets_owner_only` once published), `ask_a_person_caller_bound`, and `give_store_credit_staff_scope` with no amount condition. Provisioning also deploys the Lab 4 starter forbid `workshop_credit_limit`, which denies every credit. A managed output guardrail can suppress a credit response after execution. | Lab 3B's direct probe: Theo's token for Jessica's tickets is denied. Lab 4A: `scripts/lab4_check.py --task 4A` evaluates the rule with `cedarpy`, then gets a Gateway DENY for an over-limit credit with no row for its key. |
+| **Gateway** | One Lambda target, `pellier-store-tools`, with nine tool schemas: eight published at baseline and nine after Lab 3A publishes `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`). Discovery is filtered by policy per caller. Managed turns fail closed when Gateway is unavailable. | Lab 3A publishes `get_tickets` and binds it to the caller; `scripts/workshop_doctor.py --lab 3 --phase prerequisites` reads the catalog. |
+| **Policy** | A managed Cedar engine attached to Gateway in `ENFORCE` mode. Baseline permits: an exact allow-list of the five shopper-safe reads, `get_orders_owner_only` (and `get_tickets_owner_only` once published), `ask_a_person_caller_bound`, and `give_store_credit_staff_scope` with no amount condition. Provisioning also deploys the Lab 4 starter forbid `credit_limit`, which denies every credit. A managed output guardrail can suppress a credit response after execution. | Lab 3B's direct probe: Theo's token for Jessica's tickets is denied. Lab 4A: `scripts/lab4_check.py --task 4A` evaluates the rule with `cedarpy`, then gets a Gateway DENY for an over-limit credit with no row for its key. |
 | **Memory** | Conversation events with 30-day expiry and four extraction strategies (below). Provisioning records Theo's first conversation. Turns read Memory for an authenticated shopper; a failed read is reported in the turn and the turn continues. | Lab 3B: a new session's Builder view names the user-preference record the agent was given, and `scripts/lab3_check.py` reads it back. |
 | **Observability** | Runtime, Gateway and Memory log delivery, OpenTelemetry agent, model and tool spans, CloudWatch Transaction Search, KMS-encrypted Runtime logs with bounded retention, and control-plane audit. Transaction Search activates beside the Lambda and AgentCore deploys; both trace log groups are protected before Gateway or Memory tracing starts or the Runtime is invoked. | Not a required lab check. `workshop/lab-3-otel-contract.jq` checks span structure on a downloaded trace; the lab checks read Aurora's `tool_audit` as execution evidence. |
 | **Identity** | Cognito person identity for shoppers and staff. A pre-token trigger (`scripts/deploy/cognito_customer_claim.py`) stamps `custom:customer_id` on a shopper's access token from a map rendered from `pellier.customers`, and `custom:staff_scope` on a member of the operator group. Runtime and Gateway use service-managed workload identities. | Throughout Labs 3 and 4. There is no outbound credential-provider exercise. |
@@ -72,7 +72,7 @@ AgentCore components.
 
 4 policies, all permits, no forbid; 5 once Lab 3A publishes `get_tickets` and
 its owner-only permit lands in the same deployment. Provisioning deploys Lab 4's
-starter forbid, `workshop_credit_limit`, beside them. The source is
+starter forbid, `credit_limit`, beside them. The source is
 `scripts/deploy/render_agentcore_project.py`, and
 `pellier/backend/tests/test_fresh_policy_set.py` checks this table against it.
 Every statement types the principal as `AgentCore::OAuthUser`, pins the
@@ -86,7 +86,7 @@ resource to the deployed Gateway ARN, and names actions
 | `ask_a_person_caller_bound` | permit | When the input names no customer, or when the token's `custom:customer_id` equals `context.input.customer_id`. The handoff can open a credit request on the named customer's case. |
 | `give_store_credit_staff_scope` | permit | A principal whose `custom:staff_scope` is `returns`. No amount condition: the $100 per-credit limit is the Lab 4 rule, and no shopper permit names this action. |
 
-A token with neither claim may read the catalogue and ask for a person without
+A token with neither claim may read the catalog and ask for a person without
 naming a customer, and nothing else.
 
 ## Memory contract
@@ -127,14 +127,14 @@ approve a credit or mark an unrun check complete.
 
 | Task | Region | Acceptance |
 |---|---|---|
-| **1A** | Vector branch in `pellier/backend/services/store_tools.py` | `scripts/lab1_check.py --task 1A`: products searched with their own embeddings come back first, similarity is 1 minus the distance, and Anna's limits keep the candle out. |
+| **1A** | Vector search in `pellier/backend/services/store_tools.py` | `scripts/lab1_check.py --task 1A`: products searched with their own embeddings come back first, similarity is 1 minus the distance, and Anna's limits keep the candle out. |
 | **1B** | Fallback in `pellier/backend/services/search_plan.py` | `scripts/lab1_check.py --task 1B`: the search that answered kept every limit the shopper asked for, and every product meets them. |
 | **2A** | Stock agent grant in `pellier/backend/agents/stock_agent.py` | `scripts/lab2_check.py --task 2A`: the answering Stock agent held `check_stock` alone, and its counts for the pieces Pellier carries equal `warehouse_inventory`. |
 | **2B** | Not-carried test in `pellier.check_stock` (`workshop/lab-2-check-stock.sql`) | `--task 2B`: through the live function, not carried, several, sold out and in stock stay distinct. |
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | `scripts/lab3_check.py --task 3A`: nine tools published, `get_tickets` bound to the signed-in caller: a forged read for `CUST-JESSICA` leaves the checkout as `CUST-THEO`, and is refused with no signed-in customer. |
 | **3B** | Ownership predicate in `workshop/lab-3-row-ownership.sql`, written during the `--mode participant` deploy | `scripts/lab3_check.py`: executed build, the Memory record, every ticket read bound to Theo, Cedar's denial of his direct read of Jessica's tickets, and the live row policies stopping a wrong query as Theo in process and through the Gateway Lambda's Data API binding. |
-| **4A** | Final `unless` in `policies/workshop_credit_limit.cedar` | `scripts/lab4_check.py --task 4A`: Cedar matrix, eight wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
-| **4B** | Credit writer privileges in `workshop/lab-4-credit-writer.sql`; `scripts/lab4_check.py --task 4B` and `workshop/lab-4-absence.sql` supplied | Eight probes in one transaction that commits only when all match; the money role writes only through `pellier.apply_store_credit`, in process and through the Gateway Lambda's Data API; the absence check prints 0, 0 and 1. |
+| **4A** | Final `unless` in `policies/credit_limit.cedar` | `scripts/lab4_check.py --task 4A`: Cedar matrix, eight wrong rules rejected, then the Gateway DENY; Nadia's credit executes once and a retry adds nothing. |
+| **4B** | Credit writer privileges in `workshop/lab-4-credit-writer.sql`; `scripts/lab4_check.py --task 4B` and `workshop/lab-4-absence.sql` supplied | Eight probes in one transaction that commits only when all match; the credit-writer role writes only through `pellier.give_store_credit`, in process and through the Gateway Lambda's Data API; the absence check prints 0, 0 and 1. |
 
 The Gateway Lambda is packaged at provisioning from the finished copies of
 `services/store_tools.py` and `services/search_plan.py`, and Lab 3's deploy

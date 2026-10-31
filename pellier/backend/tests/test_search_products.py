@@ -31,8 +31,8 @@ _PREDICATE_EXCLUSION = "NOT (tags ?| %s OR materials ?| %s)"
 class _FakeDB:
     """The pool behind ``agent_tools._run_sql``.
 
-    Serves candidate rows from the vector branch (and, optionally, the
-    full-text branch), and records every statement in order with its kind.
+    Serves candidate rows from the vector search (and, optionally, the
+    full-text search), and records every statement in order with its kind.
     """
 
     def __init__(self, events: List[str], rows: List[Dict[str, Any]]) -> None:
@@ -62,7 +62,7 @@ class _FakeDB:
 
 @pytest.fixture
 def candidates() -> List[Dict[str, Any]]:
-    """Five fake candidates from the vector branch."""
+    """Five fake candidates from the vector search."""
     return [
         {
             "product_id": i,

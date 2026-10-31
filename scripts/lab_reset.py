@@ -65,11 +65,11 @@ SHIPPED_BLOCKS = {2: "Lab 2 check_stock", 3: "Lab 3 row ownership", 4: "Lab 4 cr
 # are dropped so the shipped policies are created on a clean name (a new policy has no stamp);
 # Lab 4's SQL file grants and policies are revoked and dropped, then the shipped
 # statements grant the function alone.
-_CREDIT_FUNCTION = "pellier.apply_store_credit(text, text, integer, text, text)"
+_CREDIT_FUNCTION = "pellier.give_store_credit(text, text, integer, text, text)"
 CLEAN_BEFORE = {
     2: "COMMENT ON FUNCTION pellier.check_stock(text) IS NULL;",
-    3: ("DROP POLICY IF EXISTS orders_owner ON pellier.orders;\n"
-        "DROP POLICY IF EXISTS support_tickets_owner ON pellier.support_tickets;"),
+    3: ("DROP POLICY IF EXISTS orders_own_rows ON pellier.orders;\n"
+        "DROP POLICY IF EXISTS support_tickets_own_rows ON pellier.support_tickets;"),
     4: f"""DO $revoke_writer$
 DECLARE
     r record;

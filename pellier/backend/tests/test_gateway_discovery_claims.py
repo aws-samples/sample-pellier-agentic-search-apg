@@ -7,7 +7,7 @@ the subset the calling token could be permitted to invoke:
     staff token   (staff scope, no customer claim)   7 of 8 published, then 7 of 9
 
 The first provisioning run after a staff-only tool was published failed, because
-the deploy compared a shopper's listing against the whole catalogue and read a
+the deploy compared a shopper's listing against the whole catalog and read a
 working staff-only boundary as a missing tool. These tests pin the model that
 replaced it.
 """
@@ -106,7 +106,7 @@ def test_the_provisioner_shapes_its_expectation_from_the_caller_claims() -> None
 
 
 @pytest.mark.parametrize("staff,customer", [(False, True), (True, False), (True, True), (False, False)])
-def test_diagnostic_commands_use_the_callers_actual_catalogue(monkeypatch, staff, customer) -> None:
+def test_diagnostic_commands_use_the_callers_actual_catalog(monkeypatch, staff, customer) -> None:
     import test_gateway_tools as tools_command
     import test_gateway_auth as auth_command
 

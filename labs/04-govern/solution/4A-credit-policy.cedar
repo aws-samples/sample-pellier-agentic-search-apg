@@ -1,1 +1,0 @@
-../../../solutions/the-concierge/policies/workshop_credit_limit.cedar

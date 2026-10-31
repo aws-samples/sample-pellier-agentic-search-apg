@@ -75,7 +75,7 @@ def _by_name(checks: list) -> Dict[str, Any]:
 
 STARTERS = REPO / "workshop" / "starters" / "lab-2"
 WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
-WORKSHEET_SOLUTION = (REPO / "solutions" / "closing-marcos-gap" / "sql"
+WORKSHEET_SOLUTION = (REPO / "solutions" / "lab-2-ground" / "sql"
                       / "lab-2-check-stock-solution.sql")
 GRANT = "Stock agent granted check_stock alone"
 FUNCTION = "check_stock committed"
@@ -957,7 +957,7 @@ class TestWorkshopStart:
         assert "start-backend" in result.stderr
 
 
-class TestManagedCataloguesAgree:
+class TestManagedCatalogsAgree:
     """Lab 3A, checked from source before anything is deployed.
 
     The mismatch this catches does not look like a failure in the room. An
@@ -967,9 +967,9 @@ class TestManagedCataloguesAgree:
     """
 
     def _check(self, monkeypatch, *, published, managed, bound):
-        monkeypatch.setattr(doctor.lab3_check, "source_catalogue",
+        monkeypatch.setattr(doctor.lab3_check, "source_catalog",
                             lambda: (frozenset(published), tuple(managed), frozenset(bound)))
-        return doctor._managed_catalogues_agree()
+        return doctor._managed_catalogs_agree()
 
     def test_an_unpublished_read_names_the_publication_step(self, monkeypatch):
         check = self._check(
@@ -980,7 +980,7 @@ class TestManagedCataloguesAgree:
         )
         assert not check.passed
         assert "get_tickets is not published" in check.detail
-        assert "Gateway catalogue - published tools" in check.detail
+        assert "Gateway - published tools" in check.detail
 
     def test_a_staff_only_tool_on_the_support_agent_fails(self, monkeypatch):
         check = self._check(
@@ -1032,15 +1032,15 @@ class TestManagedCataloguesAgree:
             "get_orders, get_return_policy, get_tickets and ask_a_person; get_orders and "
             "get_tickets bound to the signed-in caller")
 
-    def test_an_unreadable_catalogue_fails_rather_than_crashes(self, monkeypatch):
+    def test_an_unreadable_catalog_fails_rather_than_crashes(self, monkeypatch):
         """The doctor runs when things are broken. It must not be one of them."""
         def boom():
             raise ModuleNotFoundError("gateway_tool_schemas")
 
-        monkeypatch.setattr(doctor.lab3_check, "source_catalogue", boom)
-        check = doctor._managed_catalogues_agree()
+        monkeypatch.setattr(doctor.lab3_check, "source_catalog", boom)
+        check = doctor._managed_catalogs_agree()
         assert not check.passed
-        assert "could not read the catalogues" in check.detail
+        assert "could not read the catalogs" in check.detail
 
 
 # ---------------------------------------------------------------------------

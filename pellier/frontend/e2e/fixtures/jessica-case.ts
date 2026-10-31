@@ -124,8 +124,8 @@ export const EXECUTE_RESULT = {
 }
 
 const step = (id: string, label: string, status: string, extra: Record<string, unknown> = {}) => ({
-  type: 'step', id, label, status, tags: id === 'planner' ? ['Advisor', 'Approval'] : id === 'investigator' ? ['Investigator'] : ['Aurora'],
-  builder: { tool: id.startsWith('get_') ? id : null, rail: 'in-process', agent: id === 'planner' ? 'planner' : 'investigator' },
+  type: 'step', id, label, status, tags: id === 'advisor' ? ['Advisor', 'Approval'] : id === 'investigator' ? ['Investigator'] : ['Aurora'],
+  builder: { tool: id.startsWith('get_') ? id : null, rail: 'in-process', agent: id === 'advisor' ? 'advisor' : 'investigator' },
   ...extra,
 })
 
@@ -141,7 +141,7 @@ export const INVESTIGATION_EVENTS: Array<[string, unknown]> = [
   ['step', step('get_return_policy', 'Reading the return policy', 'running')],
   ['step', step('get_return_policy', 'Reading the return policy', 'done', { finding: '30-day returns for Home', builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4051, agent: 'investigator' } })],
   ['step', step('investigator', 'Investigator reads the case', 'done', { finding: '3 things the records show, 1 missing', builder: { tool: null, rail: 'in-process', duration_ms: 4200, agent: 'investigator' } })],
-  ['step', step('planner', 'Advisor proposes a credit', 'running')],
+  ['step', step('advisor', 'Advisor proposes a credit', 'running')],
 ]
 
 export const ANSWER = {
@@ -154,14 +154,14 @@ export const ANSWER = {
     ],
     missing: ['No store credit is recorded for the two returned items.'],
   },
-  planner: 'A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it before anything is written.',
+  advisor: 'A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it before anything is written.',
   proposal: { reviewId: 41, customerId: 'CUST-JESSICA', amountCents: 10000, amount: '100.00', reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).', orderIds: [301, 302], actionHash: ACTION_HASH, idempotencyKey: WRITE_KEY, status: 'pending' },
-  graph: { graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5-5', nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'planner', status: 'completed', durationMs: 2900 }], durationMs: 7100 },
+  graph: { graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5-5', nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'advisor', status: 'completed', durationMs: 2900 }], durationMs: 7100 },
   error: null,
 }
 
 export const INVESTIGATION_TAIL: Array<[string, unknown]> = [
-  ['step', step('planner', 'Advisor proposes a credit', 'done', { finding: '$100.00 credit proposed for 2 returned items, waiting for approval', builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'planner' } })],
+  ['step', step('advisor', 'Advisor proposes a credit', 'done', { finding: '$100.00 credit proposed for 2 returned items, waiting for approval', builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'advisor' } })],
   ['answer', ANSWER],
   ['complete', { ...ANSWER, type: 'complete' }],
 ]

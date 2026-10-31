@@ -1,9 +1,9 @@
-"""Lab 1A's contract: the starter's vector branch ranks nothing, the solution ranks by meaning.
+"""Lab 1A's contract: the starter's vector search ranks nothing, the solution ranks by meaning.
 
-The starter keeps the vector branch's SELECT, with the plan's limits applied, and
+The starter keeps the vector search's SELECT, with the plan's limits applied, and
 stubs out the ranking, so the search answers from words alone. The participant
 writes the cosine-distance order and the similarity. ``scripts/lab1_check.py --task 1A``
-judges the live ``vector_branch_sql`` with vectors whose nearest product is known
+judges the live ``vector_search_sql`` with vectors whose nearest product is known
 (each product's own embedding), so these tests swap in each variant and read the
 verdict. The worksheet ``workshop/lab-1-words.sql`` is model-free; its rows are
 pinned here because the guide quotes them.
@@ -35,7 +35,7 @@ lab1_vector = importlib.import_module("lab1_vector")
 WORKSHEET = REPO / "workshop" / "lab-1-words.sql"
 MEANING = REPO / "workshop" / "lab-1-meaning.sql"
 LIVE = REPO / "pellier" / "backend" / "services" / "store_tools.py"
-LABEL = "Vector branch - order by meaning"
+LABEL = "Vector search - order by meaning"
 DISTANCE = "embedding <=> (SELECT emb FROM query_embedding)"
 
 
@@ -50,20 +50,20 @@ def conn(fresh_db: Any) -> Any:  # noqa: F811 - the imported fixture
 
 
 def _variant(replacements: Dict[str, str]) -> Callable[..., str]:
-    """The solution's ``vector_branch_sql`` with one realistic mistake written into it."""
+    """The solution's ``vector_search_sql`` with one realistic mistake written into it."""
     source = lab_variants.body(lab_variants._VECTOR, lab_variants.SOLUTION)
     for old, new in replacements.items():
         assert old in source, old
         source = source.replace(old, new)
-    function = "def vector_branch_sql(extra_clauses=()):\n" + textwrap.indent(
+    function = "def vector_search_sql(extra_clauses=()):\n" + textwrap.indent(
         textwrap.dedent(source), "    ")
     scratch: Dict[str, Any] = {}
     exec(compile(function, "<variant>", "exec"), vars(store_tools), scratch)  # noqa: S102
-    return scratch["vector_branch_sql"]
+    return scratch["vector_search_sql"]
 
 
 def _verdict(conn: Any, monkeypatch: pytest.MonkeyPatch, branch: Callable[..., str]):
-    monkeypatch.setattr(store_tools, "vector_branch_sql", branch)
+    monkeypatch.setattr(store_tools, "vector_search_sql", branch)
     return lab1_vector.evaluate(conn)
 
 
@@ -73,15 +73,15 @@ def test_the_live_region_is_the_starter() -> None:
 
 
 def test_the_starter_ranks_nothing(conn, monkeypatch) -> None:
-    finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_branch(lab_variants.STARTER))
+    finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_search(lab_variants.STARTER))
     assert finding.state == "CONTRADICTED", finding
-    assert finding.observed == ("the vector branch returned no rows, so nothing is ranked by "
+    assert finding.observed == ("the vector search returned no rows, so nothing is ranked by "
                                 "meaning yet")
     assert [row[3] for row in rows] == [0, 0, 0, 0]
 
 
 def test_the_solution_ranks_by_meaning(conn, monkeypatch) -> None:
-    finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_branch(lab_variants.SOLUTION))
+    finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_search(lab_variants.SOLUTION))
     assert finding.state == "PROVED", finding
     assert [row[1] for row in rows[:3]] == list(lab1_vector.SELF_PROBES)
     assert all(row[4] == "ok" for row in rows)
@@ -94,7 +94,7 @@ def test_the_solution_ranks_by_meaning(conn, monkeypatch) -> None:
                                          f"{DISTANCE} AS similarity"},
      "reports similarity"),
     ("Euclidean operator", {"<=>": "<->"}, "reports similarity"),
-    ("a fixed LIMIT", {"LIMIT %s": "LIMIT 5"}, "your vector branch raised an error"),
+    ("a fixed LIMIT", {"LIMIT %s": "LIMIT 5"}, "your vector search raised an error"),
     # Each of her limits becomes "(limit OR true)": the photographed-catalog filter stays, so
     # the self-probes rank the 1,000 visible products on their partial HNSW index, as the
     # solution does. A bare trailing OR true dropped that filter too and ranked all 50,000 rows
@@ -187,7 +187,7 @@ def test_a_selective_storefront_search_stays_off_the_full_graph(conn) -> None:
     """Home under $35 is under 0.2% of the rows: through the full graph, one search in two
     came back short. The photographed-only partial index keeps every list full and close."""
     clauses, params = SELECTIVE
-    branch = lab_variants.vector_branch(lab_variants.SOLUTION)(clauses)
+    branch = lab_variants.vector_search(lab_variants.SOLUTION)(clauses)
     exact = branch.replace(f"ORDER BY {DISTANCE}", f"ORDER BY ({DISTANCE}) + 0")
     assert exact != branch
     probes = [row["e"] for row in conn.execute(

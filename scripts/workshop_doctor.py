@@ -69,7 +69,7 @@ DEFAULT_RUN_ENV = pathlib.Path("/etc/pellier/run.env")
 sys.path.insert(0, str(SCRIPTS))
 import workshop_check  # noqa: E402  (sibling module: database settings, region state)
 import lab2_check  # noqa: E402  (sibling script: Lab 2B's live-function reading)
-import lab3_check  # noqa: E402  (sibling script: Lab 3's catalogue verdict and build query)
+import lab3_check  # noqa: E402  (sibling script: Lab 3's catalog verdict and build query)
 import workshop_evidence  # noqa: E402  (sibling script: the Lab 4 evidence query)
 
 PASS = "PASS"
@@ -79,8 +79,8 @@ STARTERS = REPO / "workshop" / "starters"
 FUNCTION_REGION = lab2_check.FUNCTION_REGION
 AGENT_REGION = "Stock agent - definition"
 
-CEDAR_POLICY = "policies/workshop_credit_limit.cedar"
-CEDAR_STARTER = "workshop/starters/workshop_credit_limit.cedar"
+CEDAR_POLICY = "policies/credit_limit.cedar"
+CEDAR_STARTER = "workshop/starters/credit_limit.cedar"
 POLICY_FILES = (CEDAR_POLICY,)
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
@@ -115,7 +115,7 @@ SELECT count(*) FILTER (WHERE c.relrowsecurity) AS enabled,
        count(*) AS n,
        (SELECT count(*) FROM pg_policies
          WHERE schemaname = 'pellier'
-           AND policyname IN ('orders_owner', 'support_tickets_owner')) AS policies
+           AND policyname IN ('orders_own_rows', 'support_tickets_own_rows')) AS policies
   FROM pg_class c
   JOIN pg_namespace n ON n.oid = c.relnamespace
  WHERE n.nspname = 'pellier'
@@ -417,22 +417,22 @@ def _managed_rail_selected(
     return Check(name, True, layered.get("USE_AGENTCORE_RUNTIME", ("", "process environment"))[1])
 
 
-def _managed_catalogues_agree() -> Check:
+def _managed_catalogs_agree() -> Check:
     """Lab 3A, read from source before anything is deployed.
 
     The managed Router asks the Gateway for exactly the tools the Support agent
     names. A tool the Gateway does not publish is left out of the agent, which
     then tells Theo it can't look up his support tickets here: a turn that
     "works" and answers nothing. Naming the gap here is cheaper than finding it
-    in a trace. The verdict is ``lab3_check.catalogue_verdict`` over Task 3A's
+    in a trace. The verdict is ``lab3_check.catalog_verdict`` over Task 3A's
     four rules, which the evidence export reads too.
     """
-    name = "Gateway catalogue and Runtime support contract agree"
+    name = "Gateway published tools and Runtime support contract agree"
     try:
-        finding = lab3_check.catalogue_verdict(
-            lab3_check.judge_catalogue(*lab3_check.source_catalogue()))
+        finding = lab3_check.catalog_verdict(
+            lab3_check.judge_catalog(*lab3_check.source_catalog()))
     except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
-        return Check(name, False, f"could not read the catalogues: {exc}")
+        return Check(name, False, f"could not read the catalogs: {exc}")
     if finding.state == workshop_check.PROVED:
         return Check(name, True, finding.observed)
     return Check(name, False, f"{finding.observed}: {finding.next_step}")
@@ -448,7 +448,7 @@ def lab3_checks(
 ) -> List[Check]:
     env = os.environ if environ is None else environ
     checks = [
-        _managed_catalogues_agree(),
+        _managed_catalogs_agree(),
         _managed_rail_selected(run_env, env_path, env),
     ]
     if not include_proof:

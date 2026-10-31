@@ -14,7 +14,7 @@ import pytest
 from pellier_copy import OUTPUT_RULES
 from services.agentcore_gateway import _managed_specialist_prompt, unpublished_tools_prompt
 
-SPECIALISTS = ("shopping", "stock", "support")
+SPECIALISTS = ("catalog", "stock", "support")
 
 
 @pytest.mark.parametrize("specialist", SPECIALISTS)
@@ -42,7 +42,7 @@ def test_the_managed_support_prompt_carries_the_copy_and_credit_sentences() -> N
 @pytest.mark.parametrize(
     ("module_name", "factory_name", "specialist"),
     [
-        ("agents.shopping_agent", "build_shopping_agent", "shopping"),
+        ("agents.catalog_agent", "build_catalog_agent", "catalog"),
         ("agents.stock_agent", "build_stock_agent", "stock"),
         ("agents.support_agent", "build_support_agent", "support"),
     ],

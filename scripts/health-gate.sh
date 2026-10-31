@@ -247,7 +247,7 @@ SELECT count(*) FROM pg_trigger
 SELECT count(*) FROM pg_policies p
   JOIN pg_roles r ON r.rolname = 'pellier_agent' AND NOT r.rolbypassrls
  WHERE p.schemaname = 'pellier'
-   AND p.policyname IN ('orders_owner', 'support_tickets_owner')
+   AND p.policyname IN ('orders_own_rows', 'support_tickets_own_rows')
    AND 'pellier_agent' = ANY (p.roles);" || echo '')"
   if [[ "$rls_n" == "2" ]]; then
     pass "Row-level security binds pellier_agent to the signed-in customer's orders and tickets"

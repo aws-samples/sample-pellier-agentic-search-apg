@@ -4,7 +4,7 @@ The whole point of this stage is that the controls stay independent:
 
     Human      did a person decide?
     Cedar      may this principal attempt this action?
-    Approval   does pellier.apply_store_credit admit exactly this write?
+    Approval   does pellier.give_store_credit admit exactly this write?
     CHECK      is this mutation valid regardless of who asked?
 
 Most of the assertions below are therefore negative. A policy verdict must never
@@ -63,7 +63,7 @@ def approved_review(**overrides: Any) -> Dict[str, Any]:
 
 
 class FakeCredit:
-    """Captures what reached ``pellier.apply_store_credit`` and what it answers."""
+    """Captures what reached ``pellier.give_store_credit`` and what it answers."""
 
     calls: List[Dict[str, Any]] = []
     envelope: Dict[str, Any] = {"status": "success", "credit_id": 9}
@@ -93,7 +93,7 @@ class FakeDb:
         return None
 
     async def fetch_all_as_credit_writer(self, query: str, *params: Any) -> List[Dict[str, Any]]:
-        """The money path, which the real service runs as ``pellier_credit_writer``."""
+        """The credit path, which the real service runs as ``pellier_credit_writer``."""
         self.writer_statements.append(query)
         return await self.fetch_all(query, *params)
 
@@ -104,7 +104,7 @@ class FakeDb:
 
             self.last_attempts.append(json.loads(params[0]))
             return [{"id": params[1]}]
-        if "apply_store_credit" not in query:
+        if "give_store_credit" not in query:
             return []
         key, customer_id, amount_cents, reason, issued_by = params
         FakeCredit.calls.append(
@@ -348,7 +348,7 @@ async def test_concurrent_executions_share_one_turn_and_one_write_key() -> None:
     The turn is assigned once by the database's own guard, and the write key is
     derived from the review and its fingerprint rather than minted per request,
     so the second submission collapses onto the first inside
-    ``pellier.apply_store_credit`` instead of becoming a second business effect.
+    ``pellier.give_store_credit`` instead of becoming a second business effect.
     """
     db = FakeDb()
     first, second = await asyncio.gather(
@@ -919,7 +919,7 @@ def test_the_execute_route_maps_a_refusal_to_409(monkeypatch: pytest.MonkeyPatch
 # ---------------------------------------------------------------------------
 
 class _IdempotentDb(FakeDb):
-    """``apply_store_credit`` as Aurora behaves: one credit per approved key, then replay.
+    """``give_store_credit`` as Aurora behaves: one credit per approved key, then replay.
 
     It refuses as the function does when no review is approved or the key is
     not the approved review's own, and records the ``tool_audit`` rows the
@@ -942,7 +942,7 @@ class _IdempotentDb(FakeDb):
         return await super().fetch_one(query, *params)
 
     async def fetch_all(self, query: str, *params: Any) -> List[Dict[str, Any]]:
-        if "apply_store_credit" not in query:
+        if "give_store_credit" not in query:
             return await super().fetch_all(query, *params)
         self.statements.append(query)
         key = params[0]
@@ -996,13 +996,13 @@ async def test_the_in_process_credit_runs_as_the_credit_writer() -> None:
 
     ``DatabaseService.fetch_all_as_credit_writer`` sets ``pellier_credit_writer``
     for its transaction; ``test_operator_credit_postgres`` proves on a real
-    cluster that the role can write only through ``apply_store_credit``.
+    cluster that the role can write only through ``give_store_credit``.
     """
     db = _IdempotentDb()
     await ge.execute_confirmed_review(db, approved_review(), operator_sub=OPERATOR_SUBJECT)
 
-    assert [s for s in db.writer_statements if "apply_store_credit" in s], db.writer_statements
-    assert all("apply_store_credit" in s for s in db.writer_statements)
+    assert [s for s in db.writer_statements if "give_store_credit" in s], db.writer_statements
+    assert all("give_store_credit" in s for s in db.writer_statements)
 
 
 @pytest.mark.asyncio
@@ -1016,13 +1016,13 @@ async def test_a_credit_nobody_approved_is_refused_in_process_and_still_audited(
     # The tool was entered and refused, and this rail left the attempt row, as
     # the Lambda does on the Gateway rail: the same artifact on both axes.
     assert outcome.evidence == ge.EVIDENCE_ATTEMPT_RECEIPT
-    assert "apply_store_credit refused" in outcome.notes["aurora"]
+    assert "give_store_credit refused" in outcome.notes["aurora"]
     assert len(db.credits) == 0
     assert len([s for s in db.statements if "INSERT INTO pellier.tool_audit" in s]) == 1
 
 
 def test_the_functions_refusal_is_a_database_verdict() -> None:
-    """The approval and order checks run inside pellier.apply_store_credit."""
+    """The approval and order checks run inside pellier.give_store_credit."""
     refusal = {"status": "approval_mismatch", "denied_by": "approval_guard",
                "message": "The confirmed review approves different arguments."}
     aurora, note = ge.classify_aurora(refusal)
@@ -1053,7 +1053,7 @@ async def test_the_in_process_rail_refuses_the_approved_credit_under_a_fresh_key
     """The in-process rail's entry point binds the key too, not only execute's derivation.
 
     ``execute_confirmed_review`` always derives the review's own key, so the
-    fresh key is passed to the rail directly: ``apply_store_credit`` refuses it
+    fresh key is passed to the rail directly: ``give_store_credit`` refuses it
     and writes nothing.
     """
     db = _IdempotentDb()
@@ -1156,7 +1156,7 @@ async def test_a_refused_execution_runs_nothing_and_names_what_is_missing(
     assert caught.value.missing == ("AGENTCORE_GATEWAY_URL",)
     assert caught.value.as_detail()["error"] == "governed_rail_unavailable"
     assert FakeCredit.calls == []
-    assert not any("apply_store_credit" in s or "tool_audit" in s for s in db.statements)
+    assert not any("give_store_credit" in s or "tool_audit" in s for s in db.statements)
 
 
 def test_the_evidence_axis_names_the_artifact_that_exists() -> None:
@@ -1412,14 +1412,14 @@ class _Result:
 
 
 _GATEWAY_DENIAL = ("Tool call not allowed due to policy enforcement [Policy evaluation "
-                   "denied due to workshop_credit_limit-abc]")
+                   "denied due to credit_limit-abc]")
 
 
 def test_a_denial_returned_as_an_error_result_is_a_deny_not_an_allow() -> None:
     state, envelope, note = ge.classify_gateway_result(_Result(_GATEWAY_DENIAL, is_error=True))
     assert state == ge.POLICY_DENY
     assert envelope["status"] == "policy_denied"
-    assert "workshop_credit_limit" in envelope["gateway_message"]
+    assert "credit_limit" in envelope["gateway_message"]
     assert "never entered" in note
 
 

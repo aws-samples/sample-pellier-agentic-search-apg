@@ -28,7 +28,7 @@ Key design choices (Req 4.2):
   * Tokens never appear in logs (Req 5.3.3). The service logs validation
     failures with the exception class only.
 
-The workshop ``solutions/the-ledger/services/cognito_auth.py`` file mirrors
+The workshop ``solutions/lab-3-deploy/services/cognito_auth.py`` file mirrors
 the reference block here byte-for-byte (enforced by solution parity tests).
 """
 from __future__ import annotations
@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 # call is required.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/the-ledger/services/cognito_auth.py pellier/backend/services/cognito_auth.py
+#    cp solutions/lab-3-deploy/services/cognito_auth.py pellier/backend/services/cognito_auth.py
 
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour per Req 4.2.1
 # An unknown ``kid`` refreshes the JWKS at most this often: a real rotation is

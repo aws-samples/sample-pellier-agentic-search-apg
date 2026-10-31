@@ -19,10 +19,12 @@ Four rules, all enforced below.
    echo the phrase into the shopper's transcript. The architecture label belongs
    to the Builder view, the fixtures, and the docs; the prompt says "specialist".
 
-4. **Internal keys and factory names must NOT be renamed for cosmetic parity.**
-   ``build_stock_agent`` is imported by the dispatcher and exported by its
-   solution twin. Bootstrap auto-applies solution twins by filename, and a twin that no longer
-   exports the name the dispatcher imports fails as an ImportError at the first
+4. **Each internal key, module and factory carries its agent's display name**
+   (``catalog``, ``catalog_agent``, ``build_catalog_agent``). Rename them only
+   together, with the dispatcher and every solution twin: ``build_stock_agent``
+   is imported by the dispatcher and exported by its solution twin. Bootstrap
+   auto-applies solution twins by filename, and a twin that no longer exports
+   the name the dispatcher imports fails as an ImportError at the first
    shopper turn - which has happened before.
 """
 
@@ -36,7 +38,7 @@ BACKEND = REPO / "pellier" / "backend"
 
 # The frozen vocabulary: internal key -> display label -> module.
 CANONICAL_AGENTS = {
-    "shopping": ("Catalog agent", "shopping_agent"),
+    "catalog": ("Catalog agent", "catalog_agent"),
     "stock": ("Stock agent", "stock_agent"),
     "support": ("Support agent", "support_agent"),
 }
@@ -63,7 +65,7 @@ RETIRED_FIVE_AGENT_LABELS = (
 
 # Internal identifiers that must survive for the dispatcher and solution twins.
 PROTECTED_IDENTIFIERS = (
-    "build_shopping_agent",
+    "build_catalog_agent",
     "build_stock_agent",
     "build_support_agent",
 )

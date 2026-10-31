@@ -4,7 +4,7 @@ This module is the single source of truth for every customer-facing string
 that the backend authors. Error envelopes, validation messages, and any
 server-rendered strings that surface in Pellier live here.
 
-The Catalog agent's system prompt (SHOPPING_SYSTEM_PROMPT) also lives here
+The Catalog agent's system prompt (CATALOG_SYSTEM_PROMPT) also lives here
 so a single file review catches copy regressions across every surface the
 participant might edit. The compliance scanner applies the same forbidden-word and
 no-emoji rules to these prompts; the prompts are phrased with "specialist"
@@ -75,7 +75,7 @@ PRODUCT_REQUIREMENTS_PROMPT = (
 # text in services.agentcore_gateway._managed_specialist_prompt, so an answer
 # follows the copy and credit rules whichever rail served it. The Runtime
 # package ships this module for that reason (services/build_fingerprint.py).
-SHOPPING_OUTPUT_RULES = (
+CATALOG_OUTPUT_RULES = (
     "<output-rules>\n"
     "Call a tool before writing anything. After the tool returns, choose two "
     "or three returned pieces (or every piece when fewer than two qualify) "
@@ -131,7 +131,7 @@ SUPPORT_OUTPUT_RULES = (
 )
 
 OUTPUT_RULES = {
-    "shopping": SHOPPING_OUTPUT_RULES,
+    "catalog": CATALOG_OUTPUT_RULES,
     "stock": STOCK_OUTPUT_RULES,
     "support": SUPPORT_OUTPUT_RULES,
 }
@@ -139,7 +139,7 @@ OUTPUT_RULES = {
 # The Catalog agent's instructions: what to find, browse and compare, in the
 # store's own voice (VOICE.md). Preferences reach it from AgentCore Memory and
 # the persona preamble, never from a tool.
-SHOPPING_SYSTEM_PROMPT = (
+CATALOG_SYSTEM_PROMPT = (
     "You help shoppers at Pellier, a modern lifestyle store with everyday "
     "prices, choose what to buy. Sound like a friendly person who works "
     "there: warm, plain and brief. Say what a piece is made of, what it is "
@@ -189,7 +189,7 @@ SHOPPING_SYSTEM_PROMPT = (
     + PRODUCT_REQUIREMENTS_PROMPT
     + "</grounding-rules>\n"
     "\n"
-    + SHOPPING_OUTPUT_RULES
+    + CATALOG_OUTPUT_RULES
 )
 
 

@@ -199,7 +199,7 @@ def test_chat_stream_honours_the_persist_memory_argument(
             return _Answer()
 
     monkeypatch.setattr(chat_module, "_build_dispatcher_specialist", lambda *a, **k: _Specialist())
-    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "catalog")
 
     async def run(persist: bool) -> None:
         async for _event in service.chat_stream(

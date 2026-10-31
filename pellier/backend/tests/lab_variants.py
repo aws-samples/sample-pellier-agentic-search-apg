@@ -23,27 +23,27 @@ SOLUTION = "solution"
 
 LAB1_RRF = {
     STARTER: STARTERS / "lab-1-fusion.sql",
-    SOLUTION: SOLUTIONS / "the-quiet-search" / "sql" / "lab-1-fusion-solution.sql",
+    SOLUTION: SOLUTIONS / "lab-1-retrieve" / "sql" / "lab-1-fusion-solution.sql",
 }
 _PLAN = ("Search plan - preserve requirements",
          STARTERS / "lab-1" / "preserve-requirements.pyfrag",
-         SOLUTIONS / "the-quiet-search" / "retrieval" / "search_plan_solution.py")
-_VECTOR = ("Vector branch - order by meaning",
-           STARTERS / "lab-1" / "vector-branch.pyfrag",
-           SOLUTIONS / "the-quiet-search" / "retrieval" / "store_tools_solution.py")
+         SOLUTIONS / "lab-1-retrieve" / "retrieval" / "search_plan_solution.py")
+_VECTOR = ("Vector search - order by meaning",
+           STARTERS / "lab-1" / "vector-search.pyfrag",
+           SOLUTIONS / "lab-1-retrieve" / "retrieval" / "store_tools_solution.py")
 LAB2_FUNCTION = {
     STARTER: STARTERS / "lab-2-check-stock.sql",
-    SOLUTION: SOLUTIONS / "closing-marcos-gap" / "sql" / "lab-2-check-stock-solution.sql",
+    SOLUTION: SOLUTIONS / "lab-2-ground" / "sql" / "lab-2-check-stock-solution.sql",
 }
 _GRANT = ("Stock agent - definition",
           STARTERS / "lab-2" / "stock-agent-definition.pyfrag",
-          SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py")
-_PUBLISHED = ("Gateway catalogue - published tools",
+          SOLUTIONS / "lab-2-ground" / "agents" / "stock_agent_solution.py")
+_PUBLISHED = ("Gateway - published tools",
               STARTERS / "lab-3" / "gateway-published-tools.pyfrag",
-              SOLUTIONS / "the-ledger" / "gateway" / "gateway_tool_schemas_solution.py")
+              SOLUTIONS / "lab-3-deploy" / "gateway" / "gateway_tool_schemas_solution.py")
 _GATEWAY_TOOLS = ("Support agent - Gateway tools",
               STARTERS / "lab-3" / "support-gateway-tools.pyfrag",
-              SOLUTIONS / "the-ledger" / "services" / "agentcore_gateway.py")
+              SOLUTIONS / "lab-3-deploy" / "services" / "agentcore_gateway.py")
 
 
 def region(text: str, label: str) -> str:
@@ -76,13 +76,13 @@ def plan_fallback(variant: str) -> Callable[..., Any]:
     return _function(source, "_next_attempt", vars(search_plan))
 
 
-def vector_branch(variant: str) -> Callable[..., str]:
-    """``store_tools.vector_branch_sql`` as the starter or the solution writes it."""
+def vector_search(variant: str) -> Callable[..., str]:
+    """``store_tools.vector_search_sql`` as the starter or the solution writes it."""
     from services import store_tools
 
-    source = "def vector_branch_sql(extra_clauses=()):\n" + textwrap.indent(
+    source = "def vector_search_sql(extra_clauses=()):\n" + textwrap.indent(
         textwrap.dedent(body(_VECTOR, variant)), "    ")
-    return _function(source, "vector_branch_sql", vars(store_tools))
+    return _function(source, "vector_search_sql", vars(store_tools))
 
 
 def check_stock_function(variant: str) -> str:
@@ -110,7 +110,7 @@ def _constants(spec: tuple, variant: str, *names: str) -> tuple:
 
 
 def deferred_tools(variant: str) -> frozenset:
-    """The ``UNPUBLISHED_TOOLS`` the Gateway catalogue region names."""
+    """The ``UNPUBLISHED_TOOLS`` the Gateway catalog region names."""
     return _constants(_PUBLISHED, variant, "UNPUBLISHED_TOOLS")[0]
 
 

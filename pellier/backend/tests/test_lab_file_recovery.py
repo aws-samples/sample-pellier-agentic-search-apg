@@ -133,7 +133,7 @@ def test_a_deleted_lab_folder_returns_with_every_link_pointing_where_it_did(boxe
         if entry.is_symlink():
             assert os.readlink(restored) == os.readlink(entry), entry
             assert restored.exists(), f"{entry} dangles"
-    assert (repo / folder / "solution" / "1A-vector-branch.py").is_symlink()
+    assert (repo / folder / "solution" / "1A-vector-search.py").is_symlink()
 
 
 def test_a_reset_of_one_lab_leaves_another_labs_deleted_folder_alone(boxes) -> None:
@@ -229,7 +229,7 @@ def test_lab_run_names_a_deleted_lab_folder_through_its_alias(
     shutil.rmtree(repo / "labs/04-govern")
 
     assert lab_run.main(["solution", "--lab", "4"]) == 1
-    assert "Lab 4: FILE MISSING (labs/04-govern/4A-credit-policy.cedar)" in (
+    assert "Lab 4: FILE MISSING (labs/04-govern/4A-credit-limit.cedar)" in (
         capsys.readouterr().out)
 
 
@@ -246,12 +246,12 @@ def test_lab_run_reset_is_not_blocked_by_the_gap(boxes, monkeypatch) -> None:
 def test_lab_checks_name_a_missing_file(boxes, capsys: pytest.CaptureFixture[str]) -> None:
     repo, _ = boxes
     (repo / MODULE).unlink()
-    (repo / "policies/workshop_credit_limit.cedar").unlink()
+    (repo / "policies/credit_limit.cedar").unlink()
 
     assert lab1_vector.main([]) == 1
     assert _line(1, MODULE) in capsys.readouterr().out
     assert lab4_policy.main([]) == 1
-    assert _line(4, "policies/workshop_credit_limit.cedar") in capsys.readouterr().out
+    assert _line(4, "policies/credit_limit.cedar") in capsys.readouterr().out
 
 
 def test_the_exercise_check_names_a_missing_file(boxes) -> None:
@@ -403,7 +403,7 @@ def test_a_reset_run_as_root_hands_what_it_creates_to_the_repository_owner(
     assert repo / MODULE in paths
     assert repo / "labs/01-retrieve" in paths and repo / "labs/01-retrieve/solution" in paths
     assert repo / "labs/01-retrieve/README.md" in paths
-    assert repo / "labs/01-retrieve/solution/1A-vector-branch.py" in paths
+    assert repo / "labs/01-retrieve/solution/1A-vector-search.py" in paths
     assert repo / "labs" not in paths
 
 

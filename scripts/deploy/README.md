@@ -38,8 +38,8 @@ Memory, authenticate test users, and verify the deployed path.
    - A caller-bound permit for `ask_a_person`: it may name no customer, or
      only the token's own
    - One staff-scoped permit for `give_store_credit`, with no amount limit
-   - Lab 4's starter forbid, `workshop_credit_limit`, deployed from
-     `workshop/starters/workshop_credit_limit.cedar` so every credit is denied
+   - Lab 4's starter forbid, `credit_limit`, deployed from
+     `workshop/starters/credit_limit.cedar` so every credit is denied
      until the participant writes the $100 limit; `--mode participant`
      refuses a rule `scripts/lab4_check.py --task 4A` marks CONTRADICTED
    - A managed output guardrail can suppress a tool response after execution

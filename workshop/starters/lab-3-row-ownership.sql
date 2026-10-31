@@ -37,9 +37,9 @@ $predicate$ AS ownership_predicate
 \gset
 -- === WORKSHOP - Row ownership - predicate: END ===
 
-ALTER POLICY orders_owner ON pellier.orders
+ALTER POLICY orders_own_rows ON pellier.orders
     USING (:ownership_predicate) WITH CHECK (:ownership_predicate);
-ALTER POLICY support_tickets_owner ON pellier.support_tickets
+ALTER POLICY support_tickets_own_rows ON pellier.support_tickets
     USING (:ownership_predicate) WITH CHECK (:ownership_predicate);
 
 -- Stamp both policies with your predicate's sha256, so scripts/lab3_row_ownership_check.py
@@ -47,8 +47,8 @@ ALTER POLICY support_tickets_owner ON pellier.support_tickets
 SELECT 'Lab 3B predicate sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
   FROM (SELECT encode(sha256(convert_to(:'ownership_predicate', 'UTF8')), 'hex') AS hash) h
 \gset
-COMMENT ON POLICY orders_owner ON pellier.orders IS :'stamp';
-COMMENT ON POLICY support_tickets_owner ON pellier.support_tickets IS :'stamp';
+COMMENT ON POLICY orders_own_rows ON pellier.orders IS :'stamp';
+COMMENT ON POLICY support_tickets_own_rows ON pellier.support_tickets IS :'stamp';
 
 -- What the tables hold, read as the owner, which row-level security does not
 -- apply to: the numbers each probe below must reproduce under your policy.
@@ -202,7 +202,7 @@ INSERT INTO lab_3_probes VALUES
      :'every_customers', :'every_exact');
 
 \echo 'Lab 3B: your ownership predicate, probed as pellier_agent'
-\echo 'Evidence  policies orders_owner and support_tickets_owner, rewritten inside this transaction'
+\echo 'Evidence  policies orders_own_rows and support_tickets_own_rows, rewritten inside this transaction'
 \echo '          sign-in names in pellier.customers:' :owner_names
 \echo ''
 SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
@@ -218,7 +218,7 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
 \if :lab_3_passed
   COMMIT;
   \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'probes match; committed, your predicate is now the live policy'
-  \echo 'Deployed  your predicate on orders_owner and support_tickets_owner, sha256' :stamp_short
+  \echo 'Deployed  your predicate on orders_own_rows and support_tickets_own_rows, sha256' :stamp_short
   \echo '          the probe writes were undone before the commit'
   \echo 'Lab 3B predicate check passed'
 \else

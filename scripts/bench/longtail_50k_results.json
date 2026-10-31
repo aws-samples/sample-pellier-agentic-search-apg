@@ -23,7 +23,7 @@
  },
  "notes": [
   "Cold means stop and start. After RebootDBInstance (postmaster started 15:15:21 UTC), every first query hit Aurora's buffer cache: hybrid_after_reboot shows shared hit and no read, so those numbers are warm. hybrid_cold ran after StopDBCluster and StartDBCluster: stopped after 527 s, available after 397 s, postmaster started 2026-10-13 15:29:15 UTC.",
-  "The cold fused query ran third, after the vector and full-text branches had read their pages (shared hit=5302 read=37), so it is not a cold figure; only the vector and full-text cold numbers are.",
+  "The cold fused query ran third, after the vector and full-text searches had read their pages (shared hit=5302 read=37), so it is not a cold figure; only the vector and full-text cold numbers are.",
   "Timings are server-side Execution Time from EXPLAIN (ANALYZE, BUFFERS). lab_check times are medians of five runs; hybrid_warm is three runs in one session.",
   "lab_check modes: exact orders by (embedding <=> reference) + 0, an expression no index serves; off sets enable_seqscan off, hnsw.ef_search 40 and hnsw.iterative_scan off; strict sets the same with hnsw.iterative_scan strict_order; planner sets nothing. Each mode runs in its own transaction, rolled back. The variants use the primary-key lookup of the Linen Photo Album (product 78); their sql field holds the exact settings and statement of each mode.",
   "versions read hnsw.iterative_scan = off in its Data API session, and pg_database_size 8193 kB before the load. Every measured query sets hnsw.iterative_scan itself except lab_check's planner column. shared_buffers 1392640 is in 8 kB pages (10.6 GiB).",

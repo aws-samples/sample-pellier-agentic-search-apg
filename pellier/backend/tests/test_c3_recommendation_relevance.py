@@ -12,7 +12,7 @@
          or Cashmere-Blend Cardigan pass; Signature Straw Tote fails.
 
 Bedrock is stubbed - no live model call. The test swaps the `Agent` symbol
-imported into `agents.shopping_agent` for a stub that returns a
+imported into `agents.catalog_agent` for a stub that returns a
 canned answer mentioning `Sundress in Washed Linen`. The test then parses
 that response, looks up the product's tags from the showcase-product table,
 and asserts the required overlap.
@@ -133,14 +133,14 @@ def _reset_stub_state() -> Iterable[None]:
 def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
     """Return a callable that builds the Catalog agent and runs one turn, with
     Strands `Agent` + `BedrockModel` swapped for the stubs above."""
-    import agents.shopping_agent as shopping
+    import agents.catalog_agent as catalog
 
-    monkeypatch.setattr(shopping, "Agent", _StubAgent)
-    monkeypatch.setattr(shopping, "specialist_bedrock_model",
+    monkeypatch.setattr(catalog, "Agent", _StubAgent)
+    monkeypatch.setattr(catalog, "specialist_bedrock_model",
                         lambda model_id, max_tokens: _StubBedrockModel(model_id=model_id, max_tokens=max_tokens))
 
     def run(query: str) -> str:
-        return shopping.build_shopping_agent()(query)
+        return catalog.build_catalog_agent()(query)
 
     return run
 
@@ -150,7 +150,7 @@ def stubbed_specialist(monkeypatch: pytest.MonkeyPatch):
 # ---------------------------------------------------------------------------
 
 
-def test_shopping_agent_is_constructed_with_the_opus_model_and_four_tools(
+def test_catalog_agent_is_constructed_with_the_opus_model_and_four_tools(
     stubbed_specialist,
 ) -> None:
     """Building the Catalog agent SHALL use:
@@ -196,13 +196,13 @@ def test_catalog_turn_policy_withholds_the_handoff_tool(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """An ordinary catalog turn is built without ``ask_a_person``."""
-    import agents.shopping_agent as shopping
+    import agents.catalog_agent as catalog
 
-    monkeypatch.setattr(shopping, "Agent", _StubAgent)
-    monkeypatch.setattr(shopping, "specialist_bedrock_model",
+    monkeypatch.setattr(catalog, "Agent", _StubAgent)
+    monkeypatch.setattr(catalog, "specialist_bedrock_model",
                         lambda model_id, max_tokens: _StubBedrockModel(model_id=model_id, max_tokens=max_tokens))
 
-    shopping.build_shopping_agent(allow_handoff=False)
+    catalog.build_catalog_agent(allow_handoff=False)
 
     names = {
         getattr(getattr(t, "__wrapped__", t), "__name__", "")
@@ -211,10 +211,10 @@ def test_catalog_turn_policy_withholds_the_handoff_tool(
     assert names == {"search_products", "browse_department", "compare_products"}
 
 
-def test_agent_system_prompt_references_shopping_voice(
+def test_agent_system_prompt_references_catalog_voice(
     stubbed_specialist,
 ) -> None:
-    """System prompt SHALL come from pellier_copy.SHOPPING_SYSTEM_PROMPT and
+    """System prompt SHALL come from pellier_copy.CATALOG_SYSTEM_PROMPT and
     SHALL include the warm, plain, brief shop-assistant framing and the
     persona-context block.
 
@@ -223,14 +223,14 @@ def test_agent_system_prompt_references_shopping_voice(
     the word `agent` in anything the shopper can hear, so the prompt may not
     name itself that way.
     """
-    from pellier_copy import SHOPPING_SYSTEM_PROMPT
+    from pellier_copy import CATALOG_SYSTEM_PROMPT
 
     _StubAgent.canned_reply = "stub"
     stubbed_specialist("anything")
 
     prompt = _StubAgent.last_kwargs.get("system_prompt", "")
     assert isinstance(prompt, str) and prompt, "system_prompt SHALL be a non-empty str"
-    assert SHOPPING_SYSTEM_PROMPT in prompt
+    assert CATALOG_SYSTEM_PROMPT in prompt
     lowered = prompt.lower()
     assert "warm" in lowered
     assert "plain and brief" in lowered

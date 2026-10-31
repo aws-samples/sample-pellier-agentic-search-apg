@@ -133,7 +133,7 @@
 <title>lab1a</title>
 <polygon fill="#fff7ed" stroke="#9a3412" stroke-width="2" points="356.19,-84.8 96.99,-84.8 96.99,-3.2 356.19,-3.2 356.19,-84.8"/>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-62.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">BUILD 2a · RECONSTRUCT AND VERIFY</text>
-<text xml:space="preserve" text-anchor="middle" x="226.59" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">workshop/lab&#45;1&#45;rrf.sql</text>
+<text xml:space="preserve" text-anchor="middle" x="226.59" y="-47.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">workshop/lab&#45;1&#45;fusion.sql</text>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-32.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">Recompute RRF from the recorded ranks</text>
 <text xml:space="preserve" text-anchor="middle" x="226.59" y="-17.6" font-family="Helvetica Neue" font-size="12.00" fill="#7c2d12">and check it against recorded_rrf</text>
 </g>

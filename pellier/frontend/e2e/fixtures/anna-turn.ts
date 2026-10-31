@@ -15,11 +15,11 @@
  *
  * - The filter counts are the real aggregate: 31 of 100 are over $100, one of
  *   the rest is sold out (Housewarming Gift Box), four are candles; 64 fit.
- * - `FULL_TEXT_ARM` is `store_tools.fts_branch_sql` as it ran: `ts_rank_cd`
+ * - `FULL_TEXT_ARM` is `store_tools.fts_search_sql` as it ran: `ts_rank_cd`
  *   order for `to_tsquery('english', 'housewarming | gift | slow | mornings')`
  *   under those predicates, 20 rows. Equal scores keep the order Postgres
  *   returned them in.
- * - `VECTOR_ARM` is `store_tools.vector_branch_sql` with a stand-in query
+ * - `VECTOR_ARM` is `store_tools.vector_search_sql` with a stand-in query
  *   vector, the mean of the catalog embeddings of the products tagged `slow`
  *   (no Bedrock embedding was made); its ranks and cosine similarities are
  *   the real order for that vector, 20 rows.
@@ -227,7 +227,7 @@ function deltas(text: string): object[] {
 }
 
 const ROUTE_BUILDER = {
-  tool: null, rail: 'in-process', intent: 'shopping', agent: 'Catalog agent',
+  tool: null, rail: 'in-process', intent: 'catalog', agent: 'Catalog agent',
   model_id: 'global.anthropic.claude-opus-5-5', skills: SKILLS, skill_mode: 'fixed',
   memory: { facts: 1, orders: 5, source: 'Aurora PostgreSQL' },
   grant: { tools: ['search_products', 'browse_department', 'compare_products'], rule: null },
@@ -240,7 +240,7 @@ export const ANNA_TURN_EVENTS: object[] = [
     principal: { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' },
   },
   { type: 'aurora_profile_context', profile: { source: 'Aurora PostgreSQL', customer_id: 'CUST-ANNA', facts_available: 1, orders_available: 5, available: true } },
-  { type: 'intent_signal', intent: 'shopping', agent: 'Catalog agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5-5' },
+  { type: 'intent_signal', intent: 'catalog', agent: 'Catalog agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5-5' },
   { type: 'status', label: 'Understanding your request' },
   {
     type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent',
@@ -277,7 +277,7 @@ export const ANNA_TURN_EVENTS: object[] = [
       turn_id: 'turn-' + 'a'.repeat(32),
       session_id: 'session-shots',
       railDecision: { rail: 'in-process', managedRequested: false, available: true, reason: null },
-      orchestration: { pattern: 'dispatcher', route: 'shopping', router: 'deterministic', intent: 'shopping', agent: 'Catalog agent', model_id: 'global.anthropic.claude-opus-5-5', skill_mode: 'fixed', skills: SKILLS, stop_reason: 'end_turn' },
+      orchestration: { pattern: 'dispatcher', route: 'catalog', router: 'deterministic', intent: 'catalog', agent: 'Catalog agent', model_id: 'global.anthropic.claude-opus-5-5', skill_mode: 'fixed', skills: SKILLS, stop_reason: 'end_turn' },
     },
   },
 ]

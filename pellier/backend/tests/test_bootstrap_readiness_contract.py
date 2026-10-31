@@ -1217,8 +1217,8 @@ def test_bootstrap_delegates_database_setup() -> None:
 def test_the_schema_creates_the_role_and_both_owner_policies() -> None:
     sql = SCHEMA.read_text(encoding="utf-8")
     assert "CREATE ROLE pellier_agent NOLOGIN NOINHERIT NOBYPASSRLS;" in sql
-    assert "CREATE POLICY orders_owner ON pellier.orders TO pellier_agent" in sql
-    assert "CREATE POLICY support_tickets_owner ON pellier.support_tickets TO pellier_agent" in sql
+    assert "CREATE POLICY orders_own_rows ON pellier.orders TO pellier_agent" in sql
+    assert "CREATE POLICY support_tickets_own_rows ON pellier.support_tickets TO pellier_agent" in sql
     assert "current_setting('pellier.principal_username', true)" in sql
 
 
@@ -1758,9 +1758,9 @@ def test_reset_resolves_isolated_project_and_policy_engine(tmp_path: Path) -> No
     inspected = (tmp_path / "repo/cli-config-inspection.log").read_text()
     # Lab 4's starter is declared in the isolated project, for its own engine.
     assert "pellier_rehearsal_policy_engine" in inspected
-    assert "workshop/starters/workshop_credit_limit.cedar" in inspected
+    assert "workshop/starters/credit_limit.cedar" in inspected
     assert "/.agentcore-project/pellierrehearsal/agentcore/agentcore.json" in inspected
-    assert "Lab 4 policy workshop_credit_limit already declares its starter" in proc.stdout
+    assert "Lab 4 policy credit_limit already declares its starter" in proc.stdout
 
 
 def test_a_reset_that_leaves_a_stray_review_is_not_ready(tmp_path: Path) -> None:
@@ -2123,7 +2123,7 @@ def test_live_policy_proof_probes_the_money_tool_as_a_shopper(
                 "deny", outcome="allow", cedar_denial=False, error_type=None, error=None,
                 evidence={"tool_audit_rows": 1, "store_credits_rows": 1},
             ),
-            "Cedar did not block the money tool",
+            "Cedar did not block the credit tool",
         ),
     ],
 )

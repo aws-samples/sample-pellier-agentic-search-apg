@@ -63,7 +63,7 @@ class ScriptedAgent:
 
     trace_attributes: Dict[str, Any] = {}
     # A built Strands agent names its registry; the Router step reports it.
-    name = "shopping"
+    name = "catalog"
     tool_names = ["search_products", "browse_department", "compare_products"]
 
     def __init__(
@@ -121,7 +121,7 @@ def service(monkeypatch: pytest.MonkeyPatch) -> EnhancedChatService:
         "services.otel_trace_extractor",
         types.SimpleNamespace(extract_agent_execution_from_otel=lambda **kwargs: {}),
     )
-    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "catalog")
     return svc
 
 
@@ -480,9 +480,9 @@ def test_the_router_step_names_what_the_built_agent_may_call(service, monkeypatc
     assert routes[-1]["builder"]["grant"] == routes[0]["builder"]["grant"]
     assert STOCK_PROMPT_RULE == "Every stock answer starts from check_stock"
 
-    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
-    shopping = _of(_run(service, ScriptedAgent([], "Try the mugs."), monkeypatch), "step")[0]
-    assert shopping["builder"]["grant"] == {
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "catalog")
+    catalog = _of(_run(service, ScriptedAgent([], "Try the mugs."), monkeypatch), "step")[0]
+    assert catalog["builder"]["grant"] == {
         "tools": ["search_products", "browse_department", "compare_products"], "rule": None}
 
 
@@ -610,7 +610,7 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
 ) -> None:
     """The preamble is prepended to the message on every persona turn and appended to
     each agent's system prompt, so it is a model prompt and follows the voice."""
-    from agents.shopping_agent import build_shopping_agent
+    from agents.catalog_agent import build_catalog_agent
     from agents.stock_agent import build_stock_agent
     from agents.support_agent import build_support_agent
     from services.persona_context import get_persona_preamble, persona_preamble_var
@@ -638,7 +638,7 @@ def test_the_persona_preamble_and_every_agent_prompt_carry_no_em_dash_or_middle_
     token = persona_preamble_var.set(preamble)
     try:
         prompts = {
-            "shopping": build_shopping_agent().system_prompt,
+            "catalog": build_catalog_agent().system_prompt,
             "stock": build_stock_agent().system_prompt,
             "support": build_support_agent().system_prompt,
         }

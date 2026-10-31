@@ -24,7 +24,7 @@ breaks the primary lane; a missing fallback breaks the recovery lane, which is w
 because it only fails for the participant who is already behind.
 
 **Lab 1 - Build and measure PostgreSQL hybrid retrieval.** Two marker regions: the
-vector branch, which starts ranking nothing by meaning, and a search-plan fallback that
+vector search, which starts ranking nothing by meaning, and a search-plan fallback that
 starts by dropping the shopper's limits. The RRF worksheet is Lab 1's Go deeper: it keeps
 its marker region and starter, but it is not a task.
 
@@ -43,7 +43,7 @@ and writes the row-ownership predicate in an RLS worksheet whose one expression 
 **Lab 4 - Govern agent actions with Cedar policies and PostgreSQL privileges.** A starter
 Cedar file that must NOT contain the answer, a reference rule that must (an amount rule on
 ``give_store_credit``, not an identity-pair match), and a credit-writer worksheet whose
-starter over-grants the money role. The keyed absence check is supplied, with no region to
+starter over-grants the credit-writer role. The keyed absence check is supplied, with no region to
 author.
 
 Nine marked regions in all: eight marker regions and the Cedar ``unless`` block.
@@ -71,7 +71,7 @@ REPO = Path(__file__).resolve().parents[3]
 # ---------------------------------------------------------------------------
 
 LAB2_CHECK_STOCK_WORKSHEET = "workshop/lab-2-check-stock.sql"
-LAB2_CHECK_STOCK_REFERENCE = "solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql"
+LAB2_CHECK_STOCK_REFERENCE = "solutions/lab-2-ground/sql/lab-2-check-stock-solution.sql"
 LAB2_CHECK_STOCK_MARKER = "WORKSHOP - Stock check - not carried"
 
 LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
@@ -83,7 +83,7 @@ LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
 # The exact `cp` sources in the guide's pacing fallback. A participant runs these
 # verbatim, so a renamed solution file is a dead recovery lane.
 LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
-    ("solutions/waking-the-stock-keeper/agents/stock_agent_solution.py",
+    ("solutions/lab-2-ground/agents/stock_agent_solution.py",
      "pellier/backend/agents/stock_agent.py"),
     (LAB2_CHECK_STOCK_REFERENCE, LAB2_CHECK_STOCK_WORKSHEET),
 )
@@ -94,10 +94,10 @@ LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
 
 LAB1_VECTOR_REGION = (
     "pellier/backend/services/store_tools.py",
-    "WORKSHOP - Vector branch - order by meaning",
+    "WORKSHOP - Vector search - order by meaning",
 )
-LAB1_VECTOR_REFERENCE = "solutions/the-quiet-search/retrieval/store_tools_solution.py"
-LAB1_VECTOR_STARTER = "workshop/starters/lab-1/vector-branch.pyfrag"
+LAB1_VECTOR_REFERENCE = "solutions/lab-1-retrieve/retrieval/store_tools_solution.py"
+LAB1_VECTOR_STARTER = "workshop/starters/lab-1/vector-search.pyfrag"
 # Lab 1's Go deeper worksheet: a marker region and a starter, not a task.
 LAB1_FUSION_WORKSHEET = "workshop/lab-1-fusion.sql"
 LAB1_PLAN_REGION = (
@@ -105,12 +105,12 @@ LAB1_PLAN_REGION = (
     "WORKSHOP - Search plan - preserve requirements",
 )
 LAB1_PLAN_REFERENCE = (
-    "solutions/the-quiet-search/retrieval/search_plan_solution.py"
+    "solutions/lab-1-retrieve/retrieval/search_plan_solution.py"
 )
 # The ids the documented predicate yields from `scripts/seed_pellier_catalog.py`:
 # in-stock Home at or under $100 tagged both `gift` and `home`.
 LAB1_GOLDEN_IDS = ("21", "23", "25", "27", "29", "80", "83")
-LAB1_FUSION_REFERENCE = "solutions/the-quiet-search/sql/lab-1-fusion-solution.sql"
+LAB1_FUSION_REFERENCE = "solutions/lab-1-retrieve/sql/lab-1-fusion-solution.sql"
 LAB1_FUSION_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
 
 # ---------------------------------------------------------------------------
@@ -122,15 +122,15 @@ LAB1_FUSION_MARKER = "WORKSHOP - PostgreSQL RRF - fusion expression"
 
 LAB3_REGIONS: Tuple[Tuple[str, str], ...] = (
     ("scripts/deploy/gateway_tool_schemas.py",
-     "WORKSHOP - Gateway catalogue - published tools"),
+     "WORKSHOP - Gateway - published tools"),
     ("pellier/backend/services/agentcore_gateway.py",
      "WORKSHOP - Support agent - Gateway tools"),
 )
 
 LAB3_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
-    ("solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
+    ("solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py",
      "scripts/deploy/gateway_tool_schemas.py"),
-    ("solutions/the-ledger/services/agentcore_gateway.py",
+    ("solutions/lab-3-deploy/services/agentcore_gateway.py",
      "pellier/backend/services/agentcore_gateway.py"),
 )
 
@@ -150,17 +150,17 @@ LAB1_INDEX_CHECK = "workshop/lab-1-index.sql"
 LAB1_MEANING_WORKSHEET = "workshop/lab-1-meaning.sql"
 LAB3_TRACE_CONTRACT = "workshop/lab-3-otel-contract.jq"
 
-LAB4_STARTER = "policies/workshop_credit_limit.cedar"
-LAB4_REFERENCE = "solutions/the-concierge/policies/workshop_credit_limit.cedar"
+LAB4_STARTER = "policies/credit_limit.cedar"
+LAB4_REFERENCE = "solutions/lab-4-govern/policies/credit_limit.cedar"
 LAB3_RLS_PROOF = "workshop/lab-3-row-ownership.sql"
-LAB3_RLS_REFERENCE = "solutions/the-ledger/sql/lab-3-row-ownership-solution.sql"
+LAB3_RLS_REFERENCE = "solutions/lab-3-deploy/sql/lab-3-row-ownership-solution.sql"
 LAB3_RLS_MARKER = "WORKSHOP - Row ownership - predicate"
 LAB4_WRITER_WORKSHEET = "workshop/lab-4-credit-writer.sql"
-LAB4_WRITER_REFERENCE = "solutions/the-concierge/sql/lab-4-credit-writer-solution.sql"
+LAB4_WRITER_REFERENCE = "solutions/lab-4-govern/sql/lab-4-credit-writer-solution.sql"
 LAB4_WRITER_MARKER = "WORKSHOP - Credit writer - privileges"
 
 # The policy provisioning deploys and the participant's step updates.
-LAB4_POLICY_NAME = "workshop_credit_limit"
+LAB4_POLICY_NAME = "credit_limit"
 
 # The target-qualified action Gateway generates: the one target `pellier-store-tools`
 # plus the tool name. The guide shows it inside the starter, and the rule is inert
@@ -174,8 +174,8 @@ LAB4_AMOUNT_LIMIT_CENTS = "10000"
 
 PARTICIPANT_EXERCISE_RESET = "scripts/reset_participant_exercises.py"
 PARTICIPANT_STARTERS = {
-    "lab-1-vector-branch": (
-        "workshop/starters/lab-1/vector-branch.pyfrag",
+    "lab-1-vector-search": (
+        "workshop/starters/lab-1/vector-search.pyfrag",
         "pellier/backend/services/store_tools.py",
     ),
     "lab-2-stock-agent": (
@@ -194,7 +194,7 @@ PARTICIPANT_STARTERS = {
         "workshop/starters/lab-1/preserve-requirements.pyfrag",
         "pellier/backend/services/search_plan.py",
     ),
-    "lab-3-gateway-catalogue": (
+    "lab-3-gateway-catalog": (
         "workshop/starters/lab-3/gateway-published-tools.pyfrag",
         "scripts/deploy/gateway_tool_schemas.py",
     ),
@@ -207,7 +207,7 @@ PARTICIPANT_STARTERS = {
         "workshop/lab-3-row-ownership.sql",
     ),
     "lab-4-cedar": (
-        "workshop/starters/workshop_credit_limit.cedar",
+        "workshop/starters/credit_limit.cedar",
         LAB4_STARTER,
     ),
     "lab-4-credit-writer": (
@@ -457,14 +457,14 @@ def test_lab3_starter_withholds_the_tool_theo_needs() -> None:
         "the starter defers exactly the tool the participant publishes, and no other"
     )
     assert LAB3_PUBLISHED_TOOL in gateway_tool_schemas.canonical_tool_names(), (
-        "the participant publishes an existing schema; it must stay in the catalogue"
+        "the participant publishes an existing schema; it must stay in the catalog"
     )
 
 
 def test_lab3_reference_publishes_the_read_and_the_staff_only_tool() -> None:
     solution = _load_module(
         "lab3_gateway_solution",
-        "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
+        "solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py",
     )
     published = solution.workshop_published_tools()
     assert solution.UNPUBLISHED_TOOLS == frozenset(), "the reference defers nothing"
@@ -500,11 +500,11 @@ def test_lab3_starter_is_a_working_agent_without_theos_reads() -> None:
 def test_lab3_reference_matches_the_runtime_to_the_gateway() -> None:
     schemas = _load_module(
         "lab3_gateway_schemas_ref",
-        "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py",
+        "solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py",
     )
     runtime = _load_module(
         "lab3_runtime_ref",
-        "solutions/the-ledger/services/agentcore_gateway.py",
+        "solutions/lab-3-deploy/services/agentcore_gateway.py",
     )
     published = schemas.workshop_published_tools()
     for agent, names in runtime.MANAGED_SPECIALIST_TOOLS.items():
@@ -632,12 +632,12 @@ def test_lab3_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
         text = _read(rel)
         for fragment in (
             "\\set ON_ERROR_STOP on",
-            "ALTER POLICY orders_owner ON pellier.orders\n"
+            "ALTER POLICY orders_own_rows ON pellier.orders\n"
             "    USING (:ownership_predicate) WITH CHECK (:ownership_predicate);",
-            "ALTER POLICY support_tickets_owner ON pellier.support_tickets\n"
+            "ALTER POLICY support_tickets_own_rows ON pellier.support_tickets\n"
             "    USING (:ownership_predicate) WITH CHECK (:ownership_predicate);",
-            "COMMENT ON POLICY orders_owner ON pellier.orders IS :'stamp';",
-            "COMMENT ON POLICY support_tickets_owner ON pellier.support_tickets IS :'stamp';",
+            "COMMENT ON POLICY orders_own_rows ON pellier.orders IS :'stamp';",
+            "COMMENT ON POLICY support_tickets_own_rows ON pellier.support_tickets IS :'stamp';",
             "SET LOCAL ROLE pellier_agent",
             "set_config('pellier.principal_username', 'theo', true)",
             "set_config('pellier.principal_username', 'jessica', true)",
@@ -747,7 +747,7 @@ def test_participant_starter_copies_are_incomplete_not_solutions() -> None:
     lab1 = _read(PARTICIPANT_STARTERS["lab-1-fusion"][0])
     rls = _read(PARTICIPANT_STARTERS["lab-3-row-ownership"][0])
     lab4 = _read(PARTICIPANT_STARTERS["lab-4-cedar"][0])
-    vector = _read(PARTICIPANT_STARTERS["lab-1-vector-branch"][0])
+    vector = _read(PARTICIPANT_STARTERS["lab-1-vector-search"][0])
     writer = _read(PARTICIPANT_STARTERS["lab-4-credit-writer"][0])
 
     lab1_plan = _read(PARTICIPANT_STARTERS["lab-1-preserve-requirements"][0])

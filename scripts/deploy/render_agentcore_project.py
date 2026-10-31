@@ -149,7 +149,7 @@ STORE_TARGET = "pellier-store-tools"
 GIVE_STORE_CREDIT_ACTION = f"{STORE_TARGET}___give_store_credit"
 WORKSHOP_RUNTIME_EXPOSURE = "public-workshop-only"
 
-# The catalogue reads a shopper may call. Every other published tool needs its
+# The catalog reads a shopper may call. Every other published tool needs its
 # own permit: the two owner-scoped reads, the caller-bound handoff and the
 # staff-only credit.
 SHOPPER_SAFE_TOOLS: frozenset[str] = frozenset({
@@ -346,7 +346,7 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
     THE PERMITS
 
     1. ``baseline_permit_workshop_tools`` is an EXACT allow-list of the
-       catalogue reads that expose no customer data (``SHOPPER_SAFE_TOOLS``).
+       catalog reads that expose no customer data (``SHOPPER_SAFE_TOOLS``).
        Never a wildcard: a wildcard hands every future published tool a permit
        the moment it appears. Any authenticated ``AgentCore::OAuthUser`` may
        call these.
@@ -377,7 +377,7 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
        database CHECK, as a safety check distinct from authorization.
 
     A token with neither claim is an authenticated stranger. It may read the
-    catalogue and ask for a person without naming a customer, and nothing else.
+    catalog and ask for a person without naming a customer, and nothing else.
     This is a teaching baseline, not a claim about a complete production posture.
     """
     gateway = _gateway_resource(gateway_arn)
@@ -400,7 +400,7 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
         {
             "name": "baseline_permit_workshop_tools",
             "description": (
-                f"Permit exactly the {len(allowed)} catalogue reads that expose no "
+                f"Permit exactly the {len(allowed)} catalog reads that expose no "
                 "customer data. No wildcard, so a newly published tool is denied by default."
             ),
             "statement": (
@@ -464,9 +464,9 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
 # (`unless { false }`, which forbids every credit), so Nadia's first Execute is
 # a live DENY before any edit; the participant's step updates this one policy;
 # the reset declares the starter again.
-CREDIT_LIMIT_POLICY = "workshop_credit_limit"
-CREDIT_LIMIT_SOURCE = Path("policies") / "workshop_credit_limit.cedar"
-CREDIT_LIMIT_STARTER = Path("workshop") / "starters" / "workshop_credit_limit.cedar"
+CREDIT_LIMIT_POLICY = "credit_limit"
+CREDIT_LIMIT_SOURCE = Path("policies") / "credit_limit.cedar"
+CREDIT_LIMIT_STARTER = Path("workshop") / "starters" / "credit_limit.cedar"
 GATEWAY_ARN_PLACEHOLDER = "${PELLIER_GATEWAY_ARN}"
 
 

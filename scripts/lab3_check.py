@@ -36,7 +36,7 @@ source before anything is deployed and prints four rules, one finding each:
 get_tickets is published; the Support agent's Gateway tools include get_orders
 and get_tickets; every tool that takes a customer_id is bound to the caller; and
 give_store_credit is refused on a shopper agent. The doctor's prerequisites line
-and the evidence export read the same rules through :func:`catalogue_verdict`.
+and the evidence export read the same rules through :func:`catalog_verdict`.
 The binding rule runs a forged call for each read through the checkout's own
 binding (:func:`probe_binding`); Theo's real turns rarely make that call, because
 the model seldom asks for another customer, so the probe makes it every time.
@@ -107,11 +107,11 @@ SELECT count(*) AS n
 
 
 # ---------------------------------------------------------------------------
-# Task 3A: the published catalogue and the caller binding, read from source
+# Task 3A: the published tools and the caller binding, read from source
 # ---------------------------------------------------------------------------
 
-_CATALOGUE_TITLE = "the Support agent, assembled: published, given its reads, bound to the caller"
-_CATALOGUE_EXPECTED = ("get_tickets published, get_orders and get_tickets in the Support agent's "
+_CATALOG_TITLE = "the Support agent, assembled: published, given its reads, bound to the caller"
+_CATALOG_EXPECTED = ("get_tickets published, get_orders and get_tickets in the Support agent's "
                        "Gateway tools and bound to the caller, and give_store_credit refused")
 STAFF_ONLY = frozenset({"give_store_credit"})
 _NEXT_CUSTOMER_ID = "which of the nine tools take a customer_id?"
@@ -160,7 +160,7 @@ def _published_rule(published: frozenset, managed: Sequence[str]) -> check.Findi
     expected = "the Gateway publishes get_tickets and every tool the Support agent asks for"
     evidence = [f"scripts/deploy/gateway_tool_schemas.py publishes {len(published)} of the nine "
                 f"tools: {', '.join(sorted(published))}"]
-    next_step = ("which tool does the Gateway catalogue - published tools block still "
+    next_step = ("which tool does the Gateway - published tools block still "
                  "withhold?")
     if PROBE_TOOL not in published:
         return check.Finding("3A", title, check.NOT_YET, expected,
@@ -242,7 +242,7 @@ def _staff_rule(managed: Sequence[str]) -> check.Finding:
                          "give_store_credit", evidence)
 
 
-def judge_catalogue(
+def judge_catalog(
     published: Iterable[str], managed: Sequence[str], bound: Iterable[str],
     probes: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> List[check.Finding]:
@@ -257,18 +257,18 @@ def judge_catalogue(
             _bound_rule(bound, probes), _staff_rule(managed)]
 
 
-def catalogue_verdict(findings: Sequence[check.Finding]) -> check.Finding:
+def catalog_verdict(findings: Sequence[check.Finding]) -> check.Finding:
     """One finding for the doctor and the evidence export: the first rule not met, or all four."""
     for finding in findings:
         if finding.state != check.PROVED:
             return finding
     published, reads, bound, _staff = findings
-    return check.Finding("3A", _CATALOGUE_TITLE, check.PROVED, _CATALOGUE_EXPECTED,
+    return check.Finding("3A", _CATALOG_TITLE, check.PROVED, _CATALOG_EXPECTED,
                          f"{published.observed}; {reads.observed}; {bound.observed}",
                          [line for finding in findings for line in finding.evidence])
 
 
-def source_catalogue() -> tuple:
+def source_catalog() -> tuple:
     """``(published, support tools, caller-bound tools, forged calls)`` from the live source."""
     for path in (DEPLOY, BACKEND):
         if str(path) not in sys.path:
@@ -378,7 +378,7 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
 def source_probe() -> tuple:
     """``(forged call, "")`` through this checkout's binding, or ``(None, the reason)``."""
     try:
-        return source_catalogue()[3][PROBE_TOOL], ""
+        return source_catalog()[3][PROBE_TOOL], ""
     except Exception as exc:  # noqa: BLE001 - reported as the tickets finding's reason
         return None, f"{type(exc).__name__}: {str(exc)[:160]}"
 
@@ -618,9 +618,9 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
 def findings_3a() -> List[check.Finding]:
     """Task 3A's four rules from this checkout's source, or one finding saying why not."""
     try:
-        return judge_catalogue(*source_catalogue())
+        return judge_catalog(*source_catalog())
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return [check.Finding("3A", _CATALOGUE_TITLE, check.UNCHECKED, _CATALOGUE_EXPECTED,
+        return [check.Finding("3A", _CATALOG_TITLE, check.UNCHECKED, _CATALOG_EXPECTED,
                               "the check could not look", [f"{type(exc).__name__}: {exc}"],
                               "run this from the repository root, with the backend's Python.")]
 

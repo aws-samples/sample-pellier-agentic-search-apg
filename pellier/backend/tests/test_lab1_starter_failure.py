@@ -3,7 +3,7 @@
 Go deeper, the fusion worksheet. The starter's fusion expression counts a
 missing rank as rank zero, so a product found by only one search scores too
 high: the worksheet prints "differs" for exactly those products and fails. The
-solution matches every recorded score. Task 1A, the vector branch, is held to
+solution matches every recorded score. Task 1A, the vector search, is held to
 its check in ``tests/test_lab1_vector.py``.
 
 Task 1B. The starter's fallback rebuilds the plan from the shopper's words and

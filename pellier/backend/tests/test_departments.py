@@ -43,13 +43,13 @@ def test_seed_and_storefront_share_the_departments():
     assert get_args(StorefrontCategory) == DEPARTMENTS
 
 
-def test_shopping_prompt_browse_departments_are_known():
+def test_catalog_prompt_browse_departments_are_known():
     import re
 
-    from pellier_copy import SHOPPING_SYSTEM_PROMPT
+    from pellier_copy import CATALOG_SYSTEM_PROMPT
 
     line = next(
-        entry for entry in SHOPPING_SYSTEM_PROMPT.split("\n- ")
+        entry for entry in CATALOG_SYSTEM_PROMPT.split("\n- ")
         if entry.lstrip("- ").startswith("browse_department")
     )
     listed = re.search(r"one\s+department \((.+?)\)", line, re.S).group(1)
@@ -58,10 +58,10 @@ def test_shopping_prompt_browse_departments_are_known():
 
 
 def test_backend_prompts_do_not_name_retired_categories():
-    from pellier_copy import SHOPPING_SYSTEM_PROMPT
+    from pellier_copy import CATALOG_SYSTEM_PROMPT
 
     backend = REPO / "pellier" / "backend"
-    texts = {"SHOPPING_SYSTEM_PROMPT": SHOPPING_SYSTEM_PROMPT}
+    texts = {"CATALOG_SYSTEM_PROMPT": CATALOG_SYSTEM_PROMPT}
     for path in [*(backend / "agents").glob("*.py"), backend / "services" / "chat.py"]:
         texts[path.name] = path.read_text()
     for name, text in texts.items():

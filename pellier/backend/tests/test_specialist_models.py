@@ -11,7 +11,7 @@ from services.specialist_models import build_intent_signal, model_for_intent
 @pytest.mark.parametrize(
     ("intent", "setting"),
     [
-        ("shopping", "BEDROCK_OPUS_MODEL"),
+        ("catalog", "BEDROCK_OPUS_MODEL"),
         ("support", "BEDROCK_OPUS_MODEL"),
         ("stock", "BEDROCK_REPORTING_MODEL"),
     ],
@@ -67,7 +67,7 @@ def test_managed_dispatcher_keeps_the_caller_scope(monkeypatch) -> None:
     assert dispatcher.customer_id == "CUST-MARCO"
     assert dispatcher.routing_query == "find a resort shirt"
     prompt = agentcore_gateway._managed_specialist_prompt(
-        "shopping",
+        "catalog",
         customer_id=dispatcher.customer_id,
     )
     assert "customer_id='CUST-MARCO'" in prompt
@@ -76,7 +76,7 @@ def test_managed_dispatcher_keeps_the_caller_scope(monkeypatch) -> None:
 @pytest.mark.parametrize(
     ("module_name", "factory_name", "setting"),
     [
-        ("agents.shopping_agent", "build_shopping_agent", "BEDROCK_OPUS_MODEL"),
+        ("agents.catalog_agent", "build_catalog_agent", "BEDROCK_OPUS_MODEL"),
         ("agents.support_agent", "build_support_agent", "BEDROCK_OPUS_MODEL"),
     ],
 )
@@ -96,7 +96,7 @@ def test_the_router_and_agent_display_names_are_fixed() -> None:
 
     assert ROUTER_NAME == "Router"
     assert AGENT_NAMES == {
-        "shopping": "Catalog agent",
+        "catalog": "Catalog agent",
         "stock": "Stock agent",
         "support": "Support agent",
     }

@@ -39,9 +39,9 @@ _REPO = pathlib.Path(__file__).resolve().parents[3]
 SHOPPERS = {
     "marco": "CUST-MARCO", "anna": "CUST-ANNA", "theo": "CUST-THEO", "jessica": "CUST-JESSICA",
 }
-STARTER = _REPO / "policies" / "workshop_credit_limit.cedar"
-TEMPLATE = _REPO / "workshop" / "starters" / "workshop_credit_limit.cedar"
-REFERENCE = _REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
+STARTER = _REPO / "policies" / "credit_limit.cedar"
+TEMPLATE = _REPO / "workshop" / "starters" / "credit_limit.cedar"
+REFERENCE = _REPO / "solutions" / "lab-4-govern" / "policies" / "credit_limit.cedar"
 TRIGGER = _REPO / "scripts" / "deploy" / "cognito_customer_claim.py"
 DEPLOYER = _REPO / "scripts" / "deploy" / "deploy_customer_claim_trigger.py"
 ACTION = re.compile(r'action\s*==\s*AgentCore::Action::"([^"]+)"')

@@ -70,7 +70,7 @@ def _fake_graph(monkeypatch: pytest.MonkeyPatch, *, fail: bool = False) -> Dict[
         )
         return GRAPH.InvestigationResult(
             turn_id=kwargs["turn_id"], customer_id=kwargs["customer_id"], status="complete",
-            facts=["Both went back."], missing=["No credit recorded."], planner="Approve it.",
+            facts=["Both went back."], missing=["No credit recorded."], advisor="Approve it.",
             proposal=proposal, model_id="model-test",
         )
 
@@ -177,7 +177,7 @@ def test_the_investigators_customer_reads_are_bound_to_the_clients_username(
         assert rows == [{"order_id": 13}]
         return GRAPH.InvestigationResult(
             turn_id=kwargs["turn_id"], customer_id=kwargs["customer_id"], status="complete",
-            facts=[], missing=[], planner="", proposal=None, model_id="model-test",
+            facts=[], missing=[], advisor="", proposal=None, model_id="model-test",
         )
 
     monkeypatch.setattr(GRAPH, "run_investigation", run_investigation)

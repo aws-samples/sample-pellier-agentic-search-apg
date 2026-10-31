@@ -78,13 +78,13 @@ function respond(body: unknown) {
 }
 
 const ANNA_QUESTION = 'A housewarming gift, in stock, under $100, no candles.'
-const ROUTE_SHOPPING = {
+const ROUTE_CATALOG = {
   type: 'step', id: 'route', label: 'Understanding your request', status: 'done',
   finding: 'Sent to the Catalog agent', tags: ['Router'],
-  builder: { tool: null, intent: 'shopping', agent: 'Catalog agent' },
+  builder: { tool: null, intent: 'catalog', agent: 'Catalog agent' },
 }
-const ROUTE_SUPPORT = { ...ROUTE_SHOPPING, finding: 'Sent to the Support agent', builder: { tool: null, intent: 'support', agent: 'Support agent' } }
-const ROUTE_STOCK = { ...ROUTE_SHOPPING, finding: 'Sent to the Stock agent', builder: { tool: null, intent: 'stock', agent: 'Stock agent' } }
+const ROUTE_SUPPORT = { ...ROUTE_CATALOG, finding: 'Sent to the Support agent', builder: { tool: null, intent: 'support', agent: 'Support agent' } }
+const ROUTE_STOCK = { ...ROUTE_CATALOG, finding: 'Sent to the Stock agent', builder: { tool: null, intent: 'stock', agent: 'Stock agent' } }
 const SEARCH_RUNNING = {
   type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running',
   tags: ['Aurora'], builder: { tool: 'search_products' },
@@ -223,7 +223,7 @@ describe('the results view', () => {
     await askFromTheHomeBar(ANNA_QUESTION)
     // The grid gives way only once the Router sends the turn to the Catalog agent.
     expect(screen.queryByTestId('results-view')).toBeNull()
-    await emit(ROUTE_SHOPPING)
+    await emit(ROUTE_CATALOG)
     expect(screen.getByTestId('results-title')).toHaveTextContent(`Results for “${ANNA_QUESTION}”`)
     expect(screen.getByTestId('results-skeleton')).toBeInTheDocument()
     expect(screen.getByTestId('pellier-hero')).toHaveAttribute('data-compact', 'true')
@@ -249,7 +249,7 @@ describe('the results view', () => {
   it('marks a limit carried from an earlier message as from earlier', async () => {
     render(<Storefront />)
     await askFromTheHomeBar('Which of those for a small kitchen?')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['65'], {
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['65'], {
       limits: [
         { kind: 'budget', label: 'Under $100', origin: 'carried' },
         { kind: 'stock', label: 'In stock', origin: 'stated' },
@@ -264,7 +264,7 @@ describe('the results view', () => {
   it('marks a limit the shopper never stated as added by Pellier', async () => {
     render(<Storefront />)
     await askFromTheHomeBar('A gift for a friend')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['65'], {
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['65'], {
       limits: [
         { kind: 'budget', label: 'Under $50', origin: 'agent' },
         { kind: 'stock', label: 'In stock', origin: 'stated' },
@@ -280,25 +280,25 @@ describe('the results view', () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
     const bar = screen.getByTestId('pellier-hero-search')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36']))
     expect(bar).toHaveValue(ANNA_QUESTION)
     await finish()
     expect(bar).toHaveValue(ANNA_QUESTION)
 
     await askInTheDock('Something in linen for the trip')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING)
     expect(screen.getByTestId('pellier-hero-search')).toHaveValue('Something in linen for the trip')
   })
 
   it('replaces the grid with a follow-up search typed in the dock, and a support turn leaves it', async () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36', '22']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36', '22']))
     await finish()
     await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers', 'Linen Napkins, Set of 4']))
 
     await askInTheDock('Something in linen for the trip')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING)
     expect(screen.getByTestId('results-skeleton')).toBeInTheDocument()
     await emit(searchDone(['12']))
     await finish()
@@ -347,7 +347,7 @@ describe('the results view', () => {
   it('shows the whole store again without touching the conversation', async () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36']))
     await finish()
     await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers']))
     const turnsBefore = stream.turns.length
@@ -365,7 +365,7 @@ describe('the results view', () => {
   it('names what the limits left out when nothing fits', async () => {
     render(<Storefront />)
     await askFromTheHomeBar('A candle under $5')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone([], {
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone([], {
       filters: {
         kept: 0, of: 100, removed: { budget: 96, exclusions: 4 },
         excluded: [{ value: 'candle', count: 4, noun: 'candles' }],
@@ -382,12 +382,12 @@ describe('the results view', () => {
   it('keeps the previous grid and says so calmly when a turn fails', async () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36']))
     await finish()
     await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers']))
 
     await askInTheDock('And something for the bath?')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING)
     await act(async () => {
       latestTurn().fail(new Error('service_unavailable'))
     })
@@ -399,7 +399,7 @@ describe('the results view', () => {
     render(<Storefront />)
     await screen.findByTestId('home-grid')
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING)
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING)
     await act(async () => {
       latestTurn().fail(new Error('service_unavailable'))
     })
@@ -413,7 +413,7 @@ describe('the results view', () => {
     const note = 'Read from the retrieval receipt: no filter counts, and no record of which limits were kept from earlier'
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36', '22'], { filters: null, note }))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36', '22'], { filters: null, note }))
     await finish()
     await waitFor(() => expect(gridNames()).toHaveLength(2))
     const view = screen.getByTestId('results-view')
@@ -431,7 +431,7 @@ describe('the results view', () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
     await emit(
-      ROUTE_SHOPPING,
+      ROUTE_CATALOG,
       SEARCH_RUNNING,
       { ...SEARCH_RUNNING, id: 'step-2' },
       // The second search finishes first; each step carries only its own evidence.
@@ -472,7 +472,7 @@ describe('the results view', () => {
   it('shows How it ranked above the grid with Builder view on, and one line in the dock', async () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36', '22']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36', '22']))
     await finish()
     await waitFor(() => expect(gridNames()).toHaveLength(2))
     expect(screen.queryByTestId('ranking-panel')).toBeNull()
@@ -500,7 +500,7 @@ describe('the results view', () => {
     render(<Storefront />)
     await askFromTheHomeBar('For the trip')
     await emit(
-      ROUTE_SHOPPING,
+      ROUTE_CATALOG,
       SEARCH_RUNNING,
       { ...SEARCH_RUNNING, id: 'step-2' },
       searchDone(['96', '95', '14', '12']),
@@ -538,7 +538,7 @@ describe('the results view', () => {
     CATALOG.set(98, card(98, 'Leather Weekender'))
     render(<Storefront />)
     await askFromTheHomeBar('For the trip')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['96', '95', '14', '12', '97', '98']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['96', '95', '14', '12', '97', '98']))
     const answer =
       'Pack the Linen Drawstring Trousers for the heat, the Travel Bottles, Set of 4 for the bathroom bag, ' +
       'the Leather Weekender to carry it, and the Canvas Crossbody Bag for the day. The Everyday Backpack also fits.'
@@ -560,7 +560,7 @@ describe('the results view', () => {
     for (const id of ids) CATALOG.set(Number(id), card(Number(id), `Piece ${id}`))
     render(<Storefront />)
     await askFromTheHomeBar('Everything in linen')
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(ids))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(ids))
     await finish()
     await waitFor(() => expect(gridNames()).toHaveLength(12))
     expect(gridNames()).toEqual(ids.slice(0, 12).map(id => `Piece ${id}`))
@@ -578,7 +578,7 @@ describe('the results view', () => {
   it('has no Show all control when the result fits in twelve', async () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36', '22', '31']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36', '22', '31']))
     await finish()
     await waitFor(() => expect(gridNames()).toHaveLength(3))
     expect(screen.queryByTestId('results-show-all')).toBeNull()
@@ -594,7 +594,7 @@ describe('the results view', () => {
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
     await emit(
-      ROUTE_SHOPPING,
+      ROUTE_CATALOG,
       SEARCH_RUNNING,
       { ...SEARCH_RUNNING, id: 'step-2' },
       searchDone(['36', '22']),
@@ -642,7 +642,7 @@ describe('the results view', () => {
     vi.stubGlobal('scrollTo', scrollTo)
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
-    await emit(ROUTE_SHOPPING, SEARCH_RUNNING, searchDone(['36']))
+    await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36']))
     await finish()
     await waitFor(() => expect(gridNames()).toEqual(['Ceramic Tumblers']))
     expect(screen.getByTestId('pellier-hero-search')).toHaveValue(ANNA_QUESTION)

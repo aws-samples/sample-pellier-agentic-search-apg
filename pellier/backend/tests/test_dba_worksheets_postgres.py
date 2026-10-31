@@ -128,12 +128,12 @@ def test_the_workload_fails_when_the_row_policy_shows_theo_another_customer(
 ) -> None:
     """The plan's 0 rows is part of the verdict, not a remark beside it."""
     _agent_reads(statements_db, "theo", "CUST-THEO")
-    statements_db.psql("ALTER POLICY orders_owner ON pellier.orders USING (true)")
+    statements_db.psql("ALTER POLICY orders_own_rows ON pellier.orders USING (true)")
     try:
         done = _worksheet(statements_db, WORKLOAD)
     finally:
         statements_db.psql(
-            "ALTER POLICY orders_owner ON pellier.orders USING (customer_id = (SELECT id "
+            "ALTER POLICY orders_own_rows ON pellier.orders USING (customer_id = (SELECT id "
             "FROM pellier.customers WHERE cognito_username = "
             "current_setting('pellier.principal_username', true)))")
     assert done.returncode != 0
@@ -160,7 +160,7 @@ def test_statements_after_set_local_role_are_recorded_under_that_role(
 
 def _jessica_chain(cluster: Cluster, *, handoff_row: bool) -> Dict[str, Any]:
     """Write Lab 4 as the app does: her request, the review, Nadia's approval, the
-    credit through apply_store_credit as the money role, and the Gateway's receipts."""
+    credit through give_store_credit as the credit-writer role, and the Gateway's receipts."""
     with _connect(cluster) as conn:
         run = _run(conn)
         asked, investigated = new_turn_id(), new_turn_id()
@@ -186,7 +186,7 @@ def _jessica_chain(cluster: Cluster, *, handoff_row: bool) -> Dict[str, Any]:
         key = store_tools.execution_idempotency_key(review.id, action_hash)
         with conn.transaction():
             run("SET LOCAL ROLE pellier_credit_writer")
-            result = run("SELECT pellier.apply_store_credit(%s, 'CUST-JESSICA', 10000, %s, "
+            result = run("SELECT pellier.give_store_credit(%s, 'CUST-JESSICA', 10000, %s, "
                          "'nadia') AS r", (key, reason))[0]["r"]
         run("INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)"
             " VALUES ('gateway-CUST-JESSICA', 'give_store_credit', 'gateway', %s::jsonb, "

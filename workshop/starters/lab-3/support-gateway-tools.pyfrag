@@ -8,7 +8,7 @@
 #
 # SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. On the managed
 # rail the Router asks the Gateway for exactly these, and a tool the Gateway
-# does not publish is left out, so this tuple and the published catalogue have
+# does not publish is left out, so this tuple and the published catalog have
 # to agree.
 #
 # SUPPORT_CALLER_BOUND_TOOLS: the tools whose `customer_id` the server

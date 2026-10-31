@@ -1290,9 +1290,9 @@ log "✅ Status marker created"
 # you add new pre-applies, double-check both src and dest exist.
 #
 # Solutions directory layout:
-#   solutions/the-quiet-search/   — retrieval reference (observe-only)
-#   solutions/closing-marcos-gap/ — Lab 2's check_stock answer and builders tool module
-#   solutions/the-ledger/    — governance reference (observe-only)
+#   solutions/lab-1-retrieve/   — retrieval reference (observe-only)
+#   solutions/lab-2-ground/ — Lab 2's check_stock answer and builders tool module
+#   solutions/lab-3-deploy/    — governance reference (observe-only)
 #
 # Files we explicitly do NOT copy (participants build these):
 #   inside lab-2-check-stock.sql     — Lab 2B's not-carried test in pellier.check_stock
@@ -1318,7 +1318,7 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     # ---- agent_tools.py builders variant ----
     # Byte-identical to the governed module: check_stock's answer lives in the
     # database function pellier.check_stock, so this file holds no task.
-    copy_solution "solutions/closing-marcos-gap/services/agent_tools_builders_preapply.py" \
+    copy_solution "solutions/lab-2-ground/services/agent_tools_builders_preapply.py" \
                   "pellier/backend/services/agent_tools.py" "Agent tools (builders variant)"
 
     # ---- AgentCore production plumbing ----
@@ -1327,18 +1327,18 @@ if [ "${WORKSHOP_FORMAT}" = "builders" ] || [ "${WORKSHOP_FORMAT}" = "governed" 
     # these the FastAPI app won't even start. Note the destination is
     # services/agentcore_runtime.py (NOT backend/agentcore_runtime.py
     # — the routes import services.agentcore_runtime).
-    copy_solution "solutions/the-ledger/services/agentcore_runtime.py" \
+    copy_solution "solutions/lab-3-deploy/services/agentcore_runtime.py" \
                   "pellier/backend/services/agentcore_runtime.py" "AgentCore runtime"
-    copy_solution "solutions/the-ledger/services/agentcore_memory.py" \
+    copy_solution "solutions/lab-3-deploy/services/agentcore_memory.py" \
                   "pellier/backend/services/agentcore_memory.py" "AgentCore memory"
     # Policy is managed at the Gateway by the AgentCore CLI project. The old
     # local fake-Cedar service was removed; services/managed_policy.py is the
     # read side used by the operator surface.
-    copy_solution "solutions/the-ledger/services/agentcore_identity.py" \
+    copy_solution "solutions/lab-3-deploy/services/agentcore_identity.py" \
                   "pellier/backend/services/agentcore_identity.py" "AgentCore identity"
-    copy_solution "solutions/the-ledger/services/cognito_auth.py" \
+    copy_solution "solutions/lab-3-deploy/services/cognito_auth.py" \
                   "pellier/backend/services/cognito_auth.py" "Cognito auth helper"
-    copy_solution "solutions/the-ledger/services/otel_trace_extractor.py" \
+    copy_solution "solutions/lab-3-deploy/services/otel_trace_extractor.py" \
                   "pellier/backend/services/otel_trace_extractor.py" "OTEL trace extractor"
     else
         log "Governed format: restoring every participant task file to its starter"

@@ -1,8 +1,8 @@
-"""Lab 4B's check: your deployed privileges hold the money role to the credit function.
+"""Lab 4B's check: your deployed privileges hold the credit-writer role to the credit function.
 
 ``workshop/lab-4-credit-writer.sql`` probes your statements for
 ``pellier_credit_writer`` and, when every probe matches, commits them, stamping
-``pellier.apply_store_credit`` with their sha256. This check first confirms the
+``pellier.give_store_credit`` with their sha256. This check first confirms the
 live function carries the statements now in your file, so the privileges it
 probes are yours and not the ones the database shipped with, and reads what the
 catalog says the role holds. Then it opens each way Pellier writes a credit:
@@ -13,7 +13,7 @@ catalog says the role holds. Then it opens each way Pellier writes a credit:
                  store-tools Lambda uses for give_store_credit
 
 Each path asks what the role is, calls the credit function for a credit no one
-approved, and then tries what a money path never should: insert a credit row
+approved, and then tries what a credit path never should: insert a credit row
 and raise a credit's amount directly. The function must answer
 approval_required, and both direct writes must be refused with SQLSTATE 42501, a
 privilege the role does not hold. Every probe ends in a rollback and the direct
@@ -45,10 +45,10 @@ STARTER = REPO / "workshop" / "starters" / "lab-4-credit-writer.sql"
 REGION = "Credit writer - privileges"
 STAMP_PREFIX = "Lab 4B privileges sha256 "
 ROLE = "pellier_credit_writer"
-FUNCTION = "pellier.apply_store_credit(text, text, integer, text, text)"
+FUNCTION = "pellier.give_store_credit(text, text, integer, text, text)"
 RUN_WORKSHEET = "psql -f workshop/lab-4-credit-writer.sql"
 DEPLOYED_TITLE = "your privileges are the live ones"
-DEPLOYED_EXPECTED = ("apply_store_credit carries the statements now in "
+DEPLOYED_EXPECTED = ("give_store_credit carries the statements now in "
                      "workshop/lab-4-credit-writer.sql, and the role holds EXECUTE on it and "
                      "nothing else")
 LIVE_RIGHTS = "definer, search_path=pg_catalog, pg_temp"
@@ -67,8 +67,8 @@ SELECT coalesce(obj_description(p.oid, 'pg_proc'), '') AS stamp,
   FROM pg_proc p WHERE p.oid = '{FUNCTION}'::regprocedure
 """
 
-# What each path asks, as the money role. The first two are what the role is
-# for; the last two are what a money path must never be able to do. Both direct
+# What each path asks, as the credit-writer role. The first two are what the role is
+# for; the last two are what a credit path must never be able to do. Both direct
 # writes match no row, so a role that wrongly held the privilege changes nothing.
 WHO = "the role it runs as"
 DOOR = "the credit function, for a credit no one approved"
@@ -76,7 +76,7 @@ INSERT = "insert a credit row directly"
 UPDATE = "raise a credit's amount directly"
 PROBES: Tuple[Tuple[str, str], ...] = (
     (WHO, "SELECT current_user AS answer"),
-    (DOOR, "SELECT pellier.apply_store_credit('lab4-live-check', 'CUST-NOBODY', 100, "
+    (DOOR, "SELECT pellier.give_store_credit('lab4-live-check', 'CUST-NOBODY', 100, "
            "'Lab 4B live check', NULL)->>'status' AS answer"),
     (INSERT, "INSERT INTO pellier.store_credits (approval_id, customer_id, amount_cents, reason, "
              "idempotency_key) SELECT id, customer_id, 100, 'Lab 4B live check', 'lab4-live-check' "
@@ -138,7 +138,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
     short = stamp[len(STAMP_PREFIX):][:12]
     deployed = str(live.get("stamp") or "")
     evidence = [
-        "apply_store_credit: " + (f"sha256 {deployed[len(STAMP_PREFIX):][:12]}..."
+        "give_store_credit: " + (f"sha256 {deployed[len(STAMP_PREFIX):][:12]}..."
                                   if deployed.startswith(STAMP_PREFIX) else "no Lab 4B comment"),
         f"workshop/lab-4-credit-writer.sql: sha256 {short}...",
         f"function rights: {live.get('rights')}",
@@ -190,7 +190,7 @@ def deployed_finding(connect: Callable[[], Any],
 
 def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
     """One path's verdict from each probe's answer or SQLSTATE."""
-    title = f"{path} path: the money role writes only through the function"
+    title = f"{path} path: the credit-writer role writes only through the function"
     broken = [f"{label}: {answer}" for label, answer in observed.items()
               if str(answer).startswith(ERROR)]
     if broken:
@@ -214,7 +214,7 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:
-    return check.Finding("4B", f"{path} path: the money role writes only through the function",
+    return check.Finding("4B", f"{path} path: the credit-writer role writes only through the function",
                          check.UNCHECKED, EXPECTED, "the check could not run this path",
                          [f"{type(exc).__name__}: {str(exc)[:200]}"],
                          "run this on the workshop box, where pellier/backend/.env names the "
@@ -374,7 +374,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if check.refuse_missing_lab_file(4):
         return 1
     findings = collect()
-    print("Lab 4B: your deployed privileges, then the money role on both database paths")
+    print("Lab 4B: your deployed privileges, then the credit-writer role on both database paths")
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PROVED for finding in findings)

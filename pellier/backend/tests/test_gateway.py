@@ -6,7 +6,7 @@
     before a caller-bound tool executes, so the model cannot choose whose
     records to read.
   * The capability tiers and the safe-input allow-list agree with the
-    published catalogue.
+    published catalog.
 
 No live Gateway, no Bedrock, no network.
 """
@@ -38,7 +38,7 @@ def solved_binding(monkeypatch):
     monkeypatch.setattr(gateway, "_CUSTOMER_SCOPED_TOOL_NAMES", SOLVED_BOUND)
 
 
-def test_the_nine_tools_are_the_catalogue() -> None:
+def test_the_nine_tools_are_the_catalog() -> None:
     assert NINE_TOOLS == {
         "search_products", "browse_department", "compare_products", "check_stock",
         "get_orders", "get_return_policy", "get_tickets", "give_store_credit", "ask_a_person",
@@ -51,9 +51,9 @@ def test_the_nine_tools_are_the_catalogue() -> None:
     assert [config["target_name"] for config in TOOL_SCHEMAS.values()] == [TARGET]
 
 
-def test_managed_agents_partition_the_shopper_catalogue() -> None:
-    assert set(gateway.MANAGED_SPECIALIST_TOOLS) == {"shopping", "stock", "support"}
-    assert gateway.MANAGED_SPECIALIST_TOOLS["shopping"] == (
+def test_managed_agents_partition_the_shopper_catalog() -> None:
+    assert set(gateway.MANAGED_SPECIALIST_TOOLS) == {"catalog", "stock", "support"}
+    assert gateway.MANAGED_SPECIALIST_TOOLS["catalog"] == (
         "search_products", "browse_department", "compare_products", "ask_a_person",
     )
     assert gateway.MANAGED_SPECIALIST_TOOLS["stock"] == ("check_stock",)
@@ -80,7 +80,7 @@ def test_the_tiers_name_the_one_money_movement() -> None:
 
 
 def test_every_published_input_field_is_safe_to_inspect() -> None:
-    """A tool argument the catalogue declares is one the trace may show."""
+    """A tool argument the catalog declares is one the trace may show."""
     declared = {
         name
         for config in TOOL_SCHEMAS.values()
@@ -337,8 +337,8 @@ def test_the_managed_report_is_empty_when_the_bundle_carries_no_skills(monkeypat
     assert "SKILLS - loaded for this agent" not in prompt
 
 
-def test_the_managed_shopping_prompt_carries_limits_across_the_conversation() -> None:
-    _, prompt, _, _ = gateway._managed_specialist_spec("shopping")
+def test_the_managed_catalog_prompt_carries_limits_across_the_conversation() -> None:
+    _, prompt, _, _ = gateway._managed_specialist_spec("catalog")
     assert "browse_department as arguments" in prompt
     assert "including limits the shopper stated earlier in this conversation" in prompt
 
@@ -375,7 +375,7 @@ def test_gateway_tool_names_are_read_through_the_strands_tool_interface() -> Non
     backend = Path(__file__).resolve().parents[1]
     for path in (
         backend / "services" / "agentcore_gateway.py",
-        backend.parents[1] / "solutions" / "the-ledger" / "services" / "agentcore_gateway.py",
+        backend.parents[1] / "solutions" / "lab-3-deploy" / "services" / "agentcore_gateway.py",
     ):
         source = path.read_text()
         invalid = [
@@ -389,7 +389,7 @@ def test_gateway_tool_names_are_read_through_the_strands_tool_interface() -> Non
 
 def test_a_shopper_agent_may_not_bind_the_staff_only_gateway_tool() -> None:
     """A tool published for human-approved credits cannot be bound to a shopper agent."""
-    gateway.assert_no_staff_only_binding("shopping", ["search_products", "compare_products"])
+    gateway.assert_no_staff_only_binding("catalog", ["search_products", "compare_products"])
     with pytest.raises(RuntimeError, match="staff-only Gateway tools: give_store_credit"):
         gateway.assert_no_staff_only_binding("support", ["get_return_policy", "give_store_credit"])
     assert gateway.STAFF_ONLY_GATEWAY_TOOLS == frozenset({"give_store_credit"})

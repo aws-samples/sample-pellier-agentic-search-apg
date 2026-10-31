@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 class AgentType(Enum):
     """The Router and the three agents it reaches."""
     ROUTER = "router"
-    SHOPPING = "shopping"
+    CATALOG = "catalog"
     STOCK = "stock"
     SUPPORT = "support"
 

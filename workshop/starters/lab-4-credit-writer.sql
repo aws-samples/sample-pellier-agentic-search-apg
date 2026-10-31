@@ -3,14 +3,14 @@
 \set VERBOSITY terse
 \pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 
--- Lab 4, Task 4B: what the money role may do.
+-- Lab 4, Task 4B: what the credit-writer role may do.
 --
--- Every credit is written by one function, pellier.apply_store_credit. It
+-- Every credit is written by one function, pellier.give_store_credit. It
 -- refuses any credit a person did not approve exactly, under that review's own
 -- key, and a trigger on pellier.store_credits refuses the same for any insert.
 -- Both rails run the credit as the pellier_credit_writer role: in process
 -- through DatabaseService.fetch_all_as_credit_writer, on the Gateway through
--- run_as_credit_writer. That role's privileges decide what else a money path
+-- run_as_credit_writer. That role's privileges decide what else a credit path
 -- could do. The trigger covers inserts only, so a role that may UPDATE
 -- pellier.store_credits can change an approved amount after the fact, and no
 -- check runs.
@@ -36,9 +36,9 @@ SELECT count(*) AS credits_before FROM pellier.store_credits \gset
 -- A clean slate: no table privilege, no row policy, no EXECUTE, invoker's rights.
 REVOKE ALL ON pellier.store_credits, pellier.orders, pellier.approvals, pellier.customers
     FROM pellier_credit_writer;
-REVOKE ALL ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+REVOKE ALL ON FUNCTION pellier.give_store_credit(text, text, integer, text, text)
     FROM pellier_credit_writer, PUBLIC;
-ALTER FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+ALTER FUNCTION pellier.give_store_credit(text, text, integer, text, text)
     SECURITY INVOKER RESET ALL;
 SELECT format('DROP POLICY %I ON %I.%I', policyname, schemaname, tablename)
   FROM pg_policies WHERE 'pellier_credit_writer' = ANY (roles)
@@ -51,7 +51,7 @@ SELECT $privileges$
   GRANT SELECT, UPDATE ON pellier.orders, pellier.approvals TO pellier_credit_writer;
   GRANT SELECT ON pellier.customers TO pellier_credit_writer;
   CREATE POLICY orders_credit_writer ON pellier.orders TO pellier_credit_writer USING (true);
-  GRANT EXECUTE ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+  GRANT EXECUTE ON FUNCTION pellier.give_store_credit(text, text, integer, text, text)
       TO pellier_credit_writer;
 $privileges$ AS privileges
 \gset
@@ -64,7 +64,7 @@ SELECT :'privileges' \gexec
 SELECT 'Lab 4B privileges sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
   FROM (SELECT encode(sha256(convert_to(:'privileges', 'UTF8')), 'hex') AS hash) h
 \gset
-COMMENT ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text) IS :'stamp';
+COMMENT ON FUNCTION pellier.give_store_credit(text, text, integer, text, text) IS :'stamp';
 
 -- The probes run inside a savepoint. Rolling back to it undoes the probe
 -- customer, its orders, its approved review and its credit; your statements
@@ -89,18 +89,18 @@ SELECT id AS review, 'operator-review:' || id || ':' || left(action_hash, 32) AS
 \gset probe_
 SELECT set_config('lab4.review', :'probe_review', true) AS review \gset
 
--- Each money probe runs as pellier_credit_writer. A refusal is recorded as its
+-- Each credit probe runs as pellier_credit_writer. A refusal is recorded as its
 -- SQLSTATE and where it came from: 42501 is a privilege the role does not
 -- hold; 23514 is a rule the table's trigger enforces.
 SET LOCAL ROLE pellier_credit_writer;
-SELECT pellier.apply_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 5000, 'Lab 4 probe', NULL)
+SELECT pellier.give_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 5000, 'Lab 4 probe', NULL)
          ->>'status' AS amount,
-       pellier.apply_store_credit(:'probe_key' || '-minted', 'CUST-LABFOURPROBE', 2500,
+       pellier.give_store_credit(:'probe_key' || '-minted', 'CUST-LABFOURPROBE', 2500,
                                   'Lab 4 probe', NULL)->>'status' AS other_key
 \gset refused_
-SELECT (pellier.apply_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 2500, 'Lab 4 probe', NULL)
+SELECT (pellier.give_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 2500, 'Lab 4 probe', NULL)
           ->>'credit_id') AS first,
-       (pellier.apply_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 2500, 'Lab 4 probe', NULL)
+       (pellier.give_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 2500, 'Lab 4 probe', NULL)
           ->>'credit_id') AS retry
 \gset credit_
 DO $direct$
@@ -146,10 +146,10 @@ RESET ROLE;
 -- What the catalog says the role holds, read as the owner.
 SELECT (CASE WHEN prosecdef THEN 'definer' ELSE 'invoker' END) || ', '
          || coalesce(array_to_string(proconfig, ' '), 'no settings') AS rights
-  FROM pg_proc WHERE oid = 'pellier.apply_store_credit(text, text, integer, text, text)'::regprocedure
+  FROM pg_proc WHERE oid = 'pellier.give_store_credit(text, text, integer, text, text)'::regprocedure
 \gset fn_
 SELECT string_agg(r || ' ' || CASE WHEN has_function_privilege(r,
-                 'pellier.apply_store_credit(text, text, integer, text, text)', 'EXECUTE')
+                 'pellier.give_store_credit(text, text, integer, text, text)', 'EXECUTE')
                  THEN 'yes' ELSE 'no' END, ', ' ORDER BY ord) AS execute
   FROM unnest(ARRAY['pellier_credit_writer', 'pellier_agent', 'public']) WITH ORDINALITY AS t (r, ord)
 \gset fn_
@@ -182,15 +182,15 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
     ('Raise the approved credit to $500 directly', '42501', :'direct_update',
      :'direct_update_source'),
     ('The approved key with a different amount', 'approval_mismatch', :'refused_amount',
-     'pellier.apply_store_credit'),
+     'pellier.give_store_credit'),
     ('The approved amount under another key', 'approval_key_mismatch', :'refused_other_key',
-     'pellier.apply_store_credit'),
+     'pellier.give_store_credit'),
     ('The approved credit, then its retry', 'written once, then the same credit',
      CASE WHEN :'credit_first' <> '' AND :'credit_first' = :'credit_retry'
           THEN 'written once, then the same credit'
           ELSE 'credit ' || coalesce(nullif(:'credit_first', ''), 'none') || ', then '
                || coalesce(nullif(:'credit_retry', ''), 'none') END,
-     'pellier.apply_store_credit'),
+     'pellier.give_store_credit'),
     ('The function''s rights', 'definer, search_path=pg_catalog, pg_temp', :'fn_rights',
      'pg_proc'),
     ('Who may execute the function',
@@ -199,7 +199,7 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
      :'writer_tables', 'role_table_grants and pg_policies');
 
 \echo 'Lab 4B: your privileges for pellier_credit_writer, probed'
-\echo 'Evidence  pellier.apply_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
+\echo 'Evidence  pellier.give_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
 \echo '          a probe case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
 \echo ''
 -- Each probe on one row with the reason it came out as it did; after a failed run, each probe
@@ -236,7 +236,7 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, the live state is unchanged'
   \echo '         ' :credits_rows
   \if :lab_4_tables_differ
-    \echo 'Next      which single privilege does a money path need? In the rows marked differs,'
+    \echo 'Next      which single privilege does a credit path need? In the rows marked differs,'
     \echo '          23514 is the trigger refusing a row your role was allowed to insert: a rule'
     \echo '          the owner can switch off, not a privilege the role lacks. A direct UPDATE'
     \echo '          that goes through changes an approved amount with no check at all.'

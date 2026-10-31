@@ -296,7 +296,7 @@ export interface InvestigationAnswer {
   customerId: string
   status: 'complete' | 'failed'
   investigation: { facts: string[]; missing: string[] }
-  planner: string
+  advisor: string
   proposal: InvestigationProposal | null
   graph: {
     graphId: string

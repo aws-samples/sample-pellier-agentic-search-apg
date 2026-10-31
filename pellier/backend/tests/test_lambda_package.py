@@ -43,9 +43,9 @@ BACKEND = REPO / "pellier" / "backend"
 DEPLOY = REPO / "scripts" / "deploy"
 SERVER = DEPLOY / "pellier_store_tools.py"
 SOLUTION_COPIES = {
-    "services/store_tools.py": REPO / "solutions" / "the-quiet-search" / "retrieval"
+    "services/store_tools.py": REPO / "solutions" / "lab-1-retrieve" / "retrieval"
     / "store_tools_solution.py",
-    "services/search_plan.py": REPO / "solutions" / "the-quiet-search" / "retrieval"
+    "services/search_plan.py": REPO / "solutions" / "lab-1-retrieve" / "retrieval"
     / "search_plan_solution.py",
 }
 _MARKER_BLOCK = re.compile(

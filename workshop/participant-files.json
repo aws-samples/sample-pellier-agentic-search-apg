@@ -1,53 +1,53 @@
 [
   {
-    "alias": "labs/01-retrieve/1A-vector-branch.py",
+    "alias": "labs/01-retrieve/1A-vector-search.py",
     "source": "pellier/backend/services/store_tools.py",
-    "solution": "solutions/the-quiet-search/retrieval/store_tools_solution.py"
+    "solution": "solutions/lab-1-retrieve/retrieval/store_tools_solution.py"
   },
   {
     "alias": "labs/01-retrieve/1B-search-plan.py",
     "source": "pellier/backend/services/search_plan.py",
-    "solution": "solutions/the-quiet-search/retrieval/search_plan_solution.py"
+    "solution": "solutions/lab-1-retrieve/retrieval/search_plan_solution.py"
   },
   {
     "alias": "labs/01-retrieve/go-deeper-fusion.sql",
     "source": "workshop/lab-1-fusion.sql",
-    "solution": "solutions/the-quiet-search/sql/lab-1-fusion-solution.sql",
+    "solution": "solutions/lab-1-retrieve/sql/lab-1-fusion-solution.sql",
     "optional": true
   },
   {
     "alias": "labs/02-ground/2A-stock-agent.py",
     "source": "pellier/backend/agents/stock_agent.py",
-    "solution": "solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
+    "solution": "solutions/lab-2-ground/agents/stock_agent_solution.py"
   },
   {
     "alias": "labs/02-ground/2B-check-stock.sql",
     "source": "workshop/lab-2-check-stock.sql",
-    "solution": "solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql"
+    "solution": "solutions/lab-2-ground/sql/lab-2-check-stock-solution.sql"
   },
   {
     "alias": "labs/03-deploy/3A-1-publish-tool.py",
     "source": "scripts/deploy/gateway_tool_schemas.py",
-    "solution": "solutions/the-ledger/gateway/gateway_tool_schemas_solution.py"
+    "solution": "solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py"
   },
   {
     "alias": "labs/03-deploy/3A-2-bind-caller.py",
     "source": "pellier/backend/services/agentcore_gateway.py",
-    "solution": "solutions/the-ledger/services/agentcore_gateway.py"
+    "solution": "solutions/lab-3-deploy/services/agentcore_gateway.py"
   },
   {
-    "alias": "labs/04-govern/4A-credit-policy.cedar",
-    "source": "policies/workshop_credit_limit.cedar",
-    "solution": "solutions/the-concierge/policies/workshop_credit_limit.cedar"
+    "alias": "labs/04-govern/4A-credit-limit.cedar",
+    "source": "policies/credit_limit.cedar",
+    "solution": "solutions/lab-4-govern/policies/credit_limit.cedar"
   },
   {
     "alias": "labs/03-deploy/3B-row-ownership.sql",
     "source": "workshop/lab-3-row-ownership.sql",
-    "solution": "solutions/the-ledger/sql/lab-3-row-ownership-solution.sql"
+    "solution": "solutions/lab-3-deploy/sql/lab-3-row-ownership-solution.sql"
   },
   {
     "alias": "labs/04-govern/4B-credit-writer.sql",
     "source": "workshop/lab-4-credit-writer.sql",
-    "solution": "solutions/the-concierge/sql/lab-4-credit-writer-solution.sql"
+    "solution": "solutions/lab-4-govern/sql/lab-4-credit-writer-solution.sql"
   }
 ]

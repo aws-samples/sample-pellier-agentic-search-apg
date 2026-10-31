@@ -250,11 +250,11 @@ def graph_runtime(monkeypatch: pytest.MonkeyPatch):
             ("get_tickets", {}), ("get_orders", {}), ("get_store_credits", {}),
             ("get_return_policy", {}),
         ],
-        GRAPH.PLANNER_NODE: [("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back, no credit recorded."})],
+        GRAPH.ADVISOR_NODE: [("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back, no credit recorded."})],
     }
     _FakeAgent.outputs = {
         GRAPH.INVESTIGATOR_NODE: INVESTIGATOR_BRIEF,
-        GRAPH.PLANNER_NODE: "A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it.",
+        GRAPH.ADVISOR_NODE: "A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it.",
     }
     monkeypatch.setattr(strands, "Agent", _FakeAgent)
     monkeypatch.setattr(strands.models, "BedrockModel", _FakeModel)
@@ -275,7 +275,7 @@ def _investigate(run: _Run, events: List[Dict[str, Any]]) -> GRAPH.Investigation
     )
 
 
-@pytest.mark.parametrize("prompt", ["_INVESTIGATOR_PROMPT", "_PLANNER_PROMPT"])
+@pytest.mark.parametrize("prompt", ["_INVESTIGATOR_PROMPT", "_ADVISOR_PROMPT"])
 def test_both_prompts_require_plain_words_for_staff_not_field_names(prompt: str) -> None:
     text = " ".join(getattr(GRAPH, prompt).split())
     assert "Write " in text and "for a staff member, in plain words" in text
@@ -290,17 +290,17 @@ def test_the_graph_has_two_ordered_nodes_and_bounded_tools(graph_runtime) -> Non
 
     builder = _FakeBuilder.latest
     assert builder is not None
-    assert [node_id for _agent, node_id in builder.nodes] == [GRAPH.INVESTIGATOR_NODE, GRAPH.PLANNER_NODE]
-    assert builder.edges == [(GRAPH.INVESTIGATOR_NODE, GRAPH.PLANNER_NODE)]
+    assert [node_id for _agent, node_id in builder.nodes] == [GRAPH.INVESTIGATOR_NODE, GRAPH.ADVISOR_NODE]
+    assert builder.edges == [(GRAPH.INVESTIGATOR_NODE, GRAPH.ADVISOR_NODE)]
     assert builder.entry == GRAPH.INVESTIGATOR_NODE
     assert builder.max_executions == 2
-    investigator, planner = (agent for agent, _ in builder.nodes)
+    investigator, advisor = (agent for agent, _ in builder.nodes)
     assert sorted(investigator.tools) == [
         "get_orders", "get_return_policy", "get_store_credits", "get_tickets",
     ]
-    assert sorted(planner.tools) == ["propose_store_credit"]
+    assert sorted(advisor.tools) == ["propose_store_credit"]
     assert investigator.kwargs["model"].kwargs["max_tokens"] == GRAPH._INVESTIGATOR_MAX_TOKENS
-    assert "give_store_credit" not in investigator.tools and "give_store_credit" not in planner.tools
+    assert "give_store_credit" not in investigator.tools and "give_store_credit" not in advisor.tools
 
 
 def test_the_investigator_reads_are_bound_to_the_case_customer(graph_runtime) -> None:
@@ -332,7 +332,7 @@ def test_the_investigators_order_and_ticket_reads_run_under_row_level_security(
 def test_the_investigator_reads_the_recorded_credits_bounded(graph_runtime) -> None:
     """After payment, a re-investigation's own read says the credit is recorded."""
     _FakeAgent.scripts[GRAPH.INVESTIGATOR_NODE] = [("get_store_credits", {"limit": 500})]
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = []
     credit = {"amount_cents": 10000, "reason": JESSICA_REASON, "created_at": "2026-10-04T18:00:00"}
     run = _Run(credits=[credit])
     events: List[Dict[str, Any]] = []
@@ -346,7 +346,7 @@ def test_the_investigator_reads_the_recorded_credits_bounded(graph_runtime) -> N
     assert GRAPH.read_store_credits(_Run(), customer_id="CUST-JESSICA")["count"] == 0
 
 
-def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_records(
+def test_the_advisor_proposes_the_received_returns_with_a_reason_from_the_records(
     graph_runtime,
 ) -> None:
     run = _Run()
@@ -369,11 +369,11 @@ def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_record
                                      "reason": JESSICA_REASON}
     assert insert[2] == "turn-" + "a" * 32          # the investigation is the source turn
     assert insert[3] == [301, 302]                   # the orders the credit covers
-    planner_sentence = "Two items went back, no credit recorded."
-    assert insert[4] == planner_sentence             # the Advisor's words are the rationale
+    advisor_sentence = "Two items went back, no credit recorded."
+    assert insert[4] == advisor_sentence             # the Advisor's words are the rationale
     recommendation = json.loads(insert[5])
     assert "orderIds" not in recommendation, "order_ids is a column, not desk data"
-    assert recommendation["rationale"] == planner_sentence
+    assert recommendation["rationale"] == advisor_sentence
     assert insert[7] == "sub-nadia" and insert[8] == "operator"
 
 
@@ -382,9 +382,9 @@ def test_the_planner_proposes_the_received_returns_with_a_reason_from_the_record
     [[301], [302], [301, 302, 303], [302, 303, 9999], ["301", 302], [301, 301]],
     ids=["subset", "other-subset", "extra-unreturned", "extra-foreign", "strings", "repeated"],
 )
-def test_the_amount_is_10000_whatever_orders_the_planner_names(graph_runtime, named) -> None:
+def test_the_amount_is_10000_whatever_orders_the_advisor_names(graph_runtime, named) -> None:
     """The records decide the credit; the model only has to point at one returned order."""
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": named, "reason": "Items went back."}),
     ]
     run = _Run()
@@ -396,7 +396,7 @@ def test_the_amount_is_10000_whatever_orders_the_planner_names(graph_runtime, na
 
 @pytest.mark.parametrize("named", [[303], [9999], [303, 9999], []])
 def test_naming_no_returned_order_proposes_nothing(graph_runtime, named) -> None:
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": named, "reason": "Credit these."}),
     ]
     run = _Run()
@@ -457,7 +457,7 @@ def test_naming_no_order_with_nothing_returned_is_the_no_credit_finding() -> Non
 
 
 def test_the_advisor_is_told_to_ask_the_tool_for_missing_order_numbers() -> None:
-    text = " ".join(GRAPH._PLANNER_PROMPT.split())
+    text = " ".join(GRAPH._ADVISOR_PROMPT.split())
     assert "with an empty list of order ids" in text
     assert "Never decline a credit the records support because a number is missing" in text
 
@@ -466,7 +466,7 @@ def test_two_investigations_in_different_words_resolve_to_one_review(graph_runti
     """The fingerprint is the case's, not the model's, so a rerun cannot open a twin."""
     run = _Run()
     first = _investigate(run, [])
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit",
          {"order_ids": [302, 303], "reason": "The robe and diffuser came back."}),
     ]
@@ -494,8 +494,8 @@ def test_an_approved_case_investigated_again_opens_no_second_review(graph_runtim
     assert second.proposal.status == "approved"
     assert second.as_payload()["proposal"]["status"] == "approved"
     assert second.proposal.idempotency_key == first.proposal.idempotency_key
-    planner = [e for e in events if e["id"] == GRAPH.PLANNER_NODE and e["status"] == "done"][-1]
-    assert planner["finding"] == (
+    advisor = [e for e in events if e["id"] == GRAPH.ADVISOR_NODE and e["status"] == "done"][-1]
+    assert advisor["finding"] == (
         "$100.00 credit already approved in review 41; no second review opened"
     )
 
@@ -508,7 +508,7 @@ def test_a_later_returned_item_gets_a_review_of_its_own(graph_runtime) -> None:
     run.approve(first.proposal.review_id)
     run.orders[2]["return_status"] = "received"
 
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": [301, 302, 303], "reason": "A third item came back."}),
     ]
     second = _investigate(run, [])
@@ -544,53 +544,53 @@ def test_an_investigation_with_no_proposal_answers_them_with_no_review(graph_run
     assert run.answered == [("turn-" + "a" * 32, None, "CUST-JESSICA")]
 
 
-def test_a_planner_that_reads_the_brief_and_proposes_nothing_answers_them(graph_runtime) -> None:
+def test_a_advisor_that_reads_the_brief_and_proposes_nothing_answers_them(graph_runtime) -> None:
     """A deliberate no-credit outcome is a finding: "call nothing and say why"."""
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = []
     run = _Run()
     result = _investigate(run, [])
     assert result.proposal is None
     assert run.answered == [("turn-" + "a" * 32, None, "CUST-JESSICA")]
 
 
-def _planner_step(events: List[Dict[str, Any]]) -> Dict[str, Any]:
-    return [event for event in events if event["id"] == GRAPH.PLANNER_NODE][-1]
+def _advisor_step(events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return [event for event in events if event["id"] == GRAPH.ADVISOR_NODE][-1]
 
 
-def test_a_planner_that_rightly_proposes_nothing_is_a_done_step(graph_runtime) -> None:
+def test_a_advisor_that_rightly_proposes_nothing_is_a_done_step(graph_runtime) -> None:
     """Seen on event 9: Jessica already credited, the Advisor said why and called no tool.
 
     That is a finding, so the desk must not show it as a step that did not complete. Its
     line keeps whole sentences instead of stopping mid-date at 160 characters.
     """
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
-    _FakeAgent.outputs[GRAPH.PLANNER_NODE] = (
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = []
+    _FakeAgent.outputs[GRAPH.ADVISOR_NODE] = (
         "No store credit is warranted, so I called no tool. Orders 20 ($64.00) and 21 ($36.00) "
         "are both marked returned and received. A $100.00 store credit dated 2026-10-21 already "
         "covers both items, so the records support no further credit."
     )
     events: List[Dict[str, Any]] = []
     _investigate(_Run(), events)
-    planner = _planner_step(events)
-    assert planner["status"] == "done"
-    assert planner["finding"] == (
+    advisor = _advisor_step(events)
+    assert advisor["status"] == "done"
+    assert advisor["finding"] == (
         "No store credit is warranted, so I called no tool. Orders 20 ($64.00) and 21 ($36.00) "
         "are both marked returned and received.")
 
 
-def test_a_planner_told_the_returns_are_credited_says_so_in_the_template(graph_runtime) -> None:
+def test_a_advisor_told_the_returns_are_credited_says_so_in_the_template(graph_runtime) -> None:
     rows = [{**order, "store_credit_id": 7} for order in JESSICA_ORDERS]
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back."}),
     ]
     events: List[Dict[str, Any]] = []
     _investigate(_Run(rows), events)
-    planner = _planner_step(events)
-    assert (planner["status"], planner["finding"]) == (
+    advisor = _advisor_step(events)
+    assert (advisor["status"], advisor["finding"]) == (
         "done", "A store credit already covers every received return")
 
 
-def test_a_long_planner_line_without_a_sentence_end_stops_at_a_word() -> None:
+def test_a_long_advisor_line_without_a_sentence_end_stops_at_a_word() -> None:
     line = GRAPH._whole_sentences("word " * 60, 160)
     assert line.endswith("word…") and len(line) <= 161
 
@@ -602,7 +602,7 @@ def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) ->
         "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
         "placed_at": None, "return_status": "received", "store_credit_id": None,
     }]
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": order_ids, "reason": "Credit these."}),
     ]
     run = _Run(orders if order_ids == [399] else None)
@@ -610,12 +610,12 @@ def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) ->
     result = _investigate(run, events)
     assert result.status == "complete" and result.proposal is None
     assert run.answered == [], "no proposal and no finding: the request stays open"
-    assert _planner_step(events)["status"] == "failed"
+    assert _advisor_step(events)["status"] == "failed"
 
 
 def test_an_investigation_with_no_brief_leaves_the_requests_open(graph_runtime) -> None:
     _FakeAgent.outputs[GRAPH.INVESTIGATOR_NODE] = "I could not read the records."
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = []
     run = _Run()
     result = _investigate(run, [])
     assert result.facts == [] and result.proposal is None
@@ -623,7 +623,7 @@ def test_an_investigation_with_no_brief_leaves_the_requests_open(graph_runtime) 
 
 
 def test_the_graph_stops_after_one_proposal(graph_runtime) -> None:
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back."}),
         ("propose_store_credit", {"order_ids": [303], "reason": "Second try."}),
     ]
@@ -641,16 +641,16 @@ def test_the_steps_stream_in_order_with_template_findings(graph_runtime) -> None
     assert ids[0] == (GRAPH.INVESTIGATOR_NODE, "running")
     assert ("get_tickets", "running") in ids and ("get_tickets", "done") in ids
     assert ids.index(("get_tickets", "done")) < ids.index(("get_orders", "running"))
-    assert ids[-2:] == [(GRAPH.INVESTIGATOR_NODE, "done"), (GRAPH.PLANNER_NODE, "done")]
+    assert ids[-2:] == [(GRAPH.INVESTIGATOR_NODE, "done"), (GRAPH.ADVISOR_NODE, "done")]
     by_id = {e["id"]: e for e in events if e["status"] == "done"}
     assert by_id["get_tickets"]["finding"] == "1 open ticket: Two items went back, no credit yet"
     assert by_id["get_orders"]["finding"] == "3 orders on file, $158.00 paid, 2 returned"
     assert by_id["get_return_policy"]["finding"] == "30-day returns for Home"
     assert by_id["get_store_credits"]["finding"] == "No store credit recorded"
     assert by_id[GRAPH.INVESTIGATOR_NODE]["finding"] == "3 things the records show, 1 missing"
-    assert by_id[GRAPH.PLANNER_NODE]["finding"] == "$100.00 credit proposed for 2 returned items, waiting for approval"
+    assert by_id[GRAPH.ADVISOR_NODE]["finding"] == "$100.00 credit proposed for 2 returned items, waiting for approval"
     assert by_id["get_orders"]["label"] == "Reading Jessica's orders"
-    assert by_id[GRAPH.PLANNER_NODE]["tags"] == ["Advisor", "Approval"]
+    assert by_id[GRAPH.ADVISOR_NODE]["tags"] == ["Advisor", "Approval"]
     assert all(e["type"] == "step" for e in events)
 
 
@@ -662,7 +662,7 @@ def test_the_answer_carries_the_brief_and_the_proposal(graph_runtime) -> None:
     assert payload["proposal"]["amount"] == "100.00" and payload["proposal"]["status"] == "pending"
     assert payload["graph"]["nodes"][0]["nodeId"] == GRAPH.INVESTIGATOR_NODE
     assert payload["graph"]["execution"] == "in-process"
-    assert "approve" in payload["planner"]
+    assert "approve" in payload["advisor"]
 
 
 def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> None:
@@ -671,7 +671,7 @@ def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> N
         "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
         "placed_at": None, "return_status": "received", "store_credit_id": None,
     }]
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
         ("propose_store_credit", {"order_ids": [399], "reason": "Over."}),
     ]
     run = _Run(orders)
@@ -681,7 +681,7 @@ def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> N
 
 
 def test_an_order_from_another_client_cannot_be_credited(graph_runtime) -> None:
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = [("propose_store_credit", {"order_ids": [9999], "reason": "Not hers."})]
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [("propose_store_credit", {"order_ids": [9999], "reason": "Not hers."})]
     run = _Run()
     result = _investigate(run, [])
     assert run.reviews == [] and result.proposal is None
@@ -739,7 +739,7 @@ def test_a_read_that_raised_shows_failed_not_an_empty_record(
     for step in (orders, tickets):
         assert (step["builder"]["agent"], step["builder"]["model_id"]) == ("investigator", model_id)
     assert ended["investigator"]["builder"]["model_id"] == model_id
-    assert ended["planner"]["builder"]["model_id"] == model_id
+    assert ended["advisor"]["builder"]["model_id"] == model_id
 
 
 def test_a_read_still_out_when_the_graph_timed_out_ends_failed(
@@ -838,7 +838,7 @@ def test_with_nothing_returned_the_policy_read_is_the_store_wide_default() -> No
 def test_the_model_names_no_department_for_the_policy_read(graph_runtime) -> None:
     """A department the model chose could miss the one a returned item came from."""
     _investigate(_Run(), [])
-    investigator, _planner = (agent for agent, _ in _FakeBuilder.latest.nodes)
+    investigator, _advisor = (agent for agent, _ in _FakeBuilder.latest.nodes)
     schema = investigator.tools["get_return_policy"].tool_spec["inputSchema"]["json"]
     assert schema.get("properties", {}) == {}
 
@@ -848,7 +848,7 @@ def test_the_investigators_audit_completion_names_the_tool(graph_runtime, monkey
     from services import tool_audit_writer
 
     _FakeAgent.scripts[GRAPH.INVESTIGATOR_NODE] = [("get_store_credits", {"limit": 500})]
-    _FakeAgent.scripts[GRAPH.PLANNER_NODE] = []
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = []
     completed: List[Dict[str, Any]] = []
     monkeypatch.setattr(
         tool_audit_writer, "record_after",

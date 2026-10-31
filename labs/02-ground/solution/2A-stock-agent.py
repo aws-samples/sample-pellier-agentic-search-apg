@@ -1,1 +1,1 @@
-../../../solutions/waking-the-stock-keeper/agents/stock_agent_solution.py
+../../../solutions/lab-2-ground/agents/stock_agent_solution.py

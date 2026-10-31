@@ -39,7 +39,7 @@ describe('streamInvestigation', () => {
     const answer = {
       turnId: 'turn-1', customerId: 'CUST-JESSICA', status: 'complete',
       investigation: { facts: ['Both went back.'], missing: ['No credit recorded.'] },
-      planner: 'A $100.00 credit is proposed.', proposal: { reviewId: 41, amount: '100.00' },
+      advisor: 'A $100.00 credit is proposed.', proposal: { reviewId: 41, amount: '100.00' },
       graph: { graphId: 'g', pattern: 'strands-graph', execution: 'in-process', modelId: 'm', nodes: [], durationMs: 1 },
       error: null,
     }

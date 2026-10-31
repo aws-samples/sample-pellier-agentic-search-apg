@@ -224,7 +224,7 @@ def test_agent_catalog_tools_and_real_full_text_search_exclude_hidden_rows(fresh
             (words,),
         )
         assert matched_hidden[0]["n"] > 100
-        rows = run(store_tools.fts_branch_sql(), (words, 30))
+        rows = run(store_tools.fts_search_sql(), (words, 30))
         assert len(rows) == 30
         assert all(1 <= int(r["product_id"]) <= 1000 and r["img_url"] for r in rows)
         scores = [r["fts_rank_score"] for r in rows]

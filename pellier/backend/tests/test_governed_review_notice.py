@@ -45,11 +45,11 @@ def test_the_sentence_says_what_did_and_did_not_happen_and_names_no_amount() -> 
 
 def test_no_agent_can_reach_a_credit_write_in_process() -> None:
     """The boundary is structural: the wrapper does not exist, so no agent binds it."""
-    from agents import shopping_agent, stock_agent, support_agent
+    from agents import catalog_agent, stock_agent, support_agent
     from services import agent_tools
 
     assert not hasattr(agent_tools, "give_store_credit")
-    for module in (shopping_agent, stock_agent, support_agent):
+    for module in (catalog_agent, stock_agent, support_agent):
         assert "give_store_credit" not in inspect.getsource(module), module.__name__
 
 

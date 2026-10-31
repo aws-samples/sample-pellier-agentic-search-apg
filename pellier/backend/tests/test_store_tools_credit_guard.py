@@ -1,4 +1,4 @@
-"""``give_store_credit`` hands one exact write to ``pellier.apply_store_credit``.
+"""``give_store_credit`` hands one exact write to ``pellier.give_store_credit``.
 
 The approval and order rules live in that database function, so the Operator's
 execute path, a staff token at the Gateway and a direct SQL caller are bound
@@ -21,7 +21,7 @@ JESSICA_KEY = execution_idempotency_key(REVIEW_ID, JESSICA_HASH)
 
 
 class _Run:
-    """Answers ``apply_store_credit`` with a fixed result and records every statement."""
+    """Answers ``give_store_credit`` with a fixed result and records every statement."""
 
     def __init__(self, result: Dict[str, Any] | None = None) -> None:
         self.result = result or {"status": "success", "credit_id": 1, "idempotent_replay": False}
@@ -42,7 +42,7 @@ def test_one_statement_carries_exactly_the_terms_and_the_reviews_key() -> None:
     run = _Run()
     assert _credit(run)["status"] == "success"
     (sql, params), = run.calls
-    assert "pellier.apply_store_credit(" in sql
+    assert "pellier.give_store_credit(" in sql
     # Cast at the call site: the Data API sends integers as bigint.
     assert "%s::integer" in sql
     assert params == (JESSICA_KEY, "CUST-JESSICA", 10000, "Two items went back.", "sub-nadia")

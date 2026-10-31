@@ -7,10 +7,10 @@ agent:
               sold out, restock
     support   tickets, returns, refunds, store credit, damaged items, and the
               shopper's own past purchases ("what did I buy", "my orders")
-    shopping  everything else, including price, compare, browse and gifts
+    catalog   everything else, including price, compare, browse and gifts
 
 Availability is often a constraint while choosing, not a stock question: Anna
-asking for "an in-stock housewarming gift" is shopping. Only an explicit stock
+asking for "an in-stock housewarming gift" is a catalog request. Only an explicit stock
 operation routes to the Stock agent.
 """
 
@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import re
 
-SHOPPING = "shopping"
+CATALOG = "catalog"
 STOCK = "stock"
 SUPPORT = "support"
-INTENTS = (SHOPPING, STOCK, SUPPORT)
+INTENTS = (CATALOG, STOCK, SUPPORT)
 
 SUPPORT_WORDS = frozenset({
     "ticket",
@@ -109,7 +109,7 @@ def _is_choosing_products(query: str, words: set[str]) -> bool:
 
 
 def classify_intent(query: str) -> str:
-    """Return ``shopping``, ``stock`` or ``support`` for one shopper request."""
+    """Return ``catalog``, ``stock`` or ``support`` for one shopper request."""
     q = (query or "").lower()
     words = set(re.findall(r"\w+", q))
 
@@ -123,4 +123,4 @@ def classify_intent(query: str) -> str:
         return STOCK
     if words & AVAILABILITY_WORDS and not _is_choosing_products(query or "", words):
         return STOCK
-    return SHOPPING
+    return CATALOG

@@ -98,7 +98,7 @@ index_performance_service = None
 
 
 def _log_agent_and_tool_inventory() -> None:
-    """Log the Router's agents and the tool catalogue at boot.
+    """Log the Router's agents and the tool catalog at boot.
 
     Mirrors the ``✅ Loaded N skills...`` line emitted by ``skills.loader`` so
     the operator can confirm at a glance which agents the Router can reach and

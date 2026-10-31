@@ -92,11 +92,11 @@ def test_theo_shopper_rail_cannot_execute_the_credit() -> None:
     """
     import inspect
 
-    from agents import shopping_agent, stock_agent, support_agent
+    from agents import catalog_agent, stock_agent, support_agent
     from services import agent_tools, governed_execution
 
     assert not hasattr(agent_tools, "give_store_credit")
-    for module in (shopping_agent, stock_agent, support_agent):
+    for module in (catalog_agent, stock_agent, support_agent):
         assert "give_store_credit" not in inspect.getsource(module), module.__name__
     assert "store_tools.give_store_credit" in inspect.getsource(governed_execution)
 

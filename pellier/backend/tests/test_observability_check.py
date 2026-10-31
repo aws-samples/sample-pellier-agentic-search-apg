@@ -170,7 +170,7 @@ def test_app_spans_ignore_agentcore_spans_and_unreadable_lines() -> None:
     spans, _, _ = _run(spans=[_span("AgentCore.Gateway.InvokeTool", None, 1),
                               {"message": "not json pellier.turn_id"},
                               _span("routing", None, 2),
-                              _span("invoke_agent shopping", "turn-9", 3)])
+                              _span("invoke_agent catalog", "turn-9", 3)])
     assert spans.state == obs.NOT_YET
     assert "Failed to export span batch" in spans.next_step
 
@@ -187,14 +187,14 @@ def test_a_turn_routed_in_process_does_not_prove_the_managed_path() -> None:
 
 def test_the_newest_routed_turn_lists_its_agent_spans_in_order() -> None:
     spans, _, _ = _run(spans=[_span("routing", "turn-4", 1), _span("chat", "turn-4", 2),
-                              _span("invoke_agent shopping", "turn-5", 4),
+                              _span("invoke_agent catalog", "turn-5", 4),
                               _span("routing", "turn-5", 3), _span("chat", "turn-5", 6),
                               _span("execute_tool search_products", "turn-5", 5),
                               _span("chat", "turn-5", 7),
                               _span("invoke_agent stock", "turn-6", 8)])
     assert spans.state == obs.PROVED
     assert spans.observed == "7 spans across 2 routed turns"
-    assert spans.evidence == ["newest turn turn-5: routing, invoke_agent shopping, "
+    assert spans.evidence == ["newest turn turn-5: routing, invoke_agent catalog, "
                               "execute_tool search_products, chat"]
 
 

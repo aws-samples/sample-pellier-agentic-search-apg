@@ -28,7 +28,7 @@ RENDERER_PATH = DEPLOY_DIR / "render_agentcore_project.py"
 ENTRYPOINT = BACKEND_DIR / "agentcore_runtime.py"
 RUNTIME_SERVICE = BACKEND_DIR / "services" / "agentcore_runtime.py"
 RUNTIME_SOLUTION = (
-    REPO_ROOT / "solutions" / "the-ledger" / "services" / "agentcore_runtime.py"
+    REPO_ROOT / "solutions" / "lab-3-deploy" / "services" / "agentcore_runtime.py"
 )
 PYPROJECT = BACKEND_DIR / "pyproject.toml"
 
@@ -230,9 +230,9 @@ def test_a_policy_mode_deploy_is_pinned_to_the_lock(tmp_path: Path, monkeypatch)
 
 
 SUPPLIED_SEARCH = {
-    "services/store_tools.py": REPO_ROOT / "solutions" / "the-quiet-search" / "retrieval"
+    "services/store_tools.py": REPO_ROOT / "solutions" / "lab-1-retrieve" / "retrieval"
     / "store_tools_solution.py",
-    "services/search_plan.py": REPO_ROOT / "solutions" / "the-quiet-search" / "retrieval"
+    "services/search_plan.py": REPO_ROOT / "solutions" / "lab-1-retrieve" / "retrieval"
     / "search_plan_solution.py",
 }
 YOUR_SEARCH_PLAN = BACKEND_DIR / "services" / "search_plan.py"
@@ -265,7 +265,7 @@ def test_a_passing_lab_1_puts_the_participants_own_search_plan_on_the_gateway(
 
 
 def test_store_tools_always_ships_as_supplied(monkeypatch) -> None:
-    """store_tools.py holds all nine tools, the money tool among them, and Lab 1's change to it
+    """store_tools.py holds all nine tools, the credit tool among them, and Lab 1's change to it
     is applied by command: a participant's copy never reaches the Gateway."""
     for failing in ([], ["1B"]):
         _, modules = _ship(monkeypatch, failing=failing)
@@ -561,7 +561,7 @@ def test_second_phase_attaches_the_baseline_cedar_set(tmp_path: Path) -> None:
     # before any edit. It forbids every credit, which semantic validation
     # reports as overly restrictive, so only schema checks run on it.
     assert policies[-1] == credit_limit
-    assert credit_limit["name"] == "workshop_credit_limit"
+    assert credit_limit["name"] == "credit_limit"
     assert credit_limit["validationMode"] == "IGNORE_ALL_FINDINGS"
     assert "unless {\n  false\n};" in credit_limit["statement"]
     assert "${PELLIER_GATEWAY_ARN}" not in credit_limit["statement"]
@@ -2296,10 +2296,10 @@ def _starter_reset_project(identity: Any) -> tuple[dict[str, Any], dict[str, Any
     staff = {"name": "give_store_credit_staff_scope"}
     deployed = project(["get_orders", "get_tickets"],
                        [baseline, orders, tickets, staff,
-                        {"name": "workshop_credit_limit", "statement": "the participant's rule"}])
+                        {"name": "credit_limit", "statement": "the participant's rule"}])
     starter = project(["get_orders"],
                       [baseline, orders, staff,
-                       {"name": "workshop_credit_limit", "statement": "the starter rule"}])
+                       {"name": "credit_limit", "statement": "the starter rule"}])
     return deployed, starter
 
 
@@ -2353,7 +2353,7 @@ def test_reset_to_starters_retires_a_permit_before_withdrawing_its_schema(
     assert retiring["agentCoreGateways"] == deployed["agentCoreGateways"]
     assert [p["name"] for p in retiring["policyEngines"][0]["policies"]] == [
         "baseline_permit_workshop_tools", "get_orders_owner_only",
-        "give_store_credit_staff_scope", "workshop_credit_limit",
+        "give_store_credit_staff_scope", "credit_limit",
     ]
     assert final == starter
     assert json.loads((root / "agentcore/agentcore.json").read_text()) == starter
@@ -2438,7 +2438,7 @@ def test_participant_update_skips_the_preparation_stages_it_cannot_change() -> N
     ):
         assert skipped not in body, skipped
 
-    # What it must still prove: the deploy landed, the published catalogue is
+    # What it must still prove: the deploy landed, the published catalog is
     # live, Cedar survived, and the running revision serves the edited package.
     for required in (
         "_redeploy_participant_edits(",
@@ -2469,8 +2469,8 @@ def _lab4_check() -> Any:
     return importlib.import_module("lab4_policy")
 
 
-LAB4_SOLUTION = REPO_ROOT / "solutions/the-concierge/policies/workshop_credit_limit.cedar"
-LAB4_STARTER = REPO_ROOT / "workshop" / "starters" / "workshop_credit_limit.cedar"
+LAB4_SOLUTION = REPO_ROOT / "solutions/lab-4-govern/policies/credit_limit.cedar"
+LAB4_STARTER = REPO_ROOT / "workshop" / "starters" / "credit_limit.cedar"
 
 
 def _lab4_repo(tmp_path: Path, rule: str) -> Path:
@@ -2478,9 +2478,9 @@ def _lab4_repo(tmp_path: Path, rule: str) -> Path:
     starter = LAB4_STARTER
     (tmp_path / "policies").mkdir()
     (tmp_path / "workshop" / "starters").mkdir(parents=True)
-    (tmp_path / "workshop" / "starters" / "workshop_credit_limit.cedar").write_text(
+    (tmp_path / "workshop" / "starters" / "credit_limit.cedar").write_text(
         starter.read_text(encoding="utf-8"), encoding="utf-8")
-    (tmp_path / "policies" / "workshop_credit_limit.cedar").write_text(rule, encoding="utf-8")
+    (tmp_path / "policies" / "credit_limit.cedar").write_text(rule, encoding="utf-8")
     return tmp_path
 
 

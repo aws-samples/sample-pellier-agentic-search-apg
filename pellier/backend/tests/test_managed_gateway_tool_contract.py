@@ -133,7 +133,7 @@ def test_both_deployment_paths_derive_schemas_from_one_module() -> None:
 def test_in_process_and_recovery_files_match_the_managed_contract() -> None:
     paths = [
         REPO / "pellier" / "backend" / "services" / "agent_tools.py",
-        REPO / "solutions" / "closing-marcos-gap" / "services"
+        REPO / "solutions" / "lab-2-ground" / "services"
         / "agent_tools_builders_preapply.py",
     ]
     for path in paths:

@@ -1,7 +1,7 @@
-"""Lab 1A's check: the vector branch ranks Anna's eligible products by meaning.
+"""Lab 1A's check: the vector search ranks Anna's eligible products by meaning.
 
 The search embeds the shopper's words and asks pgvector for the products
-closest to them in meaning. This check runs your ``vector_branch_sql`` from
+closest to them in meaning. This check runs your ``vector_search_sql`` from
 ``pellier/backend/services/store_tools.py`` against the catalog with vectors
 whose nearest product is known in advance: a product's own stored embedding,
 which sits at cosine distance 0 from itself. Ranked by meaning, that product
@@ -30,10 +30,10 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import workshop_check as check  # noqa: E402  (sibling module)
 
 BACKEND = check.REPO / "pellier" / "backend"
-TITLE = "the vector branch ranks by meaning"
+TITLE = "the vector search ranks by meaning"
 EXPECTED = ("each product's own embedding finds that product first, the rest by rising "
             "distance, similarity = 1 - distance, a full branch, and Anna's limits kept")
-NEXT_STEP = ("open the Vector branch - order by meaning region in "
+NEXT_STEP = ("open the Vector search - order by meaning region in "
              "pellier/backend/services/store_tools.py: which pgvector operator measures how "
              "far a product is from the query embedding, and which way should the rows run? "
              "Then rerun this check.")
@@ -65,7 +65,7 @@ def _ordering_problem(name: str, rows: List[Dict[str, Any]], distances: List[flo
                       size: int) -> Optional[str]:
     """What is wrong with one probe's ranking, or None when it is ranked by meaning."""
     if not rows:
-        return "the vector branch returned no rows, so nothing is ranked by meaning yet"
+        return "the vector search returned no rows, so nothing is ranked by meaning yet"
     if len(rows) != size:
         return f"{len(rows)} rows came back for {name}; the search asked for {size}"
     if any(later < earlier - _TOLERANCE for earlier, later in zip(distances, distances[1:])):
@@ -89,7 +89,7 @@ def _first(rows: List[Dict[str, Any]]) -> Tuple[str, str]:
 def _self_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any, name: str,
                 size: int) -> Tuple[Sequence[Any], Optional[str]]:
     target = run(_EMBEDDING, (name,))[0]
-    rows, distances = _probe(run, store_tools.vector_branch_sql(()), (target["embedding"], size),
+    rows, distances = _probe(run, store_tools.vector_search_sql(()), (target["embedding"], size),
                              target["embedding"], size)
     problem = _ordering_problem(name, rows, distances, size)
     names = [str(row["name"]) for row in rows]
@@ -107,7 +107,7 @@ def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
     clauses, params = build_plan(ANNA_REQUEST, dict(ANNA_LIMITS)).compile_predicates(
         include_soft=False)
     target = run(_EMBEDDING, (LIMITS_PROBE,))[0]
-    rows, distances = _probe(run, store_tools.vector_branch_sql(clauses),
+    rows, distances = _probe(run, store_tools.vector_search_sql(clauses),
                              (target["embedding"], *params, size), target["embedding"], size)
     eligible = run('SELECT count(*) AS n FROM pellier.product_catalog WHERE '
                    + store_tools.VISIBLE_CATALOG_SQL + " AND " + " AND ".join(clauses),
@@ -127,7 +127,7 @@ def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
 
 
 def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
-    """Run every probe through the live ``vector_branch_sql``; the first problem decides."""
+    """Run every probe through the live ``vector_search_sql``; the first problem decides."""
     if str(BACKEND) not in sys.path:
         sys.path.insert(0, str(BACKEND))
     try:
@@ -152,7 +152,7 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
             row, problem = probe()
         except Exception as exc:  # noqa: BLE001 - the participant's SQL raised
             return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED,
-                                 "your vector branch raised an error",
+                                 "your vector search raised an error",
                                  [f"{type(exc).__name__}: {str(exc)[:200]}"], NEXT_STEP), rows
         rows.append(row)
         if problem and problem not in problems:
@@ -188,7 +188,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if check.refuse_missing_lab_file(1):
         return 1
     finding, rows = run()
-    print("Lab 1A: the vector branch ranks Anna's eligible products by meaning")
+    print("Lab 1A: the vector search ranks Anna's eligible products by meaning")
     if rows:
         print(check.table(("searched with", "came back first", "similarity", "rows", "verdict"),
                           rows))

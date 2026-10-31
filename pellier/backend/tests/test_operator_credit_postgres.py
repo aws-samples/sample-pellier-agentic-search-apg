@@ -6,7 +6,7 @@ a live review keeps the returned orders it covers.
 
 Fakes cannot prove the parts the database decides: that the partial unique
 index ``approvals_one_live_review`` keeps one live review per exact credit,
-that the ``ON CONFLICT`` target infers it, that ``apply_store_credit`` admits
+that the ``ON CONFLICT`` target infers it, that ``give_store_credit`` admits
 only the approved review's key, replays it, and never credits an order twice.
 This module builds the real schema and seed on a throwaway cluster
 (``tests/fresh_cluster.py``) and drives the real code against them.
@@ -92,7 +92,7 @@ class _PgDb:
     async def get_connection(self):
         yield self.conn
 
-    # The service's own money-path methods, run on this connection.
+    # The service's own credit-path methods, run on this connection.
     credit_writer_session = DatabaseService.credit_writer_session
     fetch_all_as_credit_writer = DatabaseService.fetch_all_as_credit_writer
 
@@ -556,12 +556,12 @@ def test_the_database_never_credits_an_order_twice_whoever_asks(fresh_db) -> Non
         robe, diffuser = _order_id(conn, "42"), _order_id(conn, "25")
         run = _sync_run(conn)
         paid_key = _force_approved_review(conn, [robe, diffuser], 10000, "The two returns.")
-        paid = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+        paid = run("SELECT pellier.give_store_credit(%s, %s, %s, %s) AS result",
                    (paid_key, JESSICA, 10000, "The two returns."))[0]["result"]
         assert paid["status"] == "success" and paid["order_ids"] == sorted([robe, diffuser])
 
         again_key = _force_approved_review(conn, [robe], 6400, "The robe, again.")
-        again = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+        again = run("SELECT pellier.give_store_credit(%s, %s, %s, %s) AS result",
                     (again_key, JESSICA, 6400, "The robe, again."))[0]["result"]
         assert again["status"] == "not_creditable" and again["denied_by"] == "order_guard"
         with pytest.raises(psycopg.errors.CheckViolation) as direct:
@@ -571,7 +571,7 @@ def test_the_database_never_credits_an_order_twice_whoever_asks(fresh_db) -> Non
         # A review that covers no order credits nothing either: the Lab 4 over-limit
         # probe is such a review, so a policy that wrongly allowed it still pays nothing.
         probe_key = _force_approved_review(conn, [], 10001, "Over-limit probe.")
-        probe = run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+        probe = run("SELECT pellier.give_store_credit(%s, %s, %s, %s) AS result",
                     (probe_key, JESSICA, 10001, "Over-limit probe."))[0]["result"]
         assert probe["status"] == "not_creditable"
 
@@ -587,7 +587,7 @@ def test_a_credit_needs_its_approval_and_the_amount_ceiling_is_500(fresh_db) -> 
         run = _sync_run(conn)
 
         def credit(key: str, amount: int, reason: str) -> Dict[str, Any]:
-            return run("SELECT pellier.apply_store_credit(%s, %s, %s, %s) AS result",
+            return run("SELECT pellier.give_store_credit(%s, %s, %s, %s) AS result",
                        (key, JESSICA, amount, reason))[0]["result"]
 
         assert credit("operator-review:1:none", 10000, "x")["status"] == "approval_required"
@@ -630,7 +630,7 @@ def _insert_credit(conn: psycopg.Connection, key: str, amount: int, reason: str)
 
 
 def test_the_owner_cannot_write_a_credit_no_approved_review_names(fresh_db, monkeypatch) -> None:
-    """The money rules hold for any insert, the table owner's too, not only the function's callers.
+    """The credit rules hold for any insert, the table owner's too, not only the function's callers.
 
     The ``BEFORE INSERT`` trigger covers how a credit row is written; nothing in
     Pellier updates or deletes one. Each direct insert below names a real
@@ -822,7 +822,7 @@ def _rows_of(conn: psycopg.Connection, sql: str, *params: Any) -> List[Dict[str,
 async def test_the_money_role_writes_only_through_the_credit_function(fresh_db) -> None:  # noqa: F811
     """The in-process writer session runs as ``pellier_credit_writer``, which owns no way in.
 
-    The role can execute ``apply_store_credit`` (the either-rail tests write
+    The role can execute ``give_store_credit`` (the either-rail tests write
     through it) and nothing else: inserting a credit row or changing an
     approved amount is a privilege the role never had, SQLSTATE 42501, before
     any trigger runs.

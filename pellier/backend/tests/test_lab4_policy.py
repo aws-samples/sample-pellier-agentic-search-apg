@@ -24,9 +24,9 @@ lab4 = importlib.import_module("lab4_policy")
 renderer = importlib.import_module("render_agentcore_project")
 check = lab4.check
 
-STARTER = (REPO / "workshop" / "starters" / "workshop_credit_limit.cedar").read_text()
-SOLUTION = (REPO / "solutions" / "the-concierge" / "policies"
-            / "workshop_credit_limit.cedar").read_text()
+STARTER = (REPO / "workshop" / "starters" / "credit_limit.cedar").read_text()
+SOLUTION = (REPO / "solutions" / "lab-4-govern" / "policies"
+            / "credit_limit.cedar").read_text()
 
 
 def _with(body: str) -> str:
@@ -143,7 +143,7 @@ class TestTheVerdicts:
         assert table[1][:5] == ["Nadia, $99.99 (9999 cents)", "ALLOW", "DENY", "ALLOW", "ALLOW"]
         assert table[3][:5] == ["Nadia, $100.01 (10001 cents)", "ALLOW", "DENY", "DENY", "DENY"]
         evidence = "\n".join(lab4.local_check(SOLUTION, STARTER).finding.evidence)
-        assert "decided by workshop_credit_limit" in evidence
+        assert "decided by credit_limit" in evidence
         assert "without your rule, Nadia at 10001 cents: ALLOW" in evidence
         assert evidence.count(": caught,") == len(lab4.MUTATIONS) + 1 == 8
         assert "policy head: as shipped, unchanged" in evidence
@@ -228,9 +228,9 @@ class TestTheVerdicts:
 # Part 2: the deployed rule and the Gateway's answer
 # ---------------------------------------------------------------------------
 
-ENGINE = {"policy_ids": {"workshop_credit_limit": "workshop_credit_limit-abc"},
+ENGINE = {"policy_ids": {"credit_limit": "credit_limit-abc"},
           "policy_digest": "sha256:" + "d" * 64, "gateway_mode": "ENFORCE",
-          "matching": ["workshop_credit_limit"], "policy_engine_id": "engine-1"}
+          "matching": ["credit_limit"], "policy_engine_id": "engine-1"}
 REVIEW = {"id": 41, "status": "approved", "decided_by_name": "nadia",
           "idempotency_key": "operator-review:41:" + "a" * 32}
 DENY_PAYLOAD = {"outcome": "deny", "cedar_denial": True,
@@ -251,7 +251,7 @@ class TestTheManagedVerdict:
         finding = _judge()
         assert finding.state == check.PROVED
         evidence = "\n".join(finding.evidence)
-        assert "workshop_credit_limit-abc" in evidence and "sha256:dddd" in evidence
+        assert "credit_limit-abc" in evidence and "sha256:dddd" in evidence
         assert "operator-review:41:" in evidence
         assert "tool_audit rows 0, store_credits rows 0" in evidence
         assert "opened and confirmed by the Lab 4 policy check (probe data)" in evidence
@@ -270,7 +270,7 @@ class TestTheManagedVerdict:
         assert finding.state == check.PROVED
         assert any(line.endswith("context.output.text.]") for line in finding.evidence)
         explained = [line for line in finding.evidence if "output guardrail" in line]
-        assert explained and "workshop_credit_limit" in explained[0]
+        assert explained and "credit_limit" in explained[0]
 
     def test_the_explained_field_is_the_one_the_guardrail_reads(self) -> None:
         import importlib.util
@@ -314,7 +314,7 @@ class TestTheManagedVerdict:
         """The Gateway is configured and the deployed rule is the solution."""
         arn = "arn:aws:bedrock-agentcore:us-east-1:1:gateway/g"
         deployed = lab4.render_rule(SOLUTION, arn)
-        engine = {**ENGINE, "statements": {"workshop_credit_limit": deployed}}
+        engine = {**ENGINE, "statements": {"credit_limit": deployed}}
         monkeypatch.setattr(lab4, "_managed_environment", lambda: ("https://gw", arn, engine))
         return {"local": lab4.local_check(SOLUTION, STARTER), "cfg": {"DB_HOST": "db"}}
 
@@ -388,7 +388,7 @@ def test_the_reset_declares_the_starter_again(tmp_path: Path) -> None:
     arn = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/g"
     solution = renderer.credit_limit_policy(
         gateway_arn=arn,
-        source=REPO / "solutions/the-concierge/policies/workshop_credit_limit.cedar")
+        source=REPO / "solutions/lab-4-govern/policies/credit_limit.cedar")
     permit = {"name": "give_store_credit_staff_scope",
               "statement": f'permit (principal, action, resource == AgentCore::Gateway::"{arn}");'}
     config = tmp_path / "agentcore.json"
@@ -400,7 +400,7 @@ def test_the_reset_declares_the_starter_again(tmp_path: Path) -> None:
                                          source=starter) is True
     declared = json.loads(config.read_text())["policyEngines"][0]["policies"]
     assert [p["name"] for p in declared] == [
-        "give_store_credit_staff_scope", "workshop_credit_limit"]
+        "give_store_credit_staff_scope", "credit_limit"]
     assert declared[1]["statement"] == starter.read_text().replace("${PELLIER_GATEWAY_ARN}", arn)
     assert declared[1]["validationMode"] == "IGNORE_ALL_FINDINGS"
     assert renderer.declare_credit_limit(config, engine_name="pellier_policy_engine",

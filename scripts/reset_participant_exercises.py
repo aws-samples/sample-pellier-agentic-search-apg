@@ -45,11 +45,11 @@ class FileExercise:
 
 MARKER_EXERCISES = (
     MarkerExercise(
-        exercise_id="lab-1-vector-branch",
+        exercise_id="lab-1-vector-search",
         lab=1,
-        starter="workshop/starters/lab-1/vector-branch.pyfrag",
+        starter="workshop/starters/lab-1/vector-search.pyfrag",
         destination="pellier/backend/services/store_tools.py",
-        marker="WORKSHOP - Vector branch - order by meaning",
+        marker="WORKSHOP - Vector search - order by meaning",
     ),
     MarkerExercise(
         exercise_id="lab-2-stock-agent",
@@ -66,11 +66,11 @@ MARKER_EXERCISES = (
         marker="WORKSHOP - Search plan - preserve requirements",
     ),
     MarkerExercise(
-        exercise_id="lab-3-gateway-catalogue",
+        exercise_id="lab-3-gateway-catalog",
         lab=3,
         starter="workshop/starters/lab-3/gateway-published-tools.pyfrag",
         destination="scripts/deploy/gateway_tool_schemas.py",
-        marker="WORKSHOP - Gateway catalogue - published tools",
+        marker="WORKSHOP - Gateway - published tools",
     ),
     MarkerExercise(
         exercise_id="lab-3-support-gateway-tools",
@@ -104,8 +104,8 @@ FILE_EXERCISES = (
     FileExercise(
         exercise_id="lab-4-cedar",
         lab=4,
-        starter="workshop/starters/workshop_credit_limit.cedar",
-        destination="policies/workshop_credit_limit.cedar",
+        starter="workshop/starters/credit_limit.cedar",
+        destination="policies/credit_limit.cedar",
     ),
     FileExercise(
         exercise_id="lab-4-credit-writer",

@@ -39,10 +39,10 @@ starter fails the way See it fail shows and the solution does not.
 
 | Lab | See it fail, in the terminal | The fix |
 |---|---|---|
-| 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector branch ranks nothing by meaning; after her request is sent, `lab1_retry.py` shows the retry dropped her limits | 1A: read the distances in `workshop/lab-1-meaning.sql`, then rank the eligible products by meaning. 1B: the fallback keeps her limits |
+| 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector search ranks nothing by meaning; after her request is sent, `lab1_retry.py` shows the retry dropped her limits | 1A: read the distances in `workshop/lab-1-meaning.sql`, then rank the eligible products by meaning. 1B: the fallback keeps her limits |
 | 2 | After Marco's requests, `lab2_check.py --task 2A` shows the answering Stock agent held only catalog tools, so its `check_stock` call never ran; once it does, the cape reads 0 in stock and `workshop/lab-2-check-stock.sql` shows the aggregate's NULL sum | 2A: connect `check_stock` to the Stock agent, alone. 2B: `pellier.check_stock` keeps "not carried" apart from sold out |
 | 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway and the starter Support agent without the reads Theo's household request needs; `workshop/lab-3-row-ownership.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: assemble the Support agent: publish `get_tickets`, ask for `get_orders` and `get_tickets`, and bind every tool that takes a `customer_id`. 3B: deploy, write the ownership rule, then challenge it |
-| 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the money role raise an approved credit directly | 4A: read the $100 per-credit limit in Cedar, then apply it. 4B: the money role writes only through the credit function |
+| 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the credit-writer role raise an approved credit directly | 4A: read the $100 per-credit limit in Cedar, then apply it. 4B: the credit-writer role writes only through the credit function |
 
 ## Nine marked regions, one check per task
 
@@ -53,13 +53,13 @@ task letter.
 
 | Task | Region | Check | Pass line |
 |---|---|---|---|
-| 1A | `services/store_tools.py`, `Vector branch - order by meaning` | `uv run scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
+| 1A | `services/store_tools.py`, `Vector search - order by meaning` | `uv run scripts/lab1_check.py --task 1A` | `Lab 1A check passed` |
 | 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `uv run scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
 | 2A | `agents/stock_agent.py`, `Stock agent - definition` | `uv run scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
 | 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its SQL file prints `Lab 2B function check passed`) | `uv run scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway catalogue - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `uv run scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `uv run scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
 | 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its SQL file prints `Lab 3B predicate check passed`) | `uv run scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
-| 4A | `policies/workshop_credit_limit.cedar`, the final `unless` block | `uv run scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
+| 4A | `policies/credit_limit.cedar`, the final `unless` block | `uv run scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
 | 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its SQL file prints `Lab 4B privileges check passed`) | `uv run scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
 
 Lab 1's Go deeper keeps the RRF fusion file (`workshop/lab-1-fusion.sql`, region
@@ -81,7 +81,7 @@ workshop and takes no teaching time in the Wrap-up.
 
 ## Acceptance and rejected implementations
 
-- **1A:** the vector branch orders the eligible rows by cosine distance to the
+- **1A:** the vector search orders the eligible rows by cosine distance to the
   query embedding, closest first, reports similarity as 1 minus that distance,
   and returns as many rows as the search asked for. A product searched with its
   own embedding comes back first; the Sunday Morning Candle, searched with its
@@ -120,7 +120,7 @@ workshop and takes no teaching time in the Wrap-up.
   credit of its own approved review through the Gateway: a Cedar DENY with no
   row for its key. A 401 or a business refusal is not Cedar evidence. Nadia's
   approval of Jessica's 10000-cent case executes once and a retry adds nothing.
-- **4B:** `pellier_credit_writer` may execute `pellier.apply_store_credit`,
+- **4B:** `pellier_credit_writer` may execute `pellier.give_store_credit`,
   which runs with its owner's rights and a pinned `search_path`, and nothing
   else. The SQL file's probes, on a probe case of its own, show the function
   refusing a credit no one approved and a direct insert or a direct `UPDATE` of

@@ -229,7 +229,7 @@ TOOLS: Dict[str, ToolFn] = {
 }
 
 _CATALOG = {tool["name"]: tool for tool in TOOL_SCHEMAS["store"]["tools"]}
-assert set(TOOLS) == set(_CATALOG) == set(store_tools.TOOL_NAMES), "catalogue and dispatch drifted"
+assert set(TOOLS) == set(_CATALOG) == set(store_tools.TOOL_NAMES), "catalog and dispatch drifted"
 
 
 def _envelope(result: Any, *, is_error: bool = False) -> Dict[str, Any]:
@@ -273,7 +273,7 @@ def lambda_handler(event: dict, context: Any) -> dict:
     if tool_name == "give_store_credit" and not _is_idempotent_replay(result):
         # The attempt is evidence even when Aurora refused it: the receipt
         # commits on its own, so a rolled-back write still leaves its row. A
-        # replay is not an attempt: ``apply_store_credit`` handed back the
+        # replay is not an attempt: ``give_store_credit`` handed back the
         # first result without touching ``store_credits``, so the retry of an
         # unchanged request keeps one credit and one audit row.
         write_tool_audit_independently(
@@ -290,5 +290,5 @@ def lambda_handler(event: dict, context: Any) -> dict:
 
 
 def _is_idempotent_replay(result: Any) -> bool:
-    """True when ``apply_store_credit`` replayed an earlier write for this key."""
+    """True when ``give_store_credit`` replayed an earlier write for this key."""
     return isinstance(result, dict) and bool(result.get("idempotent_replay"))

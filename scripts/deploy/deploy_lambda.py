@@ -201,8 +201,8 @@ def create_or_update_lambda_function(function_name, role_arn, handler, files, de
 # holds every tool, always ships as supplied. Lab 3B's build fingerprint digests the Runtime
 # package, not this zip; `tests/test_lambda_package.py` keeps the two apart.
 SOLUTION_COPIES = {
-  'services/store_tools.py': '../../solutions/the-quiet-search/retrieval/store_tools_solution.py',
-  'services/search_plan.py': '../../solutions/the-quiet-search/retrieval/search_plan_solution.py',
+  'services/store_tools.py': '../../solutions/lab-1-retrieve/retrieval/store_tools_solution.py',
+  'services/search_plan.py': '../../solutions/lab-1-retrieve/retrieval/search_plan_solution.py',
 }
 
 # Published zip path -> repository source, relative to the server entrypoint's

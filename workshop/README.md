@@ -21,8 +21,8 @@ is not a completed task.
 | 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `uv run scripts/lab2_check.py --task 2B` |
 | 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `uv run scripts/lab3_check.py --task 3A` |
 | 3B, Theo | Deploy, write the ownership rule (`labs/03-deploy/3B-row-ownership.sql`), then challenge it | `uv run scripts/lab3_check.py --task 3B` |
-| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/workshop_credit_limit.cedar`), applied with `scripts/lab_run.py solution --lab 4 --task 4A` | `uv run scripts/lab4_check.py --task 4A` |
-| 4B, Jessica and Nadia | Let the money role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `uv run scripts/lab4_check.py --task 4B` |
+| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/credit_limit.cedar`), applied with `scripts/lab_run.py solution --lab 4 --task 4A` | `uv run scripts/lab4_check.py --task 4A` |
+| 4B, Jessica and Nadia | Let the credit-writer role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `uv run scripts/lab4_check.py --task 4B` |
 
 The two SQL files run during their labs' deploys and print their own lines:
 `psql -f labs/03-deploy/3B-row-ownership.sql` ends
@@ -75,7 +75,7 @@ implementations and evidence boundaries.
   read as `pellier_agent` under his row policy. The server binds the caller
   onto every customer-scoped call; Memory is context, not proof of a purchase.
 - **Jessica and Nadia:** request → Investigator and Advisor → Nadia's approval
-  → Cedar on the Gateway → `apply_store_credit` as `pellier_credit_writer`.
+  → Cedar on the Gateway → `pellier.give_store_credit` as `pellier_credit_writer`.
   One approval is worth one credit; a retry under the same key returns the
   same credit.
 

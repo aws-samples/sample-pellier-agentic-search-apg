@@ -1,1 +1,1 @@
-../../../solutions/the-quiet-search/sql/lab-1-fusion-solution.sql
+../../../solutions/lab-1-retrieve/sql/lab-1-fusion-solution.sql

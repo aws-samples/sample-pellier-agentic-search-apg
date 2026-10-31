@@ -49,7 +49,7 @@ import { usePersona } from './PersonaContext'
 
 const CATALOG_TOOLS = new Set(['search_products', 'browse_department'])
 // Only the Catalog agent holds the catalog tools.
-const SHOPPING_INTENT = 'shopping'
+const CATALOG_INTENT = 'catalog'
 
 /** The page's panel id; the dock's summary scrolls to it. */
 export const PAGE_RANKING_ID = 'how-it-ranked'
@@ -211,13 +211,13 @@ function withTurn(state: State, turn: RunningTurn, choice: CallResult | null | u
 /** The Router sent the turn to the Catalog agent: the one agent that searches. */
 function routedToTheCatalog(step: TurnStep): boolean {
   const builder = step.builder
-  return Boolean(builder && builder.tool === null && builder.intent === SHOPPING_INTENT)
+  return Boolean(builder && builder.tool === null && builder.intent === CATALOG_INTENT)
 }
 
 /** The Router sent the turn to an agent with no catalog tool: it cannot search. */
 function routedAwayFromTheCatalog(step: TurnStep): boolean {
   const builder = step.builder
-  return Boolean(builder && builder.tool === null && builder.intent && builder.intent !== SHOPPING_INTENT)
+  return Boolean(builder && builder.tool === null && builder.intent && builder.intent !== CATALOG_INTENT)
 }
 
 function onStep(state: State, step: TurnStep): State {

@@ -28,7 +28,7 @@ from tests import psql_tables  # noqa: E402  (the tests' own helper)
 REPO = Path(__file__).resolve().parents[3]
 LIVE = REPO / "workshop" / "lab-2-check-stock.sql"
 STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
-SOLUTION = REPO / "solutions" / "closing-marcos-gap" / "sql" / "lab-2-check-stock-solution.sql"
+SOLUTION = REPO / "solutions" / "lab-2-ground" / "sql" / "lab-2-check-stock-solution.sql"
 SCHEMA = REPO / "scripts" / "migrations" / "001_schema.sql"
 LABEL = "Stock check - not carried"
 DOLLAR = "$check_stock$"

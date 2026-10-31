@@ -154,7 +154,7 @@ async def main() -> int:
     print("\nScenario 3 · Weird query · classifier falls back gracefully")
     print("─" * 72)
     # "hmmm yes xyzzy" matches no keywords, so classify_intent returns
-    # 'shopping' and the Router builds the Catalog agent.
+    # 'catalog' and the Router builds the Catalog agent.
     r3 = await _collect_events(
         service,
         "hmmm yes xyzzy",

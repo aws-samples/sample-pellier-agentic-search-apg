@@ -1,1 +1,1 @@
-../../../solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql
+../../../solutions/lab-2-ground/sql/lab-2-check-stock-solution.sql

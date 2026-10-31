@@ -7,7 +7,7 @@ Two SQL files build the whole `pellier` schema on an empty database.
    `warehouse_inventory`, `customers`, `orders`, `return_policies`,
    `support_tickets`, `approvals`, `store_credits`, `tool_audit` and
    `retrieval_receipts`. It also creates their indexes, the
-   `apply_store_credit` function that is the only way a credit is written,
+   `pellier.give_store_credit` function that is the only way a credit is written,
    the fill-once trigger on `tool_audit`, the append-only trigger on
    `retrieval_receipts`, the `pellier_agent` role and the row-level security
    policies on `orders` and `support_tickets`. The comments are written for a

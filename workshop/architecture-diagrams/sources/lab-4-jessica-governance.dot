@@ -56,7 +56,7 @@ digraph Lab4JessicaGovernance {
     label="04 COGNITO\nNadia's token\ncustom:staff_scope = returns"
   ];
   cedar [
-    label="05 CEDAR POLICY\nsupplied: give_store_credit_staff_scope\nyours: workshop_credit_limit\nunless amount_cents <= 10000",
+    label="05 CEDAR POLICY\nsupplied: give_store_credit_staff_scope\nyours: credit_limit\nunless amount_cents <= 10000",
     color="#9a3412",
     penwidth=2
   ];
@@ -64,7 +64,7 @@ digraph Lab4JessicaGovernance {
     label="06 AGENTCORE GATEWAY\nDENY before the Lambda runs\nALLOW calls give_store_credit"
   ];
   apply [
-    label="07 APPLY_STORE_CREDIT\napproved review, exact terms\nuncredited received orders\n$500 safety ceiling"
+    label="07 GIVE_STORE_CREDIT\napproved review, exact terms\nuncredited received orders\n$500 safety ceiling"
   ];
   effect [
     label="08 DURABLE EFFECT\none tool_audit row\none store_credits row\na retry replays the same credit",
@@ -82,7 +82,7 @@ digraph Lab4JessicaGovernance {
   apply -> effect [label="one credit per approval", color="#3f6212", fontcolor="#3f6212"];
 
   rls [
-    label="POSTGRESQL RLS\norders_owner, support_tickets_owner\nUSING + WITH CHECK, as pellier_agent\ncustomers.cognito_username =\npellier.principal_username",
+    label="POSTGRESQL RLS\norders_own_rows, support_tickets_own_rows\nUSING + WITH CHECK, as pellier_agent\ncustomers.cognito_username =\npellier.principal_username",
     color="#3f6212",
     fillcolor="#eef4e6",
     fontcolor="#3f6212",

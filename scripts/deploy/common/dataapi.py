@@ -39,8 +39,8 @@ SCHEMA = "pellier"
 # The application role from scripts/migrations/001_schema.sql. It is
 # NOBYPASSRLS and not the table owner, which is what makes the policies bind.
 CUSTOMER_ROLE = "pellier_agent"
-# The money role, also from 001_schema.sql: it may execute
-# pellier.apply_store_credit and touch no table.
+# The credit-writer role, also from 001_schema.sql: it may execute
+# pellier.give_store_credit and touch no table.
 CREDIT_WRITER_ROLE = "pellier_credit_writer"
 
 # Cohere Embed v4. MUST match the catalog seed and the in-process path
@@ -365,7 +365,7 @@ def run_as_customer(customer_id: str, work: Callable[..., Result]) -> Result:
 def run_as_credit_writer(work: Callable[..., Result]) -> Result:
     """Run ``work(run)`` as ``pellier_credit_writer``, the role that moves money.
 
-    The role may only execute ``pellier.apply_store_credit``, which runs with
+    The role may only execute ``pellier.give_store_credit``, which runs with
     its owner's rights, so the credit this transaction writes is one the
     function's checks admit, and nothing in it can change a credit row
     directly. The role is transaction-local: the audit receipt the caller

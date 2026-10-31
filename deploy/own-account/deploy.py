@@ -132,7 +132,7 @@ POLICY_NAMES = (
     "ask_a_person_caller_bound",
     "give_store_credit_staff_scope",
     "credit_output_sensitive_information",
-    "workshop_credit_limit",
+    "credit_limit",
 )
 
 

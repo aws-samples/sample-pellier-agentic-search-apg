@@ -65,7 +65,7 @@ _NAME = {
 }
 _DECISION = "aws.agentcore.policy.authorization_decision"
 
-# pgAudit, for the one tool that writes money.
+# pgAudit, for the one tool that writes a credit.
 AUDITED_TOOL = "give_store_credit"
 AUDITED_TABLE = "pellier.store_credits"
 # The exported PostgreSQL log arrives about a minute after a statement (as observability_check
@@ -76,7 +76,7 @@ LOG_EXPORT_LAG_S = 90
 CLOCK_SLACK_S = 1.0
 _LINE_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC:")
 _AUDIT = re.compile(r"AUDIT:\s+")
-# The one key shape apply_store_credit admits (store_tools.execution_idempotency_key).
+# The one key shape give_store_credit admits (store_tools.execution_idempotency_key).
 _CREDIT_KEY = re.compile(r"operator-review:\d+:[0-9a-f]{32}")
 PGAUDIT_STATUS_SQL = """
 SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgaudit') AS extension,

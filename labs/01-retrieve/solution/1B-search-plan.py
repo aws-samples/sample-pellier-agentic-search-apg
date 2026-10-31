@@ -1,1 +1,1 @@
-../../../solutions/the-quiet-search/retrieval/search_plan_solution.py
+../../../solutions/lab-1-retrieve/retrieval/search_plan_solution.py

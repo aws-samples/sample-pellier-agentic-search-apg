@@ -104,8 +104,8 @@ def test_the_lambda_lexical_branch_is_the_or_joined_query(monkeypatch: pytest.Mo
 
 
 def test_the_lambda_publishes_exactly_the_nine_store_tools() -> None:
-    catalogue = {tool["name"] for tool in TOOL_SCHEMAS["store"]["tools"]}
-    assert set(lambda_tools.TOOLS) == catalogue == set(store_tools.TOOL_NAMES)
+    catalog = {tool["name"] for tool in TOOL_SCHEMAS["store"]["tools"]}
+    assert set(lambda_tools.TOOLS) == catalog == set(store_tools.TOOL_NAMES)
     assert len(store_tools.TOOL_NAMES) == 9
     assert TOOL_SCHEMAS["store"]["target_name"] == "pellier-store-tools"
 
@@ -145,7 +145,7 @@ def test_each_lambda_tool_dispatches_to_store_tools_with_the_data_api_runner(
         # A customer's own read runs as pellier_agent with that customer named.
         assert seen["run"] is scoped_run and bound == ["CUST-THEO"] and writes == []
     elif tool_name == "give_store_credit":
-        # The money path runs as pellier_credit_writer, which may only call the function.
+        # The credit path runs as pellier_credit_writer, which may only call the function.
         assert seen["run"] is writer_run and writes == ["give_store_credit"] and bound == []
     else:
         assert seen["run"] is dataapi.run_store_sql and bound == [] and writes == []

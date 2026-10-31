@@ -2,7 +2,7 @@
 """Lab 4's checks, one per task.
 
     uv run scripts/lab4_check.py --task 4A   the $100 credit limit, in Cedar and on the Gateway
-    uv run scripts/lab4_check.py --task 4B   the money role writes only through the function
+    uv run scripts/lab4_check.py --task 4B   the credit-writer role writes only through the function
 
 Each prints its findings and ends with one line, such as ``Lab 4A check passed``.
 """

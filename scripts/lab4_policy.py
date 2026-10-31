@@ -3,7 +3,7 @@
     uv run scripts/lab4_check.py --task 4A
 
 Part 1 runs here and deploys nothing. It evaluates your
-``policies/workshop_credit_limit.cedar`` with the real Cedar engine (the
+``policies/credit_limit.cedar`` with the real Cedar engine (the
 ``cedarpy`` package), beside the baseline the provisioner renders, against
 the Gateway's Cedar schema rendered from the published tool schemas:
 
@@ -27,7 +27,7 @@ the Gateway's Cedar schema rendered from the published tool schemas:
 * the matrix with your rule left out: Nadia's 10001-cent request must then be
   allowed, so the denial is your rule's.
 
-Part 2 runs on the workshop box. It reads the deployed ``workshop_credit_limit``
+Part 2 runs on the workshop box. It reads the deployed ``credit_limit``
 statement, which must be your file, then sends one over-limit credit through
 the Gateway with Nadia's own token. The credit has its own review: 10001
 cents on Jessica's account, covering no order, opened and confirmed by this
@@ -537,7 +537,7 @@ def _no_unless_block(rule_text: str) -> LocalResult:
                             [f"{CREDIT_LIMIT_SOURCE} sha256:"
                              f"{hashlib.sha256(rule_text.encode('utf-8')).hexdigest()[:16]}"],
                             "restore the starter with cp workshop/starters/"
-                            "workshop_credit_limit.cedar policies/workshop_credit_limit.cedar, "
+                            "credit_limit.cedar policies/credit_limit.cedar, "
                             "then edit only its final unless block.")
     return LocalResult(finding, [])
 
@@ -607,7 +607,7 @@ SELECT id, status, action_hash, args, order_ids, decided_by_name
 """
 
 _MANAGED_TITLE = "the Gateway enforces your rule on an over-limit credit"
-MANAGED_EXPECTED = ("the deployed workshop_credit_limit is your file; the check's 10001-cent "
+MANAGED_EXPECTED = ("the deployed credit_limit is your file; the check's 10001-cent "
                     "credit, sent with Nadia's token, is a Cedar denial, and its key leaves 0 "
                     "tool_audit and 0 store_credits rows")
 

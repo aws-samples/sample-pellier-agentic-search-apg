@@ -68,7 +68,7 @@ _PAIRS = [
     (
         "stock-agent-definition",
         _BACKEND / "agents" / "stock_agent.py",
-        _SOLUTIONS / "waking-the-stock-keeper" / "agents" / "stock_agent_solution.py",
+        _SOLUTIONS / "lab-2-ground" / "agents" / "stock_agent_solution.py",
     ),
 ]
 
@@ -105,17 +105,17 @@ _PAIRS = [
 # `tests/test_workshop_marker_contract.py` asserts both ends of that contract.
 _AUTO_APPLIED_IDENTICAL = [
     ("agent_tools_builders_preapply", _BACKEND / "services" / "agent_tools.py",
-     _SOLUTIONS / "closing-marcos-gap" / "services" / "agent_tools_builders_preapply.py"),
+     _SOLUTIONS / "lab-2-ground" / "services" / "agent_tools_builders_preapply.py"),
     ("agentcore_runtime", _BACKEND / "services" / "agentcore_runtime.py",
-     _SOLUTIONS / "the-ledger" / "services" / "agentcore_runtime.py"),
+     _SOLUTIONS / "lab-3-deploy" / "services" / "agentcore_runtime.py"),
     ("agentcore_memory", _BACKEND / "services" / "agentcore_memory.py",
-     _SOLUTIONS / "the-ledger" / "services" / "agentcore_memory.py"),
+     _SOLUTIONS / "lab-3-deploy" / "services" / "agentcore_memory.py"),
     ("agentcore_identity", _BACKEND / "services" / "agentcore_identity.py",
-     _SOLUTIONS / "the-ledger" / "services" / "agentcore_identity.py"),
+     _SOLUTIONS / "lab-3-deploy" / "services" / "agentcore_identity.py"),
     ("cognito_auth", _BACKEND / "services" / "cognito_auth.py",
-     _SOLUTIONS / "the-ledger" / "services" / "cognito_auth.py"),
+     _SOLUTIONS / "lab-3-deploy" / "services" / "cognito_auth.py"),
     ("otel_trace_extractor", _BACKEND / "services" / "otel_trace_extractor.py",
-     _SOLUTIONS / "the-ledger" / "services" / "otel_trace_extractor.py"),
+     _SOLUTIONS / "lab-3-deploy" / "services" / "otel_trace_extractor.py"),
 ]
 
 

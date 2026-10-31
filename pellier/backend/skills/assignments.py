@@ -31,7 +31,7 @@ SKILL_MODES = (SKILL_MODE_FIXED, SKILL_MODE_ON_DEMAND)
 AGENT_LOCAL_TOOLS = frozenset({SKILL_LOAD_TOOL})
 
 FIXED_SKILLS: Dict[str, tuple[str, ...]] = {
-    "shopping": (
+    "catalog": (
         "gifts",
         "makers",
         "travel",

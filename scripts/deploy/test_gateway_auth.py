@@ -91,7 +91,7 @@ def test_gateway_auth(gateway_url: str, token: str):
         if tool_count != len(expected) or observed != expected:
             print(
                 "Gateway authentication: FAILED "
-                f"(expected the caller's {len(expected)}-tool catalogue)"
+                f"(expected the caller's {len(expected)}-tool catalog)"
             )
             sys.exit(1)
     except Exception as e:

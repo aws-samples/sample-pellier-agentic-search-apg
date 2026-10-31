@@ -55,7 +55,7 @@ failure. Either lab can still be finished individually with its `finish --lab` c
 
 ## What participants use
 
-Code Editor opens `Pellier.code-workspace` with the workshop terminal at the bottom. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the task files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files deploy themselves when run: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the money role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional Build; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` and `finish` leave it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
+Code Editor opens `Pellier.code-workspace` with the workshop terminal at the bottom. Its numbered Retrieve, Ground, Deploy and Govern groups point at `labs/01-retrieve` through `labs/04-govern`. Each contains links to the task files, a short check map and a solution README, such as `labs/01-retrieve/solution/README.md`. Two of the files deploy themselves when run: `labs/03-deploy/3B-row-ownership.sql` commits the participant's predicate as the live policy, and `labs/04-govern/4B-credit-writer.sql` commits the credit-writer role's privileges, each only when every probe matches. `labs/01-retrieve/go-deeper-fusion.sql` is Lab 1's optional Build; it recomputes recorded scores and changes nothing the app runs, and `scripts/lab_run.py solution` and `finish` leave it alone. The fifth group exposes the complete source; terminals start at the repository root. Source extraction validates every link before the editor starts and preserves participant edits on reruns.
 
 Outside an event, [Run Pellier in your own account](docs/run-in-your-own-account.md) deploys the same stack into an account you own and removes it afterwards; the guide is unchanged from Getting started on.
 
@@ -129,10 +129,10 @@ shows that extraction, and the proof uses the seeded record.
 Anna wants a housewarming gift under $100, in stock, with no candles.
 
 - **See it fail:** `workshop/lab-1-words.sql` shows what her sentence finds by
-  words alone, because the vector branch as shipped ranks nothing by meaning.
+  words alone, because the vector search as shipped ranks nothing by meaning.
 - **Task 1A:** first run the supplied `workshop/lab-1-meaning.sql`, which lists
   eight products in name order with their distance from the Stoneware Mugs' own
-  embedding, the kind of vector the check searches with. Then rank the eligible products by meaning in the `Vector branch -
+  embedding, the kind of vector the check searches with. Then rank the eligible products by meaning in the `Vector search -
   order by meaning` region of `pellier/backend/services/store_tools.py`: order
   by cosine distance to the query embedding and report similarity as 1 minus
   it. `uv run scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.
@@ -205,7 +205,7 @@ Theo wants his taste remembered and help with his own chipped bowl.
   Memory is context, never permission.
 
 Gateway filters discovery by policy, so compare a caller's tool list with what
-that caller may call, not with the full published catalogue.
+that caller may call, not with every published tool.
 
 Row-level security limits what a query can return; it does not establish who
 the caller is. In process, the customer comes from the signed token. On the
@@ -223,9 +223,9 @@ credit, and the system must prove what moved.
   approves her $100.00 credit and **Execute** reads DENY.
 - **Task 4A:** read the supplied rule, then apply it with
   `uv run scripts/lab_run.py solution --lab 4 --task 4A`. It replaces the final `unless`
-  block of `policies/workshop_credit_limit.cedar` so one credit may be at most $100, and
+  block of `policies/credit_limit.cedar` so one credit may be at most $100, and
   deploys nothing. Deploy it with `--mode participant`.
-- **Task 4B:** during the deploy, write the money role's privileges in
+- **Task 4B:** during the deploy, write the credit-writer role's privileges in
   `labs/04-govern/4B-credit-writer.sql`. As shipped it over-grants: its probes show
   `pellier_credit_writer` raising an approved $25 credit to $500 with a direct
   `UPDATE`. The file commits the privileges once all eight probes match
@@ -238,13 +238,13 @@ credit, and the system must prove what moved.
   one over-limit credit through the Gateway: a Cedar DENY with no row for its
   key, ending `Lab 4A check passed`. `uv run scripts/lab4_check.py --task 4B`
   confirms the live function carries the participant's statements, then probes
-  the money role in process and through the Gateway Lambda's Data API: the
+  the credit-writer role in process and through the Gateway Lambda's Data API: the
   function refuses a credit no one approved and a direct insert or update is
   refused with 42501, ending `Lab 4B check passed`. The supplied
   `workshop/lab-4-absence.sql` prints 0 and 0 for the denied key and 1 for the
   allowed key, so a search that always returns zero cannot pass.
 - **Lesson:** Cedar decides who may move money and how much; the database
-  decides what the money role can touch. An ALLOW is not a commit, and an
+  decides what the credit-writer role can touch. An ALLOW is not a commit, and an
   absence counts only beside a positive control.
 
 ## Summary

@@ -77,7 +77,7 @@ logger = logging.getLogger(__name__)
 # component so the legacy colon form is retained there.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/the-ledger/services/agentcore_memory.py pellier/backend/services/agentcore_memory.py
+#    cp solutions/lab-3-deploy/services/agentcore_memory.py pellier/backend/services/agentcore_memory.py
 
 def _store_key(actor_id: str, session_id: str) -> str:
     """The fallback-store key for an identity pair.

@@ -359,15 +359,15 @@ def anna_sql() -> Tuple[Dict[str, str], str]:
             clause = clause.replace("%s", text, 1)
         predicates.append(clause)
     words = store_tools.or_tsquery(ANNA)
-    path = REPO / "solutions" / "the-quiet-search" / "retrieval" / "store_tools_solution.py"
+    path = REPO / "solutions" / "lab-1-retrieve" / "retrieval" / "store_tools_solution.py"
     spec = importlib.util.spec_from_file_location("store_tools_solution", path)
     finished = importlib.util.module_from_spec(spec)
     sys.modules["store_tools_solution"] = finished
     spec.loader.exec_module(finished)
-    vector = (finished.vector_branch_sql(predicates)
+    vector = (finished.vector_search_sql(predicates)
               .replace("%s::vector", "(SELECT emb FROM lt.q WHERE name = 'anna')", 1)
               .replace("LIMIT %s", "LIMIT 20"))
-    fts = (finished.fts_branch_sql(predicates)
+    fts = (finished.fts_search_sql(predicates)
            .replace("to_tsquery('english', %s)", f"to_tsquery('english', '{words}')")
            .replace("LIMIT %s", "LIMIT 20"))
     where = " AND ".join(['"imgUrl" IS NOT NULL', *predicates])

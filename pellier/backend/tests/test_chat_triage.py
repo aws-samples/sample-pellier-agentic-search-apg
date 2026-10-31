@@ -113,8 +113,8 @@ class TestIntentPairing:
             "morning routine?",
         ],
     )
-    def test_pairing_turns_route_to_shopping(self, query: str) -> None:
-        assert classify_intent(query) == "shopping"
+    def test_pairing_turns_route_to_catalog(self, query: str) -> None:
+        assert classify_intent(query) == "catalog"
 
 
 class TestIntentStock:
@@ -133,12 +133,12 @@ class TestIntentStock:
 
 
 @pytest.mark.parametrize("query, expected", [
-    ("A housewarming gift under $100 that is currently in stock.", "shopping"),
-    ("Keep it under $100 and in stock. Show me the strongest two options.", "shopping"),
+    ("A housewarming gift under $100 that is currently in stock.", "catalog"),
+    ("Keep it under $100 and in stock. Show me the strongest two options.", "catalog"),
     ("Which one should I choose? Compare the two options using their current prices and "
-     "availability.", "shopping"),
-    ("Find me a linen shirt that is in stock", "shopping"),
-    ("Do you have any available candles for a gift?", "shopping"),
+     "availability.", "catalog"),
+    ("Find me a linen shirt that is in stock", "catalog"),
+    ("Do you have any available candles for a gift?", "catalog"),
     ("Is the Hadley Linen Shirt in stock?", "stock"),
     ("Show me how many candles are available in Brooklyn", "stock"),
     ("Show me low stock inventory", "stock"),
@@ -171,8 +171,8 @@ def test_returns_and_past_purchases_route_to_support(query):
     "Browse the home department",
     "A gift for my sister",
 ])
-def test_price_compare_and_browse_stay_with_shopping(query):
-    assert classify_intent(query) == "shopping"
+def test_price_compare_and_browse_stay_with_catalog(query):
+    assert classify_intent(query) == "catalog"
 
 
 # The guide's Lab 1 and Lab 2 requests, verbatim. The guide lives in another
@@ -180,14 +180,14 @@ def test_price_compare_and_browse_stay_with_shopping(query):
 # sends a request to the wrong agent fails the lab silently (Anna's limits on
 # the Stock agent, or Marco's cape on the Catalog agent).
 GUIDE_SENTENCES = (
-    ("A housewarming gift for a friend who loves slow mornings.", "shopping"),
+    ("A housewarming gift for a friend who loves slow mornings.", "catalog"),
     ("A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
-     "and no candles.", "shopping"),
-    ("A gift with a watch, under $100, in stock, no candles.", "shopping"),
+     "and no candles.", "catalog"),
+    ("A gift with a watch, under $100, in stock, no candles.", "catalog"),
     ("Is the Velvet Opera Cape in stock?", "stock"),
     ("How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship "
      "window is recorded?", "stock"),
-    ("What linen do you have for 10 days in Goa?", "shopping"),
+    ("What linen do you have for 10 days in Goa?", "catalog"),
 )
 
 

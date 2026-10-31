@@ -369,7 +369,7 @@ def test_confirmation_performs_no_business_mutation() -> None:
     db = FakeReviewDb()
     row = db.add_pending()
     build_client(db).post(f"/api/operator/reviews/{row['review_id']}/confirm", json={"actionHash": JESSICA_HASH})
-    assert not db.wrote_to("store_credits", "tool_audit", "apply_store_credit")
+    assert not db.wrote_to("store_credits", "tool_audit", "give_store_credit")
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,7 @@
 """Lab 3B, live: your deployed predicate stops a wrong query on both database paths.
 
 ``workshop/lab-3-row-ownership.sql`` probes your predicate and, when every probe matches,
-commits it as the live policy on ``orders_owner`` and ``support_tickets_owner``,
+commits it as the live policy on ``orders_own_rows`` and ``support_tickets_own_rows``,
 commented with its sha256. This check first confirms both live policies carry
 the predicate now in your file, so the policies it probes are yours and not the
 ones the database shipped with. Then it probes them through each way Pellier
@@ -49,10 +49,10 @@ WORKSHEET = REPO / "workshop" / "lab-3-row-ownership.sql"
 STARTER = REPO / "workshop" / "starters" / "lab-3-row-ownership.sql"
 REGION = "Row ownership - predicate"
 STAMP_PREFIX = "Lab 3B predicate sha256 "
-POLICY_NAMES = ("orders_owner", "support_tickets_owner")
+POLICY_NAMES = ("orders_own_rows", "support_tickets_own_rows")
 RUN_WORKSHEET = "psql -f workshop/lab-3-row-ownership.sql"
 DEPLOYED_TITLE = "your predicate is the live policy on both tables"
-DEPLOYED_EXPECTED = ("orders_owner and support_tickets_owner carry the predicate now in "
+DEPLOYED_EXPECTED = ("orders_own_rows and support_tickets_own_rows carry the predicate now in "
                      "workshop/lab-3-row-ownership.sql, committed by its passing run")
 DEPLOYED_SQL = """
 SELECT pol.polname AS policy,
@@ -62,7 +62,7 @@ SELECT pol.polname AS policy,
   FROM pg_policy pol
   JOIN pg_class c ON c.oid = pol.polrelid
   JOIN pg_namespace n ON n.oid = c.relnamespace
- WHERE n.nspname = 'pellier' AND pol.polname IN ('orders_owner', 'support_tickets_owner')
+ WHERE n.nspname = 'pellier' AND pol.polname IN ('orders_own_rows', 'support_tickets_own_rows')
 """
 
 # What each probe asks for, bound as Theo. The first is his own; the rest are a
@@ -176,7 +176,7 @@ def deployed_finding(connect: Callable[[], Any],
     policies = deployed_policies(connect)
     finding = judge_deployed(stamp, is_starter,
                              {name: row["stamp"] for name, row in policies.items()})
-    qual = policies.get("orders_owner", {}).get("qual", "")
+    qual = policies.get("orders_own_rows", {}).get("qual", "")
     if qual:
         finding.evidence.append(f"live USING on orders: {' '.join(qual.split())}")
     return finding

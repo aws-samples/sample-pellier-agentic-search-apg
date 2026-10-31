@@ -500,7 +500,7 @@ def test_deploy_refuses_when_another_engine_holds_pelliers_policy_names() -> Non
         "policyEngines": [{"policyEngineId": "pelliercap1006c_pellier_cap1006c_policy_engine-0exn"}]
     }
     policies = {
-        "policies": [{"name": "baseline_permit_workshop_tools"}, {"name": "workshop_credit_limit"}]
+        "policies": [{"name": "baseline_permit_workshop_tools"}, {"name": "credit_limit"}]
     }
     control = _Fake(
         {
@@ -516,7 +516,7 @@ def test_deploy_refuses_when_another_engine_holds_pelliers_policy_names() -> Non
     code, lines = _run(mod, argv, clients)
     assert code == 2, lines
     assert "unique per account and Region" in lines[-1]
-    assert "holds baseline_permit_workshop_tools, workshop_credit_limit" in lines[-1]
+    assert "holds baseline_permit_workshop_tools, credit_limit" in lines[-1]
     assert clients.s3.calls == []
     assert clients.agentcore_control.args("list_policies", "policyEngineId") == [
         "pelliercap1006c_pellier_cap1006c_policy_engine-0exn"

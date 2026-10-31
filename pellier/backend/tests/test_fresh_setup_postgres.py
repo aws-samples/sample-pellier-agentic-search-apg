@@ -49,7 +49,7 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     assert _rows(fresh_db, "SELECT p.proname FROM pg_proc p JOIN pg_namespace n "
                            "ON n.oid = p.pronamespace WHERE n.nspname = 'pellier' "
                            "ORDER BY 1") == [
-        "apply_store_credit", "check_stock", "retrieval_receipts_append_only",
+        "check_stock", "give_store_credit", "retrieval_receipts_append_only",
         "set_updated_at",
         "store_credits_require_approval", "tool_audit_fill_once",
     ]
@@ -61,7 +61,7 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     ]
     assert _rows(fresh_db, "SELECT tablename || '.' || policyname FROM pg_policies "
                            "WHERE schemaname = 'pellier' ORDER BY 1") == [
-        "orders.orders_owner", "support_tickets.support_tickets_owner",
+        "orders.orders_own_rows", "support_tickets.support_tickets_own_rows",
     ]
     assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%' "
                            "ORDER BY 1") == ["pellier_agent", "pellier_credit_writer"]
@@ -266,7 +266,7 @@ def test_store_credits_keep_one_row_per_key_under_a_retry(fresh_db):
                 "\"reason\": \"Two returns.\"}', repeat('c', 64), '{20,21}', 'sub-nadia', now()) "
                 "RETURNING id").fetchone()["id"]
             key = f"operator-review:{review}:{'c' * 32}"
-            call = "SELECT pellier.apply_store_credit(%s, 'CUST-JESSICA', 10000, 'Two returns.') AS r"
+            call = "SELECT pellier.give_store_credit(%s, 'CUST-JESSICA', 10000, 'Two returns.') AS r"
             first = conn.execute(call, (key,)).fetchone()["r"]
             second = conn.execute(call, (key,)).fetchone()["r"]
             assert first["status"] == second["status"] == "success"
@@ -458,10 +458,10 @@ def test_the_schema_builds_without_pgaudit_and_says_so(fresh_db, tmp_path):  # n
 def test_the_credit_function_is_the_money_roles_only_way_in(fresh_db):  # noqa: F811
     """Definer rights make EXECUTE the whole key, so who holds it is pinned here."""
     assert _rows(fresh_db, "SELECT prosecdef::text || ' ' || array_to_string(proconfig, ',') "
-                           "FROM pg_proc WHERE proname = 'apply_store_credit'") == [
+                           "FROM pg_proc WHERE proname = 'give_store_credit'") == [
         "true search_path=pg_catalog, pg_temp"
     ]
-    signature = "'pellier.apply_store_credit(text, text, integer, text, text)'"
+    signature = "'pellier.give_store_credit(text, text, integer, text, text)'"
     assert _rows(fresh_db, f"SELECT r || ' ' || has_function_privilege(r, {signature}, 'EXECUTE') "
                            "FROM unnest(ARRAY['pellier_credit_writer', 'pellier_agent', 'public']) "
                            "AS r") == [

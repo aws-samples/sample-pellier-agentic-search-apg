@@ -170,9 +170,9 @@ def test_damaged_markers_are_refused_with_the_repair_command(tmp_path: Path) -> 
 
 def test_the_stamps_each_worksheet_leaves_are_cleared() -> None:
     assert "COMMENT ON FUNCTION pellier.check_stock(text) IS NULL" in lab_reset.CLEAN_BEFORE[2]
-    assert "COMMENT ON FUNCTION pellier.apply_store_credit" in lab_reset.CLEAN_BEFORE[4]
-    assert "DROP POLICY IF EXISTS orders_owner" in lab_reset.CLEAN_BEFORE[3]
-    assert "DROP POLICY IF EXISTS support_tickets_owner" in lab_reset.CLEAN_BEFORE[3]
+    assert "COMMENT ON FUNCTION pellier.give_store_credit" in lab_reset.CLEAN_BEFORE[4]
+    assert "DROP POLICY IF EXISTS orders_own_rows" in lab_reset.CLEAN_BEFORE[3]
+    assert "DROP POLICY IF EXISTS support_tickets_own_rows" in lab_reset.CLEAN_BEFORE[3]
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +251,7 @@ def test_lab_four_refuses_after_a_credit_and_changes_nothing(tmp_path: Path) -> 
     assert "bash scripts/reset-governed-workshop.sh" in str(refused.value)
     assert exercises._check(repo, 4) != []
     assert events == []
-    assert all("apply_store_credit" not in s for s in conn.statements)
+    assert all("give_store_credit" not in s for s in conn.statements)
     assert check.reset_point(4) is None
     assert conn.closed
 
@@ -388,8 +388,8 @@ def test_a_reset_restores_files_then_database_then_managed_state_then_the_backen
     assert conn.commits == 1 and conn.closed
     sql = "\n".join(conn.statements)
     assert ("pellier.check_stock" in sql) is (lab == 2)
-    assert ("CREATE POLICY orders_owner" in sql) is (lab == 3)
-    assert ("apply_store_credit" in sql) is (lab == 4)
+    assert ("CREATE POLICY orders_own_rows" in sql) is (lab == 3)
+    assert ("give_store_credit" in sql) is (lab == 4)
     joined = "\n".join(lines)
     assert "reset point 12:00:05 UTC" in joined
     assert "Took" in joined and "Next:" in joined and "Not reset:" in joined
@@ -678,7 +678,7 @@ def test_a_reset_after_the_finished_answer_leaves_the_catalog_as_a_fresh_databas
 def test_a_reset_removes_the_wide_grants_and_policy_the_starter_region_holds(
     fresh_db: Cluster,
 ) -> None:
-    """The starter's region is the widest thing a participant can leave on the money role."""
+    """The starter's region is the widest thing a participant can leave on the credit-writer role."""
     starter = (REPO / "workshop" / "starters" / "lab-4-credit-writer.sql").read_text("utf-8")
     grants = starter.split("$privileges$")[1]
     fresh = snapshot(fresh_db)

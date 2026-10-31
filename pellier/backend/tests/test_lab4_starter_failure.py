@@ -38,12 +38,12 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 lab4 = importlib.import_module("lab4_policy")
 
-STARTER_RULE = REPO / "workshop" / "starters" / "workshop_credit_limit.cedar"
-SOLUTION_RULE = REPO / "solutions" / "the-concierge" / "policies" / "workshop_credit_limit.cedar"
+STARTER_RULE = REPO / "workshop" / "starters" / "credit_limit.cedar"
+SOLUTION_RULE = REPO / "solutions" / "lab-4-govern" / "policies" / "credit_limit.cedar"
 RLS_STARTER = REPO / "workshop" / "starters" / "lab-3-row-ownership.sql"
-RLS_SOLUTION = REPO / "solutions" / "the-ledger" / "sql" / "lab-3-row-ownership-solution.sql"
+RLS_SOLUTION = REPO / "solutions" / "lab-3-deploy" / "sql" / "lab-3-row-ownership-solution.sql"
 ABSENCE = REPO / "workshop" / "lab-4-absence.sql"
-FORENSIC = REPO / "solutions" / "the-ledger" / "sql" / "forensic_incident.sql"
+FORENSIC = REPO / "solutions" / "lab-3-deploy" / "sql" / "forensic_incident.sql"
 JESSICA = "CUST-JESSICA"
 
 
@@ -197,7 +197,7 @@ SELECT pol.polname AS policy, coalesce(obj_description(pol.oid, 'pg_policy'), ''
 """
 SHIPPED = ("customer_id = (SELECT id FROM pellier.customers "
            "WHERE cognito_username = current_setting('pellier.principal_username', true))")
-POLICY_TABLES = (("orders_owner", "orders"), ("support_tickets_owner", "support_tickets"))
+POLICY_TABLES = (("orders_own_rows", "orders"), ("support_tickets_own_rows", "support_tickets"))
 
 
 def _live_state(conn: Any) -> Dict[str, Any]:
@@ -265,7 +265,7 @@ def test_the_solution_passes_every_probe_and_becomes_the_live_policy(  # noqa: F
     after = _live_state(conn)
     stamp = _stamp_for(RLS_SOLUTION)
     owned = {row["policy"]: row["stamp"] for row in after["stamps"]}
-    assert owned["orders_owner"] == owned["support_tickets_owner"] == stamp
+    assert owned["orders_own_rows"] == owned["support_tickets_own_rows"] == stamp
     assert f"sha256 {stamp.rsplit(' ', 1)[1][:12]}" in done.stdout
     assert after["probe_tickets"] == 0, "the probe writes must not survive the commit"
     again = _psql(fresh_db, RLS_SOLUTION)

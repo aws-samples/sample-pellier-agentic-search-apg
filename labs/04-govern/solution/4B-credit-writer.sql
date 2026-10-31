@@ -1,1 +1,1 @@
-../../../solutions/the-concierge/sql/lab-4-credit-writer-solution.sql
+../../../solutions/lab-4-govern/sql/lab-4-credit-writer-solution.sql

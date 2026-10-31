@@ -4,7 +4,7 @@ The Router builds every agent from a uniform factory function. This test
 enforces that contract so future changes to ``agents/`` get flagged before
 they ship.
 
-Scope, per agent (shopping, stock, support):
+Scope, per agent (catalog, stock, support):
   1. ``build_<name>_agent()`` exists and returns a real Strands Agent
   2. The Agent has exactly the tools the design grants it
   3. Anonymous build leaves the ``<persona-preamble>`` wrapper OFF
@@ -23,13 +23,13 @@ import pytest
 
 from strands import Agent
 
-from agents import shopping_agent as shopping_module
+from agents import catalog_agent as catalog_module
 from agents import stock_agent as stock_module
 from agents import support_agent as support_module
-from agents.shopping_agent import build_shopping_agent
+from agents.catalog_agent import build_catalog_agent
 from agents.stock_agent import build_stock_agent
 from agents.support_agent import build_support_agent
-from pellier_copy import SHOPPING_SYSTEM_PROMPT
+from pellier_copy import CATALOG_SYSTEM_PROMPT
 from services.persona_context import persona_preamble_var, set_persona_preamble
 from tests.lab_variants import SOLUTION, stock_grant
 
@@ -37,7 +37,7 @@ from tests.lab_variants import SOLUTION, stock_grant
 # Exact tool names bound to each agent. If you rename a tool in
 # ``services/agent_tools.py`` you have to update this list.
 AGENT_SPECS = [
-    ("shopping", build_shopping_agent,
+    ("catalog", build_catalog_agent,
      {"search_products", "browse_department", "compare_products", "ask_a_person"}),
     ("stock", build_stock_agent, {"check_stock"}),
     ("support", build_support_agent,
@@ -74,19 +74,19 @@ def test_factory_returns_real_agent(
     assert _tool_names(agent) == expected_tools
 
 
-def test_the_shopping_agent_drops_the_handoff_on_an_ordinary_catalog_turn() -> None:
-    agent = build_shopping_agent(allow_handoff=False)
+def test_the_catalog_agent_drops_the_handoff_on_an_ordinary_catalog_turn() -> None:
+    agent = build_catalog_agent(allow_handoff=False)
     assert "ask_a_person" not in _tool_names(agent)
     assert "<turn-policy>" in (agent.system_prompt or "")
-    assert "<turn-policy>" not in (build_shopping_agent().system_prompt or "")
+    assert "<turn-policy>" not in (build_catalog_agent().system_prompt or "")
 
 
-def test_the_shopping_prompt_merges_the_search_and_personalization_rules() -> None:
+def test_the_catalog_prompt_merges_the_search_and_personalization_rules() -> None:
     for required in (
         "search_products", "browse_department", "compare_products", "ask_a_person",
         "constraint_notice", "PERSONA CONTEXT",
     ):
-        assert required in SHOPPING_SYSTEM_PROMPT, required
+        assert required in CATALOG_SYSTEM_PROMPT, required
     retired = ("boutique",) + tuple(
         "_".join(parts) for parts in (
             ("get", "related", "products"), ("search", "products", "hybrid"),
@@ -94,7 +94,7 @@ def test_the_shopping_prompt_merges_the_search_and_personalization_rules() -> No
         )
     )
     for word in retired:
-        assert word not in SHOPPING_SYSTEM_PROMPT, word
+        assert word not in CATALOG_SYSTEM_PROMPT, word
 
 
 @pytest.mark.parametrize("name,factory,_tools", AGENT_SPECS, ids=[s[0] for s in AGENT_SPECS])
@@ -129,8 +129,8 @@ def test_factory_honors_persona_contextvar(name: str, factory, _tools: set[str])
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("module", [shopping_module, stock_module, support_module],
-                         ids=["shopping", "stock", "support"])
+@pytest.mark.parametrize("module", [catalog_module, stock_module, support_module],
+                         ids=["catalog", "stock", "support"])
 def test_no_agent_module_exports_a_tool_wrapper(module) -> None:
     wrappers = [
         name for name, value in vars(module).items()

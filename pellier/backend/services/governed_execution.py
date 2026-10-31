@@ -13,7 +13,7 @@ Three independent controls
     Cedar        may this principal attempt this action?
     Approval     does a confirmed review approve these exact arguments, is
                  this write under that review's own key, and does every order
-                 it covers still lack a credit? (``pellier.apply_store_credit``)
+                 it covers still lack a credit? (``pellier.give_store_credit``)
     CHECK        is this mutation valid regardless of who asked?
 
 Each can fail while the others pass. The assurance axes this module returns are
@@ -40,7 +40,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Optional
 
-# The write key is derived in ``store_tools``; ``pellier.apply_store_credit``
+# The write key is derived in ``store_tools``; ``pellier.give_store_credit``
 # recomputes it and admits a write only under the key of the approved review.
 # This module derives the same key for the Operator's execute path.
 from services.store_tools import WRITE_GUARDS, execution_idempotency_key
@@ -690,7 +690,7 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
     SQLSTATE class stays on the fallthrough: a syntax error or a cancelled query
     is a failure, not a governance verdict.
 
-    ``pellier.apply_store_credit``'s own refusals (no matching approval, not
+    ``pellier.give_store_credit``'s own refusals (no matching approval, not
     this review's key, an order already credited) are DENIED: the call reached
     the database and its function refused before touching ``store_credits``.
     """
@@ -704,7 +704,7 @@ def classify_aurora(result: Mapping[str, Any]) -> tuple[str, str]:
         )
     if denied_by in WRITE_GUARDS:
         return AURORA_DENIED, (
-            "pellier.apply_store_credit refused the write: "
+            "pellier.give_store_credit refused the write: "
             + (str(result.get("message") or "").strip() or "the approval does not admit it.")
             + " Nothing changed."
         )

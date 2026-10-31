@@ -44,11 +44,11 @@ GRAPH_ID = "operator-investigation-v2"
 GRAPH_PATTERN = "strands-graph"
 EXECUTION = "in-process"
 INVESTIGATOR_NODE = "investigator"
-PLANNER_NODE = "planner"
+ADVISOR_NODE = "advisor"
 INVESTIGATOR_CALLER = "investigator"
 
 _INVESTIGATOR_MAX_TOKENS = 1024
-_PLANNER_MAX_TOKENS = 1024
+_ADVISOR_MAX_TOKENS = 1024
 _GRAPH_TIMEOUT_SECONDS = 180
 _NODE_TIMEOUT_SECONDS = 90
 _MAX_FACTS = 5
@@ -65,7 +65,7 @@ STEP_LABELS: Dict[str, str] = {
     "get_tickets": "Reading {name}'s tickets",
     "get_store_credits": "Reading {name}'s store credits",
     "get_return_policy": "Reading the return policy",
-    PLANNER_NODE: "Advisor proposes a credit",
+    ADVISOR_NODE: "Advisor proposes a credit",
 }
 
 LAYER_TAGS: Dict[str, tuple[str, ...]] = {
@@ -74,7 +74,7 @@ LAYER_TAGS: Dict[str, tuple[str, ...]] = {
     "get_tickets": ("Aurora",),
     "get_store_credits": ("Aurora",),
     "get_return_policy": ("Aurora",),
-    PLANNER_NODE: ("Advisor", "Approval"),
+    ADVISOR_NODE: ("Advisor", "Approval"),
 }
 
 _INVESTIGATOR_PROMPT = """You are Pellier's Investigator, a staff-side agent.
@@ -105,7 +105,7 @@ Rules:
   records do not contain.
 """
 
-_PLANNER_PROMPT = """You are Pellier's Advisor, a staff-side agent.
+_ADVISOR_PROMPT = """You are Pellier's Advisor, a staff-side agent.
 
 You receive the Investigator's brief about one client's case. If the records
 show items that went back with no store credit recorded, call
@@ -172,7 +172,7 @@ class InvestigationResult:
     status: str
     facts: List[str] = field(default_factory=list)
     missing: List[str] = field(default_factory=list)
-    planner: str = ""
+    advisor: str = ""
     proposal: Optional[Proposal] = None
     model_id: str = ""
     nodes: List[Dict[str, Any]] = field(default_factory=list)
@@ -186,7 +186,7 @@ class InvestigationResult:
             "customerId": self.customer_id,
             "status": self.status,
             "investigation": {"facts": list(self.facts), "missing": list(self.missing)},
-            "planner": self.planner,
+            "advisor": self.advisor,
             "proposal": self.proposal.as_payload() if self.proposal else None,
             "graph": {
                 "graphId": GRAPH_ID,
@@ -306,7 +306,7 @@ def proposal_finding(parsed: Dict[str, Any]) -> str:
 
 
 # The longest Advisor line the desk shows in its own words.
-_PLANNER_LINE_LIMIT = 160
+_ADVISOR_LINE_LIMIT = 160
 
 
 def _whole_sentences(text: str, limit: int) -> str:
@@ -321,13 +321,13 @@ def _whole_sentences(text: str, limit: int) -> str:
     return cut[:cut.rfind(" ")].rstrip(",;:") + "…"
 
 
-def planner_finding(case: "_Case", planner_text: str) -> str:
+def advisor_finding(case: "_Case", advisor_text: str) -> str:
     """The Advisor step's line: its proposal, the outcome its tool reported, or its own words."""
     if case.proposal is not None:
         return proposal_finding(case.proposal_result)
-    if case.planner_outcome in ("nothing_returned", "already_credited"):
-        return proposal_finding({"status": case.planner_outcome})
-    return _whole_sentences(planner_text, _PLANNER_LINE_LIMIT) or "No credit was proposed"
+    if case.advisor_outcome in ("nothing_returned", "already_credited"):
+        return proposal_finding({"status": case.advisor_outcome})
+    return _whole_sentences(advisor_text, _ADVISOR_LINE_LIMIT) or "No credit was proposed"
 
 
 def step_event(
@@ -398,7 +398,7 @@ class _Case:
     proposal_result: Dict[str, Any] = field(default_factory=dict)
     # The status the Advisor's last propose_store_credit call returned, or
     # None when it never called the tool.
-    planner_outcome: Optional[str] = None
+    advisor_outcome: Optional[str] = None
 
     @property
     def first_name(self) -> str:
@@ -781,9 +781,9 @@ def reached_a_finding(case: _Case, *, brief: bool) -> bool:
     """
     if case.proposal is not None:
         return True
-    if case.planner_outcome is None:
+    if case.advisor_outcome is None:
         return brief
-    return case.planner_outcome in ("nothing_returned", "already_credited")
+    return case.advisor_outcome in ("nothing_returned", "already_credited")
 
 
 def answer_open_requests(case: _Case) -> List[int]:
@@ -805,7 +805,7 @@ def answer_open_requests(case: _Case) -> List[int]:
         return []
 
 
-def _planner_tools(case: _Case) -> list:
+def _advisor_tools(case: _Case) -> list:
     from strands import tool
 
     @tool
@@ -823,7 +823,7 @@ def _planner_tools(case: _Case) -> list:
             reason: One sentence a staff member would recognize, on why.
         """
         result = propose_credit(case, order_ids=order_ids, reason=reason)
-        case.planner_outcome = str(result.get("status") or "")
+        case.advisor_outcome = str(result.get("status") or "")
         return _reply(result)
 
     return [propose_store_credit]
@@ -1022,13 +1022,13 @@ def _build_graph(case: _Case, model_id: str, hooks: Dict[str, "_NodeHooks"]) -> 
         hooks=[hooks[INVESTIGATOR_NODE]],
         callback_handler=None,
     )
-    planner = Agent(
-        name=PLANNER_NODE,
+    advisor = Agent(
+        name=ADVISOR_NODE,
         description="Proposes one store credit for a person to approve.",
-        model=BedrockModel(model_id=model_id, max_tokens=_PLANNER_MAX_TOKENS),
-        system_prompt=_PLANNER_PROMPT,
-        tools=_planner_tools(case),
-        hooks=[hooks[PLANNER_NODE]],
+        model=BedrockModel(model_id=model_id, max_tokens=_ADVISOR_MAX_TOKENS),
+        system_prompt=_ADVISOR_PROMPT,
+        tools=_advisor_tools(case),
+        hooks=[hooks[ADVISOR_NODE]],
         callback_handler=None,
     )
 
@@ -1037,8 +1037,8 @@ def _build_graph(case: _Case, model_id: str, hooks: Dict[str, "_NodeHooks"]) -> 
     builder.set_execution_timeout(_GRAPH_TIMEOUT_SECONDS)
     builder.set_node_timeout(_NODE_TIMEOUT_SECONDS)
     builder.add_node(investigator, INVESTIGATOR_NODE)
-    builder.add_node(planner, PLANNER_NODE)
-    builder.add_edge(INVESTIGATOR_NODE, PLANNER_NODE)
+    builder.add_node(advisor, ADVISOR_NODE)
+    builder.add_edge(INVESTIGATOR_NODE, ADVISOR_NODE)
     builder.set_entry_point(INVESTIGATOR_NODE)
     graph = builder.build()
     graph.trace_attributes = {
@@ -1082,7 +1082,7 @@ def run_investigation(
                  customer_name=customer_name,
                  operator_sub=operator_sub, turn_id=turn_id, emit=emit)
     model_id, _configured_max = specialist_model("sonnet")
-    hooks = {node: _NodeHooks(case, node, model_id) for node in (INVESTIGATOR_NODE, PLANNER_NODE)}
+    hooks = {node: _NodeHooks(case, node, model_id) for node in (INVESTIGATOR_NODE, ADVISOR_NODE)}
     graph = _build_graph(case, model_id, hooks)
 
     started = time.perf_counter()
@@ -1093,7 +1093,7 @@ def run_investigation(
         logger.warning("Operator investigation failed: %s", exc)
         for node_hooks in hooks.values():
             node_hooks.fail_unfinished()
-        for node in (INVESTIGATOR_NODE, PLANNER_NODE):
+        for node in (INVESTIGATOR_NODE, ADVISOR_NODE):
             emit(step_event(node, label=STEP_LABELS[node].format(name=case.first_name),
                             status="failed", finding="The investigation did not complete",
                             agent=node, model_id=model_id))
@@ -1109,7 +1109,7 @@ def run_investigation(
     facts, missing = _brief_from(_node_text(result, INVESTIGATOR_NODE))
     if reached_a_finding(case, brief=bool(facts)):
         answer_open_requests(case)
-    planner_text = _node_text(result, PLANNER_NODE)
+    advisor_text = _node_text(result, ADVISOR_NODE)
     nodes = _node_metadata(result)
     by_node = {node["nodeId"]: node for node in nodes}
 
@@ -1126,14 +1126,14 @@ def run_investigation(
     # Proposing nothing is a finding when the records support no credit; the step
     # fails only when the investigation reached none.
     emit(step_event(
-        PLANNER_NODE, label=STEP_LABELS[PLANNER_NODE],
+        ADVISOR_NODE, label=STEP_LABELS[ADVISOR_NODE],
         status="done" if reached_a_finding(case, brief=bool(facts)) else "failed",
-        finding=planner_finding(case, planner_text),
-        duration_ms=by_node.get(PLANNER_NODE, {}).get("durationMs"), agent=PLANNER_NODE,
+        finding=advisor_finding(case, advisor_text),
+        duration_ms=by_node.get(ADVISOR_NODE, {}).get("durationMs"), agent=ADVISOR_NODE,
         model_id=model_id,
     ))
     return InvestigationResult(
         turn_id=turn_id, customer_id=customer_id, status="complete",
-        facts=facts, missing=missing, planner=" ".join(planner_text.split()),
+        facts=facts, missing=missing, advisor=" ".join(advisor_text.split()),
         proposal=case.proposal, model_id=model_id, nodes=nodes, duration_ms=duration,
     )

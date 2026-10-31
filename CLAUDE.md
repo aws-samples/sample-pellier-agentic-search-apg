@@ -44,15 +44,15 @@ participant's named task before proposing a change.
 
 | Task | How | Explorer name | File it links to | Allowed marker |
 |---|---|---|---|---|
-| 1A | Apply by command | `labs/01-retrieve/1A-vector-branch.py` | `pellier/backend/services/store_tools.py` | `Vector branch - order by meaning` |
+| 1A | Apply by command | `labs/01-retrieve/1A-vector-search.py` | `pellier/backend/services/store_tools.py` | `Vector search - order by meaning` |
 | 1B | Build | `labs/01-retrieve/1B-search-plan.py` | `pellier/backend/services/search_plan.py` | `Search plan - preserve requirements` |
 | 1, Go deeper | Build | `labs/01-retrieve/go-deeper-fusion.sql` | `workshop/lab-1-fusion.sql` | `PostgreSQL RRF - fusion expression` |
 | 2A | Apply by command | `labs/02-ground/2A-stock-agent.py` | `pellier/backend/agents/stock_agent.py` | `Stock agent - definition` |
 | 2B | Build | `labs/02-ground/2B-check-stock.sql` | `workshop/lab-2-check-stock.sql` | `Stock check - not carried` |
-| 3A | Apply by command | `labs/03-deploy/3A-1-publish-tool.py` | `scripts/deploy/gateway_tool_schemas.py` | `Gateway catalogue - published tools` |
+| 3A | Apply by command | `labs/03-deploy/3A-1-publish-tool.py` | `scripts/deploy/gateway_tool_schemas.py` | `Gateway - published tools` |
 | 3A | Apply by command | `labs/03-deploy/3A-2-bind-caller.py` | `pellier/backend/services/agentcore_gateway.py` | `Support agent - Gateway tools` |
 | 3B | Build | `labs/03-deploy/3B-row-ownership.sql` | `workshop/lab-3-row-ownership.sql` | `Row ownership - predicate` |
-| 4A | Apply by command | `labs/04-govern/4A-credit-policy.cedar` | `policies/workshop_credit_limit.cedar` | final `unless` block |
+| 4A | Apply by command | `labs/04-govern/4A-credit-limit.cedar` | `policies/credit_limit.cedar` | final `unless` block |
 | 4B | Build | `labs/04-govern/4B-credit-writer.sql` | `workshop/lab-4-credit-writer.sql` | `Credit writer - privileges` |
 
 The `labs/` names are links to the application's own files. The participant builds 1B, 2B,
@@ -86,7 +86,7 @@ the task the participant names, never every file at once.
   output, or `takeaway/`, which holds the finished patterns participants take
   home.
 - Do not edit tests, dependencies, deployment configuration or infrastructure.
-  The named Cedar block and Gateway catalogue block are the explicit task
+  The named Cedar block and Gateway published-tools block are the explicit task
   exceptions; they do not authorize other policy or deployment edits.
 - Do not read credentials, tokens, environment secrets or unrelated customer data.
 - The participant runs the guide's checks, restarts, deployments, resets and business
@@ -150,7 +150,7 @@ anchored to one person, in climbing order of difficulty:
 | 1. Build and measure PostgreSQL hybrid retrieval | Anna | Search by what she means | Keep her limits on the retry |
 | 2. Build a PostgreSQL-grounded agent | Marco | Connect `check_stock` to the Stock agent, alone | Keep "not carried" distinct from sold out |
 | 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
-| 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the money role write only through the function |
+| 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the credit-writer role write only through the function |
 
 `workshop/story-arc.json` and `docs/WORKSHOP-STORY-ARC.md` define the connected
 task map. `pellier/backend/tests/test_workshop_marker_contract.py` checks the

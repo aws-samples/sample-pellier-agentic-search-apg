@@ -1,4 +1,4 @@
-"""Lab 4B on real PostgreSQL: the money role's privileges, starter and solution.
+"""Lab 4B on real PostgreSQL: the credit-writer role's privileges, starter and solution.
 
 The starter grants what a team writes to make an invoker's-rights credit
 function work: table privileges and a row policy. The credit still writes once
@@ -26,7 +26,7 @@ from tests import psql_tables  # noqa: E402  (the tests' own helper)
 REPO = Path(__file__).resolve().parents[3]
 LIVE = REPO / "workshop" / "lab-4-credit-writer.sql"
 STARTER = REPO / "workshop" / "starters" / "lab-4-credit-writer.sql"
-SOLUTION = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-credit-writer-solution.sql"
+SOLUTION = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
 LABEL = "Credit writer - privileges"
 
 
@@ -48,7 +48,7 @@ def _state(cluster: Any) -> str:
         "SELECT (SELECT count(*) FROM pellier.store_credits) || ' ' || prosecdef || ' ' "
         "|| coalesce(array_to_string(proconfig, ','), '') || ' ' "
         "|| coalesce(obj_description(oid, 'pg_proc'), 'no stamp') "
-        "FROM pg_proc WHERE proname = 'apply_store_credit'")
+        "FROM pg_proc WHERE proname = 'give_store_credit'")
 
 
 def test_the_live_worksheet_ships_the_starter() -> None:
@@ -88,7 +88,7 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     assert granted.splitlines()[-1] == (
         "policy orders_credit_writer on orders USING (true): every customer's rows")
     assert "rolled back, the live state is unchanged" in done.stdout
-    assert "Next      which single privilege does a money path need?" in done.stdout
+    assert "Next      which single privilege does a credit path need?" in done.stdout
     assert "Lab 4B privileges check failed" in done.stdout
     assert _state(fresh_db) == before
 
@@ -129,12 +129,12 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
         "42501", "no UPDATE privilege on pellier.store_credits"]
     assert "Lab 4B privileges check passed" in done.stdout
     assert fresh_db.psql("SELECT count(*) FROM pellier.store_credits") == credits_before
-    assert fresh_db.psql("SELECT obj_description('pellier.apply_store_credit(text, text, integer, "
+    assert fresh_db.psql("SELECT obj_description('pellier.give_store_credit(text, text, integer, "
                          "text, text)'::regprocedure, 'pg_proc')").startswith(
                              "Lab 4B privileges sha256 ")
     assert fresh_db.psql("SELECT count(*) FROM information_schema.role_table_grants "
                          "WHERE grantee = 'pellier_credit_writer'") == "0"
-    # Its REVOKE names the money role alone, so pgAudit still audits the credits table.
+    # Its REVOKE names the credit-writer role alone, so pgAudit still audits the credits table.
     assert fresh_db.psql("SELECT string_agg(privilege_type, ' ' ORDER BY privilege_type) "
                          "FROM information_schema.role_table_grants "
                          "WHERE grantee = 'rds_pgaudit'") == "INSERT UPDATE"

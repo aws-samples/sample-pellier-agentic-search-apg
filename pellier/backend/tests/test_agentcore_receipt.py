@@ -318,7 +318,7 @@ def test_observed_log_settings_must_match_the_claimed_configuration() -> None:
     assert any("observed" in error for error in validator.validate_receipt(receipt))
 
 
-def test_receipt_matches_the_real_provisioner_catalogue() -> None:
+def test_receipt_matches_the_real_provisioner_catalog() -> None:
     spec = importlib.util.spec_from_file_location(
         "receipt_provisioner_contract",
         REPO_ROOT / "scripts/provision_agentcore_end_to_end.py",
@@ -362,13 +362,13 @@ def test_staff_tool_cannot_replace_a_shopper_tool_at_the_same_count() -> None:
     assert _load_validator().validate_receipt(receipt)
 
 
-def test_validator_follows_source_catalogue_changes(monkeypatch) -> None:
+def test_validator_follows_source_catalog_changes(monkeypatch) -> None:
     _load_validator()
     import gateway_tool_schemas as schemas
 
     config = schemas.TOOL_SCHEMAS["store"]
     monkeypatch.setitem(
-        config, "tools", [*config["tools"], {"name": "future_catalogue_read"}]
+        config, "tools", [*config["tools"], {"name": "future_catalog_read"}]
     )
     assert _load_validator().validate_receipt(_valid_receipt()) == []
 
@@ -385,15 +385,15 @@ def _participant_receipt(full: dict[str, Any]) -> dict[str, Any]:
     return receipt
 
 
-def test_participant_catalogue_change_keeps_full_bootstrap_proof(monkeypatch, tmp_path) -> None:
+def test_participant_catalog_change_keeps_full_bootstrap_proof(monkeypatch, tmp_path) -> None:
     validator = _load_validator()
     full = _valid_receipt()
     import gateway_tool_schemas as schemas
 
     config = schemas.TOOL_SCHEMAS["store"]
-    monkeypatch.setitem(config, "tools", [*config["tools"], {"name": "future_catalogue_read"}])
+    monkeypatch.setitem(config, "tools", [*config["tools"], {"name": "future_catalog_read"}])
     participant = _participant_receipt(_valid_receipt())
-    assert validator.validate_receipt(full), "the historical catalogue is stale"
+    assert validator.validate_receipt(full), "the historical catalog is stale"
     original = copy.deepcopy(full)
     assert validator.validate_receipt(full, participant) == []
     assert full == original, "historical evidence must not be rewritten"
@@ -407,7 +407,7 @@ def test_participant_catalogue_change_keeps_full_bootstrap_proof(monkeypatch, tm
     assert validator.validate_receipt(full, participant), "update cannot replace missing bootstrap proof"
 
 
-@pytest.mark.parametrize("failure", ["resource", "failed", "fingerprint", "discovery", "catalogue", "policy"])
+@pytest.mark.parametrize("failure", ["resource", "failed", "fingerprint", "discovery", "catalog", "policy"])
 def test_participant_receipt_cannot_bypass_current_deployment_proof(failure: str) -> None:
     full = _valid_receipt()
     participant = _participant_receipt(full)
@@ -419,7 +419,7 @@ def test_participant_receipt_cannot_bypass_current_deployment_proof(failure: str
         participant["verification"]["runtime_invoke_smoke"]["build_fingerprint"] = "stale-package"
     elif failure == "discovery":
         participant["verification"]["gateway_tools_discovered"] = False
-    elif failure == "catalogue":
+    elif failure == "catalog":
         participant["verification"]["gateway_tool_names"][0] = "give_store_credit"
     else:
         participant["verification"]["gateway_control_plane"]["policy_mode"] = "LOG_ONLY"

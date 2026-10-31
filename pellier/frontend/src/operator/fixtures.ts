@@ -204,8 +204,8 @@ export const STEPS: TurnStep[] = [
   { id: 'get_store_credits', label: "Reading Jessica's store credits", status: 'done', finding: 'No store credit recorded', tags: ['Aurora'], builder: { tool: 'get_store_credits', rail: 'in-process', duration_ms: 19, audit_id: 4050, agent: 'investigator' } },
   { id: 'get_return_policy', label: 'Reading the return policy', status: 'done', finding: '30-day returns for Home', tags: ['Aurora'], builder: { tool: 'get_return_policy', rail: 'in-process', duration_ms: 21, audit_id: 4051, agent: 'investigator' } },
   { id: 'investigator', label: 'Investigator reads the case', status: 'done', finding: '3 things the records show, 1 missing', tags: ['Investigator'], builder: { tool: null, rail: 'in-process', duration_ms: 4200, agent: 'investigator' } },
-  { id: 'planner', label: 'Advisor proposes a credit', status: 'running', tags: ['Advisor', 'Approval'], builder: { tool: null, rail: 'in-process', agent: 'planner' } },
-  { id: 'planner', label: 'Advisor proposes a credit', status: 'done', finding: '$100.00 credit proposed for 2 returned items, waiting for approval', tags: ['Advisor', 'Approval'], builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'planner' } },
+  { id: 'advisor', label: 'Advisor proposes a credit', status: 'running', tags: ['Advisor', 'Approval'], builder: { tool: null, rail: 'in-process', agent: 'advisor' } },
+  { id: 'advisor', label: 'Advisor proposes a credit', status: 'done', finding: '$100.00 credit proposed for 2 returned items, waiting for approval', tags: ['Advisor', 'Approval'], builder: { tool: null, rail: 'in-process', duration_ms: 2900, agent: 'advisor' } },
 ]
 
 export const ANSWER: InvestigationAnswer = {
@@ -218,7 +218,7 @@ export const ANSWER: InvestigationAnswer = {
     ],
     missing: ['No store credit is recorded for the two returned items.'],
   },
-  planner: 'A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it before anything is written.',
+  advisor: 'A $100.00 store credit is proposed for the robe and the diffuser; a person must approve it before anything is written.',
   proposal: {
     reviewId: 41, customerId: 'CUST-JESSICA', amountCents: 10000, amount: '100.00',
     reason: 'Store credit for 2 returned items: Waffle Bath Robe, Sage (order 301); Reed Diffuser (order 302).', orderIds: [301, 302],
@@ -226,7 +226,7 @@ export const ANSWER: InvestigationAnswer = {
   },
   graph: {
     graphId: 'operator-investigation-v2', pattern: 'strands-graph', execution: 'in-process', modelId: 'global.anthropic.claude-sonnet-5-5',
-    nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'planner', status: 'completed', durationMs: 2900 }],
+    nodes: [{ nodeId: 'investigator', status: 'completed', durationMs: 4200 }, { nodeId: 'advisor', status: 'completed', durationMs: 2900 }],
     durationMs: 7100,
   },
   error: null,

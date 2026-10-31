@@ -72,7 +72,7 @@ class _DataApi:
         self.statements.append(kwargs)
         self.events.append("receipt" if "INSERT INTO pellier.tool_audit" in sql
                            else "role" if "SET LOCAL ROLE" in sql
-                           else "credit" if "apply_store_credit" in sql else "other")
+                           else "credit" if "give_store_credit" in sql else "other")
 
     def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
         self._record(kwargs)
@@ -81,7 +81,7 @@ class _DataApi:
             if self.fail_audit:
                 raise RuntimeError("audit insert failed")
             return {}
-        if self.fail_protected and "apply_store_credit" in sql:
+        if self.fail_protected and "give_store_credit" in sql:
             # Stands in for an RLS refusal or a CHECK violation: the protected
             # statement is the one that fails, not the audit.
             raise RuntimeError("new row violates row-level security policy")
@@ -137,7 +137,7 @@ def test_give_store_credit_casts_every_argument_at_the_call_site(
     """A Data API integer arrives as bigint, and the function takes an integer.
 
     PostgreSQL does not narrow bigint to integer while resolving an overload, so
-    an unqualified call raised `function pellier.apply_store_credit(..., bigint,
+    an unqualified call raised `function pellier.give_store_credit(..., bigint,
     ...) does not exist` on the live Gateway (2026-09-10).
     Cedar allowed the call, the Lambda ran, and no credit row was written: the
     kind of failure that looks like a working boundary until someone counts rows.
@@ -149,7 +149,7 @@ def test_give_store_credit_casts_every_argument_at_the_call_site(
     module.lambda_handler(_credit_event(), None)
 
     credit_sql = next(
-        call["sql"] for call in client.statements if "apply_store_credit" in call["sql"]
+        call["sql"] for call in client.statements if "give_store_credit" in call["sql"]
     )
     for cast in (":p0::text", ":p1::text", ":p2::integer", ":p3::text", ":p4::text"):
         assert cast in credit_sql, credit_sql
@@ -167,7 +167,7 @@ def test_the_credit_amount_travels_as_an_integer_and_the_issuer_is_not_wire_supp
 
     module.lambda_handler(_credit_event(issued_by="staff-spoof"), None)
 
-    credit = next(c for c in client.statements if "apply_store_credit" in c["sql"])
+    credit = next(c for c in client.statements if "give_store_credit" in c["sql"])
     values = {p["name"]: p["value"] for p in credit["parameters"]}
     assert values["p0"] == {"stringValue": APPROVED_KEY}
     assert values["p1"] == {"stringValue": "CUST-THEO"}
@@ -193,7 +193,7 @@ def test_a_credit_runs_as_the_writer_in_one_transaction_and_its_receipt_after_th
     assert not result.get("isError")
     assert client.events == ["begin", "role", "credit", "commit", "receipt"]
     role, credit = (call for call in client.statements
-                    if "SET LOCAL ROLE" in call["sql"] or "apply_store_credit" in call["sql"])
+                    if "SET LOCAL ROLE" in call["sql"] or "give_store_credit" in call["sql"])
     assert role["sql"] == "SET LOCAL ROLE pellier_credit_writer;"
     assert role["transactionId"] == credit["transactionId"] == "tx-governed-1"
     receipts = _audit_statements(client)
@@ -258,12 +258,12 @@ def test_a_failing_receipt_write_does_not_change_the_credit_result(
 
 
 class _IdempotentDataApi(_DataApi):
-    """``apply_store_credit`` as the database behaves: one credit per key.
+    """``give_store_credit`` as the database behaves: one credit per key.
 
     The first call under a key records a credit and answers with
     ``idempotent_replay: false``; every later call with the same key hands
     back that first result with ``idempotent_replay: true`` and records
-    nothing, exactly as ``pellier.apply_store_credit`` does.
+    nothing, exactly as ``pellier.give_store_credit`` does.
     """
 
     def __init__(self) -> None:
@@ -272,7 +272,7 @@ class _IdempotentDataApi(_DataApi):
 
     def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
         sql = kwargs.get("sql", "")
-        if "apply_store_credit" in sql:
+        if "give_store_credit" in sql:
             self._record(kwargs)
             key = kwargs["parameters"][0]["value"]["stringValue"]
             if key in self.credits:
@@ -322,7 +322,7 @@ class _FailsOnceDataApi(_IdempotentDataApi):
         self.failed = False
 
     def execute_statement(self, **kwargs: Any) -> dict[str, Any]:
-        if "apply_store_credit" in kwargs.get("sql", "") and not self.failed:
+        if "give_store_credit" in kwargs.get("sql", "") and not self.failed:
             self.failed = True
             self._record(kwargs)
             raise RuntimeError("connection reset between begin and commit")
@@ -376,7 +376,7 @@ def test_a_first_attempt_and_a_refusal_still_write_their_receipt(
 def test_the_databases_refusal_reaches_the_caller_and_the_attempt_is_audited(
     monkeypatch: pytest.MonkeyPatch, status: str, guard: str,
 ) -> None:
-    """The approval and order rules run inside ``pellier.apply_store_credit``.
+    """The approval and order rules run inside ``pellier.give_store_credit``.
 
     A staff token calling the Gateway directly with terms no confirmed review
     approves, or under a key that is not the review's own, enters the tool, and

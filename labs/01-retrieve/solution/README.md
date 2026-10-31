@@ -3,7 +3,7 @@
 Try the marked task first. These files are the supplied answers, not the files the
 application executes.
 
-- [1A-vector-branch.py](1A-vector-branch.py)
+- [1A-vector-search.py](1A-vector-search.py)
 - [1B-search-plan.py](1B-search-plan.py)
 - [go-deeper-fusion.sql](go-deeper-fusion.sql), the optional Build's answer
 

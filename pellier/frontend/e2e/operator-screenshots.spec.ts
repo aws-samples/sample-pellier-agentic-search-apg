@@ -36,7 +36,7 @@ async function stubDesk(page: Page, desk: Desk, options: { streamDelayMs?: numbe
     if (path.endsWith('/api/operator/clients')) return route.fulfill(json(BOOK))
     if (path.endsWith('/api/operator/clients/CUST-JESSICA/investigate') && method === 'POST') {
       desk.investigated = true
-      // The planner's step and the answer land after a pause, so a capture can
+      // The advisor's step and the answer land after a pause, so a capture can
       // catch the Investigator's reads with the Advisor still running.
       if (options.streamDelayMs) {
         const head = sse(INVESTIGATION_EVENTS)

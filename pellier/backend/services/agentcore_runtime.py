@@ -451,7 +451,7 @@ def _runtime_session_id_for(session_id: Optional[str], user_id: Optional[str] = 
 # ``pellier/backend/agentcore_runtime.py``.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/the-ledger/services/agentcore_runtime.py pellier/backend/services/agentcore_runtime.py
+#    cp solutions/lab-3-deploy/services/agentcore_runtime.py pellier/backend/services/agentcore_runtime.py
 async def run_agent_on_runtime_result(
     message: str,
     session_id: str,

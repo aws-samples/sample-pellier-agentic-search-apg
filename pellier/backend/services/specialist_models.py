@@ -38,7 +38,7 @@ ModelTier = Literal["opus", "sonnet"]
 
 # The three intents the Router returns, and the agent each one reaches.
 AGENT_NAMES: dict[str, str] = {
-    "shopping": "Catalog agent",
+    "catalog": "Catalog agent",
     "stock": "Stock agent",
     "support": "Support agent",
 }

@@ -262,13 +262,13 @@ def test_the_2a_check_leaves_the_as_shipped_cape_answer_to_2b(conn) -> None:
                and "which Task 2B judges" in line for line in finding.evidence)
 
 
-def test_a_shopping_turn_by_marco_does_not_change_the_verdict(conn) -> None:
+def test_a_catalog_turn_by_marco_does_not_change_the_verdict(conn) -> None:
     """Marco's own Goa question goes to the Catalog agent; 2A judges his stock turns only."""
     envelope = _ask(conn, lab_variants.STARTER, "Hadley Linen Shirt")
     _audit(conn, "turn-stock", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
     _audit(conn, "turn-goa", "search_products", {"query": "linen for Goa"},
            {"status": "success", "count": 1, "products": [{"productId": "11"}]},
-           agent="shopping", grant=("search_products", "browse_department", "compare_products"))
+           agent="catalog", grant=("search_products", "browse_department", "compare_products"))
     finding = lab2.judge_2a(conn)
     assert finding.state == "PROVED", finding
     assert "turn-stock" in finding.evidence[0]

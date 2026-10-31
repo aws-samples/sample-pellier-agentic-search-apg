@@ -80,7 +80,7 @@ digraph Lab4DenyAllowSequence {
     a2 [label="2 CEDAR\nstaff permit matches\nyour forbid exempts it", color="#3f6212", fontcolor="#3f6212"];
     a3 [label="3 GATEWAY\nALLOW bounded target", color="#3f6212", fontcolor="#3f6212"];
     a4 [label="4 LAMBDA\nexactly 1 execution", color="#3f6212", fontcolor="#3f6212"];
-    a5 [label="5 APPLY_STORE_CREDIT\napproved terms and key\na retry replays it", color="#3f6212", fontcolor="#3f6212"];
+    a5 [label="5 GIVE_STORE_CREDIT\napproved terms and key\na retry replays it", color="#3f6212", fontcolor="#3f6212"];
     a6 [label="6 EVIDENCE\n1 tool_audit\n1 store_credits", color="#3f6212", fontcolor="#3f6212"];
 
     a1 -> a2 [color="#3f6212", label="claims", fontcolor="#3f6212"];

@@ -118,10 +118,10 @@ def test_sonnet_has_no_fallback_and_opus_has_sonnet(monkeypatch: pytest.MonkeyPa
 
 
 def test_the_catalog_and_support_agents_use_the_fallback_model() -> None:
-    from agents.shopping_agent import build_shopping_agent
+    from agents.catalog_agent import build_catalog_agent
     from agents.support_agent import build_support_agent
 
-    for agent in (build_shopping_agent(), build_support_agent()):
+    for agent in (build_catalog_agent(), build_support_agent()):
         assert isinstance(agent.model, FallbackBedrockModel), agent.name
 
 

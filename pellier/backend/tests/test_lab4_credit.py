@@ -1,4 +1,4 @@
-"""Lab 4B's live check: the stamp it reads, and the money role on both paths.
+"""Lab 4B's live check: the stamp it reads, and the credit-writer role on both paths.
 
 ``scripts/lab4_check.py --task 4B`` first matches the live function's comment with
 the statements in the participant's worksheet, then probes the role through the
@@ -25,7 +25,7 @@ from tests.test_operator_credit_postgres import _conninfo, _DataApiOnPostgres, _
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 credit_check = importlib.import_module("lab4_credit")
-SOLUTION = REPO / "solutions" / "the-concierge" / "sql" / "lab-4-credit-writer-solution.sql"
+SOLUTION = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
 CLEAN = {"rights": credit_check.LIVE_RIGHTS, "execute": credit_check.LIVE_EXECUTE,
          "table_grants": 0, "policies": 0}
 

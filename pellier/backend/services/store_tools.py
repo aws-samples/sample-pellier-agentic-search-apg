@@ -130,7 +130,7 @@ def execution_idempotency_key(review_id: Any, action_hash: str) -> str:
 
     ``operator-review:{review id}:{first 32 hex of the fingerprint}``. Derived
     rather than generated so every retry of one approved review claims the
-    same key and collapses through ``apply_store_credit``'s claim and replay
+    same key and collapses through ``give_store_credit``'s claim and replay
     machinery, and so the approval guard can recompute it: a write is admitted
     only under the key of the review that fingerprints it, which makes one
     approval worth exactly one credit. The fingerprint is included so a review
@@ -596,11 +596,11 @@ def get_tickets(run: Run, *, customer_id: str, limit: int = 5) -> Dict[str, Any]
 # parameter when resolving the overload (live, 2026-09-10: Cedar allowed the
 # call, the Lambda ran, and no credit row was written).
 _CREDIT_SQL = (
-    "SELECT pellier.apply_store_credit("
+    "SELECT pellier.give_store_credit("
     "%s::text, %s::text, %s::integer, %s::text, %s::text) AS result"
 )
 
-# What ``pellier.apply_store_credit`` answers when it refuses. The approval
+# What ``pellier.give_store_credit`` answers when it refuses. The approval
 # refusals keep apart a case nobody approved, an approval for different terms,
 # and the approved terms under a key that is not that review's own. The order
 # refusal names a review whose orders did not all come back, or that another
@@ -626,7 +626,7 @@ def give_store_credit(
     """Write one store credit, exactly once per approved review.
 
     Staff only, and only for a review a person approved. Cedar admits the
-    staff scope at the Gateway; ``pellier.apply_store_credit`` then refuses
+    staff scope at the Gateway; ``pellier.give_store_credit`` then refuses
     unless a confirmed review approves these exact arguments, the key is that
     review's own (:func:`execution_idempotency_key`), and every order it covers
     came back with no credit on it yet. A retry under that key returns the
@@ -1008,7 +1008,7 @@ DEFAULT_RETRIEVAL_CONFIG: Dict[str, int] = {
     "rerank_max_documents": 30,
 }
 
-# Stop words and US spellings for the full-text branch. Conversational queries
+# Stop words and US spellings for the full-text search. Conversational queries
 # OR-join their meaningful tokens: plainto_tsquery ANDs every stem, so "a
 # thoughtful gift for someone who loves morning rituals" would match nothing.
 FTS_STOP_WORDS = frozenset({
@@ -1058,13 +1058,13 @@ def _indent_clauses(extra_clauses: Sequence[str]) -> str:
     )
 
 
-def vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
-    """The pgvector branch, with a plan's hard predicates applied.
+def vector_search_sql(extra_clauses: Sequence[str] = ()) -> str:
+    """The pgvector search, with a plan's hard predicates applied.
 
     Parameters, in order: the query embedding as a vector literal, the
     predicate parameters, and the branch size.
     """
-    # === WORKSHOP - Vector branch - order by meaning: START ===
+    # === WORKSHOP - Vector search - order by meaning: START ===
     # Task 1A: rank the eligible products by meaning, closest first.
     return f"""
             WITH query_embedding AS (
@@ -1077,11 +1077,11 @@ def vector_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
               AND false  -- not built: nothing is ranked by meaning yet
             LIMIT %s
         """
-    # === WORKSHOP - Vector branch - order by meaning: END ===
+    # === WORKSHOP - Vector search - order by meaning: END ===
 
 
-def fts_branch_sql(extra_clauses: Sequence[str] = ()) -> str:
-    """The full-text branch, with a plan's hard predicates applied.
+def fts_search_sql(extra_clauses: Sequence[str] = ()) -> str:
+    """The full-text search, with a plan's hard predicates applied.
 
     Parameters, in order: the OR-joined ``to_tsquery`` text, the predicate
     parameters, and the branch size. ``ts_rank_cd`` is cover-density ranking,
@@ -1309,7 +1309,7 @@ def _retrieve_candidates(
     started = time.perf_counter()
     vector_rows = [
         _catalog_row(row)
-        for row in run(vector_branch_sql(clauses), (embedding, *params, k_vector))
+        for row in run(vector_search_sql(clauses), (embedding, *params, k_vector))
     ]
     if plan.retrieval_strategy == STRATEGY_VECTOR:
         for rank_zero, row in enumerate(vector_rows):
@@ -1322,7 +1322,7 @@ def _retrieve_candidates(
     lexical = or_tsquery(query)
     k_fts = _bounded(config.get("k_fts"), DEFAULT_RETRIEVAL_CONFIG["k_fts"])
     fts_rows = (
-        [_catalog_row(row) for row in run(fts_branch_sql(clauses), (lexical, *params, k_fts))]
+        [_catalog_row(row) for row in run(fts_search_sql(clauses), (lexical, *params, k_fts))]
         if lexical
         else []
     )

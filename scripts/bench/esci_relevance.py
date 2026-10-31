@@ -235,7 +235,7 @@ def load(work_dir: str, dsn: str) -> None:
 
 
 def full_text(conn, tsquery: str, depth: int) -> List[str]:
-    """The full-text branch; a query with no usable token, or one Postgres rejects, finds none."""
+    """The full-text search; a query with no usable token, or one Postgres rejects, finds none."""
     import psycopg
 
     if not tsquery:

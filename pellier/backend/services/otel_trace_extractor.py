@@ -62,7 +62,7 @@ _SPECIALIST_TOOL_NAMES = frozenset(
 # tagged span's trace id, then keeps every span in that OTEL trace.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/the-ledger/services/otel_trace_extractor.py pellier/backend/services/otel_trace_extractor.py
+#    cp solutions/lab-3-deploy/services/otel_trace_extractor.py pellier/backend/services/otel_trace_extractor.py
 
 
 def init_span_capture() -> None:

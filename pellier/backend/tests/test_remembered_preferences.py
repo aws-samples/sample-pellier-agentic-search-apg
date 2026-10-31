@@ -108,8 +108,8 @@ def managed_theo(monkeypatch: pytest.MonkeyPatch, theo_memory: type):
         if ids is None:
             ids = [item["record_id"] for item in kwargs.get("preferences") or []]
         return ManagedRuntimeResult(
-            response="Start with the stoneware.", rail="gateway-mcp", intent="shopping",
-            specialist="shopping", model="global.anthropic.claude-opus-5-5", remembered=ids,
+            response="Start with the stoneware.", rail="gateway-mcp", intent="catalog",
+            specialist="catalog", model="global.anthropic.claude-opus-5-5", remembered=ids,
         )
 
     class _LocalChatMustNotRun:
@@ -296,7 +296,7 @@ def in_process(monkeypatch: pytest.MonkeyPatch, theo_memory: type):
     }
     monkeypatch.setitem(sys.modules, "services.otel_trace_extractor", types.SimpleNamespace(
         extract_agent_execution_from_otel=lambda **kwargs: {}))
-    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "shopping")
+    monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "catalog")
     prompts: List[str] = []
 
     class _Recording(ScriptedAgent):
@@ -400,8 +400,8 @@ def test_a_slow_runtime_answer_keeps_the_browser_request_open(
     async def _slow(**kwargs: Any) -> ManagedRuntimeResult:
         await asyncio.sleep(0.35)
         return ManagedRuntimeResult(
-            response="Start with the stoneware.", rail="gateway-mcp", intent="shopping",
-            specialist="shopping", model="global.anthropic.claude-opus-5-5", remembered=[],
+            response="Start with the stoneware.", rail="gateway-mcp", intent="catalog",
+            specialist="catalog", model="global.anthropic.claude-opus-5-5", remembered=[],
         )
 
     monkeypatch.setattr(sse_keepalive, "HEARTBEAT_SECONDS", 0.1)

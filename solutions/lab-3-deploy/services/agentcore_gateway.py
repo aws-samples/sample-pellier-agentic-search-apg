@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # publishes to the caller.
 #
 # ⏩ SHORT ON TIME? Run:
-#    cp solutions/the-ledger/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
+#    cp solutions/lab-3-deploy/services/agentcore_gateway.py pellier/backend/services/agentcore_gateway.py
 
 # Published for the Operator, never for a shopper-facing agent. The Gateway
 # serves it to any caller it lists it for, and Cedar decides per call, so the
@@ -71,7 +71,7 @@ SUPPORT_CALLER_BOUND_TOOLS: frozenset[str] = frozenset({"get_orders", "get_ticke
 # === WORKSHOP - Support agent - Gateway tools: END ===
 
 MANAGED_SPECIALIST_TOOLS: Dict[str, tuple[str, ...]] = {
-    "shopping": (
+    "catalog": (
         "search_products",
         "browse_department",
         "compare_products",
@@ -177,7 +177,7 @@ def _managed_specialist_prompt(
             "customer-scoped tool requires customer_id; do not infer or "
             "substitute another customer."
         )
-    if specialist == "shopping":
+    if specialist == "catalog":
         prompt += (
             " Pass the shopper's requirements to search_products and "
             "browse_department as arguments, never as words in the query: a "
@@ -225,7 +225,7 @@ MUTATION_TIERS = frozenset({TIER_OPERATOR_MUTATION})
 # a policy naming ``pellier-store-tools___give_store_credit`` matches only that
 # target's tool. The provisioning source is ``scripts/deploy/
 # gateway_tool_schemas.py``, which the backend cannot import at runtime, so the
-# map is stated here and the Gateway catalogue tests assert the two agree.
+# map is stated here and the Gateway catalog tests assert the two agree.
 GATEWAY_TARGET = "pellier-store-tools"
 GATEWAY_TARGET_FOR_TOOL: Dict[str, str] = {name: GATEWAY_TARGET for name in GATEWAY_TOOL_TIERS}
 

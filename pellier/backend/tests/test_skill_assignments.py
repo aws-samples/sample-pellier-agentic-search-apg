@@ -22,7 +22,7 @@ from skills import (
 
 def test_the_fixed_mapping_is_the_brief_table() -> None:
     assert FIXED_SKILLS == {
-        "shopping": ("gifts", "makers", "travel", "evidence"),
+        "catalog": ("gifts", "makers", "travel", "evidence"),
         "stock": ("evidence",),
         "support": ("care-and-returns", "evidence"),
     }
@@ -56,11 +56,11 @@ def test_the_receipt_records_how_each_skill_loaded() -> None:
             "loaded": "fixed",
         }
     ]
-    on_demand = skill_receipt("shopping", SKILL_MODE_ON_DEMAND, ["gifts", "not-a-skill"])
+    on_demand = skill_receipt("catalog", SKILL_MODE_ON_DEMAND, ["gifts", "not-a-skill"])
     assert [(skill["name"], skill["loaded"]) for skill in on_demand] == [("gifts", "on demand")]
-    assert skill_receipt("shopping", SKILL_MODE_ON_DEMAND) == []
+    assert skill_receipt("catalog", SKILL_MODE_ON_DEMAND) == []
     # Opened twice, loaded once.
-    twice = skill_receipt("shopping", SKILL_MODE_ON_DEMAND, ["gifts", "gifts"])
+    twice = skill_receipt("catalog", SKILL_MODE_ON_DEMAND, ["gifts", "gifts"])
     assert [skill["name"] for skill in twice] == ["gifts"]
 
 
@@ -70,48 +70,48 @@ def test_the_receipt_records_how_each_skill_loaded() -> None:
 
 
 @pytest.fixture
-def shopping_on_demand():
-    from agents.shopping_agent import build_shopping_agent
+def catalog_on_demand():
+    from agents.catalog_agent import build_catalog_agent
 
-    agent = build_shopping_agent(allow_handoff=False, skill_mode=SKILL_MODE_ON_DEMAND)
+    agent = build_catalog_agent(allow_handoff=False, skill_mode=SKILL_MODE_ON_DEMAND)
     asyncio.run(agent.hooks.invoke_callbacks_async(BeforeInvocationEvent(agent=agent)))
     return agent
 
 
-def test_on_demand_prompt_lists_names_and_descriptions_only(shopping_on_demand) -> None:
-    prompt = str(shopping_on_demand.system_prompt)
+def test_on_demand_prompt_lists_names_and_descriptions_only(catalog_on_demand) -> None:
+    prompt = str(catalog_on_demand.system_prompt)
     registry = get_registry()
-    for name in FIXED_SKILLS["shopping"]:
+    for name in FIXED_SKILLS["catalog"]:
         skill = registry.get(name)
         assert skill is not None
         assert f"<name>{name}</name>" in prompt
         assert skill.description.split(":")[0] in prompt
         assert skill.body.strip() not in prompt, f"{name} body leaked into the on-demand prompt"
     assert "<name>care-and-returns</name>" not in prompt
-    assert "skills" in shopping_on_demand.tool_names
+    assert "skills" in catalog_on_demand.tool_names
 
 
 def test_on_demand_locations_are_repository_paths_never_a_developers_absolute_one(
-    shopping_on_demand,
+    catalog_on_demand,
 ) -> None:
-    prompt = str(shopping_on_demand.system_prompt)
+    prompt = str(catalog_on_demand.system_prompt)
     assert "<location>skills/gifts/SKILL.md</location>" in prompt
     assert "<location>/" not in prompt
     assert "/Users/" not in prompt and "/home/" not in prompt
 
 
-def test_load_skill_returns_the_body_and_refuses_out_of_set_and_unknown_names(shopping_on_demand) -> None:
+def test_load_skill_returns_the_body_and_refuses_out_of_set_and_unknown_names(catalog_on_demand) -> None:
     body = get_registry().get("gifts").body.strip()
 
-    loaded = shopping_on_demand.tool.skills(skill_name="gifts", record_direct_tool_call=False)
+    loaded = catalog_on_demand.tool.skills(skill_name="gifts", record_direct_tool_call=False)
     assert loaded["status"] == "success"
     assert body in loaded["content"][0]["text"]
 
-    out_of_set = shopping_on_demand.tool.skills(skill_name="care-and-returns", record_direct_tool_call=False)
+    out_of_set = catalog_on_demand.tool.skills(skill_name="care-and-returns", record_direct_tool_call=False)
     assert "not found" in out_of_set["content"][0]["text"]
     assert "care-and-returns" not in out_of_set["content"][0]["text"].split("Available skills:")[1]
 
-    unknown = shopping_on_demand.tool.skills(skill_name="the-crystal-ball", record_direct_tool_call=False)
+    unknown = catalog_on_demand.tool.skills(skill_name="the-crystal-ball", record_direct_tool_call=False)
     assert "not found" in unknown["content"][0]["text"]
 
 

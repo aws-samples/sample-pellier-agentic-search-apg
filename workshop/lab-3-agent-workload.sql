@@ -12,7 +12,7 @@
 --
 --   pellier_agent          the customer-scoped tools (orders, tickets). The app
 --                          and the Gateway Lambda switch into it for each call.
---   pellier_credit_writer  the money path, once a credit has run (Lab 4)
+--   pellier_credit_writer  the credit path, once a credit has run (Lab 4)
 --   your login             the app's own login: catalog search, the audit ledger,
 --                          and the statements you ran in psql
 --
@@ -91,7 +91,7 @@ SELECT sum(calls) AS calls, sum(rows) AS rows,
 RESET ROLE;
 
 \echo ''
-\echo 'pellier_credit_writer: the money path, which can only call apply_store_credit'
+\echo 'pellier_credit_writer: the credit path, which can only call give_store_credit'
 SET LOCAL ROLE pellier_credit_writer;
 SELECT format('distinct statements %s, calls %s', count(*), coalesce(sum(calls), 0)) AS summary,
        count(*) > 0 AS seen

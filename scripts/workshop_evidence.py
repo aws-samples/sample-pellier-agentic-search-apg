@@ -9,7 +9,7 @@ needs a run id, or reads a notes file.
 
 What each line reads:
 
-    1A  your vector_branch_sql in services/store_tools.py, run against
+    1A  your vector_search_sql in services/store_tools.py, run against
         pellier.product_catalog with embeddings whose nearest product is known
     1B  pellier.retrieval_receipts and pellier.product_catalog: what Anna asked
         for, what the search that answered kept, and every product it returned
@@ -17,15 +17,15 @@ What each line reads:
         agent held, and its counts against pellier.warehouse_inventory
     2B  pellier.tool_audit: Marco's latest recorded check_stock call per case,
         against pellier.product_catalog and pellier.warehouse_inventory
-    3A  the source: the Gateway catalogue and the caller binding
+    3A  the source: the Gateway's published tools and the caller binding
     3B  pellier.tool_audit (the executed build beside this checkout's digest,
         and every get_tickets read), AgentCore Memory (Theo's record), and the
         live row policies beside workshop/lab-3-row-ownership.sql, probed on both paths
-    4A  policies/workshop_credit_limit.cedar, evaluated with Cedar here, then
+    4A  policies/credit_limit.cedar, evaluated with Cedar here, then
         the stored Gateway denial and Jessica's credit in pellier.approvals,
         pellier.store_credits and pellier.tool_audit
     4B  the live credit function beside workshop/lab-4-credit-writer.sql, and
-        the money role probed on both paths; every probe rolls back
+        the credit-writer role probed on both paths; every probe rolls back
 
 Rows alone prove 1B, 2A and 2B, so those lines read no source and no code of
 yours runs: 2A and 2B need Marco's requests sent again after the edit before
@@ -69,10 +69,10 @@ PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
 
 # The marked region each task edits, and the starter it is compared with.
 REGIONS: Dict[str, tuple] = {
-    "1A": (BACKEND / "services" / "store_tools.py", "Vector branch - order by meaning",
-           STARTERS / "lab-1" / "vector-branch.pyfrag"),
-    "3A-catalogue": (REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
-                     "Gateway catalogue - published tools",
+    "1A": (BACKEND / "services" / "store_tools.py", "Vector search - order by meaning",
+           STARTERS / "lab-1" / "vector-search.pyfrag"),
+    "3A-catalog": (REPO / "scripts" / "deploy" / "gateway_tool_schemas.py",
+                     "Gateway - published tools",
                      STARTERS / "lab-3" / "gateway-published-tools.pyfrag"),
     "3A-binding": (BACKEND / "services" / "agentcore_gateway.py",
                    "Support agent - Gateway tools",
@@ -82,8 +82,8 @@ REGIONS: Dict[str, tuple] = {
     "4B": (REPO / "workshop" / "lab-4-credit-writer.sql", "Credit writer - privileges",
            STARTERS / "lab-4-credit-writer.sql"),
 }
-CEDAR_POLICY = REPO / "policies" / "workshop_credit_limit.cedar"
-CEDAR_STARTER = STARTERS / "workshop_credit_limit.cedar"
+CEDAR_POLICY = REPO / "policies" / "credit_limit.cedar"
+CEDAR_STARTER = STARTERS / "credit_limit.cedar"
 
 TITLES = {
     "1": "Lab 1: Build and measure PostgreSQL hybrid retrieval",
@@ -110,7 +110,7 @@ def _starter_finding(task: str, title: str, expected: str, where: str) -> check.
 # ---------------------------------------------------------------------------
 
 def task_1a(cfg: Config, connect: Connect) -> check.Finding:
-    """Run the participant's vector branch with the Lab 1A check's probes."""
+    """Run the participant's vector search with the Lab 1A check's probes."""
     import lab1_vector as lab1
 
     if source_state("1A") == check.STARTER:
@@ -155,7 +155,7 @@ def task_2b(cfg: Config, connect: Connect) -> check.Finding:
 
 
 # ---------------------------------------------------------------------------
-# Lab 3: the catalogue from source, then the build and the reads from tool_audit
+# Lab 3: the catalog from source, then the build and the reads from tool_audit
 # ---------------------------------------------------------------------------
 
 
@@ -164,22 +164,22 @@ def task_3a() -> check.Finding:
     import lab3_check
 
     title = "get_tickets is published and bound to the signed-in caller"
-    states = {key: source_state(key) for key in ("3A-catalogue", "3A-binding")}
+    states = {key: source_state(key) for key in ("3A-catalog", "3A-binding")}
     if any(state == check.MISSING for state in states.values()):
         return check.Finding("3A", title, UNCHECKED, "both Lab 3 marked regions readable",
                              "a Lab 3 marked region could not be read",
                              [f"{key}: {state}" for key, state in states.items()])
     if any(state == check.STARTER for state in states.values()):
         where = " and ".join(
-            {"3A-catalogue": "scripts/deploy/gateway_tool_schemas.py",
+            {"3A-catalog": "scripts/deploy/gateway_tool_schemas.py",
              "3A-binding": "services/agentcore_gateway.py"}[key]
             for key, state in states.items() if state == check.STARTER)
         return _starter_finding("3A", title, "both Lab 3 marked regions edited", where)
     try:
-        return lab3_check.catalogue_verdict(
-            lab3_check.judge_catalogue(*lab3_check.source_catalogue()))
+        return lab3_check.catalog_verdict(
+            lab3_check.judge_catalog(*lab3_check.source_catalog()))
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return check.Finding("3A", title, UNCHECKED, "the catalogues are readable",
+        return check.Finding("3A", title, UNCHECKED, "the catalogs are readable",
                              "the check could not look", [f"{type(exc).__name__}: {exc}"])
 
 
@@ -313,7 +313,7 @@ def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
     except OSError as exc:
         return check.Finding("4A", title, UNCHECKED, expected, f"unreadable: {exc}")
     if rule == starter:
-        return _starter_finding("4A", title, expected, "policies/workshop_credit_limit.cedar")
+        return _starter_finding("4A", title, expected, "policies/credit_limit.cedar")
     try:
         local = lab4.local_check(rule, starter).finding
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
@@ -327,11 +327,11 @@ def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
 
 
 def task_4b(writer: Optional[Callable[[], List[check.Finding]]] = None) -> check.Finding:
-    """Lab 4B: the live credit function carries your statements, and the money role
+    """Lab 4B: the live credit function carries your statements, and the credit-writer role
     writes only through it on both paths (``lab4_credit.collect`` unless given)."""
     import lab4_credit as lab4b
 
-    title = "the money role writes only through the credit function"
+    title = "the credit-writer role writes only through the credit function"
     expected = f"{lab4b.DEPLOYED_EXPECTED}; {lab4b.EXPECTED}"
     if source_state("4B") == check.STARTER:
         return _starter_finding("4B", title, expected, "workshop/lab-4-credit-writer.sql")

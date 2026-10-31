@@ -33,11 +33,11 @@ export PATH="/opt/pellier/bin:$PATH"
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
 BASE="${PELLIER_BASE_URL:-http://localhost:8000}"
-WORKSHEET_REFERENCE="${REPO}/solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql"
+WORKSHEET_REFERENCE="${REPO}/solutions/lab-2-ground/sql/lab-2-check-stock-solution.sql"
 WORKSHEET_STARTER="${REPO}/workshop/starters/lab-2-check-stock.sql"
 FUNCTION_APPLIED=false
 AGENT="${REPO}/pellier/backend/agents/stock_agent.py"
-AGENT_REFERENCE="${REPO}/solutions/waking-the-stock-keeper/agents/stock_agent_solution.py"
+AGENT_REFERENCE="${REPO}/solutions/lab-2-ground/agents/stock_agent_solution.py"
 BACKUP_SUFFIX=".dryrun.$$.bak"
 # Participants edit only the START/END blocks. The rehearsal mirrors that
 # contract by copying the reference block into the live file and running the

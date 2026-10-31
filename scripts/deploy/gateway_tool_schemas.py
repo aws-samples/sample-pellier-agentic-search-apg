@@ -223,7 +223,7 @@ for _target in TOOL_SCHEMAS.values():
 # What the CURRENT WORKSHOP ITERATION publishes
 # ---------------------------------------------------------------------------
 #
-# `TOOL_SCHEMAS` above is the catalogue of everything Pellier can serve through
+# `TOOL_SCHEMAS` above is the catalog of everything Pellier can serve through
 # the Gateway. Publication is a separate decision: publishing a tool gives it an
 # MCP action id, a Cedar action and a place in participant-visible discovery.
 #
@@ -239,11 +239,11 @@ for _target in TOOL_SCHEMAS.values():
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.
 #
-# === WORKSHOP - Gateway catalogue - published tools: START ===
+# === WORKSHOP - Gateway - published tools: START ===
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo asks the Support agent for his ticket history. `get_tickets` has a
-# schema in the catalogue above but is withheld from the Gateway, so the managed
+# schema in the catalog above but is withheld from the Gateway, so the managed
 # rail cannot serve it.
 #
 # Publishing makes a tool discoverable and adds it to the policy action set. It
@@ -262,19 +262,19 @@ for _target in TOOL_SCHEMAS.values():
 UNPUBLISHED_TOOLS: frozenset[str] = frozenset({
     "get_tickets",
 })
-# === WORKSHOP - Gateway catalogue - published tools: END ===
+# === WORKSHOP - Gateway - published tools: END ===
 
 
 # Publication is not visibility. AgentCore Gateway evaluates Cedar on MCP tool
 # discovery, so `list_tools` returns the subset the calling token could actually be
-# permitted to invoke, never the whole published catalogue. Expected counts: 8 tools
+# permitted to invoke, never the whole published catalog. Expected counts: 8 tools
 # published before Task 3A and 9 after. A shopper token with a customer claim
 # discovers 7 and then 8 (never `give_store_credit`); a staff token with no customer
 # claim discovers 7 both times (it gains `give_store_credit` and loses the
 # owner-scoped reads).
 #
 # These two sets name why a tool can be missing from one caller's listing. They are
-# claim shapes, not a second catalogue: every name here is published.
+# claim shapes, not a second catalog: every name here is published.
 STAFF_ONLY_GATEWAY_TOOLS: frozenset[str] = frozenset({"give_store_credit"})
 OWNER_SCOPED_GATEWAY_TOOLS: frozenset[str] = frozenset({
     "get_orders",
@@ -301,7 +301,7 @@ def discoverable_tools_for_claims(
 
 
 def canonical_tool_names() -> frozenset[str]:
-    """Every tool name in the catalogue, published or not."""
+    """Every tool name in the catalog, published or not."""
     return frozenset(
         tool["name"] for config in TOOL_SCHEMAS.values() for tool in config["tools"]
     )
@@ -332,7 +332,7 @@ def schema_for(surface: str, *, workshop: bool) -> list[dict]:
     ``workshop`` is required, not defaulted, because the two answers differ and
     both are legitimate: ``True`` drops the deferred tools, so a fresh provision
     cannot publish a capability whose governance is undecided, and every
-    publication path wants this; ``False`` is the full catalogue, which the
+    publication path wants this; ``False`` is the full catalog, which the
     Lambda's own ``list_tools`` probe and the schema tests read.
     """
     config = TOOL_SCHEMAS[surface]

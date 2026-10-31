@@ -42,7 +42,7 @@ function step(tool: string, status: 'running' | 'done', ids?: string[], id?: str
 }
 
 /** The Router's step: where the turn was sent. */
-function routed(intent: 'shopping' | 'stock' | 'support'): TurnEvent {
+function routed(intent: 'catalog' | 'stock' | 'support'): TurnEvent {
   return {
     type: 'step',
     step: { id: 'route', label: 'Understanding your request', status: 'done', tags: [], builder: { tool: null, intent } },
@@ -127,7 +127,7 @@ describe('the result a turn shows', () => {
     send({ type: 'start', query: 'anything' })
     // Nothing replaces the grid until the Router sends the turn to the Catalog agent.
     expect(current!.view).toEqual({ kind: 'store' })
-    send(routed('shopping'))
+    send(routed('catalog'))
     expect(current!.view).toEqual({ kind: 'results', query: 'anything', shown: null })
     send(step('search_products', 'running'))
     expect(shownIds()).toBeNull()
@@ -148,7 +148,7 @@ describe('the result a turn shows', () => {
   })
 
   it('keeps a result already on screen through a stock turn', () => {
-    send({ type: 'start', query: 'linen' }, routed('shopping'), step('search_products', 'running'),
+    send({ type: 'start', query: 'linen' }, routed('catalog'), step('search_products', 'running'),
       step('search_products', 'done', ['2', '9']), { type: 'end', outcome: 'complete', picks: [] })
     const before = current!.view
     send({ type: 'start', query: 'Is it in stock?' }, routed('stock'), step('check_stock', 'running'),

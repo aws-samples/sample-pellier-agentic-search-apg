@@ -149,13 +149,13 @@ describe('evidenceLine', () => {
   it('says when the answer was cut short, and nothing for a turn that ended normally', () => {
     const route = (stop_reason: string | null) => ({
       id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router'],
-      builder: { tool: null, intent: 'shopping', model_id: 'global.anthropic.claude-opus-5-5', stop_reason },
+      builder: { tool: null, intent: 'catalog', model_id: 'global.anthropic.claude-opus-5-5', stop_reason },
     })
     expect(evidenceLine(route('max_tokens'))).toBe(
-      'intent shopping; model global.anthropic.claude-opus-5-5; answer cut short (max_tokens)',
+      'intent catalog; model global.anthropic.claude-opus-5-5; answer cut short (max_tokens)',
     )
-    expect(evidenceLine(route('end_turn'))).toBe('intent shopping; model global.anthropic.claude-opus-5-5')
-    expect(evidenceLine(route(null))).toBe('intent shopping; model global.anthropic.claude-opus-5-5')
+    expect(evidenceLine(route('end_turn'))).toBe('intent catalog; model global.anthropic.claude-opus-5-5')
+    expect(evidenceLine(route(null))).toBe('intent catalog; model global.anthropic.claude-opus-5-5')
     expect(evidenceLine(route('guardrail_intervened'))).toContain('stop guardrail_intervened')
   })
 
@@ -163,33 +163,33 @@ describe('evidenceLine', () => {
     const route = {
       id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router', 'Memory'],
       builder: {
-        tool: null, intent: 'shopping',
+        tool: null, intent: 'catalog',
         memory: { facts: 1, orders: 4, source: 'Aurora PostgreSQL' },
         remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: ['mem-theo-1'] },
       },
     }
     expect(evidenceLine(route)).toBe(
-      'intent shopping; 1 facts, 4 orders from Aurora PostgreSQL; '
+      'intent catalog; 1 facts, 4 orders from Aurora PostgreSQL; '
       + 'Remembered: AgentCore Memory record mem-theo-1 (user preference)',
     )
     const managed = { ...route, builder: { tool: null, remembered: { ...route.builder.remembered, records: ['mem-a', 'mem-b'] } } }
     expect(evidenceLine(managed)).toBe('Remembered: AgentCore Memory records mem-a, mem-b (user preference)')
-    const none = { ...route, builder: { tool: null, intent: 'shopping', remembered: null } }
-    expect(evidenceLine(none)).toBe('intent shopping')
+    const none = { ...route, builder: { tool: null, intent: 'catalog', remembered: null } }
+    expect(evidenceLine(none)).toBe('intent catalog')
     const empty = {
       ...route,
-      builder: { tool: null, intent: 'shopping', remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: [] } },
+      builder: { tool: null, intent: 'catalog', remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: [] } },
     }
-    expect(evidenceLine(empty)).toBe('intent shopping; Remembered: no AgentCore Memory record (user preference)')
+    expect(evidenceLine(empty)).toBe('intent catalog; Remembered: no AgentCore Memory record (user preference)')
     const failed = {
       ...route,
       builder: {
-        tool: null, intent: 'shopping',
+        tool: null, intent: 'catalog',
         remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: [], error: 'managed_memory_unavailable' },
       },
     }
     expect(evidenceLine(failed)).toBe(
-      'intent shopping; Remembered: AgentCore Memory read failed (managed_memory_unavailable); none given',
+      'intent catalog; Remembered: AgentCore Memory read failed (managed_memory_unavailable); none given',
     )
   })
 
@@ -209,8 +209,8 @@ describe('evidenceLine', () => {
     expect(evidenceLine(route(['check_stock']))).toContain(
       'Stock agent may call: check_stock; prompt rule: "Every stock answer starts from check_stock"',
     )
-    const shopping = { ...route([]), builder: { tool: null, agent: 'Catalog agent', grant: { tools: ['search_products'], rule: null } } }
-    expect(evidenceLine(shopping)).toBe('Catalog agent may call: search_products')
+    const catalog = { ...route([]), builder: { tool: null, agent: 'Catalog agent', grant: { tools: ['search_products'], rule: null } } }
+    expect(evidenceLine(catalog)).toBe('Catalog agent may call: search_products')
   })
 })
 

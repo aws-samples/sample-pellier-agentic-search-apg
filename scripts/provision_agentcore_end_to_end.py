@@ -1702,7 +1702,7 @@ def _discover_live_gateway_tools(
     """Assert the Gateway publishes what this caller is allowed to discover.
 
     Gateway evaluates Cedar on MCP discovery, so the listing is per identity, not
-    per deployment. Comparing it against the whole published catalogue reported a
+    per deployment. Comparing it against every published tool reported a
     working staff-only boundary as a failed deploy (live, 2026-09-10): a shopper
     token cannot see `give_store_credit` and never will.
 
@@ -1738,7 +1738,7 @@ def _discover_live_gateway_tools(
             "Live Gateway discovery mismatch for a caller with "
             f"staff_scope={has_staff_scope} customer_claim={has_customer_claim}: "
             f"expected {sorted(expected)}, observed {sorted(canonical_names)} "
-            f"(published catalogue is {sorted(published)})"
+            f"(published tools are {sorted(published)})"
         )
     leaked = sorted(canonical_names & STAFF_ONLY_GATEWAY_TOOLS) if not has_staff_scope else []
     if leaked:
@@ -2393,7 +2393,7 @@ def _live_policy_proof(
     env: dict[str, str],
     probe_id: str,
 ) -> dict[str, Any]:
-    """Prove the deployed Gateway enforces Cedar on the money tool, both ways.
+    """Prove the deployed Gateway enforces Cedar on the credit tool, both ways.
 
     Two real calls as Theo, a shopper, through ``gateway_policy_probe.py``:
 
@@ -2481,7 +2481,7 @@ def _check_policy_proof(expected: str, payload: dict[str, Any]) -> None:
         raise RuntimeError(
             f"Policy DENY probe ({call}) expected a Cedar policy denial for idempotency key "
             f"{key!r}; observed {observed}. A 401, a validation failure or a transport error "
-            "is not a policy decision, and an allow means Cedar did not block the money tool."
+            "is not a policy decision, and an allow means Cedar did not block the credit tool."
         )
     nonzero = {
         name: evidence.get(name)
@@ -2859,8 +2859,8 @@ def _participant_update(
     """Deploy a participant's Lab 3 and Lab 4 edits and prove only what the lab asks.
 
     Lab 3's edits change the Gateway schemas and the Runtime package; Lab 4's
-    changes the declared ``workshop_credit_limit`` statement, which this
-    render reads from ``policies/workshop_credit_limit.cedar``. Either way it
+    changes the declared ``credit_limit`` statement, which this
+    render reads from ``policies/credit_limit.cedar``. Either way it
     is one update of the deployed project.
 
     Its first step also puts the participant's Lab 1 search plan in the Gateway's

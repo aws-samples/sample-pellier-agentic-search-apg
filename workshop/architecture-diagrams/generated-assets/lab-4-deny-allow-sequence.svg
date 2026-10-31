@@ -2,201 +2,201 @@
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
 <!-- Title: Lab4DenyAllowSequence Pages: 1 -->
-<svg width="1718pt" height="1080pt"
- viewBox="0.00 0.00 1718.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-<g id="graph0" class="graph" transform="scale(1.45121 1.45121) rotate(0) translate(20.16 724.05)">
+<svg width="1717pt" height="1080pt"
+ viewBox="0.00 0.00 1717.00 1080.00" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<g id="graph0" class="graph" transform="scale(1.45782 1.45782) rotate(0) translate(20.16 720.67)">
 <title>Lab4DenyAllowSequence</title>
-<polygon fill="#f7f3ec" stroke="none" points="-20.16,20.16 -20.16,-724.05 1163.96,-724.05 1163.96,20.16 -20.16,20.16"/>
-<text xml:space="preserve" text-anchor="middle" x="409.62" y="-678.99" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 4: TWO LANES</text>
-<text xml:space="preserve" text-anchor="middle" x="409.62" y="-652.74" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">The same staff identity and an approved review in each; only the amount changes</text>
+<polygon fill="#f7f3ec" stroke="none" points="-20.16,20.16 -20.16,-720.67 1157.96,-720.67 1157.96,20.16 -20.16,20.16"/>
+<text xml:space="preserve" text-anchor="middle" x="409.62" y="-675.61" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">LAB 4: TWO LANES</text>
+<text xml:space="preserve" text-anchor="middle" x="409.62" y="-649.36" font-family="Helvetica Neue" font-size="22.00" fill="#1f1410">The same staff identity and an approved review in each; only the amount changes</text>
 <g id="clust1" class="cluster">
 <title>cluster_deny</title>
-<polygon fill="#fef2f2" stroke="#991b1b" stroke-width="1.8" points="8,-409.89 8,-550.73 1011,-550.73 1011,-409.89 8,-409.89"/>
-<text xml:space="preserve" text-anchor="middle" x="192.25" y="-534.38" font-family="Helvetica Neue" font-size="13.00" fill="#991b1b">DENY LANE: Nadia sends the over&#45;limit review, 10001 cents</text>
+<polygon fill="#fef2f2" stroke="#991b1b" stroke-width="1.8" points="8,-407.74 8,-547.84 1011,-547.84 1011,-407.74 8,-407.74"/>
+<text xml:space="preserve" text-anchor="middle" x="192.25" y="-531.49" font-family="Helvetica Neue" font-size="13.00" fill="#991b1b">DENY LANE: Nadia sends the over&#45;limit review, 10001 cents</text>
 </g>
 <g id="clust3" class="cluster">
 <title>cluster_allow</title>
-<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="1.8" points="8,-191.59 8,-332.42 1030,-332.42 1030,-191.59 8,-191.59"/>
-<text xml:space="preserve" text-anchor="middle" x="224.12" y="-316.07" font-family="Helvetica Neue" font-size="13.00" fill="#3f6212">ALLOW LANE: Nadia executes Jessica&#39;s approved review, 10000 cents</text>
+<polygon fill="#eef4e6" stroke="#3f6212" stroke-width="1.8" points="8,-190.59 8,-330.68 1024,-330.68 1024,-190.59 8,-190.59"/>
+<text xml:space="preserve" text-anchor="middle" x="224.12" y="-314.33" font-family="Helvetica Neue" font-size="13.00" fill="#3f6212">ALLOW LANE: Nadia executes Jessica&#39;s approved review, 10000 cents</text>
 </g>
 <!-- d1&#45;&gt;d2 -->
 <g id="edge1" class="edge">
 <title>d1&#45;&gt;d2</title>
-<path fill="none" stroke="#991b1b" stroke-width="2" d="M144.58,-455C144.58,-455 175.28,-455 175.28,-455"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="175.28,-457.38 182.08,-455 175.28,-452.62 175.28,-457.38"/>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M144.58,-453C144.58,-453 175.28,-453 175.28,-453"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="175.28,-455.38 182.08,-453 175.28,-450.62 175.28,-455.38"/>
 </g>
 <!-- d1&#45;&gt;a1 -->
 <!-- d2&#45;&gt;d3 -->
 <g id="edge2" class="edge">
 <title>d2&#45;&gt;d3</title>
-<path fill="none" stroke="#991b1b" stroke-width="2" d="M304.8,-455C304.8,-455 332.28,-455 332.28,-455"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="332.28,-457.38 339.08,-455 332.28,-452.62 332.28,-457.38"/>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M304.8,-453C304.8,-453 332.28,-453 332.28,-453"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="332.28,-455.38 339.08,-453 332.28,-450.62 332.28,-455.38"/>
 </g>
 <!-- d2&#45;&gt;a2 -->
 <!-- d3&#45;&gt;d4 -->
 <g id="edge3" class="edge">
 <title>d3&#45;&gt;d4</title>
-<path fill="none" stroke="#991b1b" stroke-width="2" d="M461.93,-455C461.93,-455 504.76,-455 504.76,-455"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="507.16,-451.6 507.16,-458.4 505.8,-458.4 505.8,-451.6 507.16,-451.6"/>
-<polyline fill="none" stroke="#991b1b" stroke-width="2" points="507.84,-455 504.44,-455"/>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M461.93,-453C461.93,-453 504.76,-453 504.76,-453"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="507.16,-449.6 507.16,-456.4 505.8,-456.4 505.8,-449.6 507.16,-449.6"/>
+<polyline fill="none" stroke="#991b1b" stroke-width="2" points="507.84,-453 504.44,-453"/>
 </g>
 <!-- d3&#45;&gt;d6 -->
 <g id="edge5" class="edge">
 <title>d3&#45;&gt;d6</title>
-<path fill="none" stroke="#991b1b" stroke-width="2" d="M402,-475.45C402,-486.94 402,-499 402,-499 402,-499 932,-499 932,-499 932,-499 932,-490.68 932,-490.68"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="934.38,-490.68 932,-483.88 929.62,-490.68 934.38,-490.68"/>
-<text xml:space="preserve" text-anchor="middle" x="666" y="-562.65" font-family="Helvetica Neue" font-size="8.00" fill="#991b1b">answer</text>
+<path fill="none" stroke="#991b1b" stroke-width="2" d="M402,-473.45C402,-484.94 402,-497 402,-497 402,-497 932,-497 932,-497 932,-497 932,-488.68 932,-488.68"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="934.38,-488.68 932,-481.88 929.62,-488.68 934.38,-488.68"/>
+<text xml:space="preserve" text-anchor="middle" x="666" y="-559.65" font-family="Helvetica Neue" font-size="8.00" fill="#991b1b">answer</text>
 </g>
 <!-- d3&#45;&gt;a3 -->
 <!-- d4&#45;&gt;d5 -->
 <g id="edge4" class="edge">
 <title>d4&#45;&gt;d5</title>
-<path fill="none" stroke="#991b1b" stroke-width="2" stroke-dasharray="5,2" d="M627.74,-455C627.74,-455 692.69,-455 692.69,-455"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="695.09,-451.6 695.09,-458.4 693.73,-458.4 693.73,-451.6 695.09,-451.6"/>
-<polyline fill="none" stroke="#991b1b" stroke-width="2" points="695.77,-455 692.37,-455"/>
+<path fill="none" stroke="#991b1b" stroke-width="2" stroke-dasharray="5,2" d="M627.74,-453C627.74,-453 692.69,-453 692.69,-453"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="695.09,-449.6 695.09,-456.4 693.73,-456.4 693.73,-449.6 695.09,-449.6"/>
+<polyline fill="none" stroke="#991b1b" stroke-width="2" points="695.77,-453 692.37,-453"/>
 </g>
 <!-- d4&#45;&gt;a4 -->
 <!-- d5&#45;&gt;d6 -->
 <g id="edge6" class="edge">
 <title>d5&#45;&gt;d6</title>
-<path fill="none" stroke="#991b1b" stroke-width="2" stroke-dasharray="5,2" d="M815.59,-455C815.59,-455 860.55,-455 860.55,-455"/>
-<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="860.55,-457.38 867.35,-455 860.55,-452.62 860.55,-457.38"/>
+<path fill="none" stroke="#991b1b" stroke-width="2" stroke-dasharray="5,2" d="M815.59,-453C815.59,-453 860.55,-453 860.55,-453"/>
+<polygon fill="#991b1b" stroke="#991b1b" stroke-width="2" points="860.55,-455.38 867.35,-453 860.55,-450.62 860.55,-455.38"/>
 </g>
 <!-- d5&#45;&gt;a5 -->
 <!-- d6&#45;&gt;a6 -->
 <!-- a1&#45;&gt;a2 -->
 <g id="edge7" class="edge">
 <title>a1&#45;&gt;a2</title>
-<path fill="none" stroke="#3f6212" stroke-width="2" d="M144.58,-237C144.58,-237 175.28,-237 175.28,-237"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="175.28,-239.38 182.08,-237 175.28,-234.62 175.28,-239.38"/>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M144.58,-236C144.58,-236 175.28,-236 175.28,-236"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="175.28,-238.38 182.08,-236 175.28,-233.62 175.28,-238.38"/>
 </g>
 <!-- a2&#45;&gt;a3 -->
 <g id="edge8" class="edge">
 <title>a2&#45;&gt;a3</title>
-<path fill="none" stroke="#3f6212" stroke-width="2" d="M304.58,-237C304.58,-237 335.28,-237 335.28,-237"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="335.28,-239.38 342.08,-237 335.28,-234.62 335.28,-239.38"/>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M304.58,-236C304.58,-236 335.28,-236 335.28,-236"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="335.28,-238.38 342.08,-236 335.28,-233.62 335.28,-238.38"/>
 </g>
 <!-- a3&#45;&gt;a4 -->
 <g id="edge9" class="edge">
 <title>a3&#45;&gt;a4</title>
-<path fill="none" stroke="#3f6212" stroke-width="2" d="M464.58,-237C464.58,-237 495.28,-237 495.28,-237"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="495.28,-239.38 502.08,-237 495.28,-234.62 495.28,-239.38"/>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M464.58,-236C464.58,-236 495.28,-236 495.28,-236"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="495.28,-238.38 502.08,-236 495.28,-233.62 495.28,-238.38"/>
 </g>
 <!-- a4&#45;&gt;a5 -->
 <g id="edge10" class="edge">
 <title>a4&#45;&gt;a5</title>
-<path fill="none" stroke="#3f6212" stroke-width="2" d="M624.94,-237C624.94,-237 672.11,-237 672.11,-237"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="672.11,-239.38 678.91,-237 672.11,-234.62 672.11,-239.38"/>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M624.92,-236C624.92,-236 672.31,-236 672.31,-236"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="672.31,-238.38 679.11,-236 672.31,-233.62 672.31,-238.38"/>
 </g>
 <!-- a5&#45;&gt;a6 -->
 <g id="edge11" class="edge">
 <title>a5&#45;&gt;a6</title>
-<path fill="none" stroke="#3f6212" stroke-width="2" d="M807.97,-237C807.97,-237 883.27,-237 883.27,-237"/>
-<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="883.27,-239.38 890.07,-237 883.27,-234.62 883.27,-239.38"/>
+<path fill="none" stroke="#3f6212" stroke-width="2" d="M801.85,-236C801.85,-236 877.25,-236 877.25,-236"/>
+<polygon fill="#3f6212" stroke="#3f6212" stroke-width="2" points="877.25,-238.38 884.05,-236 877.25,-233.62 877.25,-238.38"/>
 </g>
 <!-- a6&#45;&gt;checkpoint -->
 <g id="edge18" class="edge">
 <title>a6&#45;&gt;checkpoint</title>
-<path fill="none" stroke="#b45309" stroke-width="1.3" stroke-dasharray="5,2" d="M953,-211.14C953,-166.59 953,-76.42 953,-37.54"/>
-<text xml:space="preserve" text-anchor="middle" x="1047.88" y="-125.65" font-family="Helvetica Neue" font-size="8.00" fill="#b45309">do not collapse authorization, execution and approval</text>
+<path fill="none" stroke="#b45309" stroke-width="1.3" stroke-dasharray="5,2" d="M947,-210.26C947,-165.91 947,-76.15 947,-37.45"/>
+<text xml:space="preserve" text-anchor="middle" x="1041.88" y="-124.65" font-family="Helvetica Neue" font-size="8.00" fill="#b45309">do not collapse authorization, execution and approval</text>
 </g>
 <!-- d1 -->
 <g id="node1" class="node">
 <title>d1</title>
-<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.15" points="144.4,-480.51 25.6,-480.51 25.6,-429.49 144.4,-429.49 144.4,-480.51"/>
-<text xml:space="preserve" text-anchor="middle" x="85" y="-463.32" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">1 COGNITO</text>
-<text xml:space="preserve" text-anchor="middle" x="85" y="-452.07" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">verified nadia</text>
-<text xml:space="preserve" text-anchor="middle" x="85" y="-440.82" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">staff scope</text>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.15" points="144.4,-478.51 25.6,-478.51 25.6,-427.49 144.4,-427.49 144.4,-478.51"/>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-461.32" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">1 COGNITO</text>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-450.07" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">verified nadia</text>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-438.82" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">staff scope</text>
 </g>
 <!-- d2 -->
 <g id="node2" class="node">
 <title>d2</title>
-<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="304.4,-480.51 185.6,-480.51 185.6,-429.49 304.4,-429.49 304.4,-480.51"/>
-<text xml:space="preserve" text-anchor="middle" x="245" y="-463.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">2 CEDAR</text>
-<text xml:space="preserve" text-anchor="middle" x="245" y="-452.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">staff permit matches</text>
-<text xml:space="preserve" text-anchor="middle" x="245" y="-440.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">your forbid applies</text>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="304.4,-478.51 185.6,-478.51 185.6,-427.49 304.4,-427.49 304.4,-478.51"/>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-461.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">2 CEDAR</text>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-450.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">staff permit matches</text>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-438.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">your forbid applies</text>
 </g>
 <!-- d3 -->
 <g id="node3" class="node">
 <title>d3</title>
-<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="461.4,-474.89 342.6,-474.89 342.6,-435.11 461.4,-435.11 461.4,-474.89"/>
-<text xml:space="preserve" text-anchor="middle" x="402" y="-457.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">3 GATEWAY</text>
-<text xml:space="preserve" text-anchor="middle" x="402" y="-446.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">DENY before target</text>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="461.4,-472.89 342.6,-472.89 342.6,-433.11 461.4,-433.11 461.4,-472.89"/>
+<text xml:space="preserve" text-anchor="middle" x="402" y="-455.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">3 GATEWAY</text>
+<text xml:space="preserve" text-anchor="middle" x="402" y="-444.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">DENY before target</text>
 </g>
 <!-- d4 -->
 <g id="node4" class="node">
 <title>d4</title>
-<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="627.4,-474.89 508.6,-474.89 508.6,-435.11 627.4,-435.11 627.4,-474.89"/>
-<text xml:space="preserve" text-anchor="middle" x="568" y="-457.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">4 LAMBDA</text>
-<text xml:space="preserve" text-anchor="middle" x="568" y="-446.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">NOT INVOKED</text>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="627.4,-472.89 508.6,-472.89 508.6,-433.11 627.4,-433.11 627.4,-472.89"/>
+<text xml:space="preserve" text-anchor="middle" x="568" y="-455.7" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">4 LAMBDA</text>
+<text xml:space="preserve" text-anchor="middle" x="568" y="-444.45" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">NOT INVOKED</text>
 </g>
 <!-- d5 -->
 <g id="node5" class="node">
 <title>d5</title>
-<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="815.4,-480.51 696.6,-480.51 696.6,-429.49 815.4,-429.49 815.4,-480.51"/>
-<text xml:space="preserve" text-anchor="middle" x="756" y="-463.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">5 AURORA</text>
-<text xml:space="preserve" text-anchor="middle" x="756" y="-452.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">0 tool_audit</text>
-<text xml:space="preserve" text-anchor="middle" x="756" y="-440.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">0 store_credits</text>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="815.4,-478.51 696.6,-478.51 696.6,-427.49 815.4,-427.49 815.4,-478.51"/>
+<text xml:space="preserve" text-anchor="middle" x="756" y="-461.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">5 AURORA</text>
+<text xml:space="preserve" text-anchor="middle" x="756" y="-450.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">0 tool_audit</text>
+<text xml:space="preserve" text-anchor="middle" x="756" y="-438.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">0 store_credits</text>
 </g>
 <!-- d6 -->
 <g id="node6" class="node">
 <title>d6</title>
-<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="993.08,-480.51 870.92,-480.51 870.92,-429.49 993.08,-429.49 993.08,-480.51"/>
-<text xml:space="preserve" text-anchor="middle" x="932" y="-463.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">6 EVIDENCE</text>
-<text xml:space="preserve" text-anchor="middle" x="932" y="-452.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">the desk stores the DENY</text>
-<text xml:space="preserve" text-anchor="middle" x="932" y="-440.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">named absence by key</text>
+<polygon fill="#fbf8f2" stroke="#991b1b" stroke-width="1.15" points="993.08,-478.51 870.92,-478.51 870.92,-427.49 993.08,-427.49 993.08,-478.51"/>
+<text xml:space="preserve" text-anchor="middle" x="932" y="-461.32" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">6 EVIDENCE</text>
+<text xml:space="preserve" text-anchor="middle" x="932" y="-450.07" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">the desk stores the DENY</text>
+<text xml:space="preserve" text-anchor="middle" x="932" y="-438.82" font-family="Helvetica Neue" font-size="9.00" fill="#991b1b">named absence by key</text>
 </g>
 <!-- a1 -->
 <g id="node7" class="node">
 <title>a1</title>
-<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.15" points="144.4,-262.51 25.6,-262.51 25.6,-211.49 144.4,-211.49 144.4,-262.51"/>
-<text xml:space="preserve" text-anchor="middle" x="85" y="-245.32" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">1 COGNITO</text>
-<text xml:space="preserve" text-anchor="middle" x="85" y="-234.07" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">verified nadia</text>
-<text xml:space="preserve" text-anchor="middle" x="85" y="-222.82" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">staff scope</text>
+<polygon fill="#fbf8f2" stroke="#cbc1ad" stroke-width="1.15" points="144.4,-261.51 25.6,-261.51 25.6,-210.49 144.4,-210.49 144.4,-261.51"/>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-244.32" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">1 COGNITO</text>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-233.07" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">verified nadia</text>
+<text xml:space="preserve" text-anchor="middle" x="85" y="-221.82" font-family="Helvetica Neue" font-size="9.00" fill="#1f1410">staff scope</text>
 </g>
 <!-- a2 -->
 <g id="node8" class="node">
 <title>a2</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="304.4,-262.51 185.6,-262.51 185.6,-211.49 304.4,-211.49 304.4,-262.51"/>
-<text xml:space="preserve" text-anchor="middle" x="245" y="-245.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">2 CEDAR</text>
-<text xml:space="preserve" text-anchor="middle" x="245" y="-234.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">staff permit matches</text>
-<text xml:space="preserve" text-anchor="middle" x="245" y="-222.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">your forbid exempts it</text>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="304.4,-261.51 185.6,-261.51 185.6,-210.49 304.4,-210.49 304.4,-261.51"/>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-244.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">2 CEDAR</text>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-233.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">staff permit matches</text>
+<text xml:space="preserve" text-anchor="middle" x="245" y="-221.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">your forbid exempts it</text>
 </g>
 <!-- a3 -->
 <g id="node9" class="node">
 <title>a3</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="464.4,-256.89 345.6,-256.89 345.6,-217.11 464.4,-217.11 464.4,-256.89"/>
-<text xml:space="preserve" text-anchor="middle" x="405" y="-239.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">3 GATEWAY</text>
-<text xml:space="preserve" text-anchor="middle" x="405" y="-228.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">ALLOW bounded target</text>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="464.4,-255.89 345.6,-255.89 345.6,-216.11 464.4,-216.11 464.4,-255.89"/>
+<text xml:space="preserve" text-anchor="middle" x="405" y="-238.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">3 GATEWAY</text>
+<text xml:space="preserve" text-anchor="middle" x="405" y="-227.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">ALLOW bounded target</text>
 </g>
 <!-- a4 -->
 <g id="node10" class="node">
 <title>a4</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="624.4,-256.89 505.6,-256.89 505.6,-217.11 624.4,-217.11 624.4,-256.89"/>
-<text xml:space="preserve" text-anchor="middle" x="565" y="-239.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">4 LAMBDA</text>
-<text xml:space="preserve" text-anchor="middle" x="565" y="-228.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">exactly 1 execution</text>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="624.4,-255.89 505.6,-255.89 505.6,-216.11 624.4,-216.11 624.4,-255.89"/>
+<text xml:space="preserve" text-anchor="middle" x="565" y="-238.7" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">4 LAMBDA</text>
+<text xml:space="preserve" text-anchor="middle" x="565" y="-227.45" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">exactly 1 execution</text>
 </g>
 <!-- a5 -->
 <g id="node11" class="node">
 <title>a5</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="807.58,-262.51 682.42,-262.51 682.42,-211.49 807.58,-211.49 807.58,-262.51"/>
-<text xml:space="preserve" text-anchor="middle" x="745" y="-245.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">5 APPLY_STORE_CREDIT</text>
-<text xml:space="preserve" text-anchor="middle" x="745" y="-234.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">approved terms and key</text>
-<text xml:space="preserve" text-anchor="middle" x="745" y="-222.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">a retry replays it</text>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="801.4,-261.51 682.6,-261.51 682.6,-210.49 801.4,-210.49 801.4,-261.51"/>
+<text xml:space="preserve" text-anchor="middle" x="742" y="-244.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">5 GIVE_STORE_CREDIT</text>
+<text xml:space="preserve" text-anchor="middle" x="742" y="-233.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">approved terms and key</text>
+<text xml:space="preserve" text-anchor="middle" x="742" y="-221.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">a retry replays it</text>
 </g>
 <!-- a6 -->
 <g id="node12" class="node">
 <title>a6</title>
-<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="1012.4,-262.51 893.6,-262.51 893.6,-211.49 1012.4,-211.49 1012.4,-262.51"/>
-<text xml:space="preserve" text-anchor="middle" x="953" y="-245.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">6 EVIDENCE</text>
-<text xml:space="preserve" text-anchor="middle" x="953" y="-234.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">1 tool_audit</text>
-<text xml:space="preserve" text-anchor="middle" x="953" y="-222.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">1 store_credits</text>
+<polygon fill="#fbf8f2" stroke="#3f6212" stroke-width="1.15" points="1006.4,-261.51 887.6,-261.51 887.6,-210.49 1006.4,-210.49 1006.4,-261.51"/>
+<text xml:space="preserve" text-anchor="middle" x="947" y="-244.32" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">6 EVIDENCE</text>
+<text xml:space="preserve" text-anchor="middle" x="947" y="-233.07" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">1 tool_audit</text>
+<text xml:space="preserve" text-anchor="middle" x="947" y="-221.82" font-family="Helvetica Neue" font-size="9.00" fill="#3f6212">1 store_credits</text>
 </g>
 <!-- checkpoint -->
 <g id="node13" class="node">
 <title>checkpoint</title>
-<polygon fill="#fff7ed" stroke="#b45309" stroke-width="1.15" points="1143.8,-37 762.2,-37 762.2,-1 1143.8,-1 1143.8,-37"/>
-<text xml:space="preserve" text-anchor="middle" x="953" y="-15.3" font-family="Helvetica Neue" font-size="11.00" fill="#7c2d12">SEPARATE FACT: Nadia&#39;s human review is not implied by either lane</text>
+<polygon fill="#fff7ed" stroke="#b45309" stroke-width="1.15" points="1137.8,-37 756.2,-37 756.2,-1 1137.8,-1 1137.8,-37"/>
+<text xml:space="preserve" text-anchor="middle" x="947" y="-15.3" font-family="Helvetica Neue" font-size="11.00" fill="#7c2d12">SEPARATE FACT: Nadia&#39;s human review is not implied by either lane</text>
 </g>
 </g>
 </svg>

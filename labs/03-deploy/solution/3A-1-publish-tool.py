@@ -1,1 +1,1 @@
-../../../solutions/the-ledger/gateway/gateway_tool_schemas_solution.py
+../../../solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py

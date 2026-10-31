@@ -273,7 +273,7 @@ class TestTask3AToken:
         assert "Lab 3B" not in out
 
     def test_the_reads_asked_for_and_bound_print_the_pass_token(self, capsys, monkeypatch) -> None:
-        monkeypatch.setattr(lab3, "source_catalogue", lambda: (
+        monkeypatch.setattr(lab3, "source_catalog", lambda: (
             frozenset({"get_orders", "get_tickets", "get_return_policy"}),
             ("get_orders", "get_return_policy", "get_tickets"),
             frozenset({"get_orders", "get_tickets"})))

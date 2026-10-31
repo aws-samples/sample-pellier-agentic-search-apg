@@ -135,7 +135,7 @@ def test_stock_exclusion_and_budget_requirements_are_hard_filters(
     assert set(result["hard_constraints_enforced"]) == {"price <= $100", "in stock"}
     assert "constraint_notice" not in result
 
-    assert transport.branches, "no catalogue branch ran"
+    assert transport.branches, "no catalog branch ran"
     for sql, bound in transport.branches:
         assert "quantity > 0" in sql
         assert "price <= :p" in sql
@@ -176,12 +176,12 @@ def test_the_published_schema_declares_the_two_requirement_arguments() -> None:
     assert "hard filter" in properties["exclusions"]["description"]
 
 
-def test_the_managed_shopping_prompt_asks_for_the_requirements_as_arguments() -> None:
+def test_the_managed_catalog_prompt_asks_for_the_requirements_as_arguments() -> None:
     from services.agentcore_gateway import _managed_specialist_prompt
 
-    shopping = _managed_specialist_prompt("shopping")
+    catalog = _managed_specialist_prompt("catalog")
     for argument in ("max_price", "in_stock_only=true", "exclusions"):
-        assert argument in shopping
+        assert argument in catalog
     assert "in_stock_only" not in _managed_specialist_prompt("support")
 
 

@@ -13,7 +13,7 @@ The root guidance lists every permitted region. This module contains four:
 
 | Task | File | Marker |
 |---|---|---|
-| 1A | `services/store_tools.py` | `Vector branch - order by meaning` |
+| 1A | `services/store_tools.py` | `Vector search - order by meaning` |
 | 1B | `services/search_plan.py` | `Search plan - preserve requirements` |
 | 2A | `agents/stock_agent.py` | `Stock agent - definition` |
 | 3A | `services/agentcore_gateway.py` | `Support agent - Gateway tools` |

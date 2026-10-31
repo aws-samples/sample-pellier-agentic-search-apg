@@ -66,7 +66,7 @@ def test_lab_1s_go_deeper_worksheet_sorts_after_its_tasks():
     lab1 = [e for e in json.loads((ROOT / "workshop/participant-files.json").read_text())
             if e["alias"].startswith("labs/01-retrieve/")]
     assert [Path(e["alias"]).name for e in lab1] == [
-        "1A-vector-branch.py", "1B-search-plan.py", "go-deeper-fusion.sql"]
+        "1A-vector-search.py", "1B-search-plan.py", "go-deeper-fusion.sql"]
     assert [bool(e.get("optional")) for e in lab1] == [False, False, True]
 
 def test_deployment_bookkeeping_stays_out_of_the_explorer():
@@ -77,7 +77,7 @@ def test_deployment_bookkeeping_stays_out_of_the_explorer():
 
 def test_editing_numbered_file_edits_the_live_source_and_rerun_preserves_it(repo):
     workspace.configure(repo)
-    alias = repo / "labs/01-retrieve/1A-vector-branch.py"
+    alias = repo / "labs/01-retrieve/1A-vector-search.py"
     alias.write_text("participant's edit")
     workspace.configure(repo)
     assert (repo / "pellier/backend/services/store_tools.py").read_text() == "participant's edit"

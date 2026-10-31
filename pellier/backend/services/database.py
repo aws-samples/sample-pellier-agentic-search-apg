@@ -40,7 +40,7 @@ db_query_log_var: ContextVar[Optional[list]] = ContextVar(
 # security on pellier.orders and pellier.support_tickets applies to it and not
 # to the owner, which is why a customer's own reads switch to it.
 CUSTOMER_ROLE = "pellier_agent"
-# The money role from 001_schema.sql: it may execute pellier.apply_store_credit
+# The credit-writer role from 001_schema.sql: it may execute pellier.give_store_credit
 # and touch no table.
 CREDIT_WRITER_ROLE = "pellier_credit_writer"
 # The session setting the policies compare with customers.cognito_username.
@@ -533,7 +533,7 @@ class DatabaseService:
     async def credit_writer_session(self) -> AsyncIterator[AsyncConnection]:
         """Run statements as ``pellier_credit_writer``, the role that moves money.
 
-        The role may only execute ``pellier.apply_store_credit``, which runs with
+        The role may only execute ``pellier.give_store_credit``, which runs with
         its owner's rights, so a credit written here passed the function's checks
         and nothing here can change a credit row directly. ``SET LOCAL`` ends with
         the transaction, so the connection goes back to the pool as the owner.
@@ -548,7 +548,7 @@ class DatabaseService:
                 yield conn
 
     async def fetch_all_as_credit_writer(self, query: str, *params: Any) -> list[dict]:
-        """``fetch_all`` inside :meth:`credit_writer_session`, for the staff money path."""
+        """``fetch_all`` inside :meth:`credit_writer_session`, for the staff credit path."""
         async with self.credit_writer_session() as conn:
             async with conn.cursor() as cur:
                 await cur.execute(query, params)

@@ -32,14 +32,14 @@ from tests import lab_variants
 
 
 @pytest.fixture(autouse=True)
-def _solved_vector_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+def _solved_vector_search(monkeypatch: pytest.MonkeyPatch) -> None:
     """These tests exercise the retrieval pipeline, not Lab 1A's region.
 
-    The live ``vector_branch_sql`` holds the participant's starter, which ranks
-    nothing, so the pipeline runs on the solution's vector branch here.
+    The live ``vector_search_sql`` holds the participant's starter, which ranks
+    nothing, so the pipeline runs on the solution's vector search here.
     """
-    solved = lab_variants.vector_branch(lab_variants.SOLUTION)
-    monkeypatch.setattr(store_tools, "vector_branch_sql", solved)
+    solved = lab_variants.vector_search(lab_variants.SOLUTION)
+    monkeypatch.setattr(store_tools, "vector_search_sql", solved)
 
 
 def _normalized(sql: str) -> str:
@@ -338,7 +338,7 @@ def test_hybrid_strategy_skips_the_reranker() -> None:
     assert [row["product_id"] for row in execution.returned] == ["1", "2", "3"]
 
 
-def test_vector_strategy_runs_only_the_vector_branch() -> None:
+def test_vector_strategy_runs_only_the_vector_search() -> None:
     db = _FakeDB([_row(1), _row(2)])
     reranker = _RecordingReranker()
     plan = _plan(retrieval_strategy=STRATEGY_VECTOR)
@@ -469,7 +469,7 @@ def test_the_recheck_drops_a_row_whose_materials_are_excluded() -> None:
 
 
 def test_both_hybrid_branches_return_materials_for_the_recheck() -> None:
-    from services.store_tools import fts_branch_sql, vector_branch_sql
+    from services.store_tools import fts_search_sql, vector_search_sql
 
-    for sql in (fts_branch_sql(), vector_branch_sql()):
+    for sql in (fts_search_sql(), vector_search_sql()):
         assert "materials," in sql

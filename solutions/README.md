@@ -7,10 +7,10 @@ The commands below recover one task. To recover a whole lab, `uv run scripts/lab
 ## Lab 1: Build and measure PostgreSQL hybrid retrieval
 
 Task 1A's recovery restores `pellier/backend/services/store_tools.py` with a
-vector branch that ranks the eligible products by meaning:
+vector search that ranks the eligible products by meaning:
 
 ```bash
-cp solutions/the-quiet-search/retrieval/store_tools_solution.py \
+cp solutions/lab-1-retrieve/retrieval/store_tools_solution.py \
   pellier/backend/services/store_tools.py
 ```
 
@@ -18,17 +18,17 @@ Task 1B's recovery restores `pellier/backend/services/search_plan.py` with a
 fallback that keeps the shopper's limits:
 
 ```bash
-cp solutions/the-quiet-search/retrieval/search_plan_solution.py \
+cp solutions/lab-1-retrieve/retrieval/search_plan_solution.py \
   pellier/backend/services/search_plan.py
 ```
 
 Restart the backend after the copies. The checks are unchanged:
-`uv run scripts/lab1_check.py --task 1A` runs the vector branch, and after
+`uv run scripts/lab1_check.py --task 1A` runs the vector search, and after
 `uv run scripts/lab_run.py send --lab 1` writes a receipt,
 `uv run scripts/lab1_check.py --task 1B` reads that search's products.
 
 The optional Go deeper Build's answer is
-`solutions/the-quiet-search/sql/lab-1-fusion-solution.sql`; `scripts/lab_run.py solution`
+`solutions/lab-1-retrieve/sql/lab-1-fusion-solution.sql`; `scripts/lab_run.py solution`
 leaves `workshop/lab-1-fusion.sql` alone.
 
 ## Lab 2: Build a PostgreSQL-grounded agent
@@ -36,7 +36,7 @@ leaves `workshop/lab-1-fusion.sql` alone.
 Task 2A's recovery connects `check_stock` to the Stock agent, alone:
 
 ```bash
-cp solutions/waking-the-stock-keeper/agents/stock_agent_solution.py \
+cp solutions/lab-2-ground/agents/stock_agent_solution.py \
   pellier/backend/agents/stock_agent.py
 ```
 
@@ -45,7 +45,7 @@ the product before it aggregates, so a piece Pellier does not carry returns no
 row. Run it to commit the function:
 
 ```bash
-cp solutions/closing-marcos-gap/sql/lab-2-check-stock-solution.sql \
+cp solutions/lab-2-ground/sql/lab-2-check-stock-solution.sql \
   workshop/lab-2-check-stock.sql
 psql -f workshop/lab-2-check-stock.sql
 ```
@@ -59,12 +59,12 @@ Restart, send Marco's requests again with
 
 Task 3A's recovery publishes `get_tickets` and binds it to the signed-in
 caller. A copy changes nothing in AWS until it is deployed, because the
-published catalogue and the Runtime package are both control-plane state:
+published tool list and the Runtime package are both control-plane state:
 
 ```bash
-cp solutions/the-ledger/gateway/gateway_tool_schemas_solution.py \
+cp solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py \
   scripts/deploy/gateway_tool_schemas.py
-cp solutions/the-ledger/services/agentcore_gateway.py \
+cp solutions/lab-3-deploy/services/agentcore_gateway.py \
   pellier/backend/services/agentcore_gateway.py
 uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
 ```
@@ -72,7 +72,7 @@ uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode parti
 Task 3B's recovery is the ownership predicate:
 
 ```bash
-cp solutions/the-ledger/sql/lab-3-row-ownership-solution.sql workshop/lab-3-row-ownership.sql
+cp solutions/lab-3-deploy/sql/lab-3-row-ownership-solution.sql workshop/lab-3-row-ownership.sql
 psql -f workshop/lab-3-row-ownership.sql
 ```
 
@@ -84,22 +84,22 @@ direct read of Jessica's tickets, and probes the live row policies. The managed
 Memory, Runtime, Gateway and JWT path has no local substitute; move a
 participant to a ready environment when it fails.
 
-`solutions/the-ledger/sql/forensic_incident.sql` reconstructs Jessica's
+`solutions/lab-3-deploy/sql/forensic_incident.sql` reconstructs Jessica's
 credit after Lab 4: who asked, who investigated, who approved, what the
 Gateway answered, and what was paid. It only reads:
 
 ```bash
-psql -f solutions/the-ledger/sql/forensic_incident.sql
+psql -f solutions/lab-3-deploy/sql/forensic_incident.sql
 ```
 
 ## Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges
 
 Task 4A's recovery is the $100 per-credit limit. Provisioning deployed the
-starter as the policy `workshop_credit_limit`, so the deploy updates it:
+starter as the policy `credit_limit`, so the deploy updates it:
 
 ```bash
-cp solutions/the-concierge/policies/workshop_credit_limit.cedar \
-  policies/workshop_credit_limit.cedar
+cp solutions/lab-4-govern/policies/credit_limit.cedar \
+  policies/credit_limit.cedar
 uv run scripts/lab4_check.py --task 4A
 uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant
 uv run scripts/lab4_check.py --task 4A
@@ -112,7 +112,7 @@ Task 4B's recovery is the credit writer's privileges, committed once every
 probe matches; the check then reads the live function and probes both paths:
 
 ```bash
-cp solutions/the-concierge/sql/lab-4-credit-writer-solution.sql \
+cp solutions/lab-4-govern/sql/lab-4-credit-writer-solution.sql \
   workshop/lab-4-credit-writer.sql
 psql -f workshop/lab-4-credit-writer.sql
 uv run scripts/lab4_check.py --task 4B
@@ -127,9 +127,9 @@ deployed engine, so the next participant opens Lab 4 with the live DENY.
 
 The one-hour builders format pre-applies selected reference files. The governed
 format restores every participant region to its starter with
-`scripts/reset_participant_exercises.py`: the vector branch and the search-plan
+`scripts/reset_participant_exercises.py`: the vector search and the search-plan
 fallback for Lab 1 (and its optional RRF fusion file), the `check_stock` body and
-the Stock agent definition for Lab 2, the Gateway catalogue, the Runtime support
+the Stock agent definition for Lab 2, the Gateway's published tools, the Runtime support
 contract and the RLS SQL file for Lab 3, and the Cedar rule and the credit
 writer SQL file for Lab 4: nine regions and ten starters. Its `--check` holds
 every live region to its starter, and a test requires an entry for every file

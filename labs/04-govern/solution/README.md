@@ -3,7 +3,7 @@
 Try the marked task first. These files are the supplied answers, not the files the
 application executes.
 
-- [4A-credit-policy.cedar](4A-credit-policy.cedar)
+- [4A-credit-limit.cedar](4A-credit-limit.cedar)
 - [4B-credit-writer.sql](4B-credit-writer.sql)
 
 Skip one task: the task's own apply command shows the change, installs that task's answer,

@@ -17,7 +17,7 @@
 -- pass of hnsw.ef_search candidates (40), so a selective filter can leave fewer
 -- rows than the LIMIT asked for. An iterative scan keeps walking the graph until
 -- the LIMIT or a scan limit is reached. Pellier uses strict_order, so returned
--- candidates come back in exact distance order: the vector branch's ranks feed RRF.
+-- candidates come back in exact distance order: the vector search's ranks feed RRF.
 --
 -- The search, in Anna's terms: gifts like the Linen Photo Album, $35 or less,
 -- no candles, top 20. The album's own embedding is the query vector, so nothing

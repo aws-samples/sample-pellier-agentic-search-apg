@@ -1,7 +1,7 @@
 -- Pellier's whole database: one schema, ten tables, one application role.
 --
 -- Read it top to bottom. The store's data comes first (catalog, stock,
--- customers, orders, policies, tickets), then the governed money path
+-- customers, orders, policies, tickets), then the governed credit path
 -- (approvals, store credits), then the two evidence tables (tool_audit,
 -- retrieval_receipts), then who may read what (the role, its grants and
 -- row-level security).
@@ -369,7 +369,7 @@ CREATE TABLE pellier.approvals (
 -- resolves to the first instead of opening a second card. The key is the
 -- terms (customer, amount, reason), not the orders, so two live reviews with
 -- different terms can cover the same order. The Advisor does not propose
--- one, and if a person approved both, apply_store_credit's order check pays
+-- one, and if a person approved both, give_store_credit's order check pays
 -- only the first: an order holds one store_credit_id.
 CREATE UNIQUE INDEX approvals_one_live_review ON pellier.approvals (customer_id, tool, action_hash)
     WHERE status IN ('pending', 'approved');
@@ -412,7 +412,7 @@ ALTER TABLE pellier.orders
 -- The write key is the approved review's own:
 --   operator-review:<review id>:<first 32 characters of its action_hash>
 -- Retrying that key returns the first credit instead of writing a second.
-CREATE FUNCTION pellier.apply_store_credit(
+CREATE FUNCTION pellier.give_store_credit(
     p_idempotency_key text,
     p_customer_id     text,
     p_amount_cents    integer,
@@ -539,7 +539,7 @@ END $$;
 -- The same rules hold for any other insert, the owner's included. A credit row
 -- belongs to an approved credit review with exactly its terms, carries that
 -- review's own key, and covers received returns that no other credit covers.
--- apply_store_credit checks all of this first so it can answer with a
+-- give_store_credit checks all of this first so it can answer with a
 -- readable status; this trigger refuses any insert that gets past it. It is a
 -- BEFORE INSERT trigger: it covers how a credit row is written, not a later
 -- UPDATE or DELETE of one, which nothing in Pellier issues.
@@ -723,13 +723,13 @@ CREATE TRIGGER retrieval_receipts_append_only
 -- customer's rows, even if the tool's own SQL asks for someone else's. With
 -- no name set, the role sees nothing.
 --
--- The staff money path runs as pellier_credit_writer, the same way, on both
+-- The staff credit path runs as pellier_credit_writer, the same way, on both
 -- rails:
 --
 --     SET LOCAL ROLE pellier_credit_writer;
---     SELECT pellier.apply_store_credit(...);
+--     SELECT pellier.give_store_credit(...);
 --
--- The role may call apply_store_credit and nothing else. The function runs
+-- The role may call give_store_credit and nothing else. The function runs
 -- with its owner's rights and a pinned search_path, so the only credit the
 -- role can write is one the function's checks admit, and it cannot insert,
 -- change or delete a credit row, an order's credit or an approval itself. The
@@ -740,7 +740,7 @@ CREATE TRIGGER retrieval_receipts_append_only
 -- application connects as the owner and sets the role per transaction, so a
 -- session that can run any SQL can set the name itself or reset the role:
 -- each role is only as good as the code that binds it in those two places.
--- In production, give each role its own login and secret, so the money
+-- In production, give each role its own login and secret, so the credit
 -- path's connection can be nothing but the writer.
 
 -- Roles are shared by every database on the cluster, so each is created once.
@@ -761,7 +761,7 @@ END $$;
 GRANT pellier_agent TO CURRENT_USER;
 GRANT pellier_credit_writer TO CURRENT_USER;
 
--- Database evidence for the money path. pgAudit's object auditing logs every statement
+-- Database evidence for the credit path. pgAudit's object auditing logs every statement
 -- that touches a table its audit role (pgaudit.role, rds_pgaudit on Aurora) holds a
 -- privilege on, whoever runs it: the credit function under its owner's rights included.
 -- rds_pgaudit cannot log in and is never a session's role; these two privileges only mark
@@ -779,16 +779,16 @@ GRANT SELECT (id, cognito_username) ON pellier.customers TO pellier_agent;
 GRANT SELECT ON pellier.orders TO pellier_agent;
 GRANT SELECT, INSERT ON pellier.support_tickets TO pellier_agent;
 
--- What the money role may touch: the credit function, run with its owner's
+-- What the credit-writer role may touch: the credit function, run with its owner's
 -- rights, and no table. EXECUTE is the whole key, so it is revoked from PUBLIC
 -- beside the grant. workshop/lab-4-credit-writer.sql is Lab 4's build of these
 -- three statements, and it proves each of them on every run.
 -- === SHIPPED STATE - Lab 4 credit writer: START ===
 GRANT USAGE ON SCHEMA pellier TO pellier_credit_writer;
-ALTER FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+ALTER FUNCTION pellier.give_store_credit(text, text, integer, text, text)
     SECURITY DEFINER SET search_path = pg_catalog, pg_temp;
-REVOKE ALL ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION pellier.apply_store_credit(text, text, integer, text, text)
+REVOKE ALL ON FUNCTION pellier.give_store_credit(text, text, integer, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pellier.give_store_credit(text, text, integer, text, text)
     TO pellier_credit_writer;
 -- === SHIPPED STATE - Lab 4 credit writer: END ===
 
@@ -799,13 +799,13 @@ ALTER TABLE pellier.support_tickets ENABLE ROW LEVEL SECURITY;
 -- The same expression decides which rows the role sees (USING) and which rows
 -- it may write (WITH CHECK).
 -- === SHIPPED STATE - Lab 3 row ownership: START ===
-CREATE POLICY orders_owner ON pellier.orders TO pellier_agent
+CREATE POLICY orders_own_rows ON pellier.orders TO pellier_agent
     USING (customer_id = (SELECT id FROM pellier.customers
                            WHERE cognito_username = current_setting('pellier.principal_username', true)))
     WITH CHECK (customer_id = (SELECT id FROM pellier.customers
                                 WHERE cognito_username = current_setting('pellier.principal_username', true)));
 
-CREATE POLICY support_tickets_owner ON pellier.support_tickets TO pellier_agent
+CREATE POLICY support_tickets_own_rows ON pellier.support_tickets TO pellier_agent
     USING (customer_id = (SELECT id FROM pellier.customers
                            WHERE cognito_username = current_setting('pellier.principal_username', true)))
     WITH CHECK (customer_id = (SELECT id FROM pellier.customers
