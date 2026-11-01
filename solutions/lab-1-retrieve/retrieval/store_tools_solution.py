@@ -1062,7 +1062,7 @@ def vector_search_sql(extra_clauses: Sequence[str] = ()) -> str:
     """The pgvector search, with a plan's hard predicates applied.
 
     Parameters, in order: the query embedding as a vector literal, the
-    predicate parameters, and the branch size.
+    predicate parameters, and the pool size.
     """
     # === WORKSHOP - Vector search - order by meaning: START ===
     # Task 1A: rank the eligible products by meaning, closest first.
@@ -1084,7 +1084,7 @@ def fts_search_sql(extra_clauses: Sequence[str] = ()) -> str:
     """The full-text search, with a plan's hard predicates applied.
 
     Parameters, in order: the OR-joined ``to_tsquery`` text, the predicate
-    parameters, and the branch size. ``ts_rank_cd`` is cover-density ranking,
+    parameters, and the pool size. ``ts_rank_cd`` is cover-density ranking,
     not BM25.
     """
     return f"""

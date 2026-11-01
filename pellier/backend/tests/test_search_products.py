@@ -426,7 +426,7 @@ class TestHardConstraintsRunBeforeRerank:
             (sql, params), = pipeline.branches(kind)
             for predicate in ("price <=", "quantity > 0", "tags ?", "category = ANY"):
                 assert predicate not in sql
-            # Only the query text (or embedding) and the branch size are bound.
+            # Only the query text (or embedding) and the pool size are bound.
             assert len(params) == 2
 
     def test_min_rating_stays_a_post_rerank_preference(self, pipeline: _FakeDB) -> None:

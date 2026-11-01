@@ -32,7 +32,7 @@ import workshop_check as check  # noqa: E402  (sibling module)
 BACKEND = check.REPO / "pellier" / "backend"
 TITLE = "the vector search ranks by meaning"
 EXPECTED = ("each product's own embedding finds that product first, the rest by rising "
-            "distance, similarity = 1 - distance, a full branch, and Anna's limits kept")
+            "distance, similarity = 1 - distance, a full pool, and Anna's limits kept")
 NEXT_STEP = ("open the Vector search - order by meaning region in "
              "pellier/backend/services/store_tools.py: which pgvector operator measures how "
              "far a product is from the query embedding, and which way should the rows run? "
@@ -158,7 +158,7 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
         if problem and problem not in problems:
             problems.append(problem)
     evidence = [f"pellier.product_catalog, {len(SELF_PROBES)} products searched with their "
-                f"own embeddings, then {LIMITS_PROBE} under Anna's limits; branch size {size}"]
+                f"own embeddings, then {LIMITS_PROBE} under Anna's limits; pool size {size}"]
     if problems:
         return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED, problems[0],
                              evidence + problems[1:], NEXT_STEP), rows
