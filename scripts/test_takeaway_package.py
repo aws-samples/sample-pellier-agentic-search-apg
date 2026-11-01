@@ -231,7 +231,7 @@ class TakeawaySQLTests(unittest.TestCase):
     def test_ownership_positive_foreign_unbound_and_deny_everyone(self):
         self.assertEqual(self.query("ownership"), "passed")
         self.assertEqual(self.query("unbound"), "passed")
-        self.conn.execute("ALTER POLICY ticket_owner ON review_example.tickets USING (false)")
+        self.conn.execute("ALTER POLICY tickets_own_rows ON review_example.tickets USING (false)")
         self.assertEqual(self.query("ownership"), "failed")
 
     def test_rls_write_has_a_positive_control_and_context_does_not_leak(self):

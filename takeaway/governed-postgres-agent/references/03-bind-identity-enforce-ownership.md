@@ -54,7 +54,7 @@ each entry point.
 For equal read and write ownership, a policy may use the same expression:
 
 ```sql
-CREATE POLICY tickets_owner ON support_tickets TO app_agent
+CREATE POLICY tickets_own_rows ON support_tickets TO app_agent
     USING (customer_id = nullif(current_setting('app.customer_id', true), ''))
     WITH CHECK (customer_id = nullif(current_setting('app.customer_id', true), ''));
 ```

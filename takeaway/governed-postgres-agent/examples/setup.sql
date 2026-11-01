@@ -51,7 +51,7 @@ CREATE TABLE review_example.tickets (
 INSERT INTO review_example.tickets VALUES
     ('ticket-a', 'customer-a', 'My delivery'), ('ticket-b', 'customer-b', 'My return');
 ALTER TABLE review_example.tickets ENABLE ROW LEVEL SECURITY;
-CREATE POLICY ticket_owner ON review_example.tickets TO review_support
+CREATE POLICY tickets_own_rows ON review_example.tickets TO review_support
     USING (customer_id = nullif(current_setting('review_example.customer_id', true), ''))
     WITH CHECK (customer_id = nullif(current_setting('review_example.customer_id', true), ''));
 GRANT SELECT, INSERT ON review_example.tickets TO review_support;
