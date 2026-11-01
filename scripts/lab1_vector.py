@@ -6,8 +6,8 @@ closest to them in meaning. This check runs your ``vector_search_sql`` from
 whose nearest product is known in advance: a product's own stored embedding,
 which sits at cosine distance 0 from itself. Ranked by meaning, that product
 comes back first, the rest follow in order of rising distance, similarity
-reads 1 minus the distance, and the branch returns as many rows as the search
-asked for.
+reads 1 minus the distance, and the vector search returns as many rows as
+were asked for.
 
 The last probe applies Anna's three limits and searches with the Sunday
 Morning Candle's own embedding. The candle is the closest product to that
@@ -51,10 +51,10 @@ _DISTANCES = ('SELECT "productId" AS product_id, embedding <=> %s::vector AS dis
 _TOLERANCE = 1e-6
 
 
-def _probe(run: Callable[..., List[Dict[str, Any]]], branch_sql: str, params: Sequence[Any],
+def _probe(run: Callable[..., List[Dict[str, Any]]], search_sql: str, params: Sequence[Any],
            embedding: str, size: int) -> Tuple[List[Dict[str, Any]], List[float]]:
-    """The branch's rows for one query vector, and each row's true distance to it."""
-    rows = run(branch_sql, params)
+    """The vector search's rows for one query vector, and each row's true distance."""
+    rows = run(search_sql, params)
     ids = [str(row["product_id"]) for row in rows]
     truth = {str(row["product_id"]): float(row["distance"])
              for row in run(_DISTANCES, (embedding, ids))}

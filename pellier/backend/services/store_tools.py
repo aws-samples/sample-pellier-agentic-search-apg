@@ -974,7 +974,7 @@ def ask_a_person(
 # search_products: the planned hybrid pipeline
 # ---------------------------------------------------------------------------
 #
-# typed plan -> hard SQL predicates on both branches -> vector + full text
+# typed plan -> hard SQL predicates on both searches -> vector + full text
 # -> RRF -> rerank over a bounded pool -> eligibility recheck -> rows shown
 #
 # Hard constraints are enforced twice on purpose. They enter candidate
@@ -1128,9 +1128,9 @@ def rrf_merge(
 ) -> List[Dict[str, Any]]:
     """Reciprocal Rank Fusion: sum ``1 / (rrf_k + rank)`` over both lists.
 
-    Every merged row keeps its branch ranks (``vec_rank``, ``fts_rank``,
-    ``None`` when absent from a branch) and gains ``rrf_score``. When a
-    product appears in both branches the vector row is kept, so its cosine
+    Every merged row keeps its search ranks (``vec_rank``, ``fts_rank``,
+    ``None`` when absent from a search) and gains ``rrf_score``. When a
+    product appears in both searches the vector row is kept, so its cosine
     similarity survives for the receipt.
     """
     scores: Dict[Any, float] = {}
@@ -1192,7 +1192,7 @@ class SearchExecution:
         plan: The plan rung that produced ``returned``; a widened rung lists
             its ``relaxations``.
         query: The text that was embedded and lexically matched.
-        candidates: The fused pool, in RRF order, with branch ranks.
+        candidates: The fused pool, in RRF order, with search ranks.
         ordered: The eligible rows in final order, with ``rerank_score``.
         returned: ``ordered[:limit]``, the rows the caller will show.
         stages: Per-stage counts and latencies, every pass in order.
@@ -1238,7 +1238,7 @@ def _elapsed_ms(started: float) -> int:
 
 
 def _catalog_row(row: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize one branch row: JSON columns as lists on either rail."""
+    """Normalize one search row: JSON columns as lists on either rail."""
     normalized = dict(row)
     for name in ("tags", "materials"):
         if name in normalized and not isinstance(normalized[name], list):
@@ -1416,7 +1416,7 @@ def run_search_plan(
     Args:
         run: Statement runner for the calling rail.
         plan: A :class:`~services.search_plan.SearchPlan`. Its hard
-            constraints and exclusions compile into both branch queries; its
+            constraints and exclusions compile into both search queries; its
             strategy selects vector, hybrid or hybrid+rerank; its
             ``soft_signal`` is what the reranker scores.
         query: The text embedded once and matched lexically.
