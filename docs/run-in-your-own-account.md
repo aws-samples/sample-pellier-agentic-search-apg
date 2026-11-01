@@ -41,7 +41,7 @@ min 7 s`, us-west-2, 30 October 2026); the whole run is in the newest record und
   partway and roll back.
 - **No other Pellier deployment in that account and Region.** AgentCore keeps Cedar policy
   names unique per account and Region, across policy engines, and the host creates Pellier's
-  seven policies by name, so a second deployment in the same account and Region fails at the
+  six policies by name, so a second deployment in the same account and Region fails at the
   first policy whatever else is renamed. The check below lists any deployment the account
   already holds; remove it first, or deploy in the other Region. The `--deployment-suffix`
   option only keeps stack, function and AgentCore resource names apart from leftovers of an

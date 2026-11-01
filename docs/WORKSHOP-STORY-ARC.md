@@ -127,8 +127,8 @@ workshop and takes no teaching time in the Wrap-up.
   an approved $25 credit to $500 refused with 42501; only then does it commit
   the privileges. The live check confirms the function carries the file's
   statements, then probes the role in process and through the Gateway Lambda's
-  Data API. The absence check is supplied: 0 and 0 for the denied key, 1 for the
-  allowed key, so a search that always returns zero cannot pass.
+  Data API. The absence check is supplied: 0 and 0 for the denied key, then 1 credit and
+  1 audit row for the allowed key, so a search that always returns zero cannot pass.
 
 ## Timing
 

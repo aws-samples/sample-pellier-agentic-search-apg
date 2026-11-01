@@ -241,8 +241,8 @@ credit, and the system must prove what moved.
   the credit-writer role in process and through the Gateway Lambda's Data API: the
   function refuses a credit no one approved and a direct insert or update is
   refused with 42501, ending `Lab 4B check passed`. The supplied
-  `workshop/lab-4-absence.sql` prints 0 and 0 for the denied key and 1 for the
-  allowed key, so a search that always returns zero cannot pass.
+  `workshop/lab-4-absence.sql` prints 0 and 0 for the denied key, then 1 credit and
+  1 audit row for the allowed key, so a search that always returns zero cannot pass.
 - **Lesson:** Cedar decides who may move money and how much; the database
   decides what the credit-writer role can touch. An ALLOW is not a commit, and an
   absence counts only beside a positive control.

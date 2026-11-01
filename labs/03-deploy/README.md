@@ -52,6 +52,6 @@ In Code Editor choose **Terminal > Run Task > Reset Lab 3** (or run `uv run scri
 ## If you need a solution
 
 To skip one task, run its apply command above. To finish the whole lab, run
-`uv run scripts/lab_run.py finish --lab 3`, which also deploys: about five minutes in all.
+`uv run scripts/lab_run.py finish --lab 3`, which also deploys: about four minutes in all.
 Either way the check still has to pass. The answers are also in
 [solution/README.md](solution/README.md).
