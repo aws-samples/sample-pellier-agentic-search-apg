@@ -641,7 +641,6 @@ Resources:
                 Action:
                   - aws-marketplace:Subscribe
                   - aws-marketplace:ViewSubscriptions
-                  - aws-marketplace:Unsubscribe
                 Resource: "*"
                 Condition:
                   StringEquals:

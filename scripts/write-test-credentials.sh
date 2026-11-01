@@ -11,6 +11,8 @@
 #   HOME_FOLDER                      (default: /home/<user>)
 
 set -uo pipefail
+# The file holds passwords: never let it exist world-readable before the chmod below.
+umask 077
 
 AWS_REGION="${AWS_REGION:-us-east-1}"
 CODE_EDITOR_USER="${CODE_EDITOR_USER:-workshop}"
@@ -63,6 +65,11 @@ ROLE_LABEL[5]="Staff (Nadia): approves credits on the Operator desk; signs in wi
         n=$((i + 1))
         username=$(echo "$CREDS_JSON" | jq -r ".users[$i].username")
         password=$(echo "$CREDS_JSON" | jq -r ".users[$i].password")
+        # bootstrap-labs.sh writes the staff block itself, with the password it sets in
+        # Cognito; writing it here too would leave a second block with a stale password.
+        if [ "$(printf '%s' "$username" | tr '[:upper:]' '[:lower:]')" = "${PELLIER_OPERATOR_USERNAME:-nadia}" ]; then
+            continue
+        fi
         echo "Username: $username"
         echo "Password: $password"
         if [ -n "${PREF_LABEL[$n]:-}" ]; then

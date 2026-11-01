@@ -188,22 +188,17 @@ def _check(repo: Path, lab: int | None = None) -> list[str]:
     return mismatches
 
 
-def _keep_optional_edit(destination: Path, starter: Path) -> None:
-    """Save a Go deeper worksheet the participant edited beside it before it is overwritten."""
-    if not destination.is_file() or destination.read_bytes() == starter.read_bytes():
+def _keep_edit(destination: Path, replacement: bytes) -> None:
+    """Save the participant's version of a task file beside it before the starter replaces it.
+
+    Numbered ``.bak``, ``.bak.2`` and on, so no attempt is overwritten; one line says where.
+    """
+    if not destination.is_file() or destination.read_bytes() == replacement:
         return
-    edited = destination.read_bytes()
-    number = 1
-    while True:
-        backup = destination.with_name(
-            destination.name + (".bak" if number == 1 else f".bak.{number}"))
-        if not backup.exists():
-            backup.write_bytes(edited)
-            print(f"your version of {destination.name} is kept in {backup.name}")
-            return
-        if backup.read_bytes() == edited:
-            return
-        number += 1
+    message = lab_reference.keep_version(destination.parent, destination.name,
+                                         destination.read_bytes())
+    if "already kept" not in message:
+        print(f"your version of {destination.name} is kept in {message.rsplit(' ', 1)[-1]}")
 
 
 def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> None:
@@ -216,6 +211,8 @@ def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> No
             restored = _restore_marker(destination, starter, exercise.marker)
         except ValueError as exc:
             raise ValueError(f"{exercise.destination}: {exc}") from exc
+        if keep_edits:
+            _keep_edit(destination_path, restored.encode("utf-8"))
         destination_path.write_text(restored, encoding="utf-8")
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
@@ -225,8 +222,8 @@ def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> No
         if not starter_path.is_file():
             raise FileNotFoundError(starter_path)
         destination_path.parent.mkdir(parents=True, exist_ok=True)
-        if keep_edits and exercise.optional:
-            _keep_optional_edit(destination_path, starter_path)
+        if keep_edits:
+            _keep_edit(destination_path, starter_path.read_bytes())
         shutil.copyfile(starter_path, destination_path)
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
@@ -279,7 +276,7 @@ def restore_lab(
 ) -> list[str]:
     """Restore one lab's files (every lab's when None); return the exercise ids restored.
 
-    ``keep_edits`` saves an edited optional file as ``.bak`` first; a lab reset sets it.
+    ``keep_edits`` saves every edited task file as ``.bak`` first; a lab reset sets it.
 
     Raises:
         ValueError: the lab has no participant task files, or a marker pair is damaged.

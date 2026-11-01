@@ -126,6 +126,9 @@ _agentcore() {
 # leaves another lab's edits (Lab 4's Cedar rule) as the participant wrote them.
 pellier_restore_lab3_agentcore() {
   local receipt="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}" rc=0
+  if [[ ! -f "$receipt" && -f /var/lib/pellier/participant-receipt.json ]]; then
+    receipt=/var/lib/pellier/participant-receipt.json
+  fi
   if [[ ! -f "$receipt" ]]; then
     pass "No participant deploy since provisioning; the managed project is already the starters'"
     return 0

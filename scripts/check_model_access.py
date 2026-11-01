@@ -242,22 +242,42 @@ def check_model(client, rerank_client, model: dict) -> bool:
 
 
 def _upsert_env(env_path: str, key: str, value: str) -> None:
-    """Set KEY=value in a .env file (replace existing line or append)."""
-    import os
+    """Set KEY=value in a .env file (replace existing line or append), atomically.
+
+    The new content is written to a temp file beside the original with the original's
+    mode, then moved over it, so a kill mid-write cannot truncate the file that holds
+    DB_PASSWORD. An ``export KEY=`` line keeps its ``export``.
+    """
+    import tempfile
     line = f"{key}={value}\n"
+    mode = 0o600
+    lines: list[str] = []
     if os.path.exists(env_path):
-        lines = open(env_path).read().splitlines(keepends=True)
-        for i, l in enumerate(lines):
-            if l.split("=", 1)[0].strip() == key:
-                lines[i] = line
-                break
-        else:
-            if lines and not lines[-1].endswith("\n"):
-                lines[-1] += "\n"
-            lines.append(line)
-        open(env_path, "w").write("".join(lines))
+        mode = os.stat(env_path).st_mode & 0o777
+        with open(env_path, encoding="utf-8") as handle:
+            lines = handle.read().splitlines(keepends=True)
+    for i, existing in enumerate(lines):
+        name = existing.split("=", 1)[0].strip()
+        if name == key or name == f"export {key}":
+            lines[i] = ("export " if name.startswith("export") else "") + line
+            break
     else:
-        open(env_path, "w").write(line)
+        if lines and not lines[-1].endswith("\n"):
+            lines[-1] += "\n"
+        lines.append(line)
+    directory = os.path.dirname(os.path.abspath(env_path))
+    fd, temporary = tempfile.mkstemp(dir=directory, prefix=".env.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("".join(lines))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.chmod(temporary, mode)
+        os.replace(temporary, env_path)
+    except BaseException:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+        raise
 
 
 def main():

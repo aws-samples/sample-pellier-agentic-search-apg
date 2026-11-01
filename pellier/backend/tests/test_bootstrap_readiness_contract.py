@@ -567,7 +567,10 @@ def _run_health_gate(
     provision_state_file = tmp_path / "provision-state"
     if quarantine is not None:
         quarantine_file.write_text(quarantine, encoding="utf-8")
-    if provision_state is not None:
+    # None means a bootstrapped governed box (state written); "" means no state file.
+    if provision_state is None and workshop_format == "governed":
+        provision_state = "E2E_PROVED"
+    if provision_state:
         provision_state_file.write_text(provision_state + "\n", encoding="utf-8")
     env_lines = [
         f"BEDROCK_MODEL_ACCESS_READY={'true' if model_ready else 'false'}",
@@ -641,7 +644,13 @@ esac
     _write_executable(
         fake_bin / "aws",
         f"""#!/bin/bash
-case "$*" in
+# The gate hands Cognito credentials over as a file, never as arguments: expose the
+# request body to the case below so the fake can still tell the users apart.
+request=""
+for arg in "$@"; do
+  case "$arg" in file://*) request="$(cat "${{arg#file://}}")" ;; esac
+done
+case "$*$request" in
   *admin-list-groups-for-user*)
     for arg in "$@"; do
       if [[ "$arg" == "{group_lookup_error_for or ''}" ]]; then
@@ -663,7 +672,7 @@ case "$*" in
   *describe-user-pool-client*AllowedOAuthScopes*)
     printf 'openid email profile\\n'
     exit 0 ;;
-  *admin-initiate-auth*USERNAME=marco*)
+  *admin-initiate-auth*marco*)
     printf '%s\\n' '{shopper_jwt}'
     exit 0 ;;
   *admin-initiate-auth*)
@@ -2034,12 +2043,14 @@ def test_the_health_gate_requires_the_proved_state_outside_bootstrap(
         assert "NOT READY" in proc.stdout
 
 
-def test_the_health_gate_reports_an_absent_state_file_as_informational(tmp_path: Path) -> None:
+def test_the_health_gate_refuses_an_absent_state_file(tmp_path: Path) -> None:
     proc = _run_health_gate(
-        tmp_path, model_ready=True, workshop_format="governed", managed_ready=True
+        tmp_path, model_ready=True, workshop_format="governed", managed_ready=True,
+        provision_state="",
     )
-    assert proc.returncode == 0, proc.stdout
+    assert proc.returncode == 1, proc.stdout
     assert "Provision state: absent" in proc.stdout
+    assert "Provision state absent at" in proc.stdout
 
 
 def test_governed_bootstrap_makes_the_participant_credentials_file_required() -> None:

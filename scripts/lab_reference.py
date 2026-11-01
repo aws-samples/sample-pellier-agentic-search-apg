@@ -102,6 +102,25 @@ def lab_entries(source: Path, lab: int) -> List[str]:
     return found + sorted(targets - set(found))
 
 
+def keep_version(repo: Path, alias: str, yours: bytes) -> str:
+    """Save the participant's version beside ``alias`` as ``.bak``, ``.bak.2`` and on.
+
+    A backup that already holds the same bytes is reused, so nothing is overwritten and a
+    repeat run adds no copy. Returns the sentence to print.
+    """
+    number = 1
+    while True:
+        name = f"{alias}.bak" if number == 1 else f"{alias}.bak.{number}"
+        backup = repo / name
+        if not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            backup.write_bytes(yours)
+            return f"your version is kept in {name}"
+        if backup.read_bytes() == yours:
+            return f"your version is already kept in {name}"
+        number += 1
+
+
 def adopt(repo: Path, created: List[Path]) -> None:
     """Give what was created to the repository's owner when root created it.
 

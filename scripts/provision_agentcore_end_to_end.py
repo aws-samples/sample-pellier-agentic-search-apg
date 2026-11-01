@@ -362,6 +362,24 @@ def _find_runtime_log_group(logs: Any, log_group_name: str) -> dict[str, Any] | 
     return None
 
 
+def _save_participant_receipt(receipt: Path) -> None:
+    """Copy the participant receipt out of memory-backed /tmp so a reboot keeps it.
+
+    Readers (health-gate.sh, lab3-start.sh, the Lab 3 reset) fall back to this copy
+    when /tmp/pellier-agentcore-participant.json is gone. Best effort: a missing
+    state directory must not fail a deploy that succeeded.
+    """
+    state_dir = Path(os.environ.get("PELLIER_STATE_DIR", "/var/lib/pellier"))
+    try:
+        state_dir.mkdir(parents=True, exist_ok=True)
+        saved = state_dir / "participant-receipt.json"
+        if not saved.exists() or not saved.samefile(receipt):
+            shutil.copy2(receipt, saved)
+    except OSError as exc:
+        print(f"Could not save the participant receipt under {state_dir}: {exc}",
+              file=sys.stderr, flush=True)
+
+
 def _write_result(path: Path, result: dict[str, Any]) -> None:
     """Atomically checkpoint a private receipt without following a temp symlink."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -3093,6 +3111,8 @@ def main() -> int:
     try:
         code = _provision(args, repo=repo, deploy_dir=deploy_dir, output_path=output_path,
                           identity=identity)
+        if code == 0 and args.mode == "participant":
+            _save_participant_receipt(output_path)
     finally:
         lock.release(code)
     return code

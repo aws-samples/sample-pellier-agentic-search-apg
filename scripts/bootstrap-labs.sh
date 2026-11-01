@@ -541,7 +541,7 @@ build_participant_venv() {
 
 log "Installing uv $UV_VERSION..."
 if ! uv_is_pinned; then
-    sudo -u "$CODE_EDITOR_USER" bash -c "curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh" >>"$VENV_LOG" 2>&1 || \
+    sudo -u "$CODE_EDITOR_USER" bash -c "set -o pipefail; curl -LsSf https://astral.sh/uv/$UV_VERSION/install.sh | sh" >>"$VENV_LOG" 2>&1 || \
     sudo -u "$CODE_EDITOR_USER" python3.14 -m pip install --user "uv==$UV_VERSION" >>"$VENV_LOG" 2>&1 || true
 fi
 uv_is_pinned || fail "uv $UV_VERSION did not install, so no participant uv run command can work; see $VENV_LOG"
@@ -1216,7 +1216,13 @@ else
     warn "Could not write sudoers drop-in at $SUDOERS_FILE"
 fi
 
-# Create log directory
+# Create log directory. /tmp is memory-backed on AL2023, so the directory
+# vanishes on stop/start and the unit would fail with 209/STDOUT. A
+# tmpfiles.d rule recreates it on every boot before pellier.service starts.
+printf 'd /tmp/pellier 0755 %s %s -\n' "$CODE_EDITOR_USER" "$CODE_EDITOR_USER" \
+    >/etc/tmpfiles.d/pellier.conf
+chmod 644 /etc/tmpfiles.d/pellier.conf
+systemd-tmpfiles --create /etc/tmpfiles.d/pellier.conf
 mkdir -p /tmp/pellier
 chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" /tmp/pellier
 
@@ -1499,6 +1505,9 @@ EOF
             log "✅ Managed AgentCore Policy engine: $POLICY_ENGINE_ID"
         fi
         chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_PATH/.env"
+        # /tmp is memory-backed: keep a copy the readers fall back to after a reboot.
+        cp -p "$MANAGED_OUTPUT_JSON" "$PELLIER_STATE_DIR/managed-receipt.json" 2>/dev/null \
+            || warn "Could not save the managed receipt under $PELLIER_STATE_DIR"
         write_status_json "complete" "ready" "$MANAGED_OUTPUT_JSON"
         log "✅ AgentCore managed path ready"
         # MANAGED_READY builds on APP_READY. A managed proof over an application
@@ -1724,7 +1733,17 @@ if [ -n "$(_pool_id)" ]; then
     log "Seeding the $OPERATOR_GROUP Cognito group and its member..."
     POOL="$(_pool_id)"
     # A public workshop ID must never determine a staff credential.
-    OPERATOR_PASSWORD="$(python3.14 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
+    # Reuse the password a previous run stored, so a re-run changes nothing in Cognito;
+    # the credentials file is rewritten from scratch each run and gets one staff block.
+    OPERATOR_PASSWORD="$(aws secretsmanager get-secret-value \
+        --secret-id "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" --region "$AWS_REGION" \
+        --query SecretString --output text 2>/dev/null \
+        | jq -r --arg u "$OPERATOR_USERNAME" \
+            '[.users[]? | select((.username | ascii_downcase) == ($u | ascii_downcase)) | .password][0] // empty' \
+        2>/dev/null || true)"
+    if [ -z "$OPERATOR_PASSWORD" ]; then
+        OPERATOR_PASSWORD="$(python3.14 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
+    fi
     OPERATOR_PASSWORD_SET=false
 
     aws cognito-idp create-group --user-pool-id "$POOL" \
@@ -1735,11 +1754,17 @@ if [ -n "$(_pool_id)" ]; then
         --region "$AWS_REGION" \
         --user-attributes Name=email,Value="${OPERATOR_USERNAME}@pellier.example.com" \
                           Name=email_verified,Value=true >/dev/null 2>&1 || true
-    if aws cognito-idp admin-set-user-password --user-pool-id "$POOL" \
-        --username "$OPERATOR_USERNAME" --password "$OPERATOR_PASSWORD" \
-        --permanent --region "$AWS_REGION" >/dev/null 2>&1; then
+    # The password goes to the CLI through a 0600 file, not argv, which any user can list.
+    OPERATOR_CLI_INPUT="$(umask 077; mktemp)"
+    if OPERATOR_POOL="$POOL" OPERATOR_NAME="$OPERATOR_USERNAME" OPERATOR_SECRET="$OPERATOR_PASSWORD" \
+        jq -n '{UserPoolId: $ENV.OPERATOR_POOL, Username: $ENV.OPERATOR_NAME,
+                Password: $ENV.OPERATOR_SECRET, Permanent: true}' >"$OPERATOR_CLI_INPUT" \
+        && aws cognito-idp admin-set-user-password \
+            --cli-input-json "file://$OPERATOR_CLI_INPUT" \
+            --region "$AWS_REGION" >/dev/null 2>&1; then
         OPERATOR_PASSWORD_SET=true
     fi
+    rm -f "$OPERATOR_CLI_INPUT"
     aws cognito-idp admin-add-user-to-group --user-pool-id "$POOL" \
         --username "$OPERATOR_USERNAME" --group-name "$OPERATOR_GROUP" \
         --region "$AWS_REGION" >/dev/null 2>&1 || true

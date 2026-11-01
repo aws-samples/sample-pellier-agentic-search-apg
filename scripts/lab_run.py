@@ -96,6 +96,7 @@ from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, O
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import deploy_lock  # noqa: E402  (sibling module)
+import lab_reference  # noqa: E402  (sibling module)
 import lab_reset  # noqa: E402  (sibling module)
 import reset_participant_exercises as exercises  # noqa: E402  (sibling module)
 import workshop_check as check  # noqa: E402  (sibling module)
@@ -335,17 +336,7 @@ def install_task(task: str, repo: pathlib.Path = REPO,
 
 def _keep(repo: pathlib.Path, alias: str, yours: bytes) -> str:
     """Save the participant's version beside the link unless a backup already holds it."""
-    number = 1
-    while True:
-        name = f"{alias}.bak" if number == 1 else f"{alias}.bak.{number}"
-        backup = repo / name
-        if not backup.exists():
-            backup.parent.mkdir(parents=True, exist_ok=True)
-            backup.write_bytes(yours)
-            return f"your version is kept in {name}"
-        if backup.read_bytes() == yours:
-            return f"your version is already kept in {name}"
-        number += 1
+    return lab_reference.keep_version(repo, alias, yours)
 
 
 def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run) -> None:

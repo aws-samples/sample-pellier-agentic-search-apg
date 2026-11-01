@@ -86,6 +86,7 @@ class Report:
     recreated: list[str] = field(default_factory=list)
     unchanged: int = 0
     skipped: list[str] = field(default_factory=list)
+    kept: list[str] = field(default_factory=list)
 
     @property
     def repaired(self) -> int:
@@ -199,6 +200,24 @@ def verified_members(archive: tarfile.TarFile, sha: str) -> Iterator[tuple[str, 
             yield relative, member
 
 
+def participant_aliases(repo: Path) -> dict[str, str]:
+    """The editor link of each file a participant edits, keyed by the file's repo path."""
+    try:
+        entries = json.loads((repo / lab_reference.PARTICIPANT_FILES).read_text("utf-8"))
+        return {entry["source"]: entry["alias"] for entry in entries}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
+
+
+def _keep_participant_version(repo: Path, relative: str, alias: str, report: Report) -> None:
+    """Keep a participant's edit as ``<link>.bak`` (``.bak.2`` and on) before it is replaced."""
+    target = repo / relative
+    if target.is_symlink() or not target.is_file():
+        return
+    message = lab_reference.keep_version(repo, alias, target.read_bytes())
+    report.kept.append(f"{relative}: {message}")
+
+
 def _same(target: Path, member: tarfile.TarInfo, archive: tarfile.TarFile) -> bool:
     if member.issym():
         return target.is_symlink() and os.readlink(target) == member.linkname
@@ -245,6 +264,7 @@ def apply_archive(repo: Path, archive: tarfile.TarFile, sha: str, write: bool = 
         RepairUnavailable: the archive is not the pinned revision.
     """
     report = Report()
+    aliases = participant_aliases(repo)
     for relative, member in verified_members(archive, sha):
         if is_preserved(relative):
             continue
@@ -258,6 +278,8 @@ def apply_archive(repo: Path, archive: tarfile.TarFile, sha: str, write: bool = 
         existed = target.is_symlink() or target.exists()
         (report.restored if existed else report.recreated).append(relative)
         if write:
+            if existed and relative in aliases:
+                _keep_participant_version(repo, relative, aliases[relative], report)
             _write(repo, target, member, archive)
     return report
 
@@ -314,6 +336,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     for relative in [*report.restored, *report.recreated][:20]:
         print(f"  {relative}", flush=True)
+    for line in report.kept:
+        print(f"  kept {line}", flush=True)
     for line in report.skipped:
         print(f"  skipped {line}", file=sys.stderr, flush=True)
     changed = [*report.restored, *report.recreated]

@@ -36,6 +36,13 @@ BASE="${BASE_URL:-http://localhost:8000}"
 HEALTH_URL="${HEALTH_URL:-$BASE/api/health}"
 MANAGED_RECEIPT="${AGENTCORE_MANAGED_OUTPUT_JSON:-/tmp/pellier-agentcore-managed.json}"
 PARTICIPANT_RECEIPT="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}"
+# /tmp is memory-backed and empty after a stop/start; use the copies kept under /var/lib/pellier.
+if [ ! -f "$MANAGED_RECEIPT" ] && [ -f /var/lib/pellier/managed-receipt.json ]; then
+  MANAGED_RECEIPT=/var/lib/pellier/managed-receipt.json
+fi
+if [ ! -f "$PARTICIPANT_RECEIPT" ] && [ -f /var/lib/pellier/participant-receipt.json ]; then
+  PARTICIPANT_RECEIPT=/var/lib/pellier/participant-receipt.json
+fi
 RECEIPT_VALIDATOR="$SCRIPT_DIR/validate_agentcore_receipt.py"
 TOKEN_HELPER="${PELLIER_TOKEN_HELPER:-$HOME/pellier-token.sh}"
 PERSONA="${1:-theo}"

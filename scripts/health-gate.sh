@@ -130,7 +130,14 @@ fi
 PROVISION_STATE_FILE="${PELLIER_PROVISION_STATE_FILE:-/var/lib/pellier/provision-state}"
 provision_state="$(tr -d '[:space:]' 2>/dev/null < "$PROVISION_STATE_FILE" || true)"
 echo "  Provision state: ${provision_state:-absent}"
-if $managed_required && [[ -n "$provision_state" ]]; then
+if $managed_required && [[ -z "$provision_state" ]]; then
+  # A deleted or never-written state file proves nothing. Bootstrap's own proving runs
+  # may precede the first write.
+  if [[ "${PELLIER_PROVISION_PHASE:-}" != "bootstrap" ]]; then
+    fail "Provision state absent at ${PROVISION_STATE_FILE}, expected E2E_PROVED. Re-run bootstrap-labs.sh; see /var/log/bootstrap-labs.log."
+    ok=false
+  fi
+elif $managed_required; then
   if [[ "$provision_state" == "E2E_PROVED" ]]; then
     pass "Provisioning reached E2E_PROVED"
   elif [[ "$provision_state" != "FAILED" && "${PELLIER_PROVISION_PHASE:-}" == "bootstrap" ]]; then
@@ -165,6 +172,27 @@ else
 fi
 
 # psql helper using env creds
+# Writes the admin-initiate-auth request to a private temp file and prints its path, so
+# neither the password nor the client secret appears on a command line. The SECRET_HASH
+# is derived inside Python from the environment. Returns non-zero when it cannot.
+_cognito_auth_input() {
+  local user="$1" password="$2" input_file
+  input_file="$(umask 077; mktemp)" || return 1
+  if ! GATE_AUTH_USER="$user" GATE_AUTH_PASSWORD="$password" \
+      GATE_AUTH_POOL="$operator_pool" GATE_AUTH_CLIENT="$operator_client" \
+      GATE_AUTH_SECRET="${COGNITO_CLIENT_SECRET:-}" python3 -c 'import os,json,hmac,hashlib,base64
+e=os.environ; p={"USERNAME":e["GATE_AUTH_USER"],"PASSWORD":e["GATE_AUTH_PASSWORD"]}
+if e["GATE_AUTH_SECRET"]:
+    d=hmac.new(e["GATE_AUTH_SECRET"].encode(),(e["GATE_AUTH_USER"]+e["GATE_AUTH_CLIENT"]).encode(),hashlib.sha256).digest()
+    p["SECRET_HASH"]=base64.b64encode(d).decode()
+print(json.dumps({"UserPoolId":e["GATE_AUTH_POOL"],"ClientId":e["GATE_AUTH_CLIENT"],"AuthFlow":"ADMIN_USER_PASSWORD_AUTH","AuthParameters":p}))' \
+      >"$input_file" 2>/dev/null; then
+    rm -f "$input_file"
+    return 1
+  fi
+  printf '%s' "$input_file"
+}
+
 _psql() {
   PGPASSWORD="${DB_PASSWORD:-}" psql \
     -h "${DB_HOST:-localhost}" -p "${DB_PORT:-5432}" \
@@ -368,6 +396,13 @@ fi
 # telemetry delivered agent/model/tool spans, redacted tool I/O, and step latency.
 managed_receipt="${AGENTCORE_MANAGED_OUTPUT_JSON:-/tmp/pellier-agentcore-managed.json}"
 participant_receipt="${AGENTCORE_PARTICIPANT_OUTPUT_JSON:-/tmp/pellier-agentcore-participant.json}"
+# /tmp is memory-backed and empty after a stop/start; use the copies kept under /var/lib/pellier.
+if [[ ! -f "$managed_receipt" && -f /var/lib/pellier/managed-receipt.json ]]; then
+  managed_receipt=/var/lib/pellier/managed-receipt.json
+fi
+if [[ ! -f "$participant_receipt" && -f /var/lib/pellier/participant-receipt.json ]]; then
+  participant_receipt=/var/lib/pellier/participant-receipt.json
+fi
 receipt_args=("$managed_receipt")
 if [[ -f "$participant_receipt" ]]; then
   receipt_args+=(--participant "$participant_receipt")
@@ -473,21 +508,16 @@ if [[ -n "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}" ]]; then
       managed_missing "Hosted UI client must allow OAuth code flow with openid scope"
     fi
 
-    auth_parameters="USERNAME=${operator_user},PASSWORD=${operator_password}"
-    if [[ -n "${COGNITO_CLIENT_SECRET:-}" ]]; then
-      secret_hash="$(python3 -c 'import sys,hmac,hashlib,base64;u,c,k=sys.argv[1:4];print(base64.b64encode(hmac.new(k.encode(),(u+c).encode(),hashlib.sha256).digest()).decode())' \
-        "$operator_user" "$operator_client" "$COGNITO_CLIENT_SECRET" 2>/dev/null || true)"
-      if [[ -z "$secret_hash" ]]; then
-        managed_missing "Could not derive the Cognito client SECRET_HASH for Operator sign-in"
-      else
-        auth_parameters="${auth_parameters},SECRET_HASH=${secret_hash}"
-      fi
+    operator_token=""
+    if auth_input="$(_cognito_auth_input "$operator_user" "$operator_password")"; then
+      operator_token="$(aws cognito-idp admin-initiate-auth \
+        --cli-input-json "file://${auth_input}" \
+        --region "${AWS_REGION:-us-east-1}" \
+        --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null || true)"
+      rm -f "$auth_input"
+    else
+      managed_missing "Could not build the Cognito sign-in request for Operator sign-in"
     fi
-    operator_token="$(aws cognito-idp admin-initiate-auth \
-      --user-pool-id "$operator_pool" --client-id "$operator_client" \
-      --auth-flow ADMIN_USER_PASSWORD_AUTH --auth-parameters "$auth_parameters" \
-      --region "${AWS_REGION:-us-east-1}" \
-      --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null || true)"
     if [[ -z "$operator_token" || "$operator_token" == "None" ]]; then
       managed_missing "Seeded Operator cannot obtain a Cognito access token"
     else
@@ -526,17 +556,14 @@ print(u[0]["password"] if u else "")' "$operator_user" 2>/dev/null || true)"
   if [[ -z "$shopper_user" || -z "$shopper_password" ]]; then
     managed_missing "No seeded shopper credentials; the customer claim on shopper tokens is unverified"
   else
-    shopper_auth="USERNAME=${shopper_user},PASSWORD=${shopper_password}"
-    if [[ -n "${COGNITO_CLIENT_SECRET:-}" ]]; then
-      shopper_hash="$(python3 -c 'import sys,hmac,hashlib,base64;u,c,k=sys.argv[1:4];print(base64.b64encode(hmac.new(k.encode(),(u+c).encode(),hashlib.sha256).digest()).decode())' \
-        "$shopper_user" "$operator_client" "$COGNITO_CLIENT_SECRET" 2>/dev/null || true)"
-      [[ -n "$shopper_hash" ]] && shopper_auth="${shopper_auth},SECRET_HASH=${shopper_hash}"
+    shopper_token=""
+    if auth_input="$(_cognito_auth_input "$shopper_user" "$shopper_password")"; then
+      shopper_token="$(aws cognito-idp admin-initiate-auth \
+        --cli-input-json "file://${auth_input}" \
+        --region "${AWS_REGION:-us-east-1}" \
+        --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null || true)"
+      rm -f "$auth_input"
     fi
-    shopper_token="$(aws cognito-idp admin-initiate-auth \
-      --user-pool-id "$operator_pool" --client-id "$operator_client" \
-      --auth-flow ADMIN_USER_PASSWORD_AUTH --auth-parameters "$shopper_auth" \
-      --region "${AWS_REGION:-us-east-1}" \
-      --query 'AuthenticationResult.AccessToken' --output text 2>/dev/null || true)"
     if [[ -z "$shopper_token" || "$shopper_token" == "None" ]]; then
       managed_missing "Seeded shopper ${shopper_user} cannot obtain a Cognito access token"
     else
