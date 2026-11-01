@@ -211,6 +211,14 @@ class TestLabsThreeAndFour:
         finding = evidence.task_4b(lambda: [_finding("4B", state) for state in states])
         assert finding.task == "4B" and finding.state == verdict, finding
 
+    def test_4b_names_the_path_behind_each_probe_count(self) -> None:
+        parts = [check.Finding("4B", f"{path} path: the role writes only through the function",
+                               PROVED, "expected", "4 of 4 probes match", ["evidence"], "")
+                 for path in ("in process", "Gateway")]
+        finding = evidence.task_4b(lambda: [_finding("4B", PROVED), *parts])
+        assert finding.observed == (f"observed {PROVED}; in process: 4 of 4 probes match; "
+                                    "Gateway: 4 of 4 probes match"), finding
+
     def test_4b_with_the_starters_grants_is_not_yet_without_probing(
         self, monkeypatch: pytest.MonkeyPatch,
     ) -> None:

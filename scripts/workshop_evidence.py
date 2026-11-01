@@ -260,6 +260,12 @@ def credit_findings(row: Optional[Dict[str, Any]]) -> Dict[str, str]:
     return {"once": PROVED if once else CONTRADICTED, "amount": PROVED if amount else CONTRADICTED}
 
 
+def _observed(part: check.Finding) -> str:
+    """A part's observation, led by its path when the part probed one ("Gateway path: ...")."""
+    path, separator, _ = part.title.partition(" path: ")
+    return f"{path}: {part.observed}" if separator else part.observed
+
+
 def _combine(task: str, title: str, expected: str,
              parts: Sequence[check.Finding]) -> check.Finding:
     """One task line from several verdicts: any contradiction wins, then any gap."""
@@ -273,7 +279,7 @@ def _combine(task: str, title: str, expected: str,
     else:
         state = NOT_YET
     return check.Finding(task, title, state, expected,
-                         "; ".join(part.observed for part in parts),
+                         "; ".join(_observed(part) for part in parts),
                          [line for part in parts for line in part.evidence],
                          next((part.next_step for part in parts if part.state != PROVED), ""))
 
