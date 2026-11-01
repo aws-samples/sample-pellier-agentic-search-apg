@@ -8,8 +8,11 @@ copies every event into the relay under the verified Cognito ``sub``;
 
 The backend runs as one uvicorn worker, so one process holds every turn and every
 watcher. A restart empties the relay; each lab sends its requests after its
-restart, so the labs' turns survive. Nothing here can change or delay a turn: a
-relay failure is logged and the turn's own stream continues untouched.
+restart, so the labs' turns survive. Each shopper keeps their last three turns,
+one lab's requests, so a re-run replaces the run before it; each stays three hours,
+longer than the 120-minute session, so a lab's turns can still be watched at the
+Wrap-up. Nothing here can change or delay a turn: a relay failure is logged and the
+turn's own stream continues untouched.
 """
 from __future__ import annotations
 
@@ -27,7 +30,7 @@ from services.sse_keepalive import HEARTBEAT, HEARTBEAT_SECONDS
 logger = logging.getLogger(__name__)
 
 KEEP_TURNS = 3
-KEEP_SECONDS = 30 * 60
+KEEP_SECONDS = 3 * 60 * 60
 MAX_TURN_BYTES = 2 * 1024 * 1024
 MAX_SUBSCRIBERS = 5
 QUEUE_SIZE = 1000

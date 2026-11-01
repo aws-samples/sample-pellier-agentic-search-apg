@@ -109,6 +109,17 @@ def test_an_ended_turn_expires_after_thirty_minutes() -> None:
     assert relay.replay("sub-anna") == []
 
 
+def test_by_default_a_lab_1_turn_can_still_be_watched_at_the_wrap_up() -> None:
+    """The session runs 120 minutes; a turn sent in Lab 1 still replays at its end."""
+    now = [1000.0]
+    relay = TurnRelay(clock=lambda: now[0])
+    _start(relay, "sub-anna", "turn-lab-1")
+    relay.end_turn("sub-anna", "turn-lab-1", "complete")
+    now[0] += 120 * 60
+    assert [frame["turn_id"] for frame in relay.replay("sub-anna")
+            if frame["type"] == "relay_turn"] == ["turn-lab-1"]
+
+
 def test_a_turn_over_its_byte_cap_keeps_streaming_live_but_stops_storing() -> None:
     relay = TurnRelay(max_turn_bytes=200)
     queue = relay.subscribe("sub-anna")
