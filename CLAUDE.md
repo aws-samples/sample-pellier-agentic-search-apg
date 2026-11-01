@@ -193,8 +193,8 @@ documentation.
   exceptions are the route test that proves old paths land on the
   Storefront (`pellier/frontend/src/App.routes.test.tsx`), the clean-up of
   legacy browser keys in `pellier/frontend/src/contexts/PersonaContext.tsx`,
-  `CLAUDE.md` and `AGENTS.md`, the guard itself, and history under
-  `docs/release-readiness/` and `docs/superpowers/`.
+  `CLAUDE.md` and `AGENTS.md`, the guard itself, and history: `docs/superpowers/`
+  and the gitignored release-readiness records under docs, which a clone lacks.
   `pellier/backend/tests/test_surface_naming.py` enforces this by scanning
   every tracked text file, case-insensitively and across `-`, `_` and space.
 - Boutique is fully retired on the same terms. `VOICE.md` bans "boutique" in
