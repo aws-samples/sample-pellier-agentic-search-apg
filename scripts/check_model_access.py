@@ -246,9 +246,12 @@ def _upsert_env(env_path: str, key: str, value: str) -> None:
 
     The new content is written to a temp file beside the original with the original's
     mode, then moved over it, so a kill mid-write cannot truncate the file that holds
-    DB_PASSWORD. An ``export KEY=`` line keeps its ``export``.
+    DB_PASSWORD. An ``export KEY=`` line keeps its ``export``. The path is resolved
+    first: bootstrap links pellier/backend/.env to the root .env that the health gate
+    and the service read, and replacing the link itself would leave that file behind.
     """
     import tempfile
+    env_path = os.path.realpath(env_path)
     line = f"{key}={value}\n"
     mode = 0o600
     lines: list[str] = []

@@ -59,6 +59,27 @@ def test_env_upsert_failure_leaves_the_original_whole(tmp_path: Path, monkeypatc
     assert [p.name for p in tmp_path.iterdir()] == [".env"]
 
 
+def test_env_upsert_through_a_symlink_keeps_the_link_and_writes_its_target(tmp_path: Path) -> None:
+    """Bootstrap links pellier/backend/.env to the root .env that the health gate and the
+    service read. The preflight writes through the link, so the key must land in the
+    target and the link must survive (test event 2026-11-01 failed when the atomic
+    replace swapped the link for a copy and the gate never saw the key)."""
+    root_env = tmp_path / ".env"
+    root_env.write_text("DB_NAME=pellier\n", encoding="utf-8")
+    os.chmod(root_env, 0o600)
+    backend = tmp_path / "pellier" / "backend"
+    backend.mkdir(parents=True)
+    link = backend / ".env"
+    link.symlink_to(root_env)
+
+    check_model_access._upsert_env(str(link), "BEDROCK_MODEL_ACCESS_READY", "true")
+
+    assert link.is_symlink() and link.resolve() == root_env.resolve()
+    assert root_env.read_text(encoding="utf-8") == "DB_NAME=pellier\nBEDROCK_MODEL_ACCESS_READY=true\n"
+    assert stat.S_IMODE(root_env.stat().st_mode) == 0o600
+    assert not list(backend.glob(".env.*.tmp")) and not list(tmp_path.glob(".env.*.tmp"))
+
+
 def test_env_upsert_creates_a_private_file_when_none_exists(tmp_path: Path) -> None:
     env = tmp_path / ".env"
     check_model_access._upsert_env(str(env), "A", "1")
