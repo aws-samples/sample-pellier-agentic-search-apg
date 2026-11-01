@@ -1052,23 +1052,6 @@ Resources:
                   - CreateRuntimeLogKey
                   - !GetAtt AgentCoreRuntimeLogKey.Arn
                   - !Ref ExistingRuntimeLogKmsKeyArn
-              # Voice search: routes/transcribe.py opens a streaming
-              # transcription from the backend process, which runs under
-              # THIS InstanceRole (TranscribeStreamingClient uses the
-              # default credential chain → instance profile). The
-              # participant-role policy (static/iam_policy.json) also has
-              # this, but that role is the console/CLI identity, not the
-              # role the backend assumes — so it must live here too.
-              # StartStreamTranscription does not support resource-level
-              # scoping, so Resource is "*".
-              - Sid: TranscribeStreaming
-                Effect: Allow
-                Action:
-                  - transcribe:StartStreamTranscription
-                Resource: "*"
-                Condition:
-                  StringEquals:
-                    aws:RequestedRegion: !Ref AWS::Region
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile

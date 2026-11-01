@@ -8,8 +8,6 @@ interface ImportMetaEnv {
   readonly VITE_AWS_REGION: string;
   readonly VITE_ENABLE_AGENTS?: string;
   readonly VITE_ENABLE_CHAT?: string;
-  /** Optional full WebSocket URL for Transcribe when the default BASE_URL rule is insufficient */
-  readonly VITE_TRANSCRIBE_WS_URL?: string;
 }
 
 interface ImportMeta {
