@@ -26,20 +26,16 @@ from pellier_copy import MEMORY_WRITE_WARNING
 from models.search import (
     HealthResponse,
     ChatRequest,
-    PerfCompareRequest,
-    PerfIterativeScanRequest,
-    PerfQuantizationRequest,
 )
 from services.database import DatabaseService
-from services.auth import get_current_user, require_operator
+from services.auth import get_current_user
 from services import sse_keepalive, turn_relay
 from services.store_tools import VISIBLE_CATALOG_SQL
 from services.embeddings import EmbeddingService
 from services.chat import ChatService, attach_warehouse_units
 from services.chat_error_taxonomy import classify_chat_error
-from services.sql_query_logger import init_query_logger, get_query_logger
-from services.index_performance import get_index_performance_service
-from services.cache import init_cache, get_cache
+from services.sql_query_logger import init_query_logger
+from services.cache import init_cache
 from routes.password_auth import router as password_auth_router
 from routes import (
     agent_router,
@@ -94,7 +90,6 @@ db_service: DatabaseService = None
 embedding_service: EmbeddingService = None
 chat_service: ChatService = None
 query_logger = None
-index_performance_service = None
 
 
 def _log_agent_and_tool_inventory() -> None:
@@ -161,7 +156,7 @@ async def lifespan(app: FastAPI):
             settings.WORKSHOP_FORMAT,
         )
     
-    global db_service, embedding_service, chat_service, query_logger, index_performance_service
+    global db_service, embedding_service, chat_service, query_logger
 
     try:
         # Initialize Strands OpenTelemetry tracing
@@ -288,13 +283,6 @@ async def lifespan(app: FastAPI):
         query_logger = init_query_logger(max_logs=100)
         logger.info("✅ SQL query logger initialized")
 
-        # Reuse the canonical DSN so TLS, tunnels, and other libpq options apply
-        # to benchmark queries exactly as they do to the application pool.
-        index_performance_service = get_index_performance_service(
-            settings.database_url
-        )
-        logger.info("✅ Index performance service initialized")
-
         # Set chat service logger to INFO
         logging.getLogger('services.chat').setLevel(logging.INFO)
 
@@ -307,9 +295,10 @@ async def lifespan(app: FastAPI):
         set_main_loop(asyncio.get_running_loop())
         logger.info("✅ Agent tools initialized for retrieval, inventory, and write-path actions")
 
-        # Wire the tool_audit writer the same way. Theo's anchor
-        # capability persists every mutation to Aurora's pellier.tool_audit
-        # table; the writer is fire-and-forget but needs the same
+        # Wire the tool_audit writer the same way. It records every executed
+        # tool call, reads and writes alike, in Aurora's pellier.tool_audit
+        # table; a denied call never runs, so it leaves no row. The writer
+        # is fire-and-forget but needs the same
         # DB pool + main event loop reference to bridge sync→async.
         from services import tool_audit_writer
         tool_audit_writer.set_db_service(db_service)
@@ -556,21 +545,6 @@ async def health_check(response: Response):
 # POST /api/search is authoritative on routes/search.py (StorefrontSearchResponse
 # wire shape). The legacy semantic_search handler that used to live here has
 # been removed — don't re-add it; the router owns that path.
-
-
-_LIKE_METACHARACTERS = re.compile(r"([\\%_])")
-
-
-def _prepare_like_pattern(term: str) -> str:
-    """Neutralize shopper text for use inside an ILIKE pattern.
-
-    Escapes the LIKE metacharacters (``\\``, ``%``, ``_``) so the input
-    matches literally, then adds the surrounding wildcards. The value is
-    still sent to PostgreSQL as a bound parameter — escaping here only
-    stops a stray ``%`` or ``_`` from acting as a wildcard.
-    """
-    escaped = _LIKE_METACHARACTERS.sub(r"\\\1", term)
-    return f"%{escaped}%"
 
 
 # ============================================================================
@@ -844,11 +818,9 @@ async def chat_stream(
                 requested_customer_id=request.customer_id,
             )
 
-            # Per-turn guardrail INPUT check — records a decision in
-            # services/guardrails_log, a per-session ring buffer of
-            # guardrail outcomes. Only runs when
-            # the user enabled guardrails in their request; otherwise
-            # the log captures no entry (accurate — nothing happened).
+            # Per-turn guardrail INPUT check. Only runs when the user enabled
+            # guardrails in their request; otherwise no event is emitted
+            # (accurate — nothing happened).
             # Failures are swallowed: guardrail eval is observational,
             # not a hard turn gate in this demo surface.
             guardrail_event = None
@@ -856,21 +828,10 @@ async def chat_stream(
                 try:
                     import time as _time
                     from services.guardrails import GuardrailsService
-                    from services.guardrails_log import record_guardrail
                     _g = GuardrailsService()
                     _t0 = _time.perf_counter()
                     _res = _g.check_input(request.message)
                     _latency = int((_time.perf_counter() - _t0) * 1000)
-                    record_guardrail(
-                        session_id=request.session_id,
-                        source="INPUT",
-                        action=_res.get("action", "NONE"),
-                        allowed=_res.get("allowed", True),
-                        violations=_res.get("violations", []),
-                        latency_ms=_latency,
-                        text_preview=request.message,
-                        mode=_res.get("mode"),
-                    )
                     guardrail_event = {
                         "type": "guardrail_decision",
                         "guardrail": {
@@ -1375,250 +1336,6 @@ async def chat_watch(user=Depends(get_current_user)):
     )
 
 
-async def autocomplete(
-    q: str = Query(..., min_length=2),
-    limit: int = Query(default=5, ge=1, le=10),
-    db: DatabaseService = Depends(get_db_service)
-):
-    """Product search autocomplete"""
-    try:
-        query = f"""
-            SELECT name, category
-            FROM pellier.product_catalog
-            WHERE name ILIKE %s
-              AND {VISIBLE_CATALOG_SQL}
-            ORDER BY reviews DESC
-            LIMIT %s
-        """
-        results = await db.fetch_all(query, _prepare_like_pattern(q), limit)
-        return {"suggestions": [{
-            "text": r["name"][:60],
-            "category": r["category"]
-        } for r in results]}
-    except Exception as e:
-        logger.error(f"❌ Autocomplete failed: {e}")
-        return {"suggestions": []}
-
-
-# NOTE: the old ``POST /api/agents/query`` legacy endpoint (which
-# dispatched to individual specialist agents by ``agent_type``) has
-# been removed. No frontend caller remained — the orchestrator path
-# is ``POST /api/agent/chat`` (see routes/agent.py) which the
-# concierge already uses.
-
-
-# ============================================================================
-# SQL QUERY INSPECTOR ENDPOINTS
-# ============================================================================
-
-async def get_recent_queries(limit: int = Query(default=10, ge=1, le=50)):
-    """
-    Get recent SQL queries with performance metrics
-    
-    Returns query logs for the SQL Inspector UI
-    """
-    try:
-        query_logger_instance = get_query_logger()
-        queries = query_logger_instance.get_recent_queries(limit=limit)
-        stats = query_logger_instance.get_summary_stats()
-        
-        return {
-            "queries": queries,
-            "stats": stats,
-            "total": len(queries)
-        }
-    except Exception as e:
-        logger.error(f"Failed to get recent queries: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-async def clear_query_logs():
-    """Clear all query logs"""
-    try:
-        query_logger_instance = get_query_logger()
-        query_logger_instance.clear_logs()
-        return {"status": "success", "message": "Query logs cleared"}
-    except Exception as e:
-        logger.error(f"Failed to clear logs: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-# ============================================================================
-# INDEX PERFORMANCE ENDPOINTS
-# ============================================================================
-
-async def compare_index_performance(
-    request: PerfCompareRequest,
-    embeddings: EmbeddingService = Depends(get_embedding_service)
-):
-    """
-    Compare HNSW index performance vs sequential scan
-
-    Request body is validated by PerfCompareRequest: ef_search reaches a
-    Postgres SET statement that cannot bind parameters, so it must be a
-    bounded int before it is interpolated.
-    """
-    try:
-        query = request.query
-        ef_search = request.ef_search
-        limit = request.limit
-
-        logger.info(f"🔬 Index performance comparison: '{query}' (ef_search={ef_search})")
-        
-        # Generate embedding
-        embedding = embeddings.generate_embedding(query)
-        
-        # Run comparison
-        results = await index_performance_service.compare_index_performance(
-            query=query,
-            embedding=embedding,
-            ef_search=ef_search,
-            limit=limit
-        )
-        
-        logger.info(f"✅ Comparison complete: HNSW={results['hnsw']['execution_time_ms']}ms, Sequential={results['sequential']['execution_time_ms']}ms")
-        
-        return results
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Performance comparison failed: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-async def performance_runtime(include_recent: bool = False):
-    """Return rolling aggregates of chat turn latency breakdowns.
-
-    Layer p50/p95, a cold-start histogram and per-tool p50 come from
-    ``services.performance_log``. An empty buffer is reported as empty
-    rather than filled with placeholder numbers.
-    """
-    try:
-        from services.performance_log import get_aggregates, get_recent_turns
-        agg = get_aggregates()
-        if include_recent:
-            agg = {**agg, "recent": get_recent_turns(limit=30)}
-        return agg
-    except Exception as e:
-        logger.warning(f"Performance runtime stats failed: {e}")
-        return {
-            "turn_count": 0,
-            "empty": True,
-            "error": "runtime_metrics_unavailable",
-        }
-
-
-@app.get("/api/performance/stats")
-async def get_index_stats():
-    """Get pgvector index statistics"""
-    try:
-        stats = await index_performance_service.get_index_stats()
-        return stats
-    except Exception as e:
-        logger.error(f"Failed to get index stats: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-# ============================================================================
-# CONTEXT MANAGEMENT ENDPOINTS
-# ============================================================================
-
-async def get_context_stats(session_id: Optional[str] = Query(default=None)):
-    """
-    Get context statistics for monitoring
-    
-    Returns comprehensive metrics for token usage, efficiency, and costs.
-    Demonstrates context-window management for the configured Bedrock model.
-    
-    Args:
-        session_id: Optional session ID for session-specific stats
-    """
-    try:
-        from services.context_manager import get_context_manager
-        
-        context_manager = get_context_manager()
-        stats = context_manager.get_context_stats()
-        
-        logger.info(f"📊 Context stats requested: {stats['current_tokens']:,} tokens, {stats['efficiency_score']:.1f}% efficiency")
-        
-        return stats
-        
-    except Exception as e:
-        logger.error(f"Failed to get context stats: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-async def clear_context(session_id: str = Query(...)):
-    """
-    Clear context for a session
-    
-    Useful for starting fresh conversations or freeing memory.
-    System prompts are preserved.
-    
-    Args:
-        session_id: Session ID to clear context for
-    """
-    try:
-        from services.context_manager import get_context_manager
-        
-        context_manager = get_context_manager()
-        context_manager.clear_context()
-        
-        logger.info(f"🗑️ Context cleared for session: {session_id}")
-        
-        return {
-            "status": "success",
-            "message": f"Context cleared for session {session_id}",
-            "session_id": session_id
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to clear context: {e}")
-        raise HTTPException(status_code=500, detail="internal_error")
-
-
-# ============================================================================
-# QUANTIZATION COMPARISON ENDPOINT
-# ============================================================================
-
-async def get_quantization_comparison():
-    """Compare full-precision vs quantized (SQ/BQ) index sizes"""
-    if not index_performance_service:
-        raise HTTPException(status_code=503, detail="Index performance service not initialized")
-    return await index_performance_service.get_quantization_comparison()
-
-
-async def get_filter_categories():
-    """Get distinct categories for iterative scan demo dropdown"""
-    if not index_performance_service:
-        raise HTTPException(status_code=503, detail="Index performance service not initialized")
-    categories = await index_performance_service.get_distinct_categories()
-    return {"categories": categories}
-
-
-async def compare_iterative_scan(request: PerfIterativeScanRequest):
-    """Compare filtered HNSW with and without iterative scan (pgvector 0.8.0+)"""
-    if not index_performance_service:
-        raise HTTPException(status_code=503, detail="Index performance service not initialized")
-    embedding = embedding_service.generate_embedding(request.query)
-    return await index_performance_service.compare_filtered_search(
-        query=request.query, embedding=embedding,
-        category_filter=request.category, ef_search=request.ef_search,
-        limit=request.limit,
-    )
-
-
-async def quantization_benchmark(request: PerfQuantizationRequest):
-    """Benchmark float32 vs halfvec vs binary quantization with live queries"""
-    if not index_performance_service:
-        raise HTTPException(status_code=503, detail="Index performance service not initialized")
-    embedding = embedding_service.generate_embedding(request.query)
-    return await index_performance_service.compare_quantization_benchmark(
-        query=request.query, embedding=embedding, limit=request.limit,
-    )
-
-
 # ---------------------------------------------------------------------------
 # Persona endpoints. The profiles and their guided prompts are files in data/;
 # the order counts are read from Aurora.
@@ -1747,221 +1464,10 @@ async def get_current_persona(session_id: Optional[str] = Query(default=None)):
     return {"persona": _persona_payload(profile, await _order_counts(), include_customer_id=True)}
 
 
-# ============================================================================
-# AGENT STATS ENDPOINT
-# ============================================================================
-
-@app.get("/api/agent/stats")
-async def get_agent_stats():
-    """Get session-level agent activity stats"""
-    if not chat_service:
-        raise HTTPException(status_code=503, detail="Chat service not initialized")
-    return chat_service.get_agent_stats()
-
-
-# ============================================================================
-# CACHE & COST ENDPOINTS
-# ============================================================================
-
-@app.get("/api/cache/stats")
-async def get_cache_stats():
-    """Get cache statistics — Valkey/in-memory + embedding cost data."""
-    from services.embeddings import get_cache_stats as get_embedding_stats
-    cache = get_cache()
-    result = cache.stats() if cache else {"mode": "unavailable"}
-    result["embedding"] = get_embedding_stats()
-    return result
-
-
-# ============================================================================
-# OPENTELEMETRY TRACING ENDPOINTS
-# ============================================================================
-
-async def get_tracing_status():
-    """Report only the in-process span capture this API can verify."""
-    try:
-        from opentelemetry import trace
-        from services import otel_trace_extractor
-
-        tracer_provider = trace.get_tracer_provider()
-        enabled = bool(otel_trace_extractor.OTEL_WORKING)
-        return {
-            "enabled": enabled,
-            "provider_type": type(tracer_provider).__name__,
-            "exporters": ["in-memory"] if enabled else [],
-            "scope": "in-process Strands execution",
-            "reason": (
-                None
-                if enabled
-                else otel_trace_extractor.OTEL_FAILURE_REASON
-            ),
-            "managed_runtime": (
-                "AgentCore unified telemetry is verified separately by the "
-                "managed provisioning receipt."
-            ),
-        }
-    except Exception as e:
-        logger.warning("Tracing status fetch failed: %s", e)
-        return {"enabled": False, "error": "tracing_status_unavailable"}
-
-
-async def get_trace_waterfall(session_id: Optional[str] = Query(None)):
-    """Get waterfall timing data from captured OTEL spans.
-
-    Always returns HTTP 200 with a structured payload. When OTEL is not
-    wired correctly the payload carries ``otel_enabled: False`` plus a
-    ``reason`` string — the frontend renders a banner instead of the
-    waterfall. See docs/troubleshooting-otel.md.
-    """
-    try:
-        from services.otel_trace_extractor import get_waterfall_data
-        return get_waterfall_data(session_id=session_id)
-    except Exception:
-        logger.exception("get_waterfall_data failed")
-        return {
-            "spans": [],
-            "totalMs": 0,
-            "specialistRoute": "",
-            "waterfall": [],
-            "span_count": 0,
-            "otel_enabled": False,
-            "reason": (
-                "Telemetry unavailable. See docs/troubleshooting-otel.md."
-            ),
-        }
-
-
-async def get_tracing_info():
-    """Describe the verified local trace path without inferring managed state."""
-    from services import otel_trace_extractor
-
-    enabled = bool(otel_trace_extractor.OTEL_WORKING)
-    return {
-        "tracing_enabled": enabled,
-        "sdk": "Strands OpenTelemetry",
-        "exporters": {
-            "in_memory": {
-                "enabled": enabled,
-                "description": "Local spans used by the Pellier waterfall",
-            },
-            "agentcore_unified": {
-                "enabled": None,
-                "description": (
-                    "Managed Runtime telemetry is proved by the deployment "
-                    "receipt, not inferred by this process."
-                ),
-            },
-        },
-        "captured_data": (
-            [
-                "Agent invocations and routing",
-                "LLM calls with token usage",
-                "Tool executions with results",
-                "End-to-end latency",
-            ]
-            if enabled
-            else []
-        ),
-        "reason": None if enabled else otel_trace_extractor.OTEL_FAILURE_REASON,
-    }
-
-
-# ============================================================================
-# GUARDRAILS ENDPOINT
-# ============================================================================
-
-async def check_guardrails(request: Request):
-    """Demo endpoint to test Bedrock Guardrails on input/output text.
-
-    Also records the decision in ``services/guardrails_log``, the
-    per-session ring buffer of guardrail outcomes.
-    """
-    import time as _time
-    from services.guardrails import GuardrailsService
-    from services.guardrails_log import record_guardrail
-
-    body = await request.json()
-    text = body.get("text", "")
-    source = body.get("source", "INPUT")
-    session_id = body.get("session_id", "") or ""
-
-    svc = GuardrailsService()
-    t0 = _time.perf_counter()
-    if source == "OUTPUT":
-        result = svc.check_output(text)
-    else:
-        result = svc.check_input(text)
-    latency_ms = int((_time.perf_counter() - t0) * 1000)
-
-    record_guardrail(
-        session_id=session_id or None,
-        source=source,
-        action=result.get("action", "NONE"),
-        allowed=result.get("allowed", True),
-        violations=result.get("violations", []),
-        latency_ms=latency_ms,
-        text_preview=text,
-        mode=result.get("mode"),
-    )
-
-    pii = svc.detect_pii(text)
-    return {
-        **result,
-        "pii_detection": pii,
-        "source": source,
-        "configured": svc.is_configured,
-        "latency_ms": latency_ms,
-    }
-
-
-async def guardrails_decisions(session_id: str = "", limit: int = 50):
-    """Return recent guardrail outcomes for a session.
-
-    These are Bedrock content filter outcomes on the prose side, distinct
-    from Cedar's tool-call decisions at the Gateway.
-    """
-    try:
-        from services.guardrails_log import get_guardrails
-        decisions = get_guardrails(session_id or None, limit=max(1, min(500, int(limit))))
-        return {"session_id": session_id or "_anonymous", "decisions": decisions, "count": len(decisions)}
-    except Exception as e:
-        logger.warning(f"Guardrails decisions fetch failed: {e}")
-        return {
-            "session_id": session_id,
-            "decisions": [],
-            "count": 0,
-            "error": "guardrail_history_unavailable",
-        }
-
-
-# ============================================================================
-# AGENTCORE POLICY ENDPOINTS (Cedar)
-# ============================================================================
-
-async def list_policies(operator: Dict[str, Any] = Depends(require_operator)):
-    """List the Cedar policies attached to the managed AgentCore Policy
-    engine (Gateway-enforced, ENFORCE mode).
-
-    Reads the managed engine via boto3 ``bedrock-agentcore-control``
-    ``list_policies`` keyed on ``AGENTCORE_POLICY_ENGINE_ID``. The old
-    local fake-Cedar ``PolicyService`` was removed — enforcement is now
-    entirely at the Gateway, so this is a pure read of the managed
-    engine's Cedar statements.
-    """
-    try:
-        from services.managed_policy import list_managed_policies
-        result = list_managed_policies()
-        return {"policies": result.get("policies", []), "source": result.get("source")}
-    except Exception as e:
-        logger.warning(f"Failed to list policies: {e}")
-        return {"policies": [], "error": "managed_policy_unavailable"}
-
-
-# NOTE: the former POST /api/agentcore/policy/check route was removed.
-# It evaluated actions against the local fake-Cedar engine (also removed).
-# The managed AgentCore Policy engine evaluates Cedar at the Gateway at
-# tool-call time and exposes no client-side "evaluate this action" API,
-# so there is nothing for a runtime check endpoint to call.
+# The status routes are anonymous, so the AWS probe sits behind a short cache and
+# the answer carries no resource identifiers.
+_STATUS_CACHE_SECONDS = 5.0
+_memory_status_cache: list = [0.0, None]
 
 
 @app.get("/api/agentcore/memory/status")
@@ -1976,7 +1482,13 @@ async def memory_status():
     try:
         from services.agentcore_memory import probe_memory_backend_status
 
-        return await asyncio.to_thread(probe_memory_backend_status)
+        now = time.monotonic()
+        cached_at, cached = _memory_status_cache
+        if cached is None or now - cached_at >= _STATUS_CACHE_SECONDS:
+            probed = await asyncio.to_thread(probe_memory_backend_status)
+            cached = {k: v for k, v in probed.items() if k != "memory_id"}
+            _memory_status_cache[:] = [now, cached]
+        return dict(cached)
     except Exception as e:
         logger.warning(f"Memory status fetch failed: {e}")
         return {
@@ -2002,13 +1514,11 @@ async def gateway_status():
             return {
                 "configured": True,
                 "source": "mcp-discovery",
-                "gateway_url": gateway_url,
                 "fallback_reason": None,
             }
         return {
             "configured": False,
             "source": "in-process-imports",
-            "gateway_url": "",
             "fallback_reason": "AGENTCORE_GATEWAY_URL env var not set",
         }
     except Exception as e:
@@ -2018,136 +1528,6 @@ async def gateway_status():
             "source": "in-process-imports",
             "error": "gateway_status_unavailable",
         }
-
-
-# ============================================================================
-# AGENTCORE ENDPOINTS
-# ============================================================================
-
-async def agentcore_memories(user=Depends(get_current_user)):
-    """Get stored memories for authenticated user"""
-    if not user:
-        return {"memories": [], "message": "Sign in to view memories"}
-    try:
-        from services.agentcore_memory import get_user_memories
-        memories = get_user_memories(user["sub"])
-        return {"memories": memories, "user": user["email"]}
-    except Exception as e:
-        logger.warning(f"Failed to fetch memories: {e}")
-        return {"memories": [], "error": "managed_memory_unavailable"}
-
-
-async def agentcore_gateway_tools(user=Depends(get_current_user)):
-    """List tools registered in the AgentCore Gateway MCP server.
-
-    JWT passthrough: forwards the caller's Cognito token so the live tool
-    list is fetched under their identity. Anonymous callers get [] from a
-    JWT-protected Gateway (the "skipped" state), which is intentional.
-    """
-    try:
-        from services.agentcore_gateway import list_gateway_tools
-        _token = (user or {}).get("access_token") if isinstance(user, dict) else None
-        tools = list_gateway_tools(access_token=_token)
-        return {"tools": tools, "gateway_url": settings.AGENTCORE_GATEWAY_URL or "not configured"}
-    except Exception as e:
-        logger.warning(f"Failed to list gateway tools: {e}")
-        return {"tools": [], "error": "managed_gateway_unavailable"}
-
-
-@app.get("/api/agentcore/runtime/status")
-async def agentcore_runtime_status():
-    """Return the Runtime control-plane state without claiming an invocation.
-
-    An AgentCore Runtime ARN being configured does not prove that a Storefront
-    turn used Runtime. The control plane can prove the resource's lifecycle
-    state; a managed-turn receipt with ``rail=gateway-mcp`` proves invocation.
-    Keep those facts separate in the response so no reader mistakes
-    configuration for execution.
-    """
-    runtime_endpoint = settings.AGENTCORE_RUNTIME_ENDPOINT or ""
-    managed_rail_requested = bool(settings.USE_AGENTCORE_RUNTIME)
-    if not runtime_endpoint:
-        return {
-            "configured": False,
-            "source": "not-configured",
-            "runtime_id": "",
-            "runtime_version": None,
-            "resource_status": None,
-            "ready": False,
-            "managed_rail_requested": managed_rail_requested,
-            "storefront_rail": "in-process",
-            "fallback_reason": "AGENTCORE_RUNTIME_ENDPOINT env var not set",
-        }
-
-    runtime_id = runtime_endpoint.rsplit("/", 1)[-1]
-    try:
-        import boto3
-
-        client = boto3.client(
-            "bedrock-agentcore-control",
-            region_name=settings.aws_region_resolved,
-        )
-        runtime = await asyncio.to_thread(
-            client.get_agent_runtime,
-            agentRuntimeId=runtime_id,
-        )
-        resource_status = str(runtime.get("status") or "UNKNOWN")
-        return {
-            "configured": True,
-            "source": "agentcore-control-plane",
-            "runtime_id": runtime_id,
-            "runtime_version": runtime.get("agentRuntimeVersion"),
-            "resource_status": resource_status,
-            "ready": resource_status == "READY",
-            "managed_rail_requested": managed_rail_requested,
-            "storefront_rail": (
-                "runtime" if managed_rail_requested else "in-process"
-            ),
-            "fallback_reason": None,
-        }
-    except Exception as exc:
-        logger.warning(
-            "AgentCore Runtime control-plane status check failed: %s",
-            exc.__class__.__name__,
-        )
-        return {
-            "configured": True,
-            "source": "agentcore-control-plane",
-            "runtime_id": runtime_id,
-            "runtime_version": None,
-            "resource_status": None,
-            "ready": False,
-            "managed_rail_requested": managed_rail_requested,
-            "storefront_rail": (
-                "runtime" if managed_rail_requested else "in-process"
-            ),
-            "fallback_reason": (
-                "AgentCore GetAgentRuntime verification failed: "
-                f"{exc.__class__.__name__}"
-            ),
-        }
-
-
-# ============================================================================
-# AGENTCORE GOING FURTHER ENDPOINTS
-# ============================================================================
-
-async def get_episodic_memories(query: str, user=Depends(get_current_user)):
-    """Search episodic memories for relevant past experiences"""
-    if not user:
-        return {"episodes": [], "message": "Sign in to search episodic memories"}
-    try:
-        from services.agentcore_memory import search_episodic_memories
-        episodes = search_episodic_memories(user["sub"], query)
-        return {"episodes": episodes, "query": query, "user": user["email"]}
-    except Exception as e:
-        logger.warning(f"Failed to search episodic memories: {e}")
-        return {"episodes": [], "error": "episodic_memory_unavailable"}
-
-
-# NOTE: the former POST /api/agentcore/policy/create route was removed.
-# Cedar policy creation is now owned by the declarative AgentCore CLI project,
-# not a runtime endpoint.
 
 
 # ============================================================================

@@ -106,12 +106,9 @@ class VectorSearch:
         start_time = time.time()
         async with self.db.get_connection() as conn:
             async with conn.cursor() as cur:
-                try:
-                    await cur.execute(
-                        f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
-                    )
-                except Exception:
-                    logger.debug("hnsw.ef_search not supported; skipping per-query tuning")
+                await cur.execute(
+                    f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
+                )
                 if iterative_scan:
                     await cur.execute(
                         "SET LOCAL hnsw.iterative_scan = 'strict_order'"
@@ -125,7 +122,7 @@ class VectorSearch:
         # The logger redacts the embedding vector; we never interpolate values
         # into the SQL string itself.
         try:
-            get_query_logger().queries.append(
+            get_query_logger().record(
                 QueryLog(
                     query_type="vector_search",
                     sql=sql,
@@ -308,12 +305,9 @@ class VectorSearch:
         start_time = time.time()
         async with self.db.get_connection() as conn:
             async with conn.cursor() as cur:
-                try:
-                    await cur.execute(
-                        f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
-                    )
-                except Exception:
-                    logger.debug("hnsw.ef_search not supported; skipping per-query tuning")
+                await cur.execute(
+                    f"SET LOCAL hnsw.ef_search = {ef_search_sql}"
+                )
                 # Filtered HNSW always benefits from iterative_scan.
                 await cur.execute(
                     "SET LOCAL hnsw.iterative_scan = 'strict_order'"
@@ -323,7 +317,7 @@ class VectorSearch:
                 results = [dict(r) for r in rows]
 
         try:
-            get_query_logger().queries.append(
+            get_query_logger().record(
                 QueryLog(
                     query_type=query_type,
                     sql=sql,

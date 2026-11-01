@@ -263,3 +263,21 @@ def test_verify_iterative_scan_warns_when_off(
     ]
     assert warnings, caplog.records
     assert "off" in warnings[0].getMessage()
+
+
+def test_pool_configure_fails_fast_when_ef_search_set_fails() -> None:
+    """A failed SET leaves the transaction aborted; configure must not carry on."""
+    conn = FakeConnection()
+    original = conn._cursor.execute
+
+    async def failing(sql: str, params: Any = None) -> None:
+        if "hnsw.ef_search" in sql:
+            raise RuntimeError("unrecognized configuration parameter")
+        await original(sql, params)
+
+    conn._cursor.execute = failing  # type: ignore[method-assign]
+
+    with pytest.raises(RuntimeError, match="unrecognized configuration parameter"):
+        _run(_configure_connection(conn))  # type: ignore[arg-type]
+
+    assert conn.commits == 0

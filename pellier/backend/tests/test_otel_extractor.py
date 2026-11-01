@@ -174,33 +174,6 @@ def test_extract_trace_returns_orchestrator_specialist_and_tool_spans(
     )
 
 
-@pytest.mark.asyncio
-async def test_trace_status_reports_only_verified_in_process_capture(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import app
-    from services import otel_trace_extractor as extractor
-
-    monkeypatch.setattr(extractor, "OTEL_WORKING", False)
-    monkeypatch.setattr(
-        extractor,
-        "OTEL_FAILURE_REASON",
-        "test provider is not SDK-backed",
-    )
-
-    status = await app.get_tracing_status()
-    info = await app.get_tracing_info()
-
-    assert status["enabled"] is False
-    assert status["exporters"] == []
-    assert status["reason"] == "test provider is not SDK-backed"
-    assert "verified separately" in status["managed_runtime"]
-    assert info["tracing_enabled"] is False
-    assert info["exporters"]["in_memory"]["enabled"] is False
-    assert info["exporters"]["agentcore_unified"]["enabled"] is None
-    assert info["captured_data"] == []
-
-
 # ---------------------------------------------------------------------------
 # Requirement 2.5.4 — explicit shape sanity check
 # ---------------------------------------------------------------------------
@@ -426,28 +399,6 @@ def test_missing_turn_does_not_reuse_session_history(
     assert len(otel_spans.get_finished_spans()) == 3
 
 
-def test_waterfall_filters_by_session_and_keeps_trace_children(
-    otel_spans: InMemorySpanExporter,
-) -> None:
-    """The inspector endpoint uses the same trace-id expansion as the
-    SSE payload."""
-    from services.otel_trace_extractor import get_waterfall_data
-
-    _emit_session_trace("sess-water-a", "search")
-    _emit_session_trace("sess-water-b", "inventory")
-
-    trace = get_waterfall_data(session_id="sess-water-a")
-
-    assert trace["otel_enabled"] is True
-    assert trace["span_count"] == 3
-    assert trace["specialistRoute"] == "search"
-    assert {
-        s["attributes"].get("session.id")
-        for s in trace["spans"]
-    } == {"sess-water-a", None}
-    assert otel_spans.get_finished_spans()
-
-
 def test_agentcore_runtime_reads_only_its_turn_without_draining_other_traces(
     otel_spans: InMemorySpanExporter,
     stubbed_chat,
@@ -521,6 +472,33 @@ def test_agentcore_runtime_keeps_latest_trace_by_session(
     assert second_trace["spans"]
     assert rt.get_latest_trace("sess-keyed-1") == first_trace
     assert rt.get_latest_trace() == second_trace
+
+
+def test_inprocess_trace_reaches_a_signed_in_principal_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+    otel_spans: InMemorySpanExporter,
+    stubbed_chat,
+) -> None:
+    """``/api/agent/chat`` reads the done trace by session AND verified principal;
+    the in-process rail SHALL answer that lookup, not an empty trace."""
+    import asyncio
+
+    import services.agentcore_runtime as rt
+
+    monkeypatch.setattr(rt, "_latest_traces_by_session", OrderedDict())
+    monkeypatch.setattr(rt, "_managed_traces_by_principal_session", OrderedDict())
+
+    asyncio.run(
+        rt.run_agent(
+            message="signed-in request",
+            session_id="sess-principal",
+            user_id="user-1",
+        )
+    )
+
+    trace = rt.get_latest_trace("sess-principal", principal_sub="user-1")
+    assert trace["spans"], "a signed-in shopper's done.trace SHALL NOT be empty"
+    assert rt.get_latest_trace("sess-principal", principal_sub="user-2")["spans"] == []
 
 
 def test_agentcore_runtime_bounds_latest_trace_cache(

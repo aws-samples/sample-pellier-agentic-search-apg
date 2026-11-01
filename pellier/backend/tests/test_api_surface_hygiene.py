@@ -31,6 +31,10 @@ RETIRED_DEMO_PATHS = {
     "/api/agentcore/gateway/tools",
     "/api/agentcore/memories/episodes",
     "/api/agentcore/analytics",
+    "/api/performance/stats",
+    "/api/agent/stats",
+    "/api/cache/stats",
+    "/api/agentcore/runtime/status",
     "/api/operator/actions/issue-credit",
     "/api/operator/actions/resolve-return",
 }
@@ -50,8 +54,6 @@ def test_retired_demo_routes_are_not_shipped() -> None:
 def test_supported_status_routes_remain_for_bootstrap_health_checks() -> None:
     assert {
         "/api/storefront/catalog-stats",
-        "/api/performance/stats",
         "/api/agentcore/gateway/status",
         "/api/agentcore/memory/status",
-        "/api/agentcore/runtime/status",
     } <= _published_paths()

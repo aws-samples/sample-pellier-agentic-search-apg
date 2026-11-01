@@ -112,10 +112,6 @@ def service(monkeypatch: pytest.MonkeyPatch) -> EnhancedChatService:
     svc.model_id = "test-model"
     svc.strands_available = True
     svc.db_service = None
-    svc._agent_stats = {
-        "query_count": 0, "products_found": 0, "agent_calls_by_type": {},
-        "total_response_time_ms": 0, "avg_response_time_ms": 0,
-    }
     monkeypatch.setitem(
         sys.modules,
         "services.otel_trace_extractor",

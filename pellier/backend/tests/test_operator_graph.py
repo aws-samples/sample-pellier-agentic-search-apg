@@ -599,7 +599,7 @@ def test_a_long_advisor_line_without_a_sentence_end_stops_at_a_word() -> None:
 def test_a_failed_proposal_leaves_the_requests_open(graph_runtime, order_ids) -> None:
     orders = JESSICA_ORDERS + [{
         "order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
-        "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
+        "category": "Accessories", "quantity": 2, "amount_paid_cents": 5960000,
         "placed_at": None, "return_status": "received", "store_credit_id": None,
     }]
     _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
@@ -668,7 +668,7 @@ def test_the_answer_carries_the_brief_and_the_proposal(graph_runtime) -> None:
 def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> None:
     orders = JESSICA_ORDERS + [{
         "order_id": 399, "product_id": "5", "name": "Watch", "brand": "Pellier",
-        "category": "Accessories", "quantity": 400, "amount_paid_cents": 14900,
+        "category": "Accessories", "quantity": 2, "amount_paid_cents": 5960000,
         "placed_at": None, "return_status": "received", "store_credit_id": None,
     }]
     _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
@@ -678,6 +678,15 @@ def test_a_proposal_above_the_safety_ceiling_opens_no_review(graph_runtime) -> N
     result = _investigate(run, [])
     assert run.reviews == []
     assert result.proposal is None
+
+
+def test_the_credit_is_the_amounts_paid_not_multiplied_by_quantity(graph_runtime) -> None:
+    orders = [dict(JESSICA_ORDERS[0], quantity=2), JESSICA_ORDERS[1]]
+    _FakeAgent.scripts[GRAPH.ADVISOR_NODE] = [
+        ("propose_store_credit", {"order_ids": [301, 302], "reason": "Two items went back."}),
+    ]
+    result = _investigate(_Run(orders), [])
+    assert result.proposal is not None and result.proposal.amount_cents == 6400 + 3600
 
 
 def test_an_order_from_another_client_cannot_be_credited(graph_runtime) -> None:

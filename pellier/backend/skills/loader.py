@@ -62,6 +62,7 @@ def load_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
 
     registry = SkillRegistry(resolved)
     skills = registry.load()
+    _require_fixed_skills(registry)
 
     if skills:
         summary = ", ".join(
@@ -82,6 +83,23 @@ def load_registry(skills_dir: Optional[Path] = None) -> SkillRegistry:
 
     _registry = registry
     return registry
+
+
+def _require_fixed_skills(registry: SkillRegistry) -> None:
+    """Fail startup when a skill an agent is assigned did not load.
+
+    ``SkillRegistry.load`` logs and skips a SKILL.md that fails to parse, so
+    without this check an agent would quietly start without its skill.
+    """
+    from .assignments import FIXED_SKILLS
+
+    required = {name for names in FIXED_SKILLS.values() for name in names}
+    missing = sorted(name for name in required if name not in registry)
+    if missing:
+        raise RuntimeError(
+            f"Required skills did not load from {registry.skills_dir}: {', '.join(missing)}. "
+            "Check each skills/<name>/SKILL.md for a parse warning earlier in the log."
+        )
 
 
 def get_registry() -> SkillRegistry:

@@ -40,15 +40,12 @@ unset it falls back to a process-local ``dict`` so
 ``POST /api/user/preferences`` and ``POST /api/agent/chat`` work
 end-to-end offline — the same fail-soft pattern used by the runtime
 bridge in ``agentcore_runtime.py``.
-
-The legacy helper functions ``get_user_memories`` and
-``search_episodic_memories`` are retained outside the reference class
-because ``app.py`` imports them directly for older memory demo endpoints.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple
 
 from config import settings
@@ -102,7 +99,31 @@ def _store_key(actor_id: str, session_id: str) -> str:
 BACKEND_AGENTCORE = "agentcore"
 BACKEND_PROCESS_LOCAL = "process_local"
 
-_SESSION_STORE: Dict[str, List[Dict[str, Any]]] = {}
+_SESSION_STORE_MAX_SESSIONS = 500
+
+
+class _BoundedSessionStore(OrderedDict):
+    """Process-local session turns, evicting the least recently written session."""
+
+    def __init__(self, max_sessions: int = _SESSION_STORE_MAX_SESSIONS) -> None:
+        super().__init__()
+        self._max_sessions = max_sessions
+
+    def __setitem__(self, key: str, value: List[Dict[str, Any]]) -> None:
+        super().__setitem__(key, value)
+        self.move_to_end(key)
+        while len(self) > self._max_sessions:
+            self.popitem(last=False)
+
+    def setdefault(self, key: str, default: Any = None) -> List[Dict[str, Any]]:
+        if key not in self:
+            self[key] = default
+        else:
+            self.move_to_end(key)
+        return self[key]
+
+
+_SESSION_STORE: Dict[str, List[Dict[str, Any]]] = _BoundedSessionStore()
 _PREFS_STORE: Dict[str, Dict[str, Any]] = {}
 
 # Module-level SDK import status. Each storefront turn constructs a
@@ -781,111 +802,3 @@ class AgentCoreMemory:
                 remembered.append({"record_id": record_id, "preference": str(pref).strip()})
         return remembered
 # === REFERENCE: AgentCore Memory (STM) — END ===
-
-
-
-# ---------------------------------------------------------------------------
-# Legacy helpers
-# ---------------------------------------------------------------------------
-#
-# These are support helpers outside the ``AgentCoreMemory`` class.
-# ``app.py`` imports them directly for the older AgentCore Memory demo
-# endpoints (``/api/user/memories``, episodic memory panel). They stay out
-# of the reference block so ``AgentCoreMemory`` can evolve without breaking
-# that demo surface.
-
-
-def get_user_memories(user_id: str) -> List[Dict[str, Any]]:
-    """Retrieve stored memories / preferences for a user via the raw API."""
-    if not settings.AGENTCORE_MEMORY_ID:
-        return []
-
-    try:
-        import boto3
-
-        # Data-plane op is `list_memory_records` (keyed by memoryId + namespace);
-        # there is NO `retrieve_memories` op (the prior spelling silently failed
-        # to []). Long-term records only exist on a memory created WITH an
-        # extraction strategy; Pellier's is STM-only, so this returns [] in
-        # practice — kept correct for when a strategy is added.
-        client = boto3.client("bedrock-agentcore", region_name=settings.aws_region_resolved)
-        response = client.list_memory_records(
-            memoryId=settings.AGENTCORE_MEMORY_ID,
-            namespace=f"user-{user_id}",
-            maxResults=20,
-        )
-        memories = []
-        for item in response.get("memoryRecordSummaries", response.get("memoryRecords", [])):
-            memories.append(
-                {
-                    "id": item.get("memoryRecordId", ""),
-                    "type": item.get("memoryStrategyId", "unknown"),
-                    "content": item.get("content", ""),
-                    "created_at": str(item.get("createdAt", "")),
-                    "metadata": item.get("metadata", {}),
-                }
-            )
-        return memories
-
-    except ImportError:
-        logger.warning("bedrock-agentcore not installed")
-        return []
-    except Exception as e:
-        logger.warning("Failed to retrieve memories: %s", e)
-        return []
-
-
-def search_episodic_memories(
-    user_id: str,
-    query: str,
-    session_id: Optional[str] = None,
-    top_k: int = 5,
-) -> List[Dict[str, Any]]:
-    """Search episodic memories for relevant past experiences.
-
-    Episodic memory captures structured experiences (Goal, Reasoning,
-    Actions, Outcome, Reflection) so agents can learn from past
-    interactions and tune decisions over time.
-    """
-    if not settings.AGENTCORE_MEMORY_ID:
-        return []
-
-    try:
-        from bedrock_agentcore.memory import MemorySessionManager
-
-        mgr = MemorySessionManager(
-            memory_id=settings.AGENTCORE_MEMORY_ID,
-            region_name=settings.aws_region_resolved,
-        )
-        memory_session = mgr.create_memory_session(
-            actor_id=user_id,
-            session_id=session_id or "search",
-        )
-
-        records = memory_session.search_long_term_memories(
-            query=query,
-            namespace_prefix="/",
-            top_k=top_k,
-        )
-
-        episodes = []
-        for record in records:
-            content = record.get("content", {})
-            episodes.append(
-                {
-                    "text": content.get("text", ""),
-                    "type": record.get("memoryType", "unknown"),
-                    "score": record.get("score", 0),
-                    "created_at": str(record.get("createdAt", "")),
-                }
-            )
-
-        logger.info("Found %d episodic memories for query: %s", len(episodes), query[:50])
-        return episodes
-
-    except ImportError:
-        logger.warning("bedrock-agentcore not installed — episodic memory unavailable")
-        return []
-    except Exception as e:
-        logger.warning("Episodic memory search failed: %s", e)
-        return []

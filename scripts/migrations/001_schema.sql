@@ -253,6 +253,7 @@ CREATE TABLE pellier.orders (
     customer_id       text NOT NULL REFERENCES pellier.customers (id),
     product_id        text NOT NULL REFERENCES pellier.product_catalog ("productId"),
     quantity          integer NOT NULL DEFAULT 1 CHECK (quantity > 0),
+    -- the order row's line total (already covers quantity), not a unit price
     amount_paid_cents integer NOT NULL CHECK (amount_paid_cents >= 0),
     currency          char(3) NOT NULL DEFAULT 'USD',
     ship_to           text NOT NULL,

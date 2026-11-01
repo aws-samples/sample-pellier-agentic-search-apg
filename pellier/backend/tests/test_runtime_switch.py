@@ -552,3 +552,46 @@ def test_runtime_session_encoding_cannot_be_supplied_as_an_alias() -> None:
     assert rt._runtime_session_id_for("short", "principal-b") != encoded
     assert rt._runtime_session_id_for(None) != rt._runtime_session_id_for(None)
     assert len(rt._runtime_session_id_for("é" * 300)) <= 256
+
+
+@pytest.mark.parametrize(
+    ("status", "expected_code"),
+    [
+        (401, "authentication_required"),
+        (403, "authentication_required"),
+        (429, "runtime_unavailable"),
+        (500, "runtime_unavailable"),
+        (503, "runtime_unavailable"),
+    ],
+)
+def test_runtime_http_status_maps_to_the_right_error_code(
+    monkeypatch: pytest.MonkeyPatch, status: int, expected_code: str
+) -> None:
+    """A rejected token is an authentication failure, not an unavailable Runtime."""
+    import asyncio
+    import io
+    import urllib.error
+    import urllib.request
+
+    import services.agentcore_runtime as rt
+
+    def _reject(*args: Any, **kwargs: Any) -> None:
+        raise urllib.error.HTTPError(
+            "https://runtime.example/invocations", status, "rejected", {}, io.BytesIO(b"{}")
+        )
+
+    monkeypatch.setattr(urllib.request, "urlopen", _reject)
+    monkeypatch.setattr(
+        rt.settings,
+        "AGENTCORE_RUNTIME_ENDPOINT",
+        "arn:aws:bedrock-agentcore:us-east-1:acct:runtime/pellier-abc",
+    )
+
+    with pytest.raises(rt.ManagedRuntimeError) as exc:
+        asyncio.run(
+            rt.run_agent_on_runtime(
+                message="who am I", session_id="sess-http", user_id="user-1", auth_token="jwt-abc"
+            )
+        )
+
+    assert exc.value.code == expected_code

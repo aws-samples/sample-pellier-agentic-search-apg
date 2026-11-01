@@ -546,9 +546,7 @@ def _order_ids(values: Sequence[Any]) -> List[int]:
 
 
 def _paid_total(rows: Sequence[Dict[str, Any]]) -> int:
-    return sum(
-        int(row.get("amount_paid_cents") or 0) * int(row.get("quantity") or 1) for row in rows
-    )
+    return sum(int(row.get("amount_paid_cents") or 0) for row in rows)
 
 
 def credit_reason(rows: Sequence[Dict[str, Any]]) -> str:

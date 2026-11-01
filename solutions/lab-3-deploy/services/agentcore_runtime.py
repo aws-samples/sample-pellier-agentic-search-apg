@@ -422,6 +422,8 @@ async def _run_orchestrator_inprocess(
             session_id=session_id, turn_id=turn_id
         )
         _store_latest_trace(session_id, _latest_trace)
+        if user_id:
+            _store_managed_trace(session_id, user_id, _latest_trace)
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("trace extraction skipped: %s", exc)
 
@@ -619,9 +621,11 @@ async def run_agent_on_runtime_result(
         )
     except ManagedRuntimeError:
         raise
-    except urllib.error.HTTPError as exc:  # pragma: no cover - SDK error path
+    except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:500]
         logger.error("AgentCore Runtime invoke HTTP %s: %s", exc.code, detail)
+        if exc.code in (401, 403):
+            raise ManagedRuntimeError("authentication_required") from exc
         raise ManagedRuntimeError("runtime_unavailable") from exc
     except Exception as exc:  # pragma: no cover - SDK error path
         logger.error("AgentCore Runtime invocation failed: %s", exc)

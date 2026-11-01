@@ -44,7 +44,7 @@ def mock_db_with_loop(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
 
     import asyncio
 
-    def _sync_run(coro: Any, tool: str = "") -> Any:
+    def _sync_run(coro: Any, tool: str = "", turn: str = "") -> Any:
         # Each call gets its own loop — we never have a "running" loop
         # in pytest's default config, so this is safe.
         return asyncio.new_event_loop().run_until_complete(coro)
@@ -137,7 +137,7 @@ class TestRecordAllow:
             tool_audit_writer, "_db_service", MagicMock(fetch_one=MagicMock())
         )
 
-        def _raise(_: Any, tool: str = "") -> None:
+        def _raise(_: Any, tool: str = "", turn: str = "") -> None:
             raise RuntimeError("insert unavailable")
 
         monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
@@ -234,7 +234,7 @@ class TestRecordAfter:
         )
         tool_audit_writer._pending_audits["abc-123"] = 99
 
-        def _raise(_: Any, tool: str = "") -> None:
+        def _raise(_: Any, tool: str = "", turn: str = "") -> None:
             raise RuntimeError("update unavailable")
 
         monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
@@ -268,6 +268,42 @@ def test_async_bridge_failure_is_visible_at_warning(
         assert tool_audit_writer._run_async(object()) is None
 
     assert "tool_audit _run_async: loop unavailable" in caplog.text
+
+
+def test_a_timed_out_audit_insert_is_cancelled_and_warned(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A write that passes the deadline must not keep running to insert an orphan row."""
+    import asyncio
+    import threading
+
+    loop = asyncio.new_event_loop()
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+    started = threading.Event()
+    cancelled = threading.Event()
+
+    async def slow_insert() -> None:
+        started.set()
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            cancelled.set()
+            raise
+
+    monkeypatch.setattr(tool_audit_writer, "_main_loop", loop)
+    monkeypatch.setattr(tool_audit_writer, "_AUDIT_TIMEOUT_SECONDS", 0.2)
+    try:
+        with caplog.at_level(logging.WARNING, logger=tool_audit_writer.__name__):
+            result = tool_audit_writer._run_async(slow_insert(), tool="check_stock", turn="turn-7")
+        assert result is None
+        assert cancelled.wait(2.0), "the coroutine kept running after the deadline"
+    finally:
+        loop.call_soon_threadsafe(loop.stop)
+        thread.join(2.0)
+        loop.close()
+
+    assert "check_stock" in caplog.text and "turn-7" in caplog.text
 
 
 class TestFillOnceAlignment:
@@ -304,7 +340,7 @@ class TestFillOnceAlignment:
         )
         tool_audit_writer._pending_audits["abc-123"] = 12345
 
-        def _raise(_: Any, tool: str = "") -> None:
+        def _raise(_: Any, tool: str = "", turn: str = "") -> None:
             raise RuntimeError("tool_audit row 12345 already finalized")
 
         monkeypatch.setattr(tool_audit_writer, "_run_async", _raise)
@@ -346,6 +382,9 @@ class TestUnauditedExecutionIsLoud:
         class _Future:
             def result(self, timeout: float) -> None:
                 raise concurrent.futures.TimeoutError()
+
+            def cancel(self) -> bool:
+                return True
 
         monkeypatch.setattr(tool_audit_writer, "_main_loop", object())
         monkeypatch.setattr(

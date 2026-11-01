@@ -15,6 +15,7 @@ the same way: ``store_tools.<tool>(_run_sql, ...)``.
 executes an approved credit through ``services.governed_execution``.
 """
 from strands import tool
+import concurrent.futures
 import contextvars
 import json
 import asyncio
@@ -48,6 +49,18 @@ def set_main_loop(loop):
     global _main_loop
     _main_loop = loop
 
+_RUN_ASYNC_TIMEOUT_SECONDS = 30
+
+
+def _wait_on(future):
+    """Block for ``future``'s result, cancelling it if the deadline passes."""
+    try:
+        return future.result(timeout=_RUN_ASYNC_TIMEOUT_SECONDS)
+    except concurrent.futures.TimeoutError:
+        future.cancel()
+        raise
+
+
 def _run_async(coro):
     """Run async coroutine from a sync context (e.g. Strands @tool in a background thread).
 
@@ -68,8 +81,7 @@ def _run_async(coro):
         return await asyncio.get_running_loop().create_task(coro, context=ctx)
 
     if _main_loop and _main_loop.is_running():
-        future = asyncio.run_coroutine_threadsafe(_run_in_ctx(), _main_loop)
-        return future.result(timeout=30)
+        return _wait_on(asyncio.run_coroutine_threadsafe(_run_in_ctx(), _main_loop))
     # Fallback for standalone / test contexts where no main loop is set.
     # Use get_running_loop() (not the deprecated get_event_loop()): it raises
     # RuntimeError exactly when there is no running loop, which is the case we
@@ -79,9 +91,12 @@ def _run_async(coro):
     except RuntimeError:
         loop = None
     if loop is not None:
-        # A loop is already running on this thread — hand the coroutine to it.
-        future = asyncio.run_coroutine_threadsafe(_run_in_ctx(), loop)
-        return future.result(timeout=30)
+        # Blocking this thread on a coroutine scheduled onto its own loop never returns.
+        coro.close()
+        raise RuntimeError(
+            "_run_async called from a running event loop thread; await the "
+            "coroutine or call it from a worker thread"
+        )
     # No running loop: create a private one, run to completion, and tear down.
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

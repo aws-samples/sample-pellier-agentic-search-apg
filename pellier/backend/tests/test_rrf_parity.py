@@ -18,8 +18,10 @@ from typing import Any, Dict, List
 from config import Settings
 from services import store_tools
 from services.search_plan import build_plan
-from services.hybrid_search import _RRF_K_DEFAULT
 from services.store_tools import DEFAULT_RETRIEVAL_CONFIG, rrf_merge
+
+
+_RRF_K_DEFAULT = 60
 
 
 def _row(product_id: int) -> Dict[str, Any]:

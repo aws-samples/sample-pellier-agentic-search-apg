@@ -290,10 +290,6 @@ def in_process(monkeypatch: pytest.MonkeyPatch, theo_memory: type):
     service = EnhancedChatService.__new__(EnhancedChatService)
     service.model_id = "test-model"
     service.strands_available = True
-    service._agent_stats = {
-        "query_count": 0, "products_found": 0, "agent_calls_by_type": {},
-        "total_response_time_ms": 0, "avg_response_time_ms": 0,
-    }
     monkeypatch.setitem(sys.modules, "services.otel_trace_extractor", types.SimpleNamespace(
         extract_agent_execution_from_otel=lambda **kwargs: {}))
     monkeypatch.setattr(chat_module, "classify_intent", lambda _m: "catalog")

@@ -36,90 +36,6 @@ class SearchRequest(BaseModel):
     )
 
 
-class PerfCompareRequest(BaseModel):
-    """Request model for ``POST /api/performance/compare``.
-
-    ``ef_search`` reaches a Postgres ``SET`` statement, which cannot take a
-    bound parameter, so the value is interpolated into SQL text. Declaring it as
-    a bounded ``int`` here is the first of two gates -- ``index_performance``
-    clamps again at the sink. Without this model FastAPI performs no validation
-    at all and a string payload flows straight into the statement.
-    """
-
-    query: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="Search query text"
-    )
-    ef_search: int = Field(
-        default=40,
-        ge=1,
-        le=1000,
-        description="HNSW ef_search parameter (candidate list size)"
-    )
-    limit: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return"
-    )
-
-
-class PerfIterativeScanRequest(BaseModel):
-    """Request model for ``POST /api/performance/iterative-scan``.
-
-    Same ``ef_search`` reasoning as :class:`PerfCompareRequest`; this route also
-    requires a category to demonstrate HNSW overfiltering.
-    """
-
-    query: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="Search query text"
-    )
-    category: str = Field(
-        ...,
-        min_length=1,
-        max_length=200,
-        description="Category filter used to trigger HNSW overfiltering"
-    )
-    ef_search: int = Field(
-        default=40,
-        ge=1,
-        le=1000,
-        description="HNSW ef_search parameter (candidate list size)"
-    )
-    limit: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return"
-    )
-
-
-class PerfQuantizationRequest(BaseModel):
-    """Request model for ``POST /api/performance/quantization-benchmark``.
-
-    This route takes no ``ef_search``; the model exists so the body is
-    validated rather than read off a bare ``dict``.
-    """
-
-    query: str = Field(
-        ...,
-        min_length=1,
-        max_length=2000,
-        description="Search query text"
-    )
-    limit: int = Field(
-        default=10,
-        ge=1,
-        le=100,
-        description="Maximum number of results to return"
-    )
-
-
 class SearchResult(BaseModel):
     """Individual search result"""
     
@@ -192,14 +108,14 @@ class ChatMessage(BaseModel):
     """Chat message. ``role`` is constrained so a client cannot inject an
     arbitrary role label that gets concatenated into the LLM prompt."""
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(..., max_length=8000)
     products: List[ChatHistoryProduct] = Field(default_factory=list, max_length=ANSWER_CARDS_MAX)
 
 
 class ChatRequest(BaseModel):
     """Chat request"""
-    message: str
-    conversation_history: List[ChatMessage] = []
+    message: str = Field(..., max_length=4000)
+    conversation_history: List[ChatMessage] = Field(default_factory=list, max_length=50)
     session_id: Optional[str] = None
     workshop_mode: Optional[str] = Field(default=None, description="Workshop progression mode: 'legacy', 'search', 'agentic', 'production'")
     guardrails_enabled: bool = Field(default=False, description="Enable content moderation guardrails")

@@ -215,7 +215,6 @@ class Settings(BaseSettings):
     # 4c — Gateway (MCP)
     AGENTCORE_GATEWAY_URL: Optional[str] = None
     AGENTCORE_GATEWAY_ARN: Optional[str] = None
-    AGENTCORE_GATEWAY_API_KEY: str = "workshop"
 
     # 4c.5 — Managed Policy (Cedar)
     AGENTCORE_POLICY_ENGINE_ID: Optional[str] = None
@@ -347,7 +346,7 @@ class Settings(BaseSettings):
             return self.DATABASE_URL
 
         return (
-            f"postgresql://{self.DB_USER}:{quote_plus(self.DB_PASSWORD)}"
+            f"postgresql://{quote_plus(self.DB_USER)}:{quote_plus(self.DB_PASSWORD)}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
     

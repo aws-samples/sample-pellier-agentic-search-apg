@@ -226,46 +226,6 @@ class EmbeddingService:
             logger.error(f"Error generating embedding: {e}")
             raise
 
-    def generate_embeddings_batch(
-        self,
-        texts: List[str],
-        input_type: str = "search_document",
-        normalize: bool = True,
-    ) -> List[List[float]]:
-        """
-        Generate embeddings for multiple texts.
-
-        Args:
-            texts: List of input texts
-            input_type: Cohere input type (defaults to "search_document" for batch indexing)
-            normalize: Whether to normalize embedding vectors
-
-        Returns:
-            List of embedding vectors, one per input text
-        """
-        if not texts:
-            return []
-
-        embeddings = []
-        errors = []
-
-        for i, text in enumerate(texts):
-            try:
-                embedding = self.generate_embedding(text, input_type=input_type, normalize=normalize)
-                embeddings.append(embedding)
-            except Exception as e:
-                logger.error(f"Error embedding text {i}: {e}")
-                errors.append((i, str(e)))
-                # Append zero vector as placeholder
-                embeddings.append([0.0] * self.embedding_dimension)
-
-        if errors:
-            logger.warning(
-                f"Failed to generate {len(errors)} embeddings out of {len(texts)}"
-            )
-
-        return embeddings
-
     def embed_query(self, query: str) -> List[float]:
         """
         Generate embedding for a search query.

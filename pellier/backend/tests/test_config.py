@@ -92,6 +92,20 @@ def test_ssm_connection_verifies_remote_identity_but_routes_only_to_loopback(tmp
     assert query["ssl_min_protocol_version"] == ["TLSv1.2"]
 
 
+def test_default_dsn_quotes_user_and_password():
+    from config import Settings
+    from urllib.parse import urlsplit
+
+    settings = Settings(
+        DB_HOST="db.example", DB_PORT=5432, DB_NAME="postgres",
+        DB_USER="ops@team/a b", DB_PASSWORD="p@ss/word", DATABASE_URL=None,
+    )
+    parsed = urlsplit(settings.database_url)
+    assert parsed.hostname == "db.example"
+    assert parsed.username == "ops%40team%2Fa+b"
+    assert parsed.password == "p%40ss%2Fword"
+
+
 def test_ssm_connection_refuses_a_missing_ca_bundle(tmp_path):
     from config import Settings
 

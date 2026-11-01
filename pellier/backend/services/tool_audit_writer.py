@@ -34,6 +34,7 @@ distraction than the cost itself. The per-call latency is visible in
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import json
 import logging
 import threading
@@ -77,7 +78,10 @@ def set_main_loop(loop: asyncio.AbstractEventLoop) -> None:
     _main_loop = loop
 
 
-def _run_async(coro: Any, tool: str = "") -> Any:
+_AUDIT_TIMEOUT_SECONDS = 5.0
+
+
+def _run_async(coro: Any, tool: str = "", turn: str = "") -> Any:
     """Bridge from sync (Strands callback) to async (DB driver).
 
     The Strands hook callbacks fire in a thread that is NOT the main
@@ -105,17 +109,23 @@ def _run_async(coro: Any, tool: str = "") -> Any:
         _warn_unaudited(exc, tool)
         return None
     try:
-        return future.result(timeout=5.0)
+        return future.result(timeout=_AUDIT_TIMEOUT_SECONDS)
+    except concurrent.futures.TimeoutError as exc:
+        # Cancel the still-running write so it cannot insert a row nothing fills.
+        future.cancel()
+        _warn_unaudited(exc, tool, turn)
+        return None
     except Exception as exc:
-        _warn_unaudited(exc, tool)
+        _warn_unaudited(exc, tool, turn)
         return None
 
 
-def _warn_unaudited(exc: BaseException, tool: str) -> None:
+def _warn_unaudited(exc: BaseException, tool: str, turn: str = "") -> None:
     logger.warning(
-        "tool_audit _run_async: %s (tool=%s)",
+        "tool_audit _run_async: %s (tool=%s)%s",
         str(exc) or exc.__class__.__name__,
         tool or "an unnamed tool",
+        f" turn={turn}" if turn else "",
     )
 
 
@@ -164,6 +174,7 @@ def record_allow(
                 _build(),
             ),
             tool=tool_name,
+            turn=str(args.get("turn_id") or ""),
         )
     except Exception as exc:
         logger.warning("tool_audit INSERT failed: %s", exc)

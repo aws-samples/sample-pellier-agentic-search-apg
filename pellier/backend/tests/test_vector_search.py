@@ -310,3 +310,36 @@ def test_sql_query_logger_receives_parameterized_args(
     assert log_entry.params[0] is embedding
     assert log_entry.params[-1] == 5
     assert log_entry.rows_returned == 2
+
+
+def test_vector_search_log_is_capped_at_max_logs(
+    embedding: List[float], isolated_query_logger: SQLQueryLogger
+) -> None:
+    """Repeated searches SHALL NOT grow the query log past ``max_logs``."""
+    isolated_query_logger.max_logs = 3
+    for limit in range(1, 6):
+        _call(embedding, limit=limit)
+
+    assert len(isolated_query_logger.queries) == 3
+    assert [q.params[-1] for q in isolated_query_logger.queries] == [3, 4, 5]
+
+
+class _FailingEfSearchCursor(FakeCursor):
+    async def execute(self, sql: str, params: Optional[Sequence[Any]] = None) -> None:
+        if "hnsw.ef_search" in sql:
+            raise RuntimeError("unrecognized configuration parameter")
+        await super().execute(sql, params)
+
+
+def test_failed_ef_search_set_fails_fast_instead_of_continuing(
+    embedding: List[float],
+) -> None:
+    """A failed SET aborts the transaction, so the search must not run on it."""
+    db = FakeDB([_make_row(1, 0.9)])
+    db.cursor = db.conn._cursor = _FailingEfSearchCursor([_make_row(1, 0.9)])
+    svc = VectorSearch(db)  # type: ignore[arg-type]
+
+    with pytest.raises(RuntimeError, match="unrecognized configuration parameter"):
+        _run(svc.vector_search(embedding, limit=5, ef_search=40))
+
+    assert not any("FROM" in sql for sql, _ in db.cursor.calls)

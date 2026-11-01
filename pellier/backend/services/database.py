@@ -228,13 +228,7 @@ async def _configure_connection(conn: AsyncConnection) -> None:
 
     async with conn.cursor() as cur:
         await cur.execute("SET hnsw.iterative_scan = 'strict_order'")
-        try:
-            await cur.execute(f"SET hnsw.ef_search = {ef_default}")
-        except Exception:
-            logger.warning(
-                "hnsw.ef_search setting unavailable on this cluster; "
-                "continuing with engine defaults"
-            )
+        await cur.execute(f"SET hnsw.ef_search = {ef_default}")
         await cur.execute(f"SET statement_timeout = '{stmt_ms}ms'")
         await cur.execute(f"SET lock_timeout = '{lock_ms}ms'")
         await cur.execute(f"SET idle_in_transaction_session_timeout = '{idle_ms}ms'")

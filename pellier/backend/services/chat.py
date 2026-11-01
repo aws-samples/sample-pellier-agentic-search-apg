@@ -870,14 +870,6 @@ class EnhancedChatService:
         self.region = settings.aws_region_resolved
         self.bedrock = boto3.client('bedrock-runtime', region_name=self.region)
         self.db_service = db_service
-        self._agent_stats: Dict[str, Any] = {
-            "query_count": 0,
-            "products_found": 0,
-            "agent_calls_by_type": {},
-            "total_response_time_ms": 0,
-            "avg_response_time_ms": 0,
-        }
-
         # Check Strands availability
         try:
             from strands import Agent
@@ -892,19 +884,6 @@ class EnhancedChatService:
     
 
     
-    def _track_query(self, products_count: int = 0, duration_ms: int = 0, agent_type: str = "general"):
-        """Update per-session agent stats after a query."""
-        self._agent_stats["query_count"] += 1
-        self._agent_stats["products_found"] += products_count
-        self._agent_stats["agent_calls_by_type"][agent_type] = self._agent_stats["agent_calls_by_type"].get(agent_type, 0) + 1
-        self._agent_stats["total_response_time_ms"] += duration_ms
-        qc = self._agent_stats["query_count"]
-        self._agent_stats["avg_response_time_ms"] = round(self._agent_stats["total_response_time_ms"] / qc) if qc else 0
-
-    def get_agent_stats(self) -> Dict[str, Any]:
-        """Return current session agent stats."""
-        return dict(self._agent_stats)
-
     async def chat(
         self,
         message: str,
@@ -2351,7 +2330,6 @@ class EnhancedChatService:
             agent_execution, response_text
         )
         total_ms = int((time.time() - start_time) * 1000)
-        self._track_query(products_count=len(products_sent), duration_ms=total_ms, agent_type=specialist_name)
 
         # --- Finalize per-layer timing ------------------------------------
         # Sum tool wall-clock from the tool_trace we've been collecting
@@ -2374,23 +2352,6 @@ class EnhancedChatService:
         timing["specialist"] = 0  # Strands hides this — kept for shape parity
         timing["tools"] = tools_ms
         timing["stream"] = stream_ms
-
-        # Record this turn's latency breakdown into the process-local
-        # perf log (services.performance_log), which keeps live p50/p95
-        # aggregates. Any failure is swallowed — measurement must never
-        # break a turn.
-        try:
-            from services.performance_log import record_turn
-            record_turn(
-                session_id=session_id,
-                layers=timing,
-                ttft_ms=ttft_ms,
-                total_ms=turn_total_ms,
-                tool_trace=tool_trace,
-                pattern="dispatcher",
-            )
-        except Exception as _exc:
-            logger.debug("performance_log.record_turn failed: %s", _exc)
 
         # Emit timing + db query events BEFORE the complete event, so a
         # client reading the stream has them when the turn ends.

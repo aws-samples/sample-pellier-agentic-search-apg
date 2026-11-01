@@ -11,16 +11,6 @@ This module is the **read side** of that managed gate. It does NOT enforce
 anything (the Gateway does) — it reads, live, which Cedar policies are
 attached to the engine and in what mode. The Operator's credit execution
 records that engine state (``engine_state_for_action``).
-
-``list_managed_policies()`` — boto3 ``bedrock-agentcore-control``
-``list_policies(policyEngineId=...)`` + ``get_policy`` per id to pull the full
-Cedar ``definition``. Keyed on ``AGENTCORE_POLICY_ENGINE_ID`` (written to
-``.env`` by the deploy script). Returns the policy statements: the Cedar the
-Gateway enforces.
-
-Reads are best-effort: a missing engine id, missing boto3, or an
-unreachable control-plane returns an empty list with a ``source`` marker rather
-than raising, so a reader gets "(no policies)" instead of a 500.
 """
 from __future__ import annotations
 
@@ -188,76 +178,6 @@ def policy_summaries(client: Any, engine_id: str) -> Iterator[Dict[str, Any]]:
         if token in seen:
             raise ControlPlaneUnavailable("Repeated policy pagination token")
         seen.add(token)
-
-
-def list_managed_policies() -> Dict[str, Any]:
-    """Return the Cedar policies attached to the managed policy engine.
-
-    Shape:
-        {
-            "source": "managed-engine" | "no-engine-id" | "error",
-            "policy_engine_id": "<id or ''>",
-            "policies": [
-                {"id", "name", "description", "cedar"},
-                ...
-            ],
-            "error": "<str>"   # only when source == "error"
-        }
-
-    ``cedar`` holds the Cedar statement pulled from the policy's
-    ``definition.cedar.statement`` (the direct-Cedar shape the deploy script
-    writes). ``applies_to`` is intentionally absent — managed Cedar encodes the
-    gated action inside the statement itself (``action == AgentCore::Action::...``)
-    rather than in a sidecar field.
-    """
-    engine_id = _engine_id()
-    if not engine_id:
-        return {
-            "source": "no-engine-id",
-            "policy_engine_id": "",
-            "policies": [],
-        }
-
-    try:
-        import boto3
-    except Exception as exc:  # pragma: no cover — boto3 always present in deploy env
-        logger.warning("boto3 unavailable for managed policy read: %s", exc)
-        return {"source": "error", "policy_engine_id": engine_id, "policies": [], "error": str(exc)}
-
-    try:
-        client = boto3.client(
-            "bedrock-agentcore-control",
-            region_name=_region(),
-            config=_control_client_config(),
-        )
-        summaries = policy_summaries(client, engine_id)
-        policies: List[Dict[str, Any]] = []
-        for summary in summaries:
-            policy_id = summary.get("policyId", "")
-            name = summary.get("name", policy_id)
-            description = summary.get("description", "")
-            cedar = ""
-            # The list summary may omit the full definition; fetch it per id.
-            try:
-                detail = client.get_policy(policyEngineId=engine_id, policyId=policy_id)
-                description = detail.get("description", description)
-                cedar = policy_statement(detail)
-            except Exception as exc:
-                logger.debug("get_policy(%s) failed: %s", policy_id, exc)
-            policies.append({
-                "id": policy_id,
-                "name": name,
-                "description": description,
-                "cedar": cedar,
-            })
-        return {
-            "source": "managed-engine",
-            "policy_engine_id": engine_id,
-            "policies": policies,
-        }
-    except Exception as exc:
-        logger.warning("Managed policy list failed: %s", exc)
-        return {"source": "error", "policy_engine_id": engine_id, "policies": [], "error": str(exc)}
 
 
 def _read_engine_state(

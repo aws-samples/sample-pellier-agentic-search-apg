@@ -118,22 +118,8 @@ def test_tokenless_managed_dispatcher_skips_network():
 
 def test_gateway_headers_uses_bearer_when_token_present():
     """With a caller token, the Gateway transport sends Authorization:
-    Bearer (JWT passthrough), not the placeholder x-api-key."""
+    Bearer (JWT passthrough)."""
     from services import agentcore_gateway
 
     headers = agentcore_gateway._gateway_headers("marco-jwt-abc123")
     assert headers == {"Authorization": "Bearer marco-jwt-abc123"}
-    assert "x-api-key" not in headers
-
-
-def test_gateway_headers_falls_back_to_api_key_when_no_token():
-    """Anonymous turns (no token) fall back to the placeholder x-api-key
-    header. Against a JWT-protected Gateway this 401s, which the caller
-    treats as 'fall back to in-process' (the skipped panel)."""
-    from services import agentcore_gateway
-    from config import settings
-
-    with patch.object(settings, "AGENTCORE_GATEWAY_API_KEY", "workshop", create=True):
-        headers = agentcore_gateway._gateway_headers(None)
-    assert headers == {"x-api-key": "workshop"}
-    assert "Authorization" not in headers

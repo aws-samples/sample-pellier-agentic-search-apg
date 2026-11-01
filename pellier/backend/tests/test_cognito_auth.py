@@ -301,6 +301,44 @@ def test_unknown_kid_forces_one_jwks_refresh() -> None:
     assert calls["n"] == 2
 
 
+def test_a_failed_refetch_after_the_ttl_serves_the_stale_keys(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Cognito's JWKS endpoint blipping must not sign every shopper out."""
+    signer = _Signer(kid="real-kid")
+    service = CognitoAuthService(
+        pool_id=POOL_ID, region=REGION, client_id=CLIENT_ID, jwks_ttl_seconds=60
+    )
+    state = {"fail": False}
+
+    def _fetch() -> Dict[str, Any]:
+        if state["fail"]:
+            raise RuntimeError("jwks endpoint unreachable")
+        return _build_jwks([signer])
+
+    service._fetch_jwks = _fetch  # type: ignore[assignment]
+    first = _run(service.get_jwks())
+    service._jwks_cache_time -= 3600
+    state["fail"] = True
+
+    with caplog.at_level("WARNING"):
+        stale = _run(service.get_jwks())
+
+    assert stale == first
+    assert "stale" in caplog.text
+
+
+def test_a_failed_first_fetch_still_raises() -> None:
+    service = CognitoAuthService(pool_id=POOL_ID, region=REGION, client_id=CLIENT_ID)
+
+    def _fetch() -> Dict[str, Any]:
+        raise RuntimeError("jwks endpoint unreachable")
+
+    service._fetch_jwks = _fetch  # type: ignore[assignment]
+    with pytest.raises(Exception):
+        _run(service.get_jwks())
+
+
 def test_unknown_kids_refresh_the_jwks_at_most_once_per_cooldown() -> None:
     """Forged tokens with made-up kids cannot turn every request into a JWKS fetch."""
     signer = _Signer(kid="real-kid")

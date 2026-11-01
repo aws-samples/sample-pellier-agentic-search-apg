@@ -64,6 +64,7 @@ logger = logging.getLogger(__name__)
 JWKS_CACHE_TTL_SECONDS = 3600  # 1 hour per Req 4.2.1
 # An unknown ``kid`` refreshes the JWKS at most this often: a real rotation is
 # accepted on the first such token, and a stream of forged kids is one fetch.
+JWKS_STALE_RETRY_SECONDS = 30
 JWKS_UNKNOWN_KID_REFRESH_COOLDOWN_SECONDS = 60
 # Cognito and the verifier can straddle a clock tick. Keep the allowance small
 # and fixed; signature, issuer, client and token-use validation remain required.
@@ -138,7 +139,18 @@ class CognitoAuthService:
             if self._jwks_cache is not None and (now - self._jwks_cache_time) < self._jwks_ttl:
                 return self._jwks_cache
 
-            jwks = await asyncio.to_thread(self._fetch_jwks)
+            try:
+                jwks = await asyncio.to_thread(self._fetch_jwks)
+            except Exception as exc:
+                if self._jwks_cache is None:
+                    raise
+                # Keys outlive a Cognito blip; retry after the stale-retry window.
+                logger.warning(
+                    "JWKS refetch failed (%s); serving stale cached keys",
+                    exc.__class__.__name__,
+                )
+                self._jwks_cache_time = time.time() - self._jwks_ttl + JWKS_STALE_RETRY_SECONDS
+                return self._jwks_cache
             self._jwks_cache = jwks
             self._jwks_cache_time = time.time()
             return jwks

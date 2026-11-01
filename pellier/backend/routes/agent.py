@@ -101,7 +101,7 @@ class ChatRequest(BaseModel):
     state purely in memory still work.
     """
 
-    message: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1, max_length=4000)
     session_id: Optional[str] = None
 
 

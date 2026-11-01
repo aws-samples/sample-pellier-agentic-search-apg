@@ -273,7 +273,7 @@ async def workshop_sign_in(
     username = body["username"].casefold()
     if username not in WORKSHOP_SHOPPERS:
         raise HTTPException(403, "workshop_user_not_allowed")
-    password = _shopper_password(username)
+    password = await asyncio.to_thread(_shopper_password, username)
     parameters = {"USERNAME": username, "PASSWORD": password}
     secret_hash = _secret_hash(username)
     if secret_hash:

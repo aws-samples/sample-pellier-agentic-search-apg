@@ -234,3 +234,26 @@ def test_a_refused_switch_leaves_the_previous_shopper_signed_in(setup, revocatio
     assert post(client, {"username": "anna"}).status_code == 403
     assert post(client, {"username": "nadia"}).status_code == 403
     assert revocations == []
+
+
+def test_secrets_manager_read_runs_off_the_event_loop(setup):
+    """The provisioned-password read is blocking boto I/O; it must not run on the loop."""
+    import asyncio
+
+    client, _cognito, secrets, validator = setup
+    validator.validate_jwt.return_value = _verified("anna")
+    on_loop = []
+    original = secrets.get_secret_value.return_value
+
+    def read(**_kwargs):
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)
+        except RuntimeError:
+            on_loop.append(False)
+        return original
+
+    secrets.get_secret_value.side_effect = read
+
+    assert post(client, {"username": "anna"}).status_code == 200
+    assert on_loop == [False]

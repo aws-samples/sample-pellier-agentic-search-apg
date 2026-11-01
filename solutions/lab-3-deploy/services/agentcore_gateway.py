@@ -841,7 +841,7 @@ def _inject_trace_context(headers: Dict[str, str], trace_context: Any) -> None:
 
 
 def _gateway_headers(
-    access_token: Optional[str] = None,
+    access_token: str,
     *,
     trace_context: Any = None,
 ) -> Dict[str, str]:
@@ -853,17 +853,10 @@ def _gateway_headers(
     validates it against the Cognito discovery URL, so every tool call
     carries the user's identity end to end.
 
-    When no token is provided (anonymous turns or local development against a
-    Gateway deployed with ``authorizerType=NONE``), this returns the legacy
-    placeholder ``x-api-key`` header. The governed Runtime never uses that
-    path: it requires a bearer token before constructing this client.
+    Callers guard on a token before building a client, so there is no
+    anonymous fallback: a Gateway call without a caller identity is a bug.
     """
-    if access_token:
-        headers = {"Authorization": f"Bearer {access_token}"}
-    else:
-        headers = {
-            "x-api-key": _runtime_or_app_setting("AGENTCORE_GATEWAY_API_KEY")
-        }
+    headers = {"Authorization": f"Bearer {access_token}"}
     _inject_trace_context(headers, trace_context)
     return headers
 
@@ -871,7 +864,7 @@ def _gateway_headers(
 @asynccontextmanager
 async def _gateway_streamable_http_transport(
     gateway_url: str,
-    access_token: Optional[str] = None,
+    access_token: str,
     trace_context: Any = None,
 ):
     """Open the current MCP streamable-HTTP transport with caller identity."""

@@ -60,6 +60,7 @@ Routes are not participant-edit surfaces. They ship as reference runtime code.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any, List, Optional
@@ -195,7 +196,7 @@ async def storefront_search(
         # --- 1. Embed the query --------------------------------------
         embed_start = time.perf_counter()
         try:
-            embedding = embeddings.embed_query(payload.query)
+            embedding = await asyncio.to_thread(embeddings.embed_query, payload.query)
         except ValueError as exc:
             # ``embed_query`` raises on empty input; the pydantic
             # min_length=1 guard makes this nearly unreachable, but

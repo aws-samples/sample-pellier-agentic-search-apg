@@ -12,7 +12,6 @@ from services import otel_trace_extractor as extractor
 _READERS = (
     "extract_trace",
     "extract_agent_execution_from_otel",
-    "get_waterfall_data",
 )
 _PRIVATE_DETAIL = "private shopper context at /srv/internal/telemetry.py:42"
 

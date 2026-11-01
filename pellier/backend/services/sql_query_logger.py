@@ -132,9 +132,7 @@ class SQLQueryLogger:
             )
             
             # Add to queue (keep only max_logs most recent)
-            self.queries.append(log_entry)
-            if len(self.queries) > self.max_logs:
-                self.queries.pop(0)
+            self.record(log_entry)
             
             logger.info(
                 f"📊 Query logged: {query_type} | "
@@ -235,6 +233,11 @@ class SQLQueryLogger:
             logger.debug(f"Failed to extract index name: {e}")
             return None
     
+    def record(self, entry: "QueryLog") -> None:
+        """Append an entry, evicting the oldest beyond ``max_logs``."""
+        self.queries.append(entry)
+        del self.queries[: max(0, len(self.queries) - self.max_logs)]
+
     def get_recent_queries(self, limit: int = 10) -> List[Dict[str, Any]]:
         """
         Get recent query logs

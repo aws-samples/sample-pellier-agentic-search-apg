@@ -697,3 +697,20 @@ def test_a_slow_memory_call_never_blocks_the_event_loop() -> None:
     assert _run(ticks_during(mem.get_user_preferences("user-1"))) >= 5
     assert _run(ticks_during(mem.get_semantic_memories("CUST-THEO"))) >= 5
     assert _run(ticks_during(mem.set_user_preferences("user-1", Preferences()))) >= 5
+
+
+def test_process_local_session_store_is_bounded(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The fallback keeps the most recently written sessions, not every session ever."""
+    import services.agentcore_memory as mem
+
+    store = mem._BoundedSessionStore(max_sessions=3)
+    monkeypatch.setattr(mem, "_SESSION_STORE", store)
+
+    for index in range(5):
+        mem._SESSION_STORE.setdefault(f"session-{index}", []).append({"turn": index})
+
+    assert list(store) == ["session-2", "session-3", "session-4"]
+    assert store["session-4"] == [{"turn": 4}]
+    assert mem._SESSION_STORE.setdefault("session-2", []) == [{"turn": 2}]
+    mem._SESSION_STORE.setdefault("session-5", []).append({"turn": 5})
+    assert "session-2" in store and "session-3" not in store

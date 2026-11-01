@@ -632,9 +632,10 @@ async def get_inventory_signal(
     (Req 3.5.2). The frontend status strip uses the flag to flip an
     amber warning without hiding the counts.
     """
-    # Group all catalog rows by ``category``. The Pellier catalog schema has no
-    # ``quantity`` column (everything in the editorial catalog is treated
-    # as in-stock); the filter was removed with the schema migration.
+    # Group all visible catalog rows by ``category``. The catalog does have a
+    # ``quantity`` column (units across all warehouses), but the counts are of
+    # products, not units, so no stock filter applies: a sold-out product is
+    # still counted.
     # ``last_refreshed`` is the MAX(updated_at) across rows — the loader
     # populates this on every batch so it reflects the last catalog sync.
     rows = await db.fetch_all(
