@@ -209,12 +209,30 @@ def participant_aliases(repo: Path) -> dict[str, str]:
         return {}
 
 
-def _keep_participant_version(repo: Path, relative: str, alias: str, report: Report) -> None:
-    """Keep a participant's edit as ``<link>.bak`` (``.bak.2`` and on) before it is replaced."""
+def _member_bytes(member: tarfile.TarInfo, archive: tarfile.TarFile) -> bytes | None:
+    source = archive.extractfile(member)
+    if source is None:
+        return None
+    with source:
+        return source.read()
+
+
+def _keep_participant_version(
+    repo: Path, relative: str, alias: str, pinned: bytes | None, report: Report,
+) -> None:
+    """Keep a participant's edit as ``<link>.bak`` (``.bak.2`` and on) before it is replaced.
+
+    A file whose bytes already match the pin is not an edit, even when its mode differs:
+    bootstrap writes task files under a private umask, and keeping those would leave a
+    ``.bak`` beside every task file on a box nobody has touched.
+    """
     target = repo / relative
     if target.is_symlink() or not target.is_file():
         return
-    message = lab_reference.keep_version(repo, alias, target.read_bytes())
+    yours = target.read_bytes()
+    if yours == pinned:
+        return
+    message = lab_reference.keep_version(repo, alias, yours)
     report.kept.append(f"{relative}: {message}")
 
 
@@ -279,7 +297,8 @@ def apply_archive(repo: Path, archive: tarfile.TarFile, sha: str, write: bool = 
         (report.restored if existed else report.recreated).append(relative)
         if write:
             if existed and relative in aliases:
-                _keep_participant_version(repo, relative, aliases[relative], report)
+                _keep_participant_version(repo, relative, aliases[relative],
+                                          _member_bytes(member, archive), report)
             _write(repo, target, member, archive)
     return report
 

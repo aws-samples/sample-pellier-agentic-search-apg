@@ -100,6 +100,50 @@ def test_modified_and_deleted_files_are_restored_and_counted(tmp_path: Path) -> 
     assert report.repaired == 2
 
 
+def _alias(repo: Path, source: str, alias: str) -> None:
+    (repo / "workshop").mkdir(exist_ok=True)
+    (repo / "workshop" / "participant-files.json").write_text(
+        json.dumps([{"alias": alias, "source": source, "solution": "unused"}]))
+
+
+def test_a_mode_only_difference_on_a_task_file_keeps_no_backup(tmp_path: Path) -> None:
+    """Bootstrap writes task files under umask 077; a fresh box must carry no ``.bak``."""
+    repo = box(tmp_path)
+    _alias(repo, "services/plan.py", "labs/01/1B-plan.py")
+    (repo / "services").mkdir()
+    (repo / "services" / "plan.py").write_text("starter")
+    (repo / "services" / "plan.py").chmod(0o600)
+    (repo / "labs" / "01").mkdir(parents=True)
+    tarball = tmp_path / "pin.tar.gz"
+    make_tarball(tarball, {"services/plan.py": "starter"})
+
+    report = repair.repair(repo, fetch=fetch_from(tarball))
+
+    assert (repo / "services" / "plan.py").stat().st_mode & 0o777 == 0o644
+    assert report.restored == ["services/plan.py"]
+    assert report.kept == []
+    assert not list((repo / "labs" / "01").iterdir())
+
+
+def test_an_edited_task_file_is_kept_beside_its_link_before_the_pin_replaces_it(
+    tmp_path: Path,
+) -> None:
+    repo = box(tmp_path)
+    _alias(repo, "services/plan.py", "labs/01/1B-plan.py")
+    (repo / "services").mkdir()
+    (repo / "services" / "plan.py").write_text("my attempt")
+    (repo / "services" / "plan.py").chmod(0o644)
+    (repo / "labs" / "01").mkdir(parents=True)
+    tarball = tmp_path / "pin.tar.gz"
+    make_tarball(tarball, {"services/plan.py": "starter"})
+
+    report = repair.repair(repo, fetch=fetch_from(tarball))
+
+    assert (repo / "services" / "plan.py").read_text() == "starter"
+    assert (repo / "labs" / "01" / "1B-plan.py.bak").read_text() == "my attempt"
+    assert report.kept == ["services/plan.py: your version is kept in labs/01/1B-plan.py.bak"]
+
+
 def test_a_file_the_participant_created_is_left_alone(tmp_path: Path) -> None:
     repo = box(tmp_path)
     (repo / "notes.md").write_text("my notes")
