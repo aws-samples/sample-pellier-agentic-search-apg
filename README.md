@@ -12,10 +12,22 @@ PostgreSQL retrieval, live inventory, and recorded tool calls.
 
 ## Which branch to use
 
-This `main` branch holds the shorter builders session: 60 minutes and two
-hands-on labs. The full governed workshop, which adds managed agent execution
-and governance to the same application, is on the
-[`governed` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/governed).
+> [!IMPORTANT]
+> **The re:Invent 2026 workshop DAT416, "Build governed agentic AI search with
+> Aurora, RDS, & Bedrock AgentCore", is on the
+> [`governed` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/governed).**
+> Four labs in 120 minutes: hybrid retrieval, a PostgreSQL-grounded agent,
+> deployment to Amazon Bedrock AgentCore with a verified caller, and Cedar
+> policies with PostgreSQL privileges, on Claude Opus 5.5 and Claude Sonnet 5.5.
+> If you scanned the code on the closing slide, that branch is where the labs,
+> the guide and the code are.
+
+This `main` branch holds the 60-minute Builders' Session: the same workshop in
+a compressed, earlier edition. It keeps two of the four labs (hybrid retrieval
+and the grounded agent), an earlier model generation (Claude Opus 5 and
+Claude Sonnet 5) and the Pellier Labs workbench instead of the Operator. Use it
+for the one-hour session; use `governed` for the current application and the
+full workshop.
 
 ## What Pellier is
 
