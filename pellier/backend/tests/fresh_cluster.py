@@ -86,7 +86,13 @@ def start_cluster(root: Path, server_options: str = "") -> Cluster:
     such as preloading pg_stat_statements the way the workshop's Aurora cluster does."""
     pg = _pg_bin()
     if pg is None:
-        pytest.skip("PostgreSQL 18 with pgvector is required for the fresh-setup harness")
+        message = "PostgreSQL 18 with pgvector is required for the fresh-setup harness"
+        if os.environ.get("PELLIER_REQUIRE_POSTGRES"):
+            # The workflow's Postgres job installs the cluster on purpose; a silent skip
+            # there would pass the row-level security, credit replay and reset proofs
+            # without running them.
+            raise AssertionError(f"{message}; set PG_BIN to its bin directory")
+        pytest.skip(message)
     socket = Path(tempfile.mkdtemp(prefix="pgsock-", dir="/tmp"))
     cluster = Cluster(bin=pg, root=root, socket=socket)
     log = root / "pg.log"

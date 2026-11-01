@@ -22,73 +22,47 @@ fails, and an allowance that stops being needed fails too.
 
 from __future__ import annotations
 
+import re
+import subprocess
 from pathlib import Path
 from typing import Dict, Iterator, List, Tuple
 
 
 REPO = Path(__file__).resolve().parents[3]
 
-# Retired names, in every casing and separator they were written with.
+# Retired names. Each pattern is matched case-insensitively, with the separator
+# between words optional and any of "-", "_" or a space, so `Pellier Labs`,
+# `pellier-Labs`, `PELLIER_LABS`, `PellierLabs`, `agent trace`, `Agent-Trace` and
+# `agentTrace` are all one name.
 RETIRED = (
-    "agent-trace",
-    "agent_trace",
-    "AgentTrace",
-    "agentTrace",
-    "AGENT_TRACE",
-    # The spaced display form and the `--at-` custom-property prefix were both
-    # swept after this guard was first written, and neither was covered by the
-    # tokens above. 312 display strings and 2,264 variable references survived
-    # a rename that looked complete.
-    "Agent Trace",
-    "AGENT TRACE",
-    "--at-",
+    r"agent[-_ ]?trace",
+    # The `--at-` custom-property prefix: 2,264 variable references survived a
+    # rename that looked complete.
+    r"--at-",
     # The inspection surface's second custom-property prefix, aliased in
     # daylight-bridge.css and consumed by the shared primitives until 2026-10-30.
-    "--obs-",
-    "pellier-labs",
-    "pellier_labs",
-    "PellierLabs",
-    "PELLIER_LABS",
-    "Pellier Labs",
+    r"--obs-",
+    r"pellier[-_ ]?labs",
 )
+RETIRED_RE = re.compile("|".join(RETIRED), re.IGNORECASE)
 
-SCAN_SUFFIXES = {
-    ".ts", ".tsx", ".js", ".jsx", ".css", ".py", ".sql",
-    ".md", ".sh", ".json", ".yml", ".yaml", ".html",
-}
-
-SKIP_PARTS = {
-    "node_modules", ".git", "dist", "build", "__pycache__",
-    ".venv", "venv", ".pytest_cache", "coverage", "playwright-report",
-    "test-results", ".kiro",
-    # Generated build output, all of it gitignored. `.agentcore-project` holds
-    # the CDK build cache, which stages vendored third-party source: Strands'
-    # own `agent_trace` identifier collides with a retired Pellier surface name
-    # and cannot be fixed by anyone here. A guard that fails on a dependency's
-    # internals inside an ignored directory reports noise, not drift.
-    ".agentcore-project", ".cache", ".cli",
-    # Gitignored audit output. A retired-name census names retired names because
-    # that is its subject, so scanning it turns the report into the finding.
-    "audit",
-    # Gitignored coordination artifacts: implementation plans, per-package
-    # reports, and review packages. A report that explains why a retired name
-    # had to be removed has to name it, so scanning these turns the write-up
-    # into the finding. Same reasoning as the audit output above. Neither
-    # directory ships: `docs/*` and `.superpowers/` are both gitignored.
-    "superpowers", ".superpowers",
-    # Gitignored local scratch: catalog-authoring work files and asset audits that
-    # quote whatever text they inspected. Nothing under `tmp/` ships.
-    "tmp",
-}
-
-# The inspection surface's last name, matched case-insensitively so a CSS class,
+# The inspection surface's last name, matched in any casing so a CSS class,
 # a route, a table and a display string are all caught by one token.
-OBSERVATORY = "observatory"
+OBSERVATORY_RE = re.compile(r"observatory", re.IGNORECASE)
+
+# Only tracked files are read, so gitignored output (build caches, vendored
+# third-party source, local audit reports, coordination artifacts) never
+# reaches the scan. What is skipped here is content that cannot hold text.
+BINARY_SUFFIXES = {
+    ".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".avif", ".pdf",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot", ".zip", ".gz", ".tgz",
+    ".parquet", ".npy", ".pptx", ".mp4", ".mov", ".webm", ".pyc",
+}
 
 # History is not current documentation and is never rewritten: dated release
-# evidence and the design specs that record what was decided then. The specs
-# directory is already skipped above as `superpowers`.
-HISTORY_PREFIXES = ("docs/release-readiness/",)
+# evidence and the design specs that record what was decided then. The design specs
+# live under docs/superpowers/ and are history for the same reason.
+HISTORY_PREFIXES = ("docs/release-readiness/", "docs/superpowers/")
 
 # Files permitted to name a retired path, each for a reason that would break if
 # the name were updated. Keyed by repo-relative path.
@@ -113,30 +87,36 @@ ALLOWED: Dict[str, str] = {
 }
 
 
+def _tracked_paths() -> List[str]:
+    """Return every path git tracks, repo-relative."""
+    listed = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=REPO, capture_output=True, text=True, check=True
+    ).stdout
+    return [rel for rel in listed.split("\0") if rel]
+
+
 def _scanned_files() -> Iterator[Tuple[str, str]]:
-    """Yield (repo-relative path, text) for every file the guards read."""
-    for path in REPO.rglob("*"):
-        if not path.is_file() or path.suffix not in SCAN_SUFFIXES:
-            continue
-        if SKIP_PARTS & set(path.relative_to(REPO).parts):
+    """Yield (repo-relative path, text) for every tracked text file."""
+    for relative in _tracked_paths():
+        path = REPO / relative
+        if path.suffix.lower() in BINARY_SUFFIXES or not path.is_file():
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        yield path.relative_to(REPO).as_posix(), text
+        yield relative, text
 
 
 def _scan() -> List[Tuple[str, int, str]]:
-    """Return (path, line, token) for every retired name outside ALLOWED."""
+    """Return (path, line, match) for every retired name outside the exceptions."""
     findings: List[Tuple[str, int, str]] = []
     for relative, text in _scanned_files():
-        if relative in ALLOWED:
+        if relative in ALLOWED or relative.startswith(HISTORY_PREFIXES):
             continue
         for number, line in enumerate(text.splitlines(), 1):
-            for token in RETIRED:
-                if token in line:
-                    findings.append((relative, number, token))
+            for match in RETIRED_RE.finditer(line):
+                findings.append((relative, number, match.group(0)))
     return findings
 
 
@@ -144,23 +124,32 @@ def _observatory_scan() -> List[Tuple[str, int]]:
     """Return (path, line) for every "observatory", in any casing, outside the exceptions."""
     findings: List[Tuple[str, int]] = []
     for relative, text in _scanned_files():
-        if relative in ALLOWED:
-            continue
-        if relative.startswith(HISTORY_PREFIXES):
+        if relative in ALLOWED or relative.startswith(HISTORY_PREFIXES):
             continue
         for number, line in enumerate(text.splitlines(), 1):
-            if OBSERVATORY in line.lower():
+            if OBSERVATORY_RE.search(line):
                 findings.append((relative, number))
     return findings
 
 
 def test_the_scan_reaches_the_source_tree() -> None:
     """A scan that silently matched nothing would pass every test below."""
-    scanned = [
-        p for p in REPO.rglob("*.tsx")
-        if p.is_file() and not (SKIP_PARTS & set(p.relative_to(REPO).parts))
+    scanned = [relative for relative, _ in _scanned_files()]
+    tsx = [p for p in scanned if p.endswith(".tsx")]
+    assert len(tsx) > 100, f"only {len(tsx)} .tsx files reachable"
+    assert len(scanned) > 500, f"only {len(scanned)} tracked text files reachable"
+
+
+def test_every_casing_and_separator_of_a_retired_name_matches() -> None:
+    """The patterns are the guard; prove them against the spellings that slipped."""
+    spellings = [
+        "pellier labs", "PELLIER LABS", "pellier-Labs", "Pellier_Labs", "PellierLabs",
+        "agent trace", "Agent-Trace", "AGENT_TRACE", "agentTrace", "AgentTrace",
+        "--AT-color", "--Obs-gap",
     ]
-    assert len(scanned) > 100, f"only {len(scanned)} .tsx files reachable"
+    missed = [s for s in spellings if not RETIRED_RE.search(s)]
+    assert not missed, f"retired spellings the guard would miss: {missed}"
+    assert OBSERVATORY_RE.search("OBSERVATORY") and OBSERVATORY_RE.search("Observatory")
 
 
 def test_no_retired_surface_name_survives() -> None:
@@ -188,7 +177,7 @@ def test_every_allowance_is_still_needed() -> None:
             stale.append(f"{relative} (missing; reason was: {reason})")
             continue
         text = path.read_text(encoding="utf-8")
-        named = any(token in text for token in RETIRED) or OBSERVATORY in text.lower()
+        named = bool(RETIRED_RE.search(text) or OBSERVATORY_RE.search(text))
         if not named:
             stale.append(f"{relative} (no retired name present; drop the allowance)")
 

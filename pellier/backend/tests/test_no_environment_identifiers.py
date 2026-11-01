@@ -66,7 +66,7 @@ def test_asset_digests_do_not_hide_other_account_fields() -> None:
 
 SCAN_SUFFIXES = (
     ".py", ".ts", ".tsx", ".js", ".jsx", ".json", ".sql", ".sh", ".md", ".yml",
-    ".yaml", ".cedar", ".dogwood", ".txt", ".cfg", ".toml", ".html", ".css",
+    ".yaml", ".cedar", ".dogwood", ".txt", ".cfg", ".toml", ".html", ".css", ".svg",
 )
 
 # Files whose 12-digit runs are not account ids. Each is a data file where a long
@@ -77,9 +77,11 @@ SKIP_PATHS: Set[str] = {
     "data/pellier_catalog_curated.csv",
 }
 
-SKIP_DIR_PARTS = (
+# Real directory names, compared against whole path components. A substring test
+# would also skip `services/tool_audit_writer.py` and `scripts/audit_product_assets.py`.
+SKIP_DIR_PARTS = frozenset({
     "node_modules", "dist", "build", "__pycache__", ".venv", "audit",
-)
+})
 
 
 def _tracked_text_files() -> List[Path]:
@@ -91,7 +93,7 @@ def _tracked_text_files() -> List[Path]:
     for rel in filter(None, listed):
         if rel in SKIP_PATHS:
             continue
-        if any(part in f"/{rel}" for part in SKIP_DIR_PARTS):
+        if SKIP_DIR_PARTS & set(Path(rel).parts[:-1]):
             continue
         if not rel.endswith(SCAN_SUFFIXES):
             continue

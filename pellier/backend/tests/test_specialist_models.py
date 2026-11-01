@@ -101,3 +101,32 @@ def test_the_router_and_agent_display_names_are_fixed() -> None:
         "support": "Support agent",
     }
     assert REPORTING_INTENTS == {"stock"}
+
+
+def test_operator_graph_asks_for_the_sonnet_tier(monkeypatch) -> None:
+    """CLAUDE.md puts the Investigator and Advisor on Sonnet; the operator tests stub the tier."""
+    from services import operator_graph, specialist_models
+
+    class _GraphNotBuilt(Exception):
+        pass
+
+    requested: list = []
+
+    def _record(tier: str) -> tuple:
+        requested.append(tier)
+        return ("model-test", 1024)
+
+    def _stop(*_args, **_kwargs):
+        raise _GraphNotBuilt
+
+    monkeypatch.setattr(specialist_models, "specialist_model", _record)
+    monkeypatch.setattr(operator_graph, "_build_graph", _stop)
+
+    with pytest.raises(_GraphNotBuilt):
+        operator_graph.run_investigation(
+            run=lambda *_a, **_k: [], run_customer=lambda *_a, **_k: [],
+            customer_id="c-1", customer_name="Test Client", operator_sub="staff-1",
+            turn_id="t-1", emit=lambda _event: None,
+        )
+
+    assert requested == ["sonnet"]

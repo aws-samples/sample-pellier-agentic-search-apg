@@ -161,7 +161,8 @@ Then run `/governed-postgres-agent review <path>` on your team's agent code. Its
 | `takeaway/` | `governed-postgres-agent`: the four contracts as an Agent Skill |
 | `scripts/` | Database setup and migrations, catalog seeding, AgentCore deployment and lab checks |
 | `data/` | The 50,000-product catalog and its cached Cohere Embed v4 vectors |
-| `docs/` | Workshop design notes: the story arc, transport and AgentCore readiness |
+| `deploy/` | `deploy/own-account/`: the deployer and the four CloudFormation templates Workshop Studio also uses |
+| `docs/` | Workshop design notes (the story arc, transport, AgentCore readiness), the own-account guide and its evidence records |
 | `tests/` | Deployment helpers for end-to-end runs and a performance smoke test |
 
 ## Tests
@@ -173,7 +174,7 @@ The [governed-quality workflow](.github/workflows/quality.yml) runs the backend,
 (cd pellier/frontend && npm test -- --run && npm run type-check && npm run lint && npm run build)
 ```
 
-These checks run without AWS. Runtime, Gateway, Cedar and Lambda behavior is proven only in a provisioned account.
+These checks run without AWS. The tests that need a database start a throwaway PostgreSQL 18 cluster with pgvector from the binaries on `PATH` or in `PG_BIN` and run the real setup scripts against it; without one they skip, and the workflow's `backend-postgres` job installs one and sets `PELLIER_REQUIRE_POSTGRES=1` so they fail there instead. Runtime, Gateway, Cedar and Lambda behavior is proven only in a provisioned account.
 
 ## Security and responsible use
 

@@ -190,10 +190,13 @@ documentation.
   inspection surface (Observatory, and before it Pellier Labs and Agent Trace
   with its `--at-` variable prefix). No component, module, file, route, class,
   test id, API path, CSS variable, or database object carries them. The
-  exceptions are history under `docs/superpowers/`, the route test that
-  proves old paths land on the Storefront, and this file.
+  exceptions are the route test that proves old paths land on the
+  Storefront (`pellier/frontend/src/App.routes.test.tsx`), the clean-up of
+  legacy browser keys in `pellier/frontend/src/contexts/PersonaContext.tsx`,
+  `CLAUDE.md` and `AGENTS.md`, the guard itself, and history under
+  `docs/release-readiness/` and `docs/superpowers/`.
   `pellier/backend/tests/test_surface_naming.py` enforces this by scanning
-  the repository.
+  every tracked text file, case-insensitively and across `-`, `_` and space.
 - Boutique is fully retired on the same terms. `VOICE.md` bans "boutique" in
   shopper copy, model prompts, runtime skills, and product descriptions.
 - The Catalog and Support agents use the configured Opus profile; the Stock
@@ -207,7 +210,9 @@ documentation.
 Run checks from the repository root unless a command changes directory.
 
 ```bash
-# Backend
+# Backend (the PostgreSQL-backed tests skip without a local PostgreSQL 18 with pgvector;
+# the governed-quality workflow's backend-postgres job installs one and sets
+# PELLIER_REQUIRE_POSTGRES=1 so they fail there instead of skipping)
 cd pellier/backend
 python -m pytest -q
 
