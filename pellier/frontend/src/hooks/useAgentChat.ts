@@ -523,6 +523,8 @@ export function useAgentChat(
     let delayMs = 1000
     const replayed = new Set<string>()
     const started = new Set<string>()
+    // Turns this watch has put on screen: a replay of one of them rebuilds its bubble only.
+    const rendered = new Set<string>()
     const updateRelayed = (
       turnId: string,
       patch: (msg: AgentChatMessage) => AgentChatMessage | null,
@@ -573,16 +575,22 @@ export function useAgentChat(
             fresh,
           ]
         })
+        const firstSight = !rendered.has(turnId)
+        rendered.add(turnId)
         if (frame.replay === true) replayed.add(turnId)
         else replayed.delete(turnId)
-        if (frame.replay !== true) {
+        // The results page follows a live turn, and a replayed one this panel has never
+        // shown: the shopper who opens Pellier after sending from the terminal sees that
+        // search's limits and ranking, as the guide says. A reconnect's replay of a turn
+        // already on screen, or a replay landing while a typed turn runs, stays in its bubble.
+        if (frame.replay !== true || (firstSight && !sendingRef.current)) {
           started.add(turnId)
           report({ type: 'start', query })
         }
       } else if (frame.type === 'relay_event') {
         const event = frame.event
         if (!event || typeof event !== 'object') return
-        // A replayed turn rebuilds its bubble only; the results page already saw it.
+        // A replayed turn the results page already saw rebuilds its bubble only.
         const reportable = !replayed.has(turnId) || started.has(turnId)
         if (reportable && event.type === 'status' && typeof event.label === 'string') {
           report({ type: 'status', label: event.label })

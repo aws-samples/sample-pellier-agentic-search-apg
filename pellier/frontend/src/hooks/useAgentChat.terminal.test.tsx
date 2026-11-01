@@ -137,7 +137,9 @@ describe('turns sent from the terminal', () => {
     await act(async () => { finish({ response: 'typed answer', products: [], suggestions: [] }) })
   })
 
-  it('does not report a replayed turn to the results page', async () => {
+  it('reports a replayed turn the panel has not shown, so the results page catches up', async () => {
+    // The shopper opens Pellier after sending from the terminal: the replay is the first
+    // time this page sees the turn, and the guide expects the search's limits and ranking.
     const reported: TurnEvent[] = []
     renderHook(
       () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
@@ -145,7 +147,23 @@ describe('turns sent from the terminal', () => {
     )
     await waitFor(() => expect(watches.length).toBeGreaterThan(0))
     deliver(frames(true))
-    expect(reported).toEqual([])
+    expect(reported.map(event => event.type)).toEqual(['start', 'status', 'step', 'end'])
+    expect(reported[0]).toEqual({ type: 'start', query: QUESTION })
+    expect(reported.at(-1)).toEqual({ type: 'end', outcome: 'complete' })
+  })
+
+  it('reports a first-seen replay once, not again when a reconnect replays it', async () => {
+    const reported: TurnEvent[] = []
+    renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(watches.length).toBeGreaterThan(0))
+    deliver(frames(true))
+    const before = reported.length
+    deliver(frames(true))
+    expect(reported).toHaveLength(before)
+    expect(reported.filter(event => event.type === 'start')).toHaveLength(1)
   })
 
   it('keeps relayed turns out of the browser', async () => {
