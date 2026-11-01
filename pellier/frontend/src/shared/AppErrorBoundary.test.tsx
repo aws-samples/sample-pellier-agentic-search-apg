@@ -18,6 +18,14 @@ function Bomb(): never {
   throw new Error('boom: simulated render failure')
 }
 
+// React's development build rethrows a render error through a synthetic
+// window error event so the browser can report it. jsdom prints that event as
+// "Error: Uncaught [...]" unless a listener prevents its default, so the Bomb
+// tests below would otherwise write six stack traces into a passing run.
+function swallowWindowError(event: ErrorEvent): void {
+  event.preventDefault()
+}
+
 describe('AppErrorBoundary', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>
 
@@ -25,9 +33,11 @@ describe('AppErrorBoundary', () => {
     // componentDidCatch intentionally logs; keep the test output clean
     // without hiding a real failure to log (assert the call count below).
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    window.addEventListener('error', swallowWindowError)
   })
 
   afterEach(() => {
+    window.removeEventListener('error', swallowWindowError)
     consoleErrorSpy.mockRestore()
   })
 

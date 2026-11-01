@@ -45,6 +45,8 @@ export function useReview(reviewId: number | null): ReviewController {
   const [decisionError, setDecisionError] = useState<string | null>(null)
   const [decisionErrorMissing, setDecisionErrorMissing] = useState<readonly string[]>([])
   const active = useRef(true)
+  const currentId = useRef(reviewId)
+  currentId.current = reviewId
   const refreshQueue = useContext(ReviewQueueContext)?.refresh
   const refreshClients = useContext(ClientBookContext)?.refresh
 
@@ -61,12 +63,12 @@ export function useReview(reviewId: number | null): ReviewController {
     }
     try {
       const fresh = await fetchReview(reviewId)
-      if (!active.current) return
+      if (!active.current || currentId.current !== reviewId) return
       if (fresh.review.reviewId !== reviewId) throw new OperatorApiError('review_mismatch', 500)
       setDetail(fresh)
       setError(null)
     } catch (reason) {
-      if (!active.current) return
+      if (!active.current || currentId.current !== reviewId) return
       setError(reason instanceof OperatorApiError ? reason.code : 'operator_unavailable')
     }
   }, [reviewId])

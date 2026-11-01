@@ -4,7 +4,7 @@
  * Pellier palette: cream background, espresso text, burgundy check.
 ^ * Slides in at top centre, auto-dismisses after `duration` ms.
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { CheckCircle, X } from 'lucide-react'
 
 interface ToastProps {
@@ -16,71 +16,77 @@ interface ToastProps {
 
 const Toast = ({ message, show, onClose, duration = 3000 }: ToastProps) => {
   const [isVisible, setIsVisible] = useState(false)
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const closeAfterExit = useCallback(() => {
+    setIsVisible(false)
+    if (closeTimer.current) clearTimeout(closeTimer.current)
+    closeTimer.current = setTimeout(onClose, 300)
+  }, [onClose])
 
   useEffect(() => {
-    if (show) {
-      setIsVisible(true)
-      const timer = setTimeout(() => {
-        setIsVisible(false)
-        setTimeout(onClose, 300)
-      }, duration)
-      return () => clearTimeout(timer)
+    if (!show) return
+    setIsVisible(true)
+    const timer = setTimeout(closeAfterExit, duration)
+    return () => {
+      clearTimeout(timer)
+      if (closeTimer.current) clearTimeout(closeTimer.current)
     }
-  }, [show, duration, onClose])
+  }, [show, duration, closeAfterExit])
 
-  if (!show) return null
-
+  // The live region stays mounted so a screen reader hears the message when it appears.
   return (
-    <div
-      // Top centre, not top right: the cart drawer opens on the right and the
-      // "Added to bag" toast used to land on its "Your Bag" heading. It sits
-      // below both header rows, because at the viewport top it covered the
-      // surface switcher for its whole three seconds.
-      className={`fixed left-1/2 z-[1100] -translate-x-1/2 transition-all duration-300 ease-out ${
-        isVisible
-          ? 'translate-y-0 opacity-100'
-          : '-translate-y-3 opacity-0'
-      }`}
-      style={{
-        top: 'calc(var(--pellier-surface-bar-height, 64px) + var(--pellier-storefront-nav-height, 60px) + 16px)',
-      }}
-    >
-      <div
-        className="flex items-center gap-3 pl-4 pr-3 py-3 rounded-xl font-sans"
-        style={{
-          background: 'var(--dl-paper)',
-          border: '1px solid var(--rule-1)',
-          boxShadow: 'var(--dl-sh-lift)',
-          color: 'var(--dl-ink)',
-        }}
-      >
-        <CheckCircle
-          className="h-[18px] w-[18px] flex-shrink-0"
-          style={{ color: 'var(--pellier-accent)' }}
-          strokeWidth={2}
-        />
-        <span
+    <div role="status" aria-live="polite" aria-atomic="true">
+      {show ? (
+        <div
+          // Top centre, not top right: the cart drawer opens on the right and the
+          // "Added to bag" toast used to land on its "Your Bag" heading. It sits
+          // below both header rows, because at the viewport top it covered the
+          // surface switcher for its whole three seconds.
+          className={`fixed left-1/2 z-[1100] -translate-x-1/2 transition-all duration-300 ease-out ${
+            isVisible
+              ? 'translate-y-0 opacity-100'
+              : '-translate-y-3 opacity-0'
+          }`}
           style={{
-            fontSize: '15px',
-            fontWeight: 500,
-            lineHeight: 1.35,
-            maxWidth: '260px',
+            top: 'calc(var(--pellier-surface-bar-height, 64px) + var(--pellier-storefront-nav-height, 60px) + 16px)',
           }}
         >
-          {message}
-        </span>
-        <button
-          onClick={() => {
-            setIsVisible(false)
-            setTimeout(onClose, 300)
-          }}
-          className="ml-1 p-1 rounded-md transition-colors duration-150"
-          style={{ color: 'var(--ink-quiet)' }}
-          aria-label="Dismiss"
-        >
-          <X className="h-3.5 w-3.5" />
-        </button>
-      </div>
+          <div
+            className="flex items-center gap-3 pl-4 pr-3 py-3 rounded-xl font-sans"
+            style={{
+              background: 'var(--dl-paper)',
+              border: '1px solid var(--rule-1)',
+              boxShadow: 'var(--dl-sh-lift)',
+              color: 'var(--dl-ink)',
+            }}
+          >
+            <CheckCircle
+              className="h-[18px] w-[18px] flex-shrink-0"
+              style={{ color: 'var(--pellier-accent)' }}
+              strokeWidth={2}
+            />
+            <span
+              style={{
+                fontSize: '15px',
+                fontWeight: 500,
+                lineHeight: 1.35,
+                maxWidth: '260px',
+              }}
+            >
+              {message}
+            </span>
+            <button
+              onClick={closeAfterExit}
+              className="ml-1 p-1 rounded-md transition-colors duration-150"
+              style={{ color: 'var(--ink-quiet)' }}
+              aria-label="Dismiss"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   )
 }

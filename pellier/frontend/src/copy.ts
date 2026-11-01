@@ -106,9 +106,6 @@ export const REQUESTS_LIMITED =
  * Editorial hero statement. One accent word per line is split out as an
  * `<em>`; `ACCENT` must appear verbatim inside `HEADLINE` or the headline
  * renders unaccented rather than mis-split.
- *
- * Persona headlines reuse the approved `curatedHeadline` vocabulary from
- * `data/personaCurations.ts` so the storefront speaks one voice.
  */
 export const HERO_STATEMENT = {
   /** The store's line over the headline while signed out. */
@@ -590,6 +587,11 @@ export const CHAT_FAILURES = {
     eyebrow: "Session refresh",
     title: "Sign in again to continue.",
     body: "Your conversation is saved. Refresh your session, then retry this request.",
+  },
+  access_not_permitted: {
+    eyebrow: "Request turned away",
+    title: "That request was not let through.",
+    body: "You are still signed in, but this request was turned away. Try again, or choose the shopper again in Ask Pellier.",
   },
   rate_limited: {
     eyebrow: "High demand",

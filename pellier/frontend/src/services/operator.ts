@@ -412,7 +412,8 @@ export async function streamInvestigation(
   const cancel = () => controller.abort()
   signal?.addEventListener('abort', cancel, { once: true })
   if (signal?.aborted) cancel()
-  const deadline = globalThis.setTimeout(cancel, 300_000)
+  let timedOut = false
+  const deadline = globalThis.setTimeout(() => { timedOut = true; cancel() }, 300_000)
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
   try {
     const response = await staffFetch(
@@ -461,6 +462,7 @@ export async function streamInvestigation(
     return final
   } catch (error) {
     if (error instanceof OperatorApiError) throw error
+    if (timedOut) throw new OperatorApiError('investigation_timeout', 504)
     throw new OperatorApiError(controller.signal.aborted ? 'investigation_stopped' : 'operator_unavailable', 503)
   } finally {
     globalThis.clearTimeout(deadline)

@@ -17,6 +17,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -135,6 +136,9 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const [switching, setSwitching] = useState(false)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [lastTransition, setLastTransition] = useState<PersonaTransition | null>(null)
+  // The mount-time rehydrate answers for the session it started with. A chip click
+  // or a sign-out supersedes it, so its late answer must never be applied.
+  const rehydrate = useRef<AbortController | null>(null)
 
   // A session-storage snapshot is only a locator for the durable Aurora
   // session. Rehydrate the persona from the API before presenting it so an
@@ -147,8 +151,9 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    let active = true
     const controller = new AbortController()
+    rehydrate.current = controller
+    const active = () => !controller.signal.aborted
     void apiFetch(`/api/persona/current?session_id=${encodeURIComponent(sessionId)}`, {
       credentials: 'include',
       signal: controller.signal,
@@ -160,7 +165,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         return response.json() as Promise<{ persona: PersonaSnapshot | null }>
       })
       .then((payload) => {
-        if (!active) return
+        if (!active()) return
         if (payload.persona) {
           setPersona(payload.persona)
         } else {
@@ -169,7 +174,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch((error: unknown) => {
-        if (!active || (error as { name?: string })?.name === 'AbortError') return
+        if (!active() || (error as { name?: string })?.name === 'AbortError') return
         // A failed live read is not a license to reuse the local snapshot.
         clearPersonaStorage()
         setPersona(null)
@@ -180,10 +185,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         )
       })
 
-    return () => {
-      active = false
-      controller.abort()
-    }
+    return () => controller.abort()
   }, [])
 
   // Persist to sessionStorage on change (tab-scoped; fresh tab = signed out).
@@ -238,6 +240,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       // ChatDrawer uses its own persist key.
       localStorage.removeItem('pellier-drawer-storefront')
 
+      rehydrate.current?.abort()
       setPersona(data.persona)
       setLastTransition({
         id: Date.now(),
@@ -255,6 +258,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const clearPersona = useCallback(() => {
+    rehydrate.current?.abort()
     setPersona(null)
     clearPersonaStorage()
     setLastTransition(null)

@@ -23,6 +23,16 @@ const ERROR_COPY: Record<string, string> = {
 
 type Mode = 'sign-in' | 'forgot' | 'reset'
 
+const COULD_NOT_REACH = 'We could not reach Pellier. Check your connection and try again.'
+const ANSWERED_WITH_ERROR = 'Pellier answered with an error. Please try again in a moment.'
+
+/** What a failure without its own sentence tells the shopper; the code itself is for the builder. */
+function unexplainedFailure(code: string): string {
+  if (code.startsWith('network_error:')) return COULD_NOT_REACH
+  if (/^http_5\d\d:/.test(code) || code.startsWith('bad_reply:')) return ANSWERED_WITH_ERROR
+  return 'Sign-in is temporarily unavailable. Please try again.'
+}
+
 /** Own keys only: an address naming `constructor` must not find Object's. */
 function own(record: Readonly<Record<string, string>>, key: string | null): string | null {
   return key !== null && Object.prototype.hasOwnProperty.call(record, key) ? record[key] : null
@@ -56,6 +66,7 @@ export default function SignInPage() {
   const [visible, setVisible] = useState(false)
   const [working, setWorking] = useState(false)
   const [error, setError] = useState<string | null>(refused)
+  const [builderCode, setBuilderCode] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   // The hosted sign-in is offered only to finish a verification step the password form cannot
   // (owner, 2026-10-26: one way to sign in keeps the page simple), and only once the server
@@ -83,16 +94,17 @@ export default function SignInPage() {
   const changeMode = (next: Mode) => {
     if (busy.current) return
     setMode(next); setPassword(''); setConfirmation(''); setCode('')
-    setError(null); setNotice(null); setVisible(false)
+    setError(null); setBuilderCode(null); setNotice(null); setVisible(false)
   }
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (busy.current) return
     if (mode === 'reset' && password !== confirmation) {
+      setBuilderCode(null)
       setError('The new passwords do not match. Please check both fields.')
       return
     }
-    busy.current = true; setWorking(true); setError(null); setNotice(null)
+    busy.current = true; setWorking(true); setError(null); setBuilderCode(null); setNotice(null)
     const request = new AbortController()
     controller.current = request
     const timeout = window.setTimeout(() => request.abort(), 30_000)
@@ -114,10 +126,16 @@ export default function SignInPage() {
         throw new PasswordAuthError('auth_unavailable')
       }
     } catch (reason) {
-      if (mounted.current) setError(reason instanceof PasswordAuthError
-        ? ERROR_COPY[reason.message]
-          || (isRequestsLimited(reason.message) ? REQUESTS_LIMITED : 'Sign-in is temporarily unavailable. Please try again.')
-        : 'We could not confirm the response. Check your connection and try again.')
+      if (mounted.current) {
+        const known = reason instanceof PasswordAuthError ? own(ERROR_COPY, reason.message) : null
+        const limited = reason instanceof PasswordAuthError && isRequestsLimited(reason.message)
+        // The code names the failing step for whoever helps; a reason Pellier explains
+        // itself (a wrong password, a limited edge) carries no code.
+        setBuilderCode(reason instanceof PasswordAuthError && !known && !limited ? reason.message : null)
+        setError(reason instanceof PasswordAuthError
+          ? known || (limited ? REQUESTS_LIMITED : unexplainedFailure(reason.message))
+          : 'We could not confirm the response. Check your connection and try again.')
+      }
     } finally {
       window.clearTimeout(timeout)
       busy.current = false
@@ -152,6 +170,7 @@ export default function SignInPage() {
               ) : null}
               {mode === 'reset' ? <div className="pellier-signin-field"><label htmlFor="pellier-password-confirmation">Confirm new password</label><input id="pellier-password-confirmation" name="passwordConfirmation" type={visible ? 'text' : 'password'} value={confirmation} onChange={(event) => setConfirmation(event.target.value)} autoComplete="new-password" required maxLength={256} readOnly={working} /></div> : null}
               {shown ? <p className="pellier-signin-feedback" data-tone="error" role="alert">{shown}</p> : null}
+              {shown && builderCode ? <p className="pellier-signin-code" data-testid="pellier-signin-code">Error code: <code>{builderCode}</code></p> : null}
               {notice ? <p className="pellier-signin-feedback" role="status">{notice}</p> : null}
               <button className="pellier-signin-submit" type="submit" disabled={working}>{working ? <><LoaderCircle size={18} className="spin" aria-hidden="true" />{mode === 'sign-in' ? 'Signing in…' : 'Please wait…'}</> : mode === 'sign-in' ? 'Sign in' : mode === 'forgot' ? 'Send recovery code' : 'Update password'}</button>
             </form>

@@ -9,8 +9,7 @@
  *   - The 4-card Storyboard grid renders verbatim from copy.ts
  *     (Req 1.13.1 / reuse of Req 1.9).
  *   - The four FieldNotes essays replace the old coming-soon line.
- *   - Footer renders and the floating CommandPill does not, matching About
- *     page (Req 1.13.1).
+ *   - Footer renders, matching the About page (Req 1.13.1).
  *
  * Context providers (AuthContext, CartContext, UIContext) are mocked
  * at the module level so the test focuses on the page composition
@@ -48,9 +47,7 @@ vi.mock('../contexts/CartContext', () => ({
   }),
 }))
 
-// usePersona - Header uses the persona pill, and CommandPill returns null
-// when no persona is set (memory scoping needs a customer_id). Mock with
-// a truthy persona so the floating pill renders for the chrome tests.
+// usePersona - Header uses the persona pill. Mock with a signed-in persona.
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
     persona: {
@@ -68,7 +65,7 @@ vi.mock('../contexts/PersonaContext', () => ({
   }),
 }))
 
-// useUI - CommandPill reads toggleDrawer + activeModal.
+// useUI - the Header reads toggleDrawer + activeModal.
 const toggleDrawer = vi.fn()
 vi.mock('../contexts/UIContext', () => ({
   useUI: () => ({

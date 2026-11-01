@@ -30,24 +30,6 @@ import {
 } from '../copy'
 import type { ReasoningChip as ReasoningChipModel } from '../services/types'
 
-// ProductCard links to /product/:id, so the grid needs router context.
-// Stub IntersectionObserver once for this suite — ProductGrid renders
-// ProductCards that call useScrollReveal, which requires the global.
-class NoopIntersectionObserver {
-  readonly root: Element | null = null
-  readonly rootMargin: string = ''
-  readonly thresholds: ReadonlyArray<number> = [0]
-  observe(): void {}
-  unobserve(): void {}
-  disconnect(): void {}
-  takeRecords(): IntersectionObserverEntry[] {
-    return []
-  }
-}
-;(globalThis as unknown as {
-  IntersectionObserver: typeof NoopIntersectionObserver
-}).IntersectionObserver = NoopIntersectionObserver
-
 // --- Per-style render contract ------------------------------------------
 
 describe('ReasoningChip — picked style (Req 1.7.2)', () => {

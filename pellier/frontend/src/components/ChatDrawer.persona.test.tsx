@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
@@ -11,7 +11,9 @@ const state = vi.hoisted(() => ({
   sendMessage: vi.fn(),
   retryMessage: vi.fn(),
   addToCart: vi.fn(),
+  stopTurn: vi.fn(),
   signedInAs: null as string | null,
+  isLoading: false,
 }))
 
 const shopper = vi.hoisted(() => ({
@@ -48,7 +50,8 @@ vi.mock('../hooks/useAgentChat', () => ({
   useAgentChat: () => ({
     messages: [],
     inputValue: '',
-    isLoading: false,
+    isLoading: state.isLoading,
+    stopTurn: state.stopTurn,
     setInputValue: state.setInputValue,
     clearChat: state.clearChat,
     sendMessage: state.sendMessage,
@@ -73,6 +76,7 @@ describe('Ask Pellier conversation across shoppers', () => {
     vi.clearAllMocks()
     shopper.persona = null
     shopper.switching = false
+    state.isLoading = false
   })
 
   it('keeps the saved conversation when the shopper is restored after a reload', () => {
@@ -98,5 +102,18 @@ describe('Ask Pellier conversation across shoppers', () => {
     shopper.persona = ANNA
     rerender(<ChatDrawer />)
     expect(state.clearChat).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps Stop available for a running turn while a shopper switch is in flight', () => {
+    shopper.switching = true
+    state.isLoading = true
+    render(<ChatDrawer />)
+    expect(screen.getByRole('button', { name: 'Stop' })).toBeEnabled()
+  })
+
+  it('keeps send disabled during a shopper switch when no turn is running', () => {
+    shopper.switching = true
+    render(<ChatDrawer />)
+    expect(screen.getByRole('button', { name: 'Ask Pellier' })).toBeDisabled()
   })
 })

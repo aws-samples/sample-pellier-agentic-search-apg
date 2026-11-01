@@ -3,7 +3,7 @@
  * credit, against the API client mocked at the service boundary.
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer, OperatorReview } from '../services/operator'
@@ -131,6 +131,20 @@ describe("Jessica's record", () => {
     expect(state).toHaveTextContent('The client list is the current one.')
     expect(state).not.toHaveTextContent(/database/i)
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
+  it('shows the loading state, not the previous client, while the next record loads', async () => {
+    api.fetchClientRecord.mockResolvedValueOnce(RECORD).mockReturnValueOnce(new Promise(() => undefined))
+    render(
+      <MemoryRouter initialEntries={['/operator/clients/CUST-JESSICA']}>
+        <Link to="/operator/clients/CUST-OTHER">other</Link>
+        <Routes><Route path="/operator/clients/:customerId" element={<ClientRecord />} /></Routes>
+      </MemoryRouter>,
+    )
+    expect(await screen.findByTestId('operator-investigate')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('other'))
+    expect(await screen.findByTestId('operator-record-loading')).toBeInTheDocument()
+    expect(screen.queryByTestId('operator-investigate')).not.toBeInTheDocument()
   })
 
   it('shows the ticket, the orders with their return state, and no credit', async () => {

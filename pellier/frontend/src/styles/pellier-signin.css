@@ -30,6 +30,7 @@
 .pellier-signin-submit:disabled { opacity: 0.65; cursor: wait; }
 .pellier-signin-feedback { padding: 12px 16px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-field); background: var(--dl-paper-2); font-size: 15px; line-height: 1.55; margin: 0; }
 .pellier-signin-feedback[data-tone='error'] { color: var(--dl-err); }
+.pellier-signin-code { margin: -8px 0 0; font: 400 12px/1.5 var(--dl-font-mono); color: var(--dl-muted); overflow-wrap: anywhere; }
 .pellier-signin-alternative, .pellier-signin-back { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; width: 100%; margin-top: 12px; padding: 11px 18px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-pill); font: 400 14px/1.5 var(--dl-font-sans); color: var(--dl-ink); text-align: center; text-decoration: none; }
 .pellier-signin-alternative:hover, .pellier-signin-back:hover { border-color: var(--dl-line-strong); background: var(--dl-paper-2); }
 .pellier-signin-home { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; align-self: flex-start; padding: 10px 16px; border: 1px solid var(--dl-line); border-radius: var(--dl-r-pill); font-size: 14px; color: var(--dl-muted); text-decoration: none; }

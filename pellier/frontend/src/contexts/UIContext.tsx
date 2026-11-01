@@ -210,6 +210,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
   // Global keyboard shortcuts (Req 1.11.2, 1.11.3, 1.11.5).
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      // A dialog that already handled this key owns it; closing the modal
+      // singleton as well would also close the chat behind that dialog.
+      if (e.defaultPrevented) return
       // Cmd+K on macOS, Ctrl+K elsewhere: toggle the storefront chat surface.
       // ``chatSurface`` is set by route-aware components (PellierPage
       // sets 'drawer' on mount) so this handler doesn't need useLocation().

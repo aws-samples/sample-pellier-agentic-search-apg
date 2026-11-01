@@ -55,11 +55,40 @@ describe('dedicated Pellier sign-in', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Pellier is limiting requests from this network for a few minutes. Try again shortly.')
     expect(screen.getByLabelText('Username')).toHaveValue('operator')
   })
-  it('keeps the plain unavailable sentence for a dropped connection', async () => {
+  it('says Pellier could not be reached for a dropped connection, and shows the builder code', async () => {
     calls.passwordAuth.mockRejectedValue(new PasswordAuthError('network_error:sign_in'))
     render(<SignInPage />); credentials()
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('We could not reach Pellier. Check your connection and try again.')
+    expect(screen.getByTestId('pellier-signin-code')).toHaveTextContent('network_error:sign_in')
+  })
+  it.each(['http_502:sign_in', 'bad_reply:csrf'])('says Pellier answered with an error for %s', async (code) => {
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError(code))
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pellier answered with an error. Please try again in a moment.')
+    expect(screen.getByTestId('pellier-signin-code')).toHaveTextContent(code)
+  })
+  it('keeps the plain unavailable sentence for auth_unavailable, with its code', async () => {
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError('auth_unavailable'))
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Sign-in is temporarily unavailable. Please try again.')
+    expect(screen.getByTestId('pellier-signin-code')).toHaveTextContent('auth_unavailable')
+  })
+  it('shows no code when the edge limited requests: that sentence explains itself', async () => {
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError('http_403:sign_in'))
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    await screen.findByRole('alert')
+    expect(screen.queryByTestId('pellier-signin-code')).not.toBeInTheDocument()
+  })
+  it('shows no builder code for a reason Pellier explained itself', async () => {
+    calls.passwordAuth.mockRejectedValue(new PasswordAuthError('invalid_credentials'))
+    render(<SignInPage />); credentials()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    await screen.findByRole('alert')
+    expect(screen.queryByTestId('pellier-signin-code')).not.toBeInTheDocument()
   })
   it('returns to the requested record after a verified server session', async () => {
     calls.passwordAuth.mockResolvedValue({ status: 'signed_in', returnTo: '/operator/clients/CUST-JESSICA' })

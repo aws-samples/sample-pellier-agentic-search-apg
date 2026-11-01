@@ -20,7 +20,7 @@ import { apiFetch } from '../services/apiBase'
  *   - `refresh()`          — re-reads /api/auth/me + /api/user/preferences
  *   - `savePreferences(p)` — POSTs /api/user/preferences and bumps prefsVersion
  *   - `isLoading`          — alias for `loading` per the design signature
- *   - `prefsVersion`       — monotonic counter ProductGrid uses as `key=`
+ *   - `prefsVersion`       — monotonic counter HomeGrid uses as `key=`
  *
  * The fields (`login`, `logout`, `accessToken`, `isAuthenticated`, `loading`)
  * remain compatible with existing call sites
@@ -74,7 +74,7 @@ interface AuthContextType {
   preferences: Preferences | null
   /**
    * Monotonic counter that advances each time preferences are saved.
-   * `ProductGrid` (Task 4.6) uses this as `key={prefsVersion}` so the
+   * `HomeGrid` uses this as `key={prefsVersion}` so the
    * grid remounts and re-fires the parallax reveal on every save
    * (Req 1.6.6). Starts at 0.
    */
@@ -285,7 +285,7 @@ export function AuthProvider({
 
   /**
    * `savePreferences(p)` — POST /api/user/preferences. On 2xx, bumps
-   * `prefsVersion` so the ProductGrid remounts (Req 1.6.6). On non-2xx,
+   * `prefsVersion` so the HomeGrid remounts (Req 1.6.6). On non-2xx,
    * throws so the caller can surface the error.
    */
   const savePreferences = useCallback(async (p: Preferences) => {

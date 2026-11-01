@@ -439,7 +439,7 @@ export default function ChatDrawer() {
               <button
                 type="button"
                 className="cd-send"
-                disabled={switching || (!isLoading && !inputValue.trim())}
+                disabled={!isLoading && (switching || !inputValue.trim())}
                 aria-label={isLoading ? 'Stop' : 'Ask Pellier'}
                 title={isLoading ? 'Stop' : 'Ask Pellier'}
                 data-loading={isLoading}

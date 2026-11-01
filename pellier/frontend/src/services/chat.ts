@@ -10,6 +10,7 @@ import { productsNamedInAnswer } from '../utils/answerCards'
 export const CHAT_ERROR_CODES = [
   'policy_denied',
   'authentication_required',
+  'access_not_permitted',
   'rate_limited',
   'request_timeout',
   'service_unavailable',
@@ -69,13 +70,18 @@ function inferErrorCode(detail: string, status?: number): ChatErrorCode {
   // carry an explicit `policy_denied` code and bypass this inference.
   if (
     status === 401 ||
-    status === 403 ||
     normalized.includes('invalid bearer') ||
     normalized.includes('expired token') ||
     normalized.includes('token expired') ||
     normalized.includes('401 unauthorized')
   ) {
     return 'authentication_required'
+  }
+  // A 403 is not a lapsed sign-in. The backend uses it for customer_scope_required,
+  // operator_group_required and workshop_user_not_allowed, and the CloudFront firewall
+  // answers with a bare 403 too. Signing in again would not change any of them.
+  if (status === 403) {
+    return 'access_not_permitted'
   }
   if (
     status === 429 ||

@@ -176,26 +176,6 @@
     font-variant-ligatures: contextual common-ligatures;
   }
 
-  /* Cross-panel citation pulse: `useScrollAndFlash` stamps
-     `data-flash="true"` on a panel for 800ms. */
-  [data-flash='true'] {
-    animation: panel-flash 800ms ease-out;
-  }
-  @keyframes panel-flash {
-    0% {
-      box-shadow: 0 0 0 0 transparent;
-      border-color: var(--dl-line);
-    }
-    30% {
-      box-shadow: 0 0 0 6px color-mix(in srgb, var(--dl-accent) 35%, transparent);
-      border-color: var(--dl-accent);
-    }
-    100% {
-      box-shadow: 0 0 0 0 transparent;
-      border-color: var(--dl-line);
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
   }

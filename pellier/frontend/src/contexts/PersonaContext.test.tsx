@@ -60,3 +60,38 @@ describe('switchPersona with a shopper sign-in', () => {
     expect(result.current.switching).toBe(false)
   })
 })
+
+describe('the mount-time rehydrate', () => {
+  const current = (persona: typeof ANNA) => ({ ok: true, status: 200, json: async () => ({ persona }) })
+
+  function slowRehydrate() {
+    localStorage.setItem('pellier-session-id', 'persona-old-1')
+    let answer: (value: unknown) => void = () => {}
+    apiFetch.mockImplementation((path: string) => {
+      if (String(path).startsWith('/api/persona/current')) {
+        return new Promise(resolve => { answer = resolve })
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ session_id: 'persona-anna-1', persona: ANNA }) })
+    })
+    return (persona: typeof ANNA) => answer(current(persona))
+  }
+
+  it('does not overwrite a shopper chosen before it answers', async () => {
+    const answerLate = slowRehydrate()
+    const { result } = renderHook(() => usePersona(), { wrapper })
+    await act(async () => { await result.current.switchPersona('anna') })
+    expect(result.current.persona?.id).toBe('anna')
+
+    await act(async () => { answerLate({ ...ANNA, id: 'marco', display_name: 'Marco' }) })
+    expect(result.current.persona?.id).toBe('anna')
+  })
+
+  it('does not bring a shopper back after sign-out before it answers', async () => {
+    const answerLate = slowRehydrate()
+    const { result } = renderHook(() => usePersona(), { wrapper })
+    act(() => { result.current.clearPersona() })
+
+    await act(async () => { answerLate(ANNA) })
+    expect(result.current.persona).toBeNull()
+  })
+})

@@ -439,8 +439,8 @@ export function useAgentChat(
         if (!alive) return
         const turns = data?.turns
         if (!Array.isArray(turns) || turns.length === 0) return
-        // Only hydrate if localStorage had nothing beyond the greeting.
-        if (messages.length > 1) return
+        // A turn already underway owns the list; hydrating now would wipe it.
+        if (sendingRef.current) return
         const hydrated: AgentChatMessage[] = turns.map((t: { role?: string; content?: string; timestamp?: string }) => ({
           role: (t.role === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
           content: typeof t.content === 'string' ? t.content : '',
@@ -448,6 +448,8 @@ export function useAgentChat(
           agentStatus: 'complete' as const,
         }))
         setMessages(prev => {
+          // Only hydrate if nothing beyond the greeting has been typed or stored.
+          if (prev.length > 1) return prev
           const greeting = prev.length > 0 ? [prev[0]] : initialMessages
           return [...greeting, ...hydrated]
         })

@@ -332,7 +332,7 @@ describe('chat service auth transport', () => {
     })
   })
 
-  it('treats an unstructured HTTP 403 as an authentication boundary', async () => {
+  it('treats an unstructured HTTP 403 as a retryable refusal, not a lapsed sign-in', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
         JSON.stringify({ detail: 'not authorized' }),
@@ -345,9 +345,9 @@ describe('chat service auth transport', () => {
     await expect(
       sendChatMessageStreaming('hello', [], vi.fn()),
     ).rejects.toMatchObject({
-      code: 'authentication_required',
+      code: 'access_not_permitted',
       status: 403,
-      retryable: false,
+      retryable: true,
     })
   })
 

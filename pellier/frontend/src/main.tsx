@@ -21,10 +21,12 @@ import './index.css'
 // ``?reset=1`` to the URL and land on a pristine storefront.
 //
 // Runs BEFORE React mounts so providers initialise from the cleared
-// stores, not from pre-reset values.
-(() => {
+// stores, not from pre-reset values. It reports whether a reset is under way:
+// the reload replaces this page, so React must not mount against the stores
+// that were just cleared.
+const resetInProgress = (() => {
   const params = new URLSearchParams(window.location.search)
-  if (params.get('reset') !== '1') return
+  if (params.get('reset') !== '1') return false
   try {
     localStorage.clear()
     sessionStorage.clear()
@@ -44,10 +46,13 @@ import './index.css'
   params.delete('reset')
   const clean = window.location.pathname + (params.toString() ? `?${params}` : '')
   window.location.replace(clean)
+  return true
 })()
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+if (!resetInProgress) {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>,
+  )
+}

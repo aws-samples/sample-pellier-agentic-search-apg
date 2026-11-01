@@ -132,6 +132,20 @@ describe('UIContext global keyboard shortcuts', () => {
     expect(screen.getByTestId('active')).toHaveTextContent('none')
   })
 
+  it('Escape already handled by a dialog leaves the active modal alone', async () => {
+    const user = userEvent.setup()
+    const handled = (event: KeyboardEvent) => { if (event.key === 'Escape') event.preventDefault() }
+    window.addEventListener('keydown', handled)
+    try {
+      render(<Probe />, { wrapper })
+      await user.click(screen.getByText('open-drawer'))
+      await user.keyboard('{Escape}')
+      expect(screen.getByTestId('active')).toHaveTextContent('drawer')
+    } finally {
+      window.removeEventListener('keydown', handled)
+    }
+  })
+
   it('Escape is a no-op when no modal is active', async () => {
     const user = userEvent.setup()
     render(<Probe />, { wrapper })

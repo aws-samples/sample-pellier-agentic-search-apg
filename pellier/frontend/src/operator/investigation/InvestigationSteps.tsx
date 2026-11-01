@@ -97,9 +97,17 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
         </div>
       ) : null}
 
+      {phase === 'stopped' ? (
+        <p className="op-note" role="status" data-testid="operator-investigation-stopped">
+          The investigation was stopped. Nothing was proposed.
+        </p>
+      ) : null}
+
       {phase === 'failed' ? (
         <p className="op-error" role="status" data-testid="operator-investigation-error">
-          The investigation did not complete{error ? ` (${error})` : ''}. Nothing was proposed; try again.
+          {error === 'investigation_timeout'
+            ? 'The investigation ran out of time (investigation_timeout). Nothing was proposed; try again.'
+            : `The investigation did not complete${error ? ` (${error})` : ''}. Nothing was proposed; try again.`}
         </p>
       ) : null}
 

@@ -77,6 +77,35 @@ describe('streamInvestigation', () => {
   })
 })
 
+function hangingFetch(): void {
+  vi.stubGlobal('fetch', vi.fn((_url: string, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+    init.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+  })))
+}
+
+describe('streamInvestigation cancellation', () => {
+  it('reports the 300 second deadline as investigation_timeout', async () => {
+    vi.useFakeTimers()
+    try {
+      hangingFetch()
+      const outcome = streamInvestigation('CUST-JESSICA', () => undefined, () => undefined)
+      const caught = outcome.catch((error: unknown) => error)
+      await vi.advanceTimersByTimeAsync(300_000)
+      expect(await caught).toMatchObject({ code: 'investigation_timeout' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports a caller abort as investigation_stopped', async () => {
+    hangingFetch()
+    const controller = new AbortController()
+    const outcome = streamInvestigation('CUST-JESSICA', () => undefined, () => undefined, controller.signal)
+    controller.abort()
+    await expect(outcome).rejects.toMatchObject({ code: 'investigation_stopped' })
+  })
+})
+
 describe('request errors', () => {
   it('maps a 403 to the staff sign-in state', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({

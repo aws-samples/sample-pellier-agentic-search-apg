@@ -102,6 +102,12 @@ describe('useFocusTrap', () => {
     expect(stale).not.toHaveBeenCalled()
   })
 
+  it('marks Escape as handled so global shortcuts do not act on it too', () => {
+    render(<Harness />)
+    const notCancelled = fireEvent.keyDown(document, { key: 'Escape' })
+    expect(notCancelled).toBe(false)
+  })
+
   it('moves focus into the dialog when it opens', () => {
     render(<Harness />)
 

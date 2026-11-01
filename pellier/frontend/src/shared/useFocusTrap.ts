@@ -92,6 +92,7 @@ export function useFocusTrap({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.preventDefault()
         event.stopPropagation()
         onCloseRef.current()
         return

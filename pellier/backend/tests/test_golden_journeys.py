@@ -26,11 +26,9 @@ from typing import Any, Dict
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
 GOLDEN_FILE = Path(__file__).resolve().parent / "golden" / "journeys.json"
 
-# The one Lab 1 request. Also in personaCurations.ts, WORKSHOP.md, and the
-# eval harness golden set.
+# The one Lab 1 request. Also in WORKSHOP.md and the eval harness golden set.
 CANONICAL_ANNA_QUERY = "A housewarming gift under $100 that is currently in stock."
 
 
@@ -196,21 +194,16 @@ def test_local_golden_set_never_fabricates_a_managed_verdict() -> None:
 
 
 def test_anna_uses_the_canonical_lab_two_query() -> None:
-    """One query string across the guide, the storefront chip, and the harness.
+    """One query string across the guide and the harness.
 
-    Lab 1 compares five retrieval strategies on one request. If the journey,
-    the clickable chip, and the eval harness each carry their own wording, the
-    comparison measures three different questions.
+    Lab 1 compares five retrieval strategies on one request. If the journey
+    and the eval harness each carry their own wording, the comparison
+    measures two different questions.
     """
     journey = next(
         item for item in JOURNEYS if item["id"] == "anna-constrained-gift-retrieval"
     )
     assert journey["entryPrompt"] == CANONICAL_ANNA_QUERY
-
-    curations = (
-        REPO_ROOT / "pellier" / "frontend" / "src" / "data" / "personaCurations.ts"
-    ).read_text(encoding="utf-8")
-    assert f"query: '{CANONICAL_ANNA_QUERY}'" in curations
 
 
 def test_jessica_preserves_fact_context_and_inference() -> None:
