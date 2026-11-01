@@ -1381,6 +1381,25 @@ def test_code_editor_terminals_start_at_the_root_and_a_reload_reattaches() -> No
     assert (REPO / "scripts" / "workshop-banner.sh").is_file()
 
 
+def test_show_tabs_in_the_terminal_drop_down_is_undone() -> None:
+    """The drop-down's "Show Tabs" deletes the tabs setting for the rest of the event; a path
+    unit on the user settings file runs keep_terminal_tabs_off.py, as the participant, to put
+    it back, and the unit is enabled and started at bootstrap."""
+    source = BOOTSTRAP_ENV.read_text(encoding="utf-8")
+    service = source[source.index("cat > /etc/systemd/system/pellier-terminal-tabs.service"):]
+    service = service[: service.index("\nEOF")]
+    watcher = source[source.index("cat > /etc/systemd/system/pellier-terminal-tabs.path"):]
+    watcher = watcher[: watcher.index("\nEOF")]
+    assert "User=$CODE_EDITOR_USER" in service
+    assert ("ExecStart=/usr/bin/python3 $HOME_FOLDER/$REPO_NAME/scripts/keep_terminal_tabs_off.py "
+            "$SETTINGS_DIR/settings.json") in service
+    assert "StartLimitIntervalSec=0" in service
+    assert "PathChanged=$SETTINGS_DIR/settings.json" in watcher
+    assert "systemctl enable --now pellier-terminal-tabs.path" in source
+    assert source.index('SETTINGS_DIR="') < source.index("pellier-terminal-tabs.path <<")
+    assert (REPO / "scripts" / "keep_terminal_tabs_off.py").is_file()
+
+
 def test_the_automatic_terminal_task_can_actually_fire() -> None:
     """A folderOpen task only runs from the .vscode of the folder that opened.
 

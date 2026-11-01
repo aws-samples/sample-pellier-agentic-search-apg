@@ -820,6 +820,35 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$SETTINGS_DIR"
 
 log "✅ VS Code user settings configured"
 
+# The terminal drop-down's last entry, "Show Tabs", deletes the tabs setting above and turns
+# the tab list, with its Rerun Task hover, back on for the rest of the event. A path unit
+# watches the settings file and keep_terminal_tabs_off.py puts the setting back, so a
+# mis-pick flips straight back to the drop-down. The script leaves a file already off alone,
+# so its own write ends the loop.
+cat > /etc/systemd/system/pellier-terminal-tabs.service << EOF
+[Unit]
+Description=Turn Code Editor terminal tabs back off for the workshop
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=$CODE_EDITOR_USER
+ExecStart=/usr/bin/python3 $HOME_FOLDER/$REPO_NAME/scripts/keep_terminal_tabs_off.py $SETTINGS_DIR/settings.json
+EOF
+cat > /etc/systemd/system/pellier-terminal-tabs.path << EOF
+[Unit]
+Description=Watch Code Editor's user settings for terminal tabs
+
+[Path]
+PathChanged=$SETTINGS_DIR/settings.json
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable --now pellier-terminal-tabs.path
+log "✅ Terminal tabs stay off"
+
 # ============================================================================
 # STEP 10: PYTHON SETUP (~10 sec)
 # ============================================================================
