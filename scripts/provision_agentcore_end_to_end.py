@@ -1929,16 +1929,7 @@ def _authenticated_runtime_smoke(
         )
         decoded = _decode_runtime_invoke(proc)
         # An entrypoint that refused the request reports no build digest, so
-        # retrying would misreport its refusal as the previous version. The one
-        # refusal worth another try is the verifier failing to reach the JWKS.
-        if decoded.get("error") == "auth_unavailable" and attempt < attempts:
-            print(
-                "Runtime could not reach the token verifier's keys (auth_unavailable); "
-                f"retrying in {wait_seconds:g}s ({attempt}/{attempts})",
-                flush=True,
-            )
-            time.sleep(wait_seconds)
-            continue
+        # retrying would misreport its refusal as the previous version.
         if decoded.get("error"):
             raise RuntimeError(
                 "Runtime smoke was rejected by the deployed entrypoint: "
