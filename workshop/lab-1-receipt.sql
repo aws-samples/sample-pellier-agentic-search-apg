@@ -25,9 +25,9 @@ WITH newest AS (
      LIMIT 1
 )
 SELECT r.receipt_id,
-       r.retrieval_config->'requested'->'hard_constraints' AS asked_limits,
+       r.retrieval_config->'requested'->'hard_constraints' AS asked_constraints,
        r.retrieval_config->'requested'->'exclusions' AS asked_exclusions,
-       r.hard_constraints AS kept_limits,
+       r.hard_constraints AS kept_constraints,
        r.exclusions AS kept_exclusions,
        r.relaxations->0->>'step' AS relaxation,
        r.relaxations->0->'dropped' AS dropped

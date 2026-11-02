@@ -202,7 +202,7 @@ def test_the_panel_note_says_kept_counts_hard_limits_only() -> None:
     counts = {"kept": 64, "of": 100, "removed": {"budget": 31}}
     with_counts = ranking_from_execution(execution, final_rows=execution.ordered, counts=counts)
     assert with_counts["note"] == KEPT_NOTE
-    assert "only the hard limits" in KEPT_NOTE
+    assert "only the requirements" in KEPT_NOTE
     # One short sentence.
     assert KEPT_NOTE.endswith(".") and KEPT_NOTE.count(".") == 1 and ";" not in KEPT_NOTE
     without = ranking_from_execution(execution, final_rows=execution.ordered, counts=None)

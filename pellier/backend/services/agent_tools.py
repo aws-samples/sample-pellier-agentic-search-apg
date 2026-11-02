@@ -432,7 +432,7 @@ def _turn_requirements(query: str) -> tuple[dict | None, list[str]]:
 
 
 def _apply_plan(tool: str, payload: dict, carried: list[str]) -> None:
-    """Once the tool ran, keep the shopper's limits for the next turn and say what carried over.
+    """Once the tool ran, keep the shopper's requirements for the next turn; report the carry.
 
     What is kept is the turn's reading of the shopper's words, not the plan:
     an agent's ``max_price`` argument shaped this one plan and is never
@@ -509,10 +509,10 @@ def search_products(
 def browse_department(department: str, limit: int = 5) -> str:
     """Show the highest-rated products in one store department, such as Home or Kitchen and table.
 
-    The shopper's limits (budget, stock, what they refused, a department they
-    required), including ones stated earlier in this conversation, apply here as
-    they do to a search. If the result has constraint_notice, tell the shopper
-    what it says.
+    The shopper's requirements (budget, stock, what they refused, a department
+    they required), including ones stated earlier in this conversation, apply
+    here as they do to a search. If the result has constraint_notice, tell the
+    shopper what it says.
 
     Args:
         department: Store department name.

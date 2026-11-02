@@ -25,7 +25,7 @@ because it only fails for the participant who is already behind.
 
 **Lab 1 - Build and measure PostgreSQL hybrid retrieval.** Two marker regions: the
 vector search, which starts ranking nothing by meaning, and a search-plan fallback that
-starts by dropping the shopper's limits. The RRF worksheet is Lab 1's Go deeper: it keeps
+starts by dropping the shopper's requirements. The RRF worksheet is Lab 1's Go deeper: it keeps
 its marker region and starter, but it is not a task.
 
 Each lab's starters fail the way its guide's See it fail step shows, and its solutions do

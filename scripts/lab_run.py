@@ -122,7 +122,7 @@ CONVERSATIONS = {
 }
 # A task can open with its own request, sent alone with ``--task``; each builds on the one
 # before. 1A is Anna's first sentence, whose ranking shows the vector search, and 1B the same
-# sentence with her limits, which needs the fallback. 2A is Marco's Brooklyn count, which
+# sentence with her requirements, which needs the fallback. 2A is Marco's Brooklyn count, which
 # only check_stock can answer, and 2B the cape Pellier never carried, which check_stock
 # misreads once 2A connects it. 3A is Theo's ticket question on the managed starter, which
 # cannot read tickets until get_tickets is published. Without ``--task`` a lab sends all of
@@ -584,7 +584,7 @@ def _method(ranking: Dict[str, Any], k: int) -> str:
 
 
 def _kept(filters: Dict[str, Any]) -> str:
-    """The Builder view's chips in a sentence: what the limits kept and what each left out."""
+    """The Builder view's chips in a sentence: what the requirements kept and what each left out."""
     removed = []
     for reason, count in (filters.get("removed") or {}).items():
         if reason == "exclusions":
@@ -595,7 +595,7 @@ def _kept(filters: Dict[str, Any]) -> str:
     kept = f"kept {filters['kept']:,} of {filters['of']:,} products"
     if removed:
         return f"{kept}; left out {', '.join(removed)}"
-    return f"{kept}; no limit left any out" if filters["kept"] == filters["of"] else kept
+    return f"{kept}; no requirement left any out" if filters["kept"] == filters["of"] else kept
 
 
 def _trace_ranking(ranking: Dict[str, Any]) -> None:
@@ -608,7 +608,7 @@ def _trace_ranking(ranking: Dict[str, Any]) -> None:
     filters, arms = ranking.get("filters") or {}, ranking.get("arms") or {}
     _trace_line("", "How it ranked")
     if filters.get("kept") is not None and filters.get("of") is not None:
-        _trace_line("", f"Limits: {_kept(filters)}")
+        _trace_line("", f"Requirements: {_kept(filters)}")
     counts = (f"Full text {arms.get('full_text', 0):,}, Vector {arms.get('vector', 0):,}; "
               if arms else "")
     _trace_line("", counts + _method(ranking, k))

@@ -72,7 +72,7 @@ TOOL_SCHEMAS = {
                 "name": "browse_department",
                 "description": (
                     "The highest-rated products in one store department, within "
-                    "the shopper's limits."
+                    "the shopper's requirements."
                 ),
                 "inputSchema": {
                     "type": "object",

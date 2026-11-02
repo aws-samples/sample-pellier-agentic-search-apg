@@ -2,7 +2,7 @@
 """Lab 1's checks, one per task.
 
     uv run scripts/lab1_check.py --task 1A   the vector search ranks Anna's products by meaning
-    uv run scripts/lab1_check.py --task 1B   Anna's retry kept every limit she asked for
+    uv run scripts/lab1_check.py --task 1B   Anna's retry kept every requirement she asked for
 
 Each prints its findings and ends with one line, such as ``Lab 1A check passed``.
 """

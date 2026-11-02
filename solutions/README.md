@@ -15,7 +15,7 @@ cp solutions/lab-1-retrieve/retrieval/store_tools_solution.py \
 ```
 
 Task 1B's recovery restores `pellier/backend/services/search_plan.py` with a
-fallback that keeps the shopper's limits:
+fallback that keeps the shopper's requirements:
 
 ```bash
 cp solutions/lab-1-retrieve/retrieval/search_plan_solution.py \

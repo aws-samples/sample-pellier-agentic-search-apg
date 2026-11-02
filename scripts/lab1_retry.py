@@ -1,18 +1,18 @@
-"""Lab 1B's check: Anna's latest search kept every limit she asked for.
+"""Lab 1B's check: Anna's latest search kept every requirement she asked for.
 
 When the first search is sparse, the fallback retries with fewer preferences;
-it must never retry with fewer limits. This reads the retrieval receipts of
+it must never retry with fewer requirements. This reads the retrieval receipts of
 Anna's newest turn (``persona-anna-...``, the session
 ``uv run scripts/lab_run.py send --lab 1`` starts), takes the search that
 needed the fallback (else the newest), and compares two things it records: the
-limits the shopper asked for (``retrieval_config.requested``, the plan built
-from her words before any fallback) and the limits the search that answered
-kept. It then reads every product that search returned from the catalog and
-checks each requested limit against it.
+requirements the shopper asked for (``retrieval_config.requested``, the plan built
+from her words before any fallback) and the requirements the search that
+answered kept. It then reads every product that search returned from the
+catalog and checks each requested requirement against it.
 
 The search must have needed the fallback: a receipt with no recorded
 relaxation never ran Task 1B's code, so it proves nothing either way. A
-request that stated no limit proves nothing either, so the check asks for the
+request that stated no requirement proves nothing either, so the check asks for the
 guide's request.
 
 Run on the box, it also reads when search_plan.py last changed and when the
@@ -39,14 +39,14 @@ import workshop_check as check  # noqa: E402  (sibling module)
 
 ANNA_SESSION_PREFIX = "persona-anna-"
 SEND = "uv run scripts/lab_run.py send --lab 1 --task 1B"
-# The guide's request, the one Anna's first suggestion sends: three limits the
+# The guide's request, the one Anna's first suggestion sends: three requirements the
 # first search cannot fill, so the fallback has to run.
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "
                 "In stock, under $100, and no candles.")
-TITLE = "Anna's limits survive the fallback"
+TITLE = "Anna's requirements survive the fallback"
 EXPECTED = (
-    "the fallback ran and the search that answered kept every limit the shopper asked "
-    "for; every product it returned meets them"
+    "the fallback ran and the search that answered kept every requirement the shopper "
+    "asked for; every product it returned meets them"
 )
 NEXT_STEP = (
     "open _next_attempt in pellier/backend/services/search_plan.py: does the "
@@ -137,7 +137,7 @@ def _plural(word: str) -> str:
 
 
 def limits_of(hard_constraints: Any, exclusions: Any) -> Dict[str, Any]:
-    """One plan's hard limits: budget, stock, exclusions and departments."""
+    """One plan's requirements: budget, stock, exclusions and departments."""
     hard = _as_dict(hard_constraints)
     price = hard.get("price_max_usd")
     return {
@@ -163,7 +163,7 @@ def kept_limits(receipt: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def phrases(limits: Dict[str, Any]) -> List[str]:
-    """The limits in the shopper's words: "under $100", "in stock", "no candles"."""
+    """The requirements in the shopper's words: "under $100", "in stock", "no candles"."""
     said = []
     if limits["price"] is not None:
         said.append(f"under ${limits['price']:g}")
@@ -192,7 +192,7 @@ def dropped(requested: Dict[str, Any], kept: Dict[str, Any]) -> List[str]:
 
 
 def product_breaks(product: Dict[str, Any], limits: Dict[str, Any]) -> List[str]:
-    """The requested limits one catalog row breaks, in the shopper's words."""
+    """The requested requirements one catalog row breaks, in the shopper's words."""
     broken = []
     if limits["price"] is not None and float(product["price"]) > limits["price"]:
         broken.append(f"${float(product['price']):.2f}")
@@ -219,13 +219,13 @@ def _evidence(receipt: Dict[str, Any], requested: Optional[Dict[str, Any]]) -> L
     ) or "no relaxation recorded"
     created = receipt.get("created_at")
     when = created.strftime("%H:%M:%S UTC") if hasattr(created, "strftime") else str(created)
-    asked = (", ".join(phrases(requested)) or "no limit") if requested else "not recorded"
+    asked = (", ".join(phrases(requested)) or "no requirement") if requested else "not recorded"
     return [
         f"pellier.retrieval_receipts receipt {receipt['receipt_id']}, session "
         f"{check.short(receipt.get('session_id'), 22)}, {when}",
         f"query: \"{receipt.get('query_preview') or ''}\"",
         f"the shopper asked: {asked}",
-        f"the search that answered recorded: {retried}; limits it kept: "
+        f"the search that answered recorded: {retried}; requirements it kept: "
         f"{', '.join(phrases(kept_limits(receipt))) or 'none'}",
     ]
 
@@ -297,17 +297,17 @@ def _judge(
                              "Anna's latest search returned no products", evidence, NEXT_REQUEST)
     if requested is None or not phrases(requested):
         observed = ("the receipt does not record what the shopper asked" if requested is None
-                    else "the request stated no limit, so there was nothing to keep")
+                    else "the request stated no requirement, so there was nothing to keep")
         return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
                              NEXT_REQUEST)
     if not _relaxations(receipt):
         observed = (f"the first search answered, so the fallback never ran; {len(ids)} "
-                    f"returned, {len(broken_lines)} break a limit")
+                    f"returned, {len(broken_lines)} break a requirement")
         return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
                              NEXT_REQUEST)
     lost = dropped(requested, kept_limits(receipt))
     if broken_lines or lost:
-        observed = f"{len(ids) - len(broken_lines)} of {len(ids)} keep every limit asked for"
+        observed = f"{len(ids) - len(broken_lines)} of {len(ids)} keep every requirement asked for"
         if broken_lines:
             observed += "; " + "; ".join(broken_lines)
         if lost:
@@ -339,7 +339,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if check.refuse_missing_lab_file(1):
         return 1
     finding, rows = run()
-    print("Lab 1B: every product in Anna's latest search keeps the limits she asked for")
+    print("Lab 1B: every product in Anna's latest search keeps the requirements she asked for")
     if rows:
         print(check.table(("product", "name", "price", "in stock", "verdict"), rows))
     print(check.render(finding))

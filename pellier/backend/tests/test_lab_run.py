@@ -1447,7 +1447,7 @@ def test_send_prints_each_turns_trace_as_it_streams(
                        "fit under $100 and in stock, candles")
     assert lines[done + 1] == "                    left out"
     assert "                    How it ranked" in lines
-    assert "                    Limits: kept 64 of 100 products" in lines
+    assert "                    Requirements: kept 64 of 100 products" in lines
     rows = [line.strip() for line in lines if line.strip().startswith("│")]
     assert [cell.strip() for cell in rows[0].strip("│").split("│")] == [
         "#", "Product", "Full text", "Vector", "Fused score", "Rerank"]
@@ -1512,7 +1512,7 @@ def test_a_ranking_row_shows_how_far_rerank_moved_it_and_its_similarity(
                                       "moved": 4}]})
     lines = [line.strip() for line in capsys.readouterr().out.splitlines()]
     assert lines[0] == "How it ranked"
-    assert lines[1] == ("Limits: kept 828 of 1,000 products; left out 86 over budget, 82 sold out, "
+    assert lines[1] == ("Requirements: kept 828 of 1,000 products; left out 86 over budget, 82 sold out, "
                         "4 candles")
     assert lines[2] == ("Full text 20, Vector 20; fused with RRF (k=60), then Cohere Rerank 3.5 "
                         "on the top 15")
@@ -1572,7 +1572,7 @@ def test_limits_that_left_nothing_out_say_so(capsys: pytest.CaptureFixture[str])
     lab_run._trace_ranking({"available": True, "filters": {"kept": 1000, "of": 1000},
                             "rows": [{"name": "Sunday Morning Candle", "fts_rank": 3}]})
     lines = [line.strip() for line in capsys.readouterr().out.splitlines()]
-    assert lines[1] == "Limits: kept 1,000 of 1,000 products; no limit left any out"
+    assert lines[1] == "Requirements: kept 1,000 of 1,000 products; no requirement left any out"
 
 
 def test_quiet_keeps_the_one_line_output(

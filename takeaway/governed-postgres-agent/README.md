@@ -52,7 +52,7 @@ the write's guarantees. This source review does not require a running event.
 
 | Your question | Reference |
 |---|---|
-| Do search limits survive fallback? | [Retrieval](references/01-filter-before-ranking.md) |
+| Do search requirements survive fallback? | [Retrieval](references/01-filter-before-ranking.md) |
 | Does missing data become an invented fact? | [Bounded results](references/02-bounded-facts.md) |
 | Who decides whose records are accessible? | [Identity and RLS](references/03-bind-identity-enforce-ownership.md) |
 | What prevents an unauthorized or duplicate write? | [Controlled writes](references/04-approve-and-deduplicate-writes.md) |

@@ -143,7 +143,7 @@ def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, 
 
 def _browse_department(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
     # The same requirement arguments as search_products: the Catalog agent
-    # passes the shopper's limits, including ones stated earlier in the
+    # passes the shopper's requirements, including ones stated earlier in the
     # conversation, and the plan compiles them into the same predicates.
     return store_tools.browse_department(
         run_store_sql,

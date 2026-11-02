@@ -337,10 +337,10 @@ def test_the_managed_report_is_empty_when_the_bundle_carries_no_skills(monkeypat
     assert "SKILLS - loaded for this agent" not in prompt
 
 
-def test_the_managed_catalog_prompt_carries_limits_across_the_conversation() -> None:
+def test_the_managed_catalog_prompt_carries_requirements_across_the_conversation() -> None:
     _, prompt, _, _ = gateway._managed_specialist_spec("catalog")
     assert "browse_department as arguments" in prompt
-    assert "including limits the shopper stated earlier in this conversation" in prompt
+    assert "including requirements the shopper stated earlier in this conversation" in prompt
 
 
 @pytest.mark.usefixtures("solved_binding")

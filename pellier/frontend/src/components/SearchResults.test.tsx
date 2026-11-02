@@ -410,7 +410,7 @@ describe('the results view', () => {
   })
 
   it('keeps a Builder-only note out of shopper copy and shows it in the panel with Builder view on', async () => {
-    const note = 'Read from the retrieval receipt: no filter counts, and no record of which limits were kept from earlier'
+    const note = 'Read from the retrieval receipt: no filter counts, and no record of which requirements were kept from earlier'
     render(<Storefront />)
     await askFromTheHomeBar(ANNA_QUESTION)
     await emit(ROUTE_CATALOG, SEARCH_RUNNING, searchDone(['36', '22'], { filters: null, note }))

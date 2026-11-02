@@ -18,7 +18,7 @@ COPIES = ("README.md", "WORKSHOP.md", "docs/WORKSHOP-STORY-ARC.md")
 
 def test_the_arc_holds_four_questions() -> None:
     assert QUESTIONS == [
-        "Can search match intent and keep every shopper limit?",
+        "Can search match intent and keep every shopper requirement?",
         "Can every stock answer be backed by a warehouse record?",
         "Can each shopper access only their own records on AgentCore?",
         "Can approved credits stay within limits and be written once?",

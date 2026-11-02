@@ -9,10 +9,10 @@ comes back first, the rest follow in order of rising distance, similarity
 reads 1 minus the distance, and the vector search returns as many rows as
 were asked for.
 
-The last probe applies Anna's three limits and searches with the Sunday
+The last probe applies Anna's three requirements and searches with the Sunday
 Morning Candle's own embedding. The candle is the closest product to that
-vector by meaning, and it must still not come back: the limits decide what is
-eligible before meaning decides the order.
+vector by meaning, and it must still not come back: the requirements decide
+what is eligible before meaning decides the order.
 
 No model is called; every vector the check searches with is already in the
 catalog.
@@ -32,7 +32,7 @@ import workshop_check as check  # noqa: E402  (sibling module)
 BACKEND = check.REPO / "pellier" / "backend"
 TITLE = "the vector search ranks by meaning"
 EXPECTED = ("each product's own embedding finds that product first, the rest by rising "
-            "distance, similarity = 1 - distance, a full pool, and Anna's limits kept")
+            "distance, similarity = 1 - distance, a full pool, and Anna's requirements kept")
 NEXT_STEP = ("open the Vector search - order by meaning region in "
              "pellier/backend/services/store_tools.py: which pgvector operator measures how "
              "far a product is from the query embedding, and which way should the rows run? "
@@ -112,7 +112,7 @@ def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
     eligible = run('SELECT count(*) AS n FROM pellier.product_catalog WHERE '
                    + store_tools.VISIBLE_CATALOG_SQL + " AND " + " AND ".join(clauses),
                    params)[0]["n"]
-    problem = _ordering_problem("Anna's limits", rows, distances, min(size, int(eligible)))
+    problem = _ordering_problem("Anna's requirements", rows, distances, min(size, int(eligible)))
     for row in rows:
         broken = [label for label, bad in (
             ("over $100", float(row["price"]) > 100),
@@ -121,8 +121,9 @@ def _limits_probe(run: Callable[..., List[Dict[str, Any]]], store_tools: Any,
              + [str(material) for material in (row.get("materials") or [])]),
         ) if bad]
         if broken and problem is None:
-            problem = f"{row['name']} came back under Anna's limits, and it is {broken[0]}"
-    return (f"{LIMITS_PROBE}, Anna's limits", *_first(rows), len(rows),
+            problem = (f"{row['name']} came back with Anna's requirements applied, "
+                       f"and it is {broken[0]}")
+    return (f"{LIMITS_PROBE}, Anna's requirements", *_first(rows), len(rows),
             "ok" if problem is None else "fails"), problem
 
 
@@ -158,13 +159,13 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
         if problem and problem not in problems:
             problems.append(problem)
     evidence = [f"pellier.product_catalog, {len(SELF_PROBES)} products searched with their "
-                f"own embeddings, then {LIMITS_PROBE} under Anna's limits; pool size {size}"]
+                f"own embeddings, then {LIMITS_PROBE} with Anna's requirements; pool size {size}"]
     if problems:
         return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED, problems[0],
                              evidence + problems[1:], NEXT_STEP), rows
     return check.Finding("1A", TITLE, check.PROVED, EXPECTED,
                          f"every probe ranks by meaning: {len(SELF_PROBES)} products found "
-                         "themselves first, and Anna's limits held", evidence), rows
+                         "themselves first, and Anna's requirements held", evidence), rows
 
 
 def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List[Sequence[Any]]]:

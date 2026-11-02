@@ -38,7 +38,7 @@ const NOTES: readonly Note[] = [
     kicker: 'Field note No. 01',
     title: 'Anna, on gifting as a practiced art.',
     body: [
-      'Anna is choosing a housewarming gift under $100. It needs to be in stock, and candles are off the list. Even when she asks for another idea, those limits still matter.',
+      'Anna is choosing a housewarming gift under $100. It needs to be in stock, and candles are off the list. Even when she asks for another idea, those requirements still matter.',
     ],
     signature: 'Anna, a gift-giver',
   },

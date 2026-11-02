@@ -17,7 +17,7 @@ store's leadership would ask, and each lab answers one:
 
 | Lab | Customer | Leadership question |
 |---|---|---|
-| 1. Build and measure PostgreSQL hybrid retrieval | Anna | "Can search match intent and keep every shopper limit?" |
+| 1. Build and measure PostgreSQL hybrid retrieval | Anna | "Can search match intent and keep every shopper requirement?" |
 | 2. Build a PostgreSQL-grounded agent | Marco | "Can every stock answer be backed by a warehouse record?" |
 | 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records on AgentCore?" |
 | 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia (staff) | "Can approved credits stay within limits and be written once?" |
@@ -137,7 +137,7 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
   by cosine distance to the query embedding and report similarity as 1 minus
   it. `uv run scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.
 - **Task 1B:** after `uv run scripts/lab_run.py send --lab 1`,
-  `uv run scripts/lab1_check.py --task 1B` shows the retry dropped her limits. Keep
+  `uv run scripts/lab1_check.py --task 1B` shows the retry dropped her requirements. Keep
   them in `pellier/backend/services/search_plan.py`: a retry may relax a
   preference, never the budget, the stock rule or the exclusions. The check
   ends `Lab 1B check passed`.

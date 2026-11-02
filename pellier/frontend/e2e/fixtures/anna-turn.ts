@@ -189,7 +189,7 @@ const RANKING = {
     excluded: [{ value: 'candle', count: 4, noun: 'candles' }],
   },
   rows: RANKING_ROWS,
-  note: 'Kept counts only the hard limits, so the fused pool can be smaller.',
+  note: 'Kept counts only the requirements, not the preferences, so the fused pool can be smaller.',
 }
 
 export const ANNA_RANKING = RANKING

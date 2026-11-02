@@ -57,7 +57,7 @@ def test_a_dropped_limit_is_named_and_blames_the_fallback() -> None:
 
 @pytest.mark.parametrize("requested, observed", [
     ({"hard_constraints": {"price_max_usd": None, "in_stock_only": False, "categories": []},
-      "exclusions": []}, "the request stated no limit, so there was nothing to keep"),
+      "exclusions": []}, "the request stated no requirement, so there was nothing to keep"),
     (None, "the receipt does not record what the shopper asked"),
 ])
 def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, observed) -> None:

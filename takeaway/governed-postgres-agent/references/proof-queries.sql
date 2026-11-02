@@ -13,19 +13,19 @@ WITH request AS (
     SELECT r.* FROM review_example.retrieval_receipts r
     JOIN request q USING (request_id)
 ), products AS (
-    SELECT id, p.*, q.original_constraints AS limits
+    SELECT id, p.*, q.original_constraints AS requirements
     FROM request q JOIN receipt r USING (request_id)
     CROSS JOIN LATERAL unnest(r.returned_product_ids) AS ids(id)
     LEFT JOIN review_example.catalog p ON p.product_id = ids.id
 ), violations AS (
     SELECT * FROM products
     WHERE product_id IS NULL
-       OR CASE WHEN jsonb_typeof(limits->'max_price') = 'number'
-               THEN price > (limits->>'max_price')::numeric ELSE true END
-       OR CASE WHEN jsonb_typeof(limits->'in_stock_only') = 'boolean'
-               THEN (limits->>'in_stock_only')::boolean AND quantity <= 0 ELSE true END
-       OR CASE WHEN jsonb_typeof(limits->'exclude') = 'array'
-               THEN (limits->'exclude') ? category ELSE true END
+       OR CASE WHEN jsonb_typeof(requirements->'max_price') = 'number'
+               THEN price > (requirements->>'max_price')::numeric ELSE true END
+       OR CASE WHEN jsonb_typeof(requirements->'in_stock_only') = 'boolean'
+               THEN (requirements->>'in_stock_only')::boolean AND quantity <= 0 ELSE true END
+       OR CASE WHEN jsonb_typeof(requirements->'exclude') = 'array'
+               THEN (requirements->'exclude') ? category ELSE true END
 )
 SELECT CASE
     WHEN (SELECT count(*) FROM request) <> 1

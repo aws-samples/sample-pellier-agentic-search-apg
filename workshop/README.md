@@ -16,7 +16,7 @@ is not a completed task.
 | Lab and task | Work you do | Check |
 |---|---|---|
 | 1A, Anna | Search by what she means (`services/store_tools.py`), applied with `scripts/lab_run.py solution --lab 1 --task 1A` | `uv run scripts/lab1_check.py --task 1A` |
-| 1B, Anna | Keep her limits on the retry (`services/search_plan.py`) | `uv run scripts/lab1_check.py --task 1B` |
+| 1B, Anna | Keep her requirements on the retry (`services/search_plan.py`) | `uv run scripts/lab1_check.py --task 1B` |
 | 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`), applied with `scripts/lab_run.py solution --lab 2 --task 2A` | `uv run scripts/lab2_check.py --task 2A` |
 | 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `uv run scripts/lab2_check.py --task 2B` |
 | 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `uv run scripts/lab3_check.py --task 3A` |
@@ -40,7 +40,7 @@ Jessica's credit from her request to the row with joins, and ends
 `Wrap-up reconstruction passed`.
 
 In Task 1B, `psql -f workshop/lab-1-receipt.sql` prints Anna's latest search receipt as one
-record: the limits she asked for, the limits the search kept, and the soft tags a retry
+record: the requirements she asked for, the ones the search kept, and the soft tags a retry
 dropped. It only reads.
 
 Optional, in Lab 1's Go deeper: `psql -f workshop/lab-1-words.sql` ranks her words with

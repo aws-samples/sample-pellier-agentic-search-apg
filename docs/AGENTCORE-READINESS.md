@@ -127,8 +127,8 @@ approve a credit or mark an unrun check complete.
 
 | Task | Region | Acceptance |
 |---|---|---|
-| **1A** | Vector search in `pellier/backend/services/store_tools.py` | `scripts/lab1_check.py --task 1A`: products searched with their own embeddings come back first, similarity is 1 minus the distance, and Anna's limits keep the candle out. |
-| **1B** | Fallback in `pellier/backend/services/search_plan.py` | `scripts/lab1_check.py --task 1B`: the search that answered kept every limit the shopper asked for, and every product meets them. |
+| **1A** | Vector search in `pellier/backend/services/store_tools.py` | `scripts/lab1_check.py --task 1A`: products searched with their own embeddings come back first, similarity is 1 minus the distance, and Anna's requirements keep the candle out. |
+| **1B** | Fallback in `pellier/backend/services/search_plan.py` | `scripts/lab1_check.py --task 1B`: the search that answered kept every requirement the shopper asked for, and every product meets them. |
 | **2A** | Stock agent grant in `pellier/backend/agents/stock_agent.py` | `scripts/lab2_check.py --task 2A`: the answering Stock agent held `check_stock` alone, and its counts for the pieces Pellier carries equal `warehouse_inventory`. |
 | **2B** | Not-carried test in `pellier.check_stock` (`workshop/lab-2-check-stock.sql`) | `--task 2B`: through the live function, not carried, several, sold out and in stock stay distinct. |
 | **3A** | Published tools in `scripts/deploy/gateway_tool_schemas.py`; caller binding in `pellier/backend/services/agentcore_gateway.py` | `scripts/lab3_check.py --task 3A`: nine tools published, `get_tickets` bound to the signed-in caller: a forged read for `CUST-JESSICA` leaves the checkout as `CUST-THEO`, and is refused with no signed-in customer. |

@@ -319,7 +319,7 @@ def test_lab_one_and_two_lines_read_the_real_schema(
     }
     for task, finding in findings.items():
         assert finding.state == PROVED, (task, finding)
-    assert "Anna's limits held" in findings["1A"].observed
+    assert "Anna's requirements held" in findings["1A"].observed
 
 
 # ---------------------------------------------------------------------------

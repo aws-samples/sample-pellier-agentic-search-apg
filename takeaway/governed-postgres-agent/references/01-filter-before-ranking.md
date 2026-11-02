@@ -11,7 +11,7 @@ Find where the request becomes structured constraints, where each candidate
 branch uses them, and what changes on retry. In Pellier, Anna's budget,
 availability and exclusions remain hard requirements while gift tags may be
 relaxed. Preserve the original requirements separately from the executed
-plan; comparing results only with the retry's plan would miss dropped limits.
+plan; comparing results only with the retry's plan would miss dropped requirements.
 
 For SQL retrieval, place eligibility predicates before the candidate limit:
 

@@ -33,9 +33,10 @@ from services.turn_steps import plural
 TOP_ROWS = 8
 RRF_K_DEFAULT = 60
 
-# What "Kept" counts: the hard limits alone. The strict first pass also asks
+# What "Kept" counts: the requirements alone. The strict first pass also asks
 # for the soft preferences the shopper implied, so the pool can be smaller.
-KEPT_NOTE = "Kept counts only the hard limits, so the fused pool can be smaller."
+KEPT_NOTE = ("Kept counts only the requirements, not the preferences, so the fused pool can be "
+             "smaller.")
 
 # The brief's order for "how many each limit removed".
 _REASON_ORDER = ("budget", "stock", "exclusions", "department")
@@ -276,7 +277,7 @@ def ranking_from_execution(
     }
     if counts:
         # The strict first pass also asks for the preferences the shopper
-        # implied, so the fused pool can be smaller than what the hard limits kept.
+        # implied, so the fused pool can be smaller than what the requirements kept.
         payload["note"] = KEPT_NOTE
     return payload
 
@@ -499,7 +500,7 @@ def results_payload(
 
 RECEIPT_RESULTS_NOTE = (
     "Read from the retrieval receipt: no filter counts, and no record of which "
-    "limits were kept from earlier"
+    "requirements were kept from earlier"
 )
 
 
@@ -507,8 +508,8 @@ def results_from_receipt(receipt: Dict[str, Any], *, rail: str = "gateway-mcp") 
     """The managed rail's grid, read back from one ``retrieval_receipts`` row.
 
     The receipt holds the result order and the plan, so the order and the
-    limits carry over. It holds no filter counts and no record of which
-    limits the shopper stated earlier, and the payload says so.
+    requirements carry over. It holds no filter counts and no record of which
+    requirements the shopper stated earlier, and the payload says so.
     """
     plan = _jsonb(receipt.get("search_plan"), {})
     return results_payload(

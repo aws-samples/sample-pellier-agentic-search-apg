@@ -101,7 +101,7 @@ def test_the_solution_ranks_by_meaning(conn, monkeypatch) -> None:
     # on the approximate full-catalog index, whose recall varies with each graph build.
     ("limits ignored", {"{_indent_clauses(extra_clauses)}":
                         "{_indent_clauses(['(' + c + ' OR true)' for c in extra_clauses])}"},
-     "came back under Anna's limits, and it is a candle"),
+     "came back with Anna's requirements applied, and it is a candle"),
 ])
 def test_the_check_catches_a_realistic_mistake(conn, monkeypatch, mistake: str,
                                                replacements: Dict[str, str],

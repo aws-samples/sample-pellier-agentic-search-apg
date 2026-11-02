@@ -147,7 +147,7 @@ anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
 |---|---|---|---|---|
-| 1. Build and measure PostgreSQL hybrid retrieval | Anna | Search by what she means | Keep her limits on the retry |
+| 1. Build and measure PostgreSQL hybrid retrieval | Anna | Search by what she means | Keep her requirements on the retry |
 | 2. Build a PostgreSQL-grounded agent | Marco | Connect `check_stock` to the Stock agent, alone | Keep "not carried" distinct from sold out |
 | 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
 | 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia | Cap the credit at $100 in Cedar | Let the credit-writer role write only through the function |

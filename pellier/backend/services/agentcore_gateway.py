@@ -201,7 +201,7 @@ def _managed_specialist_prompt(
             "browse_department as arguments, never as words in the query: a "
             "budget as max_price in dollars, a request for what is available as "
             "in_stock_only=true, and anything they ruled out as exclusions, a "
-            "list of those words, including limits the shopper stated earlier "
+            "list of those words, including requirements the shopper stated earlier "
             "in this conversation. The database enforces them as filters."
         )
     prompt += "\n" + OUTPUT_RULES[specialist]
@@ -485,7 +485,7 @@ def _safe_tool_input(tool_use: Dict[str, Any]) -> Dict[str, Any]:
     """Return only documented tool arguments for inspection: scalars, and lists of them.
 
     ``exclusions`` is a list, so a browse or search step would otherwise show
-    its budget and stock limits but never what the shopper ruled out.
+    its budget and stock requirements but never what the shopper ruled out.
     """
     raw = tool_use.get("input")
     if not isinstance(raw, dict):
