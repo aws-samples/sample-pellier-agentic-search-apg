@@ -223,7 +223,11 @@ def _tar(path: Path, sha: str, files: dict[str, str]) -> None:
             t.addfile(info, io.BytesIO(data))
 
 
-def test_repair_keeps_the_participants_lab_edit_before_restoring(tmp_path: Path) -> None:
+def test_repair_parks_the_participants_lab_edit_before_restoring(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
     sha = "0123456789abcdef0123456789abcdef01234567"
     repo = tmp_path / "repo"
     (repo / "workshop").mkdir(parents=True)
@@ -241,17 +245,22 @@ def test_repair_keeps_the_participants_lab_edit_before_restoring(tmp_path: Path)
     report = repair.repair(repo, fetch=lambda _s, dest: dest.write_bytes(tarball.read_bytes()))
 
     assert (repo / "pellier" / "search_plan.py").read_text() == "starter\n"
-    assert (repo / "labs/01-retrieve/1B.py.bak").read_text() == "my attempt\n"
-    assert len(report.kept) == 1 and "1B.py.bak" in report.kept[0]
-    assert not list(repo.rglob("other.py.bak*"))
+    assert (parked / "labs/01-retrieve/1B.py").read_text() == "my attempt\n"
+    assert len(report.kept) == 1 and "labs/01-retrieve/1B.py" in report.kept[0]
+    assert list(repo.rglob("*.bak*")) == []
+    assert not list(parked.rglob("other.py*"))
 
     (repo / "pellier" / "search_plan.py").write_text("second attempt\n")
     repair.repair(repo, fetch=lambda _s, dest: dest.write_bytes(tarball.read_bytes()))
-    assert (repo / "labs/01-retrieve/1B.py.bak.2").read_text() == "second attempt\n"
-    assert (repo / "labs/01-retrieve/1B.py.bak").read_text() == "my attempt\n"
+    assert (parked / "labs/01-retrieve/1B.py.2").read_text() == "second attempt\n"
+    assert (parked / "labs/01-retrieve/1B.py").read_text() == "my attempt\n"
 
 
-def test_a_lab_reset_keeps_every_edited_task_file_not_only_optional_ones(tmp_path: Path) -> None:
+def test_a_lab_reset_parks_every_edited_task_file_not_only_optional_ones(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
     repo = tmp_path / "repo"
     markers, files = exercises.exercises_for(1)
     for exercise in (*markers, *files):
@@ -271,9 +280,13 @@ def test_a_lab_reset_keeps_every_edited_task_file_not_only_optional_ones(tmp_pat
     if required is not None:
         (repo / required.destination).write_text("-- my required attempt\n", encoding="utf-8")
 
+    (repo / "workshop" / "participant-files.json").write_bytes(
+        (REPO / "workshop" / "participant-files.json").read_bytes())
+
     exercises._restore(repo, 1, keep_edits=True)
 
-    assert path.with_name(path.name + ".bak").read_bytes() == edited
+    aliases = exercises.lab_reference.aliases_by_source(repo)
+    assert (parked / aliases[marker.destination]).read_bytes() == edited
     if required is not None:
-        backup = (repo / required.destination)
-        assert backup.with_name(backup.name + ".bak").read_text() == "-- my required attempt\n"
+        assert (parked / aliases[required.destination]).read_text() == "-- my required attempt\n"
+    assert list(repo.rglob("*.bak*")) == []

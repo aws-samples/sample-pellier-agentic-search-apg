@@ -327,15 +327,65 @@ def test_a_database_failure_says_the_files_are_already_restored(tmp_path: Path) 
     assert "Nothing else" not in message and "Nothing in the database changed" not in message
 
 
-def test_a_lab_reset_keeps_the_go_deeper_worksheet_the_participant_edited(tmp_path: Path) -> None:
+def _with_alias_list(repo: Path) -> None:
+    """The shipped list of Explorer links, which names where a parked file goes."""
+    target = repo / "workshop" / "participant-files.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes((REPO / "workshop" / "participant-files.json").read_bytes())
+
+
+def test_a_lab_reset_parks_the_go_deeper_worksheet_the_participant_edited(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
     repo = make_repo(tmp_path)
+    _with_alias_list(repo)
     fusion = repo / "workshop" / "lab-1-fusion.sql"
     fusion.write_text("-- my fusion attempt\n", encoding="utf-8")
 
     exercises.restore_lab(repo, 1, keep_edits=True)
 
     assert fusion.read_bytes() == (REPO / "workshop/starters/lab-1-fusion.sql").read_bytes()
-    assert (repo / "workshop" / "lab-1-fusion.sql.bak").read_text() == "-- my fusion attempt\n"
+    assert (parked / "labs/01-retrieve/go-deeper-fusion.sql").read_text() == "-- my fusion attempt\n"
+    assert list(repo.rglob("*.bak*")) == []
+
+
+def test_a_lab_reset_moves_the_apply_steps_backups_out_of_the_workspace(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """After any reset the Explorer shows what a fresh box shows: the links alone."""
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
+    repo = make_repo(tmp_path)
+    _with_alias_list(repo)
+    link = repo / "labs/01-retrieve/1A-vector-search.py"
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.with_name(link.name + ".bak").write_text("first attempt\n", encoding="utf-8")
+    link.with_name(link.name + ".bak.2").write_text("second attempt\n", encoding="utf-8")
+    other = repo / "labs/02-ground/2A-stock-agent.py.bak"
+    other.parent.mkdir(parents=True, exist_ok=True)
+    other.write_text("lab 2 attempt\n", encoding="utf-8")
+
+    exercises.restore_lab(repo, 1, keep_edits=True)
+
+    assert sorted(p.relative_to(repo).as_posix() for p in repo.rglob("*.bak*")) == [
+        "labs/02-ground/2A-stock-agent.py.bak"]
+    assert (parked / "labs/01-retrieve/1A-vector-search.py.bak").read_text() == "first attempt\n"
+    assert (parked / "labs/01-retrieve/1A-vector-search.py.bak.2").read_text() == "second attempt\n"
+    assert f"2 earlier copies moved to {parked}" in capsys.readouterr().out
+
+
+def test_a_reset_on_an_untouched_box_creates_no_parking_folder(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
+    repo = make_repo(tmp_path)
+
+    exercises.restore_lab(repo, 1, keep_edits=True)
+
+    assert not parked.exists()
 
 
 def test_the_whole_workshop_restore_writes_no_backup(tmp_path: Path) -> None:

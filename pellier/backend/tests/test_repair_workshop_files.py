@@ -106,8 +106,12 @@ def _alias(repo: Path, source: str, alias: str) -> None:
         json.dumps([{"alias": alias, "source": source, "solution": "unused"}]))
 
 
-def test_a_mode_only_difference_on_a_task_file_keeps_no_backup(tmp_path: Path) -> None:
-    """Bootstrap writes task files under umask 077; a fresh box must carry no ``.bak``."""
+def test_a_mode_only_difference_on_a_task_file_parks_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Bootstrap writes task files under umask 077; a fresh box must carry no backup."""
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
     repo = box(tmp_path)
     _alias(repo, "services/plan.py", "labs/01/1B-plan.py")
     (repo / "services").mkdir()
@@ -123,11 +127,14 @@ def test_a_mode_only_difference_on_a_task_file_keeps_no_backup(tmp_path: Path) -
     assert report.restored == ["services/plan.py"]
     assert report.kept == []
     assert not list((repo / "labs" / "01").iterdir())
+    assert not parked.exists()
 
 
-def test_an_edited_task_file_is_kept_beside_its_link_before_the_pin_replaces_it(
-    tmp_path: Path,
+def test_an_edited_task_file_is_parked_outside_the_workspace_before_the_pin_replaces_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    parked = tmp_path / "parked"
+    monkeypatch.setenv("PELLIER_RESET_BACKUP_DIR", str(parked))
     repo = box(tmp_path)
     _alias(repo, "services/plan.py", "labs/01/1B-plan.py")
     (repo / "services").mkdir()
@@ -140,8 +147,9 @@ def test_an_edited_task_file_is_kept_beside_its_link_before_the_pin_replaces_it(
     report = repair.repair(repo, fetch=fetch_from(tarball))
 
     assert (repo / "services" / "plan.py").read_text() == "starter"
-    assert (repo / "labs" / "01" / "1B-plan.py.bak").read_text() == "my attempt"
-    assert report.kept == ["services/plan.py: your version is kept in labs/01/1B-plan.py.bak"]
+    assert (parked / "labs" / "01" / "1B-plan.py").read_text() == "my attempt"
+    assert report.kept == [f"labs/01/1B-plan.py: earlier version moved to {parked / 'labs/01/1B-plan.py'}"]
+    assert not list((repo / "labs" / "01").iterdir())
 
 
 def test_a_file_the_participant_created_is_left_alone(tmp_path: Path) -> None:

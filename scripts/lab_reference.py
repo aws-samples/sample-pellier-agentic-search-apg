@@ -13,10 +13,12 @@ answer.
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 SOURCE_ENV = "PELLIER_LAB_SOURCE_GIT"
 DEFAULT_SOURCE = Path("/opt/pellier/source.git")
@@ -119,6 +121,75 @@ def keep_version(repo: Path, alias: str, yours: bytes) -> str:
         if backup.read_bytes() == yours:
             return f"your version is already kept in {name}"
         number += 1
+
+
+BACKUP_DIR_ENV = "PELLIER_RESET_BACKUP_DIR"
+BACKUP_PARENT = Path("/var/lib/pellier/backups")
+
+
+def reset_backup_dir() -> Path:
+    """Where a reset parks a participant's earlier versions, outside the workspace.
+
+    ``PELLIER_RESET_BACKUP_DIR`` names it outright: the whole-workshop reset sets one folder
+    for its two steps. Otherwise a dated folder under /var/lib/pellier/backups on a workshop
+    box, or under ~/.pellier-backups where that parent is not writable. Nothing is created
+    until a file is parked.
+    """
+    named = os.environ.get(BACKUP_DIR_ENV)
+    if named:
+        return Path(named)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
+    parent = BACKUP_PARENT.parent
+    usable = parent.is_dir() and os.access(parent, os.W_OK)
+    return (BACKUP_PARENT if usable else Path.home() / ".pellier-backups") / stamp
+
+
+def park_version(repo: Path, backup_dir: Path, alias: str, yours: bytes) -> Path:
+    """Move a participant's version out of the workspace, keeping its lab folder and name.
+
+    A later, different version of the same file in one reset gets ``.2``, ``.3`` and on, so
+    nothing is overwritten; bytes already parked are not written twice. Returns the parked
+    path. What root parks is handed to the repository's owner.
+    """
+    number = 1
+    while True:
+        name = alias if number == 1 else f"{alias}.{number}"
+        parked = backup_dir / name
+        if not parked.exists():
+            parked.parent.mkdir(parents=True, exist_ok=True)
+            parked.write_bytes(yours)
+            folders = [p for p in parked.parents if backup_dir in p.parents or p == backup_dir]
+            adopt(repo, [*folders, parked])
+            return parked
+        if parked.read_bytes() == yours:
+            return parked
+        number += 1
+
+
+def park_backups(repo: Path, backup_dir: Path, aliases: Iterable[str]) -> List[Path]:
+    """Move every ``.bak``, ``.bak.2`` and on that an apply step left beside the given links.
+
+    Returns the parked paths. The workspace then shows the links alone, as a fresh box does.
+    """
+    moved: List[Path] = []
+    for alias in dict.fromkeys(aliases):
+        link = repo / alias
+        for backup in sorted(link.parent.glob(link.name + ".bak*")):
+            if not backup.is_file() or backup.is_symlink():
+                continue
+            relative = backup.relative_to(repo).as_posix()
+            moved.append(park_version(repo, backup_dir, relative, backup.read_bytes()))
+            backup.unlink()
+    return moved
+
+
+def aliases_by_source(repo: Path) -> Dict[str, str]:
+    """The editor link of each file a participant edits, keyed by the file's repo path."""
+    try:
+        entries = json.loads((repo / PARTICIPANT_FILES).read_text("utf-8"))
+        return {entry["source"]: entry["alias"] for entry in entries}
+    except (OSError, ValueError, KeyError, TypeError):
+        return {}
 
 
 def adopt(repo: Path, created: List[Path]) -> None:

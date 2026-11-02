@@ -87,6 +87,7 @@ class Report:
     unchanged: int = 0
     skipped: list[str] = field(default_factory=list)
     kept: list[str] = field(default_factory=list)
+    backup_dir: Path = field(default_factory=lambda: lab_reference.reset_backup_dir())
 
     @property
     def repaired(self) -> int:
@@ -202,11 +203,7 @@ def verified_members(archive: tarfile.TarFile, sha: str) -> Iterator[tuple[str, 
 
 def participant_aliases(repo: Path) -> dict[str, str]:
     """The editor link of each file a participant edits, keyed by the file's repo path."""
-    try:
-        entries = json.loads((repo / lab_reference.PARTICIPANT_FILES).read_text("utf-8"))
-        return {entry["source"]: entry["alias"] for entry in entries}
-    except (OSError, ValueError, KeyError, TypeError):
-        return {}
+    return lab_reference.aliases_by_source(repo)
 
 
 def _member_bytes(member: tarfile.TarInfo, archive: tarfile.TarFile) -> bytes | None:
@@ -217,14 +214,14 @@ def _member_bytes(member: tarfile.TarInfo, archive: tarfile.TarFile) -> bytes | 
         return source.read()
 
 
-def _keep_participant_version(
+def _park_participant_version(
     repo: Path, relative: str, alias: str, pinned: bytes | None, report: Report,
 ) -> None:
-    """Keep a participant's edit as ``<link>.bak`` (``.bak.2`` and on) before it is replaced.
+    """Move a participant's edit out of the workspace before the pin replaces it.
 
     A file whose bytes already match the pin is not an edit, even when its mode differs:
-    bootstrap writes task files under a private umask, and keeping those would leave a
-    ``.bak`` beside every task file on a box nobody has touched.
+    bootstrap writes task files under a private umask, and parking those would turn every
+    reset on an untouched box into a folder of copies.
     """
     target = repo / relative
     if target.is_symlink() or not target.is_file():
@@ -232,8 +229,8 @@ def _keep_participant_version(
     yours = target.read_bytes()
     if yours == pinned:
         return
-    message = lab_reference.keep_version(repo, alias, yours)
-    report.kept.append(f"{relative}: {message}")
+    parked = lab_reference.park_version(repo, report.backup_dir, alias, yours)
+    report.kept.append(f"{alias}: earlier version moved to {parked}")
 
 
 def _same(target: Path, member: tarfile.TarInfo, archive: tarfile.TarFile) -> bool:
@@ -297,9 +294,12 @@ def apply_archive(repo: Path, archive: tarfile.TarFile, sha: str, write: bool = 
         (report.restored if existed else report.recreated).append(relative)
         if write:
             if existed and relative in aliases:
-                _keep_participant_version(repo, relative, aliases[relative],
+                _park_participant_version(repo, relative, aliases[relative],
                                           _member_bytes(member, archive), report)
             _write(repo, target, member, archive)
+    if write:
+        for parked in lab_reference.park_backups(repo, report.backup_dir, aliases.values()):
+            report.kept.append(f"{parked.name}: apply-step copy moved to {parked}")
     return report
 
 
@@ -356,7 +356,7 @@ def main(argv: list[str] | None = None) -> int:
     for relative in [*report.restored, *report.recreated][:20]:
         print(f"  {relative}", flush=True)
     for line in report.kept:
-        print(f"  kept {line}", flush=True)
+        print(f"  moved {line}", flush=True)
     for line in report.skipped:
         print(f"  skipped {line}", file=sys.stderr, flush=True)
     changed = [*report.restored, *report.recreated]

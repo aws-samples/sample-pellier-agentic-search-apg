@@ -407,6 +407,11 @@ echo "------------------------------------------------------------"
 _assert_no_running_deploy
 _quiesce_services
 _assert_no_active_execution
+# Earlier versions of the task files leave the workspace rather than sitting beside the
+# links as .bak: the repair and the task-file reset park them in one dated folder.
+_backup_parent=/var/lib/pellier/backups
+[[ -w /var/lib/pellier ]] || _backup_parent="$HOME/.pellier-backups"
+export PELLIER_RESET_BACKUP_DIR="${PELLIER_RESET_BACKUP_DIR:-$_backup_parent/$(date -u +%Y-%m-%dT%H-%M-%SZ)}"
 _repair_workshop_files
 _load_restore_functions
 pellier_restore_execution_rail || exit 1
@@ -417,6 +422,9 @@ if ! "$PYTHON" "$REPO/scripts/reset_participant_exercises.py" \
   exit 1
 fi
 pass "Labs 1-4 restored to their incomplete participant starters"
+if [[ -d "$PELLIER_RESET_BACKUP_DIR" ]]; then
+  pass "Earlier work moved out of the workspace to $PELLIER_RESET_BACKUP_DIR ($(find "$PELLIER_RESET_BACKUP_DIR" -type f | wc -l | tr -d ' ') files)"
+fi
 
 # Aurora: drop the pellier schema, then the schema, the catalog and the seed, exactly as
 # a fresh database is built. scripts/setup/database-reset.sh owns that sequence; the

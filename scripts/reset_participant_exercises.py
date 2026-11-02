@@ -188,21 +188,27 @@ def _check(repo: Path, lab: int | None = None) -> list[str]:
     return mismatches
 
 
-def _keep_edit(destination: Path, replacement: bytes) -> None:
-    """Save the participant's version of a task file beside it before the starter replaces it.
-
-    Numbered ``.bak``, ``.bak.2`` and on, so no attempt is overwritten; one line says where.
-    """
+def _park_edit(repo: Path, backup_dir: Path, destination: Path, replacement: bytes) -> None:
+    """Move the participant's version of a task file out of the workspace before the starter
+    replaces it, under the name they know it by in the Explorer; one line says where."""
     if not destination.is_file() or destination.read_bytes() == replacement:
         return
-    message = lab_reference.keep_version(destination.parent, destination.name,
-                                         destination.read_bytes())
-    if "already kept" not in message:
-        print(f"your version of {destination.name} is kept in {message.rsplit(' ', 1)[-1]}")
+    relative = destination.relative_to(repo).as_posix()
+    alias = lab_reference.aliases_by_source(repo).get(relative, relative)
+    parked = lab_reference.park_version(repo, backup_dir, alias, destination.read_bytes())
+    print(f"your earlier {Path(alias).name} moved to {parked}")
+
+
+def _lab_aliases(repo: Path, lab: int | None) -> list[str]:
+    """The Explorer links of the lab's task files (every lab's when None)."""
+    markers, files = exercises_for(lab)
+    aliases = lab_reference.aliases_by_source(repo)
+    return [aliases.get(e.destination, e.destination) for e in (*markers, *files)]
 
 
 def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> None:
     markers, files = exercises_for(lab)
+    backup_dir = lab_reference.reset_backup_dir()
     for exercise in markers:
         starter = _read(repo / exercise.starter)
         destination_path = repo / exercise.destination
@@ -212,7 +218,7 @@ def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> No
         except ValueError as exc:
             raise ValueError(f"{exercise.destination}: {exc}") from exc
         if keep_edits:
-            _keep_edit(destination_path, restored.encode("utf-8"))
+            _park_edit(repo, backup_dir, destination_path, restored.encode("utf-8"))
         destination_path.write_text(restored, encoding="utf-8")
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
@@ -223,9 +229,14 @@ def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> No
             raise FileNotFoundError(starter_path)
         destination_path.parent.mkdir(parents=True, exist_ok=True)
         if keep_edits:
-            _keep_edit(destination_path, starter_path.read_bytes())
+            _park_edit(repo, backup_dir, destination_path, starter_path.read_bytes())
         shutil.copyfile(starter_path, destination_path)
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
+    # The .bak copies an apply step left beside the links leave with the edits: a reset
+    # ends in the state a fresh box opens with, and nothing is thrown away.
+    moved = lab_reference.park_backups(repo, backup_dir, _lab_aliases(repo, lab))
+    if moved:
+        print(f"{len(moved)} earlier cop{'y' if len(moved) == 1 else 'ies'} moved to {backup_dir}")
 
 
 def _labs(lab: int | None) -> tuple[int, ...]:
@@ -276,7 +287,8 @@ def restore_lab(
 ) -> list[str]:
     """Restore one lab's files (every lab's when None); return the exercise ids restored.
 
-    ``keep_edits`` saves every edited task file as ``.bak`` first; a lab reset sets it.
+    ``keep_edits`` moves every edited task file out of the workspace first (a lab reset
+    sets it); the ``.bak`` copies apply steps left beside the links move with them.
 
     Raises:
         ValueError: the lab has no participant task files, or a marker pair is damaged.
