@@ -4,6 +4,20 @@ This repository is the application behind the flagship governed agentic search
 workshop. Read this file before editing. `AGENTS.md` is a link to this file, so
 Codex and other coding agents that read `AGENTS.md` follow the same contract.
 
+## Two branches: start on `governed`
+
+The repository holds two applications for two different event formats. They
+share early history but have diverged, so never copy code or instructions
+between them.
+
+| Branch | What it is | Use it for |
+|---|---|---|
+| `governed` (default) | The current application: the 120-minute AWS re:Invent workshop, four labs on Amazon Aurora PostgreSQL and Amazon Bedrock AgentCore (Runtime, Memory, Gateway, Policy) | The workshop, running Pellier yourself, and the patterns to reuse in your own applications |
+| `main` | An older application built for a different format, the one-hour Builders' Session, with its own labs and app | That session only. It does not receive `governed`'s changes |
+
+A fresh clone checks out `governed`. When this file and a `main` document
+disagree, this file describes the code in front of you.
+
 ## Instruction map
 
 Claude Code guidance is intentionally layered:
@@ -24,9 +38,9 @@ or runtime skills.
 
 ## Branch and source contract
 
-- `governed` is the flagship 120-minute re:Invent workshop application.
-- `main` supports the shorter one-hour builders session. Do not backport,
-  merge, or simplify `governed` changes into `main` unless explicitly asked.
+- `governed` and `main` are separate applications (see Two branches above). Do
+  not backport, merge, or simplify `governed` changes into `main` unless
+  explicitly asked.
 - The application repository is the source of truth for code and runtime
   claims.
 - The sibling Workshop Studio repository
@@ -103,6 +117,40 @@ the task the participant names, never every file at once.
   Cognito JWT that Lab 3 inspects.
 - On failure, discuss the evidence and one hint. The participant chooses the
   documented recovery and runs it themselves; an unrun check stays incomplete.
+
+### Reuse mode: Pellier's patterns in your own application
+
+Use reuse mode when someone who downloaded this repository asks how to apply
+Pellier to their own agent, data or AWS account. It never applies inside a lab:
+a participant working on a task stays in participant mode, where `solutions/`
+and `takeaway/` stay closed.
+
+What transfers is four contracts, not the store. The catalog, the personas and
+the lab scaffolding exist to teach. At HEAD, each lab's file still holds that
+lab's fault (the retry drops the shopper's requirements, the vector search
+ranks nothing, the Cedar rule denies every credit), so take the finished
+version from `solutions/`, never the lab file. `solutions/README.md` shows which
+lab file each one replaces.
+
+| Contract | The pattern | Read and borrow |
+|---|---|---|
+| Filter, then rank | The shopper's requirements become SQL predicates applied before ranking. Full-text search and pgvector rank what qualifies, Reciprocal Rank Fusion merges the two lists, and a reranker orders the top. A retry may relax a preference, never a requirement, and every search writes a retrieval receipt. | `solutions/lab-1-retrieve/retrieval/search_plan_solution.py`, `solutions/lab-1-retrieve/retrieval/store_tools_solution.py`, `pellier.retrieval_receipts` in `scripts/migrations/001_schema.sql` |
+| Bounded facts | A tool answers from authoritative rows through one SQL function, and a product with no row reads as not carried, never as zero stock. | `solutions/lab-2-ground/sql/lab-2-check-stock-solution.sql`, `solutions/lab-2-ground/agents/stock_agent_solution.py` |
+| Ownership | The caller's identity comes from the verified token, never from the model's arguments. Cedar permits owner-only reads at the Gateway, and row-level security under a restricted role limits what the database returns. | `pellier/backend/services/runtime_identity.py`, `solutions/lab-3-deploy/services/agentcore_gateway.py`, `scripts/deploy/render_agentcore_project.py` (the Cedar policies), `solutions/lab-3-deploy/sql/lab-3-row-ownership-solution.sql`, `pellier/backend/services/database.py` (`SET LOCAL ROLE`) |
+| Write once | A person approves, Cedar caps the amount, a credit-writer role may only execute one function, and an idempotency key makes a replay apply nothing. | `pellier/backend/services/operator_review.py`, `pellier/backend/services/governed_execution.py`, `solutions/lab-4-govern/policies/credit_limit.cedar`, `solutions/lab-4-govern/sql/lab-4-credit-writer-solution.sql`, `pellier.give_store_credit` in `scripts/migrations/001_schema.sql` |
+
+- To review an existing agent against these contracts, install the take-home
+  skill in `takeaway/governed-postgres-agent` (README, Take it home). It asks the
+  application team the right questions and carries the SQL that proves each
+  contract holds.
+- To run the whole stack in an AWS account, follow
+  `docs/run-in-your-own-account.md`.
+- Leave the teaching scaffolding behind: `labs/`, `workshop/`, the lab and check
+  scripts under `scripts/`, the event bootstrap, the seeded catalog, and the
+  demo shoppers' server-side sign-in.
+- Pellier is an educational sample. Before production use, read Security and
+  responsible use in `README.md`, and keep identity in the signed token,
+  authorization in Cedar and the database, and proof in rows you can query.
 
 ### Maintainer mode
 

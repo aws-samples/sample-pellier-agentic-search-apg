@@ -9,7 +9,7 @@
 The application and lab code for the AWS re:Invent 2026 workshop<br>
 **DAT416: Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
 
-The one-hour Builders' Session is on the [`main` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/main).
+This branch, `governed`, is the default and the current application. The [`main` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/main) holds an older application built for a different format, the one-hour Builders' Session; use `governed` for the workshop and for anything you reuse.
 
 [![governed-quality](https://img.shields.io/github/actions/workflow/status/aws-samples/sample-pellier-agentic-search-apg/quality.yml?branch=governed&style=flat-square&logo=githubactions&logoColor=white&label=governed-quality)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/actions/workflows/quality.yml?query=branch%3Agoverned)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0E7C86?style=flat-square)](LICENSE)
@@ -146,6 +146,8 @@ cp -r takeaway/governed-postgres-agent ~/.claude/skills/
 ```
 
 Then run `/governed-postgres-agent review <path>` on your team's agent code. Its [README](takeaway/governed-postgres-agent/README.md) covers other agents and a first run against Pellier.
+
+To reuse the code itself, start from `solutions/`, not the lab files: at HEAD each lab file still holds the fault its lab repairs. [`solutions/README.md`](solutions/README.md) maps each finished file to the file it replaces, and `CLAUDE.md` (also read as `AGENTS.md`) lists where each contract is enforced.
 
 ## Repository layout
 
