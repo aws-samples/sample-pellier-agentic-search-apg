@@ -1081,6 +1081,89 @@ def test_runtime_smoke_requires_gateway_mcp_rail(
             invoke()
 
 
+def _fake_jwt(claims: dict) -> str:
+    import base64
+
+    def part(obj: dict) -> str:
+        raw = json.dumps(obj).encode("utf-8")
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+    return f"{part({'alg': 'RS256'})}.{part(claims)}.sig"
+
+
+def _cognito_fakes(tokens: list[str]):
+    class Secrets:
+        def get_secret_value(self, *, SecretId):
+            return {"SecretString": json.dumps(
+                {"users": [{"username": "marco", "password": "Password1"}]})}
+
+    class Cognito:
+        calls = 0
+
+        def admin_initiate_auth(self, **_kwargs):
+            token = tokens[min(Cognito.calls, len(tokens) - 1)]
+            Cognito.calls += 1
+            return {"AuthenticationResult": {"AccessToken": token}}
+
+        def get_user(self, **_kwargs):
+            return {"Username": "marco"}
+
+    return Secrets, Cognito
+
+
+def test_the_smoke_token_is_minted_again_until_the_customer_claim_appears(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Cognito applies a trigger attachment with a lag: on 2026-11-02 a token minted four
+    seconds after the attachment carried no claim and the event failed its gate."""
+    module = _load_provisioner()
+    bare = _fake_jwt({"sub": "s", "token_use": "access"})
+    stamped = _fake_jwt({"sub": "s", "token_use": "access", "custom:customer_id": "CUST-MARCO"})
+    Secrets, Cognito = _cognito_fakes([bare, bare, stamped])
+    monkeypatch.setattr(module.boto3, "client",
+                        lambda service, **_k: Secrets() if service == "secretsmanager" else Cognito())
+    naps: list[float] = []
+    monkeypatch.setattr(module.time, "sleep", naps.append)
+
+    token, username = module._cognito_access_token(
+        region="us-east-1", user_pool_id="pool", client_id="client",
+        credentials_secret_arn="users", client_secret_arn=None,
+        expect_customer_claim=True, claim_attempts=5, claim_wait_seconds=10.0,
+    )
+
+    assert token == stamped and username == "marco"
+    assert Cognito.calls == 3 and naps == [10.0, 10.0]
+
+
+def test_a_trigger_that_never_stamps_the_claim_fails_the_proof_with_the_reason(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_provisioner()
+    bare = _fake_jwt({"sub": "s", "token_use": "access"})
+    Secrets, Cognito = _cognito_fakes([bare])
+    monkeypatch.setattr(module.boto3, "client",
+                        lambda service, **_k: Secrets() if service == "secretsmanager" else Cognito())
+    monkeypatch.setattr(module.time, "sleep", lambda _s: None)
+
+    with pytest.raises(RuntimeError, match="no custom:customer_id after 3 sign-ins"):
+        module._cognito_access_token(
+            region="us-east-1", user_pool_id="pool", client_id="client",
+            credentials_secret_arn="users", client_secret_arn=None,
+            expect_customer_claim=True, claim_attempts=3, claim_wait_seconds=0.0,
+        )
+    assert Cognito.calls == 3
+
+
+def test_the_proof_token_requires_the_customer_claim() -> None:
+    """The smoke's mint asks for the claim; the gateway listing proof relies on it too."""
+    source = PROVISIONER.read_text(encoding="utf-8")
+    marker = "access_token, smoke_username = _cognito_access_token("
+    calls = [i for i in range(len(source)) if source.startswith(marker, i)]
+    assert len(calls) >= 2
+    for call in calls:
+        assert "expect_customer_claim=True" in source[call:call + 500]
+
+
 def test_agentcore_command_errors_redact_bearer_tokens(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

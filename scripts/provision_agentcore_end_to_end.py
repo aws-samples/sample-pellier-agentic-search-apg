@@ -1165,7 +1165,20 @@ def _cognito_access_token(
     client_id: str,
     credentials_secret_arn: str,
     client_secret_arn: str | None,
+    expect_customer_claim: bool = False,
+    claim_attempts: int = 12,
+    claim_wait_seconds: float = 10.0,
 ) -> tuple[str, str]:
+    """Sign the seeded shopper in and return an access token with their username.
+
+    ``expect_customer_claim`` requires the token to carry ``custom:customer_id``.
+    The pre-token trigger that stamps it is attached to the user pool moments
+    before the first proof token is minted, and Cognito applies a trigger
+    attachment with a short lag: on 2026-11-02 a token minted four seconds
+    after the attachment carried no claim, the Runtime refused it as
+    ``customer_identity_unmapped``, and the event failed its gate while every
+    later sign-in carried the claim. Mint again, bounded, until it does.
+    """
     secrets = boto3.client("secretsmanager", region_name=region, config=AWS_CONFIG)
     cognito = boto3.client("cognito-idp", region_name=region, config=AWS_CONFIG)
     credentials_raw = secrets.get_secret_value(
@@ -1193,15 +1206,36 @@ def _cognito_access_token(
                 username, client_id, client_secret
             )
 
-    response = cognito.admin_initiate_auth(
-        UserPoolId=user_pool_id,
-        ClientId=client_id,
-        AuthFlow="ADMIN_USER_PASSWORD_AUTH",
-        AuthParameters=auth_parameters,
-    )
-    access_token = response.get("AuthenticationResult", {}).get("AccessToken")
-    if not access_token:
-        raise RuntimeError("Cognito did not return an access token")
+    access_token = None
+    for attempt in range(1, max(1, claim_attempts) + 1):
+        response = cognito.admin_initiate_auth(
+            UserPoolId=user_pool_id,
+            ClientId=client_id,
+            AuthFlow="ADMIN_USER_PASSWORD_AUTH",
+            AuthParameters=auth_parameters,
+        )
+        access_token = response.get("AuthenticationResult", {}).get("AccessToken")
+        if not access_token:
+            raise RuntimeError("Cognito did not return an access token")
+        if not expect_customer_claim:
+            break
+        claim = str(_unverified_token_claims(str(access_token)).get("custom:customer_id") or "")
+        if claim.strip():
+            break
+        if attempt < claim_attempts:
+            print(
+                "The access token carries no custom:customer_id yet (the pre-token "
+                f"trigger attachment is still taking effect); minting again in "
+                f"{claim_wait_seconds:g}s ({attempt}/{claim_attempts})",
+                flush=True,
+            )
+            time.sleep(claim_wait_seconds)
+    else:
+        raise RuntimeError(
+            f"The access token carried no custom:customer_id after {claim_attempts} "
+            "sign-ins: the pre-token claim trigger is attached but not stamping tokens, "
+            "so no shopper could reach the Runtime"
+        )
     verified_user = cognito.get_user(AccessToken=str(access_token))
     verified_username = str(verified_user.get("Username", "")).strip()
     if not verified_username:
@@ -1895,7 +1929,16 @@ def _authenticated_runtime_smoke(
         )
         decoded = _decode_runtime_invoke(proc)
         # An entrypoint that refused the request reports no build digest, so
-        # retrying would misreport its refusal as the previous version.
+        # retrying would misreport its refusal as the previous version. The one
+        # refusal worth another try is the verifier failing to reach the JWKS.
+        if decoded.get("error") == "auth_unavailable" and attempt < attempts:
+            print(
+                "Runtime could not reach the token verifier's keys (auth_unavailable); "
+                f"retrying in {wait_seconds:g}s ({attempt}/{attempts})",
+                flush=True,
+            )
+            time.sleep(wait_seconds)
+            continue
         if decoded.get("error"):
             raise RuntimeError(
                 "Runtime smoke was rejected by the deployed entrypoint: "
@@ -2980,6 +3023,7 @@ def _participant_update(
         client_id=required["cognito_client"],
         credentials_secret_arn=required["credentials_secret"],
         client_secret_arn=client_secret_arn,
+            expect_customer_claim=True,
     )
     live_gateway = _discover_live_gateway_tools(
         deploy_dir=deploy_dir,
@@ -3513,6 +3557,7 @@ def _provision(
             client_id=required["cognito_client"],
             credentials_secret_arn=required["credentials_secret"],
             client_secret_arn=client_secret_arn,
+            expect_customer_claim=True,
         )
         live_gateway = _discover_live_gateway_tools(
             deploy_dir=deploy_dir,
