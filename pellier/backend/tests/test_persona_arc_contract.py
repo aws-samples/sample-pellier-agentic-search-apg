@@ -46,7 +46,7 @@ ARC = {
         "warehouse_code": "BK-01",
         "warehouse_city": "Brooklyn, NY",
         "tool": "check_stock",
-        "question": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?",
+        "question": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast does it ship?",
     },
     "anna": {
         "persona_id": "anna",

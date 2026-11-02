@@ -88,7 +88,7 @@
       "persona": "marco",
       "kind": "read",
       "summary": "Marco moves from a linen shortlist to a Brooklyn stock and shipping-window claim backed by warehouse rows.",
-      "entryPrompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?",
+      "entryPrompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast does it ship?",
       "actors": {
         "requester": {
           "channel": "storefront",

@@ -11,7 +11,7 @@ const EXPECTED = {
   marco: [
     'What linen do you have for 10 days in Goa?',
     'What would go with the Hadley Linen Shirt?',
-    'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
+    'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast does it ship?',
   ],
   anna: [
     'A housewarming gift for a friend who loves slow mornings.',
@@ -55,7 +55,7 @@ describe('four-lab workshop journey contract', () => {
       expect(WORKSHOP_REQUIRED_PROMPTS).toEqual({
         marco: [
           'Is the Velvet Opera Cape in stock?',
-          'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?',
+          'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast does it ship?',
         ],
         anna: [
           'A housewarming gift for a friend who loves slow mornings.',

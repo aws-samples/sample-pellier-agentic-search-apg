@@ -8,7 +8,7 @@
   {"id": 6, "persona": "marco", "ordinal": 1, "journey_role": "explore", "journey_stage": null, "preview_product_id": "11", "prompt": "What linen do you have for 10 days in Goa?"},
   {"id": 7, "persona": "marco", "ordinal": 2, "journey_role": "explore", "journey_stage": null, "preview_product_id": "14", "prompt": "What would go with the Hadley Linen Shirt?"},
   {"id": 25, "persona": "marco", "ordinal": 3, "journey_role": "required", "journey_stage": "exercise", "preview_product_id": null, "prompt": "Is the Velvet Opera Cape in stock?"},
-  {"id": 8, "persona": "marco", "ordinal": 4, "journey_role": "required", "journey_stage": "prove", "preview_product_id": "2", "prompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship window is recorded?"},
+  {"id": 8, "persona": "marco", "ordinal": 4, "journey_role": "required", "journey_stage": "prove", "preview_product_id": "2", "prompt": "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast does it ship?"},
   {"id": 9, "persona": "marco", "ordinal": 5, "journey_role": "explore", "journey_stage": null, "preview_product_id": "2", "prompt": "What's the price range for linen shirts?"},
   {"id": 10, "persona": "marco", "ordinal": 6, "journey_role": "explore", "journey_stage": null, "preview_product_id": "19", "prompt": "Can you connect me with a real Pellier stylist? I want a person to help me pick what to wear to my brother's wedding, not product cards."},
 

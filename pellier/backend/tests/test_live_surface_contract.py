@@ -95,7 +95,7 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
         "marco": [
             "Is the Velvet Opera Cape in stock?",
             "How many Hadley Linen Shirts are available at the Brooklyn warehouse, "
-            "and what ship window is recorded?",
+            "and how fast does it ship?",
         ],
         "theo": [
             "Pick one piece you think I'd love.",

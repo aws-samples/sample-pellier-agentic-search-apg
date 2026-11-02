@@ -122,8 +122,8 @@ class TestIntentStock:
         "query",
         [
             "Is the Hadley shirt in Brooklyn?",
-            "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what "
-            "ship window is recorded?",
+            "How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast "
+            "does it ship?",
             "Do you have the linen overshirt in Austin?",
             "Can the camp shirt ship from Portland?",
         ],
@@ -185,8 +185,8 @@ GUIDE_SENTENCES = (
      "and no candles.", "catalog"),
     ("A gift with a watch, under $100, in stock, no candles.", "catalog"),
     ("Is the Velvet Opera Cape in stock?", "stock"),
-    ("How many Hadley Linen Shirts are available at the Brooklyn warehouse, and what ship "
-     "window is recorded?", "stock"),
+    ("How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast "
+     "does it ship?", "stock"),
     ("What linen do you have for 10 days in Goa?", "catalog"),
 )
 

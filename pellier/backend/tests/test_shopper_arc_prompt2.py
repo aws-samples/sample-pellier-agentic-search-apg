@@ -40,7 +40,7 @@ def test_marco_canonical_question_asks_about_fulfilment_timing() -> None:
     establish a delivery date without destination and carrier evidence.
     """
     prompt = _stock_prompt()
-    assert "Brooklyn" in prompt and "what ship window is recorded?" in prompt
+    assert "Brooklyn" in prompt and "how fast does it ship?" in prompt
     assert "check_stock(product_query='Hadley Linen Shirt')" in prompt
     assert "A dispatch window does not establish an arrival date" in prompt
     assert "time-to-doorstep" not in prompt and "day arrival" not in prompt
