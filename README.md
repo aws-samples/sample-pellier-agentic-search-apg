@@ -106,6 +106,8 @@ Prerequisites:
 - PostgreSQL 18 or later with the `vector` (pgvector) and `pg_trgm` extensions, a user that can create extensions and roles, and `psql`. The workshop uses Aurora PostgreSQL.
 - AWS credentials with Amazon Bedrock access to Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4 and Cohere Rerank 3.5.
 
+The checkout is about 370 MB, mostly product photography and the committed embeddings. `git clone --depth 1 https://github.com/aws-samples/sample-pellier-agentic-search-apg.git` checks out `governed` without the history, which roughly halves the download.
+
 From the repository root:
 
 ```bash
@@ -134,7 +136,7 @@ Locally the agents run in process. Ask Pellier works signed out, and AgentCore M
 
 The code is in the labs' starting state: some marked regions are incomplete on purpose, and `solutions/` holds reference versions.
 
-To run the whole workshop in your own account, follow [Run Pellier in your own account](docs/run-in-your-own-account.md): `deploy/own-account/deploy.py` creates the stack from the templates under `deploy/own-account/templates/`, the ones Workshop Studio deploys at an event, and tears it down again. On the host, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`).
+To run the whole workshop in your own account, follow [Run Pellier in your own account](docs/run-in-your-own-account.md): `deploy/own-account/deploy.py` creates the stack from the templates under `deploy/own-account/templates/`, the ones Workshop Studio deploys at an event, and tears it down again. The stack bills by the hour while it exists; the guide's first section lists what it costs and its teardown section removes it. On the host, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`).
 
 ## Take it home
 

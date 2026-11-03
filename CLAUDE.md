@@ -158,14 +158,49 @@ Use maintainer mode only when the request explicitly asks for a review,
 bugfix, feature, documentation update, test work, release work, or workshop
 hardening.
 
-In maintainer mode:
+Work in this order:
 
-- Inspect the relevant code and tests before editing.
-- Preserve the four-lab participant path and terminal-first proof contract.
-- Work with existing changes; do not reset or overwrite unrelated work.
-- Keep solution copies byte-identical when bootstrap auto-applies them.
-- Update Workshop Studio content when a participant-facing claim changes.
-- Run the validation gates listed below before committing.
+1. Inspect the relevant code, its tests and the nearest module guidance before
+   editing. Work with existing changes; do not reset or overwrite unrelated work.
+2. Reproduce a defect where a participant meets it (the task's check command, the
+   route or the SQL) before fixing it. Add or change a test that fails without the
+   fix, watch it fail, then fix.
+3. Make the smallest change that closes the defect. Pellier is a teaching app: ten
+   tables, a Router and three agents, nine store tools and two surfaces. A new
+   table, tool, agent, screen, flag or dependency needs a learning outcome the
+   workshop cannot reach without it.
+4. Run the validation gates below. Fix every failure and every new warning; an
+   inline ignore needs a comment that says why.
+5. Report what ran and passed, what you checked only by reading, and what you
+   could not validate because it needs AWS, a deployed stack or a live event.
+   Never report a check you did not run as passing.
+
+Change these together, in one change:
+
+| When you change | Also change | Guard |
+|---|---|---|
+| A marked region, task or recovery file | `workshop/story-arc.json`, the Participant mode table above, `pellier/backend/CLAUDE.md`, `scripts/reset_participant_exercises.py` and the Workshop Studio guide | `pellier/backend/tests/test_workshop_marker_contract.py`, `pellier/backend/tests/test_governed_coach_scope.py` |
+| A file that bootstrap auto-applies | Its byte-identical copy under `solutions/` | `pellier/backend/tests/test_solutions_parity.py` |
+| A store tool | `pellier/backend/services/store_tools.py`, `scripts/deploy/gateway_tool_schemas.py` and the Cedar policies in `scripts/deploy/render_agentcore_project.py` | `pellier/backend/tests/test_managed_gateway_tool_contract.py` |
+| Shopper copy, a model prompt or a runtime skill | Read `VOICE.md` first | `pellier/backend/tests/test_copy_compliance.py`, `pellier/frontend/src/__tests__/copy_scanner.test.ts` |
+| A path that this file or `README.md` names | The document | `pellier/backend/tests/test_doc_paths.py` |
+| A gate in `.github/workflows/quality.yml` | Validation gates below | None; keep the two in step by hand |
+| The pinned AgentCore CLI (`AGENTCORE_CLI`) | A new `scripts/deploy/agentcore-cdk-<version>/` holding its scaffold's `package.json` and a lockfile proven on a test event, and the CDK audit step's directory in `.github/workflows/quality.yml` | `pellier/backend/tests/test_agentcore_deploy_templates.py` |
+
+Hold these in every change:
+
+- Preserve the four-lab participant path and the terminal-first proof contract.
+- Update the Workshop Studio guide when a participant-facing claim changes.
+- Mock only what is slow, external or nondeterministic: Bedrock, AgentCore and
+  other AWS APIs. Never point a test at workshop Aurora unless the test requires
+  live integration and the operator has approved it.
+- Keep evidence honest. An ALLOW does not prove a tool ran, and UI state does not
+  prove a row changed; tool results and SQL rows do.
+- Keep credentials, JWTs, account IDs, ARNs, endpoints and `.env` values out of
+  tracked files, evidence records included; write `<account>` instead.
+  `pellier/backend/tests/test_no_environment_identifiers.py` scans every tracked
+  text file for account IDs.
+- Do not commit or push unless asked, and never rewrite published history.
 
 ## Flagship workshop contract
 
@@ -194,7 +229,7 @@ The required participant path is four labs, each with Tasks A and B
 anchored to one person, in climbing order of difficulty:
 
 | Lab | Person | Task A | Task B |
-|---|---|---|---|---|
+|---|---|---|---|
 | 1. Build and measure PostgreSQL hybrid retrieval | Anna | Search by what she means | Keep her requirements on the retry |
 | 2. Build a PostgreSQL-grounded agent | Marco | Connect `check_stock` to the Stock agent, alone | Keep "not carried" distinct from sold out |
 | 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | Publish `get_tickets` and bind it to the caller | Deploy, write the ownership rule, then challenge it |
@@ -255,14 +290,17 @@ documentation.
 
 ## Validation gates
 
-Run checks from the repository root unless a command changes directory.
+CI runs `.github/workflows/quality.yml` on every push to `governed`, and that
+workflow is the canonical list. These are its local equivalents. Run them from the
+repository root unless a command changes directory.
 
 ```bash
-# Backend (the PostgreSQL-backed tests skip without a local PostgreSQL 18 with pgvector;
-# the governed-quality workflow's backend-postgres job installs one and sets
-# PELLIER_REQUIRE_POSTGRES=1 so they fail there instead of skipping)
+# Backend, on Python 3.14 as in CI. The PostgreSQL-backed tests skip without a local
+# PostgreSQL 18 with pgvector; the workflow's backend-postgres job installs one and
+# sets PELLIER_REQUIRE_POSTGRES=1 so they fail there instead of skipping.
 cd pellier/backend
 python -m pytest -q
+pipx run --spec pip-audit==2.10.1 pip-audit --disable-pip --require-hashes -r requirements.lock
 
 # Frontend
 cd pellier/frontend
@@ -275,8 +313,17 @@ npm audit --omit=dev --audit-level=high
 # Repository
 git diff --check
 find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
-pipx run ruff==0.16.10 check --select F821 scripts/
+pipx run ruff==0.16.10 check --select F821 scripts/ deploy/
+pipx run cfn-lint==1.59.0 deploy/own-account/templates/*.yml
 ```
 
-Use focused tests during iteration. Run the full backend and frontend gates
-before a flagship workshop release or a broad product-pass commit.
+CI also audits the AgentCore Runtime lock (`pellier/backend/uv.lock`) and the
+AgentCore CDK lock (`scripts/deploy/agentcore-cdk-0.29.0/package-lock.json`, through
+`scripts/deploy/npm_audit_gate.py`, with each accepted advisory's reason and exit
+condition beside it), runs the browser specs against a stand-in API, and runs the
+PostgreSQL-backed tests together with `scripts/test_takeaway_package.py`.
+
+Use focused tests while iterating. Before any commit that will be pushed, run the
+whole backend suite, not only the tests you touched: the repository-wide scans for
+account IDs, retired names, document paths and whitespace live there and run nowhere
+else before CI. Run the full backend and frontend gates before a workshop release.
