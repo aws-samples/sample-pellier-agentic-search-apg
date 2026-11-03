@@ -185,7 +185,7 @@ Change these together, in one change:
 | Shopper copy, a model prompt or a runtime skill | Read `VOICE.md` first | `pellier/backend/tests/test_copy_compliance.py`, `pellier/frontend/src/__tests__/copy_scanner.test.ts` |
 | A path that this file or `README.md` names | The document | `pellier/backend/tests/test_doc_paths.py` |
 | A gate in `.github/workflows/quality.yml` | Validation gates below | None; keep the two in step by hand |
-| The pinned AgentCore CLI (`AGENTCORE_CLI`) | A new `scripts/deploy/agentcore-cdk-<version>/` holding its scaffold's `package.json` and a lockfile proven on a test event, and the CDK audit step's directory in `.github/workflows/quality.yml` | `pellier/backend/tests/test_agentcore_deploy_templates.py` |
+| The pinned AgentCore CLI (`AGENTCORE_CLI`) | A new `scripts/deploy/agentcore-cdk-<version>/` holding its scaffold's `package.json` and a lockfile proven on a test event, and the CLI version and directory in the CDK install and audit steps of `.github/workflows/quality.yml`. Never patch a package in that lockfile on its own: the box's `npm ci` refuses a tree outside the scaffold's ranges | `pellier/backend/tests/test_agentcore_deploy_templates.py` |
 
 Hold these in every change:
 
@@ -317,10 +317,11 @@ pipx run ruff==0.16.10 check --select F821 scripts/ deploy/
 pipx run cfn-lint==1.59.0 deploy/own-account/templates/*.yml
 ```
 
-CI also audits the AgentCore Runtime lock (`pellier/backend/uv.lock`) and the
-AgentCore CDK lock (`scripts/deploy/agentcore-cdk-0.29.0/package-lock.json`, through
+CI also audits the AgentCore Runtime lock (`pellier/backend/uv.lock`), installs the
+AgentCore CDK lock (`scripts/deploy/agentcore-cdk-0.29.0/package-lock.json`) into a
+scaffold from the pinned CLI with `npm ci` as a box does and audits it through
 `scripts/deploy/npm_audit_gate.py`, with each accepted advisory's reason and exit
-condition beside it), runs the browser specs against a stand-in API, and runs the
+condition beside it, runs the browser specs against a stand-in API, and runs the
 PostgreSQL-backed tests together with `scripts/test_takeaway_package.py`.
 
 Use focused tests while iterating. Before any commit that will be pushed, run the

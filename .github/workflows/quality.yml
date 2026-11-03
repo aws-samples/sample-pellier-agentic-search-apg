@@ -176,6 +176,20 @@ jobs:
         working-directory: pellier/frontend
         run: npm audit --omit=dev --audit-level=high
 
+      # A box writes the CDK project with the pinned CLI, copies in this lockfile and runs
+      # npm ci, which refuses a lockfile outside the scaffold's ranges. A lockfile patched
+      # on its own, such as a newer aws-cdk-lib, fails here instead of on an event box.
+      - name: Install the locked AgentCore CDK project as a box does
+        run: |
+          scaffold="$RUNNER_TEMP/agentcore-scaffold"
+          mkdir -p "$scaffold"
+          npx -y @aws/agentcore@0.29.0 create --project-name lockcheck --no-agent \
+            --skip-git --skip-python-setup --skip-install --output-dir "$scaffold" --json
+          cdk="$scaffold/lockcheck/agentcore/cdk"
+          diff scripts/deploy/agentcore-cdk-0.29.0/package.json "$cdk/package.json"
+          cp scripts/deploy/agentcore-cdk-0.29.0/package-lock.json "$cdk/"
+          (cd "$cdk" && npm ci --no-audit --no-fund)
+
       # Every AgentCore deploy installs this locked CDK tree, the aws-cdk CLI included.
       - name: Audit the locked AgentCore CDK dependencies
         working-directory: scripts/deploy/agentcore-cdk-0.29.0

@@ -149,6 +149,22 @@ def test_the_cdk_lockfile_is_audited_where_github_and_ci_can_read_it() -> None:
     assert "npm audit --json" in step[1] and "npm_audit_gate.py" in step[1].split("- name:")[0]
 
 
+def test_ci_installs_the_cdk_lockfile_the_way_a_box_does() -> None:
+    """A lockfile patched outside the scaffold's ranges, such as a newer aws-cdk-lib, passes
+    the audit but fails the box's npm ci. CI scaffolds with the pinned CLI and runs that
+    npm ci itself, so the failure lands in CI instead of at an event."""
+    quality = (REPO_ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+    name = "- name: Install the locked AgentCore CDK project as a box does"
+    assert name in quality, "quality.yml does not install the CDK lockfile"
+    step = quality.split(name, 1)[1].split("- name:", 1)[0]
+    lock_dir = renderer.AGENTCORE_CDK_LOCKFILE.parent.relative_to(REPO_ROOT).as_posix()
+    assert f"npx -y {renderer.AGENTCORE_CLI} create" in step
+    assert "--skip-install" in step
+    assert f"diff {lock_dir}/package.json" in step
+    assert f"cp {lock_dir}/package-lock.json" in step
+    assert "npm ci" in step
+
+
 def test_scaffold_installs_the_locked_cdk_tree_until_an_install_completes(
     tmp_path: Path, monkeypatch
 ) -> None:
