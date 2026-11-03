@@ -74,6 +74,18 @@ Parameters:
   DBClusterEndpoint:
     Type: String
 
+  AssetsBucketName:
+    Type: String
+    Default: ""
+    Description: >
+      Workshop assets bucket. When set, the box can read the Code Editor copy under
+      code-editor/ there, plan B when the vendor download is unavailable.
+
+  AssetsBucketPrefix:
+    Type: String
+    Default: ""
+    Description: Key prefix under AssetsBucketName, with its trailing slash.
+
   DeploymentSuffix:
     Type: String
     Default: ""
@@ -122,12 +134,26 @@ Parameters:
       hard-code /workshop/sample-pellier-agentic-search-apg in 14
       places, so changing this requires aligned edits in the scripts.
 
-  # Amazon Linux 2023 (arm64) SSM parameter
+  # Amazon Linux 2023 (arm64), used only outside the Regions PinnedEditorAmi lists.
+  # Events run in those Regions on the AMI their test events proved.
   AmiParameter:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
 
+Mappings:
+  # AL2023 arm64 (kernel-default) AMIs published 2026-10-30, the release the 2026-11-02
+  # test event ran on. Refresh them only as a tested upgrade, outside an event freeze.
+  PinnedEditorAmi:
+    us-east-1:
+      ImageId: ami-0951c836c26e34fc8
+    us-west-2:
+      ImageId: ami-0d2beaff07e79c24e
+
 Conditions:
+  HasAssetsBucket: !Not [!Equals [!Ref AssetsBucketName, ""]]
+  InPinnedAmiRegion: !Or
+    - !Equals [!Ref "AWS::Region", us-east-1]
+    - !Equals [!Ref "AWS::Region", us-west-2]
   CreateRuntimeLogKey: !Equals [!Ref ExistingRuntimeLogKmsKeyArn, ""]
   # CLOUDFRONT-scope WAFv2 resources exist only in us-east-1.
   InUsEast1: !Equals [!Ref "AWS::Region", us-east-1]
@@ -521,6 +547,24 @@ Resources:
             Condition:
               StringEquals:
                 iam:PassedToService: cloudformation.amazonaws.com
+
+  # Plan B for Code Editor (scripts/install_code_editor.sh): read the workshop's own copy.
+  CodeEditorAssetRead:
+    Type: AWS::IAM::Policy
+    Condition: HasAssetsBucket
+    Properties:
+      PolicyName: pellier-code-editor-asset-read
+      Roles:
+        - !Ref InstanceRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: s3:GetObject
+            Resource: !Sub
+              - arn:${AWS::Partition}:s3:::${Bucket}/${Prefix}code-editor/*
+              - Bucket: !Ref AssetsBucketName
+                Prefix: !Ref AssetsBucketPrefix
 
   InstanceRole:
     Type: AWS::IAM::Role
@@ -1315,7 +1359,10 @@ Resources:
     # No CreationPolicy here: WorkshopReadyGate below takes the bootstrap
     # signal, so the CloudFront VPC origin can build while the box bootstraps.
     Properties:
-      ImageId: !Ref AmiParameter
+      ImageId: !If
+        - InPinnedAmiRegion
+        - !FindInMap [PinnedEditorAmi, !Ref "AWS::Region", ImageId]
+        - !Ref AmiParameter
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref InstanceProfile
       NetworkInterfaces:
@@ -1374,6 +1421,8 @@ Resources:
           export AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN="${RuntimeLogKeyArn}"
           export AGENTCORE_RUNTIME_LOG_RETENTION_DAYS="30"
           export AGENTCORE_ALLOW_SHARED_TRACE_LOG_CHANGES="${AllowSharedTraceLogChanges}"
+          export ASSETS_BUCKET_NAME="${AssetsBucketName}"
+          export ASSETS_BUCKET_PREFIX="${AssetsBucketPrefix}"
           export CODE_EDITOR_USER="${CodeEditorUser}"
           export HOME_FOLDER="${HomeFolder}"
           export WORKSHOP_FORMAT="governed"

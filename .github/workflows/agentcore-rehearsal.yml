@@ -82,7 +82,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
 
       - name: Install locked backend dependencies
         working-directory: pellier/backend

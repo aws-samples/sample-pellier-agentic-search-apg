@@ -86,7 +86,16 @@ log "✅ System packages installed"
 # on 2026-04-30. Use the supported LTS major, verify the actual executable, and
 # keep the editor available for diagnostics if package installation fails.
 # Stage 2 and the governed health gate require Node 24 before declaring readiness.
-log "Installing Node.js 24 LTS..."
+#
+# Node, TypeScript and Claude Code are pinned to the releases the 2026-11-02 test events
+# installed. Change one only as a tested upgrade, proven on a fresh test event;
+# pellier/backend/tests/test_deployment_hardening_contract.py holds each pin.
+NODE_RPM_VERSION="24.22.2"
+NODE_RPM="nodejs-2:${NODE_RPM_VERSION}-1nodesource"
+NODESOURCE_SETUP_SHA256="10ccdafc20e22a8f0dfb372959a7abdf0c579b3480ed58dc7c9aa71c2f28b210"
+TYPESCRIPT_VERSION="5.9.3"
+CLAUDE_CODE_VERSION="2.1.316"
+log "Installing Node.js ${NODE_RPM_VERSION}..."
 
 # Why this is more than "dnf install nodejs":
 #   On a fresh AL2023 box the distro `nodejs` (18) is often ALREADY installed
@@ -99,15 +108,23 @@ log "Installing Node.js 24 LTS..."
 #   only candidate, (2) verify success by the ACTUAL major version, never by
 #   dnf's exit code.
 _node_major() { node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1; }
+_node_setup="$(mktemp)"
 _node24_ok=false
 for attempt in 1 2; do
     # Drop any distro Node (18) so the NodeSource module installs clean rather
     # than being short-circuited as "already satisfied". Non-fatal if absent.
     dnf remove -y -q nodejs npm >/dev/null 2>&1 || true
-    if curl -fsSL https://rpm.nodesource.com/setup_24.x | bash - >/dev/null 2>&1; then
-        # NodeSource ships nodejs-24 as the `nodejs` package once its repo is
-        # enabled; --allowerasing lets it replace any lingering distro bits.
-        dnf install -y -q --allowerasing nodejs >/dev/null 2>&1 || true
+    if curl -fsSL --retry 3 https://rpm.nodesource.com/setup_24.x -o "$_node_setup"; then
+        _setup_sha="$(sha256sum "$_node_setup" | cut -d' ' -f1)"
+        if [ "$_setup_sha" != "$NODESOURCE_SETUP_SHA256" ]; then
+            warn "NodeSource's setup_24.x changed (sha256 $_setup_sha); running it anyway, and the Node pin still chooses the release."
+        fi
+        if bash "$_node_setup" >/dev/null 2>&1; then
+            # --allowerasing lets NodeSource's package replace lingering distro bits. If
+            # the pinned build is unavailable, the newest 24.x keeps the event running.
+            dnf install -y -q --allowerasing "$NODE_RPM" >/dev/null 2>&1 \
+                || dnf install -y -q --allowerasing nodejs >/dev/null 2>&1 || true
+        fi
     fi
     _maj="$(_node_major)"
     if echo "$_maj" | grep -qE '^[0-9]+$' && [ "$_maj" -eq 24 ]; then
@@ -117,15 +134,21 @@ for attempt in 1 2; do
     warn "Node 24 not active after attempt $attempt (node=$(node --version 2>/dev/null || echo none)); retrying..."
     sleep 3
 done
+rm -f "$_node_setup"
 
 if [ "$_node24_ok" = true ]; then
-    log "✅ Node.js installed: $(node --version 2>/dev/null) ($(readlink -f /usr/bin/node 2>/dev/null))"
+    _node_version="$(node --version 2>/dev/null)"
+    if [ "$_node_version" = "v${NODE_RPM_VERSION}" ]; then
+        log "✅ Node.js installed: $_node_version, the pinned release ($(readlink -f /usr/bin/node 2>/dev/null))"
+    else
+        warn "Node.js $_node_version installed, not the pinned v${NODE_RPM_VERSION}; no test event ran it. Recover: 'sudo dnf install -y --allowerasing $NODE_RPM'."
+    fi
 
     # TypeScript compiler (tsc), global. The @aws/agentcore CLI is itself a
     # TypeScript/Node tool, and its `deploy` build step shells out to `tsc`
     # (`sh: line 1: tsc: command not found` aborts the Runtime deploy on a box
     # that only has Node). AL2023 doesn't preinstall it. Our agent is Python,
-    # but the CLI's own build needs tsc regardless. Pinned major to avoid a
+    # but the CLI's own build needs tsc regardless. Pinned exactly to avoid a
     # surprise tsc behavior change. Non-fatal: only the managed-Runtime deploy
     # needs it; Pellier + frontend build don't.
     if command -v npm >/dev/null 2>&1; then
@@ -133,7 +156,7 @@ if [ "$_node24_ok" = true ]; then
         # Global installs run under umask 022: the worker's private umask 077
         # left /usr/lib/node_modules/<pkg> root-only (0700), so the
         # participant could not run anything npm installed here.
-        if (umask 022; npm install -g typescript@5 >/dev/null 2>&1); then
+        if (umask 022; npm install -g "typescript@${TYPESCRIPT_VERSION}" >/dev/null 2>&1); then
             # The CLI's deploy build runs `sh -c tsc` as the PARTICIPANT user
             # (provisioning is `sudo -u $CODE_EDITOR_USER`). npm's global prefix
             # may not be on that user's PATH, so symlink tsc into /usr/bin
@@ -145,7 +168,7 @@ if [ "$_node24_ok" = true ]; then
             fi
             log "✅ tsc installed: $(tsc --version 2>/dev/null || echo 'version check skipped') ($(command -v tsc 2>/dev/null))"
         else
-            warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript' then re-run scripts/deploy/deploy_all.sh."
+            warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript@${TYPESCRIPT_VERSION}' then re-run scripts/deploy/deploy_all.sh."
         fi
 
         # Claude Code CLI (global), for the primary build lane in Lab 2.
@@ -155,12 +178,12 @@ if [ "$_node24_ok" = true ]; then
         # login — the same ambient-credential model the rest of the lab uses.
         # Intentionally NON-fatal: the pacing fallback copies the two checked-in
         # references and then runs the same live proof.
-        # The latest release, not a pin: Claude Sonnet 5.5, the model the CLI
-        # runs on, needs Claude Code 2.1.280 or newer, and the workshop tracks
-        # each release instead of re-pinning. The model stays pinned through
-        # ANTHROPIC_MODEL, and the log below records the version each box got.
-        log "Installing the latest Claude Code CLI globally for Lab 2..."
-        if (umask 022; npm install -g "@anthropic-ai/claude-code@latest" >/dev/null 2>&1); then
+        # Claude Sonnet 5.5, the model ANTHROPIC_MODEL pins for this lane, needs
+        # Claude Code 2.1.280 or newer, so a pin older than that refuses the model.
+        # The participant shell disables the auto-updater (bootstrap-labs.sh), so
+        # the box keeps this release, and the log below records it.
+        log "Installing Claude Code ${CLAUDE_CODE_VERSION} globally for Lab 2..."
+        if (umask 022; npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" >/dev/null 2>&1); then
             # Same /usr/bin symlink defense as tsc above: the CLI runs as the
             # PARTICIPANT user, whose PATH may not include npm's global prefix.
             # Link npm's own binary: `command -v claude` can be this link itself.
@@ -176,7 +199,7 @@ if [ "$_node24_ok" = true ]; then
                 warn "Claude Code CLI installed but $CODE_EDITOR_USER cannot run it. Recover: 'sudo chmod -R a+rX /usr/lib/node_modules/@anthropic-ai'."
             fi
         else
-            warn "Claude Code CLI install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@latest'."
+            warn "Claude Code CLI install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
         fi
     fi
 else
@@ -185,7 +208,7 @@ else
     if ! command -v node >/dev/null 2>&1; then
         dnf install --skip-broken -y -q nodejs >/dev/null 2>&1 || true
     fi
-    warn "Node 24 install failed after retries — node is $(node --version 2>/dev/null || echo 'none'). Governed readiness cannot pass. Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash - && sudo dnf install -y --allowerasing nodejs' then re-run bootstrap-labs.sh."
+    warn "Node 24 install failed after retries — node is $(node --version 2>/dev/null || echo 'none'). Governed readiness cannot pass. Recover: 'sudo dnf remove -y nodejs && curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash - && sudo dnf install -y --allowerasing $NODE_RPM' then re-run bootstrap-labs.sh."
 fi
 
 # ----------------------------------------------------------------------------
@@ -288,12 +311,24 @@ chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$HOME_FOLDER"
 
 log "Installing Code Editor..."
 export CodeEditorUser="$CODE_EDITOR_USER"
+# Code Editor: the release in scripts/code-editor-release.env, from the vendor's download
+# (plan A) or the workshop assets' copy (plan B), each checked against its sha256. Plan C,
+# the vendor's latest release, keeps the event running and is reported, never silent.
+[ "$(uname -m)" = "aarch64" ] \
+    || error "Code Editor is pinned to its arm64 build; this box is $(uname -m)"
+export ASSETS_BUCKET_NAME ASSETS_BUCKET_PREFIX
 # The vendor installer downloads its archive as root and extracts it as the
 # workshop user. Keep the worker's private default umask everywhere else, but
 # allow the installer archive to be read during that delegated extraction.
 umask 022
-curl -fsSL https://code-editor.amazonaws.com/content/code-editor-server/dist/aws-workshop-studio/install.sh | bash -s --
+# The script prints only its plan on stdout; everything else goes to the log on stderr.
+CODE_EDITOR_PLAN="$(bash "$HOME_FOLDER/$REPO_NAME/scripts/install_code_editor.sh")" \
+    || error "Code Editor did not install; see the install_code_editor lines above"
 umask 077
+case "$CODE_EDITOR_PLAN" in
+    "pinned download"|"assets copy") log "✅ Code Editor installed from the $CODE_EDITOR_PLAN" ;;
+    *) warn "Code Editor is the vendor's $CODE_EDITOR_PLAN, not the tested release" ;;
+esac
 
 # Find Code Editor binary
 if [ -f "/home/$CODE_EDITOR_USER/.local/bin/code-editor-server" ]; then

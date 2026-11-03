@@ -81,7 +81,7 @@ jobs:
       # The own-account path deploys these templates straight from the repository, and
       # the Workshop Studio repo copies them at each repin.
       - name: Lint the CloudFormation templates
-        run: pipx run cfn-lint deploy/own-account/templates/*.yml
+        run: pipx run cfn-lint==1.59.0 deploy/own-account/templates/*.yml
 
   backend-postgres:
     name: PostgreSQL-backed backend tests
@@ -148,7 +148,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
           cache: npm
           cache-dependency-path: pellier/frontend/package-lock.json
 
@@ -191,7 +191,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v7
         with:
-          node-version: "24"
+          node-version: "24.22.2"
           cache: npm
           cache-dependency-path: pellier/frontend/package-lock.json
 

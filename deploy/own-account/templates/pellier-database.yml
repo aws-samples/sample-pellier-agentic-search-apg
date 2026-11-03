@@ -30,7 +30,9 @@ Parameters:
   AuroraEngineVersion:
     Type: String
     Default: "18.3"
-    Description: Aurora PostgreSQL engine version. Bump before each event.
+    Description: >-
+      Aurora PostgreSQL engine version, major and minor. Change it only as a tested
+      upgrade, outside the 14 days before an event.
 
   MinCapacity:
     Type: Number
@@ -181,7 +183,9 @@ Resources:
       DBClusterIdentifier: !Ref DBCluster
       Engine: aurora-postgresql
       DBInstanceClass: db.serverless
-      AutoMinorVersionUpgrade: true
+      # The engine changes only as a tested upgrade of AuroraEngineVersion, never in a
+      # maintenance window during an event.
+      AutoMinorVersionUpgrade: false
       PubliclyAccessible: false
       Tags:
         - Key: Project

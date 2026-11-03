@@ -33,9 +33,10 @@ REPO = Path(__file__).resolve().parents[3]
 ENVIRONMENT_BOOTSTRAP = REPO / "scripts" / "bootstrap-environment.sh"
 LABS_BOOTSTRAP = REPO / "scripts" / "bootstrap-labs.sh"
 
-# The CLI lane runs on this explicit profile; Claude Code itself installs at its latest
-# release, because Sonnet 5.5 needs 2.1.280 or newer.
+# The CLI lane runs on this explicit profile, and Claude Code on a pinned release no older
+# than the first one that runs Sonnet 5.5.
 EXPLICIT_SONNET_PROFILE = "global.anthropic.claude-sonnet-5-5"
+SONNET_5_5_FIRST_CLAUDE_CODE = (2, 1, 280)
 
 
 @pytest.fixture(scope="module")
@@ -100,11 +101,66 @@ def test_workspace_detachment_is_logged(labs: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_claude_code_installs_the_latest_release(environment: str) -> None:
-    """An old pin refuses the model: Claude Code 2.1.233 does not run Sonnet 5.5."""
-    assert 'npm install -g "@anthropic-ai/claude-code@latest"' in environment
-    assert "CLAUDE_CODE_VERSION" not in environment, "a version pin remains"
-    assert not re.search(r"@anthropic-ai/claude-code@\d", environment)
+def _pin(text: str, name: str) -> str:
+    match = re.search(rf'^{name}="([^"]+)"$', text, re.MULTILINE)
+    assert match, f'{name}="..." is missing from bootstrap-environment.sh'
+    return match.group(1)
+
+
+def _stable_release(version: str) -> tuple[int, ...]:
+    assert re.fullmatch(r"\d+\.\d+\.\d+", version), f"{version} is not a stable release"
+    return tuple(int(part) for part in version.split("."))
+
+
+def test_claude_code_installs_its_pinned_release(environment: str) -> None:
+    """Unpinned, the CLI changed on a date nobody chose; pinned too old, it refused
+    the model (Claude Code 2.1.233 does not run Sonnet 5.5)."""
+    version = _stable_release(_pin(environment, "CLAUDE_CODE_VERSION"))
+    assert version >= SONNET_5_5_FIRST_CLAUDE_CODE
+    assert 'npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}"' in environment
+    assert not re.search(r"@anthropic-ai/claude-code@(?!\$\{CLAUDE_CODE_VERSION\})", environment)
+
+
+def test_typescript_installs_its_pinned_release(environment: str) -> None:
+    """The AgentCore CLI's deploy build runs tsc; `typescript@5` moved with each 5.x."""
+    _stable_release(_pin(environment, "TYPESCRIPT_VERSION"))
+    assert 'npm install -g "typescript@${TYPESCRIPT_VERSION}"' in environment
+    assert not re.search(r"typescript@(?!\$\{TYPESCRIPT_VERSION\})", environment)
+
+
+def test_node_installs_its_pinned_build_and_logs_a_fallback(environment: str) -> None:
+    """`dnf install nodejs` took whatever NodeSource published last. The pinned build
+    installs first; the newest 24.x only keeps an event running, and the log says so."""
+    assert _stable_release(_pin(environment, "NODE_RPM_VERSION"))[0] == 24
+    assert _pin(environment, "NODE_RPM") == "nodejs-2:${NODE_RPM_VERSION}-1nodesource"
+    assert re.fullmatch(r"[0-9a-f]{64}", _pin(environment, "NODESOURCE_SETUP_SHA256"))
+    assert 'dnf install -y -q --allowerasing "$NODE_RPM"' in environment
+    assert "setup_24.x | bash" not in environment, "the setup script runs unchecked"
+    assert "not the pinned v${NODE_RPM_VERSION}" in environment
+
+
+def test_ci_runs_the_node_release_the_box_runs(environment: str) -> None:
+    """`node-version: "24"` took each new 24.x in CI before any event ran it."""
+    pinned = _pin(environment, "NODE_RPM_VERSION")
+    found = [
+        (path.name, value)
+        for path in sorted((REPO / ".github" / "workflows").glob("*.yml"))
+        for value in re.findall(r"node-version:\s*\"?([^\"\s]+)", path.read_text("utf-8"))
+    ]
+    assert found, "no workflow sets up Node"
+    assert all(value == pinned for _, value in found), f"expected {pinned}: {found}"
+
+
+def test_ci_runs_each_pipx_tool_at_an_exact_release() -> None:
+    """`pipx run cfn-lint` took each new cfn-lint, so a new rule could fail CI unasked."""
+    runs = [
+        (path.name, match.group(1))
+        for path in sorted((REPO / ".github" / "workflows").glob("*.yml"))
+        for match in re.finditer(r"pipx run (?:--spec )?(\S+)", path.read_text("utf-8"))
+    ]
+    assert runs, "no workflow runs a pipx tool"
+    loose = [run for run in runs if not re.fullmatch(r"[\w.-]+==\d+\.\d+\.\d+", run[1])]
+    assert not loose, f"pin each tool exactly: {loose}"
 
 
 def test_the_cli_link_points_at_npms_binary_not_at_itself(environment: str) -> None:

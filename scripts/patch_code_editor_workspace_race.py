@@ -11,7 +11,7 @@ reload recovers. It stalled 4 of 14 fresh loads on a test event box (Code Editor
 
 The patch guards the handler and, in initialize(), re-reads the workspace file's state before
 the completion check. It matches the bundle's shape, not the minifier's names, and leaves a
-build it does not recognise unchanged. Code Editor is not version-pinned, so `--check` lets
+build it does not recognise unchanged. Bootstrap pins Code Editor 1.101.2; `--check` still lets
 workshop-start.sh, and through it the event readiness record, report a box left unpatched.
 """
 from __future__ import annotations

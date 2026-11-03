@@ -99,7 +99,7 @@ Parameters:
 
   InfrastructureRevision:
     Type: String
-    Default: "7ad20bb935ae7f7f"
+    Default: "aa8db2fcdc8924e6"
     AllowedPattern: ^[0-9a-f]{16}$
     ConstraintDescription: Use the 16-character release-tooling digest.
     Description: >
@@ -197,6 +197,8 @@ Resources:
         RepoUrl: !Ref RepoUrl
         RepoRevision: !Ref RepoRevision
         InfrastructureRevision: !Ref InfrastructureRevision
+        AssetsBucketName: !Ref AssetsBucketName
+        AssetsBucketPrefix: !Ref AssetsBucketPrefix
         EventName: !Ref EventName
       Tags:
         - Key: Project
