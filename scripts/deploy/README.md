@@ -103,7 +103,10 @@ backend environment.
 1. Package and deploy the store-tools Lambda function, with
    `services/store_tools.py` and its two retrieval modules staged into the zip.
 2. Scaffold one stateful `@aws/agentcore@0.29.0` project with
-   `agentcore create`.
+   `agentcore create --skip-install`, then install its CDK project with `npm ci`
+   from `scripts/deploy/agentcore-cdk-0.29.0/package-lock.json`. The scaffold names
+   tilde ranges, so without the lockfile each provision resolved its own tree. CI
+   audits that lockfile, and GitHub's dependency graph reads it.
 3. Render Runtime, Memory, Gateway, the one Lambda target registration, and
    the Policy engine into the CLI project. AgentCore role ARNs are intentionally
    omitted so CLI/CDK creates the managed service roles. The renderer also sets

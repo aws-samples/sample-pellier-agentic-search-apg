@@ -193,6 +193,7 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
     os.environ[FLAG] = "unrelated"
     commands = []
     monkeypatch.setattr(module, "_run", lambda command, **_: commands.append(command))
+    monkeypatch.setattr(module, "_install_locked_cdk_tree", lambda *_: None)
     root = module._scaffold_cli_project(repo=tmp_path, env={}, identity=identity)
     assert root.name == identity.project_name
     assert commands[0][commands[0].index("--project-name") + 1] == identity.project_name

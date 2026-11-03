@@ -24,3 +24,7 @@ Path({str(captured)!r}).write_text(json.dumps({{"args":sys.argv[1:],"region":os.
     assert result.returncode == 0, result.stdout + result.stderr
     assert json.loads(captured.read_text()) == {"args": ["-y", "aws-cdk@2.1126.0", "bootstrap", "aws://123456789012/us-east-1"], "region": "us-east-1", "default_region": "us-east-1"}
     assert "'npx aws-cdk@2.1126.0 bootstrap'" in source
+    deploy = Path(__file__).resolve().parents[3] / "scripts/deploy"
+    lock, = deploy.glob("agentcore-cdk-*/package-lock.json")
+    scaffold_cdk = json.loads(lock.read_text())["packages"]["node_modules/aws-cdk"]["version"]
+    assert scaffold_cdk == "2.1126.0", "bootstrap with the CDK CLI the scaffold deploys with"

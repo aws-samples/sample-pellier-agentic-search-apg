@@ -176,6 +176,21 @@ jobs:
         working-directory: pellier/frontend
         run: npm audit --omit=dev --audit-level=high
 
+      # Every AgentCore deploy installs this locked CDK tree, the aws-cdk CLI included.
+      - name: Audit the locked AgentCore CDK dependencies
+        working-directory: scripts/deploy/agentcore-cdk-0.29.0
+        run: |
+          # The five GHSAs below are brace-expansion 5.0.6, bundled inside aws-cdk-lib
+          # 2.261.0, the only release the CLI's ~2.261.0 allows. aws-cdk-lib expands
+          # glob patterns from the CDK app and its asset ignore files, which this
+          # repository and the CLI write; no participant or shopper input reaches them.
+          # Drop them when a pinned AgentCore CLI vends an aws-cdk-lib that bundles
+          # brace-expansion 5.0.12 or newer, then relock.
+          npm audit --json | python3 ../npm_audit_gate.py \
+            --ignore GHSA-3jxr-9vmj-r5cp --ignore GHSA-mh99-v99m-4gvg \
+            --ignore GHSA-rgw5-rvv9-x895 --ignore GHSA-qhr7-859c-m2p7 \
+            --ignore GHSA-6j4f-fj2g-mc7p
+
   browser:
     name: Browser tests against a stand-in API
     runs-on: ubuntu-latest

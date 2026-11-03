@@ -119,6 +119,75 @@ def test_agentcore_cli_is_pinned_once() -> None:
     assert "@aws/agentcore@latest" not in source
 
 
+def test_the_pinned_clis_cdk_project_has_a_lockfile() -> None:
+    """The vended CDK project names tilde ranges, so each provision resolved its own tree.
+    A lockfile resolved from the pinned CLI's scaffold holds the tree the test events
+    installed, and a new CLI pin needs a lockfile of its own."""
+    version = renderer.AGENTCORE_CLI.rsplit("@", 1)[1]
+    lockfile = renderer.AGENTCORE_CDK_LOCKFILE
+    assert (lockfile.parent.name, lockfile.name) == (f"agentcore-cdk-{version}", "package-lock.json")
+    lock = json.loads(lockfile.read_text(encoding="utf-8"))
+    assert lock["lockfileVersion"] == 3
+    assert lock["packages"][""]["name"] == "agentcore-cdk-app"
+    for path, entry in lock["packages"].items():
+        if path and not entry.get("inBundle"):
+            assert entry["resolved"].startswith("https://registry.npmjs.org/"), path
+            assert entry["integrity"].startswith("sha512-"), path
+
+
+def test_the_cdk_lockfile_is_audited_where_github_and_ci_can_read_it() -> None:
+    """Under its own name, beside the scaffold's package.json, the lockfile is a manifest
+    GitHub's dependency graph reads, and CI audits it on every push."""
+    lockfile = renderer.AGENTCORE_CDK_LOCKFILE
+    manifest = json.loads((lockfile.parent / "package.json").read_text(encoding="utf-8"))
+    root = json.loads(lockfile.read_text(encoding="utf-8"))["packages"][""]
+    for section in ("dependencies", "devDependencies"):
+        assert manifest[section] == root[section], section
+    quality = (REPO_ROOT / ".github" / "workflows" / "quality.yml").read_text(encoding="utf-8")
+    step = quality.split("working-directory: " + lockfile.parent.relative_to(REPO_ROOT).as_posix())
+    assert len(step) == 2, "quality.yml does not audit the CDK lockfile's directory"
+    assert "npm audit --json" in step[1] and "npm_audit_gate.py" in step[1].split("- name:")[0]
+
+
+def test_scaffold_installs_the_locked_cdk_tree_until_an_install_completes(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """An interrupted `npm ci` leaves a partial node_modules, which the CLI's own sync
+    would deploy against; only a finished install writes node_modules/.package-lock.json."""
+    provisioner = _load_provisioner()
+    commands: list[list[str]] = []
+
+    def run(command: list[str], *, cwd: Path, **_: Any) -> None:
+        commands.append(command)
+        if "create" in command:
+            name = command[command.index("--project-name") + 1]
+            output = Path(command[command.index("--output-dir") + 1])
+            (output / name / "agentcore" / "cdk").mkdir(parents=True)
+            (output / name / "agentcore" / "agentcore.json").write_text("{}")
+            (output / name / "agentcore" / "cdk" / "package.json").write_text("{}")
+        if command[:2] == ["npm", "ci"]:
+            (cwd / "node_modules").mkdir(exist_ok=True)
+            (cwd / "node_modules" / ".package-lock.json").write_text("{}")
+
+    monkeypatch.setattr(provisioner, "_run", run)
+    root = provisioner._scaffold_cli_project(repo=tmp_path, env={})
+    cdk = root / "agentcore" / "cdk"
+    create, install = commands
+    assert "--skip-install" in create
+    assert install[:2] == ["npm", "ci"]
+    lock = cdk / "package-lock.json"
+    assert lock.read_bytes() == renderer.AGENTCORE_CDK_LOCKFILE.read_bytes()
+
+    commands.clear()
+    provisioner._scaffold_cli_project(repo=tmp_path, env={})
+    assert commands == []
+
+    shutil.rmtree(cdk / "node_modules")
+    (cdk / "node_modules").mkdir()
+    provisioner._scaffold_cli_project(repo=tmp_path, env={})
+    assert [command[:2] for command in commands] == [["npm", "ci"]]
+
+
 @pytest.mark.parametrize("command", [("traces", "list"), ("traces", "get"), ("invoke",)])
 def test_cli_endpoint_alias_does_not_inherit_or_replace_application_arn(
     tmp_path: Path, monkeypatch, command: tuple[str, ...],

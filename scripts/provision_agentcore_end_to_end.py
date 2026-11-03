@@ -59,6 +59,7 @@ from render_agentcore_project import (  # noqa: E402
     DeploymentIdentity,
     deployment_identity,
     DEPLOYMENT_SUFFIX,
+    AGENTCORE_CDK_LOCKFILE,
     AGENTCORE_CLI,
     FINGERPRINT_ENV_VAR,
     project_root,
@@ -1282,6 +1283,7 @@ def _scaffold_cli_project(
                 "--no-agent",
                 "--skip-git",
                 "--skip-python-setup",
+                "--skip-install",
                 "--output-dir",
                 str(output_dir),
                 "--json",
@@ -1289,7 +1291,23 @@ def _scaffold_cli_project(
             cwd=output_dir,
             env=env,
         )
+    _install_locked_cdk_tree(root, env)
     return root
+
+
+def _install_locked_cdk_tree(root: Path, env: dict[str, str]) -> None:
+    """Install the CDK project's dependencies exactly as the pinned CLI's lockfile names them.
+
+    `npm ci` writes node_modules/.package-lock.json only when it finishes, so an
+    interrupted install, which leaves a partial node_modules, runs again next time.
+    """
+    cdk_dir = root / "agentcore" / "cdk"
+    if (cdk_dir / "node_modules" / ".package-lock.json").is_file():
+        return
+    if not (cdk_dir / "package.json").is_file():
+        raise RuntimeError(f"{AGENTCORE_CLI} create left no CDK project at {cdk_dir}")
+    shutil.copyfile(AGENTCORE_CDK_LOCKFILE, cdk_dir / "package-lock.json")
+    _run(["npm", "ci", "--no-audit", "--no-fund"], cwd=cdk_dir, env=env)
 
 
 def _agentcore(

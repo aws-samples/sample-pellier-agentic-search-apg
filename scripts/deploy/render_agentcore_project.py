@@ -36,6 +36,16 @@ from gateway_tool_schemas import (
 
 
 AGENTCORE_CLI = "@aws/agentcore@0.29.0"
+# The CDK project that CLI vends names tilde ranges, so every provision resolved its own
+# tree. This lockfile holds the tree the 2026-11-01 test events installed: npm 11.19.1
+# (Node 24.22.2) resolved the scaffold's package.json, kept verbatim beside it, with
+# --package-lock-only --before=2026-11-02T02:00:00Z. CI audits it and GitHub's dependency
+# graph reads it. A new CLI pin needs a new directory, proven on a test event.
+AGENTCORE_CDK_LOCKFILE = (
+    Path(__file__).resolve().parent
+    / f"agentcore-cdk-{AGENTCORE_CLI.rsplit('@', 1)[1]}"
+    / "package-lock.json"
+)
 
 # StackProps from the pinned CLI's agentcore/cdk/bin/cdk.ts scaffold. Keep this
 # customization separate from resource naming: labels must not select a new stack.
