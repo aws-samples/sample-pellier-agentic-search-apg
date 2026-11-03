@@ -435,7 +435,7 @@ def test_floor_check_builder_contract() -> None:
     suite should therefore see this as ``SKIPPED``, never as a failure. The
     real verification of a correct wire is Pellier Labs Tools strip flipping
     14/15 -> 15/15 and Marco's Brooklyn turn returning a real quantity, both
-    in the lab guide. See CLAUDE.md ("How the participant verifies").
+    in the lab guide.
     """
     live_src = _function_source(_BACKEND / "services" / "agent_tools.py", "floor_check")
     preapply_src = _function_source(

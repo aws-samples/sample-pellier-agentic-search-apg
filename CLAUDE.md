@@ -1,4 +1,9 @@
-# Pellier workshop guardrails for Claude Code
+# Pellier workshop guardrails for coding agents
+
+This branch, `main`, holds the one-hour Builders' Session. The re:Invent
+workshop DAT416 and the current application are on the `governed` branch, which
+has its own `CLAUDE.md`. `AGENTS.md` is a link to this file, so Codex and other
+agents that read `AGENTS.md` follow the same guardrails.
 
 You are assisting a workshop participant with a bounded coding exercise. Help
 the participant reason from the repository rather than revealing or reproducing
@@ -29,6 +34,3 @@ the finished solution.
   infrastructure.
 - Do not install packages or run Git commands as part of an exercise.
 - Do not turn a one-time exercise solution into reusable automation.
-
-Reusable Claude Code workflows belong under `.claude/skills/` and are optional
-follow-up material, not part of the required participant exercise.
