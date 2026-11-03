@@ -13,8 +13,10 @@ HOME_FOLDER="${HOME_FOLDER:-/workshop}"
 REPO_NAME="sample-pellier-agentic-search-apg"
 REPO_PATH="$HOME_FOLDER/$REPO_NAME"
 AWS_REGION="${AWS_REGION:-us-east-1}"
-AGENTCORE_CLI_VERSION="${AGENTCORE_CLI_VERSION:-1.0.0-preview.26}"
+AGENTCORE_CLI_VERSION="${AGENTCORE_CLI_VERSION:-0.29.0}"
 PLAYWRIGHT_MCP_VERSION="${PLAYWRIGHT_MCP_VERSION:-0.0.79}"
+# A pre-release by necessity: @playwright/mcp 0.0.79, the pinned stable parent above,
+# depends on exactly this Playwright build (versions.md rule 14). Move both together.
 PLAYWRIGHT_BROWSER_VERSION="${PLAYWRIGHT_BROWSER_VERSION:-1.63.0-alpha-2026-08-05}"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
@@ -794,7 +796,7 @@ alias health='bash /workshop/sample-pellier-agentic-search-apg/scripts/health-ga
 # Running from the project root lets the CLI resolve deployed-state.json.
 agentcore() {
     ( cd /workshop/sample-pellier-agentic-search-apg/.agentcore-project/pellier 2>/dev/null \
-        && if _ac_bin="$(type -P agentcore)"; then "$_ac_bin" "$@"; else npx -y @aws/agentcore@1.0.0-preview.26 "$@"; fi )
+        && if _ac_bin="$(type -P agentcore)"; then "$_ac_bin" "$@"; else npx -y @aws/agentcore@0.29.0 "$@"; fi )
 }
 
 # Pellier service shortcuts — see FORMAT_ALIASES below (workshop vs builders).

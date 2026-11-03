@@ -95,11 +95,104 @@ def _render(tmp_path: Path, *, include_policies: bool) -> tuple[Path, dict[str, 
 
 
 def test_agentcore_cli_is_pinned_once() -> None:
-    assert renderer.AGENTCORE_CLI == "@aws/agentcore@1.0.0-preview.26"
+    assert renderer.AGENTCORE_CLI == "@aws/agentcore@0.29.0"
     for path in (PROVISIONER_PATH, MEMORY_PROVISIONER_PATH):
         source = path.read_text()
         assert "AGENTCORE_CLI" in source
         assert "@aws/agentcore@latest" not in source
+
+
+def test_every_agentcore_cli_reference_is_the_one_stable_pin() -> None:
+    """One exact stable CLI version wherever the repository names one: no preview, no drift."""
+    import re
+
+    version = renderer.AGENTCORE_CLI.removeprefix("@aws/agentcore@")
+    assert re.fullmatch(r"\d+\.\d+\.\d+", version), renderer.AGENTCORE_CLI
+    tracked = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+    ).stdout.split("\0")
+    this_test = Path(__file__).resolve().relative_to(REPO_ROOT).as_posix()
+    named: dict[str, set[str]] = {}
+    for relative in tracked:
+        if not relative.endswith((".sh", ".py", ".md", ".yml", ".yaml", ".json")):
+            continue
+        if relative.endswith("package-lock.json") or relative == this_test:
+            continue
+        text = (REPO_ROOT / relative).read_text(encoding="utf-8", errors="ignore")
+        for pattern in (r"@aws/agentcore@([^\s\"'`)]+)", r"AGENTCORE_CLI_VERSION:-([^}\s]+)\}"):
+            for found in re.findall(pattern, text):
+                if not found.startswith("${"):
+                    named.setdefault(found, set()).add(relative)
+    assert set(named) == {version}, named
+
+
+# Verbatim lines from the pinned 0.29.0 CLI's agentcore/cdk/bin/cdk.ts scaffold.
+PINNED_CDK_LIB_IMPORT = "import { App, type Environment } from 'aws-cdk-lib';\n"
+PINNED_SYNTH = "  app.synth();\n"
+PINNED_SCAFFOLD = (
+    PINNED_CDK_LIB_IMPORT
+    + "\nasync function main() {\n  const app = new App();\n\n"
+    + PINNED_SYNTH
+    + "}\n"
+)
+
+
+def _scaffold(config_dir: Path, source: str = PINNED_SCAFFOLD) -> Path:
+    entrypoint = config_dir / "cdk" / "bin" / "cdk.ts"
+    entrypoint.parent.mkdir(parents=True, exist_ok=True)
+    entrypoint.write_text(source, encoding="utf-8")
+    return entrypoint
+
+
+def _assert_platform_pin(source: str, version: str) -> None:
+    assert "import { App, Aspects, CfnResource, type Environment } from 'aws-cdk-lib';" in source
+    assert "node.cfnResourceType === 'AWS::BedrockAgentCore::Runtime'" in source
+    assert source.count("addPropertyOverride('PlatformVersion'") == 1
+    assert f"node.addPropertyOverride('PlatformVersion', '{version}');" in source
+    assert source.count("app.synth();") == 1
+    assert source.index("Aspects.of(app).add(") < source.index("app.synth();")
+
+
+def test_runtimes_stay_on_v1_unless_a_test_event_asks_for_v2(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """From 2026-11-12 AWS makes a runtime that names no platform version V2."""
+    monkeypatch.delenv("PELLIER_RUNTIME_PLATFORM_VERSION", raising=False)
+    entrypoint = _scaffold(renderer.project_root(tmp_path / "repo") / "agentcore")
+
+    _render(tmp_path, include_policies=False)
+    _assert_platform_pin(entrypoint.read_text(), "V1")
+    first = entrypoint.read_bytes()
+    _render(tmp_path, include_policies=False)
+    assert entrypoint.read_bytes() == first
+
+    monkeypatch.setenv("PELLIER_RUNTIME_PLATFORM_VERSION", " v2 ")
+    _render(tmp_path, include_policies=False)
+    _assert_platform_pin(entrypoint.read_text(), "V2")
+
+    monkeypatch.setenv("PELLIER_RUNTIME_PLATFORM_VERSION", "V3")
+    with pytest.raises(SystemExit, match="must be V1 or V2"):
+        _render(tmp_path, include_policies=False)
+    _assert_platform_pin(entrypoint.read_text(), "V2")
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        PINNED_SCAFFOLD.replace(PINNED_SYNTH, ""),
+        PINNED_SCAFFOLD + PINNED_SYNTH,
+        PINNED_SCAFFOLD.replace(PINNED_CDK_LIB_IMPORT, ""),
+    ],
+    ids=["no-synth", "two-synths", "changed-import"],
+)
+def test_an_unrecognized_scaffold_is_left_as_the_cli_wrote_it(tmp_path: Path, source: str) -> None:
+    config_dir = tmp_path / "agentcore"
+    entrypoint = _scaffold(config_dir, source)
+
+    with pytest.raises(SystemExit, match="review the pinned scaffold"):
+        renderer._pin_runtime_platform_version(config_dir, "V1")
+
+    assert entrypoint.read_text() == source
 
 
 def test_renderer_emits_valid_cdk_managed_project_shape(tmp_path: Path) -> None:

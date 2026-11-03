@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -19,8 +21,39 @@ from typing import Any
 from gateway_tool_schemas import TOOL_SCHEMAS, schema_for
 
 
-AGENTCORE_CLI = "@aws/agentcore@1.0.0-preview.26"
+AGENTCORE_CLI = "@aws/agentcore@0.29.0"
 PROJECT_NAME = "pellier"
+
+# The AgentCore Runtime platform version every runtime in the project is created
+# with. From 2026-11-12 AWS creates a runtime that names no version on V2. Pellier
+# stays on V1 until V2 is tested on an event and meets the bar; a V2 test event sets
+# PELLIER_RUNTIME_PLATFORM_VERSION=V2 for the deploy. The pinned CLI has no setting
+# for it, so an Aspect in its scaffold writes it into each
+# AWS::BedrockAgentCore::Runtime the CDK app synthesizes.
+RUNTIME_PLATFORM_VERSIONS = ("V1", "V2")
+_CDK_LIB_IMPORT = "import { App, type Environment } from 'aws-cdk-lib';"
+_CDK_LIB_IMPORT_WITH_ASPECTS = (
+    "import { App, Aspects, CfnResource, type Environment } from 'aws-cdk-lib';"
+)
+_CDK_SYNTH = "\n  app.synth();\n"
+_CDK_PLATFORM_PIN = """
+  // Pellier: the AgentCore Runtime platform version (render_agentcore_project.py).
+  Aspects.of(app).add({
+    visit(node) {
+      if (
+        node instanceof CfnResource &&
+        node.cfnResourceType === 'AWS::BedrockAgentCore::Runtime'
+      ) {
+        node.addPropertyOverride('PlatformVersion', '{version}');
+      }
+    },
+  });
+  app.synth();
+"""
+_PIN_BEFORE, _PIN_AFTER = _CDK_PLATFORM_PIN.split("{version}")
+_CDK_PLATFORM_PIN_PATTERN = re.compile(
+    re.escape(_PIN_BEFORE) + "(V[12])" + re.escape(_PIN_AFTER)
+)
 RUNTIME_NAME = "pellier_orchestrator"
 MEMORY_NAME = "PellierMemory"
 MEMORY_STRATEGY_NAME = "PellierUserPreferences"
@@ -110,6 +143,52 @@ def baseline_policies(
     ]
 
 
+def runtime_platform_version() -> str:
+    """The AgentCore Runtime platform version to deploy: V1 unless V2 is under test."""
+    value = os.environ.get("PELLIER_RUNTIME_PLATFORM_VERSION", "").strip().upper() or "V1"
+    if value not in RUNTIME_PLATFORM_VERSIONS:
+        raise SystemExit(
+            f"PELLIER_RUNTIME_PLATFORM_VERSION must be V1 or V2, not {value!r}"
+        )
+    return value
+
+
+def _unsupported_scaffold(entrypoint: Path) -> SystemExit:
+    return SystemExit(
+        f"Unsupported {AGENTCORE_CLI} CDK scaffold in {entrypoint}; "
+        "review the pinned scaffold before deploying"
+    )
+
+
+def _pin_runtime_platform_version(config_dir: Path, version: str) -> None:
+    """Pin every Runtime the pinned CLI's CDK app creates to ``version``.
+
+    Both edits are checked before the file is written, so an unrecognized scaffold
+    is left exactly as the CLI wrote it.
+    """
+    entrypoint = config_dir / "cdk" / "bin" / "cdk.ts"
+    if not entrypoint.exists() and not entrypoint.parent.parent.exists():
+        # Configuration-only rendering is also supported; the provisioner creates
+        # the CLI scaffold before rendering a project that it will deploy.
+        return
+    source = entrypoint.read_text(encoding="utf-8")
+    edited = source
+    if edited.count(_CDK_LIB_IMPORT_WITH_ASPECTS) != 1:
+        if edited.count(_CDK_LIB_IMPORT) != 1 or _CDK_LIB_IMPORT_WITH_ASPECTS in edited:
+            raise _unsupported_scaffold(entrypoint)
+        edited = edited.replace(_CDK_LIB_IMPORT, _CDK_LIB_IMPORT_WITH_ASPECTS, 1)
+    pin = _CDK_PLATFORM_PIN.replace("{version}", version)
+    found = _CDK_PLATFORM_PIN_PATTERN.findall(edited)
+    if len(found) == 1:
+        edited = _CDK_PLATFORM_PIN_PATTERN.sub(lambda _match: pin, edited)
+    elif found or edited.count(_CDK_SYNTH) != 1:
+        raise _unsupported_scaffold(entrypoint)
+    else:
+        edited = edited.replace(_CDK_SYNTH, pin, 1)
+    if edited != source:
+        entrypoint.write_text(edited, encoding="utf-8")
+
+
 def render_project(
     *,
     repo: Path,
@@ -128,6 +207,7 @@ def render_project(
     root = project_root(repo)
     config_dir = root / "agentcore"
     schemas_dir = root / "tool-schemas"
+    _pin_runtime_platform_version(config_dir, runtime_platform_version())
     backend_dir = repo / "pellier" / "backend"
     runtime_dir = _render_runtime_source(root, backend_dir)
     discovery_url = (

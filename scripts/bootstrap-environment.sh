@@ -18,7 +18,7 @@ STAGE2_SCRIPT_URL="${STAGE2_SCRIPT_URL:-}"
 ASSETS_BUCKET_NAME="${ASSETS_BUCKET_NAME:-}"
 ASSETS_BUCKET_PREFIX="${ASSETS_BUCKET_PREFIX:-}"
 CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION:-2.1.233}"
-AGENTCORE_CLI_VERSION="${AGENTCORE_CLI_VERSION:-1.0.0-preview.26}"
+AGENTCORE_CLI_VERSION="${AGENTCORE_CLI_VERSION:-0.29.0}"
 
 # Colors
 RED='\033[0;31m'
@@ -452,7 +452,7 @@ AWS_REGION="${AWS_REGION:-$(curl -s http://169.254.169.254/latest/meta-data/plac
 log "AWS Region: $AWS_REGION"
 
 # ----------------------------------------------------------------------------
-# CDK bootstrap (required by @aws/agentcore 1.0.0-preview.26 `deploy`).
+# CDK bootstrap (required by @aws/agentcore 0.29.0 `deploy`).
 #
 # `agentcore deploy` synthesizes a CloudFormation stack and deploys it via the
 # CDK toolkit. CDK requires the account/region to be "bootstrapped" first — a

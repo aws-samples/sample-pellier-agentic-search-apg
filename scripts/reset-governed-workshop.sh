@@ -129,7 +129,7 @@ _agentcore() {
     if command -v agentcore >/dev/null 2>&1; then
       command agentcore "$@"
     else
-      npx -y @aws/agentcore@1.0.0-preview.26 "$@"
+      npx -y @aws/agentcore@0.29.0 "$@"
     fi
   )
 }
