@@ -106,7 +106,11 @@ backend environment.
    `agentcore create`.
 3. Render Runtime, Memory, Gateway, the one Lambda target registration, and
    the Policy engine into the CLI project. AgentCore role ARNs are intentionally
-   omitted so CLI/CDK creates the managed service roles.
+   omitted so CLI/CDK creates the managed service roles. The renderer also sets
+   the Runtime's platform version to `V1` in the CLI's CDK scaffold: the CLI has
+   no setting for it, and from 12 November 2026 AWS creates a runtime that names
+   none on V2. Setting `PELLIER_RUNTIME_PLATFORM_VERSION=V2` in
+   `pellier/backend/.env` deploys V2 instead, for testing it.
 4. Run `agentcore validate` and `agentcore deploy`.
 5. After Gateway has published its action catalog, render the baseline Cedar
    set and run the same validate/deploy sequence again.

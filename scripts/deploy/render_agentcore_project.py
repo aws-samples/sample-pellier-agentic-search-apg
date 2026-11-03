@@ -48,27 +48,92 @@ _CDK_STACK_TAGS_WITH_PROJECT = _CDK_STACK_TAGS.replace(
 )
 
 
-def _customize_governed_cdk_tags(config_dir: Path) -> None:
-    """Merge project labels into the reviewed 0.29.0 StackProps tag block."""
+# The AgentCore Runtime platform version every runtime in the project is created
+# with. From 2026-11-12 AWS creates a runtime that names no version on V2. Pellier
+# stays on V1 until V2 is tested on an event and meets the bar; a V2 test event sets
+# PELLIER_RUNTIME_PLATFORM_VERSION=V2 in pellier/backend/.env, which every deploy reads.
+# The pinned CLI has no setting for it, so an Aspect in the reviewed scaffold writes
+# it into each AWS::BedrockAgentCore::Runtime the CDK app synthesizes.
+RUNTIME_PLATFORM_VERSIONS = ("V1", "V2")
+_CDK_LIB_IMPORT = "import { App, type Environment } from 'aws-cdk-lib';"
+_CDK_LIB_IMPORT_WITH_ASPECTS = (
+    "import { App, Aspects, CfnResource, type Environment } from 'aws-cdk-lib';"
+)
+_CDK_SYNTH = "\n  app.synth();\n"
+_CDK_PLATFORM_PIN = """
+  // Pellier: the AgentCore Runtime platform version (render_agentcore_project.py).
+  Aspects.of(app).add({
+    visit(node) {
+      if (
+        node instanceof CfnResource &&
+        node.cfnResourceType === 'AWS::BedrockAgentCore::Runtime'
+      ) {
+        node.addPropertyOverride('PlatformVersion', '{version}');
+      }
+    },
+  });
+  app.synth();
+"""
+_PIN_BEFORE, _PIN_AFTER = _CDK_PLATFORM_PIN.split("{version}")
+_CDK_PLATFORM_PIN_PATTERN = re.compile(
+    re.escape(_PIN_BEFORE) + "(V[12])" + re.escape(_PIN_AFTER)
+)
+
+
+def runtime_platform_version() -> str:
+    """The AgentCore Runtime platform version to deploy: V1 unless V2 is under test."""
+    value = os.environ.get("PELLIER_RUNTIME_PLATFORM_VERSION", "").strip().upper() or "V1"
+    if value not in RUNTIME_PLATFORM_VERSIONS:
+        raise SystemExit(
+            f"PELLIER_RUNTIME_PLATFORM_VERSION must be V1 or V2, not {value!r}"
+        )
+    return value
+
+
+def _unsupported_scaffold(entrypoint: Path) -> SystemExit:
+    return SystemExit(
+        f"Unsupported {AGENTCORE_CLI} CDK scaffold in {entrypoint}; "
+        "review the pinned scaffold before deploying governed labels"
+    )
+
+
+def _reviewed_edit(source: str, original: str, edited: str, entrypoint: Path) -> str:
+    """Apply one reviewed scaffold edit exactly once, or keep it if already applied."""
+    if source.count(original) == 0 and source.count(edited) == 1:
+        return source
+    if source.count(original) != 1 or source.count(edited) != 0:
+        raise _unsupported_scaffold(entrypoint)
+    return source.replace(original, edited, 1)
+
+
+def _pin_platform_version(source: str, version: str, entrypoint: Path) -> str:
+    """Insert the Runtime platform Aspect before synthesis, or set its version."""
+    pin = _CDK_PLATFORM_PIN.replace("{version}", version)
+    found = _CDK_PLATFORM_PIN_PATTERN.findall(source)
+    if len(found) == 1:
+        return _CDK_PLATFORM_PIN_PATTERN.sub(lambda _match: pin, source)
+    if found or source.count(_CDK_SYNTH) != 1:
+        raise _unsupported_scaffold(entrypoint)
+    return source.replace(_CDK_SYNTH, pin, 1)
+
+
+def _customize_governed_cdk_scaffold(config_dir: Path, platform_version: str) -> None:
+    """Merge project labels and pin the Runtime platform in the reviewed 0.29.0 scaffold.
+
+    Every edit is checked before the file is written, so an unrecognized scaffold is
+    left exactly as the CLI wrote it.
+    """
     entrypoint = config_dir / "cdk" / "bin" / "cdk.ts"
     if not entrypoint.exists() and not entrypoint.parent.parent.exists():
         # Configuration-only rendering is also supported. The provisioner creates
         # the CLI scaffold before rendering a project that it will deploy.
         return
     source = entrypoint.read_text(encoding="utf-8")
-    original_count = source.count(_CDK_STACK_TAGS)
-    customized_count = source.count(_CDK_STACK_TAGS_WITH_PROJECT)
-    if original_count == 0 and customized_count == 1:
-        return
-    if original_count != 1 or customized_count != 0:
-        raise SystemExit(
-            f"Unsupported {AGENTCORE_CLI} CDK stack tags in {entrypoint}; "
-            "review the pinned scaffold before deploying governed labels"
-        )
-    entrypoint.write_text(
-        source.replace(_CDK_STACK_TAGS, _CDK_STACK_TAGS_WITH_PROJECT, 1),
-        encoding="utf-8",
-    )
+    edited = _reviewed_edit(source, _CDK_STACK_TAGS, _CDK_STACK_TAGS_WITH_PROJECT, entrypoint)
+    edited = _reviewed_edit(edited, _CDK_LIB_IMPORT, _CDK_LIB_IMPORT_WITH_ASPECTS, entrypoint)
+    edited = _pin_platform_version(edited, platform_version, entrypoint)
+    if edited != source:
+        entrypoint.write_text(edited, encoding="utf-8")
 
 
 def _deployment_suffix(value: str | None = None) -> str:
@@ -544,7 +609,7 @@ def render_project(
     root = project_root(repo, identity.suffix)
     config_dir = root / "agentcore"
     if governed:
-        _customize_governed_cdk_tags(config_dir)
+        _customize_governed_cdk_scaffold(config_dir, runtime_platform_version())
     schemas_dir = root / "tool-schemas"
     backend_dir = repo / "pellier" / "backend"
     runtime_dir, build_fingerprint = _render_runtime_source(root, backend_dir)

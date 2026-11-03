@@ -33,6 +33,18 @@ PINNED_STACK_CONSTRUCTION = """    new AgentCoreStack(app, stackName, {
       },
     });
 """
+# Verbatim lines from the same scaffold that the Runtime platform pin edits, around
+# the stack construction as the scaffold's main() places it.
+PINNED_CDK_LIB_IMPORT = "import { App, type Environment } from 'aws-cdk-lib';\n"
+PINNED_SYNTH = "  app.synth();\n"
+PINNED_SCAFFOLD = (
+    PINNED_CDK_LIB_IMPORT
+    + "\nasync function main() {\n  for (const target of targets) {\n"
+    + PINNED_STACK_CONSTRUCTION
+    + "  }\n\n"
+    + PINNED_SYNTH
+    + "}\n"
+)
 GOVERNED_TAGS = {
     "Name": "pellier-governed-managed",
     "Project": "pellier",
@@ -45,6 +57,7 @@ def _load_renderer(monkeypatch, *, suffix: str = "", workshop_format: str = "") 
     monkeypatch.syspath_prepend(str(DEPLOY))
     monkeypatch.setenv("PELLIER_DEPLOYMENT_SUFFIX", suffix)
     monkeypatch.setenv("WORKSHOP_FORMAT", workshop_format)
+    monkeypatch.delenv("PELLIER_RUNTIME_PLATFORM_VERSION", raising=False)
     spec = importlib.util.spec_from_file_location(
         "managed_adoption_renderer", DEPLOY / "render_agentcore_project.py"
     )
@@ -66,7 +79,7 @@ def _seed_sources(repo: Path, renderer: ModuleType) -> None:
         shutil.copyfile(BACKEND.parents[1] / relative, target)
 
 
-def _scaffold(config_dir: Path, source: str = PINNED_STACK_CONSTRUCTION) -> Path:
+def _scaffold(config_dir: Path, source: str = PINNED_SCAFFOLD) -> Path:
     entrypoint = config_dir / "cdk" / "bin" / "cdk.ts"
     entrypoint.parent.mkdir(parents=True)
     entrypoint.write_text(source, encoding="utf-8")
@@ -89,6 +102,19 @@ def _render(renderer: ModuleType, repo: Path) -> tuple[Path, dict]:
         include_policies=False,
     )
     return root, json.loads((root / "agentcore" / "agentcore.json").read_text())
+
+
+def _assert_governed_scaffold(source: str, version: str) -> None:
+    """Project labels merged once, and every Runtime pinned to `version` before synthesis."""
+    assert source.count("...spec.tags,") == 1
+    assert source.index("...spec.tags,") < source.index("'agentcore:project-name': spec.name")
+    assert source.index("...spec.tags,") < source.index("'agentcore:target-name': target.name")
+    assert "import { App, Aspects, CfnResource, type Environment } from 'aws-cdk-lib';" in source
+    assert "node.cfnResourceType === 'AWS::BedrockAgentCore::Runtime'" in source
+    assert source.count("addPropertyOverride('PlatformVersion'") == 1
+    assert f"node.addPropertyOverride('PlatformVersion', '{version}');" in source
+    assert source.count("app.synth();") == 1
+    assert source.index("Aspects.of(app).add(") < source.index("app.synth();")
 
 
 def _without_tags(value):
@@ -115,7 +141,7 @@ def test_governed_labels_preserve_resources_target_and_deployed_state(
 
     root_before, before = _render(renderer, repo)
     targets_before = (config_dir / "aws-targets.json").read_bytes()
-    assert entrypoint.read_text() == PINNED_STACK_CONSTRUCTION
+    assert entrypoint.read_text() == PINNED_SCAFFOLD
 
     monkeypatch.setenv("WORKSHOP_FORMAT", "governed")
     root_after, after = _render(renderer, repo)
@@ -135,9 +161,7 @@ def test_governed_labels_preserve_resources_target_and_deployed_state(
         assert resource["tags"] == {**before["tags"], **GOVERNED_TAGS}
     assert after["tags"]["PellierWorkshopId"] == "dat416-rc"
     assert after["tags"]["PellierRuntimeExposure"] == "public-workshop-only"
-    assert entrypoint.read_text() == PINNED_STACK_CONSTRUCTION.replace(
-        "      tags: {\n", "      tags: {\n        ...spec.tags,\n"
-    )
+    _assert_governed_scaffold(entrypoint.read_text(), "V1")
 
 
 @pytest.mark.parametrize("workshop_format", ["builders", " Builders "])
@@ -162,7 +186,7 @@ def test_the_builders_format_does_not_gain_governed_tags_or_scaffold_changes(
         "PellierDeploymentClass": "workshop",
         "PellierRuntimeExposure": "public-workshop-only",
     }
-    assert entrypoint.read_text() == PINNED_STACK_CONSTRUCTION
+    assert entrypoint.read_text() == PINNED_SCAFFOLD
     assert json.loads((root / "agentcore" / "aws-targets.json").read_text()) == [
         {"name": "default", "account": "000000000000", "region": "us-east-1"}
     ]
@@ -174,18 +198,47 @@ def test_pinned_scaffold_merge_is_idempotent_and_identity_tags_win(
     renderer = _load_renderer(monkeypatch, workshop_format="governed")
     assert renderer.AGENTCORE_CLI == "@aws/agentcore@0.29.0"
     entrypoint = _scaffold(tmp_path)
-    renderer._customize_governed_cdk_tags(tmp_path)
+    renderer._customize_governed_cdk_scaffold(tmp_path, "V1")
     first = entrypoint.read_bytes()
     first_mtime = entrypoint.stat().st_mtime_ns
 
-    renderer._customize_governed_cdk_tags(tmp_path)
+    renderer._customize_governed_cdk_scaffold(tmp_path, "V1")
 
     assert entrypoint.read_bytes() == first
     assert entrypoint.stat().st_mtime_ns == first_mtime
-    source = first.decode()
-    assert source.count("...spec.tags,") == 1
-    assert source.index("...spec.tags,") < source.index("'agentcore:project-name': spec.name")
-    assert source.index("...spec.tags,") < source.index("'agentcore:target-name': target.name")
+    _assert_governed_scaffold(first.decode(), "V1")
+
+
+def test_runtimes_stay_on_v1_unless_a_test_event_asks_for_v2(tmp_path: Path, monkeypatch) -> None:
+    """From 2026-11-12 AWS makes a runtime that names no platform version V2."""
+    renderer = _load_renderer(monkeypatch, suffix="rc", workshop_format="governed")
+    repo = tmp_path / "repo"
+    _seed_sources(repo, renderer)
+    entrypoint = _scaffold(renderer.project_root(repo) / "agentcore")
+
+    _render(renderer, repo)
+    _assert_governed_scaffold(entrypoint.read_text(), "V1")
+
+    monkeypatch.setenv("PELLIER_RUNTIME_PLATFORM_VERSION", " v2 ")
+    _render(renderer, repo)
+    _assert_governed_scaffold(entrypoint.read_text(), "V2")
+
+    monkeypatch.setenv("PELLIER_RUNTIME_PLATFORM_VERSION", "V1")
+    _render(renderer, repo)
+    _assert_governed_scaffold(entrypoint.read_text(), "V1")
+
+
+def test_an_unknown_runtime_platform_version_stops_the_render(tmp_path: Path, monkeypatch) -> None:
+    renderer = _load_renderer(monkeypatch, suffix="rc", workshop_format="governed")
+    repo = tmp_path / "repo"
+    _seed_sources(repo, renderer)
+    entrypoint = _scaffold(renderer.project_root(repo) / "agentcore")
+    monkeypatch.setenv("PELLIER_RUNTIME_PLATFORM_VERSION", "V3")
+
+    with pytest.raises(SystemExit, match="must be V1 or V2"):
+        _render(renderer, repo)
+
+    assert entrypoint.read_text() == PINNED_SCAFFOLD
 
 
 @pytest.mark.parametrize(
@@ -196,8 +249,18 @@ def test_pinned_scaffold_merge_is_idempotent_and_identity_tags_win(
         PINNED_STACK_CONSTRUCTION.replace(
             "      tags: {\n", "      tags: {\n        ...customTags,\n"
         ),
+        PINNED_SCAFFOLD.replace(PINNED_SYNTH, ""),
+        PINNED_SCAFFOLD + PINNED_SYNTH,
+        PINNED_SCAFFOLD.replace(PINNED_CDK_LIB_IMPORT, ""),
     ],
-    ids=["changed-shape", "ambiguous-blocks", "unreviewed-customization"],
+    ids=[
+        "changed-shape",
+        "ambiguous-blocks",
+        "unreviewed-customization",
+        "no-synth",
+        "two-synths",
+        "changed-import",
+    ],
 )
 def test_unrecognized_scaffold_stops_before_any_rendered_file_changes(
     tmp_path: Path, monkeypatch, source: str
