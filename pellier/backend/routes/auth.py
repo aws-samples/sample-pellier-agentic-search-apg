@@ -1078,5 +1078,5 @@ async def refresh(
     method = request.cookies.get(names.sign_in_method)
     if new_refresh_token and method == SIGN_IN_METHOD_WORKSHOP:
         # A rotated refresh token starts a new lifetime; the marker keeps pace.
-        _set_sign_in_method_cookie(response, surface, method)
+        _set_sign_in_method_cookie(response, surface, SIGN_IN_METHOD_WORKSHOP)
     return response

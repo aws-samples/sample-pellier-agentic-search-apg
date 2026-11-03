@@ -199,7 +199,9 @@ export function normalizeChatError(error: unknown): ChatServiceError {
 function getSessionId(): string {
   let sessionId = localStorage.getItem('pellier-session-id')
   if (!sessionId) {
-    sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+    const random = crypto.getRandomValues(new Uint8Array(8))
+    const suffix = Array.from(random, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    sessionId = `session-${Date.now()}-${suffix}`
     localStorage.setItem('pellier-session-id', sessionId)
   }
   return sessionId

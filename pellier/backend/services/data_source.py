@@ -18,7 +18,7 @@ def database_source_label() -> str:
         host = settings.DB_TUNNEL_REMOTE_HOST.strip().lower()
     if host in local_hosts:
         return "Local PostgreSQL"
-    if ".rds.amazonaws.com" in host and (
+    if host.endswith(".rds.amazonaws.com") and (
         ".cluster-" in host or ".cluster-ro-" in host
     ):
         return "Aurora PostgreSQL"
