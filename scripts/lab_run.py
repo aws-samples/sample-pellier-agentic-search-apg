@@ -238,6 +238,12 @@ class BackendTimeout(LabRunError):
     """The backend took the request but did not answer within the timeout."""
 
 
+# Shown after a task's file changes. The link is touched so an open tab reloads by itself;
+# this line covers a tab that still shows the old lines.
+RELOAD_HINT = ("If the file is open and still shows your old lines, "
+               "close its tab and open it again.")
+
+
 def ok(message: str) -> None:
     print(f"  + OK    {message}", flush=True)
 
@@ -283,6 +289,7 @@ def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
             continue
         ok(_keep(repo, entry["alias"], target.read_bytes()))
         shutil.copyfile(answer, target)
+        lab_reference.mark_link_changed(repo, entry["alias"])
         ok(f"{entry['alias']} now holds the solution ({entry['source']})")
     print_next(NEXT_AFTER_SOLUTION[lab])
 
@@ -315,7 +322,7 @@ def install_task(task: str, repo: pathlib.Path = REPO,
     different attempt goes to ``<link>.bak.2`` and on, so no attempt is ever overwritten.
     ``restart`` runs when a backend file changed, because the app serves what it loaded.
     """
-    backend_changed = False
+    backend_changed = changed = False
     for entry in task_files(task, repo):
         alias = entry["alias"]
         target, answer = repo / entry["source"], repo / entry["solution"]
@@ -326,8 +333,12 @@ def install_task(task: str, repo: pathlib.Path = REPO,
         _print_change(alias, yours, finished)
         ok(_keep(repo, alias, yours))
         shutil.copyfile(answer, target)
+        lab_reference.mark_link_changed(repo, alias)
         ok(f"{alias} now holds the answer")
+        changed = True
         backend_changed = backend_changed or entry["source"].startswith(BACKEND_DIR)
+    if changed:
+        print(f"  {RELOAD_HINT}", flush=True)
     if backend_changed and restart is not None:
         restart()
     if next_line:

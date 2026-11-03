@@ -388,6 +388,41 @@ def test_a_reset_on_an_untouched_box_creates_no_parking_folder(
     assert not parked.exists()
 
 
+def test_a_reset_reports_each_restored_file_at_its_editor_link(tmp_path: Path) -> None:
+    """An open tab on a labs/ link shows the restored starter without a manual reload."""
+    old = 1_000_000_000
+    repo = make_repo(tmp_path)
+    _with_alias_list(repo)
+    links = []
+    for entry in json.loads((repo / "workshop" / "participant-files.json").read_text()):
+        if not entry["alias"].startswith("labs/02-") or not (repo / entry["source"]).exists():
+            continue
+        link = repo / entry["alias"]
+        link.parent.mkdir(parents=True, exist_ok=True)
+        link.symlink_to(os.path.relpath(repo / entry["source"], link.parent))
+        os.utime(link, (old, old), follow_symlinks=False)
+        links.append(link)
+    for exercise in all_exercises():
+        if exercise.lab == 2:
+            edit(repo, exercise)
+
+    exercises.restore_lab(repo, 2)
+
+    assert links and all(link.lstat().st_mtime > old for link in links)
+
+
+def test_marking_a_path_that_is_not_a_link_changes_nothing(tmp_path: Path) -> None:
+    plain = tmp_path / "plain.py"
+    plain.write_text("x = 1\n")
+    os.utime(plain, (1_000_000_000, 1_000_000_000))
+
+    lab_reference = importlib.import_module("lab_reference")
+    lab_reference.mark_link_changed(tmp_path, "plain.py")
+    lab_reference.mark_link_changed(tmp_path, "missing.py")
+
+    assert plain.stat().st_mtime == 1_000_000_000
+
+
 def test_the_whole_workshop_restore_writes_no_backup(tmp_path: Path) -> None:
     repo = make_repo(tmp_path)
     (repo / "workshop" / "lab-1-fusion.sql").write_text("-- mine\n", encoding="utf-8")

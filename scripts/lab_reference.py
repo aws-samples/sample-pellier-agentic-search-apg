@@ -104,6 +104,19 @@ def lab_entries(source: Path, lab: int) -> List[str]:
     return found + sorted(targets - set(found))
 
 
+def mark_link_changed(repo: Path, alias: str) -> None:
+    """Give the editor a change at ``alias`` after the file behind the link was rewritten.
+
+    The ``labs/`` names are symbolic links. A script writes the real file, so Code Editor's
+    watcher reports the change at the real path and a tab opened through the link keeps the
+    old lines. Touching the link itself, not its target, reports a change at the path that
+    tab holds, and the tab re-reads the file through the link.
+    """
+    link = repo / alias
+    if link.is_symlink() and os.utime in os.supports_follow_symlinks:
+        os.utime(link, follow_symlinks=False)
+
+
 def keep_version(repo: Path, alias: str, yours: bytes) -> str:
     """Save the participant's version beside ``alias`` as ``.bak``, ``.bak.2`` and on.
 

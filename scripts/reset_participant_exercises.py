@@ -199,6 +199,13 @@ def _park_edit(repo: Path, backup_dir: Path, destination: Path, replacement: byt
     print(f"your earlier {Path(alias).name} moved to {parked}")
 
 
+def _mark_link(repo: Path, destination: str) -> None:
+    """Report the restored file at its editor link too, so an open tab reloads."""
+    alias = lab_reference.aliases_by_source(repo).get(destination)
+    if alias:
+        lab_reference.mark_link_changed(repo, alias)
+
+
 def _lab_aliases(repo: Path, lab: int | None) -> list[str]:
     """The Explorer links of the lab's task files (every lab's when None)."""
     markers, files = exercises_for(lab)
@@ -220,6 +227,7 @@ def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> No
         if keep_edits:
             _park_edit(repo, backup_dir, destination_path, restored.encode("utf-8"))
         destination_path.write_text(restored, encoding="utf-8")
+        _mark_link(repo, exercise.destination)
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
 
     for exercise in files:
@@ -231,6 +239,7 @@ def _restore(repo: Path, lab: int | None = None, keep_edits: bool = False) -> No
         if keep_edits:
             _park_edit(repo, backup_dir, destination_path, starter_path.read_bytes())
         shutil.copyfile(starter_path, destination_path)
+        _mark_link(repo, exercise.destination)
         print(f"restored {exercise.exercise_id}: {exercise.destination}")
     # The .bak copies an apply step left beside the links leave with the edits: a reset
     # ends in the state a fresh box opens with, and nothing is thrown away.

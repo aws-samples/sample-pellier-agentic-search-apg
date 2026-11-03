@@ -262,6 +262,50 @@ def _scratch_repo(tmp_path: Path) -> Path:
     return tmp_path
 
 
+OLD_LINK_TIME = 1_000_000_000
+
+
+def _link_alias(repo: Path, entry: Dict[str, str]) -> Path:
+    """The editor link as a box has it: a relative symbolic link under labs/, aged."""
+    import os
+
+    link = repo / entry["alias"]
+    link.parent.mkdir(parents=True, exist_ok=True)
+    link.symlink_to(os.path.relpath(repo / entry["source"], link.parent))
+    os.utime(link, (OLD_LINK_TIME, OLD_LINK_TIME), follow_symlinks=False)
+    return link
+
+
+def test_applying_a_task_reports_the_change_at_its_editor_link(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A tab opened through labs/ reloads only when the change is reported at the link."""
+    repo = _scratch_repo(tmp_path)
+    entry = lab_run.task_files("2A", repo)[0]
+    link = _link_alias(repo, entry)
+    (repo / entry["source"]).write_text("my 2A\n")
+
+    lab_run.install_task("2A", repo, next_line=False)
+
+    assert link.is_symlink() and link.lstat().st_mtime > OLD_LINK_TIME
+    assert link.read_bytes() == (repo / entry["solution"]).read_bytes()
+    assert lab_run.RELOAD_HINT in capsys.readouterr().out
+
+    lab_run.install_task("2A", repo, next_line=False)
+    assert lab_run.RELOAD_HINT not in capsys.readouterr().out
+
+
+def test_a_lab_catch_up_reports_each_change_at_its_editor_link(tmp_path: Path) -> None:
+    repo = _scratch_repo(tmp_path)
+    links = [_link_alias(repo, entry) for entry in lab_run.solution_files(2, repo)]
+    for entry in lab_run.solution_files(2, repo):
+        (repo / entry["source"]).write_text("starter\n")
+
+    lab_run.install_solution(2, repo)
+
+    assert all(link.lstat().st_mtime > OLD_LINK_TIME for link in links)
+
+
 def test_solution_replaces_the_task_file_and_reports_a_second_run(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
