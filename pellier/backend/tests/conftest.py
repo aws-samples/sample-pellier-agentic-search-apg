@@ -52,6 +52,12 @@ os.environ.update({
 os.environ.setdefault("AWS_REGION", "us-east-1")
 os.environ.setdefault("AWS_DEFAULT_REGION", "us-east-1")
 
+# 4. Keep CloudWatch span export off. App startup attaches a SigV4 exporter to
+#    the X-Ray OTLP endpoint by default, and the fake identity above resolves,
+#    so every test that starts the app posted real requests that X-Ray refused
+#    with 403. tests/test_otel_cloudwatch_export.py passes enabled=True itself.
+os.environ.setdefault("OTEL_CLOUDWATCH_TRACES_ENABLED", "false")
+
 
 import pytest
 
