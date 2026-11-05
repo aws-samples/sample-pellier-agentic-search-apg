@@ -183,9 +183,9 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
      'pellier.give_store_credit'),
     ('The approved amount under another key', 'approval_key_mismatch', :'refused_other_key',
      'pellier.give_store_credit'),
-    ('The approved credit, then its retry', 'written once, then the same credit',
+    ('The approved credit, then its retry', 'paid once, then the same credit',
      CASE WHEN :'credit_first' <> '' AND :'credit_first' = :'credit_retry'
-          THEN 'written once, then the same credit'
+          THEN 'paid once, then the same credit'
           ELSE 'credit ' || coalesce(nullif(:'credit_first', ''), 'none') || ', then '
                || coalesce(nullif(:'credit_retry', ''), 'none') END,
      'pellier.give_store_credit'),

@@ -13,8 +13,8 @@ pass first; the deploy below then moves Pellier from local agents onto AgentCore
 
 | Task | See it fail | Fix | Prove |
 |---|---|---|---|
-| 3A, publish `get_tickets` and bind it to the caller | `uv run scripts/lab3_check.py --task 3A` | Apply: `uv run scripts/lab_run.py solution --lab 3 --task 3A`. It shows the change to [3A-1-publish-tool.py](3A-1-publish-tool.py) and [3A-2-bind-caller.py](3A-2-bind-caller.py), installs it and keeps your files as `.bak` | `uv run scripts/lab3_check.py --task 3A` ends `Lab 3A check passed` |
-| 3B, deploy, write the ownership rule, then challenge it | `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant`, then in a second terminal `psql -f labs/03-deploy/3B-row-ownership.sql` | Build: [3B-row-ownership.sql](3B-row-ownership.sql), region `Row ownership - predicate`, then the same `psql` run until it ends `Lab 3B predicate check passed` | `uv run scripts/lab_run.py send --lab 3`, then `uv run scripts/lab3_check.py --task 3B` ends `Lab 3B check passed` |
+| 3A, Bind each tool call to the signed-in customer | `uv run scripts/lab3_check.py --task 3A` | Apply: `uv run scripts/lab_run.py solution --lab 3 --task 3A`. It shows the change to [3A-1-publish-tool.py](3A-1-publish-tool.py) and [3A-2-bind-caller.py](3A-2-bind-caller.py), installs it and keeps your files as `.bak` | `uv run scripts/lab3_check.py --task 3A` ends `Lab 3A check passed` |
+| 3B, Deploy to AgentCore and protect rows with row-level security | `uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant`, then in a second terminal `psql -f labs/03-deploy/3B-row-ownership.sql` | Build: [3B-row-ownership.sql](3B-row-ownership.sql), region `Row ownership - predicate`, then the same `psql` run until it ends `Lab 3B predicate check passed` | `uv run scripts/lab_run.py send --lab 3`, then `uv run scripts/lab3_check.py --task 3B` ends `Lab 3B check passed` |
 
 Order: the 3A check (fails), the 3A apply, the 3A check (passes), the deploy, the 3B file,
 `uv run scripts/lab_run.py send --lab 3`, then the 3B check. Nothing is sent before the deploy,

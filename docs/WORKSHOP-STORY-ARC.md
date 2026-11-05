@@ -17,7 +17,7 @@ persona-led scenario; keep the technical titles as the headings.
 | 1. Build and measure PostgreSQL hybrid retrieval | Anna | "Can search match intent and keep every shopper requirement?" |
 | 2. Build a PostgreSQL-grounded agent | Marco | "Can every stock answer be backed by a warehouse record?" |
 | 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records on AgentCore?" |
-| 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica and Nadia | "Can approved credits stay within limits and be written once?" |
+| 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica and Nadia | "Can an approved credit stay within its limit and be paid only once?" |
 
 ## Every task: fail in the terminal, fix the region, prove it, then look
 

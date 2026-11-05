@@ -15,14 +15,14 @@ is not a completed task.
 
 | Lab and task | Work you do | Check |
 |---|---|---|
-| 1A, Anna | Search by what she means (`services/store_tools.py`), applied with `scripts/lab_run.py solution --lab 1 --task 1A` | `uv run scripts/lab1_check.py --task 1A` |
-| 1B, Anna | Keep her requirements on the retry (`services/search_plan.py`) | `uv run scripts/lab1_check.py --task 1B` |
-| 2A, Marco | Connect `check_stock` to the Stock agent, alone (`agents/stock_agent.py`), applied with `scripts/lab_run.py solution --lab 2 --task 2A` | `uv run scripts/lab2_check.py --task 2A` |
-| 2B, Marco | Keep "not carried" distinct from sold out (`labs/02-ground/2B-check-stock.sql`) | `uv run scripts/lab2_check.py --task 2B` |
-| 3A, Theo | Publish `get_tickets` and bind it to the caller, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `uv run scripts/lab3_check.py --task 3A` |
-| 3B, Theo | Deploy, write the ownership rule (`labs/03-deploy/3B-row-ownership.sql`), then challenge it | `uv run scripts/lab3_check.py --task 3B` |
-| 4A, Jessica and Nadia | Cap the credit at $100 in Cedar (`policies/credit_limit.cedar`), applied with `scripts/lab_run.py solution --lab 4 --task 4A` | `uv run scripts/lab4_check.py --task 4A` |
-| 4B, Jessica and Nadia | Let the credit-writer role write only through the function (`labs/04-govern/4B-credit-writer.sql`) | `uv run scripts/lab4_check.py --task 4B` |
+| 1A, Anna | Rank products by meaning with pgvector (`services/store_tools.py`), applied with `scripts/lab_run.py solution --lab 1 --task 1A` | `uv run scripts/lab1_check.py --task 1A` |
+| 1B, Anna | Keep Anna's requirements when search retries (`services/search_plan.py`) | `uv run scripts/lab1_check.py --task 1B` |
+| 2A, Marco | Connect the inventory tool to the Stock agent (`agents/stock_agent.py`), applied with `scripts/lab_run.py solution --lab 2 --task 2A` | `uv run scripts/lab2_check.py --task 2A` |
+| 2B, Marco | Report products the store does not carry (`labs/02-ground/2B-check-stock.sql`) | `uv run scripts/lab2_check.py --task 2B` |
+| 3A, Theo | Bind each tool call to the signed-in customer, applied with `scripts/lab_run.py solution --lab 3 --task 3A` | `uv run scripts/lab3_check.py --task 3A` |
+| 3B, Theo | Deploy to AgentCore and protect rows with row-level security (`labs/03-deploy/3B-row-ownership.sql`) | `uv run scripts/lab3_check.py --task 3B` |
+| 4A, Jessica and Nadia | Cap store credits at $100 with a Cedar policy (`policies/credit_limit.cedar`), applied with `scripts/lab_run.py solution --lab 4 --task 4A` | `uv run scripts/lab4_check.py --task 4A` |
+| 4B, Jessica and Nadia | Limit the credit writer with PostgreSQL privileges (`labs/04-govern/4B-credit-writer.sql`) | `uv run scripts/lab4_check.py --task 4B` |
 
 The two SQL files run during their labs' deploys and print their own lines:
 `psql -f labs/03-deploy/3B-row-ownership.sql` ends
