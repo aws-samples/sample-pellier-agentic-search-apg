@@ -17,7 +17,7 @@ permissions:
 jobs:
   backend:
     name: Backend tests and shell validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       DB_HOST: localhost
@@ -85,7 +85,7 @@ jobs:
 
   backend-postgres:
     name: PostgreSQL-backed backend tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       AWS_REGION: us-east-1
@@ -138,7 +138,7 @@ jobs:
 
   frontend:
     name: Frontend tests, build, and dependency audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
@@ -207,7 +207,7 @@ jobs:
 
   browser:
     name: Browser tests against a stand-in API
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:

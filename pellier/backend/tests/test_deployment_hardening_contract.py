@@ -151,6 +151,18 @@ def test_ci_runs_the_node_release_the_box_runs(environment: str) -> None:
     assert all(value == pinned for _, value in found), f"expected {pinned}: {found}"
 
 
+def test_ci_runs_on_a_pinned_runner_image() -> None:
+    """`runs-on: ubuntu-latest` moved to Ubuntu 26.04 on 2026-11-05, where the pinned Playwright
+    has no Chromium build, so the browser job failed on a change that touched no browser code."""
+    found = [
+        (path.name, value)
+        for path in sorted((REPO / ".github" / "workflows").glob("*.yml"))
+        for value in re.findall(r"runs-on:\s*(\S+)", path.read_text("utf-8"))
+    ]
+    assert found, "no workflow names a runner"
+    assert all(value == "ubuntu-24.04" for _, value in found), f"expected ubuntu-24.04: {found}"
+
+
 def test_ci_runs_each_pipx_tool_at_an_exact_release() -> None:
     """`pipx run cfn-lint` took each new cfn-lint, so a new rule could fail CI unasked."""
     runs = [

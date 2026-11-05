@@ -21,7 +21,7 @@ permissions:
 jobs:
   rehearsal:
     name: Live AgentCore managed-path rehearsal
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: agentcore-rehearsal
     env:
