@@ -3,19 +3,19 @@
 **Can this agent read or change something it should not?**
 
 Take the four contracts from DAT416 into your next application review. This
-Agent Skill helps a coding assistant trace one tool and return findings,
-supporting evidence and the tests still needed. It is a review aid, not a
-production certification or a replacement for application tests.
+Agent Skill helps a coding assistant trace one tool. It returns findings,
+supporting evidence and the tests still needed. It is a review aid. It is not
+a production certification and it does not replace application tests.
 
-## First use: allow about 15 minutes
+## First use, about 15 minutes
 
 1. Choose one tool and open its repository. Start with a read, such as stock
-   lookup, or a write, such as a reimbursement. You need source access;
-   database access is optional.
-2. Install the skill or open [SKILL.md](SKILL.md) and give its instructions to
+   lookup, or a write, such as a reimbursement. You need source access.
+   Database access is optional.
+2. Install the skill, or open [SKILL.md](SKILL.md) and give its instructions to
    your coding assistant.
 3. Paste the prompt below with the tool's path. Check the assistant's source
-   citations and choose one proposed test your team should run next.
+   citations. Then choose one proposed test your team should run next.
 
 ```text
 /governed-postgres-agent review <tool and source path> against the applicable DAT416 contracts.
@@ -26,8 +26,8 @@ Do not change files or execute database writes.
 Finish with the smallest useful verification plan.
 ```
 
-Your output should distinguish a code finding from a passed or failed test,
-and say what remains untested. Compare it with the
+Your output should tell a code finding apart from a passed or failed test.
+It should also say what remains untested. Compare it with the
 [worked expense review](examples/expense-review.md).
 
 ## Install
@@ -41,11 +41,11 @@ cp -r governed-postgres-agent ~/.claude/skills/
 
 Use `.claude/skills/` in a repository for a project-only installation.
 Other compatible agents use their own skills directories. The instructions
-are plain Markdown and can also be read without installing anything.
+are plain Markdown. You can also read them without installing anything.
 
 To try the review on Pellier, replace the prompt's tool and path with
 `give_store_credit in pellier/backend/services/store_tools.py` and select
-contract 4. Trace the database function too; a wrapper alone cannot establish
+contract 4. Trace the database function too. A wrapper alone cannot establish
 the write's guarantees. This source review does not require a running event.
 
 ## What to read next
@@ -61,13 +61,14 @@ the write's guarantees. This source review does not require a running event.
 
 ## Runnable examples
 
-[examples/setup.sql](examples/setup.sql) supplies a small independent schema,
+[examples/setup.sql](examples/setup.sql) provides a small independent schema,
 roles, fixture data and a controlled credit function. The worked review gives
 the setup and probe commands. Use an empty disposable PostgreSQL database
-where you can create roles. It does not connect to AWS or use workshop data.
+where you can create roles. The example does not connect to AWS or use
+workshop data.
 
-The core example and its regression checks were exercised on PostgreSQL
-18.6. They demonstrate selected invariants, not compatibility with every
+The core example and its regression checks were run on PostgreSQL 18.6. They
+demonstrate selected invariants. They do not show compatibility with every
 Aurora or RDS version. The optional vector guidance requires pgvector and
 your own representative data. Adapt the examples to your schema and expected
 results before using them in an application review.
