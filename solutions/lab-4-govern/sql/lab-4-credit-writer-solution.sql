@@ -196,14 +196,14 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
     ('The role''s privileges and row policies on store_credits, orders, approvals', 'none',
      :'writer_tables', 'role_table_grants and pg_policies');
 
-\echo 'Lab 4B: your privileges for pellier_credit_writer, probed'
+\echo 'Lab 4B: your privileges for pellier_credit_writer, tested'
 \echo 'Evidence  pellier.give_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
-\echo '          a probe case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
+\echo '          a test case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
 \echo ''
 -- Each probe on one row with the reason it came out as it did; after a failed run, each probe
 -- that differs again, with what was expected beside what was observed.
-SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
-       probe AS "Probe", observed AS "Observed", source AS "Source"
+SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result",
+       probe AS "Test", observed AS "Observed", source AS "Source"
   FROM lab_4_probes ORDER BY ord;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes
@@ -215,26 +215,26 @@ SELECT bool_or(expected <> observed) FILTER (WHERE ord IN (1, 2, 8)) AS tables_d
   FROM lab_4_probes
 \gset lab_4_
 
-\echo 'Expected  every probe matches; then the transaction commits and your privileges are live'
+\echo 'Expected  every test passes; then the file saves your privileges and they are live'
 SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
 \if :lab_4_passed
   COMMIT;
-  SELECT format('store_credits rows before %s, after %s: the probe credit was undone',
+  SELECT format('store_credits rows before %s, after %s: the test credit was undone',
                 :credits_before, count(*)) AS rows FROM pellier.store_credits \gset credits_
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; committed, your privileges are live'
+  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Saved, your privileges are live.'
   \echo 'Deployed  your statements for pellier_credit_writer, sha256' :stamp_short
   \echo '         ' :credits_rows
   \echo 'Lab 4B privileges check passed'
 \else
-  SELECT probe AS "Differs", expected AS "Expected", observed AS "Observed"
+  SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed"
     FROM lab_4_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
   SELECT format('store_credits rows before %s, after %s', :credits_before, count(*)) AS rows
     FROM pellier.store_credits \gset credits_
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'probes match; rolled back, the live state is unchanged'
+  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Your change was undone. The live state is unchanged.'
   \echo '         ' :credits_rows
   \if :lab_4_tables_differ
-    \echo 'Next      which single privilege does a credit path need? In the rows marked differs,'
+    \echo 'Next      which single privilege does a credit path need? In the rows that do not match,'
     \echo '          23514 is the trigger refusing a row your role was allowed to insert: a rule'
     \echo '          the owner can switch off, not a privilege the role lacks. A direct UPDATE'
     \echo '          that goes through changes an approved amount with no check at all.'

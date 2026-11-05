@@ -145,7 +145,7 @@ def test_lab_3b_proves_the_build_whatever_state_lab_1_is_in(tmp_path: Path) -> N
            "deployed_fingerprint": deployed}
     for checkout in (BACKEND, solved):
         local = compute_fingerprint(checkout, skills_root=REPO)
-        assert lab3_check.judge_build(row, local).state == "PROVED", checkout
+        assert lab3_check.judge_build(row, local).state == "PASSED", checkout
 
 
 # ---------------------------------------------------------------------------

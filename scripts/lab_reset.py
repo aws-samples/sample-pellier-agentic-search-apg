@@ -185,7 +185,7 @@ def apply_database(conn: Any, lab: int, repo: pathlib.Path = REPO) -> datetime:
     except Exception as exc:  # noqa: BLE001 - a psycopg error rolls the transaction back
         conn.rollback()
         raise LabResetError(f"the database piece of Lab {lab} was not restored ({exc}). "
-                            f"Lab {lab}'s files were already put back at their starters; the "
+                            f"Lab {lab}'s files were already put back to their originals; the "
                             f"database was left as it was. Run the reset again, or reset the whole "
                             f"workshop: {FULL_RESET}") from exc
 
@@ -312,14 +312,14 @@ def reset_lab(
                                 f"uv run scripts/repair_workshop_files.py, or reset the whole "
                                 f"workshop: {FULL_RESET}") from exc
         _timed(steps, f"files: {', '.join(restored)}", started)
-        report(f"  + OK    restored {len(restored)} file region(s) to their starters "
+        report(f"  + OK    restored {len(restored)} file region(s) to their originals "
                f"({', '.join(restored)})")
 
         started = time.monotonic()
         point = apply_database(conn, lab, repo)
         if lab in SHIPPED_BLOCKS:
             _timed(steps, f"database: {SHIPPED_BLOCKS[lab]}", started)
-            report(f"  + OK    reinstalled the shipped database piece ({SHIPPED_BLOCKS[lab]}, "
+            report(f"  + OK    reinstalled the original database piece ({SHIPPED_BLOCKS[lab]}, "
                    f"from {SCHEMA})")
         check.record_reset_point(lab, point)
         report(f"  + OK    reset point {point.astimezone(timezone.utc):%H:%M:%S} UTC: Lab "

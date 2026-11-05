@@ -132,7 +132,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
         return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
                              "the file still holds the grants it ships with",
                              ["workshop/lab-4-credit-writer.sql: Credit writer - privileges is "
-                              "as shipped"],
+                              "the original"],
                              f"write the role's privileges in the file, then run "
                              f"{RUN_WORKSHEET}.")
     short = stamp[len(STAMP_PREFIX):][:12]
@@ -152,7 +152,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
                          "file")
         return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED, observed,
                              evidence, f"run {RUN_WORKSHEET}; it deploys your statements once "
-                             "every probe matches.")
+                             "every test passes.")
     drift = [line for line, ok in (
         (f"function rights are {live.get('rights')}", live.get("rights") == LIVE_RIGHTS),
         (f"EXECUTE is {live.get('execute')}", live.get("execute") == LIVE_EXECUTE),
@@ -164,7 +164,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
         return check.Finding("4B", DEPLOYED_TITLE, check.CONTRADICTED, DEPLOYED_EXPECTED,
                              "the live state changed after your run: " + "; ".join(drift),
                              evidence, f"run {RUN_WORKSHEET} again; it resets the role first.")
-    return check.Finding("4B", DEPLOYED_TITLE, check.PROVED, DEPLOYED_EXPECTED,
+    return check.Finding("4B", DEPLOYED_TITLE, check.PASSED, DEPLOYED_EXPECTED,
                          f"the live function carries your statements, sha256 {short}", evidence)
 
 
@@ -195,7 +195,7 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
               if str(answer).startswith(ERROR)]
     if broken:
         return check.Finding("4B", title, check.UNCHECKED, EXPECTED,
-                             "a probe failed for a reason other than the role's privileges",
+                             "a test failed for a reason other than the role's privileges",
                              broken, "check the database is reachable from this box, then run "
                              "it again.")
     evidence = [f"as {ROLE} through {_PATHS[path]}"]
@@ -206,8 +206,8 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
         if got != want:
             differs.append(f"{label} came back {got}")
     if not differs:
-        return check.Finding("4B", title, check.PROVED, EXPECTED,
-                             f"{len(WANT)} of {len(WANT)} probes match", evidence)
+        return check.Finding("4B", title, check.PASSED, EXPECTED,
+                             f"{len(WANT)} of {len(WANT)} tests passed", evidence)
     return check.Finding("4B", title, check.CONTRADICTED, EXPECTED, "; ".join(differs), evidence,
                          f"which statement in the {REGION} region grants a table privilege a "
                          f"direct write can use? Fix it, then run {RUN_WORKSHEET}.")
@@ -377,6 +377,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("Lab 4B: your deployed privileges, then the credit-writer role on both database paths")
     for finding in findings:
         print(check.render(finding))
-    passed = all(finding.state == check.PROVED for finding in findings)
+    passed = all(finding.state == check.PASSED for finding in findings)
     print("Lab 4B check passed" if passed else "Lab 4B check failed")
     return 0 if passed else 1

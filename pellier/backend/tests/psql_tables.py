@@ -46,10 +46,10 @@ def probes(stdout: str) -> Dict[str, List[str]]:
     the call that observed it).
     A matching probe's expected value is its observed one.
     """
-    differs = {row["Differs"]: row for row in table_with(stdout, "Differs")}
+    differs = {row["Does not match"]: row for row in table_with(stdout, "Does not match")}
     out: Dict[str, List[str]] = {}
-    for row in table_with(stdout, "Probe"):
-        name, observed = row["Probe"], row["Observed"]
+    for row in table_with(stdout, "Test"):
+        name, observed = row["Test"], row["Observed"]
         detail = differs.get(name, {})
         source = row.get("Source") or detail.get("Source", "")
         out[name] = [detail.get("Expected", observed), observed, source, row["Result"]]

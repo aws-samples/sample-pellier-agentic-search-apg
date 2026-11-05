@@ -48,7 +48,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from wait_progress import waiting  # noqa: E402
-from workshop_check import (CONTRADICTED, NOT_YET, PROVED, UNCHECKED,  # noqa: E402
+from workshop_check import (CONTRADICTED, NOT_YET, PASSED, UNCHECKED,  # noqa: E402
                             Finding, render, reset_point)
 
 SPANS_GROUP = "aws/spans"
@@ -125,7 +125,7 @@ def app_spans(logs: Any, start_ms: int, since: str) -> Finding:
     _, newest = routed[-1]
     names = list(dict.fromkeys(name for _, name, turn, _ in spans if turn == newest))
     in_turns = sum(1 for _, _, turn, _ in spans if turn in turns)
-    return Finding("O1", "App spans in CloudWatch", PROVED, expected,
+    return Finding("O1", "App spans in CloudWatch", PASSED, expected,
                    f"{_plural(in_turns, 'span')} across {_plural(len(turns), 'routed turn')}",
                    [f"newest turn {newest}: {', '.join(names)}"])
 
@@ -220,7 +220,7 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
         evidence.append("top SQL by load: none; the load sampled in the window names no statement")
     else:
         evidence.append("top SQL by load: no statement sampled in the window")
-    return Finding("O2", "Database Insights on Aurora", PROVED, expected, setting, evidence)
+    return Finding("O2", "Database Insights on Aurora", PASSED, expected, setting, evidence)
 
 
 def _utc(moment: datetime) -> str:
@@ -274,7 +274,7 @@ def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, since: str
                                   tz=timezone.utc).astimezone().strftime("%H:%M:%S")
     line = ((newest.get("message") or "").strip().splitlines() or [""])[0]
     detail = line[line.find("ERROR"):] if "ERROR" in line else line
-    return Finding("O3", "Refused writes in the PostgreSQL log", PROVED, expected,
+    return Finding("O3", "Refused writes in the PostgreSQL log", PASSED, expected,
                    f"{_plural(len(events), 'refused write')} logged", [f"{when}  {detail}"])
 
 
@@ -328,10 +328,10 @@ def main() -> int:
     for finding in findings:
         print()
         print(render(finding))
-    proved = sum(f.state == PROVED for f in findings)
+    proved = sum(f.state == PASSED for f in findings)
     print()
     print("Observability check passed" if proved == len(findings)
-          else f"Observability check: {proved} of {len(findings)} proved")
+          else f"Observability check: {proved} of {len(findings)} passed")
     return 0 if proved == len(findings) else 1
 
 

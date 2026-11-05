@@ -127,7 +127,7 @@ def test_the_solution_fallback_keeps_annas_limits(conn, monkeypatch) -> None:
     assert payload["search_plan"]["exclusions"] == ["candle"]
 
     finding, rows = lab1_retry.evaluate(conn)
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
     assert "keep under $100, in stock, no candles after the fallback" in finding.observed
     assert rows and all(row[-1] == "ok" for row in rows)
 
@@ -147,7 +147,7 @@ def test_a_second_search_in_the_same_turn_does_not_hide_the_fallback(conn, monke
                  "embedding_model": "stand-in", "rerank_model": "stand-in"},
     )
     finding, _rows = lab1_retry.evaluate(conn)
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
 
 
 def test_the_receipt_records_what_was_asked_beside_what_answered(conn, monkeypatch) -> None:

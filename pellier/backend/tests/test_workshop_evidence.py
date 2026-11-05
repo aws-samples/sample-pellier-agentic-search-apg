@@ -29,8 +29,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 evidence = importlib.import_module("workshop_evidence")
 check = importlib.import_module("workshop_check")
 
-PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
-    check.PROVED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
+PASSED, NOT_YET, UNCHECKED, CONTRADICTED = (
+    check.PASSED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
 SOLVED_VECTOR = REPO / "solutions" / "lab-1-retrieve" / "retrieval" / "store_tools_solution.py"
 SOLVED_RULE = REPO / "solutions" / "lab-4-govern" / "policies" / "credit_limit.cedar"
 SOLVED_WRITER = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
@@ -103,7 +103,7 @@ class TestTheEightLines:
         assert report.count("\u2502 Expected \u2502") == 8
         assert report.count("\u2502 Observed \u2502") == 8
         assert report.count("\u2502 Evidence \u2502") == 8
-        assert "0 of 8 tasks proved" in report
+        assert "0 of 8 tasks passed" in report
 
     def test_save_writes_the_report(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
                                     capsys: pytest.CaptureFixture[str]) -> None:
@@ -133,7 +133,7 @@ class TestRegionState:
         assert check.region_state(starter, label, starter) == check.STARTER
 
 
-def _remembered(state: str = PROVED):
+def _remembered(state: str = PASSED):
     """Stands in for ``lab3_check.memory_finding``, which reads AgentCore Memory."""
     return lambda: check.Finding("3B", "the managed agent is given Theo's remembered taste",
                                  state, "expected", "observed",
@@ -142,7 +142,7 @@ def _remembered(state: str = PROVED):
 
 def _finding(task: str, state: str) -> Any:
     return check.Finding(task, "a part", state, "expected", f"observed {state}", ["evidence"],
-                         "" if state == PROVED else "the next step")
+                         "" if state == PASSED else "the next step")
 
 
 class TestLabsThreeAndFour:
@@ -155,11 +155,11 @@ class TestLabsThreeAndFour:
         """Every region edited and the live row policies proved, unless a test says otherwise."""
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
         rls = importlib.import_module("lab3_row_ownership_check")
-        monkeypatch.setattr(rls, "collect", lambda *args: [_finding("3B", PROVED)])
+        monkeypatch.setattr(rls, "collect", lambda *args: [_finding("3B", PASSED)])
 
     def test_the_executed_build_and_reads_decide_3b(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
-        assert evidence.task_3b(rows, BUILD, _remembered()).state == PROVED
+        assert evidence.task_3b(rows, BUILD, _remembered()).state == PASSED
         assert evidence.task_3b(rows, "c" * 64, _remembered()).state == CONTRADICTED
         unstamped = {**rows, "build": {**self.BUILD_ROW, "deployed_fingerprint": None}}
         assert evidence.task_3b(unstamped, BUILD, _remembered()).state == UNCHECKED
@@ -195,17 +195,17 @@ class TestLabsThreeAndFour:
     def test_3b_needs_the_live_row_policies(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         lagging = evidence.task_3b(rows, BUILD, _remembered(),
-                                   lambda: [_finding("3B", PROVED), _finding("3B", NOT_YET)])
+                                   lambda: [_finding("3B", PASSED), _finding("3B", NOT_YET)])
         assert lagging.state == NOT_YET, lagging
         broken = evidence.task_3b(rows, BUILD, _remembered(),
                                   lambda: [_finding("3B", CONTRADICTED)])
         assert broken.state == CONTRADICTED, broken
 
     @pytest.mark.parametrize(("states", "verdict"), [
-        ((PROVED, PROVED, PROVED), PROVED),
-        ((PROVED, NOT_YET, PROVED), NOT_YET),
-        ((PROVED, UNCHECKED, PROVED), UNCHECKED),
-        ((CONTRADICTED, PROVED, PROVED), CONTRADICTED),
+        ((PASSED, PASSED, PASSED), PASSED),
+        ((PASSED, NOT_YET, PASSED), NOT_YET),
+        ((PASSED, UNCHECKED, PASSED), UNCHECKED),
+        ((CONTRADICTED, PASSED, PASSED), CONTRADICTED),
     ])
     def test_4b_combines_the_credit_checks_findings(self, states: tuple, verdict: str) -> None:
         finding = evidence.task_4b(lambda: [_finding("4B", state) for state in states])
@@ -213,11 +213,11 @@ class TestLabsThreeAndFour:
 
     def test_4b_names_the_path_behind_each_probe_count(self) -> None:
         parts = [check.Finding("4B", f"{path} path: the role writes only through the function",
-                               PROVED, "expected", "4 of 4 probes match", ["evidence"], "")
+                               PASSED, "expected", "4 of 4 tests passed", ["evidence"], "")
                  for path in ("in process", "Gateway")]
-        finding = evidence.task_4b(lambda: [_finding("4B", PROVED), *parts])
-        assert finding.observed == (f"observed {PROVED}; in process: 4 of 4 probes match; "
-                                    "Gateway: 4 of 4 probes match"), finding
+        finding = evidence.task_4b(lambda: [_finding("4B", PASSED), *parts])
+        assert finding.observed == (f"observed {PASSED}; in process: 4 of 4 tests passed; "
+                                    "Gateway: 4 of 4 tests passed"), finding
 
     def test_4b_with_the_starters_grants_is_not_yet_without_probing(
         self, monkeypatch: pytest.MonkeyPatch,
@@ -238,7 +238,7 @@ class TestLabsThreeAndFour:
         monkeypatch.setattr(lab3, "source_catalog", lambda: (
             frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"),
             frozenset({"get_orders", "get_tickets"})))
-        assert evidence.task_3a().state == PROVED
+        assert evidence.task_3a().state == PASSED
         monkeypatch.setattr(lab3, "source_catalog", lambda: (
             frozenset({"get_orders", "get_tickets"}), ("get_orders", "get_tickets"), frozenset()))
         assert evidence.task_3a().state == NOT_YET
@@ -251,11 +251,11 @@ class TestLabsThreeAndFour:
         assert evidence.credit_findings({**CREDIT, "amount_cents": 10001})["amount"] == CONTRADICTED
 
     def test_one_credit_for_the_approved_amount_is_proved(self) -> None:
-        assert evidence.credit_findings(dict(CREDIT)) == {"once": PROVED, "amount": PROVED}
+        assert evidence.credit_findings(dict(CREDIT)) == {"once": PASSED, "amount": PASSED}
 
     def test_a_failed_attempt_beside_the_applied_row_is_still_once(self) -> None:
         row = {**CREDIT, "attempt_rows": 1}
-        assert evidence.credit_findings(row) == {"once": PROVED, "amount": PROVED}
+        assert evidence.credit_findings(row) == {"once": PASSED, "amount": PASSED}
         assert "1 other attempt(s) that did not apply" in " ".join(evidence.credit_finding(row).evidence)
 
 
@@ -318,7 +318,7 @@ def test_lab_one_and_two_lines_read_the_real_schema(
         "2B": evidence.task_2b(cfg, check.connect),
     }
     for task, finding in findings.items():
-        assert finding.state == PROVED, (task, finding)
+        assert finding.state == PASSED, (task, finding)
     assert "Anna's requirements held" in findings["1A"].observed
 
 
@@ -336,7 +336,7 @@ def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(
     monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
     probe = {"id": 9, "idempotency_key": "operator-review:9:" + "b" * 32, "audit_rows": 0,
              "credit_rows": 0, "last_attempt": _json.dumps({"outcome": "denied", "policy": "DENY"})}
-    assert evidence.task_4a({"probe": probe, "credit": dict(CREDIT)}).state == PROVED
+    assert evidence.task_4a({"probe": probe, "credit": dict(CREDIT)}).state == PASSED
     assert evidence.task_4a({"probe": None, "credit": dict(CREDIT)}).state == NOT_YET
     assert evidence.task_4a({"probe": probe, "credit": {**CREDIT, "credit_rows": 2}}).state == (
         CONTRADICTED)
@@ -359,4 +359,4 @@ def test_lab_4a_reads_the_real_schema(
         _jessicas_credit(conn)
     monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
     rows = evidence._rows(cfg, check.connect)
-    assert evidence.task_4a(rows["lab4"]).state == PROVED
+    assert evidence.task_4a(rows["lab4"]).state == PASSED

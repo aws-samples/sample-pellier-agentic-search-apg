@@ -77,7 +77,7 @@ psql -f workshop/lab-3-row-ownership.sql
 ```
 
 The checks are unchanged: `uv run scripts/lab3_check.py --task 3A` reads
-"9 tools published" and the forged call bound to Theo, and after
+"9 of 9 tools published" and the call that names Jessica bound to Theo, and after
 `uv run scripts/lab_run.py send --lab 3`, `uv run scripts/lab3_check.py --task 3B`
 compares the executed build with this checkout's, asks Cedar to refuse his
 direct read of Jessica's tickets, and probes the live row policies. The managed

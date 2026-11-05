@@ -314,7 +314,7 @@ def _judge(
             observed += "; the search that answered dropped " + ", ".join(lost)
         return check.Finding("1B", TITLE, check.CONTRADICTED, EXPECTED, observed, evidence,
                              NEXT_STEP)
-    return check.Finding("1B", TITLE, check.PROVED, EXPECTED,
+    return check.Finding("1B", TITLE, check.PASSED, EXPECTED,
                          f"all {len(ids)} keep {', '.join(phrases(requested))} after the "
                          "fallback", evidence)
 
@@ -343,6 +343,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if rows:
         print(check.table(("product", "name", "price", "in stock", "verdict"), rows))
     print(check.render(finding))
-    passed = finding.state == check.PROVED
+    passed = finding.state == check.PASSED
     print("Lab 1B check passed" if passed else "Lab 1B check failed")
     return 0 if passed else 1

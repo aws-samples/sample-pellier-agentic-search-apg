@@ -42,7 +42,7 @@ def _judge(receipt: Dict[str, Any], broken: Optional[List[str]] = None):
 
 def test_kept_limits_after_the_fallback_prove_it() -> None:
     finding = _judge(_receipt())
-    assert finding.state == "PROVED"
+    assert finding.state == "PASSED"
     assert finding.observed == "all 2 keep under $100, in stock, no candles after the fallback"
     assert "the shopper asked: under $100, in stock, no candles" in finding.evidence
 
@@ -84,7 +84,7 @@ def test_only_the_limits_asked_for_are_judged() -> None:
               "materials": ["wool"]}
     assert lab1.product_breaks(pricey, limits) == ["excluded wool"]
     finding = _judge(_receipt(requested=wool, kept={}, exclusions=["wool"]))
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
 
 
 def test_a_department_the_answer_widened_is_dropped() -> None:
@@ -182,7 +182,7 @@ def test_a_later_restart_for_another_lab_does_not_date_the_search() -> None:
     mugs = {"product_id": "65", "name": "Stoneware Mugs, Set of 2", "price": 38, "quantity": 24,
             "category": "Kitchen", "tags": ["stoneware"], "materials": []}
     finding, _rows = lab1.evaluate(_Conn(receipt, [mugs]), lab1.Timeline(EDITED, lab2))
-    assert finding.state == "PROVED"
+    assert finding.state == "PASSED"
 
 
 def test_without_systemd_the_edit_alone_dates_the_search() -> None:

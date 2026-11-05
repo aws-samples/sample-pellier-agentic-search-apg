@@ -86,7 +86,7 @@ def provisioned_finding(seeded: dict, memory_id: str):
                              expected, observed, evidence,
                              "extraction runs after the conversation; run this again in a "
                              "minute.")
-    return check.Finding("3B", "the provisioning conversation is remembered", check.PROVED,
+    return check.Finding("3B", "the provisioning conversation is remembered", check.PASSED,
                          expected, observed, evidence)
 
 
@@ -114,7 +114,7 @@ def _provisioned(persona: str) -> int:
     )
     finding = provisioned_finding(seeded, memory_id)
     print(check.render(finding))
-    return 0 if finding.state == check.PROVED else 1
+    return 0 if finding.state == check.PASSED else 1
 
 
 FOLLOWS = "follows the customer into every new conversation"

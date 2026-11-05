@@ -41,7 +41,7 @@ class Bars:
 
 
 def _proved(task: str) -> check.Finding:
-    return check.Finding(task, "title", check.PROVED, "expected", "observed")
+    return check.Finding(task, "title", check.PASSED, "expected", "observed")
 
 
 def test_a_turn_shows_a_bar_while_pellier_answers(monkeypatch, capsys) -> None:

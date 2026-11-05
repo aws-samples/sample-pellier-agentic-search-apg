@@ -25,9 +25,9 @@ onto AgentCore itself and ends `Pellier is now using AgentCore. Continue with Th
 From then on every send prints `ran on AgentCore Runtime and Gateway`. If a deploy instead ends
 `Pellier did not move onto AgentCore`, run `bash scripts/lab3-start.sh theo` once and send again.
 Editing the 3A files alone does not update Runtime or Gateway; the deployment does.
-`3B-row-ownership.sql` commits itself: when every probe matches, your predicate becomes the
-live row-level security policy on orders and support tickets; when any probe differs, it rolls
-back.
+`3B-row-ownership.sql` checks itself: when every test passes, it saves your predicate as the
+live row-level security policy on orders and support tickets; when any test fails, it undoes
+your change.
 
 After `Lab 3B check passed`, open **PellierURL**, choose **Theo** in **Ask Pellier** with **Builder
 view** on. His three requests are there, marked **Sent from the terminal**, each with its trace:
@@ -47,7 +47,7 @@ It ends `Lab 3 workload check passed` once Theo's requests have run.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 3** (or run `uv run scripts/lab_run.py reset --lab 3`). It puts this lab back as shipped and leaves the other labs alone.
+In Code Editor choose **Terminal > Run Task > Reset Lab 3** (or run `uv run scripts/lab_run.py reset --lab 3`). It puts this lab back the way it was at the start and leaves the other labs alone.
 
 ## If you need a solution
 

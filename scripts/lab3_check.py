@@ -142,7 +142,7 @@ def probe_binding(bind: Callable[..., Dict[str, Any]], tool: str = PROBE_TOOL) -
 
 def _probe_lines(probe: Dict[str, str], tool: str = PROBE_TOOL) -> List[str]:
     unsigned = "refused" if probe["unsigned"] == "refused" else f"sent as {probe['unsigned']}"
-    return [(f"forged call: Theo signed in, the model asks {tool} for {JESSICA}; "
+    return [(f"call naming {JESSICA}: Theo signed in, the model asks {tool} for {JESSICA}; "
              f"the server sends {probe['sent']}"),
             f"the same {tool} call with no signed-in customer: {unsigned}"]
 
@@ -171,8 +171,8 @@ def _published_rule(published: frozenset, managed: Sequence[str]) -> check.Findi
         return check.Finding("3A", title, check.NOT_YET, expected,
                              f"the Support agent asks for {_and(unpublished)}, which the Gateway "
                              "does not publish", evidence, next_step)
-    return check.Finding("3A", title, check.PROVED, expected,
-                         f"{len(published)} of the nine tools published, get_tickets among them",
+    return check.Finding("3A", title, check.PASSED, expected,
+                         f"{len(published)} of 9 tools published, get_tickets among them",
                          evidence)
 
 
@@ -188,7 +188,7 @@ def _reads_rule(managed: Sequence[str]) -> check.Finding:
                              "get_orders and get_tickets", evidence,
                              f"{_NEXT_CUSTOMER_ID} The reads among them are what his household "
                              "request needs.")
-    return check.Finding("3A", title, check.PROVED, expected,
+    return check.Finding("3A", title, check.PASSED, expected,
                          f"the Support agent asks for {asks}", evidence)
 
 
@@ -214,15 +214,16 @@ def _bound_rule(bound: frozenset,
         leaking = [read for read in unbound
                    if probes and read in probes and probes[read]["sent"] != THEO]
         if leaking:
-            observed += (f"; a forged {' or '.join(leaking)} call for {JESSICA} would leave as "
+            observed += (f"; a {' or '.join(leaking)} call that names {JESSICA} would go out as "
                          f"{probes[leaking[0]]['sent']}")
         return check.Finding("3A", title, check.NOT_YET, expected, observed, evidence,
                              f"{_NEXT_CUSTOMER_ID} Name each read among them in "
                              "SUPPORT_CALLER_BOUND_TOOLS; ask_a_person's handoff is bound for you.")
     observed = "get_orders and get_tickets bound to the signed-in caller"
     if probes and all(read in probes for read in SHOPPER_READS):
-        observed = f"get_orders and get_tickets bound; a forged call for {JESSICA} leaves as {THEO}"
-    return check.Finding("3A", title, check.PROVED, expected, observed, evidence)
+        observed = (f"get_orders and get_tickets bound; a call that names {JESSICA} goes out "
+                    f"as {THEO}")
+    return check.Finding("3A", title, check.PASSED, expected, observed, evidence)
 
 
 def _staff_rule(managed: Sequence[str]) -> check.Finding:
@@ -237,7 +238,7 @@ def _staff_rule(managed: Sequence[str]) -> check.Finding:
                              "the Support agent names give_store_credit: published is not "
                              "permitted, and the Router refuses to build this agent", evidence,
                              "which of the nine tools moves money? Only the Operator calls it.")
-    return check.Finding("3A", title, check.PROVED, expected,
+    return check.Finding("3A", title, check.PASSED, expected,
                          "published is not permitted: the Support agent does not name "
                          "give_store_credit", evidence)
 
@@ -260,10 +261,10 @@ def judge_catalog(
 def catalog_verdict(findings: Sequence[check.Finding]) -> check.Finding:
     """One finding for the doctor and the evidence export: the first rule not met, or all four."""
     for finding in findings:
-        if finding.state != check.PROVED:
+        if finding.state != check.PASSED:
             return finding
     published, reads, bound, _staff = findings
-    return check.Finding("3A", _CATALOG_TITLE, check.PROVED, _CATALOG_EXPECTED,
+    return check.Finding("3A", _CATALOG_TITLE, check.PASSED, _CATALOG_EXPECTED,
                          f"{published.observed}; {reads.observed}; {bound.observed}",
                          [line for finding in findings for line in finding.evidence])
 
@@ -325,7 +326,7 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
                              "deploy with --mode participant, then send Theo's requests "
                              f"again in a new conversation: {SEND}.")
     if deployed == local:
-        return check.Finding("3B", _BUILD_TITLE, check.PROVED, BUILD_EXPECTED,
+        return check.Finding("3B", _BUILD_TITLE, check.PASSED, BUILD_EXPECTED,
                              "the two builds match", evidence)
     return check.Finding("3B", _BUILD_TITLE, check.CONTRADICTED, BUILD_EXPECTED,
                          "another build answered", evidence,
@@ -335,8 +336,8 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
 
 _TICKETS_TITLE = "every executed ticket read was Theo's own"
 TICKETS_EXPECTED = ("at least one executed get_tickets call on the Gateway in Theo's turns, "
-                    f"every one for {THEO}, none for another customer; a forged call for "
-                    f"{JESSICA} leaves this checkout as {THEO}")
+                    f"every one for {THEO}, none for another customer; a call that names "
+                    f"{JESSICA} goes out of this checkout as {THEO}")
 _NEXT_BIND = ("which support tool lets the model choose whose records to read? See "
               "SUPPORT_CALLER_BOUND_TOOLS in the Support agent - Gateway tools block, then "
               "deploy with --mode participant.")
@@ -368,11 +369,11 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
                              observed, evidence, _NEXT_BIND)
     if probe is not None and not _probe_binds(probe):
         return check.Finding("3B", _TICKETS_TITLE, check.CONTRADICTED, TICKETS_EXPECTED,
-                             observed + f"; a forged call for {JESSICA} would leave as "
+                             observed + f"; a call that names {JESSICA} would go out as "
                              f"{probe['sent']}", evidence, _NEXT_BIND)
     if probe is not None:
-        observed += f"; a forged call for {JESSICA} leaves as {THEO}"
-    return check.Finding("3B", _TICKETS_TITLE, check.PROVED, TICKETS_EXPECTED, observed, evidence)
+        observed += f"; a call that names {JESSICA} goes out as {THEO}"
+    return check.Finding("3B", _TICKETS_TITLE, check.PASSED, TICKETS_EXPECTED, observed, evidence)
 
 
 def source_probe() -> tuple:
@@ -388,7 +389,8 @@ def tickets_finding(rows: Sequence[Dict[str, Any]]) -> check.Finding:
     probe, reason = source_probe()
     if probe is None:
         return check.Finding("3B", _TICKETS_TITLE, check.UNCHECKED, TICKETS_EXPECTED,
-                             "the forged call could not run through this checkout's binding",
+                             "the call that names Jessica could not run through this "
+                             "checkout's binding",
                              [reason], "run this from the repository root on the workshop box, "
                              "with the backend's Python.")
     return judge_tickets(rows, probe)
@@ -439,7 +441,7 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
         return check.Finding("3B", _MEMORY_TITLE, check.CONTRADICTED, MEMORY_EXPECTED, observed,
                              evidence, "the read and the provisioning record disagree; check "
                                        "the namespace /pellier/preferences/CUST-THEO/.")
-    return check.Finding("3B", _MEMORY_TITLE, check.PROVED, MEMORY_EXPECTED, observed, evidence)
+    return check.Finding("3B", _MEMORY_TITLE, check.PASSED, MEMORY_EXPECTED, observed, evidence)
 
 
 def read_memory() -> Dict[str, Any]:
@@ -490,7 +492,7 @@ def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Fi
 
 _PROBE_TITLE = "Cedar refuses Theo's direct read of Jessica's tickets"
 PROBE_EXPECTED = ("a Cedar denial: the owner-only permit matches only Theo's own customer id, "
-                  "so nothing permits the read; and no tool_audit row for the probe's turn: "
+                  "so nothing permits the read; and no tool_audit row for the test call's turn: "
                   "a denied call never runs")
 
 
@@ -524,7 +526,7 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
         return check.Finding("3B", _PROBE_TITLE, check.CONTRADICTED, PROBE_EXPECTED,
                              f"denied, but {audit_rows} tool_audit row(s) carry its turn",
                              evidence, "a denied call must leave no row; read those rows.")
-    return check.Finding("3B", _PROBE_TITLE, check.PROVED, PROBE_EXPECTED,
+    return check.Finding("3B", _PROBE_TITLE, check.PASSED, PROBE_EXPECTED,
                          "Cedar denied it before the tool ran; no row was written", evidence)
 
 
@@ -631,7 +633,7 @@ def main_3a() -> int:
     print("Lab 3A: the Support agent, assembled for AgentCore")
     for finding in findings:
         print(check.render(finding))
-    passed = all(finding.state == check.PROVED for finding in findings)
+    passed = all(finding.state == check.PASSED for finding in findings)
     print("Lab 3A check passed" if passed else "Lab 3A check failed")
     return 0 if passed else 1
 
@@ -655,7 +657,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         findings = collect()
     for finding in findings:
         print(check.render(finding))
-    passed = all(finding.state == check.PROVED for finding in findings)
+    passed = all(finding.state == check.PASSED for finding in findings)
     print("Lab 3B check passed" if passed else "Lab 3B check failed")
     return 0 if passed else 1
 

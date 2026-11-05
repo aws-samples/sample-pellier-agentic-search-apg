@@ -1028,7 +1028,7 @@ class TestManagedCatalogsAgree:
         )
         assert check.passed
         assert check.detail == (
-            "9 of the nine tools published, get_tickets among them; the Support agent asks for "
+            "9 of 9 tools published, get_tickets among them; the Support agent asks for "
             "get_orders, get_return_policy, get_tickets and ask_a_person; get_orders and "
             "get_tickets bound to the signed-in caller")
 

@@ -103,7 +103,7 @@ def test_the_solution_lets_it_through_and_denies_one_cent_more() -> None:
     assert _nadia(SOLUTION_RULE, 10000) == lab4.ALLOW
     assert _nadia(SOLUTION_RULE, 10001) == lab4.DENY
     result = lab4.local_check(SOLUTION_RULE.read_text(), STARTER_RULE.read_text())
-    assert result.finding.state == lab4.check.PROVED
+    assert result.finding.state == lab4.check.PASSED
     assert [row[-1] for row in result.table] == ["matches"] * 12
 
 
@@ -238,8 +238,8 @@ def shipped(conn: Any) -> Iterator[None]:
 
 def _result(stdout: str, probe: str) -> str:
     """The Result the 3B table printed for one probe."""
-    return next(row["Result"] for row in psql_tables.table_with(stdout, "Probe")
-                if row["Probe"] == probe)
+    return next(row["Result"] for row in psql_tables.table_with(stdout, "Test")
+                if row["Test"] == probe)
 
 
 def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
@@ -250,8 +250,8 @@ def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
     assert "Lab 3B predicate check failed" in done.stdout
     for line in ("Theo reads his own orders", "Theo writes a ticket in his own name",
                  "The Investigator reads Jessica's orders"):
-        assert _result(done.stdout, line) == "differs", line
-    assert "rolled back, the live policies are unchanged" in done.stdout
+        assert _result(done.stdout, line) == "does not match", line
+    assert "Your change was undone. The live policies are unchanged." in done.stdout
     assert _live_state(conn) == before
 
 
@@ -259,7 +259,7 @@ def test_the_solution_passes_every_probe_and_becomes_the_live_policy(  # noqa: F
         fresh_db: Any, conn: Any, shipped: None) -> None:
     done = _psql(fresh_db, RLS_SOLUTION)
     assert done.returncode == 0, done.stdout + done.stderr
-    assert "10 of 10 probes match" in done.stdout
+    assert "10 of 10 tests passed" in done.stdout
     assert "your predicate is now the live policy" in done.stdout
     assert "42501" in done.stdout and "Lab 3B predicate check passed" in done.stdout
     after = _live_state(conn)
@@ -289,7 +289,7 @@ def test_a_predicate_for_theo_and_jessica_only_fails_the_every_customer_probe(  
               "current_setting('pellier.principal_username', true))")
     done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-narrow.sql", narrow))
     assert done.returncode != 0, done.stdout
-    assert _result(done.stdout, "Customers who see exactly their own orders and tickets") == "differs"
+    assert _result(done.stdout, "Customers who see exactly their own orders and tickets") == "does not match"
     for line in ("Theo reads his own orders", "The Investigator reads Jessica's orders"):
         assert _result(done.stdout, line) == "matches", line
     assert _live_state(conn) == before

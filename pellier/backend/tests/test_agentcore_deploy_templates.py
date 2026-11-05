@@ -2580,7 +2580,7 @@ def test_a_deploy_refuses_a_lab_4_rule_the_cedar_check_contradicts(tmp_path, cap
     assert re.search(r"Task 4A\s+\u2502 CONTRADICTED", capsys.readouterr().err)
 
 
-@pytest.mark.parametrize("which, state", [("starter", "NOT YET"), ("solution", "PROVED")])
+@pytest.mark.parametrize("which, state", [("starter", "NOT YET"), ("solution", "PASSED")])
 def test_a_deploy_allows_the_starter_and_a_correct_rule(tmp_path, which, state) -> None:
     provisioner = _load_provisioner()
     source = {"starter": LAB4_STARTER, "solution": LAB4_SOLUTION}
@@ -2613,7 +2613,7 @@ def test_a_deploy_refuses_an_edited_rule_the_cedar_check_cannot_run_on(
     provisioner = _load_provisioner()
     _cedar_unavailable(monkeypatch)
     repo = _lab4_repo(tmp_path, LAB4_SOLUTION.read_text(encoding="utf-8"))
-    with pytest.raises(RuntimeError, match="differs from the rule as shipped, and the Cedar check could"):
+    with pytest.raises(RuntimeError, match="does not match the original rule, and the Cedar check could"):
         provisioner._lab4_rule_gate(repo)
 
 

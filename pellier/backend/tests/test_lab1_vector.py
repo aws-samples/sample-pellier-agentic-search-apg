@@ -82,7 +82,7 @@ def test_the_starter_ranks_nothing(conn, monkeypatch) -> None:
 
 def test_the_solution_ranks_by_meaning(conn, monkeypatch) -> None:
     finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_search(lab_variants.SOLUTION))
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
     assert [row[1] for row in rows[:3]] == list(lab1_vector.SELF_PROBES)
     assert all(row[4] == "ok" for row in rows)
 

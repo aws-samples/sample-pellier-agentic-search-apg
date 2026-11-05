@@ -222,7 +222,7 @@ def test_a_turn_after_the_edit_and_the_restart_is_judged(conn) -> None:
     past = datetime.now(timezone.utc) - timedelta(minutes=5)
     _grounded_turn(conn, "turn-after-edit")
     finding = lab2.judge_2a(conn, lab2.check.Timeline(past, past + timedelta(minutes=1)))
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
 
 
 def test_a_ship_window_the_tables_do_not_hold_is_contradicted(conn) -> None:
@@ -239,7 +239,7 @@ def test_the_2a_check_passes_one_grounded_turn(conn) -> None:
     envelope = _ask(conn, lab_variants.STARTER, "Hadley Linen Shirt")
     _audit(conn, "turn-grounded", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
     finding = lab2.judge_2a(conn)
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
     assert any("the Stock agent that answered held check_stock" in line
                for line in finding.evidence)
     assert any("warehouse_inventory for 2: ATX-02 6, BK-01 0, PDX-01 14" in line
@@ -257,7 +257,7 @@ def test_the_2a_check_leaves_the_as_shipped_cape_answer_to_2b(conn) -> None:
     _audit(conn, "turn-cape-2a", "check_stock", {"product_query": NOT_CARRIED}, cape)
     _audit(conn, "turn-cape-2a", "check_stock", {"product_query": "Hadley Linen Shirt"}, hadley)
     finding = lab2.judge_2a(conn)
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
     assert any(f'check_stock("{NOT_CARRIED}") said success, 0 units' in line
                and "which Task 2B judges" in line for line in finding.evidence)
 
@@ -270,7 +270,7 @@ def test_a_catalog_turn_by_marco_does_not_change_the_verdict(conn) -> None:
            {"status": "success", "count": 1, "products": [{"productId": "11"}]},
            agent="catalog", grant=("search_products", "browse_department", "compare_products"))
     finding = lab2.judge_2a(conn)
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
     assert "turn-stock" in finding.evidence[0]
 
 
@@ -338,7 +338,7 @@ def test_the_2b_check_fails_the_starter_on_the_not_carried_case_alone(conn) -> N
     starter, rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), _defaults())
     assert starter.state == "CONTRADICTED"
     assert f'not carried: "{NOT_CARRIED}" came back success, 0 units' in starter.observed
-    assert [row[-1] for row in rows] == ["differs", "matches", "matches", "matches"]
+    assert [row[-1] for row in rows] == ["does not match", "matches", "matches", "matches"]
     assert any("warehouse_inventory for 2 Hadley Linen Shirt" in line for line in starter.evidence)
     assert "Stock check - not carried" in starter.next_step
 
@@ -347,7 +347,7 @@ def test_the_2b_check_passes_the_committed_solution(conn) -> None:
     _install(conn, lab_variants.SOLUTION, stamp=True)
     solution, rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), _defaults(),
                                    worksheet=SOLUTION_WORKSHEET)
-    assert solution.state == "PROVED", solution
+    assert solution.state == "PASSED", solution
     assert [row[-1] for row in rows] == ["matches"] * 4
     assert "the live function is the one your file committed" in solution.observed
 
@@ -391,7 +391,7 @@ def test_the_recorded_2b_line_follows_marcos_latest_not_carried_question(conn) -
     _audit(conn, "turn-hadley", "check_stock", {"product_query": "Hadley Linen Shirt"},
            _ask(conn, lab_variants.SOLUTION, "Hadley Linen Shirt"))
     fixed = lab2.judge_recorded_2b(conn)
-    assert fixed.state == "PROVED", fixed
+    assert fixed.state == "PASSED", fixed
     assert fixed.observed.startswith(
         "2 of 2 recorded cases match (not asked yet: several, sold out)")
     assert any(f'check_stock("{NOT_CARRIED}") recorded not_found' in line

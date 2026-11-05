@@ -203,34 +203,34 @@ INSERT INTO lab_3_probes VALUES
     ('Customers who see exactly their own orders and tickets', 'each customer',
      :'every_customers', :'every_exact');
 
-\echo 'Lab 3B: your ownership predicate, probed as pellier_agent'
+\echo 'Lab 3B: your ownership predicate, tested as pellier_agent'
 \echo 'Evidence  policies orders_own_rows and support_tickets_own_rows, rewritten inside this transaction'
 \echo '          sign-in names in pellier.customers:' :owner_names
 \echo ''
-SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
-       probe AS "Probe", bound_as AS "Signed in as", expected AS "Expected",
+SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result",
+       probe AS "Test", bound_as AS "Signed in as", expected AS "Expected",
        observed AS "Observed"
   FROM lab_3_probes;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_3_probes
 \gset lab_3_
 
-\echo 'Expected  every probe matches; then the transaction commits and your predicate is the live policy'
+\echo 'Expected  every test passes; then the file saves your predicate and it is the live policy'
 SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
 \if :lab_3_passed
   COMMIT;
-  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'probes match; committed, your predicate is now the live policy'
+  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Saved, your predicate is now the live policy.'
   \echo 'Deployed  your predicate on orders_own_rows and support_tickets_own_rows, sha256' :stamp_short
-  \echo '          the probe writes were undone before the commit'
+  \echo '          the test writes were undone before the commit'
   \echo 'Lab 3B predicate check passed'
 \else
   ROLLBACK;
-  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'probes match; rolled back, the live policies are unchanged'
-  \echo 'Next      whose rows should your predicate match? In the rows marked differs, 0 where'
+  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Your change was undone. The live policies are unchanged.'
+  \echo 'Next      whose rows should your predicate match? In the rows that do not match, 0 where'
   \echo '          a number is expected means it matches nobody, and a number where 0 is'
   \echo '          expected means it matches everybody. The bound name is'
   \echo '          current_setting(''pellier.principal_username'', true). If only the'
-  \echo '          every-customer row differs, it names particular customers instead of the'
+  \echo '          every-customer row does not match, it names particular customers instead of the'
   \echo '          one bound on the session.'
   \echo 'Lab 3B predicate check failed'
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3B predicate check failed; see the lines above'; END $fail$;

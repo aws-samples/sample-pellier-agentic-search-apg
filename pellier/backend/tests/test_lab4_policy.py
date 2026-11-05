@@ -84,7 +84,7 @@ class TestTheSchemaAndTheSet:
 
 class TestTheVerdicts:
     def test_the_solution_is_proved(self) -> None:
-        assert lab4.local_check(SOLUTION, STARTER).finding.state == check.PROVED
+        assert lab4.local_check(SOLUTION, STARTER).finding.state == check.PASSED
 
     @pytest.mark.parametrize("body", [
         "context.input.amount_cents <= 10000",
@@ -92,14 +92,14 @@ class TestTheVerdicts:
         "context.input has amount_cents && !(context.input.amount_cents > 10000)",
     ])
     def test_equivalent_rules_are_proved_too(self, body: str) -> None:
-        assert lab4.local_check(_with(body), STARTER).finding.state == check.PROVED
+        assert lab4.local_check(_with(body), STARTER).finding.state == check.PASSED
 
     @pytest.mark.parametrize(("label", "body"), lab4.MUTATIONS)
     def test_every_wrong_rule_is_contradicted(self, label: str, body: str) -> None:
         finding = lab4.local_check(_with(body), STARTER).finding
         expected = check.NOT_YET if body == "false" else check.CONTRADICTED
         assert finding.state in (expected, check.CONTRADICTED), (label, finding)
-        assert finding.state != check.PROVED
+        assert finding.state != check.PASSED
 
     @pytest.mark.parametrize("body", [
         'principal.getTag("username") == "nadia" && context.input.amount_cents <= 10000',
@@ -146,7 +146,7 @@ class TestTheVerdicts:
         assert "decided by credit_limit" in evidence
         assert "without your rule, Nadia at 10001 cents: ALLOW" in evidence
         assert evidence.count(": caught,") == len(lab4.MUTATIONS) + 1 == 8
-        assert "policy head: as shipped, unchanged" in evidence
+        assert "policy head: original, unchanged" in evidence
         assert "policies in the file: 1" in evidence
         assert table[4][:5] == ["Nadia, $0.01 (1 cent)", "ALLOW", "DENY", "ALLOW", "ALLOW"]
         assert table[8][:5] == ["A shopper (Jessica) reads the return policy", "ALLOW", "ALLOW",
@@ -202,7 +202,7 @@ class TestTheVerdicts:
     def test_any_edit_before_the_unless_block_is_contradicted(self) -> None:
         """Comments may change; the principal, the action and the resource may not."""
         commented = "// my note\n" + SOLUTION
-        assert lab4.local_check(commented, STARTER).finding.state == check.PROVED
+        assert lab4.local_check(commented, STARTER).finding.state == check.PASSED
         # Every principal is an OAuthUser, so Cedar decides the matrix the same way:
         # only the head check can catch this edit.
         any_principal = SOLUTION.replace("principal is AgentCore::OAuthUser,", "principal,")
@@ -249,15 +249,15 @@ def _judge(**overrides: Any) -> check.Finding:
 class TestTheManagedVerdict:
     def test_a_cedar_denial_with_no_rows_is_proved_with_the_policy_identity(self) -> None:
         finding = _judge()
-        assert finding.state == check.PROVED
+        assert finding.state == check.PASSED
         evidence = "\n".join(finding.evidence)
         assert "credit_limit-abc" in evidence and "sha256:dddd" in evidence
         assert "operator-review:41:" in evidence
         assert "tool_audit rows 0, store_credits rows 0" in evidence
-        assert "opened and confirmed by the Lab 4 policy check (probe data)" in evidence
+        assert "opened and confirmed by the Lab 4 policy check (test data)" in evidence
         assert "approved by" not in evidence, "no person approved the probe"
         # The rule as shipped denies 10001 too: a DENY while the update propagates proves less.
-        assert "cannot tell your rule from the shipped one still propagating" in evidence
+        assert "cannot tell your rule from the original one still propagating" in evidence
         assert "Jessica's $100.00 credit" in evidence
 
     def test_the_gateway_words_print_whole_and_a_guardrail_field_is_explained(self) -> None:
@@ -267,7 +267,7 @@ class TestTheManagedVerdict:
                  "[Authorization denied: request missing field(s) required for guardrail "
                  "evaluation: context.output.text.]")
         finding = _judge(payload={**DENY_PAYLOAD, "error": words})
-        assert finding.state == check.PROVED
+        assert finding.state == check.PASSED
         assert any(line.endswith("context.output.text.]") for line in finding.evidence)
         explained = [line for line in finding.evidence if "output guardrail" in line]
         assert explained and "credit_limit" in explained[0]
@@ -289,7 +289,7 @@ class TestTheManagedVerdict:
     def test_comments_and_spacing_do_not_count_as_a_different_rule(self) -> None:
         rule = lab4.render_rule(SOLUTION)
         assert _judge(deployed=lab4.cedar_code(rule).replace("\n", "\n\n"),
-                      local_rule=rule).state == check.PROVED
+                      local_rule=rule).state == check.PASSED
 
     def test_the_starter_still_deployed_denies_but_proves_nothing(self) -> None:
         """The starter denies 10001 too; the DENY counts only once your rule is deployed."""
@@ -373,7 +373,7 @@ class TestTheStoredAnswer:
         row = {"id": 41, "idempotency_key": REVIEW["idempotency_key"], "audit_rows": 0,
                "credit_rows": 0,
                "last_attempt": json.dumps({"outcome": "denied", "policy": "DENY"})}
-        assert lab4.judge_recorded_probe(row).state == check.PROVED
+        assert lab4.judge_recorded_probe(row).state == check.PASSED
         assert lab4.judge_recorded_probe(None).state == check.NOT_YET
         assert lab4.judge_recorded_probe({**row, "last_attempt": None}).state == check.NOT_YET
         assert lab4.judge_recorded_probe({**row, "credit_rows": 1}).state == check.CONTRADICTED

@@ -35,7 +35,7 @@ holds its starter is NOT YET whatever the rows say; the summary's cleanup
 restores the Cedar starter, so run this export before it.
 
 Every line is in one of four states, never two (``workshop_check``):
-PROVED, NOT YET, UNCHECKED and CONTRADICTED. UNCHECKED is not a soft NOT
+PASSED, NOT YET, UNCHECKED and CONTRADICTED. UNCHECKED is not a soft NOT
 YET: "this did not happen" and "I could not look" are different findings.
 Lab 3B's direct Cedar probe calls the Gateway, so it stays in
 ``scripts/lab3_check.py``.
@@ -64,8 +64,8 @@ REPO = check.REPO
 BACKEND = REPO / "pellier" / "backend"
 STARTERS = REPO / "workshop" / "starters"
 
-PROVED, NOT_YET, UNCHECKED, CONTRADICTED = (
-    check.PROVED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
+PASSED, NOT_YET, UNCHECKED, CONTRADICTED = (
+    check.PASSED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
 
 # The marked region each task edits, and the starter it is compared with.
 REGIONS: Dict[str, tuple] = {
@@ -257,7 +257,7 @@ def credit_findings(row: Optional[Dict[str, Any]]) -> Dict[str, str]:
     once = int(row.get("credit_rows") or 0) == 1 and int(row.get("audit_rows") or 0) == 1
     amount = row.get("approved_cents") is not None and int(row["approved_cents"]) == int(
         row.get("amount_cents") or 0)
-    return {"once": PROVED if once else CONTRADICTED, "amount": PROVED if amount else CONTRADICTED}
+    return {"once": PASSED if once else CONTRADICTED, "amount": PASSED if amount else CONTRADICTED}
 
 
 def _observed(part: check.Finding) -> str:
@@ -272,8 +272,8 @@ def _combine(task: str, title: str, expected: str,
     states = [part.state for part in parts]
     if CONTRADICTED in states:
         state = CONTRADICTED
-    elif all(s == PROVED for s in states):
-        state = PROVED
+    elif all(s == PASSED for s in states):
+        state = PASSED
     elif UNCHECKED in states:
         state = UNCHECKED
     else:
@@ -281,7 +281,7 @@ def _combine(task: str, title: str, expected: str,
     return check.Finding(task, title, state, expected,
                          "; ".join(_observed(part) for part in parts),
                          [line for part in parts for line in part.evidence],
-                         next((part.next_step for part in parts if part.state != PROVED), ""))
+                         next((part.next_step for part in parts if part.state != PASSED), ""))
 
 
 def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
@@ -299,7 +299,7 @@ def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
     attempts = int(row.get("attempt_rows") or 0)
     if attempts:
         evidence.append(f"tool_audit also keeps {attempts} other attempt(s) that did not apply")
-    state = PROVED if set(found.values()) == {PROVED} else CONTRADICTED
+    state = PASSED if set(found.values()) == {PASSED} else CONTRADICTED
     return check.Finding("4A", title, state, expected,
                          f"recorded once {found['once']}, approved amount {found['amount']}",
                          evidence, "read the rows for that key; a retry must add nothing.")
@@ -418,8 +418,8 @@ def render_report(findings: Sequence[check.Finding]) -> str:
             if finding.task.startswith(lab):
                 lines.append(check.render(finding))
         lines.append("")
-    proved = sum(1 for finding in findings if finding.state == PROVED)
-    lines.append(f"{proved} of {len(findings)} tasks proved")
+    proved = sum(1 for finding in findings if finding.state == PASSED)
+    lines.append(f"{proved} of {len(findings)} tasks passed")
     return "\n".join(lines)
 
 

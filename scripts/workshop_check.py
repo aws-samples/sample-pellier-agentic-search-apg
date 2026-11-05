@@ -8,7 +8,7 @@ columns, so a participant reads one shape everywhere.
 
 A finding is in one of four states, never two:
 
-    PROVED        a durable row exists and satisfies the claim
+    PASSED        a durable row exists and satisfies the claim
     NOT YET       the lab has not left its evidence
     UNCHECKED     the check could not look (no database, no psql, no settings)
     CONTRADICTED  the check looked and found evidence against the claim
@@ -38,11 +38,11 @@ import reset_participant_exercises as _exercises  # noqa: E402  (sibling module)
 REPO = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_ENV = REPO / "pellier" / "backend" / ".env"
 
-PROVED = "PROVED"
+PASSED = "PASSED"
 NOT_YET = "NOT YET"
 UNCHECKED = "UNCHECKED"
 CONTRADICTED = "CONTRADICTED"
-STATES = (PROVED, NOT_YET, UNCHECKED, CONTRADICTED)
+STATES = (PASSED, NOT_YET, UNCHECKED, CONTRADICTED)
 
 _KEYS = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
 _REQUIRED = ("DB_HOST", "DB_NAME", "DB_USER")
@@ -179,7 +179,7 @@ def render(finding: Finding) -> str:
             ["Expected", finding.expected], ["Observed", finding.observed]]
     for index, line in enumerate(finding.evidence or ["(none)"]):
         rows.append(["Evidence" if index == 0 else "", line])
-    if finding.state != PROVED and finding.next_step:
+    if finding.state != PASSED and finding.next_step:
         rows.append(["Next", finding.next_step])
     return _pairs(rows, {0}, terminal_width())
 

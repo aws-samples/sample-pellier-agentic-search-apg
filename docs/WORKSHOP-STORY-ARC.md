@@ -57,7 +57,7 @@ task letter.
 | 1B | `services/search_plan.py`, `Search plan - preserve requirements` | `uv run scripts/lab1_check.py --task 1B` | `Lab 1B check passed` |
 | 2A | `agents/stock_agent.py`, `Stock agent - definition` | `uv run scripts/lab2_check.py --task 2A` | `Lab 2A check passed` |
 | 2B | `workshop/lab-2-check-stock.sql`, `Stock check - not carried` (its SQL file prints `Lab 2B function check passed`) | `uv run scripts/lab2_check.py --task 2B` | `Lab 2B check passed` |
-| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `uv run scripts/lab3_check.py --task 3A`, which sends a forged ticket read for Jessica through the checkout's binding | `Lab 3A check passed` |
+| 3A | `scripts/deploy/gateway_tool_schemas.py`, `Gateway - published tools`; `services/agentcore_gateway.py`, `Support agent - Gateway tools` | `uv run scripts/lab3_check.py --task 3A`, which sends a ticket read that names Jessica through the checkout's binding | `Lab 3A check passed` |
 | 3B | `workshop/lab-3-row-ownership.sql`, `Row ownership - predicate` (its SQL file prints `Lab 3B predicate check passed`) | `uv run scripts/lab3_check.py --task 3B` | `Lab 3B check passed` |
 | 4A | `policies/credit_limit.cedar`, the final `unless` block | `uv run scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
 | 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its SQL file prints `Lab 4B privileges check passed`) | `uv run scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
@@ -122,12 +122,12 @@ workshop and takes no teaching time in the Wrap-up.
   approval of Jessica's 10000-cent case executes once and a retry adds nothing.
 - **4B:** `pellier_credit_writer` may execute `pellier.give_store_credit`,
   which runs with its owner's rights and a pinned `search_path`, and nothing
-  else. The SQL file's probes, on a probe case of its own, show the function
+  else. The SQL file's tests, on a test case of its own, show the function
   refusing a credit no one approved and a direct insert or a direct `UPDATE` of
-  an approved $25 credit to $500 refused with 42501; only then does it commit
+  an approved $25 credit to $500 refused with 42501; only then does it save
   the privileges. The live check confirms the function carries the file's
-  statements, then probes the role in process and through the Gateway Lambda's
-  Data API. The absence check is supplied: 0 and 0 for the denied key, then 1 credit and
+  statements, then tests the role in process and through the Gateway Lambda's
+  Data API. The absence check is provided: 0 and 0 for the denied key, then 1 credit and
   1 audit row for the allowed key, so a search that always returns zero cannot pass.
 
 ## Timing

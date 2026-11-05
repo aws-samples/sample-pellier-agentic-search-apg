@@ -24,21 +24,21 @@ uv run scripts/lab_run.py send --lab 4 --shopper-only
 
 Its last line prints Nadia's sign-in for the Operator. Nadia's decision is the one step that
 happens in the app. In **PellierURL**, select **Operator**, sign in as `nadia`, investigate
-Jessica's case, approve the proposed credit and select **Execute**: with the rule as shipped,
+Jessica's case, approve the proposed credit and select **Execute**: with the original rule,
 Policy reads DENY. After the deploy, select **Execute again** and then **Replay with the same
-key**. Then prove them here: the two checks above, then the supplied absence check, which ends
+key**. Then prove them here: the two checks above, then the provided absence check, which ends
 `Lab 4 absence check passed`:
 
 ```bash
 psql -f workshop/lab-4-absence.sql
 ```
 
-`4B-credit-writer.sql` checks itself: when every probe matches, it commits your privileges
-for `pellier_credit_writer`; when any probe differs, it rolls back.
+`4B-credit-writer.sql` checks itself: when every test passes, it saves your privileges
+for `pellier_credit_writer`; when any test fails, it undoes your change.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 4** (or run `uv run scripts/lab_run.py reset --lab 4`). It puts this lab back as shipped and leaves the other labs alone. Once a credit has been written it stops and points you to **Reset the whole workshop**.
+In Code Editor choose **Terminal > Run Task > Reset Lab 4** (or run `uv run scripts/lab_run.py reset --lab 4`). It puts this lab back the way it was at the start and leaves the other labs alone. Once a credit has been written it stops and points you to **Reset the whole workshop**.
 
 ## If you need a solution
 

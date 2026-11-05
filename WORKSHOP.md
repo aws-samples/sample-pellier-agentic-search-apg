@@ -167,7 +167,7 @@ Marco needs reliable stock and dispatch facts before his trip.
   done; it ends `Lab 2A check passed`.
 - **Task 2B:** write the not-carried test in `pellier.check_stock`
   (`labs/02-ground/2B-check-stock.sql`, region `Stock check - not carried`). The
-  file commits the function only when its four probes match and ends
+  file saves the function only when its four tests pass and ends
   `Lab 2B function check passed`; `uv run scripts/lab2_check.py --task 2B`
   then runs the live function and ends `Lab 2B check passed`.
 - **Lesson:** an agent can only claim what its tool returns, and a missing
@@ -187,13 +187,13 @@ Theo wants his taste remembered and help with his own chipped bowl.
   needs to `SUPPORT_GATEWAY_TOOLS` and bind every tool that takes a
   `customer_id` in `SUPPORT_CALLER_BOUND_TOOLS`, so the server overwrites the
   `customer_id` the model chose. The task is applied with `uv run scripts/lab_run.py solution --lab 3 --task 3A`. The check's four rules: `get_tickets`
-  published; `get_orders` and `get_tickets` asked for; both bound, by a forged
-  read for Jessica that must leave as `CUST-THEO`; and `give_store_credit`
+  published; `get_orders` and `get_tickets` asked for; both bound, by a
+  read that names Jessica and must go out as `CUST-THEO`; and `give_store_credit`
   refused on a shopper agent (published is not permitted). It ends
   `Lab 3A check passed`.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
-  row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; the file commits
-  the predicate as the live policy once every probe matches and ends `Lab 3B
+  row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; the file saves
+  the predicate as the live policy once every test passes and ends `Lab 3B
   predicate check passed`. Then `uv run scripts/lab_run.py send --lab 3` sends
   Theo's three sentences, including the household request ("Jessica and I
   share an address... Can you check her ticket too?"), and
@@ -226,9 +226,9 @@ credit, and the system must prove what moved.
   block of `policies/credit_limit.cedar` so one credit may be at most $100, and
   deploys nothing. Deploy it with `--mode participant`.
 - **Task 4B:** during the deploy, write the credit-writer role's privileges in
-  `labs/04-govern/4B-credit-writer.sql`. As shipped it over-grants: its probes show
+  `labs/04-govern/4B-credit-writer.sql`. Before the fix it over-grants: its tests show
   `pellier_credit_writer` raising an approved $25 credit to $500 with a direct
-  `UPDATE`. The file commits the privileges once all eight probes match
+  `UPDATE`. The file saves the privileges once all eight tests pass
   and ends `Lab 4B privileges check passed`.
 - **The decision:** Nadia selects **Execute again** (ALLOW, recorded once),
   then **Replay with the same key** (nothing written twice).

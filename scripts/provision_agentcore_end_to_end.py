@@ -1409,7 +1409,7 @@ def _deploy_cli_project(
         _agentcore(root, "deploy", "--yes", "--json", env=env)
     finally:
         config_path.write_text(json.dumps(desired, indent=2) + "\n")
-    print("Adding Lab 4's Cedar rule as shipped (it forbids every credit until Lab 4)", flush=True)
+    print("Adding Lab 4's original Cedar rule (it forbids every credit until Lab 4)", flush=True)
     _agentcore(root, "validate", env=env)
     _agentcore(root, "deploy", "--yes", "--json", env=env)
     return root, _read_deployed_state(root)
@@ -1516,7 +1516,7 @@ def _lab4_rule_gate(repo: Path) -> str:
     evaluates it with real Cedar beside the rendered baseline in about a
     second; a rule it marks CONTRADICTED would cost a redeploy and could deny
     every shopper tool, so it is refused here, before any AWS change. NOT YET
-    (the starter, a reset) and PROVED deploy. UNCHECKED, a check that could
+    (the starter, a reset) and PASSED deploy. UNCHECKED, a check that could
     not run (``cedarpy`` missing, say), deploys the byte-identical starter with
     a warning, so bootstrap and Lab 3 are unaffected, and refuses an edited
     rule, which nothing else would assess before it reached the Gateway.
@@ -1549,7 +1549,7 @@ def _lab4_rule_gate(repo: Path) -> str:
         raise RuntimeError(
             f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} fails the Cedar check, so it was not "
             "deployed. Run uv run scripts/lab4_check.py --task 4A to read the decisions, "
-            "apply the supplied rule (uv run scripts/lab_run.py solution --lab 4 --task 4A), "
+            "apply the provided rule (uv run scripts/lab_run.py solution --lab 4 --task 4A), "
             "then deploy again."
         )
     if finding.state == "UNCHECKED":
@@ -1568,7 +1568,7 @@ def _refuse_an_unchecked_edit(rule: str | None, starter: str | None, reason: str
     if rule is None or rule == starter:
         return
     raise RuntimeError(
-        f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} differs from the rule as shipped, and the Cedar "
+        f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} does not match the original rule, and the Cedar "
         f"check could not run ({reason}), so it was not deployed. Run python3 "
         "scripts/lab4_check.py --task 4A to see why, then deploy again."
     )
@@ -2756,7 +2756,7 @@ def _redeploy_participant_edits(
     if missing:
         _retire_policies(root, previous, desired, missing, identity=identity, env=env,
                          progress=progress)
-        final = ("Deploying the restored starters", "Deployed the restored starters")
+        final = ("Deploying the restored original files", "Deployed the restored original files")
     elif staging:
         staged = json.loads(json.dumps(desired))
         staged_engine = next(item for item in staged["policyEngines"] if item["name"] == identity.policy_engine_name)
@@ -2815,10 +2815,10 @@ def _retire_policies(
     ]
     config_path = root / "agentcore" / "agentcore.json"
     progress.end()
-    print("Retiring policies the starters no longer declare: " + ", ".join(sorted(missing)),
+    print("Retiring policies the original files no longer declare: " + ", ".join(sorted(missing)),
           flush=True)
     progress.begin("Retiring those policies", typical=STEP_SECONDS["deploy"],
-                   done="Retired the policies the starters no longer declare")
+                   done="Retired the policies the original files no longer declare")
     try:
         config_path.write_text(json.dumps(retiring, indent=2) + "\n")
         _agentcore(root, "validate", env=env)
@@ -2969,7 +2969,7 @@ def _participant_update(
                                                   env=env)
         progress.amend("Checked your files and the deployed project; the Gateway "
                        + ("runs your Lab 1 search" if result["lab1_search"]["runs"] == "yours"
-                          else "keeps the supplied Lab 1 search"))
+                          else "keeps the provided Lab 1 search"))
     checkpoint()
 
     root, state = _redeploy_participant_edits(
@@ -3292,7 +3292,7 @@ def _provision(
 
     background: ThreadPoolExecutor | None = None
     progress = (
-        Progress("Deploying the restored starters to AgentCore" if args.reset_to_starters
+        Progress("Deploying the restored original files to AgentCore" if args.reset_to_starters
                  else "Deploying your changes to AgentCore")
         if args.mode == "participant" else None
     )

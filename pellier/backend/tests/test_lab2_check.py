@@ -143,7 +143,7 @@ def test_marcos_cape_sentence_comes_from_the_scenarios() -> None:
     assert check.marco_cape_request() == "Is the Velvet Opera Cape in stock?"
     line = check.marco_line([("not carried", "Velvet Opera Cape", "default",
                               "not_found: no product matches", "success, 0 units (no rows)",
-                              "differs")], check.marco_cape_request())
+                              "does not match")], check.marco_cape_request())
     assert line.splitlines() == [
         'Marco asks "Is the Velvet Opera Cape in stock?"',
         '  check_stock("Velvet Opera Cape") answers success, 0 units (no rows); the catalog: '
@@ -161,8 +161,8 @@ def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(re
     A committed function is live at once, so the hint asks for his requests again and
     never for a restart.
     """
-    finding = check.with_resend_hint(_finding("PROVED"), _finding(recorded))
-    assert finding.state == "PROVED"
+    finding = check.with_resend_hint(_finding("PASSED"), _finding(recorded))
+    assert finding.state == "PASSED"
     assert finding.evidence[0] == "row"
     assert "uv run scripts/lab_run.py send --lab 2" in finding.evidence[-1]
     assert "restart" not in finding.evidence[-1].lower()
@@ -173,7 +173,7 @@ def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
     renderer's width, and a case that differs repeats with what the catalog expects."""
     rows = [
         ("not carried", "Velvet Opera Cape", "default", "not_found: no product matches",
-         "success, 0 units (no rows)", "differs"),
+         "success, 0 units (no rows)", "does not match"),
         ("sold out", "Quilted Silk Vest", "default", "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)",
          "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)", "matches"),
         ("in stock", "Hadley Linen Shirt", "fixed", "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)",
@@ -183,12 +183,12 @@ def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
     assert max(len(line) for line in text.splitlines()) <= workshop_check.WIDTH
     cases, differs = psql_tables.tables(text)
     assert list(cases[0]) == ["case", "query", "chosen by", "verdict", "observed"]
-    assert [row["verdict"] for row in cases] == ["differs", "matches", "matches"]
-    assert differs == [{"differs": "not carried", "expected": "not_found: no product matches",
+    assert [row["verdict"] for row in cases] == ["does not match", "matches", "matches"]
+    assert differs == [{"does not match": "not carried", "expected": "not_found: no product matches",
                         "observed": "success, 0 units (no rows)"}]
 
 
-@pytest.mark.parametrize("guide, recorded", [("PROVED", "PROVED"), ("CONTRADICTED", "NOT YET")])
+@pytest.mark.parametrize("guide, recorded", [("PASSED", "PASSED"), ("CONTRADICTED", "NOT YET")])
 def test_no_resend_line_when_the_turns_agree_or_the_check_fails(guide, recorded) -> None:
     finding = check.with_resend_hint(_finding(guide), _finding(recorded))
     assert finding.evidence == ["row"]

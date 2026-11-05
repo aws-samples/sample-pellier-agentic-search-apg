@@ -163,8 +163,8 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
     if problems:
         return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED, problems[0],
                              evidence + problems[1:], NEXT_STEP), rows
-    return check.Finding("1A", TITLE, check.PROVED, EXPECTED,
-                         f"every probe ranks by meaning: {len(SELF_PROBES)} products found "
+    return check.Finding("1A", TITLE, check.PASSED, EXPECTED,
+                         f"every test ranks by meaning: {len(SELF_PROBES)} products found "
                          "themselves first, and Anna's requirements held", evidence), rows
 
 
@@ -194,6 +194,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(check.table(("searched with", "came back first", "similarity", "rows", "verdict"),
                           rows))
     print(check.render(finding))
-    passed = finding.state == check.PROVED
+    passed = finding.state == check.PASSED
     print("Lab 1A check passed" if passed else "Lab 1A check failed")
     return 0 if passed else 1

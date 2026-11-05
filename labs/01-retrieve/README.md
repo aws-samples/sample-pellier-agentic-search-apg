@@ -27,7 +27,7 @@ the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `uv run scripts/lab_run.py reset --lab 1`). It puts this lab back as shipped and leaves the other labs alone.
+In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `uv run scripts/lab_run.py reset --lab 1`). It puts this lab back the way it was at the start and leaves the other labs alone.
 
 ## If you need a solution
 

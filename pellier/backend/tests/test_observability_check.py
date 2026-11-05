@@ -2,7 +2,7 @@
 
 Each fake returns what the live service returns: span JSON in ``aws/spans``,
 the RDS cluster and instance descriptions, Performance Insights dimension keys,
-and PostgreSQL log lines exported to CloudWatch Logs. A finding is PROVED only
+and PostgreSQL log lines exported to CloudWatch Logs. A finding is PASSED only
 when the evidence itself is there; a cluster without the settings is
 CONTRADICTED, and evidence that has not arrived yet is NOT YET.
 """
@@ -153,7 +153,7 @@ def _run(spans=None, logs_events=None, cluster=None, statements=(SQL,), **kw) ->
 
 def test_all_three_proved_from_the_evidence_itself() -> None:
     spans, insights, log = _run()
-    assert [spans.state, insights.state, log.state] == [obs.PROVED] * 3
+    assert [spans.state, insights.state, log.state] == [obs.PASSED] * 3
     assert spans.observed == "3 spans across 2 routed turns"
     assert spans.evidence == ["newest turn turn-2: routing"]
     assert insights.observed == ("DatabaseInsightsMode advanced, Performance Insights on, "
@@ -192,7 +192,7 @@ def test_the_newest_routed_turn_lists_its_agent_spans_in_order() -> None:
                               _span("execute_tool search_products", "turn-5", 5),
                               _span("chat", "turn-5", 7),
                               _span("invoke_agent stock", "turn-6", 8)])
-    assert spans.state == obs.PROVED
+    assert spans.state == obs.PASSED
     assert spans.observed == "7 spans across 2 routed turns"
     assert spans.evidence == ["newest turn turn-5: routing, invoke_agent catalog, "
                               "execute_tool search_products, chat"]
@@ -206,7 +206,7 @@ def test_a_cluster_without_advanced_mode_is_contradicted() -> None:
 
 def test_performance_insights_falls_back_to_the_writer_instance() -> None:
     _, insights, _ = _run(cluster=_cluster(pi_on_cluster=False))
-    assert insights.state == obs.PROVED
+    assert insights.state == obs.PASSED
     _, off, _ = _run(cluster=_cluster(pi_on_cluster=False), instance_pi=False)
     assert off.state == obs.CONTRADICTED
     assert "Performance Insights off" in off.observed
@@ -214,7 +214,7 @@ def test_performance_insights_falls_back_to_the_writer_instance() -> None:
 
 def test_a_quiet_cluster_is_proved_by_its_counter_without_sampled_sql() -> None:
     _, quiet, _ = _run(statements=())
-    assert quiet.state == obs.PROVED
+    assert quiet.state == obs.PASSED
     assert quiet.evidence[1] == "top SQL by load: no statement sampled in the window"
 
 
@@ -223,7 +223,7 @@ def test_load_no_statement_carries_is_left_out_of_top_sql() -> None:
     # not a query, so it neither takes a top-SQL line nor pushes a real statement out.
     others = ("INSERT INTO lab_2_probes VALUES ($1)", "SELECT 1")
     _, insights, _ = _run(statements=("Unknown", SQL) + others)
-    assert insights.state == obs.PROVED
+    assert insights.state == obs.PASSED
     assert insights.evidence[1:] == [f"top SQL by load: {s}" for s in (SQL,) + others]
 
 
@@ -234,14 +234,14 @@ def test_statements_that_print_alike_share_one_line() -> None:
              'FROM lab_2_cases c')
     orders = "SELECT customer_id, count(*)::int AS orders FROM pellier.orders GROUP BY customer_id"
     _, insights, _ = _run(statements=(start + " JOIN a", start + " JOIN b", "Unknown", orders, SQL))
-    assert insights.state == obs.PROVED
+    assert insights.state == obs.PASSED
     assert insights.evidence[1:] == [f"top SQL by load: {start[:87]}... (2 statements)",
                                      f"top SQL by load: {orders}", f"top SQL by load: {SQL}"]
 
 
 def test_load_with_no_statement_at_all_says_so() -> None:
     _, insights, _ = _run(statements=("Unknown",))
-    assert insights.state == obs.PROVED
+    assert insights.state == obs.PASSED
     assert insights.evidence[1] == ("top SQL by load: none; the load sampled in the window "
                                     "names no statement")
 
@@ -290,7 +290,7 @@ def test_a_log_line_without_the_refusal_is_not_evidence() -> None:
 def test_an_undescribable_cluster_leaves_both_database_findings_unchecked() -> None:
     logs = _Logs({"aws/spans": [_span("routing", "turn-1", 1)]})
     spans, insights, log = obs.check(logs, _Rds(None), _Pi([SQL]), CLUSTER_ARN, 60, NOW)
-    assert spans.state == obs.PROVED
+    assert spans.state == obs.PASSED
     assert spans.observed == "1 span across 1 routed turn"
     assert [insights.state, log.state] == [obs.UNCHECKED, obs.UNCHECKED]
     assert "pellier-cluster-ws1: AccessDenied" in insights.observed
@@ -307,7 +307,7 @@ def test_a_routed_turn_counts_however_long_ago_lab_4_sent_it() -> None:
     # Lab 4's Step 1 sends the last turn; Step 19 can come more than an hour later.
     turn = {**_span("routing", "turn-lab4", 5), "timestamp": _ms(NOW - timedelta(minutes=80))}
     spans, _, _ = _run(spans=[turn])
-    assert spans.state == obs.PROVED
+    assert spans.state == obs.PASSED
     assert "since the cluster was created at 2026-10-09 09:00:00 UTC" in spans.expected
 
 
@@ -326,7 +326,7 @@ def _refusal_at(moment: datetime) -> Dict[str, Any]:
 def test_lab_3s_refusal_counts_however_long_ago_it_ran() -> None:
     # Event 12: Lab 3's check refused the write 80 minutes before Lab 4's Step 17.
     _, _, log = _run(logs_events=[_refusal_at(NOW - timedelta(minutes=80))])
-    assert log.state == obs.PROVED
+    assert log.state == obs.PASSED
     assert "since the cluster was created at 2026-10-09 09:00:00 UTC" in log.expected
 
 
@@ -337,7 +337,7 @@ def test_a_lab_3_reset_moves_the_log_start_to_the_reset(_no_reset_points: Path) 
     assert before.state == obs.NOT_YET
     assert "since Lab 3 was reset at 2026-10-09 13:00:00 UTC" in before.expected
     _, _, after = _run(logs_events=[_refusal_at(reset + timedelta(minutes=1))])
-    assert after.state == obs.PROVED
+    assert after.state == obs.PASSED
 
 
 def test_a_cluster_without_a_creation_time_reads_the_window() -> None:

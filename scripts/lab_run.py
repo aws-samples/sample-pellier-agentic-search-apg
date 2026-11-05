@@ -1263,7 +1263,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                          f"Task {args.task} has no request of its own")
     titles = {"solution": "install the solution", "send": "send the requests",
               "diff": "compare your files with the solution",
-              "reset": "start over from the as-shipped lab",
+              "reset": "start over from the original lab",
               "finish": "finish the lab with its answers and prove it"}
     if args.action == "fast-track":
         print("Fast track: finish Labs 1 and 2", flush=True)

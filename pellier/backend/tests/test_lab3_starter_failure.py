@@ -188,16 +188,16 @@ def test_the_starter_check_names_the_reads_and_the_unpublished_tool() -> None:
     assert reads.next_step.startswith("which of the nine tools take a customer_id?")
     assert bound.state == lab3.check.NOT_YET
     assert bound.next_step.startswith("which of the nine tools take a customer_id?")
-    assert staff.state == lab3.check.PROVED
+    assert staff.state == lab3.check.PASSED
     assert "published is not permitted" in staff.observed
 
 
 def test_the_solution_meets_all_four_rules() -> None:
     findings = _rules(lab_variants.SOLUTION)
-    assert [f.state for f in findings] == [lab3.check.PROVED] * 4
+    assert [f.state for f in findings] == [lab3.check.PASSED] * 4
     verdict = lab3.catalog_verdict(findings)
-    assert verdict.state == lab3.check.PROVED
-    assert verdict.observed.startswith("9 of the nine tools published, get_tickets among them")
+    assert verdict.state == lab3.check.PASSED
+    assert verdict.observed.startswith("9 of 9 tools published, get_tickets among them")
 
 
 def test_a_staff_only_tool_on_the_support_agent_is_refused() -> None:
@@ -280,11 +280,11 @@ def test_published_and_asked_but_unbound_names_the_forged_customer(monkeypatch) 
     probes = _probes(lab_variants.STARTER, monkeypatch)
     findings = lab3.judge_catalog(_published(lab_variants.SOLUTION), managed, frozenset(),
                                     probes)
-    assert [f.state for f in findings[:2]] == [lab3.check.PROVED] * 2
+    assert [f.state for f in findings[:2]] == [lab3.check.PASSED] * 2
     bound = findings[2]
     assert bound.state == lab3.check.NOT_YET
     assert bound.observed.startswith("get_orders and get_tickets take a customer_id")
-    assert f"a forged get_orders or get_tickets call for {JESSICA} would leave as {JESSICA}" \
+    assert f"a get_orders or get_tickets call that names {JESSICA} would go out as {JESSICA}" \
         in bound.observed
     assert any("the server sends CUST-JESSICA" in line for line in bound.evidence)
 
@@ -292,9 +292,9 @@ def test_published_and_asked_but_unbound_names_the_forged_customer(monkeypatch) 
 def test_the_solution_passes_on_the_forged_calls(monkeypatch) -> None:
     findings = _rules(lab_variants.SOLUTION, _probes(lab_variants.SOLUTION, monkeypatch))
     bound = findings[2]
-    assert bound.state == lab3.check.PROVED
-    assert bound.observed == f"get_orders and get_tickets bound; a forged call for {JESSICA} " \
-                             f"leaves as {THEO}"
+    assert bound.state == lab3.check.PASSED
+    assert bound.observed == f"get_orders and get_tickets bound; a call that names {JESSICA} " \
+                             f"goes out as {THEO}"
     assert "the same get_orders call with no signed-in customer: refused" in bound.evidence
 
 
@@ -305,12 +305,12 @@ def test_theos_own_reads_do_not_prove_the_binding_without_the_forged_call(monkey
     """The model names Theo by itself, so his reads look the same bound or unbound."""
     unbound = lab3.judge_tickets(THEO_READS, _probe(lab_variants.STARTER, monkeypatch))
     assert unbound.state == lab3.check.CONTRADICTED
-    assert f"a forged call for {JESSICA} would leave as {JESSICA}" in unbound.observed
+    assert f"a call that names {JESSICA} would go out as {JESSICA}" in unbound.observed
     assert "SUPPORT_CALLER_BOUND_TOOLS" in unbound.next_step
 
     bound = lab3.judge_tickets(THEO_READS, _probe(lab_variants.SOLUTION, monkeypatch))
-    assert bound.state == lab3.check.PROVED
-    assert bound.observed.endswith(f"a forged call for {JESSICA} leaves as {THEO}")
+    assert bound.state == lab3.check.PASSED
+    assert bound.observed.endswith(f"a call that names {JESSICA} goes out as {THEO}")
 
 
 def test_the_tickets_finding_is_unchecked_when_the_forged_call_cannot_run(monkeypatch) -> None:

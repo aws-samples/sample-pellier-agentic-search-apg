@@ -161,7 +161,7 @@ SELECT c.ord, format('%s: "%s"', c.probe, c.query),
        format('pellier.check_stock(''%s'')', c.query)
   FROM lab_2_cases c JOIN tables t USING (ord) JOIN returned r USING (ord);
 
-\echo 'Lab 2B: check_stock, probed'
+\echo 'Lab 2B: check_stock, tested'
 \echo 'Evidence  pellier.check_stock, rewritten inside this transaction'
 \echo ''
 \echo 'The aggregate for Marco''s Velvet Opera Cape, a piece Pellier does not carry:'
@@ -174,25 +174,25 @@ SELECT count(w.*) AS warehouse_rows, sum(w.quantity) AS "sum(quantity)",
                            AND strpos(lower(p.name), 'cape') > 0);
 -- Each probe on one row; after a failed run, each probe that differs again, with what was
 -- expected beside what was observed and the call that observed it.
-SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'differs' END AS "Result",
-       probe AS "Probe", observed AS "Observed"
+SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result",
+       probe AS "Test", observed AS "Observed"
   FROM lab_2_probes ORDER BY ord;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_2_probes
 \gset lab_2_
 
-\echo 'Expected  every probe matches; then the transaction commits and your function is live'
+\echo 'Expected  every test passes; then the file saves your function and it is live'
 SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
 \if :lab_2_passed
   COMMIT;
-  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'probes match; committed, your function is live'
+  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Saved, your function is live.'
   \echo 'Deployed  pellier.check_stock, sha256' :stamp_short
   \echo 'Lab 2B function check passed'
 \else
-  SELECT probe AS "Differs", expected AS "Expected", observed AS "Observed", source AS "Source"
+  SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed", source AS "Source"
     FROM lab_2_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
-  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'probes match; rolled back, the live function is unchanged'
+  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Your change was undone. The live function is unchanged.'
   \echo 'Next      what should a piece Pellier does not carry return? Read the aggregate above: over'
   \echo '          no rows it still returns one row, and COALESCE turns its NULL sum into 0.'
   \echo 'Lab 2B function check failed'

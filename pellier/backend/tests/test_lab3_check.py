@@ -36,7 +36,7 @@ BUILD_ROW = {"audit_id": 7, "turn_id": "turn-theo", "tool": "get_tickets",
 class TestTheBuild:
     def test_the_same_build_is_proved_and_prints_both(self) -> None:
         finding = lab3.judge_build(BUILD_ROW, BUILD)
-        assert finding.state == check.PROVED
+        assert finding.state == check.PASSED
         assert f"deployed build   {BUILD}" in finding.evidence
         assert f"this checkout    {BUILD}" in finding.evidence
 
@@ -65,7 +65,7 @@ class TestTheReads:
 
     def test_theos_own_reads_are_proved(self) -> None:
         finding = lab3.judge_tickets([self.THEO])
-        assert finding.state == check.PROVED
+        assert finding.state == check.PASSED
         assert finding.observed == "1 executed call(s), 1 for CUST-THEO, 0 for anyone else"
 
     def test_a_read_for_jessica_contradicts(self) -> None:
@@ -84,7 +84,7 @@ class TestTheProbe:
 
     def test_a_cedar_denial_with_no_row_is_proved(self) -> None:
         finding = lab3.judge_probe(self.DENY, 0)
-        assert finding.state == check.PROVED
+        assert finding.state == check.PASSED
         assert "Gateway diagnostic, verbatim: Tool call not allowed" in finding.evidence[-1]
 
     def test_an_allow_contradicts(self) -> None:
@@ -130,7 +130,7 @@ REMEMBERED = [{"record_id": "mem-theo-1",
 class TestTheMemory:
     def test_the_managed_read_returning_the_provisioned_record_is_proved(self) -> None:
         finding = lab3.judge_memory("mem-1", SEEDED, REMEMBERED)
-        assert finding.state == check.PROVED
+        assert finding.state == check.PASSED
         evidence = "\n".join(finding.evidence)
         assert "source event 0000001-theo-1 (actor CUST-THEO, session prefseed)" in evidence
         assert "record mem-theo-1: Prefers hand-thrown ceramics and stoneware" in evidence
@@ -183,7 +183,7 @@ class TestTheMemory:
         found = lab3.read_memory()
         assert reads == [("init", "mem-1", True), ("read", "CUST-THEO")]
         assert lab3.judge_memory(found["memory_id"], found["seeded"],
-                                 found["remembered"]).state == check.PROVED
+                                 found["remembered"]).state == check.PASSED
 
 
 def test_the_build_and_reads_are_read_from_the_real_schema(fresh_db: Any) -> None:  # noqa: F811
@@ -202,8 +202,8 @@ def test_the_build_and_reads_are_read_from_the_real_schema(fresh_db: Any) -> Non
     rows = lab3.read_rows(cfg)
     assert rows["build"]["deployed_fingerprint"] == BUILD
     assert [r["customer_id"] for r in rows["tickets"]] == ["CUST-THEO"], "Gateway reads only"
-    assert lab3.judge_build(rows["build"], BUILD).state == check.PROVED
-    assert lab3.judge_tickets(rows["tickets"]).state == check.PROVED
+    assert lab3.judge_build(rows["build"], BUILD).state == check.PASSED
+    assert lab3.judge_tickets(rows["tickets"]).state == check.PASSED
 
 
 def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
@@ -227,7 +227,7 @@ def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
                      (BUILD, BUILD, BUILD))
     mine = [r for r in lab3.read_rows(cfg)["tickets"] if r["turn_id"].endswith("-scope")]
     assert [r["turn_id"] for r in mine] == ["turn-theo-scope"]
-    assert lab3.judge_tickets(mine).state == check.PROVED
+    assert lab3.judge_tickets(mine).state == check.PASSED
 
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", autocommit=True) as conn:

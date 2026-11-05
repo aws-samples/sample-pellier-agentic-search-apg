@@ -146,13 +146,13 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
     evidence = [_stamp_line(name, deployed.get(name, "")) for name in POLICY_NAMES]
     evidence.append(f"workshop/lab-3-row-ownership.sql: sha256 {short}...")
     if all(deployed.get(name) == stamp for name in POLICY_NAMES):
-        return check.Finding("3B", DEPLOYED_TITLE, check.PROVED, DEPLOYED_EXPECTED,
+        return check.Finding("3B", DEPLOYED_TITLE, check.PASSED, DEPLOYED_EXPECTED,
                              f"both policies carry your predicate, sha256 {short}", evidence)
     if not any(deployed.get(name, "").startswith(STAMP_PREFIX) for name in POLICY_NAMES):
         return check.Finding("3B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
                              "the live policies are still the ones the database shipped with",
                              evidence, f"run {RUN_WORKSHEET}; it deploys your predicate once "
-                             "every probe matches.")
+                             "every test passes.")
     return check.Finding("3B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
                          "the live policies carry a different predicate from the one in your "
                          "file", evidence, f"your file changed after it was deployed; run "
@@ -201,7 +201,7 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
     failed = str(observed.get(WRITE_LABEL, ""))
     if failed.startswith(ERROR):
         return check.Finding("3B", title, check.UNCHECKED, EXPECTED,
-                             "the write probe failed for a reason other than the policy",
+                             "the write test failed for a reason other than the policy",
                              [f"{WRITE_LABEL}: {failed}"],
                              "check the database is reachable from this box, then run it again.")
     expected = {READS[0][0]: str(own_tickets), READS[1][0]: "0", READS[2][0]: "0",
@@ -214,8 +214,8 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
         if got != want:
             differs.append(f"{label} came back {got}")
     if not differs:
-        return check.Finding("3B", title, check.PROVED, EXPECTED,
-                             f"{len(expected)} of {len(expected)} probes match", evidence)
+        return check.Finding("3B", title, check.PASSED, EXPECTED,
+                             f"{len(expected)} of {len(expected)} tests passed", evidence)
     return check.Finding(
         "3B", title, check.CONTRADICTED, EXPECTED, "; ".join(differs), evidence,
         "read the live policies with: SELECT tablename, qual, with_check FROM pg_policies "
@@ -407,7 +407,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
           "database paths")
     for finding in findings:
         print(check.render(finding))
-    passed = all(finding.state == check.PROVED for finding in findings)
+    passed = all(finding.state == check.PASSED for finding in findings)
     print("Lab 3B row ownership live check passed" if passed
           else "Lab 3B row ownership live check failed")
     return 0 if passed else 1

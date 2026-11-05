@@ -171,7 +171,7 @@ REQUESTS: Tuple[Request, ...] = MATRIX + MORE + READS
 # Wrong rules put in place of the participant's unless block. Each must fail
 # the matrix, or the matrix could not tell a right rule from a wrong one.
 MUTATIONS: Tuple[Tuple[str, str], ...] = (
-    ("unless { false }, as shipped", "false"),
+    ("unless { false }, original", "false"),
     ("unless { true }", "true"),
     ("staff-only", 'principal.hasTag("custom:staff_scope") && '
                    'principal.getTag("custom:staff_scope") == "returns"'),
@@ -461,7 +461,7 @@ def _table(alone: Assessment, starter: Assessment, yours: Assessment) -> List[Li
         matches = (not yours.errors and yours.rows[i][1].decision == request.want
                    and not yours.rows[i][1].errors)
         rows.append([request.label, _cell(alone, i), _cell(starter, i), _cell(yours, i),
-                     request.want, "matches" if matches else "differs"])
+                     request.want, "matches" if matches else "does not match"])
     return rows
 
 
@@ -474,7 +474,7 @@ def _decided(decision: Optional[Decision]) -> str:
 
 _LOCAL_TITLE = "your rule limits one credit to $100"
 _LOCAL_EXPECTED = ("Cedar accepts the rule, the file holds one policy and the lines before its "
-                   "unless block are as shipped; shopper $100 DENY, Nadia 1, 9999 and 10000 "
+                   "unless block are the original; shopper $100 DENY, Nadia 1, 9999 and 10000 "
                    "cents ALLOW, 10001 DENY, the same for a second staff member and other "
                    "customers; a shopper's return policy and own orders, and a staff stock "
                    "check, stay ALLOW, and another customer's orders stay DENY; the eight "
@@ -488,8 +488,8 @@ def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, policies: Opt
     digest = hashlib.sha256(rule.encode("utf-8")).hexdigest()
     evidence = [
         f"{CREDIT_LIMIT_SOURCE} sha256:{digest[:16]}, unless {{ {unless_body(rule_text)} }}",
-        "policy head: " + ("as shipped, unchanged" if head_kept
-                           else "differs from the file as shipped (principal, action or resource)"),
+        "policy head: " + ("original, unchanged" if head_kept
+                           else "does not match the original file (principal, action or resource)"),
         "policies in the file: " + (str(policies) if policies is not None
                                     else "Cedar cannot parse it"),
         f"evaluated with Cedar beside {len(baseline)} baseline policies "
@@ -513,17 +513,17 @@ def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, your
                  escaped: List[str], counterfactual_holds: bool) -> Tuple[str, str]:
     """The verdict and the next step, in the order the check reads them."""
     if unchanged:
-        return check.NOT_YET, ("apply the supplied rule with uv run scripts/lab_run.py "
+        return check.NOT_YET, ("apply the provided rule with uv run scripts/lab_run.py "
                                "solution --lab 4 --task 4A, then run this again.")
     if not head_kept:
         return check.CONTRADICTED, ("edit only the final unless block: the lines before it (the "
                                     "principal, the give_store_credit action and the Gateway) "
-                                    "stay as shipped.")
+                                    "stay as in the original.")
     if extra_policies:
         return check.CONTRADICTED, ("keep one policy in the file, the forbid: anything after its "
                                     "unless block would deploy beside your rule.")
     if yours.passed and not escaped and counterfactual_holds:
-        return check.PROVED, ""
+        return check.PASSED, ""
     if escaped or not counterfactual_holds:
         return check.UNCHECKED, ("the check itself is not sound here: a wrong rule passed or the "
                                  "baseline alone denies 10001 cents. Report it; do not change "
@@ -536,7 +536,7 @@ def _no_unless_block(rule_text: str) -> LocalResult:
                             "the policy has no final unless block",
                             [f"{CREDIT_LIMIT_SOURCE} sha256:"
                              f"{hashlib.sha256(rule_text.encode('utf-8')).hexdigest()[:16]}"],
-                            "restore the starter with cp workshop/starters/"
+                            "restore the original with cp workshop/starters/"
                             "credit_limit.cedar policies/credit_limit.cedar, "
                             "then edit only its final unless block.")
     return LocalResult(finding, [])
@@ -731,7 +731,7 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
         return check.Finding("4A", title, check.NOT_YET, expected,
                              "no Gateway denial is stored for the over-limit review", evidence,
                              "deploy your rule, then run uv run scripts/lab4_check.py --task 4A.")
-    return check.Finding("4A", title, check.PROVED, expected,
+    return check.Finding("4A", title, check.PASSED, expected,
                          "the Gateway denied it and its key left no row", evidence)
 
 
@@ -747,7 +747,7 @@ def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: b
     if deployed is None:
         return _managed_finding(check.CONTRADICTED,
                                 f"{CREDIT_LIMIT_POLICY} is not on the policy engine", evidence,
-                                "provisioning deploys the rule as shipped; ask for the environment to "
+                                "provisioning deploys the original rule; ask for the environment to "
                                 "be reprovisioned.")
     if not same_rule(deployed, local_rule):
         return _managed_finding(check.NOT_YET, "the deployed rule is not your file yet", evidence,
@@ -775,10 +775,10 @@ def _call_outcome(payload: Dict[str, Any], rows: Dict[str, int],
                                 "decision; read the Gateway's words above.")
     # The starter denies 10001 cents too, so a DENY read while the update is
     # still propagating cannot tell the two apart on its own.
-    evidence.append("the rule as shipped denies 10001 cents too, so this DENY alone cannot tell your "
-                    "rule from the shipped one still propagating; Jessica's $100.00 credit, which only your "
+    evidence.append("the original rule denies 10001 cents too, so this DENY alone cannot tell your "
+                    "rule from the original one still propagating; Jessica's $100.00 credit, which only your "
                     "rule allows, is the other half (uv run scripts/workshop_evidence.py, 4A)")
-    return _managed_finding(check.PROVED, "Cedar denied the over-limit credit before the tool "
+    return _managed_finding(check.PASSED, "Cedar denied the over-limit credit before the tool "
                                           "ran; its key left no row", evidence)
 
 
@@ -801,7 +801,7 @@ def judge_managed(*, deployed: Optional[str], local_rule: str, local_proved: boo
     words = str(payload.get("error") or payload.get("result") or "")[:600]
     evidence += [
         f"review {review['id']} for {PROBE_CUSTOMER}, {PROBE_CENTS} cents, covers no order, "
-        "opened and confirmed by the Lab 4 policy check (probe data)",
+        "opened and confirmed by the Lab 4 policy check (test data)",
         f"idempotency key {review['idempotency_key']}",
         f"Gateway diagnostic, verbatim: {words}",
     ]
@@ -876,7 +876,7 @@ def managed_check(
     common: Dict[str, Any] = {
         "deployed": (engine.get("statements") or {}).get(CREDIT_LIMIT_POLICY),
         "local_rule": render_rule(rule_text, gateway_arn),
-        "local_proved": local.finding.state == check.PROVED, "engine": engine,
+        "local_proved": local.finding.state == check.PASSED, "engine": engine,
     }
     if common["deployed"] is None or not same_rule(common["deployed"], common["local_rule"]) \
             or not common["local_proved"]:
@@ -893,7 +893,7 @@ def managed_check(
 
 
 def print_table(rows: List[List[str]]) -> None:
-    header = ["request", "baseline alone", "as shipped", "with your rule", "expected",
+    header = ["request", "baseline alone", "original", "with your rule", "expected",
               "verdict"]
     print(check.table(header, rows))
 
@@ -915,6 +915,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("Lab 4A, part 2: the deployed rule and one over-limit credit through the Gateway")
     managed = managed_check(local, rule_text, check.db_config())
     print(check.render(managed))
-    passed = local.finding.state == check.PROVED and managed.state == check.PROVED
+    passed = local.finding.state == check.PASSED and managed.state == check.PASSED
     print("Lab 4A check passed" if passed else "Lab 4A check failed")
     return 0 if passed else 1

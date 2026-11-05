@@ -87,7 +87,7 @@ EXPECTED_2B = ("not carried -> not_found with no count; several -> ambiguous wit
                "the warehouse rows; the live pellier.check_stock is the one in your file")
 _NEXT_2B = ("what should a piece Pellier does not carry return? Write that test in the "
             f"{FUNCTION_REGION} region of workshop/lab-2-check-stock.sql, then run it: "
-            f"{WORKSHEET_RUN}. It commits your function only when its four probes match.")
+            f"{WORKSHEET_RUN}. It saves your function only when its four tests pass.")
 
 # The catalog's own answer to "which pieces does this query name?": every word
 # of the query in the name, the matching rule check_stock documents.
@@ -364,7 +364,7 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
                              ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
                               "session"],
                              f"send Marco's requests with {SEND}, then rerun this check. "
-                             "Already sent? As shipped, the Stock agent does not hold "
+                             "Already sent? Before the fix, the Stock agent does not hold "
                              "check_stock, so a call to it did not run and left no row: "
                              "apply Task 2A (uv run scripts/lab_run.py solution --lab 2 --task 2A)."
                              + check.since_note(2, SEND))
@@ -395,7 +395,7 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     calls = sum(1 for row in rows if row["tool"] == "check_stock")
     observed = (f"held check_stock alone; {calls} check_stock call(s), every count and ship "
                 "window for a piece Pellier carries matches")
-    return check.Finding("2A", title, check.PROVED, EXPECTED_2A, observed, evidence)
+    return check.Finding("2A", title, check.PASSED, EXPECTED_2A, observed, evidence)
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +464,7 @@ def judge_2b(
         elif keeps_contract(case, envelope, catalog):
             verdict = "matches"
         else:
-            verdict = "differs"
+            verdict = "does not match"
             answer = describe_envelope(envelope)
             differs.append(f"{_CASE_LABEL[case]}: \"{query}\" came back {answer}")
         rows.append((_CASE_LABEL[case], query[:24], chosen_by, describe_catalog(catalog),
@@ -488,7 +488,7 @@ def judge_2b(
                              f"{observed}; {function_observed}", evidence,
                              f"run your file so its function is the live one: {WORKSHEET_RUN}"
                              ), rows
-    return check.Finding("2B", title, check.PROVED, EXPECTED_2B,
+    return check.Finding("2B", title, check.PASSED, EXPECTED_2B,
                          f"{observed}; {function_observed}", evidence), rows
 
 
@@ -563,7 +563,7 @@ def judge_recorded_2b(conn: Any) -> check.Finding:
     if differs:
         return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B_RECORDED,
                              observed + "; " + "; ".join(differs), evidence, _NEXT_2B_RECORDED)
-    return check.Finding("2B", title, check.PROVED, EXPECTED_2B_RECORDED, observed, evidence)
+    return check.Finding("2B", title, check.PASSED, EXPECTED_2B_RECORDED, observed, evidence)
 
 
 def with_resend_hint(live: check.Finding, recorded: check.Finding) -> check.Finding:
@@ -573,7 +573,7 @@ def with_resend_hint(live: check.Finding, recorded: check.Finding) -> check.Find
     commits. Marco's chat and the evidence export read his recorded turns, so they
     show the change only once his requests are sent again.
     """
-    if live.state != check.PROVED or recorded.state == check.PROVED:
+    if live.state != check.PASSED or recorded.state == check.PASSED:
         return live
     hint = ("Marco's recorded turns were answered before your function was live. Send his "
             f"requests again ({SEND}) to see the cape answered as not carried; the evidence "
@@ -655,7 +655,7 @@ def cases_table(rows: Sequence[Sequence[str]]) -> str:
                for case, _query, _chosen_by, expected, observed, verdict in rows
                if verdict != "matches"]
     if differs:
-        table += "\n" + check.table(("differs", "expected", "observed"), differs)
+        table += "\n" + check.table(("does not match", "expected", "observed"), differs)
     return table
 
 
@@ -687,7 +687,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(marco_line(rows, marco_cape_request()))
             print(cases_table(rows))
     print(check.render(finding))
-    passed = finding.state == check.PROVED
+    passed = finding.state == check.PASSED
     print(f"Lab {args.task} check {'passed' if passed else 'failed'}")
     return 0 if passed else 1
 

@@ -433,7 +433,7 @@ def _managed_catalogs_agree() -> Check:
             lab3_check.judge_catalog(*lab3_check.source_catalog()))
     except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
         return Check(name, False, f"could not read the catalogs: {exc}")
-    if finding.state == workshop_check.PROVED:
+    if finding.state == workshop_check.PASSED:
         return Check(name, True, finding.observed)
     return Check(name, False, f"{finding.observed}: {finding.next_step}")
 
@@ -504,7 +504,7 @@ def _cedar_checks(repo: pathlib.Path) -> List[Check]:
         finding = lab4_policy.local_check(policy, starter).finding
     except Exception as exc:  # noqa: BLE001 - the doctor must not crash here
         return [pair, Check(name, False, f"the Cedar check could not run: {exc}")]
-    if finding.state == workshop_check.PROVED:
+    if finding.state == workshop_check.PASSED:
         return [pair, Check(name, True, finding.observed)]
     return [pair, Check(name, False, f"{finding.observed}: {finding.next_step}")]
 
@@ -536,7 +536,7 @@ def _credit_recorded_once(evidence: Evidence) -> Check:
     except Exception as exc:  # noqa: BLE001
         return Check(name, False, f"{type(exc).__name__}: {str(exc)[:120]}")
     findings = workshop_evidence.credit_findings(row)
-    passed = all(state == workshop_check.PROVED for state in findings.values())
+    passed = all(state == workshop_check.PASSED for state in findings.values())
     if passed:
         return Check(name, True, f"key {row.get('idempotency_key')}")
     if not row:

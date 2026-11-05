@@ -44,7 +44,7 @@ def test_the_stamp_is_the_sha256_of_the_statements_psql_hashes() -> None:
      "the live function carries different statements from the ones in your file"),
     (False, {**CLEAN, "table_grants": 3, "stamp": "MATCH"}, "CONTRADICTED",
      "the live state changed after your run: the role holds 3 table grants"),
-    (False, {**CLEAN, "stamp": "MATCH"}, "PROVED", "the live function carries your statements"),
+    (False, {**CLEAN, "stamp": "MATCH"}, "PASSED", "the live function carries your statements"),
 ])
 def test_the_deployed_verdict(is_starter: bool, live: dict, state: str, observed: str) -> None:
     stamp = credit_check.file_stamp(SOLUTION.read_bytes())
@@ -70,7 +70,7 @@ def test_the_live_function_carries_the_solutions_stamp(deployed: Any) -> None:
         return psycopg.connect(**{**_conninfo(deployed), "row_factory": dict_row})
 
     finding = credit_check.deployed_finding(connect, worksheet=SOLUTION)
-    assert finding.state == "PROVED", finding
+    assert finding.state == "PASSED", finding
     starter = credit_check.deployed_finding(connect)
     assert starter.state == "NOT YET" and "ships with" in starter.observed
 
@@ -80,7 +80,7 @@ async def test_the_in_process_path_holds_the_role_to_the_function(deployed: Any)
     async with await psycopg.AsyncConnection.connect(**_conninfo(deployed)) as aconn:
         observed = await credit_check.probe_in_process(_PgDb(aconn))
     assert observed == credit_check.WANT, observed
-    assert credit_check.judge_path("in process", observed).state == "PROVED"
+    assert credit_check.judge_path("in process", observed).state == "PASSED"
 
 
 def test_the_gateway_path_holds_the_role_to_the_function(deployed: Any, monkeypatch) -> None:
@@ -91,7 +91,7 @@ def test_the_gateway_path_holds_the_role_to_the_function(deployed: Any, monkeypa
         monkeypatch.setattr(dataapi, "rds_client", _DataApiOnPostgres(conn))
         observed = credit_check.probe_gateway(dataapi)
     assert observed == credit_check.WANT, observed
-    assert credit_check.judge_path("Gateway", observed).state == "PROVED"
+    assert credit_check.judge_path("Gateway", observed).state == "PASSED"
 
 
 @pytest.mark.asyncio

@@ -95,9 +95,9 @@ async def test_the_shipped_policies_pass_on_both_paths_and_keep_nothing(
     in_process = rls.judge_path("in process", await _in_process(fresh_db), own)
     gateway = rls.judge_path("Gateway", _gateway(monkeypatch, conn), own)
 
-    assert in_process.state == rls.check.PROVED, in_process
-    assert gateway.state == rls.check.PROVED, gateway
-    assert in_process.observed == gateway.observed == "4 of 4 probes match"
+    assert in_process.state == rls.check.PASSED, in_process
+    assert gateway.state == rls.check.PASSED, gateway
+    assert in_process.observed == gateway.observed == "4 of 4 tests passed"
     with conn.cursor() as cur:
         cur.execute("SELECT count(*) AS n FROM pellier.support_tickets "
                     "WHERE ticket_id = 'TKT-LAB4-LIVE'")
@@ -200,7 +200,7 @@ def test_both_policies_carrying_the_file_stamp_is_proved() -> None:
     stamp = _stamp(SOLUTION)
     finding = rls.judge_deployed(stamp, is_starter=False,
                                   deployed={"orders_own_rows": stamp, "support_tickets_own_rows": stamp})
-    assert finding.state == rls.check.PROVED
+    assert finding.state == rls.check.PASSED
     assert stamp.rsplit(" ", 1)[1][:12] in finding.observed
 
 
@@ -230,7 +230,7 @@ def test_the_solution_worksheet_deploys_a_predicate_the_check_recognises(
         after = deployed()
         finding = rls.judge_deployed(_stamp(SOLUTION), False,
                                       {k: v["stamp"] for k, v in after.items()})
-        assert finding.state == rls.check.PROVED, finding
+        assert finding.state == rls.check.PASSED, finding
         assert "cognito_username" in after["orders_own_rows"]["qual"]
     finally:
         for policy in POLICIES:

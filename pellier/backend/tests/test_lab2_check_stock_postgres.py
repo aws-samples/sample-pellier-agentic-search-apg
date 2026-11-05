@@ -118,7 +118,7 @@ def test_the_starter_fails_only_not_carried_and_shows_the_null_sum(fresh_db) -> 
     assert len(probes) == 4, done.stdout
     cape = probes['not carried: "Velvet Opera Cape"']
     assert cape == ["no row", "1 row: 0 units; no warehouse rows (no product)",
-                    "pellier.check_stock('Velvet Opera Cape')", "differs"]
+                    "pellier.check_stock('Velvet Opera Cape')", "does not match"]
     for name in ('several: "Linen shirt"', 'sold out: "Quilted Silk Vest"',
                  'in stock: "Hadley Linen Shirt"'):
         assert probes[name][-1] == "matches", (name, probes[name])
@@ -126,7 +126,7 @@ def test_the_starter_fails_only_not_carried_and_shows_the_null_sum(fresh_db) -> 
     assert probes['sold out: "Quilted Silk Vest"'][1].startswith("1 row: 0 units; ")
     # The cause, printed as a row: no warehouse rows, a NULL sum, a 0 after COALESCE.
     assert re.search(r"^\u2502\s+0 \u2502\s+NULL \u2502\s+0 \u2502$", done.stdout, re.MULTILINE), done.stdout
-    assert "3 of 4 probes match; rolled back, the live function is unchanged" in done.stdout
+    assert "3 of 4 tests passed. Your change was undone. The live function is unchanged." in done.stdout
     assert "Lab 2B function check failed" in done.stdout
     assert _live(fresh_db) == before
 
@@ -137,7 +137,7 @@ def test_the_solution_passes_every_probe_and_commits_the_function(fresh_db) -> N
     probes = _probes(done.stdout)
     assert len(probes) == 4 and all(row[-1] == "matches" for row in probes.values()), probes
     assert probes['in stock: "Hadley Linen Shirt"'][1].startswith("1 row: ")
-    assert "4 of 4 probes match; committed, your function is live" in done.stdout
+    assert "4 of 4 tests passed. Saved, your function is live." in done.stdout
     assert "Lab 2B function check passed" in done.stdout
     sha = _sha(_body(SOLUTION))
     assert _live(fresh_db) == f"{sha} Lab 2B function sha256 {sha}"
