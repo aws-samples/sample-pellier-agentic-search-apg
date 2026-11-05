@@ -113,7 +113,9 @@ backend environment.
    the Runtime's platform version to `V1` in the CLI's CDK scaffold: the CLI has
    no setting for it, and from 12 November 2026 AWS creates a runtime that names
    none on V2. Setting `PELLIER_RUNTIME_PLATFORM_VERSION=V2` in
-   `pellier/backend/.env` deploys V2 instead, for testing it.
+   `pellier/backend/.env` deploys V2 instead, for testing it. The workshop terminal
+   loads `.env` when it opens, so deploy from a new terminal after changing it;
+   removing the line and deploying again returns the runtime to V1.
 4. Run `agentcore validate` and `agentcore deploy`.
 5. After Gateway has published its action catalog, render the baseline Cedar
    set and run the same validate/deploy sequence again.
