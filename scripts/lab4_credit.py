@@ -124,7 +124,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
         live: The ``DEPLOYED_SQL`` row.
     """
     if stamp is None:
-        return check.Finding("4B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
+        return check.Finding("4B", DEPLOYED_TITLE, check.COULD_NOT_CHECK, DEPLOYED_EXPECTED,
                              "the file's privileges region could not be read",
                              ["workshop/lab-4-credit-writer.sql: no $privileges$ quotes"],
                              "restore the region from workshop/starters/lab-4-credit-writer.sql.")
@@ -161,7 +161,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
         (f"{live.get('policies')} row policies name the role", int(live.get("policies") or 0) == 0),
     ) if not ok]
     if drift:
-        return check.Finding("4B", DEPLOYED_TITLE, check.CONTRADICTED, DEPLOYED_EXPECTED,
+        return check.Finding("4B", DEPLOYED_TITLE, check.FAILED, DEPLOYED_EXPECTED,
                              "the live state changed after your run: " + "; ".join(drift),
                              evidence, f"run {RUN_WORKSHEET} again; it resets the role first.")
     return check.Finding("4B", DEPLOYED_TITLE, check.PASSED, DEPLOYED_EXPECTED,
@@ -194,7 +194,7 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
     broken = [f"{label}: {answer}" for label, answer in observed.items()
               if str(answer).startswith(ERROR)]
     if broken:
-        return check.Finding("4B", title, check.UNCHECKED, EXPECTED,
+        return check.Finding("4B", title, check.COULD_NOT_CHECK, EXPECTED,
                              "a test failed for a reason other than the role's privileges",
                              broken, "check the database is reachable from this box, then run "
                              "it again.")
@@ -208,21 +208,21 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
     if not differs:
         return check.Finding("4B", title, check.PASSED, EXPECTED,
                              f"{len(WANT)} of {len(WANT)} tests passed", evidence)
-    return check.Finding("4B", title, check.CONTRADICTED, EXPECTED, "; ".join(differs), evidence,
+    return check.Finding("4B", title, check.FAILED, EXPECTED, "; ".join(differs), evidence,
                          f"which statement in the {REGION} region grants a table privilege a "
                          f"direct write can use? Fix it, then run {RUN_WORKSHEET}.")
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:
     return check.Finding("4B", f"{path} path: the credit-writer role writes only through the function",
-                         check.UNCHECKED, EXPECTED, "the check could not run this path",
+                         check.COULD_NOT_CHECK, EXPECTED, "the check could not run this path",
                          [f"{type(exc).__name__}: {str(exc)[:200]}"],
                          "run this on the workshop box, where pellier/backend/.env names the "
                          "cluster.")
 
 
 def _unchecked_deployed(exc: BaseException) -> check.Finding:
-    return check.Finding("4B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
+    return check.Finding("4B", DEPLOYED_TITLE, check.COULD_NOT_CHECK, DEPLOYED_EXPECTED,
                          "the check could not read the live function",
                          [f"{type(exc).__name__}: {str(exc)[:200]}"],
                          "run this on the workshop box, where pellier/backend/.env names the "

@@ -552,7 +552,7 @@ def credit_limit_policy(*, gateway_arn: str, source: Path) -> dict[str, Any]:
     this one: the starter forbids every credit, which the analyzer reports as
     overly restrictive. The provisioner assesses the rule with
     ``scripts/lab4_check.py --task 4A`` and real Cedar before it deploys, and
-    refuses one that check marks CONTRADICTED, or an edited one it could not
+    refuses one that check marks FAILED, or an edited one it could not
     check (``provision_agentcore_end_to_end._lab4_rule_gate``).
     """
     _gateway_resource(gateway_arn)

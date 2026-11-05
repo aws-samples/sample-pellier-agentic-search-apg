@@ -204,7 +204,7 @@ def test_a_staff_only_tool_on_the_support_agent_is_refused() -> None:
     managed, bound = lab_variants.support_contract(lab_variants.SOLUTION)
     findings = lab3.judge_catalog(_published(lab_variants.SOLUTION),
                                     managed + ("give_store_credit",), bound)
-    assert findings[3].state == lab3.check.CONTRADICTED
+    assert findings[3].state == lab3.check.FAILED
     assert "published is not permitted" in findings[3].observed
     assert lab3.catalog_verdict(findings) is findings[3]
 
@@ -304,7 +304,7 @@ THEO_READS = [{"audit_id": 7, "turn_id": "turn-a", "customer_id": THEO}]
 def test_theos_own_reads_do_not_prove_the_binding_without_the_forged_call(monkeypatch) -> None:
     """The model names Theo by itself, so his reads look the same bound or unbound."""
     unbound = lab3.judge_tickets(THEO_READS, _probe(lab_variants.STARTER, monkeypatch))
-    assert unbound.state == lab3.check.CONTRADICTED
+    assert unbound.state == lab3.check.FAILED
     assert f"a call that names {JESSICA} would go out as {JESSICA}" in unbound.observed
     assert "SUPPORT_CALLER_BOUND_TOOLS" in unbound.next_step
 
@@ -320,5 +320,5 @@ def test_the_tickets_finding_is_unchecked_when_the_forged_call_cannot_run(monkey
 
     monkeypatch.setattr(lab3, "source_catalog", broken)
     finding = lab3.tickets_finding(THEO_READS)
-    assert finding.state == lab3.check.UNCHECKED
+    assert finding.state == lab3.check.COULD_NOT_CHECK
     assert "ModuleNotFoundError: strands.vended_plugins" in finding.evidence[0]

@@ -8,10 +8,10 @@ columns, so a participant reads one shape everywhere.
 
 A finding is in one of four states, never two:
 
-    PASSED        a durable row exists and satisfies the claim
-    NOT YET       the lab has not left its evidence
-    UNCHECKED     the check could not look (no database, no psql, no settings)
-    CONTRADICTED  the check looked and found evidence against the claim
+    PASSED           a durable row exists and satisfies the claim
+    NOT YET          the lab has not left its evidence
+    COULD NOT CHECK  the check could not look (no database, no psql, no settings)
+    FAILED           the check looked and found evidence against the claim
 
 The database settings are the backend's own, read from its ``.env`` as data and
 never sourced, so a password holding ``$(...)`` stays a password. A variable in
@@ -40,9 +40,9 @@ DEFAULT_ENV = REPO / "pellier" / "backend" / ".env"
 
 PASSED = "PASSED"
 NOT_YET = "NOT YET"
-UNCHECKED = "UNCHECKED"
-CONTRADICTED = "CONTRADICTED"
-STATES = (PASSED, NOT_YET, UNCHECKED, CONTRADICTED)
+COULD_NOT_CHECK = "COULD NOT CHECK"
+FAILED = "FAILED"
+STATES = (PASSED, NOT_YET, COULD_NOT_CHECK, FAILED)
 
 _KEYS = ("DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD")
 _REQUIRED = ("DB_HOST", "DB_NAME", "DB_USER")

@@ -516,23 +516,23 @@ def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, your
         return check.NOT_YET, ("apply the provided rule with uv run scripts/lab_run.py "
                                "solution --lab 4 --task 4A, then run this again.")
     if not head_kept:
-        return check.CONTRADICTED, ("edit only the final unless block: the lines before it (the "
+        return check.FAILED, ("edit only the final unless block: the lines before it (the "
                                     "principal, the give_store_credit action and the Gateway) "
                                     "stay as in the original.")
     if extra_policies:
-        return check.CONTRADICTED, ("keep one policy in the file, the forbid: anything after its "
+        return check.FAILED, ("keep one policy in the file, the forbid: anything after its "
                                     "unless block would deploy beside your rule.")
     if yours.passed and not escaped and counterfactual_holds:
         return check.PASSED, ""
     if escaped or not counterfactual_holds:
-        return check.UNCHECKED, ("the check itself is not sound here: a wrong rule passed or the "
-                                 "baseline alone denies 10001 cents. Report it; do not change "
-                                 "your rule for it.")
-    return check.CONTRADICTED, _next_step(yours)
+        return check.COULD_NOT_CHECK, (
+            "the check itself is not sound here: a wrong rule passed or the baseline alone "
+            "denies 10001 cents. Report it; do not change your rule for it.")
+    return check.FAILED, _next_step(yours)
 
 
 def _no_unless_block(rule_text: str) -> LocalResult:
-    finding = check.Finding("4A", _LOCAL_TITLE, check.CONTRADICTED, _LOCAL_EXPECTED,
+    finding = check.Finding("4A", _LOCAL_TITLE, check.FAILED, _LOCAL_EXPECTED,
                             "the policy has no final unless block",
                             [f"{CREDIT_LIMIT_SOURCE} sha256:"
                              f"{hashlib.sha256(rule_text.encode('utf-8')).hexdigest()[:16]}"],
@@ -724,7 +724,7 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
                 f"store_credits rows {row.get('credit_rows')}"]
     rows_left = int(row.get("audit_rows") or 0) + int(row.get("credit_rows") or 0)
     if rows_left or attempt.get("outcome") == "allowed":
-        return check.Finding("4A", title, check.CONTRADICTED, expected,
+        return check.Finding("4A", title, check.FAILED, expected,
                              "the over-limit credit got past Cedar", evidence,
                              "run uv run scripts/lab4_check.py --task 4A and read part 2.")
     if attempt.get("outcome") != "denied":
@@ -745,7 +745,7 @@ def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: b
                        evidence: List[str]) -> Optional[check.Finding]:
     """Why no over-limit call may count yet, or ``None`` when the deployed rule is yours."""
     if deployed is None:
-        return _managed_finding(check.CONTRADICTED,
+        return _managed_finding(check.FAILED,
                                 f"{CREDIT_LIMIT_POLICY} is not on the policy engine", evidence,
                                 "provisioning deploys the original rule; ask for the environment to "
                                 "be reprovisioned.")
@@ -763,12 +763,12 @@ def _call_outcome(payload: Dict[str, Any], rows: Dict[str, int],
                   evidence: List[str]) -> check.Finding:
     """The verdict on one over-limit call from the Gateway's answer and the rows its key left."""
     if payload.get("outcome") == "allow" or rows["credit_rows"] or rows["audit_rows"]:
-        return _managed_finding(check.CONTRADICTED, "the over-limit credit got past Cedar",
+        return _managed_finding(check.FAILED, "the over-limit credit got past Cedar",
                                 evidence, "Part 1 and the deployed rule disagree with the Gateway; "
                                           "read the deployed statement and the enforcement mode "
                                           "(scripts/policy_mode.py).")
     if payload.get("outcome") != "deny" or not payload.get("cedar_denial"):
-        return _managed_finding(check.UNCHECKED,
+        return _managed_finding(check.COULD_NOT_CHECK,
                                 "the call failed for another reason, so it says nothing about "
                                 "Cedar", evidence,
                                 "a 401, a validation failure or a transport error is not a policy "
@@ -794,7 +794,7 @@ def judge_managed(*, deployed: Optional[str], local_rule: str, local_proved: boo
     if gap is not None:
         return gap
     if payload is None or review is None or rows is None:
-        return _managed_finding(check.UNCHECKED, "the over-limit call could not be made",
+        return _managed_finding(check.COULD_NOT_CHECK, "the over-limit call could not be made",
                                 evidence + ([failure] if failure else []),
                                 "run this again on the workshop box; the reason is above.")
     # The Gateway's words, whole: cut short they stopped mid-field.
@@ -866,11 +866,12 @@ def send_probe(cfg: Dict[str, str], gateway_url: str,
 def managed_check(
     local: LocalResult, rule_text: str, cfg: Optional[Dict[str, str]],
 ) -> check.Finding:
-    """Part 2 on the workshop box; UNCHECKED where no Gateway is provisioned."""
+    """Part 2 on the workshop box; COULD NOT CHECK where no Gateway is provisioned."""
     try:
         gateway_url, gateway_arn, engine = _managed_environment()
-    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as UNCHECKED
-        return _managed_finding(check.UNCHECKED, "the managed environment is not configured here",
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as COULD NOT CHECK
+        return _managed_finding(check.COULD_NOT_CHECK,
+                                "the managed environment is not configured here",
                                 [f"{type(exc).__name__}: {str(exc)[:160]}"],
                                 "run this on the workshop box, where the Gateway is provisioned.")
     common: Dict[str, Any] = {

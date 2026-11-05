@@ -42,7 +42,7 @@ class TestTheBuild:
 
     def test_another_build_contradicts_and_names_the_deploy(self) -> None:
         finding = lab3.judge_build(BUILD_ROW, "c" * 64)
-        assert finding.state == check.CONTRADICTED
+        assert finding.state == check.FAILED
         assert "--mode participant" in finding.next_step
         # The retry needs a new Runtime session; lab_run.py send starts a new
         # conversation for every request set it sends.
@@ -51,8 +51,8 @@ class TestTheBuild:
     def test_no_turn_is_not_yet_and_an_unstamped_row_is_unchecked(self) -> None:
         assert lab3.judge_build(None, BUILD).state == check.NOT_YET
         unstamped = {**BUILD_ROW, "deployed_fingerprint": None}
-        assert lab3.judge_build(unstamped, BUILD).state == check.UNCHECKED
-        assert lab3.judge_build(BUILD_ROW, "").state == check.UNCHECKED
+        assert lab3.judge_build(unstamped, BUILD).state == check.COULD_NOT_CHECK
+        assert lab3.judge_build(BUILD_ROW, "").state == check.COULD_NOT_CHECK
 
     def test_the_checkout_digest_is_the_runtime_fingerprint(self) -> None:
         from services.build_fingerprint import compute_fingerprint
@@ -70,7 +70,7 @@ class TestTheReads:
 
     def test_a_read_for_jessica_contradicts(self) -> None:
         finding = lab3.judge_tickets([self.THEO, {**self.THEO, "customer_id": "CUST-JESSICA"}])
-        assert finding.state == check.CONTRADICTED
+        assert finding.state == check.FAILED
         assert "CUST-JESSICA" in " ".join(finding.evidence)
 
     def test_no_read_is_not_yet(self) -> None:
@@ -89,21 +89,21 @@ class TestTheProbe:
 
     def test_an_allow_contradicts(self) -> None:
         allow = {**self.DENY, "outcome": "allow", "cedar_denial": False, "error": None}
-        assert lab3.judge_probe(allow, 1).state == check.CONTRADICTED
+        assert lab3.judge_probe(allow, 1).state == check.FAILED
 
     def test_a_401_or_transport_error_is_not_a_policy_decision(self) -> None:
         failure = {**self.DENY, "outcome": "error", "cedar_denial": False, "error": "401"}
         finding = lab3.judge_probe(failure, 0)
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert "not a policy decision" in finding.next_step
 
     def test_a_denial_that_left_a_row_contradicts(self) -> None:
-        assert lab3.judge_probe(self.DENY, 1).state == check.CONTRADICTED
+        assert lab3.judge_probe(self.DENY, 1).state == check.FAILED
 
     def test_a_denial_whose_rows_could_not_be_read_is_unchecked(self) -> None:
         """Could not look is not did not happen: no rows read, no verdict on them."""
         finding = lab3.judge_probe(self.DENY, None)
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert "could not be read" in finding.observed
         assert "rows not read" in " ".join(finding.evidence)
 
@@ -114,7 +114,7 @@ class TestTheProbe:
 
         monkeypatch.setattr(gateway_client, "_load_env", lambda: None)
         finding = lab3.run_probe(None)
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert "workshop box" in finding.next_step
 
 
@@ -142,18 +142,18 @@ class TestTheMemory:
 
     def test_a_missing_conversation_or_a_read_that_misses_it_contradicts(self) -> None:
         missing = lab3.judge_memory("mem-1", {**SEEDED, "events": [], "records": []}, [])
-        assert missing.state == check.CONTRADICTED
+        assert missing.state == check.FAILED
         assert "seed_agentcore_memory.py" in missing.next_step
-        assert lab3.judge_memory("mem-1", SEEDED, []).state == check.CONTRADICTED
+        assert lab3.judge_memory("mem-1", SEEDED, []).state == check.FAILED
         foreign = [{"record_id": "mem-other", "preference": "Not from provisioning"}]
-        assert lab3.judge_memory("mem-1", SEEDED, foreign).state == check.CONTRADICTED
+        assert lab3.judge_memory("mem-1", SEEDED, foreign).state == check.FAILED
 
     def test_memory_that_cannot_be_read_is_unchecked(self) -> None:
         def _no_memory() -> dict:
             raise RuntimeError("AGENTCORE_MEMORY_ID is not configured")
 
         finding = lab3.memory_finding(_no_memory)
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert "AGENTCORE_MEMORY_ID" in finding.evidence[0]
 
     def test_the_check_reads_with_the_managed_rails_own_strict_client(self, monkeypatch) -> None:
@@ -238,13 +238,13 @@ def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
                     '{"status": "success"}', 9, %s)""", (BUILD,))
     mine = [r for r in lab3.read_rows(cfg)["tickets"] if r["turn_id"].endswith("-scope")]
     assert [r["customer_id"] for r in mine] == ["CUST-THEO", "CUST-JESSICA"]
-    assert lab3.judge_tickets(mine).state == check.CONTRADICTED
+    assert lab3.judge_tickets(mine).state == check.FAILED
 
 
 def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> None:
     """The household request's third layer: the database, read by the same check.
 
-    With no settings every finding is UNCHECKED, which is enough to see what the
+    With no settings every finding is COULD NOT CHECK, which is enough to see what the
     check reports: the four managed-turn findings, then the row-ownership
     check's deployed predicate and its two database paths.
     """

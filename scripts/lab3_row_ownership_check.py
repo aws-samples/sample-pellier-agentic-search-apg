@@ -83,7 +83,7 @@ WRITE_JESSICA = (
 )
 REFUSED, WRITTEN = "42501", "00000"
 # A write that failed for any other reason (a lost connection, throttling) says
-# nothing about the policy, so it makes the path UNCHECKED rather than wrong.
+# nothing about the policy, so it makes the path COULD NOT CHECK rather than wrong.
 ERROR = "error:"
 
 EXPECTED = ("bound as Theo: his own tickets come back, none of Jessica's orders or tickets "
@@ -131,7 +131,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
         deployed: Each policy's comment, empty when it has none.
     """
     if stamp is None:
-        return check.Finding("3B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
+        return check.Finding("3B", DEPLOYED_TITLE, check.COULD_NOT_CHECK, DEPLOYED_EXPECTED,
                              "the file's predicate region could not be read",
                              ["workshop/lab-3-row-ownership.sql: no $predicate$ quotes"],
                              "restore the region from workshop/starters/lab-3-row-ownership.sql.")
@@ -200,7 +200,7 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
     title = f"{path} path: the live policy stops a wrong query"
     failed = str(observed.get(WRITE_LABEL, ""))
     if failed.startswith(ERROR):
-        return check.Finding("3B", title, check.UNCHECKED, EXPECTED,
+        return check.Finding("3B", title, check.COULD_NOT_CHECK, EXPECTED,
                              "the write test failed for a reason other than the policy",
                              [f"{WRITE_LABEL}: {failed}"],
                              "check the database is reachable from this box, then run it again.")
@@ -217,21 +217,21 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
         return check.Finding("3B", title, check.PASSED, EXPECTED,
                              f"{len(expected)} of {len(expected)} tests passed", evidence)
     return check.Finding(
-        "3B", title, check.CONTRADICTED, EXPECTED, "; ".join(differs), evidence,
+        "3B", title, check.FAILED, EXPECTED, "; ".join(differs), evidence,
         "read the live policies with: SELECT tablename, qual, with_check FROM pg_policies "
         "WHERE schemaname = 'pellier'. Compare them with the predicate your file passed.")
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:
     return check.Finding("3B", f"{path} path: the live policy stops a wrong query",
-                         check.UNCHECKED, EXPECTED, "the check could not run this path",
+                         check.COULD_NOT_CHECK, EXPECTED, "the check could not run this path",
                          [f"{type(exc).__name__}: {str(exc)[:200]}"],
                          "run this on the workshop box, where pellier/backend/.env names "
                          "the cluster.")
 
 
 def _unchecked_deployed(exc: BaseException) -> check.Finding:
-    return check.Finding("3B", DEPLOYED_TITLE, check.UNCHECKED, DEPLOYED_EXPECTED,
+    return check.Finding("3B", DEPLOYED_TITLE, check.COULD_NOT_CHECK, DEPLOYED_EXPECTED,
                          "the check could not read the live policies",
                          [f"{type(exc).__name__}: {str(exc)[:200]}"],
                          "run this on the workshop box, where pellier/backend/.env names "

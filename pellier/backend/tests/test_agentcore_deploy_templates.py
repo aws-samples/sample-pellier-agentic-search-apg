@@ -2577,7 +2577,7 @@ def test_a_deploy_refuses_a_lab_4_rule_the_cedar_check_contradicts(tmp_path, cap
     widened = _lab4_repo(tmp_path, lab4.widen_action(solution))
     with pytest.raises(RuntimeError, match="fails the Cedar check, so it was not deployed"):
         provisioner._lab4_rule_gate(widened)
-    assert re.search(r"Task 4A\s+\u2502 CONTRADICTED", capsys.readouterr().err)
+    assert re.search(r"Task 4A\s+\u2502 FAILED", capsys.readouterr().err)
 
 
 @pytest.mark.parametrize("which, state", [("starter", "NOT YET"), ("solution", "PASSED")])
@@ -2602,7 +2602,7 @@ def test_a_deploy_warns_and_deploys_the_starter_when_the_cedar_check_cannot_run(
     provisioner = _load_provisioner()
     _cedar_unavailable(monkeypatch)
     repo = _lab4_repo(tmp_path, LAB4_STARTER.read_text(encoding="utf-8"))
-    assert provisioner._lab4_rule_gate(repo) == "UNCHECKED"
+    assert provisioner._lab4_rule_gate(repo) == "COULD NOT CHECK"
     assert "was not checked before this deploy: ImportError" in capsys.readouterr().err
 
 
@@ -2621,7 +2621,7 @@ def test_a_deploy_refuses_an_edited_rule_the_check_could_not_decide(tmp_path, mo
     provisioner = _load_provisioner()
     lab4 = _lab4_check()
     undecided = types.SimpleNamespace(
-        finding=types.SimpleNamespace(state="UNCHECKED", observed="unsound"))
+        finding=types.SimpleNamespace(state="COULD NOT CHECK", observed="unsound"))
     monkeypatch.setattr(lab4, "local_check", lambda *_args: undecided)
     repo = _lab4_repo(tmp_path, LAB4_SOLUTION.read_text(encoding="utf-8"))
     with pytest.raises(RuntimeError, match=r"could not run \(unsound\)"):

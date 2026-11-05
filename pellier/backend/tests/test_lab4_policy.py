@@ -97,8 +97,8 @@ class TestTheVerdicts:
     @pytest.mark.parametrize(("label", "body"), lab4.MUTATIONS)
     def test_every_wrong_rule_is_contradicted(self, label: str, body: str) -> None:
         finding = lab4.local_check(_with(body), STARTER).finding
-        expected = check.NOT_YET if body == "false" else check.CONTRADICTED
-        assert finding.state in (expected, check.CONTRADICTED), (label, finding)
+        expected = check.NOT_YET if body == "false" else check.FAILED
+        assert finding.state in (expected, check.FAILED), (label, finding)
         assert finding.state != check.PASSED
 
     @pytest.mark.parametrize("body", [
@@ -106,11 +106,11 @@ class TestTheVerdicts:
         "context.input.amount_cents == 10000 || context.input.amount_cents == 9999",
     ])
     def test_hardcoded_people_or_amounts_are_caught(self, body: str) -> None:
-        assert lab4.local_check(_with(body), STARTER).finding.state == check.CONTRADICTED
+        assert lab4.local_check(_with(body), STARTER).finding.state == check.FAILED
 
     def test_a_rule_cedar_rejects_says_so(self) -> None:
         finding = lab4.local_check(_with("context.input.amount_cent <= 10000"), STARTER).finding
-        assert finding.state == check.CONTRADICTED
+        assert finding.state == check.FAILED
         assert finding.observed.startswith("Cedar rejects your rule")
         assert "attribute name" in finding.next_step
 
@@ -123,12 +123,12 @@ class TestTheVerdicts:
                                  lab4.baseline_set())
         assert all(d.decision == request.want for request, d in assessment.rows)
         assert any("overflow" in " ".join(d.errors) for _request, d in assessment.rows)
-        assert lab4.local_check(_with(body), STARTER).finding.state == check.CONTRADICTED
+        assert lab4.local_check(_with(body), STARTER).finding.state == check.FAILED
 
     def test_an_unguarded_tag_read_is_rejected_by_validation(self) -> None:
         body = 'principal.getTag("custom:limit_override") == "yes"'
         finding = lab4.local_check(_with(body), STARTER).finding
-        assert finding.state == check.CONTRADICTED
+        assert finding.state == check.FAILED
         assert "unable to guarantee safety of access to tag" in finding.observed
 
     def test_the_hints_name_the_boundary_and_the_unit(self) -> None:
@@ -159,7 +159,7 @@ class TestTheVerdicts:
         widening = ('\npermit(principal, action == AgentCore::Action::'
                     '"pellier-store-tools___get_orders", resource);\n')
         result = lab4.local_check(SOLUTION + widening, STARTER)
-        assert result.finding.state == check.CONTRADICTED
+        assert result.finding.state == check.FAILED
         assert result.finding.observed.startswith("your file holds 2 policies, not one")
         assert "keep one policy in the file" in result.finding.next_step
         reads = {row[0]: row[3] for row in result.table}
@@ -175,7 +175,7 @@ class TestTheVerdicts:
         "context.input.amount_cents <= 10000",
     ])
     def test_a_hardcoded_customer_reason_or_lower_bound_is_caught(self, body: str) -> None:
-        assert lab4.local_check(_with(body), STARTER).finding.state == check.CONTRADICTED
+        assert lab4.local_check(_with(body), STARTER).finding.state == check.FAILED
 
     def test_a_rule_widened_to_every_action_is_contradicted(self) -> None:
         """Reproduced from the cut 6b review: the reference rule over every action passed
@@ -183,7 +183,7 @@ class TestTheVerdicts:
         widened = SOLUTION.replace(
             f'action == AgentCore::Action::"{lab4.GIVE_STORE_CREDIT_ACTION}"', "action")
         finding = lab4.local_check(widened, STARTER).finding
-        assert finding.state == check.CONTRADICTED
+        assert finding.state == check.FAILED
         assert "edit only the final unless block" in finding.next_step
         matrix = lab4.assess(lab4.render_rule(widened), lab4.gateway_cedar_schema(),
                              lab4.baseline_set())
@@ -209,19 +209,19 @@ class TestTheVerdicts:
         assert lab4.assess(lab4.render_rule(any_principal), lab4.gateway_cedar_schema(),
                            lab4.baseline_set()).passed
         finding = lab4.local_check(any_principal, STARTER).finding
-        assert finding.state == check.CONTRADICTED
+        assert finding.state == check.FAILED
         assert finding.observed.startswith("your edit changes the lines before the unless block")
 
     def test_a_policy_without_an_unless_block_is_contradicted_not_a_traceback(self) -> None:
         bare = SOLUTION[:SOLUTION.rindex("unless")] + ";"
         result = lab4.local_check(bare, STARTER)
-        assert result.finding.state == check.CONTRADICTED
+        assert result.finding.state == check.FAILED
         assert result.finding.observed == "the policy has no final unless block"
         assert result.table == []
 
     def test_a_check_that_cannot_tell_right_from_wrong_is_unchecked(self, monkeypatch) -> None:
         monkeypatch.setattr(lab4, "MUTATIONS", (("the right rule", lab4.unless_body(SOLUTION)),))
-        assert lab4.local_check(SOLUTION, STARTER).finding.state == check.UNCHECKED
+        assert lab4.local_check(SOLUTION, STARTER).finding.state == check.COULD_NOT_CHECK
 
 
 # ---------------------------------------------------------------------------
@@ -298,15 +298,15 @@ class TestTheManagedVerdict:
 
     def test_a_401_or_transport_failure_is_not_cedar_evidence(self) -> None:
         failure = {"outcome": "error", "cedar_denial": False, "error": "HTTP 401"}
-        assert _judge(payload=failure).state == check.UNCHECKED
+        assert _judge(payload=failure).state == check.COULD_NOT_CHECK
 
     def test_an_allow_or_any_row_contradicts(self) -> None:
         allowed = {"outcome": "allow", "cedar_denial": False, "result": {}}
-        assert _judge(payload=allowed).state == check.CONTRADICTED
-        assert _judge(rows={"audit_rows": 1, "credit_rows": 0}).state == check.CONTRADICTED
+        assert _judge(payload=allowed).state == check.FAILED
+        assert _judge(rows={"audit_rows": 1, "credit_rows": 0}).state == check.FAILED
 
     def test_a_missing_policy_or_an_unproved_rule_never_probes_into_a_proof(self) -> None:
-        assert _judge(deployed=None).state == check.CONTRADICTED
+        assert _judge(deployed=None).state == check.FAILED
         assert _judge(local_proved=False).state == check.NOT_YET
 
     @pytest.fixture
@@ -321,7 +321,7 @@ class TestTheManagedVerdict:
     def test_a_failure_after_the_environment_check_is_a_finding_not_a_traceback(
         self, managed_box: Dict[str, Any], monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A missing secret or an unreachable database is reported as UNCHECKED with its reason."""
+        """A missing secret or an unreachable database is reported as COULD NOT CHECK with its reason."""
         import gateway_client
 
         def _no_secret(_user: str) -> str:
@@ -329,7 +329,7 @@ class TestTheManagedVerdict:
 
         monkeypatch.setattr(gateway_client, "_token_from_cognito", _no_secret)
         finding = lab4.managed_check(managed_box["local"], SOLUTION, managed_box["cfg"])
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert finding.observed == "the over-limit call could not be made"
         assert "SystemExit: Missing required environment variable" in finding.evidence[-1]
 
@@ -342,12 +342,12 @@ class TestTheManagedVerdict:
 
         monkeypatch.setattr(lab4.check, "connect", _unreachable)
         finding = lab4.managed_check(managed_box["local"], SOLUTION, managed_box["cfg"])
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert "ConnectionError: database unreachable" in finding.evidence[-1]
 
     def test_no_database_settings_is_unchecked_with_the_reason(self, managed_box) -> None:
         finding = lab4.managed_check(managed_box["local"], SOLUTION, None)
-        assert finding.state == check.UNCHECKED
+        assert finding.state == check.COULD_NOT_CHECK
         assert finding.evidence[-1].startswith("no database settings (DB_HOST, DB_NAME, DB_USER)")
 
     def test_no_managed_environment_is_unchecked(self, monkeypatch) -> None:
@@ -356,7 +356,7 @@ class TestTheManagedVerdict:
         monkeypatch.setattr(gateway_client, "_load_env", lambda: None)
         monkeypatch.delenv("AGENTCORE_GATEWAY_URL", raising=False)
         local = lab4.local_check(SOLUTION, STARTER)
-        assert lab4.managed_check(local, SOLUTION, None).state == check.UNCHECKED
+        assert lab4.managed_check(local, SOLUTION, None).state == check.COULD_NOT_CHECK
 
 
 class TestTheStoredAnswer:
@@ -376,7 +376,7 @@ class TestTheStoredAnswer:
         assert lab4.judge_recorded_probe(row).state == check.PASSED
         assert lab4.judge_recorded_probe(None).state == check.NOT_YET
         assert lab4.judge_recorded_probe({**row, "last_attempt": None}).state == check.NOT_YET
-        assert lab4.judge_recorded_probe({**row, "credit_rows": 1}).state == check.CONTRADICTED
+        assert lab4.judge_recorded_probe({**row, "credit_rows": 1}).state == check.FAILED
 
 
 # ---------------------------------------------------------------------------

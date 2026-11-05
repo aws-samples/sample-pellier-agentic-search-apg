@@ -101,7 +101,7 @@ def test_no_record_yet_is_not_yet_and_no_conversation_contradicts() -> None:
     assert showcase.provisioned_finding(waiting, "mem-1").state == check.NOT_YET
     missing, _ = _seeded([], [])
     finding = showcase.provisioned_finding(missing, "mem-1")
-    assert finding.state == check.CONTRADICTED
+    assert finding.state == check.FAILED
     assert "seed_agentcore_memory.py" in finding.next_step
 
 

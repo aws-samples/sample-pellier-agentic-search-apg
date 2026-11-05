@@ -4,7 +4,7 @@ Each fake returns what the live service returns: span JSON in ``aws/spans``,
 the RDS cluster and instance descriptions, Performance Insights dimension keys,
 and PostgreSQL log lines exported to CloudWatch Logs. A finding is PASSED only
 when the evidence itself is there; a cluster without the settings is
-CONTRADICTED, and evidence that has not arrived yet is NOT YET.
+FAILED, and evidence that has not arrived yet is NOT YET.
 """
 
 from __future__ import annotations
@@ -200,7 +200,7 @@ def test_the_newest_routed_turn_lists_its_agent_spans_in_order() -> None:
 
 def test_a_cluster_without_advanced_mode_is_contradicted() -> None:
     _, insights, _ = _run(cluster=_cluster(mode="standard"))
-    assert insights.state == obs.CONTRADICTED
+    assert insights.state == obs.FAILED
     assert "DatabaseInsightsMode standard" in insights.observed
 
 
@@ -208,7 +208,7 @@ def test_performance_insights_falls_back_to_the_writer_instance() -> None:
     _, insights, _ = _run(cluster=_cluster(pi_on_cluster=False))
     assert insights.state == obs.PASSED
     _, off, _ = _run(cluster=_cluster(pi_on_cluster=False), instance_pi=False)
-    assert off.state == obs.CONTRADICTED
+    assert off.state == obs.FAILED
     assert "Performance Insights off" in off.observed
 
 
@@ -253,7 +253,7 @@ def test_insights_without_finished_queries_yet_and_without_permission() -> None:
     _, empty, _ = _run(finished=())
     assert empty.state == obs.NOT_YET
     _, denied, _ = _run(denied=True)
-    assert denied.state == obs.UNCHECKED
+    assert denied.state == obs.COULD_NOT_CHECK
     assert denied.observed.endswith("could not read its metrics: AccessDeniedException")
 
 
@@ -277,7 +277,7 @@ def test_postgresql_log_states() -> None:
     assert none_yet.state == obs.NOT_YET
     assert "lab3_row_ownership_check.py" in none_yet.next_step
     _, _, not_exported = _run(cluster=_cluster(exports=[]))
-    assert not_exported.state == obs.CONTRADICTED
+    assert not_exported.state == obs.FAILED
     _, _, no_group = _run(missing=GROUP)
     assert no_group.state == obs.NOT_YET
 
@@ -292,7 +292,7 @@ def test_an_undescribable_cluster_leaves_both_database_findings_unchecked() -> N
     spans, insights, log = obs.check(logs, _Rds(None), _Pi([SQL]), CLUSTER_ARN, 60, NOW)
     assert spans.state == obs.PASSED
     assert spans.observed == "1 span across 1 routed turn"
-    assert [insights.state, log.state] == [obs.UNCHECKED, obs.UNCHECKED]
+    assert [insights.state, log.state] == [obs.COULD_NOT_CHECK, obs.COULD_NOT_CHECK]
     assert "pellier-cluster-ws1: AccessDenied" in insights.observed
 
 

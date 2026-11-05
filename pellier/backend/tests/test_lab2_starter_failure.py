@@ -190,7 +190,7 @@ def test_a_wider_grant_than_check_stock_is_contradicted(conn) -> None:
     _audit(conn, "turn-wide", "check_stock", {"product_query": "Hadley Linen Shirt"},
            {"status": "success"}, grant=("search_products", "check_stock"))
     finding = lab2.judge_2a(conn)
-    assert finding.state == "CONTRADICTED"
+    assert finding.state == "FAILED"
     assert "was granted search_products, check_stock" in finding.observed
 
 
@@ -231,7 +231,7 @@ def test_a_ship_window_the_tables_do_not_hold_is_contradicted(conn) -> None:
     envelope["warehouses"][0]["ship_window_max"] += 3
     _audit(conn, "turn-window", "check_stock", {"product_query": "Hadley Linen Shirt"}, envelope)
     finding = lab2.judge_2a(conn)
-    assert finding.state == "CONTRADICTED", finding
+    assert finding.state == "FAILED", finding
     assert any("ship windows in business days" in line for line in finding.evidence)
 
 
@@ -281,7 +281,7 @@ def test_the_2a_check_fails_a_count_the_warehouse_rows_do_not_hold(conn) -> None
                                                  {"warehouse_code": "PDX-01", "quantity": 7}]}
     _audit(conn, "turn-wrong", "check_stock", {"product_query": "Hadley Linen Shirt"}, guessed)
     finding = lab2.judge_2a(conn)
-    assert finding.state == "CONTRADICTED"
+    assert finding.state == "FAILED"
     assert "does not match the catalog" in finding.observed
 
 
@@ -336,7 +336,7 @@ def _defaults() -> Dict[str, Any]:
 def test_the_2b_check_fails_the_starter_on_the_not_carried_case_alone(conn) -> None:
     _install(conn, lab_variants.STARTER)
     starter, rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), _defaults())
-    assert starter.state == "CONTRADICTED"
+    assert starter.state == "FAILED"
     assert f'not carried: "{NOT_CARRIED}" came back success, 0 units' in starter.observed
     assert [row[-1] for row in rows] == ["does not match", "matches", "matches", "matches"]
     assert any("warehouse_inventory for 2 Hadley Linen Shirt" in line for line in starter.evidence)
@@ -379,7 +379,7 @@ def test_the_recorded_2b_line_follows_marcos_latest_not_carried_question(conn) -
     _audit(conn, "turn-cape-starter", "check_stock", {"product_query": NOT_CARRIED},
            _ask(conn, lab_variants.STARTER, NOT_CARRIED))
     folded = lab2.judge_recorded_2b(conn)
-    assert folded.state == "CONTRADICTED", folded
+    assert folded.state == "FAILED", folded
     assert f'not carried: "{NOT_CARRIED}" recorded success, 0 units' in folded.observed
 
     # Each case is judged by its latest call: the wrong Hadley count recorded above

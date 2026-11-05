@@ -312,7 +312,7 @@ def _judge(
             observed += "; " + "; ".join(broken_lines)
         if lost:
             observed += "; the search that answered dropped " + ", ".join(lost)
-        return check.Finding("1B", TITLE, check.CONTRADICTED, EXPECTED, observed, evidence,
+        return check.Finding("1B", TITLE, check.FAILED, EXPECTED, observed, evidence,
                              NEXT_STEP)
     return check.Finding("1B", TITLE, check.PASSED, EXPECTED,
                          f"all {len(ids)} keep {', '.join(phrases(requested))} after the "
@@ -323,13 +323,15 @@ def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List
     """Connect with the backend's settings and evaluate; never raises."""
     cfg = check.db_config(env_path)
     if cfg is None:
-        return check.Finding("1B", TITLE, check.UNCHECKED, EXPECTED, "the check could not look",
+        return check.Finding("1B", TITLE, check.COULD_NOT_CHECK, EXPECTED,
+                             "the check could not look",
                              [check.missing_settings_reason(env_path)]), []
     try:
         with check.connect(cfg) as conn:
             return evaluate(conn, timeline())
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return check.Finding("1B", TITLE, check.UNCHECKED, EXPECTED, "the check could not look",
+        return check.Finding("1B", TITLE, check.COULD_NOT_CHECK, EXPECTED,
+                             "the check could not look",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "check that the database in pellier/backend/.env is reachable."), []
 

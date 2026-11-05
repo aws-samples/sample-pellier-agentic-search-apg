@@ -41,7 +41,7 @@ Memory, authenticate test users, and verify the deployed path.
    - Lab 4's starter forbid, `credit_limit`, deployed from
      `workshop/starters/credit_limit.cedar` so every credit is denied
      until the participant writes the $100 limit; `--mode participant`
-     refuses a rule `scripts/lab4_check.py --task 4A` marks CONTRADICTED
+     refuses a rule `scripts/lab4_check.py --task 4A` marks FAILED
    - A managed output guardrail can suppress a tool response after execution
    - Provisioning's live policy proof calls the Gateway as Theo through
      `gateway_policy_probe.py`: a catalog read is allowed with its audit row,

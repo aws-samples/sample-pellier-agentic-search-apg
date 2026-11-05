@@ -35,7 +35,7 @@ holds its starter is NOT YET whatever the rows say; the summary's cleanup
 restores the Cedar starter, so run this export before it.
 
 Every line is in one of four states, never two (``workshop_check``):
-PASSED, NOT YET, UNCHECKED and CONTRADICTED. UNCHECKED is not a soft NOT
+PASSED, NOT YET, COULD NOT CHECK and FAILED. COULD NOT CHECK is not a soft NOT
 YET: "this did not happen" and "I could not look" are different findings.
 Lab 3B's direct Cedar probe calls the Gateway, so it stays in
 ``scripts/lab3_check.py``.
@@ -64,8 +64,8 @@ REPO = check.REPO
 BACKEND = REPO / "pellier" / "backend"
 STARTERS = REPO / "workshop" / "starters"
 
-PASSED, NOT_YET, UNCHECKED, CONTRADICTED = (
-    check.PASSED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
+PASSED, NOT_YET, COULD_NOT_CHECK, FAILED = (
+    check.PASSED, check.NOT_YET, check.COULD_NOT_CHECK, check.FAILED)
 
 # The marked region each task edits, and the starter it is compared with.
 REGIONS: Dict[str, tuple] = {
@@ -166,7 +166,7 @@ def task_3a() -> check.Finding:
     title = "get_tickets is published and bound to the signed-in caller"
     states = {key: source_state(key) for key in ("3A-catalog", "3A-binding")}
     if any(state == check.MISSING for state in states.values()):
-        return check.Finding("3A", title, UNCHECKED, "both Lab 3 marked regions readable",
+        return check.Finding("3A", title, COULD_NOT_CHECK, "both Lab 3 marked regions readable",
                              "a Lab 3 marked region could not be read",
                              [f"{key}: {state}" for key, state in states.items()])
     if any(state == check.STARTER for state in states.values()):
@@ -179,7 +179,7 @@ def task_3a() -> check.Finding:
         return lab3_check.catalog_verdict(
             lab3_check.judge_catalog(*lab3_check.source_catalog()))
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return check.Finding("3A", title, UNCHECKED, "the catalogs are readable",
+        return check.Finding("3A", title, COULD_NOT_CHECK, "the catalogs are readable",
                              "the check could not look", [f"{type(exc).__name__}: {exc}"])
 
 
@@ -203,7 +203,7 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
     expected = (f"{lab3_check.BUILD_EXPECTED}; {lab3_check.MEMORY_EXPECTED}; "
                 f"{lab3_check.TICKETS_EXPECTED}; {lab3_row_ownership_check.DEPLOYED_EXPECTED}")
     if rows is None:
-        return check.Finding("3B", title, UNCHECKED, expected, "the check could not look")
+        return check.Finding("3B", title, COULD_NOT_CHECK, expected, "the check could not look")
     if source_state("3B") == check.STARTER:
         owned = [_starter_finding("3B", title, expected, "workshop/lab-3-row-ownership.sql")]
     else:
@@ -257,7 +257,7 @@ def credit_findings(row: Optional[Dict[str, Any]]) -> Dict[str, str]:
     once = int(row.get("credit_rows") or 0) == 1 and int(row.get("audit_rows") or 0) == 1
     amount = row.get("approved_cents") is not None and int(row["approved_cents"]) == int(
         row.get("amount_cents") or 0)
-    return {"once": PASSED if once else CONTRADICTED, "amount": PASSED if amount else CONTRADICTED}
+    return {"once": PASSED if once else FAILED, "amount": PASSED if amount else FAILED}
 
 
 def _observed(part: check.Finding) -> str:
@@ -270,12 +270,12 @@ def _combine(task: str, title: str, expected: str,
              parts: Sequence[check.Finding]) -> check.Finding:
     """One task line from several verdicts: any contradiction wins, then any gap."""
     states = [part.state for part in parts]
-    if CONTRADICTED in states:
-        state = CONTRADICTED
+    if FAILED in states:
+        state = FAILED
     elif all(s == PASSED for s in states):
         state = PASSED
-    elif UNCHECKED in states:
-        state = UNCHECKED
+    elif COULD_NOT_CHECK in states:
+        state = COULD_NOT_CHECK
     else:
         state = NOT_YET
     return check.Finding(task, title, state, expected,
@@ -299,7 +299,7 @@ def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
     attempts = int(row.get("attempt_rows") or 0)
     if attempts:
         evidence.append(f"tool_audit also keeps {attempts} other attempt(s) that did not apply")
-    state = PASSED if set(found.values()) == {PASSED} else CONTRADICTED
+    state = PASSED if set(found.values()) == {PASSED} else FAILED
     return check.Finding("4A", title, state, expected,
                          f"recorded once {found['once']}, approved amount {found['amount']}",
                          evidence, "read the rows for that key; a retry must add nothing.")
@@ -317,17 +317,18 @@ def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
         rule = CEDAR_POLICY.read_text(encoding="utf-8")
         starter = CEDAR_STARTER.read_text(encoding="utf-8")
     except OSError as exc:
-        return check.Finding("4A", title, UNCHECKED, expected, f"unreadable: {exc}")
+        return check.Finding("4A", title, COULD_NOT_CHECK, expected, f"unreadable: {exc}")
     if rule == starter:
         return _starter_finding("4A", title, expected, "policies/credit_limit.cedar")
     try:
         local = lab4.local_check(rule, starter).finding
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        local = check.Finding("4A", title, UNCHECKED, expected, "the Cedar check could not run",
+        local = check.Finding("4A", title, COULD_NOT_CHECK, expected,
+                              "the Cedar check could not run",
                               [f"{type(exc).__name__}: {str(exc)[:160]}"])
     if rows is None:
         return _combine("4A", title, expected, [local, check.Finding(
-            "4A", title, UNCHECKED, expected, "the database could not be read")])
+            "4A", title, COULD_NOT_CHECK, expected, "the database could not be read")])
     return _combine("4A", title, expected, [
         local, lab4.judge_recorded_probe(rows.get("probe")), credit_finding(rows.get("credit"))])
 
@@ -354,13 +355,13 @@ def _with_connection(
     connect: Callable[[Dict[str, str]], Any], judge: Callable[[Any], check.Finding],
 ) -> check.Finding:
     if cfg is None:
-        return check.Finding(task, title, UNCHECKED, expected, "the check could not look",
+        return check.Finding(task, title, COULD_NOT_CHECK, expected, "the check could not look",
                              [check.missing_settings_reason()])
     try:
         with connect(cfg) as conn:
             return judge(conn)
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return check.Finding(task, title, UNCHECKED, expected, "the check could not look",
+        return check.Finding(task, title, COULD_NOT_CHECK, expected, "the check could not look",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"])
 
 
@@ -379,7 +380,7 @@ def _rows(cfg: Config, connect: Connect) -> Dict[str, Any]:
             cur.execute(lab4_policy.PROBE_SQL)
             out["lab4"] = {"credit": credit, "probe": cur.fetchone()}
         return out
-    except Exception:  # noqa: BLE001 - reported as UNCHECKED on the lines that need it
+    except Exception:  # noqa: BLE001 - reported as COULD NOT CHECK on the lines that need it
         return {"available": False}
 
 

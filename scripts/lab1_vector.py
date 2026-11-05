@@ -134,7 +134,7 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
     try:
         from services import store_tools
     except Exception as exc:  # noqa: BLE001 - a broken edit is the finding
-        return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED,
+        return check.Finding("1A", TITLE, check.FAILED, EXPECTED,
                              "store_tools.py does not import",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"], NEXT_STEP), []
     size = int(store_tools.DEFAULT_RETRIEVAL_CONFIG["k_vector"])
@@ -152,7 +152,7 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
         try:
             row, problem = probe()
         except Exception as exc:  # noqa: BLE001 - the participant's SQL raised
-            return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED,
+            return check.Finding("1A", TITLE, check.FAILED, EXPECTED,
                                  "your vector search raised an error",
                                  [f"{type(exc).__name__}: {str(exc)[:200]}"], NEXT_STEP), rows
         rows.append(row)
@@ -161,7 +161,7 @@ def evaluate(conn: Any) -> Tuple[check.Finding, List[Sequence[Any]]]:
     evidence = [f"pellier.product_catalog, {len(SELF_PROBES)} products searched with their "
                 f"own embeddings, then {LIMITS_PROBE} with Anna's requirements; pool size {size}"]
     if problems:
-        return check.Finding("1A", TITLE, check.CONTRADICTED, EXPECTED, problems[0],
+        return check.Finding("1A", TITLE, check.FAILED, EXPECTED, problems[0],
                              evidence + problems[1:], NEXT_STEP), rows
     return check.Finding("1A", TITLE, check.PASSED, EXPECTED,
                          f"every test ranks by meaning: {len(SELF_PROBES)} products found "
@@ -172,14 +172,16 @@ def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List
     """Connect with the backend's settings and evaluate; never raises."""
     cfg = check.db_config(env_path)
     if cfg is None:
-        return check.Finding("1A", TITLE, check.UNCHECKED, EXPECTED, "the check could not look",
+        return check.Finding("1A", TITLE, check.COULD_NOT_CHECK, EXPECTED,
+                             "the check could not look",
                              [check.missing_settings_reason(env_path)]), []
     try:
         with check.connect(cfg) as conn:
             conn.autocommit = True
             return evaluate(conn)
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return check.Finding("1A", TITLE, check.UNCHECKED, EXPECTED, "the check could not look",
+        return check.Finding("1A", TITLE, check.COULD_NOT_CHECK, EXPECTED,
+                             "the check could not look",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "check that the database in pellier/backend/.env is reachable."), []
 

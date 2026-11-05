@@ -42,7 +42,7 @@ def test_the_stamp_is_the_sha256_of_the_statements_psql_hashes() -> None:
      "the live function still carries the privileges the database shipped with"),
     (False, {**CLEAN, "stamp": credit_check.STAMP_PREFIX + "0" * 64}, "NOT YET",
      "the live function carries different statements from the ones in your file"),
-    (False, {**CLEAN, "table_grants": 3, "stamp": "MATCH"}, "CONTRADICTED",
+    (False, {**CLEAN, "table_grants": 3, "stamp": "MATCH"}, "FAILED",
      "the live state changed after your run: the role holds 3 table grants"),
     (False, {**CLEAN, "stamp": "MATCH"}, "PASSED", "the live function carries your statements"),
 ])
@@ -106,5 +106,5 @@ async def test_a_table_privilege_on_credits_is_caught_on_the_path(deployed: Any)
             conn.execute("REVOKE UPDATE ON pellier.store_credits FROM pellier_credit_writer")
     finding = credit_check.judge_path("in process", observed)
     assert observed[credit_check.UPDATE] == "00000"
-    assert finding.state == "CONTRADICTED"
+    assert finding.state == "FAILED"
     assert "raise a credit's amount directly" in finding.observed

@@ -1514,9 +1514,9 @@ def _lab4_rule_gate(repo: Path) -> str:
     forbid-all is overly restrictive on purpose), so AWS's semantic analysis
     does not assess the participant's rule. ``scripts/lab4_check.py --task 4A``
     evaluates it with real Cedar beside the rendered baseline in about a
-    second; a rule it marks CONTRADICTED would cost a redeploy and could deny
+    second; a rule it marks FAILED would cost a redeploy and could deny
     every shopper tool, so it is refused here, before any AWS change. NOT YET
-    (the starter, a reset) and PASSED deploy. UNCHECKED, a check that could
+    (the starter, a reset) and PASSED deploy. COULD NOT CHECK, a check that could
     not run (``cedarpy`` missing, say), deploys the byte-identical starter with
     a warning, so bootstrap and Lab 3 are unaffected, and refuses an edited
     rule, which nothing else would assess before it reached the Gateway.
@@ -1525,7 +1525,7 @@ def _lab4_rule_gate(repo: Path) -> str:
         The check's state.
 
     Raises:
-        RuntimeError: the check marks the rule CONTRADICTED, or could not
+        RuntimeError: the check marks the rule FAILED, or could not
             check a rule that differs from the starter.
     """
     scripts = Path(__file__).resolve().parent
@@ -1543,8 +1543,8 @@ def _lab4_rule_gate(repo: Path) -> str:
         _refuse_an_unchecked_edit(rule, starter, reason)
         print(f"WARNING: Lab 4's rule was not checked before this deploy: {reason}",
               file=sys.stderr)
-        return "UNCHECKED"
-    if finding.state == "CONTRADICTED":
+        return "COULD NOT CHECK"
+    if finding.state == "FAILED":
         print(lab4_policy.check.render(finding), file=sys.stderr)
         raise RuntimeError(
             f"Lab 4's rule in {CREDIT_LIMIT_SOURCE} fails the Cedar check, so it was not "
@@ -1552,7 +1552,7 @@ def _lab4_rule_gate(repo: Path) -> str:
             "apply the provided rule (uv run scripts/lab_run.py solution --lab 4 --task 4A), "
             "then deploy again."
         )
-    if finding.state == "UNCHECKED":
+    if finding.state == "COULD NOT CHECK":
         _refuse_an_unchecked_edit(rule, starter, finding.observed)
         print(f"WARNING: Lab 4's Cedar check could not decide: {finding.observed}",
               file=sys.stderr)

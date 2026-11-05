@@ -114,7 +114,7 @@ async def test_a_policy_that_lets_everyone_through_is_contradicted_on_both_paths
         gateway = rls.judge_path("Gateway", _gateway(monkeypatch, conn), own)
 
     for finding in (in_process, gateway):
-        assert finding.state == rls.check.CONTRADICTED, finding
+        assert finding.state == rls.check.FAILED, finding
         assert "Jessica's orders came back" in finding.observed
         assert "a new ticket in Jessica's name came back 00000" in finding.observed
     with conn.cursor() as cur:
@@ -125,7 +125,7 @@ async def test_a_policy_that_lets_everyone_through_is_contradicted_on_both_paths
 
 def test_a_path_that_could_not_read_is_named() -> None:
     finding = rls.judge_path("Gateway", {}, 2)
-    assert finding.state == rls.check.CONTRADICTED
+    assert finding.state == rls.check.FAILED
     assert "Theo's own tickets came back not read" in finding.observed
     assert "pg_policies" in finding.next_step
 
@@ -135,7 +135,7 @@ def test_a_write_that_failed_for_another_reason_is_unchecked_not_wrong() -> None
     observed[rls.READS[0][0]] = 2
     observed[rls.WRITE_LABEL] = f"{rls.ERROR} 23503"
     finding = rls.judge_path("in process", observed, 2)
-    assert finding.state == rls.check.UNCHECKED
+    assert finding.state == rls.check.COULD_NOT_CHECK
     assert "a reason other than the policy" in finding.observed
 
 

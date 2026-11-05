@@ -29,8 +29,8 @@ sys.path.insert(0, str(REPO / "scripts"))
 evidence = importlib.import_module("workshop_evidence")
 check = importlib.import_module("workshop_check")
 
-PASSED, NOT_YET, UNCHECKED, CONTRADICTED = (
-    check.PASSED, check.NOT_YET, check.UNCHECKED, check.CONTRADICTED)
+PASSED, NOT_YET, COULD_NOT_CHECK, FAILED = (
+    check.PASSED, check.NOT_YET, check.COULD_NOT_CHECK, check.FAILED)
 SOLVED_VECTOR = REPO / "solutions" / "lab-1-retrieve" / "retrieval" / "store_tools_solution.py"
 SOLVED_RULE = REPO / "solutions" / "lab-4-govern" / "policies" / "credit_limit.cedar"
 SOLVED_WRITER = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
@@ -82,7 +82,7 @@ class TestTheEightLines:
         findings = evidence.collect(tmp_path / "absent.env", connect=_no_database)
         assert [finding.task for finding in findings] == TASKS
         for finding in findings:
-            expected = UNCHECKED if finding.task in ROW_TASKS else NOT_YET
+            expected = COULD_NOT_CHECK if finding.task in ROW_TASKS else NOT_YET
             assert finding.state == expected, finding
 
     def test_no_settings_is_unchecked_once_the_regions_are_edited(
@@ -92,9 +92,9 @@ class TestTheEightLines:
         findings = {f.task: f for f in evidence.collect(tmp_path / "absent.env",
                                                         connect=_no_database)}
         for task in ("1A", "1B", "2A", "2B"):
-            assert findings[task].state == UNCHECKED, findings[task]
+            assert findings[task].state == COULD_NOT_CHECK, findings[task]
             assert "no database settings" in findings[task].evidence[0]
-        assert findings["4B"].state == UNCHECKED, findings["4B"]
+        assert findings["4B"].state == COULD_NOT_CHECK, findings["4B"]
 
     def test_the_report_prints_three_things_per_line(self, tmp_path: Path, starters: None) -> None:
         report = evidence.render_report(evidence.collect(tmp_path / "absent.env",
@@ -160,12 +160,12 @@ class TestLabsThreeAndFour:
     def test_the_executed_build_and_reads_decide_3b(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         assert evidence.task_3b(rows, BUILD, _remembered()).state == PASSED
-        assert evidence.task_3b(rows, "c" * 64, _remembered()).state == CONTRADICTED
+        assert evidence.task_3b(rows, "c" * 64, _remembered()).state == FAILED
         unstamped = {**rows, "build": {**self.BUILD_ROW, "deployed_fingerprint": None}}
-        assert evidence.task_3b(unstamped, BUILD, _remembered()).state == UNCHECKED
+        assert evidence.task_3b(unstamped, BUILD, _remembered()).state == COULD_NOT_CHECK
         assert evidence.task_3b({"build": None, "tickets": []}, BUILD,
                                 _remembered()).state == NOT_YET
-        assert evidence.task_3b(None, BUILD, _remembered()).state == UNCHECKED
+        assert evidence.task_3b(None, BUILD, _remembered()).state == COULD_NOT_CHECK
 
     def test_3b_needs_the_remembered_record_too(self) -> None:
         """The build and the reads are not enough: Theo's taste must reach the managed agent."""
@@ -173,21 +173,21 @@ class TestLabsThreeAndFour:
         proved = evidence.task_3b(rows, BUILD, _remembered())
         assert "record mem-theo-1: Prefers hand-thrown ceramics" in proved.evidence
         assert evidence.task_3b(rows, BUILD, _remembered(NOT_YET)).state == NOT_YET
-        assert evidence.task_3b(rows, BUILD, _remembered(UNCHECKED)).state == UNCHECKED
-        assert evidence.task_3b(rows, BUILD, _remembered(CONTRADICTED)).state == CONTRADICTED
+        assert evidence.task_3b(rows, BUILD, _remembered(COULD_NOT_CHECK)).state == COULD_NOT_CHECK
+        assert evidence.task_3b(rows, BUILD, _remembered(FAILED)).state == FAILED
 
     def test_a_read_for_another_customer_contradicts_3b(self) -> None:
         rows = {"build": self.BUILD_ROW,
                 "tickets": [self.THEO_READ, {**self.THEO_READ, "customer_id": "CUST-JESSICA"}]}
         finding = evidence.task_3b(rows, BUILD, _remembered())
-        assert finding.state == CONTRADICTED
+        assert finding.state == FAILED
         assert "1 for anyone else" in finding.observed
 
     def test_3a_and_3b_read_their_regions(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """3B's rows are not enough: a starter predicate leaves the row policies unwritten."""
         monkeypatch.setattr(evidence, "source_state", lambda key: check.STARTER)
         assert evidence.task_3a().state == NOT_YET
-        assert evidence.task_3b(None, BUILD).state == UNCHECKED
+        assert evidence.task_3b(None, BUILD).state == COULD_NOT_CHECK
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         finding = evidence.task_3b(rows, BUILD, _remembered())
         assert finding.state == NOT_YET and "lab-3-row-ownership.sql" in finding.observed
@@ -198,14 +198,14 @@ class TestLabsThreeAndFour:
                                    lambda: [_finding("3B", PASSED), _finding("3B", NOT_YET)])
         assert lagging.state == NOT_YET, lagging
         broken = evidence.task_3b(rows, BUILD, _remembered(),
-                                  lambda: [_finding("3B", CONTRADICTED)])
-        assert broken.state == CONTRADICTED, broken
+                                  lambda: [_finding("3B", FAILED)])
+        assert broken.state == FAILED, broken
 
     @pytest.mark.parametrize(("states", "verdict"), [
         ((PASSED, PASSED, PASSED), PASSED),
         ((PASSED, NOT_YET, PASSED), NOT_YET),
-        ((PASSED, UNCHECKED, PASSED), UNCHECKED),
-        ((CONTRADICTED, PASSED, PASSED), CONTRADICTED),
+        ((PASSED, COULD_NOT_CHECK, PASSED), COULD_NOT_CHECK),
+        ((FAILED, PASSED, PASSED), FAILED),
     ])
     def test_4b_combines_the_credit_checks_findings(self, states: tuple, verdict: str) -> None:
         finding = evidence.task_4b(lambda: [_finding("4B", state) for state in states])
@@ -245,10 +245,10 @@ class TestLabsThreeAndFour:
 
     @pytest.mark.parametrize("change", [{"credit_rows": 2}, {"audit_rows": 0}, {"audit_rows": 2}])
     def test_anything_but_one_of_each_contradicts(self, change: dict) -> None:
-        assert evidence.credit_findings({**CREDIT, **change})["once"] == CONTRADICTED
+        assert evidence.credit_findings({**CREDIT, **change})["once"] == FAILED
 
     def test_a_credit_for_another_amount_contradicts(self) -> None:
-        assert evidence.credit_findings({**CREDIT, "amount_cents": 10001})["amount"] == CONTRADICTED
+        assert evidence.credit_findings({**CREDIT, "amount_cents": 10001})["amount"] == FAILED
 
     def test_one_credit_for_the_approved_amount_is_proved(self) -> None:
         assert evidence.credit_findings(dict(CREDIT)) == {"once": PASSED, "amount": PASSED}
@@ -339,8 +339,8 @@ def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(
     assert evidence.task_4a({"probe": probe, "credit": dict(CREDIT)}).state == PASSED
     assert evidence.task_4a({"probe": None, "credit": dict(CREDIT)}).state == NOT_YET
     assert evidence.task_4a({"probe": probe, "credit": {**CREDIT, "credit_rows": 2}}).state == (
-        CONTRADICTED)
-    assert evidence.task_4a(None).state == UNCHECKED
+        FAILED)
+    assert evidence.task_4a(None).state == COULD_NOT_CHECK
 
 
 def test_lab_4a_reads_the_real_schema(

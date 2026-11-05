@@ -78,7 +78,7 @@ def provisioned_finding(seeded: dict, memory_id: str):
     observed = f"{len(events)} source event(s), {len(records)} preference record(s)"
     if not events:
         return check.Finding("3B", "the provisioning conversation is remembered",
-                             check.CONTRADICTED, expected, observed, evidence,
+                             check.FAILED, expected, observed, evidence,
                              "the provisioning conversation is missing; rerun "
                              "scripts/deploy/seed_agentcore_memory.py.")
     if not records:

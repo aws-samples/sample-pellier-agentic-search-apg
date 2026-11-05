@@ -234,7 +234,7 @@ def _staff_rule(managed: Sequence[str]) -> check.Finding:
                 "build a shopper agent that names it"]
     named = sorted(set(managed) & STAFF_ONLY)
     if named:
-        return check.Finding("3A", title, check.CONTRADICTED, expected,
+        return check.Finding("3A", title, check.FAILED, expected,
                              "the Support agent names give_store_credit: published is not "
                              "permitted, and the Router refuses to build this agent", evidence,
                              "which of the nine tools moves money? Only the Operator calls it.")
@@ -321,14 +321,14 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
         f"this checkout    {local or 'unreadable'}",
     ]
     if not deployed or not local:
-        return check.Finding("3B", _BUILD_TITLE, check.UNCHECKED, BUILD_EXPECTED,
+        return check.Finding("3B", _BUILD_TITLE, check.COULD_NOT_CHECK, BUILD_EXPECTED,
                              "a build could not be compared", evidence,
                              "deploy with --mode participant, then send Theo's requests "
                              f"again in a new conversation: {SEND}.")
     if deployed == local:
         return check.Finding("3B", _BUILD_TITLE, check.PASSED, BUILD_EXPECTED,
                              "the two builds match", evidence)
-    return check.Finding("3B", _BUILD_TITLE, check.CONTRADICTED, BUILD_EXPECTED,
+    return check.Finding("3B", _BUILD_TITLE, check.FAILED, BUILD_EXPECTED,
                          "another build answered", evidence,
                          "deploy your Task 3A change with --mode participant, then send "
                          f"Theo's requests again in a new conversation: {SEND}.")
@@ -365,10 +365,10 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
     observed = (f"{len(rows)} executed call(s), {len(rows) - len(others)} for {THEO}, "
                 f"{len(others)} for anyone else")
     if others:
-        return check.Finding("3B", _TICKETS_TITLE, check.CONTRADICTED, TICKETS_EXPECTED,
+        return check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
                              observed, evidence, _NEXT_BIND)
     if probe is not None and not _probe_binds(probe):
-        return check.Finding("3B", _TICKETS_TITLE, check.CONTRADICTED, TICKETS_EXPECTED,
+        return check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
                              observed + f"; a call that names {JESSICA} would go out as "
                              f"{probe['sent']}", evidence, _NEXT_BIND)
     if probe is not None:
@@ -388,7 +388,7 @@ def tickets_finding(rows: Sequence[Dict[str, Any]]) -> check.Finding:
     """The tickets verdict, which needs the forged call: Theo's own reads alone prove nothing."""
     probe, reason = source_probe()
     if probe is None:
-        return check.Finding("3B", _TICKETS_TITLE, check.UNCHECKED, TICKETS_EXPECTED,
+        return check.Finding("3B", _TICKETS_TITLE, check.COULD_NOT_CHECK, TICKETS_EXPECTED,
                              "the call that names Jessica could not run through this "
                              "checkout's binding",
                              [reason], "run this from the repository root on the workshop box, "
@@ -430,7 +430,7 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
     observed = (f"the managed rail's read returns {len(ids)} record(s); provisioning's "
                 f"conversation produced {len(provisioned)}")
     if not seeded.get("events"):
-        return check.Finding("3B", _MEMORY_TITLE, check.CONTRADICTED, MEMORY_EXPECTED,
+        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
                              "Theo's provisioning conversation is missing", evidence,
                              "rerun scripts/deploy/seed_agentcore_memory.py.")
     if not provisioned:
@@ -438,7 +438,7 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
                              evidence, "extraction runs after the conversation; run this "
                                        "again in a minute.")
     if not ids or not set(ids) <= provisioned:
-        return check.Finding("3B", _MEMORY_TITLE, check.CONTRADICTED, MEMORY_EXPECTED, observed,
+        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED, observed,
                              evidence, "the read and the provisioning record disagree; check "
                                        "the namespace /pellier/preferences/CUST-THEO/.")
     return check.Finding("3B", _MEMORY_TITLE, check.PASSED, MEMORY_EXPECTED, observed, evidence)
@@ -475,11 +475,11 @@ def read_memory() -> Dict[str, Any]:
 
 
 def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Finding:
-    """Theo's memory finding; UNCHECKED where AgentCore Memory cannot be read."""
+    """Theo's memory finding; COULD NOT CHECK where AgentCore Memory cannot be read."""
     try:
         found = read()
-    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as UNCHECKED
-        return check.Finding("3B", _MEMORY_TITLE, check.UNCHECKED, MEMORY_EXPECTED,
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as COULD NOT CHECK
+        return check.Finding("3B", _MEMORY_TITLE, check.COULD_NOT_CHECK, MEMORY_EXPECTED,
                              "AgentCore Memory could not be read here",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "run this on the workshop box, where Memory is provisioned.")
@@ -508,22 +508,22 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
         evidence.append(f"Gateway diagnostic, verbatim: {said}")
     outcome = payload.get("outcome")
     if outcome == "allow":
-        return check.Finding("3B", _PROBE_TITLE, check.CONTRADICTED, PROBE_EXPECTED,
+        return check.Finding("3B", _PROBE_TITLE, check.FAILED, PROBE_EXPECTED,
                              "the Gateway ran the read for Jessica's tickets", evidence,
                              "check that get_tickets_owner_only is deployed and active.")
     if outcome != "deny" or not payload.get("cedar_denial"):
-        return check.Finding("3B", _PROBE_TITLE, check.UNCHECKED, PROBE_EXPECTED,
+        return check.Finding("3B", _PROBE_TITLE, check.COULD_NOT_CHECK, PROBE_EXPECTED,
                              "the call failed for another reason, so it says nothing about "
                              "Cedar", evidence,
                              "read the Gateway's words above; a 401 or a transport error is "
                              "not a policy decision.")
     if audit_rows is None:
-        return check.Finding("3B", _PROBE_TITLE, check.UNCHECKED, PROBE_EXPECTED,
+        return check.Finding("3B", _PROBE_TITLE, check.COULD_NOT_CHECK, PROBE_EXPECTED,
                              "Cedar denied it, but the tool_audit rows could not be read",
                              evidence, "run this where the database settings are readable; "
                                        "a denial is half the proof, the absent row the other.")
     if audit_rows != 0:
-        return check.Finding("3B", _PROBE_TITLE, check.CONTRADICTED, PROBE_EXPECTED,
+        return check.Finding("3B", _PROBE_TITLE, check.FAILED, PROBE_EXPECTED,
                              f"denied, but {audit_rows} tool_audit row(s) carry its turn",
                              evidence, "a denied call must leave no row; read those rows.")
     return check.Finding("3B", _PROBE_TITLE, check.PASSED, PROBE_EXPECTED,
@@ -543,8 +543,8 @@ def run_probe(cfg: Optional[Dict[str, str]]) -> check.Finding:
         _load_env()
         gateway_url = _require("AGENTCORE_GATEWAY_URL")
         token = _token_from_cognito("theo")
-    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as UNCHECKED
-        return check.Finding("3B", _PROBE_TITLE, check.UNCHECKED, PROBE_EXPECTED,
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 - reported as COULD NOT CHECK
+        return check.Finding("3B", _PROBE_TITLE, check.COULD_NOT_CHECK, PROBE_EXPECTED,
                              "the managed environment is not configured here",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "run this on the workshop box, where the Gateway is provisioned.")
@@ -592,9 +592,9 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
     if cfg is None:
         reason = [check.missing_settings_reason(env_path)]
         rows_findings = [
-            check.Finding("3B", _BUILD_TITLE, check.UNCHECKED, BUILD_EXPECTED,
+            check.Finding("3B", _BUILD_TITLE, check.COULD_NOT_CHECK, BUILD_EXPECTED,
                           "the check could not look", reason),
-            check.Finding("3B", _TICKETS_TITLE, check.UNCHECKED, TICKETS_EXPECTED,
+            check.Finding("3B", _TICKETS_TITLE, check.COULD_NOT_CHECK, TICKETS_EXPECTED,
                           "the check could not look", reason),
         ]
     else:
@@ -605,9 +605,9 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
         except Exception as exc:  # noqa: BLE001 - the reason is the finding
             reason = [f"{type(exc).__name__}: {str(exc)[:160]}"]
             rows_findings = [
-                check.Finding("3B", _BUILD_TITLE, check.UNCHECKED, BUILD_EXPECTED,
+                check.Finding("3B", _BUILD_TITLE, check.COULD_NOT_CHECK, BUILD_EXPECTED,
                               "the check could not look", reason),
-                check.Finding("3B", _TICKETS_TITLE, check.UNCHECKED, TICKETS_EXPECTED,
+                check.Finding("3B", _TICKETS_TITLE, check.COULD_NOT_CHECK, TICKETS_EXPECTED,
                               "the check could not look", reason),
             ]
     build, tickets = rows_findings
@@ -622,7 +622,7 @@ def findings_3a() -> List[check.Finding]:
     try:
         return judge_catalog(*source_catalog())
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return [check.Finding("3A", _CATALOG_TITLE, check.UNCHECKED, _CATALOG_EXPECTED,
+        return [check.Finding("3A", _CATALOG_TITLE, check.COULD_NOT_CHECK, _CATALOG_EXPECTED,
                               "the check could not look", [f"{type(exc).__name__}: {exc}"],
                               "run this from the repository root, with the backend's Python.")]
 

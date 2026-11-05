@@ -111,7 +111,7 @@ def test_the_starter_fallback_returns_a_candle_and_drops_annas_limits(conn, monk
     assert payload["search_plan"]["exclusions"] == []
 
     finding, rows = lab1_retry.evaluate(conn)
-    assert finding.state == "CONTRADICTED", finding
+    assert finding.state == "FAILED", finding
     assert "excluded candle" in finding.observed
     assert "dropped under $100, in stock, no candles" in finding.observed
     assert "the shopper asked: under $100, in stock, no candles" in finding.evidence

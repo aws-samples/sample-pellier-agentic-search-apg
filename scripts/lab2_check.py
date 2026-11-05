@@ -275,7 +275,7 @@ def _grant_verdict(grant: Optional[List[str]]) -> Tuple[Optional[str], str]:
     if sorted(grant) == sorted(STARTER_GRANT):
         return check.NOT_YET, ("the Stock agent that answered still held the tools it ships with: "
                                + text + ", none of which reads warehouse_inventory")
-    return check.CONTRADICTED, f"the Stock agent that answered was granted {text}"
+    return check.FAILED, f"the Stock agent that answered was granted {text}"
 
 
 def _call_problems(rows: Sequence[Dict[str, Any]]) -> List[str]:
@@ -384,10 +384,10 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     problems = _call_problems(rows)
     counts = _count_problems(conn, rows, evidence)
     if problems:
-        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A,
+        return check.Finding("2A", title, check.FAILED, EXPECTED_2A,
                              "; ".join(problems + counts), evidence, _NEXT_2A_GRANT)
     if counts:
-        return check.Finding("2A", title, check.CONTRADICTED, EXPECTED_2A, "; ".join(counts),
+        return check.Finding("2A", title, check.FAILED, EXPECTED_2A, "; ".join(counts),
                              evidence, "check_stock reported a count or ship window "
                              "warehouse_inventory does not hold for a piece Pellier carries: "
                              "rerun this check after "
@@ -420,7 +420,7 @@ def judge_function(conn: Any, worksheet: pathlib.Path = WORKSHEET,
         cur.execute(_LIVE_FUNCTION)
         live = cur.fetchone()
     if not live:
-        return (check.CONTRADICTED, "pellier.check_stock is missing from the database",
+        return (check.FAILED, "pellier.check_stock is missing from the database",
                 "pg_proc: no pellier.check_stock(text)")
     try:
         yours = _sha(function_body(worksheet.read_text(encoding="utf-8")))
@@ -481,7 +481,7 @@ def judge_2b(
                              "choose a query that is what its case says: run the check again "
                              "with another --unknown, --ambiguous or --sold-out."), rows
     if differs:
-        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B, observed,
+        return check.Finding("2B", title, check.FAILED, EXPECTED_2B, observed,
                              evidence, _NEXT_2B), rows
     if function_state is not None:
         return check.Finding("2B", title, function_state, EXPECTED_2B,
@@ -561,7 +561,7 @@ def judge_recorded_2b(conn: Any) -> check.Finding:
     observed = f"{len(found) - len(differs)} of {len(found)} recorded cases match" + (
         f" (not asked yet: {', '.join(unasked)})" if unasked else "")
     if differs:
-        return check.Finding("2B", title, check.CONTRADICTED, EXPECTED_2B_RECORDED,
+        return check.Finding("2B", title, check.FAILED, EXPECTED_2B_RECORDED,
                              observed + "; " + "; ".join(differs), evidence, _NEXT_2B_RECORDED)
     return check.Finding("2B", title, check.PASSED, EXPECTED_2B_RECORDED, observed, evidence)
 
@@ -628,7 +628,7 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
     cfg = check.db_config(env_path)
     title = f"Lab 2 Task {task}"
     if cfg is None:
-        return check.Finding(task, title, check.UNCHECKED, "a reachable database",
+        return check.Finding(task, title, check.COULD_NOT_CHECK, "a reachable database",
                              "the check could not look",
                              [check.missing_settings_reason(env_path)]), []
     try:
@@ -639,7 +639,7 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
             finding, rows = judge_2b(conn, live_tool(conn, cfg), inputs)
             return with_resend_hint(finding, judge_recorded_2b(conn)), rows
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
-        return check.Finding(task, title, check.UNCHECKED, "a reachable database",
+        return check.Finding(task, title, check.COULD_NOT_CHECK, "a reachable database",
                              "the check could not look",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "check that the database in pellier/backend/.env is reachable."), []

@@ -74,7 +74,7 @@ def test_the_live_region_is_the_starter() -> None:
 
 def test_the_starter_ranks_nothing(conn, monkeypatch) -> None:
     finding, rows = _verdict(conn, monkeypatch, lab_variants.vector_search(lab_variants.STARTER))
-    assert finding.state == "CONTRADICTED", finding
+    assert finding.state == "FAILED", finding
     assert finding.observed == ("the vector search returned no rows, so nothing is ranked by "
                                 "meaning yet")
     assert [row[3] for row in rows] == [0, 0, 0, 0]
@@ -107,7 +107,7 @@ def test_the_check_catches_a_realistic_mistake(conn, monkeypatch, mistake: str,
                                                replacements: Dict[str, str],
                                                observed: str) -> None:
     finding, _rows = _verdict(conn, monkeypatch, _variant(replacements))
-    assert finding.state == "CONTRADICTED", (mistake, finding)
+    assert finding.state == "FAILED", (mistake, finding)
     assert observed in finding.observed, (mistake, finding.observed)
 
 

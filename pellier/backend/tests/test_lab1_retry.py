@@ -50,7 +50,7 @@ def test_kept_limits_after_the_fallback_prove_it() -> None:
 def test_a_dropped_limit_is_named_and_blames_the_fallback() -> None:
     lost = {"price_max_usd": None, "in_stock_only": False, "categories": []}
     finding = _judge(_receipt(kept=lost, exclusions=[]))
-    assert finding.state == "CONTRADICTED"
+    assert finding.state == "FAILED"
     assert finding.observed.endswith("dropped under $100, in stock, no candles")
     assert "_next_attempt" in finding.next_step
 
@@ -61,7 +61,7 @@ def test_a_dropped_limit_is_named_and_blames_the_fallback() -> None:
     (None, "the receipt does not record what the shopper asked"),
 ])
 def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, observed) -> None:
-    """Anna's chip used to state no limit; a fix must not read CONTRADICTED for it."""
+    """Anna's chip used to state no limit; a fix must not read FAILED for it."""
     finding = _judge(_receipt(requested=requested, kept={}, exclusions=[]))
     assert finding.state == "NOT YET"
     assert finding.observed == observed
@@ -192,18 +192,18 @@ def test_without_systemd_the_edit_alone_dates_the_search() -> None:
 
 
 def test_a_search_after_the_restart_is_judged_as_before() -> None:
-    """A wrong edit still reads CONTRADICTED once Anna has been sent again."""
+    """A wrong edit still reads FAILED once Anna has been sent again."""
     later = datetime(2026, 10, 14, 14, 47, 6, tzinfo=timezone.utc)
     finding, rows = lab1.evaluate(_Conn(_dropped_at(later), [CANDLE]),
                                   lab1.Timeline(EDITED, RESTARTED))
-    assert finding.state == "CONTRADICTED"
+    assert finding.state == "FAILED"
     assert rows and rows[0][-1] == "breaks: excluded candle"
 
 
 def test_no_timeline_keeps_the_rows_only_reading() -> None:
     """The Wrap-up summary has no timeline; it judges the newest search as it is."""
     finding, _rows = lab1.evaluate(_Conn(_dropped_at(RAN), [CANDLE]))
-    assert finding.state == "CONTRADICTED"
+    assert finding.state == "FAILED"
 
 
 @pytest.mark.parametrize("value, expected", [
