@@ -1,6 +1,6 @@
 ---
 name: verify-governed-workshop
-description: Audit Pellier's governed 100-minute workshop against its title, abstract, four labs, runtime claims, proof surfaces, and delivery gates. Use before flagship delivery, after changes to retrieval, audit, AgentCore, Cedar, workshop navigation, bootstrap, or participant-facing evidence.
+description: Audit Pellier's governed 120-minute workshop against its title, abstract, four labs, runtime claims, proof surfaces, and delivery gates. Use before flagship delivery, after changes to retrieval, audit, AgentCore, Cedar, workshop navigation, bootstrap, or participant-facing evidence.
 ---
 
 # Verify the governed workshop
