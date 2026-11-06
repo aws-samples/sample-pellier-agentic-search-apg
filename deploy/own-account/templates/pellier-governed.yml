@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: 2010-09-09
 
-Description: "Pellier Governed: 100-minute workshop (Aurora PostgreSQL with pgvector, private Code Editor on EC2, CloudFront HTTPS with a private HTTP VPC origin)"
+Description: "Pellier Governed: 120-minute workshop (Aurora PostgreSQL with pgvector, private Code Editor on EC2, CloudFront HTTPS with a private HTTP VPC origin)"
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -99,7 +99,7 @@ Parameters:
 
   InfrastructureRevision:
     Type: String
-    Default: "c0f318a0c7cb82b2"
+    Default: "b9b801c2c03527c3"
     AllowedPattern: ^[0-9a-f]{16}$
     ConstraintDescription: Use the 16-character release-tooling digest.
     Description: >
