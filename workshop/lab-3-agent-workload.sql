@@ -13,8 +13,10 @@
 --   pellier_agent          the customer-scoped tools (orders, tickets). The app
 --                          and the Gateway Lambda switch into it for each call.
 --   pellier_credit_writer  the credit path, once a credit has run (Lab 4)
---   your login             the app's own login: catalog search, the audit ledger,
---                          and the statements you ran in psql
+--   pellier_store_tools    the Gateway Lambda's own login: catalog search, credit
+--                          requests and the audit ledger. It holds no customer data
+--                          and becomes one of the two roles above for those calls.
+--   your login             the app on this instance, and the statements you ran in psql
 --
 -- Supplied and read-only: it runs in one transaction and rolls back.
 --   psql -f workshop/lab-3-agent-workload.sql
@@ -117,7 +119,34 @@ SELECT format('distinct statements %s, calls %s', count(*), coalesce(sum(calls),
 RESET ROLE;
 
 \echo ''
-\echo 'Your login:' :lab_3_login '(the app, the audit ledger, and your own psql)'
+\echo 'pellier_store_tools: the Gateway Lambda''s own login, which becomes the roles above'
+SET LOCAL ROLE pellier_store_tools;
+SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(sum(calls), 0),
+              coalesce(sum(rows), 0)) AS summary,
+       count(*) > 0 AS seen
+  FROM pg_stat_statements
+ WHERE dbid = :lab_3_db AND userid = current_user::regrole AND query ~ 'pellier\.'
+   AND query !~ 'lab_3_probe'
+\gset lab_3_tools_
+\if :lab_3_tools_seen
+  \echo '          ' :lab_3_tools_summary
+  SELECT sum(calls) AS calls, sum(rows) AS rows,
+         round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
+    FROM (SELECT calls, rows, total_exec_time,
+                 left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
+            FROM pg_stat_statements
+           WHERE dbid = :lab_3_db AND userid = current_user::regrole
+             AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
+   GROUP BY statement
+   ORDER BY calls DESC, statement
+   LIMIT 3;
+\else
+  \echo '           none yet: the Gateway has not run a store tool since the cluster started.'
+\endif
+RESET ROLE;
+
+\echo ''
+\echo 'Your login:' :lab_3_login '(the app on this instance, and your own psql)'
 SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(sum(calls), 0),
               coalesce(sum(rows), 0)) AS summary
   FROM pg_stat_statements

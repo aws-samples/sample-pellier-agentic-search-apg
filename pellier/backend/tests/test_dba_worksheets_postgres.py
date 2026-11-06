@@ -11,6 +11,7 @@ is missing and passes once every link finds its row. Neither changes a table.
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -230,3 +231,26 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
     assert f"Key       {chain['key']}" in done.stdout
     assert max(len(line) for line in done.stdout.splitlines()) < 120
     assert _counts(fresh_db) == before
+
+
+def test_the_store_tools_login_reads_as_its_own_section(statements_db: Cluster) -> None:
+    """The Gateway Lambda signs in as pellier_store_tools, so its catalog reads are its own."""
+    statements_db.psql("ALTER ROLE pellier_store_tools LOGIN")
+    try:
+        read = subprocess.run(
+            [str(statements_db.bin / "psql"), "-X", "-h", str(statements_db.socket), "-U",
+             "pellier_store_tools", "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c",
+             "SELECT count(*) FROM pellier.product_catalog WHERE price < 100"],
+            capture_output=True, text=True, timeout=60)
+        assert read.returncode == 0, read.stderr
+        _agent_reads(statements_db, "theo", "CUST-THEO")
+        done = _worksheet(statements_db, WORKLOAD)
+    finally:
+        statements_db.psql("ALTER ROLE pellier_store_tools NOLOGIN")
+    assert done.returncode == 0, done.stdout + done.stderr
+    section = done.stdout.split("pellier_store_tools: the Gateway Lambda's own login", 1)[1]
+    section = section.split("Your login:", 1)[0]
+    assert re.search(r"distinct statements [1-9]\d*, calls [1-9]", section), section
+    assert "FROM pellier.product_catalog" in section
+    assert done.stdout.rstrip().endswith("Lab 3 workload check passed")
+    assert max(len(line) for line in done.stdout.splitlines()) < 120

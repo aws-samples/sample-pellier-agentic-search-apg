@@ -245,6 +245,7 @@ def test_cloudformation_waits_for_stage2_readiness_not_only_the_editor() -> None
         "COGNITO_CLIENT_ID",
         "COGNITO_TEST_CREDENTIALS_SECRET_ARN",
         "DB_SECRET_ARN",
+        "STORE_TOOLS_SECRET_ARN",
         "DB_CLUSTER_ARN",
         "AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN",
         "WORKSHOP_SOURCE_REVISION",

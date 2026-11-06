@@ -1128,6 +1128,27 @@ def _configure_transaction_search(
         time.sleep(min(TRANSACTION_SEARCH_POLL_SECONDS, deadline - now))
 
 
+def _ensure_store_tools_login(region: str, required: dict[str, str], db_name: str) -> None:
+    """Give the store tools' login its password and prove its secret signs in as it.
+
+    Runs before every Lambda deploy, so a Lambda never ships with a secret that cannot sign in.
+    """
+    deploy_path = str(Path(__file__).resolve().parent / "deploy")
+    if deploy_path not in sys.path:
+        sys.path.insert(0, deploy_path)
+    import store_tools_login
+
+    store_tools_login.ensure_login(
+        secrets=boto3.client("secretsmanager", region_name=region, config=AWS_CONFIG),
+        rds_data=boto3.client("rds-data", region_name=region, config=AWS_CONFIG),
+        cluster_arn=required["db_cluster_arn"],
+        master_secret_arn=required["db_secret_arn"],
+        login_secret_arn=required["store_tools_secret_arn"],
+        database=db_name,
+    )
+    print(f"Store tools sign in to Aurora as {store_tools_login.LOGIN}")
+
+
 def _ensure_data_api_enabled(region: str, db_cluster_arn: str) -> None:
     rds = boto3.client("rds", region_name=region, config=AWS_CONFIG)
     cluster_id = db_cluster_arn.rsplit(":", 1)[-1]
@@ -1471,10 +1492,11 @@ def _deploy_lambdas(
     region: str,
     db_region: str,
     db_cluster_arn: str,
-    db_secret_arn: str,
+    store_tools_secret_arn: str,
     db_name: str,
     identity: DeploymentIdentity | None = None,
 ) -> dict[str, str]:
+    """Deploy the store tools' Lambda, which reaches Aurora with its own login's secret."""
     lambda_client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
     arns: dict[str, str] = {}
     for surface, config in _deployment_targets(identity or deployment_identity()).items():
@@ -1491,7 +1513,7 @@ def _deploy_lambdas(
                 "--db-region",
                 db_region,
                 "--secret-arn",
-                db_secret_arn,
+                store_tools_secret_arn,
                 "--database",
                 db_name,
                 "--mcp-server-path",
@@ -3184,6 +3206,7 @@ def _provision(
     required = {
         "db_cluster_arn": _require_env("DB_CLUSTER_ARN"),
         "db_secret_arn": _require_env("DB_SECRET_ARN"),
+        "store_tools_secret_arn": _require_env("STORE_TOOLS_SECRET_ARN"),
         "cognito_pool": _require_env("COGNITO_POOL"),
         "cognito_client": _require_env("COGNITO_CLIENT"),
         "credentials_secret": _require_env(
@@ -3369,13 +3392,14 @@ def _provision(
         )
         _ensure_data_api_enabled(db_region, required["db_cluster_arn"])
 
+        _ensure_store_tools_login(db_region, required, db_name)
         lambda_arns = _deploy_lambdas(
             repo=repo,
             deploy_dir=deploy_dir,
             region=region,
             db_region=db_region,
             db_cluster_arn=required["db_cluster_arn"],
-            db_secret_arn=required["db_secret_arn"],
+            store_tools_secret_arn=required["store_tools_secret_arn"],
             db_name=db_name,
             identity=identity,
         )

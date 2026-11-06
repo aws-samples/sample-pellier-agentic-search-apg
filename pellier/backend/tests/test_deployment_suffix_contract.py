@@ -161,7 +161,8 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
     spec.loader.exec_module(module)
     inputs = {
         FLAG: "rctest", "AWS_REGION": "us-east-1", "DB_CLUSTER_ARN": "arn:aws:rds:us-east-1:123456789012:cluster:fixture",
-        "DB_SECRET_ARN": "fixture", "COGNITO_POOL": "fixture", "COGNITO_CLIENT": "fixture",
+        "DB_SECRET_ARN": "fixture", "STORE_TOOLS_SECRET_ARN": "fixture",
+        "COGNITO_POOL": "fixture", "COGNITO_CLIENT": "fixture",
         "COGNITO_TEST_CREDENTIALS_SECRET_ARN": "fixture", "AGENT_MODEL_ID": "fixture",
         "BEDROCK_FAST_MODEL": "fixture", "AGENTCORE_RUNTIME_LOG_RETENTION_DAYS": "30",
         "AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN": "arn:aws:kms:us-east-1:123456789012:key/12345678-1234-1234-1234-1234567890ab",
@@ -175,6 +176,7 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
     monkeypatch.setattr(module.boto3, "client", lambda service, **_: SimpleNamespace(get_caller_identity=lambda: {"Account": "123456789012", "Arn": "arn:aws:iam::123456789012:role/fixture"}) if service == "sts" else pytest.fail("unexpected provider access"))
     monkeypatch.setattr(module, "_verify_log_kms_key", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(module, "_ensure_data_api_enabled", lambda *_args: None)
+    monkeypatch.setattr(module, "_ensure_store_tools_login", lambda *_args: None)
     monkeypatch.setattr(module, "_verify_local_schema", lambda: {})
     captured = []
 

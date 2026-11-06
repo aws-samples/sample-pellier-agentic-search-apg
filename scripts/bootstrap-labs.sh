@@ -345,6 +345,7 @@ print(value.get("client_secret", "") if isinstance(value, dict) else value)
     # below goes through pgpass_escape instead of trusting the character set.
     cat > "$REPO_PATH/.env" << EOF
 DB_SECRET_ARN='${DB_SECRET_ARN:-}'
+STORE_TOOLS_SECRET_ARN='${STORE_TOOLS_SECRET_ARN:-}'
 DB_CLUSTER_ARN='${DB_CLUSTER_ARN}'
 DB_HOST='${DB_HOST}'
 DB_PORT='${DB_PORT}'
@@ -1394,6 +1395,7 @@ export PGSECRET='${DB_SECRET_ARN:-}'
 export PGDATABASE='${DB_NAME:-pellier}'
 export DB_CLUSTER_ARN='${DB_CLUSTER_ARN:-}'
 export DB_SECRET_ARN='${DB_SECRET_ARN:-}'
+export STORE_TOOLS_SECRET_ARN='${STORE_TOOLS_SECRET_ARN:-}'
 export DB_NAME='${DB_NAME:-pellier}'
 export COGNITO_POOL='${COGNITO_POOL:-}'
 export COGNITO_CLIENT='${COGNITO_CLIENT:-}'
@@ -1438,6 +1440,7 @@ EOF
         export REPO_PATH='$REPO_PATH'
         export DB_CLUSTER_ARN='${DB_CLUSTER_ARN:-}'
         export DB_SECRET_ARN='${DB_SECRET_ARN:-}'
+        export STORE_TOOLS_SECRET_ARN='${STORE_TOOLS_SECRET_ARN:-}'
         export DB_NAME='${DB_NAME:-pellier}'
         export COGNITO_POOL='${COGNITO_POOL:-}'
         export COGNITO_CLIENT='${COGNITO_CLIENT:-}'

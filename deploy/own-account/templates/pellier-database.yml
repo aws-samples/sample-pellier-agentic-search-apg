@@ -191,6 +191,29 @@ Resources:
         - Key: Project
           Value: pellier
 
+  # The store tools' own login (scripts/migrations/001_schema.sql creates the role; the
+  # provisioner gives it this password and proves the secret signs in as it). The Gateway's
+  # Lambda reaches Aurora with this secret instead of the master's. Named under pellier/ so
+  # the instance's existing secret grant covers it. Letters and digits only, so the password
+  # needs no quoting anywhere and SCRAM's SASLprep leaves it unchanged.
+  StoreToolsSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Name: !Sub pellier/store-tools-db-${WorkshopId}
+      Description: Aurora login for the Pellier store tools Lambda (pellier_store_tools)
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"pellier_store_tools"}'
+        GenerateStringKey: password
+        PasswordLength: 40
+        ExcludePunctuation: true
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
   SecretTargetAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Properties:
@@ -211,6 +234,10 @@ Outputs:
     Value: !GetAtt DBCluster.DBClusterResourceId
     Export:
       Name: !Sub ${AWS::StackName}-ClusterResourceId
+  StoreToolsSecretArn:
+    Value: !Ref StoreToolsSecret
+    Export:
+      Name: !Sub ${AWS::StackName}-StoreToolsSecretArn
   ClusterIdentifier:
     Value: !Ref DBCluster
     Export:

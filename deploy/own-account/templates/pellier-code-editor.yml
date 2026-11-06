@@ -67,6 +67,10 @@ Parameters:
     Type: String
     Description: Aurora master secret ARN.
 
+  StoreToolsSecretArn:
+    Type: String
+    Description: The store tools Lambda's own Aurora login secret (pellier_store_tools).
+
   DBClusterArn:
     Type: String
     Description: Aurora cluster ARN used by MCP Lambda Data API calls.
@@ -1406,6 +1410,7 @@ Resources:
           export AWS_REGION="${AWS::Region}"
           export AWS_DEFAULT_REGION="${AWS::Region}"
           export DB_SECRET_ARN="${DBSecretArn}"
+          export STORE_TOOLS_SECRET_ARN="${StoreToolsSecretArn}"
           export DB_CLUSTER_ARN="${DBClusterArn}"
           export DB_HOST="${DBClusterEndpoint}"
           export DB_NAME="pellier"

@@ -64,7 +64,8 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
         "orders.orders_own_rows", "support_tickets.support_tickets_own_rows",
     ]
     assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%' "
-                           "ORDER BY 1") == ["pellier_agent", "pellier_credit_writer"]
+                           "ORDER BY 1") == ["pellier_agent", "pellier_credit_writer",
+                                             "pellier_store_tools"]  # the Gateway Lambda's login
     # This cluster has no pgAudit library, so the schema built without the extension.
     assert _rows(fresh_db, "SELECT extname FROM pg_extension ORDER BY 1") == [
         "pg_stat_statements", "pg_trgm", "plpgsql", "vector",
