@@ -8,8 +8,10 @@ must hold:
 * it can become pellier_agent or pellier_credit_writer for one transaction, and inherits nothing
   from either until it does. It can never become the owner;
 * every store tool still works when the Lambda runs as this login, reads and the credit path
-  alike, and every audit row it writes lands. The audit writer swallows its own failures, so a
-  missing grant would otherwise drop evidence silently.
+  alike, and every audit row and retrieval receipt it writes lands. Both writers swallow their
+  own failures, so a missing grant would otherwise drop evidence silently;
+* pgAudit can log the credit it writes: the login is a member of the credit function's owner,
+  through a membership that grants it nothing.
 """
 
 from __future__ import annotations
@@ -128,6 +130,8 @@ def test_the_login_inherits_nothing_and_cannot_bypass_row_security(as_login) -> 
                     "rolcreaterole": False}
     assert members == [
         {"role": "pellier_agent", "inherit_option": False, "set_option": True},
+        # Membership only, for pgAudit: no privilege, no SET ROLE, no BYPASSRLS.
+        {"role": "pellier_credit_owner", "inherit_option": False, "set_option": False},
         {"role": "pellier_credit_writer", "inherit_option": False, "set_option": True},
     ]
 
@@ -223,6 +227,94 @@ def test_a_credit_request_and_its_audit_row_land_as_the_login(as_login) -> None:
                              (turn,)).fetchone()
     assert request == {"source_turn_id": turn}
     assert audit == {"caller": "gateway"}
+
+
+def test_a_search_writes_its_retrieval_receipt_as_the_login(as_login) -> None:
+    # The receipt writer swallows its own failure too, so only the row proves the grant.
+    turn = "turn-storetoolsreceipt01"
+    result = lambda_tools.TOOLS["search_products"](
+        {"query": "a bowl for slow mornings", "limit": 3}, turn)
+    assert "error" not in result, result
+    with _connect(as_login, "postgres") as conn:
+        receipt = conn.execute("SELECT rail FROM pellier.retrieval_receipts WHERE turn_id = %s",
+                               (turn,)).fetchall()
+    assert receipt == [{"rail": lambda_tools.RAIL}]
+
+
+def _approved_review(cluster: Any, customer: str) -> str:
+    """A customer with two received returns and a review a person approved for $25.00."""
+    with _connect(cluster, "postgres") as conn:
+        conn.execute("INSERT INTO pellier.customers (id, name, cognito_username) "
+                     "VALUES (%s, %s, %s)", (customer, customer, customer.lower()))
+        conn.execute("INSERT INTO pellier.orders (customer_id, product_id, amount_paid_cents, "
+                     "ship_to, return_status) SELECT %s, (SELECT min(\"productId\") FROM "
+                     "pellier.product_catalog), 1250, 'login', 'received' "
+                     "FROM generate_series(1, 2)", (customer,))
+        return conn.execute(
+            "INSERT INTO pellier.approvals (customer_id, tool, args, status, order_ids, "
+            "action_hash, requester_kind, decided_by, decided_at) "
+            "SELECT %s, 'give_store_credit', jsonb_build_object('customer_id', %s::text, "
+            "'amount_cents', 2500, 'reason', 'login'), 'approved', array_agg(id ORDER BY id), "
+            "repeat('c', 64), 'operator', 'login', now() "
+            "FROM pellier.orders WHERE customer_id = %s "
+            "RETURNING 'operator-review:' || id || ':' || left(action_hash, 32) AS key",
+            (customer, customer, customer)).fetchone()["key"]
+
+
+def test_a_credit_the_login_writes_lands_once(as_login) -> None:
+    customer = "CUST-STORETOOLSLOGIN"
+    args = {"customer_id": customer, "amount_cents": 2500, "reason": "login",
+            "idempotency_key": _approved_review(as_login, customer)}
+    first = lambda_tools.TOOLS["give_store_credit"](args, None)
+    retry = lambda_tools.TOOLS["give_store_credit"](args, None)
+    assert first["status"] == "success", first
+    assert retry["credit_id"] == first["credit_id"] and retry["idempotent_replay"] is True
+    assert sorted(first["order_ids"]) == first["order_ids"] and len(first["order_ids"]) == 2
+
+
+def test_pgaudit_can_log_the_credit_the_login_writes(as_login) -> None:
+    # pgAudit skips a statement whose current role the session's login is not a member of
+    # (pgaudit.c, log_select_dml), which is every statement inside a SECURITY DEFINER
+    # function owned by a role the login does not belong to. So the login belongs to the
+    # credit function's owner, through a membership that grants it nothing.
+    with _connect(as_login, "postgres") as conn:
+        owner = conn.execute(
+            "SELECT proowner::regrole::text AS owner, "
+            "pg_has_role(%s, proowner, 'MEMBER') AS member, "
+            "pg_has_role(%s, proowner, 'USAGE') AS usage, "
+            "pg_has_role(%s, proowner, 'SET') AS can_set "
+            "FROM pg_proc WHERE oid = "
+            "'pellier.give_store_credit(text,text,integer,text,text)'::regprocedure",
+            (LOGIN, LOGIN, LOGIN)).fetchone()
+    assert owner == {"owner": "pellier_credit_owner", "member": True, "usage": False,
+                     "can_set": False}
+
+
+def _seen(conn: psycopg.Connection) -> Dict[str, Any]:
+    import trace_agentcore_calls as trace
+    row = conn.execute(trace.PGAUDIT_STATUS_SQL).fetchone()
+    return {"runs_as": row["runs_as"], "seen": row["gateway_login_seen"]}
+
+
+def test_the_trace_checks_pgaudit_can_see_the_gateways_credit_before_claiming_none(
+        as_login) -> None:
+    # The Lab 4A trace and the Wrap-up's check run this query before they trust an empty log.
+    scripts = Path(__file__).resolve().parents[3] / "scripts"
+    if str(scripts) not in sys.path:
+        sys.path.insert(0, str(scripts))
+    fn = "pellier.give_store_credit(text, text, integer, text, text)"
+    with _connect(as_login, "postgres") as conn:
+        assert _seen(conn) == {"runs_as": "pellier_credit_owner", "seen": True}
+        conn.execute(f"REVOKE pellier_credit_owner FROM {LOGIN}")
+        try:
+            assert _seen(conn) == {"runs_as": "pellier_credit_owner", "seen": False}
+        finally:
+            conn.execute(f"GRANT pellier_credit_owner TO {LOGIN} WITH INHERIT FALSE, SET FALSE")
+        conn.execute(f"ALTER FUNCTION {fn} SECURITY INVOKER")
+        try:  # Lab 4B's starter: the function runs as the credit writer, which the login becomes
+            assert _seen(conn) == {"runs_as": "pellier_credit_writer", "seen": True}
+        finally:
+            conn.execute(f"ALTER FUNCTION {fn} SECURITY DEFINER")
 
 
 import base64 as _base64  # noqa: E402

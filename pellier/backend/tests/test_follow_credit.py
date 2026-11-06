@@ -144,6 +144,18 @@ def test_pgaudit_off_or_unread_cannot_vouch_for_the_write() -> None:
     assert [row[1] for row in followed.rows][:4] == ["Agent", "Identity", "Policy", "Request"]
 
 
+def test_pgaudit_that_cannot_see_the_gateways_credit_fails_instead_of_waiting() -> None:
+    # A log that can never record the write is a defect, not a log still on its way: this is
+    # the gap that made this check fail on governed 5f099fe2, and it must keep failing.
+    trace = importlib.import_module("trace_agentcore_calls")
+    reason = trace.gateway_blind_spot({"gateway_login_seen": False, "runs_as": "postgres"})
+    followed = follow_credit.follow(_story(), _records(writes=[], unavailable=reason), NOW)
+    assert followed.state == check.FAILED and followed.observed == reason
+    assert followed.next_step == ("this is a fault in the workshop's database, not in your labs. "
+                                  "Raise your hand so a facilitator can check it.")
+    assert follow_credit.report(followed).endswith("End-to-end check failed")
+
+
 def test_no_insert_after_the_export_lag_fails() -> None:
     followed = follow_credit.follow(_story(), _records(writes=[]), NOW)
     assert followed.state == check.FAILED

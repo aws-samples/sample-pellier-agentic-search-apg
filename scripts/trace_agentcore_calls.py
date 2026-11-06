@@ -78,13 +78,32 @@ _LINE_TIME = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) UTC:")
 _AUDIT = re.compile(r"AUDIT:\s+")
 # The one key shape give_store_credit admits (store_tools.execution_idempotency_key).
 _CREDIT_KEY = re.compile(r"operator-review:\d+:[0-9a-f]{32}")
-PGAUDIT_STATUS_SQL = """
+# The Gateway's Lambda signs in to Aurora as this login (scripts/deploy/store_tools_login.py).
+GATEWAY_LOGIN = "pellier_store_tools"
+# How the Aurora line starts when pgAudit cannot record that login's credit (gateway_blind_spot).
+BLIND_SPOT = "pgAudit cannot see the Gateway's credits"
+# runs_as is the role give_store_credit's INSERT runs as: its owner when it is SECURITY DEFINER,
+# else the credit writer the caller became. pgAudit skips a statement whose role the session's
+# login is not a member of (pgaudit.c, log_select_dml), so gateway_login_seen says whether a
+# credit the Gateway writes can leave a line at all; NULL when the cluster has no such login.
+PGAUDIT_STATUS_SQL = f"""
 SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pgaudit') AS extension,
        current_setting('pgaudit.role', true) AS audit_role,
        CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'rds_pgaudit')
             THEN has_table_privilege('rds_pgaudit', 'pellier.store_credits', 'INSERT')
              AND has_table_privilege('rds_pgaudit', 'pellier.store_credits', 'UPDATE')
-            ELSE false END AS granted
+            ELSE false END AS granted,
+       f.runs_as,
+       CASE WHEN EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{GATEWAY_LOGIN}')
+            THEN pg_has_role('{GATEWAY_LOGIN}', f.runs_as::name, 'MEMBER')
+            END AS gateway_login_seen
+  FROM (SELECT 1) one
+  LEFT JOIN (SELECT CASE WHEN p.prosecdef THEN p.proowner::regrole::text
+                         ELSE 'pellier_credit_writer' END AS runs_as
+               FROM pg_proc p
+              WHERE p.oid = to_regprocedure(
+                        'pellier.give_store_credit(text, text, integer, text, text)')) f
+    ON true
 """
 
 
@@ -304,6 +323,17 @@ def pgaudit_off_reason(status: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+def gateway_blind_spot(status: Dict[str, Any]) -> Optional[str]:
+    """The Aurora line when pgAudit cannot log a credit the Gateway writes, else ``None``.
+
+    Without this, a log that cannot record the Gateway's INSERT reads as "no write".
+    """
+    if status.get("gateway_login_seen") is False:
+        return (f"{BLIND_SPOT}: {GATEWAY_LOGIN} is not a member of {status.get('runs_as')}, "
+                f"the role {AUDITED_TOOL} runs as")
+    return None
+
+
 def call_window(call: Dict[str, Any]) -> Tuple[float, float]:
     """A Gateway call's span of time, widened by CLOCK_SLACK_S each side for Aurora's clock."""
     start = call["started_ns"] / 1e9
@@ -370,6 +400,9 @@ def read_aurora(logs: Any, minutes: int) -> Tuple[List[Dict[str, Any]], Optional
     reason = pgaudit_off_reason(status)
     if reason:
         return [], f"pgAudit is off on this cluster: {reason}"
+    blind = gateway_blind_spot(status)
+    if blind:
+        return [], blind
     cluster = cluster_id(os.environ.get("DB_CLUSTER_ARN", ""))
     if not cluster:
         return [], "pgAudit is on, but DB_CLUSTER_ARN is not set, so its log group has no name"

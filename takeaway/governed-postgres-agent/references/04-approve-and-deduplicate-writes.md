@@ -18,7 +18,10 @@ role. A direct table UPDATE can bypass an otherwise correct insert guard.
 A SECURITY DEFINER function needs a protected owner, schema-qualified object
 names, a fixed safe search_path and restricted EXECUTE privileges. Check
 inherited and PUBLIC privileges. Do not check only grants that name the role
-directly.
+directly. If pgAudit is the database's record of the write, make each login that
+calls the function a member of its owner (`WITH INHERIT FALSE, SET FALSE` grants
+nothing else). pgAudit skips statements inside a SECURITY DEFINER function when
+the session's login is not a member of the role the function runs as.
 
 ## A complete, runnable example
 

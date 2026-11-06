@@ -438,6 +438,24 @@ def test_read_aurora_says_off_plainly_and_never_reads_the_log(monkeypatch) -> No
                            "installed (the library did not load)")
 
 
+def test_read_aurora_claims_no_absence_when_pgaudit_cannot_see_the_gateways_credit(
+        monkeypatch) -> None:
+    # pgAudit skips a statement whose role the session's login does not belong to, so an
+    # empty log would otherwise read as "no write" (event 34, governed 5f099fe2).
+    _db(monkeypatch, {**ON, "runs_as": "postgres", "gateway_login_seen": False})
+    logs = _AuditLogs([_event(INSERT_LINE)])
+    writes, unavailable = trace.read_aurora(logs, 60)
+    assert writes == [] and logs.asked == {}
+    assert unavailable == ("pgAudit cannot see the Gateway's credits: pellier_store_tools is not "
+                           "a member of postgres, the role give_store_credit runs as")
+
+
+def test_a_gateway_login_that_belongs_to_the_role_or_no_such_login_reads_the_log() -> None:
+    for status in ({**ON, "runs_as": "pellier_credit_owner", "gateway_login_seen": True},
+                   {**ON, "runs_as": "postgres", "gateway_login_seen": None}):
+        assert trace.gateway_blind_spot(status) is None
+
+
 def test_read_aurora_tells_an_unreadable_log_from_an_empty_one(monkeypatch) -> None:
     _db(monkeypatch, ON)
     assert trace.read_aurora(_AuditLogs([], "ResourceNotFoundException"), 60) == ([], None)

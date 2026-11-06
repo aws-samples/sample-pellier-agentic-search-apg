@@ -1363,6 +1363,11 @@ def test_the_runtime_role_never_requests_bypassrls() -> None:
     Aurora and a later grant would change nothing in the schema file.
     ``ALTER ROLE <name> SET|RESET <setting>`` only sets a session default and
     cannot change a role attribute, so it is not a role-defining statement.
+
+    The one exception is the credit function's owner. It cannot log in, only the
+    database owner can SET ROLE to it, and it stands in for the table owner the
+    function ran as before, whom row-level security never bound either. No
+    session runs as it except through the function's fixed body.
     """
     for line in SCHEMA.read_text().splitlines():
         stripped = line.strip()
@@ -1370,6 +1375,9 @@ def test_the_runtime_role_never_requests_bypassrls() -> None:
         if stripped.startswith("--") or not ("create role" in lowered or "alter role" in lowered):
             continue
         if re.search(r"\balter role\s+\S+\s+(set|reset)\s", lowered):
+            continue
+        if lowered.startswith("create role pellier_credit_owner "):
+            assert re.search(r"\bnologin\b", lowered), f"the owner must not log in: {stripped}"
             continue
         assert "nobypassrls" in lowered, f"role statement may grant BYPASSRLS: {stripped}"
     assert "NOT r.rolbypassrls" in HEALTH_GATE.read_text(encoding="utf-8")

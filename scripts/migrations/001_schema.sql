@@ -1,9 +1,9 @@
--- Pellier's whole database: one schema, ten tables, one application role.
+-- Pellier's whole database: one schema, ten tables and the roles that use them.
 --
 -- Read it top to bottom. The store's data comes first (catalog, stock,
 -- customers, orders, policies, tickets), then the governed credit path
 -- (approvals, store credits), then the two evidence tables (tool_audit,
--- retrieval_receipts), then who may read what (the role, its grants and
+-- retrieval_receipts), then who may read what (the roles, their grants and
 -- row-level security).
 --
 -- Applied once, to an empty database, by scripts/setup/database-setup.sh.
@@ -747,7 +747,7 @@ CREATE TRIGGER retrieval_receipts_append_only
 -- binds is still its code's choice, checked first by Cedar at the Gateway.
 
 -- Roles are shared by every database on the cluster, so each is created once.
--- NOBYPASSRLS keeps the policies binding; the owner joins the two pellier roles to
+-- NOBYPASSRLS keeps the policies binding; the owner joins the pellier roles to
 -- SET ROLE into them. Nobody joins rds_pgaudit (see below).
 DO $$
 BEGIN
@@ -765,15 +765,24 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_store_tools') THEN
         CREATE ROLE pellier_store_tools NOLOGIN NOINHERIT NOBYPASSRLS;
     END IF;
+    -- The credit function's owner, whose rights the function runs with. Nobody logs in as
+    -- it. BYPASSRLS gives it the table owner's view of orders; the function checks each
+    -- order's customer itself.
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_credit_owner') THEN
+        CREATE ROLE pellier_credit_owner NOLOGIN NOINHERIT BYPASSRLS;
+    END IF;
 END $$;
 GRANT pellier_agent TO CURRENT_USER;
 GRANT pellier_credit_writer TO CURRENT_USER;
 -- So the owner can read the login's statements (Lab 3's workload check sets each role).
 GRANT pellier_store_tools TO CURRENT_USER WITH INHERIT FALSE, SET TRUE;
+-- So the owner can still alter the credit function and grant EXECUTE on it (Lab 4B).
+GRANT pellier_credit_owner TO CURRENT_USER;
 
 -- Database evidence for the credit path. pgAudit's object auditing logs every statement
 -- that touches a table its audit role (pgaudit.role, rds_pgaudit on Aurora) holds a
--- privilege on, whoever runs it: the credit function under its owner's rights included.
+-- privilege on, whoever runs it: the credit function under its owner's rights included,
+-- because every login that writes a credit is a member of pellier_credit_owner (below).
 -- rds_pgaudit cannot log in and is never a session's role; these two privileges only mark
 -- what is audited. tool_audit records what the application ran; this records what reached
 -- the table, one log line per INSERT or UPDATE, in the cluster's exported PostgreSQL log.
@@ -790,7 +799,8 @@ GRANT SELECT ON pellier.orders TO pellier_agent;
 GRANT SELECT, INSERT ON pellier.support_tickets TO pellier_agent;
 
 -- What the store tools' login may do on its own: read the catalog, the stock and the
--- return policy, open a credit request, and write the audit ledger. It holds nothing on
+-- return policy, open a credit request, and write the audit ledger and a search's
+-- retrieval receipt (every column but the id and time the table sets). It holds nothing on
 -- customers, orders, tickets or credits. For those it must become pellier_agent or
 -- pellier_credit_writer for one transaction (SET LOCAL ROLE), and NOINHERIT plus
 -- INHERIT FALSE mean it gains nothing from either role until it does.
@@ -804,6 +814,32 @@ GRANT INSERT (session_id, tool, caller, args, result, latency_ms, build_fingerpr
 GRANT INSERT (customer_id, tool, status, source_turn_id, issue, requested_by_sub, requester_kind),
       SELECT (id, customer_id, tool, status)
     ON pellier.approvals TO pellier_store_tools;
+GRANT INSERT (turn_id, session_id, principal_sub, rail, trace_id, query_hash, query_preview,
+              search_plan, hard_constraints, soft_preferences, exclusions, relaxations,
+              embedding_model, rerank_model, retrieval_config, index_parameters,
+              candidate_product_ids, vector_ranks, lexical_ranks, rrf_scores, rerank_scores,
+              merchandising_rules, memory_record_ids_used, citation_ids, citation_snapshots,
+              citation_snapshot_hash, latency_breakdown, modeled_cost_usd),
+      SELECT (receipt_id)
+    ON pellier.retrieval_receipts TO pellier_store_tools;
+
+-- The credit function's owner holds what the function reads and writes, not the database
+-- owner's rights: the approved review it pays (a FOR UPDATE row lock needs an UPDATE
+-- privilege; the function changes no review), the credit row and the orders it covers.
+GRANT USAGE ON SCHEMA pellier TO pellier_credit_owner;
+GRANT SELECT ON pellier.approvals, pellier.orders, pellier.store_credits TO pellier_credit_owner;
+GRANT SELECT (id, name) ON pellier.customers TO pellier_credit_owner;
+GRANT INSERT (approval_id, customer_id, amount_cents, reason, issued_by, idempotency_key)
+    ON pellier.store_credits TO pellier_credit_owner;
+GRANT UPDATE (store_credit_id) ON pellier.orders TO pellier_credit_owner;
+GRANT UPDATE (status) ON pellier.approvals TO pellier_credit_owner;
+ALTER FUNCTION pellier.give_store_credit(text, text, integer, text, text)
+    OWNER TO pellier_credit_owner;
+-- pgAudit logs a statement only when the session's login is a member of the role it runs
+-- as (pgaudit.c, log_select_dml), so a credit the Lambda writes, which runs as this owner,
+-- would leave no audit line unless the login belongs to it. INHERIT FALSE and SET FALSE:
+-- the login passes that test and gains nothing from the role.
+GRANT pellier_credit_owner TO pellier_store_tools WITH INHERIT FALSE, SET FALSE;
 
 -- What the credit-writer role may touch: the credit function, run with its owner's
 -- rights, and no table. EXECUTE is the whole key, so it is revoked from PUBLIC

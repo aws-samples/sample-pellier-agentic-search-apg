@@ -246,6 +246,11 @@ class Records:
 def _credit_half(story: Dict[str, Any], records: Records, rows: List[List[str]],
                  now: float) -> Followed:
     """Nadia's Execute and what reached Aurora, after her turn's rows are in place."""
+    if records.unavailable and records.unavailable.startswith(trace.BLIND_SPOT):
+        # pgAudit can never record this write, so waiting changes nothing: a defect, not a lag.
+        return Followed(check.FAILED, rows, observed=records.unavailable,
+                        next_step="this is a fault in the workshop's database, not in your "
+                                  "labs. Raise your hand so a facilitator can check it.")
     if records.unavailable:
         return Followed(check.COULD_NOT_CHECK, rows, observed=records.unavailable)
     inserts, paid = paid_call(records.credits, records.writes, story["write_key"])
