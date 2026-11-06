@@ -249,8 +249,11 @@ credit, and the system must prove what moved.
 
 ## Summary
 
-The last required command runs `workshop/wrap-up-reconstruct.sql`, joining
-Jessica's request, Nadia's approval, the tool execution and the committed credit.
+The last required command, `uv run scripts/follow_credit.py`, follows Jessica's credit
+through four records: her agent's ADOT span and AgentCore's Identity and Policy spans in
+CloudWatch, Pellier's rows in Aurora, and pgAudit's INSERT in the PostgreSQL log. Her turn ID
+and the review's key join them, and it ends `End-to-end check passed`. The optional
+`workshop/wrap-up-reconstruct.sql` shows the Aurora joins on their own.
 Then ask: Nadia approved the credit. What evidence would you require before
 telling her it was executed correctly and only once? Point participants to
 the take-home skill for reviewing one tool in their own application.

@@ -67,9 +67,11 @@ Lab 1's Go deeper keeps the RRF fusion file (`workshop/lab-1-fusion.sql`, region
 task. Lab 4's "What you proved" runs the supplied `workshop/lab-4-absence.sql`
 (`Lab 4 absence check passed`). After Lab 3's token the supplied `workshop/lab-3-agent-workload.sql`
 reads the agent's workload from `pg_stat_statements` role by role (`Lab 3 workload check
-passed`), and the Wrap-up runs the supplied `workshop/wrap-up-reconstruct.sql`, which rebuilds
-Jessica's credit from her request to the row (`Wrap-up reconstruction passed`). Neither is a
-task, and neither writes.
+passed`). The Wrap-up runs the supplied `scripts/follow_credit.py`, which follows Jessica's
+credit from her agent's ADOT span through AgentCore's spans and Aurora's rows to pgAudit's INSERT
+(`End-to-end check passed`), and its deep dive offers `workshop/wrap-up-reconstruct.sql`, the
+same Aurora joins in SQL (`Wrap-up reconstruction passed`). None of them is a task, and none
+writes.
 
 Every check prints three things: what was expected, what was observed, and the
 evidence (the row, the decision, the key). A check that did not pass asks one

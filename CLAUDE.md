@@ -77,8 +77,9 @@ The supplied SQL file for Lab 1's meaning distances (`workshop/lab-1-meaning.sql
 Task 1A), Lab 3's live row-level security check (`scripts/lab3_row_ownership_check.py`), the
 supplied SQL file for Lab 3's agent workload (`workshop/lab-3-agent-workload.sql`), Lab 4's
 keyed absence check (`workshop/lab-4-absence.sql`), Task 4B's check
-(`scripts/lab4_check.py --task 4B`) and the Wrap-up's reconstruction
-(`workshop/wrap-up-reconstruct.sql`) are run, not authored; none has a region to build.
+(`scripts/lab4_check.py --task 4B`), the Wrap-up's end-to-end check
+(`scripts/follow_credit.py`) and its reconstruction (`workshop/wrap-up-reconstruct.sql`) are
+run, not authored; none has a region to build.
 Participants use four verbs: Run (run something supplied and read it), Apply (1A to 4A, a
 supplied change installed by command), Build (1B to 4B and Lab 1's optional fusion file) and
 Prove (the check that prints `Lab NX check passed`). Do not call a file a worksheet, an

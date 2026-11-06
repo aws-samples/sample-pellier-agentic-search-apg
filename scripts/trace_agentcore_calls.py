@@ -304,7 +304,8 @@ def pgaudit_off_reason(status: Dict[str, Any]) -> Optional[str]:
     return None
 
 
-def _window(call: Dict[str, Any]) -> Tuple[float, float]:
+def call_window(call: Dict[str, Any]) -> Tuple[float, float]:
+    """A Gateway call's span of time, widened by CLOCK_SLACK_S each side for Aurora's clock."""
     start = call["started_ns"] / 1e9
     end = start + float(call.get("gateway_ms") or 0) / 1000
     return start - CLOCK_SLACK_S, end + CLOCK_SLACK_S
@@ -325,7 +326,8 @@ def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
     shared: Dict[str, bool] = {}
     for write in writes:
         second = write["second"]
-        hits = [c for c in calls if _window(c)[0] < second + 1 and second <= _window(c)[1]]
+        hits = [c for c in calls
+                if call_window(c)[0] < second + 1 and second <= call_window(c)[1]]
         if hits:
             first = hits[0]["request_id"]
             owned[first].append(write)
@@ -341,7 +343,7 @@ def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
                 parts.append(f"{write['command']} into {AUDITED_TABLE} at {when}{key}")
             note = " (the next call began in the same second)" if shared[call["request_id"]] else ""
             lines[call["request_id"]] = "pgAudit: " + "; ".join(parts) + note
-        elif now - _window(call)[1] < LOG_EXPORT_LAG_S:
+        elif now - call_window(call)[1] < LOG_EXPORT_LAG_S:
             lines[call["request_id"]] = ("pgAudit: not exported yet; the PostgreSQL log lags "
                                          "about a minute, so run this again shortly")
         else:

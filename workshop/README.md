@@ -34,10 +34,11 @@ ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 Two more supplied SQL files read the agent from the database's side and change nothing.
 After `Lab 3B check passed`, `psql -f workshop/lab-3-agent-workload.sql`
 lists the statements each role ran, from `pg_stat_statements`, and one plan with the row
-policy inside it; it ends `Lab 3 workload check passed`. At the Wrap-up,
+policy inside it; it ends `Lab 3 workload check passed`. In the Wrap-up's deep dive,
 `psql -f workshop/wrap-up-reconstruct.sql` rebuilds
 Jessica's credit from her request to the row with joins, and ends
-`Wrap-up reconstruction passed`.
+`Wrap-up reconstruction passed`. The Wrap-up's required `uv run scripts/follow_credit.py`
+adds the CloudWatch spans and pgAudit's INSERT to the same joins.
 
 In Task 1B, `psql -f workshop/lab-1-receipt.sql` prints Anna's latest search receipt as one
 record: the requirements she asked for, the ones the search kept, and the soft tags a retry
