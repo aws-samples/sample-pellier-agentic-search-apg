@@ -30,7 +30,8 @@ def _load_env() -> None:
             os.environ[key.strip()] = value.strip().strip("'\"")
 
 
-_load_env()
+if __name__ == "__main__":
+    _load_env()
 
 # Keep the model-access preflight in the same region as Aurora, Gateway,
 # Runtime, and Cognito for local and workshop runs.

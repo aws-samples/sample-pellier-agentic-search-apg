@@ -16,7 +16,7 @@ def load_preferences(customer_id: str) -> list[dict[str, str]]:
     manager = MemorySessionManager(memory_id=memory_id,
                                    region_name=os.environ.get("AWS_REGION", "us-east-1"))
     namespace = f"/pellier/preferences/{customer_id}/"
-    records = manager.list_long_term_memory_records(namespace_prefix=namespace, max_results=20)
+    records = manager.list_long_term_memory_records(namespace=namespace, max_results=20)
     preferences = []
     for record in records:
         if "namespaces" in record and namespace not in record["namespaces"]:

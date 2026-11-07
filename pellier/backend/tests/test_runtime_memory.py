@@ -26,7 +26,7 @@ def test_only_records_from_the_bound_customers_namespace_are_used(monkeypatch):
     monkeypatch.setitem(sys.modules, "bedrock_agentcore.memory", module)
     monkeypatch.setenv("AGENTCORE_MEMORY_ID", "memory-test")
     assert load_preferences("CUST-THEO") == [{"record_id": "own", "preference": "Stoneware"}]
-    assert calls[1] == {"namespace_prefix": namespace, "max_results": 20}
+    assert calls[1] == {"namespace": namespace, "max_results": 20}
 
 
 def test_no_customer_or_no_memory_never_uses_a_fallback(monkeypatch):

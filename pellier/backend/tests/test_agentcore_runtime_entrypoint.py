@@ -110,6 +110,10 @@ def _load_entrypoint(
         "AGENTCORE_GATEWAY_URL",
         "https://gateway.example.test/mcp",
     )
+    # Keep the external Memory boundary isolated like Runtime and Gateway above.
+    # Memory-specific cases replace this default with their own records or failure.
+    from services import runtime_memory
+    monkeypatch.setattr(runtime_memory, "load_preferences", lambda customer: [])
 
     dispatcher = _Dispatcher(response)
     factory_calls: list[dict[str, Any]] = []

@@ -90,11 +90,12 @@ def test_tokenless_gateway_discovery_skips_network():
     client_factory.assert_not_called()
 
 
-def test_managed_dispatcher_is_absent_without_a_gateway_url():
+def test_managed_dispatcher_is_absent_without_a_gateway_url(monkeypatch):
     """With no AGENTCORE_GATEWAY_URL there is no managed dispatcher."""
     from services import agentcore_gateway
     from config import settings
 
+    monkeypatch.delenv("AGENTCORE_GATEWAY_URL", raising=False)
     with patch.object(settings, "AGENTCORE_GATEWAY_URL", ""):
         assert agentcore_gateway.create_gateway_dispatcher(access_token="jwt") is None
 

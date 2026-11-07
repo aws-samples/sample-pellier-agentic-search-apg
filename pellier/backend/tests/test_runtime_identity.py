@@ -69,6 +69,7 @@ def test_entrypoint_binds_claims_and_blocks_mismatch_before_any_tool(world, monk
     from services import agentcore_gateway
     signer, _, claims = world
     monkeypatch.setenv("AGENTCORE_GATEWAY_URL", "https://gateway.example/mcp")
+    monkeypatch.delenv("AGENTCORE_MEMORY_ID", raising=False)
     calls = []
     monkeypatch.setattr(
         agentcore_gateway, "create_gateway_dispatcher", lambda **kw: calls.append(kw)

@@ -16,6 +16,23 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 
 
+def test_importing_preflight_does_not_read_deployment_configuration(monkeypatch):
+    original = Path.is_file
+
+    def no_dotenv(path):
+        if path.name == ".env":
+            raise AssertionError("Import must not inspect deployment configuration")
+        return original(path)
+
+    monkeypatch.setattr(Path, "is_file", no_dotenv)
+    spec = importlib.util.spec_from_file_location(
+        "preflight_import_without_dotenv", REPO / "scripts/check_model_access.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert callable(module.main)
+
+
 def _load(relative, monkeypatch):
     # Model preflight's CLI dotenv loader must not read a developer's account
     # configuration merely because this isolated test imports the script.
