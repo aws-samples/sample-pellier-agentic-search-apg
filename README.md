@@ -4,109 +4,129 @@
 
 # Pellier: governed agentic AI search
 
-**An AI shopping assistant that acts on live data in Amazon Aurora PostgreSQL, deployed on Amazon Bedrock AgentCore, with every action authorized, approved and provable.**
+**Build a retail assistant grounded in PostgreSQL facts, with caller-bound access, human approval for store credits, and evidence you can inspect.**
 
 The application and lab code for the AWS re:Invent 2026 workshop<br>
-**DAT416: Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**
-
-This branch, `governed`, is the default and the current application. The [`main` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/main) holds an older application built for a different format, the one-hour Builders' Session; use `governed` for the workshop and for anything you reuse.
+**DAT416-R: Build governed agentic AI search with Aurora, RDS, & Bedrock AgentCore**<br>
+Level 400 · Four connected labs · 120 minutes
 
 [![governed-quality](https://img.shields.io/github/actions/workflow/status/aws-samples/sample-pellier-agentic-search-apg/quality.yml?branch=governed&style=flat-square&logo=githubactions&logoColor=white&label=governed-quality)](https://github.com/aws-samples/sample-pellier-agentic-search-apg/actions/workflows/quality.yml?query=branch%3Agoverned)
 [![License: MIT](https://img.shields.io/badge/license-MIT-0E7C86?style=flat-square)](LICENSE)
 [![Workshop: DAT416](https://img.shields.io/badge/AWS_re%3AInvent_2026-DAT416-232F3E?style=flat-square)](#the-four-labs)
-
-[![Amazon Bedrock AgentCore](https://img.shields.io/badge/Amazon_Bedrock-AgentCore-FF9900?style=for-the-badge&labelColor=232F3E)](https://aws.amazon.com/bedrock/agentcore/)
-[![Amazon Aurora PostgreSQL](https://img.shields.io/badge/Amazon_Aurora-PostgreSQL-FF9900?style=for-the-badge&labelColor=232F3E)](https://aws.amazon.com/rds/aurora/)
-[![pgvector hybrid search](https://img.shields.io/badge/pgvector-hybrid_search-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://github.com/pgvector/pgvector)
-[![Cedar policies](https://img.shields.io/badge/Cedar-policies-3B6E3A?style=for-the-badge)](https://www.cedarpolicy.com/)
-<br>
-[![Strands Agents](https://img.shields.io/badge/Strands-Agents-0F766E?style=for-the-badge)](https://strandsagents.com/)
-[![Claude on Amazon Bedrock](https://img.shields.io/badge/Claude-on_Amazon_Bedrock-D97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://aws.amazon.com/bedrock/anthropic/)
-[![Python 3.14](https://img.shields.io/badge/Python-3.14-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
-[![Node.js 24](https://img.shields.io/badge/Node.js-24-5FA04E?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
 [The four labs](#the-four-labs)&nbsp;&nbsp;|&nbsp;&nbsp;[Architecture](#architecture)&nbsp;&nbsp;|&nbsp;&nbsp;[Run it](#run-it)&nbsp;&nbsp;|&nbsp;&nbsp;[Take it home](#take-it-home)&nbsp;&nbsp;|&nbsp;&nbsp;[Tests](#tests)
 
 </div>
 
 > [!IMPORTANT]
-> This is an educational sample for a workshop, not production code. See [Security and responsible use](#security-and-responsible-use).
+> Use **`governed`**, the default branch, for this workshop and the current application. The [`main` branch](https://github.com/aws-samples/sample-pellier-agentic-search-apg/tree/main) contains a separate, older application for a one-hour Builders' Session.
 
 ## What Pellier is
 
-Pellier is a small store invented for this workshop. Its assistant, Ask Pellier, answers shoppers from live data in Aurora PostgreSQL: the catalog, warehouse stock, orders and support tickets. Staff use the Operator (`/operator`), where agents investigate a case and propose a store credit, and a person approves anything that moves money. The workshop asks one question: how do you let an agent act on real data and prove what happened?
+Pellier is a fictional retail store built to explore how agents can use business data under explicit controls. **Ask Pellier** answers shoppers from the catalog, warehouse inventory, orders and support tickets in Aurora PostgreSQL. In the **Operator**, staff review an agent's investigation and approve or reject a proposed store credit.
+
+The application combines the Strands Agents SDK, Amazon Bedrock models, and Amazon Bedrock AgentCore Runtime, Memory, Gateway and Policy. PostgreSQL supplies full-text search, pgvector, row-level security and the transaction controls behind each credit. SQL records and service traces let participants inspect what happened independently of the assistant's answer.
+
+This is an educational sample with synthetic business data. **The checked-in lab files deliberately contain the faults participants repair.** To reuse a completed pattern, start with [the reference solutions](solutions/README.md) and review [Security and responsible use](#security-and-responsible-use).
 
 ## The four labs
 
-Each lab follows one customer and answers one question a store's leadership would ask. Task A is a supplied change you apply by command; Task B is code you build in a marked region. Each task ends with a check against Aurora and the deployed services.
+Each lab follows one customer and answers one question a store's leadership would ask. In **Task A**, you apply a supplied change and inspect it. In **Task B**, you build a fix in a marked region. Terminal checks examine the relevant code, database records or deployed services. Labs 1 and 2 run the agents in process. Lab 3 carries the changes into AgentCore, and Lab 4 governs the credit workflow.
 
 | Lab | Leadership question | Apply (A) and build (B) | What proves it |
 |---|---|---|---|
 | 1. Retrieve, Anna | "Can search match intent and keep every shopper requirement?" | A: the vector search that ranks her eligible products by meaning. B: a search fallback that keeps her budget, stock and exclusions | A product searched with its own embedding comes back first, and every product returned meets her requirements in Aurora |
 | 2. Ground, Marco | "Can every stock answer be backed by a warehouse record?" | A: connect `check_stock` to the Stock agent, alone. B: the stock check's SQL, so a piece Pellier does not carry is never reported as sold out | The agent's counts match the warehouse rows in Aurora |
 | 3. Deploy, Theo | "Can each shopper access only their own records on AgentCore?" | A: publish `get_tickets` on AgentCore Gateway and bind it to the signed-in caller. B: the row-ownership predicate, written while the agent deploys to AgentCore Runtime | His tickets come back and another customer's never do, a new session recalls his taste from AgentCore Memory, and the audit rows name the build that ran |
-| 4. Govern, Jessica with Nadia (staff) | "Can an approved credit stay within its limit and be paid only once?" | A: a Cedar rule that caps a staff store credit at $100. B: the credit-writer role's privileges, so it writes only through the credit function | An approved credit of up to $100 is recorded once, even on retry; $100.01 is denied and leaves no row; the credit-writer role cannot write a credit directly |
+| 4. Govern, Jessica with Nadia (staff) | "Can an approved credit stay within its limit and be paid only once?" | A: a Cedar rule that caps a staff store credit at $100. B: the credit-writer role's privileges, so it writes only through the credit function | A retry leaves exactly one intended credit. A $100.01 attempt has a Gateway denial and no matching execution or credit row. Direct writes by the credit-writer role fail. |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  shopper(["Shopper<br/>Pellier and Ask Pellier"])
-  staff(["Staff: Nadia<br/>Pellier Operator"])
-  cognito["Amazon Cognito<br/>signed tokens"]
+  shopper["Shopper<br/>Ask Pellier"]
+  staff["Staff<br/>Operator"]
+  cognito["Amazon Cognito<br/>signed caller identity"]
 
-  subgraph app["FastAPI app"]
-    router["Router"]
-    agents["Catalog, Stock and Support<br/>agents (Strands)"]
-    investigation["Investigator, then Advisor<br/>(Strands graph)"]
-    tools["Nine store tools"]
+  subgraph app["Pellier application"]
+    api["FastAPI"]
+    local["Labs 1 and 2<br/>Router, Strands specialists<br/>and local store tools"]
+    investigation["Investigator and Advisor<br/>propose a credit"]
+    approval["Human review<br/>approve exact credit terms"]
   end
 
   subgraph agentcore["Amazon Bedrock AgentCore"]
-    runtime["Runtime"]
-    gateway["Gateway<br/>with Cedar Policy"]
-    lambda["Store tools Lambda"]
-    memory["Memory"]
+    runtime["Runtime<br/>Router and Strands specialists"]
+    gateway["Gateway and Policy<br/>Cedar authorization"]
+    memory["Memory<br/>conversation preferences"]
   end
 
-  bedrock["Amazon Bedrock<br/>Claude Opus 5.5 and Sonnet 5.5<br/>Cohere Embed v4 and Rerank 3.5"]
-  aurora[("Aurora PostgreSQL<br/>full text + pgvector, RRF<br/>catalog, stock, orders,<br/>credits, audit<br/>row-level security")]
+  lambda["AWS Lambda<br/>shared store tool implementation"]
+  aurora[("Aurora PostgreSQL<br/>catalog, inventory, customer records<br/>approvals, credits and evidence")]
 
-  shopper --> cognito
-  staff --> cognito
-  shopper --> router --> agents --> tools
-  staff --> investigation --> tools
-  tools --> aurora
-  app -. managed path .-> runtime --> gateway --> lambda --> aurora
-  app -. context .-> memory
-  app -. models .-> bedrock
-  agentcore -. models .-> bedrock
+  shopper --> api
+  staff --> api
+  cognito -. tokens .-> api
+  api --> local -->|PostgreSQL connection| aurora
+  api -->|Labs 3 and 4| runtime
+  runtime --> memory
+  runtime --> gateway --> lambda -->|RDS Data API| aurora
+  api --> investigation --> approval
+  investigation -->|read tools| aurora
+  approval -->|staff token and approved request| gateway
 ```
 
-- **Router and agents.** A deterministic Router, with no model call, sends each request to one of three Strands agents: Catalog and Support on Claude Opus 5.5, Stock on Claude Sonnet 5.5. `pellier/backend/services/intent_router.py`, `pellier/backend/agents/`
-- **Store tools.** Nine tools, one implementation for the local agents and the Gateway Lambda: `search_products`, `browse_department`, `compare_products`, `check_stock`, `get_orders`, `get_return_policy`, `get_tickets`, `give_store_credit` and `ask_a_person`. `pellier/backend/services/store_tools.py`
-- **Hybrid search.** The shopper's requirements become SQL filters on a pgvector search and a full-text search. Reciprocal Rank Fusion (k = 60) merges them and Cohere Rerank 3.5 reorders the pool. Search covers the 1,000 photographed products of a 50,000-row catalog, through a filter applied before ranking and a partial HNSW index. A shopper's search records its ranks in a retrieval receipt, and Builder view shows them as "How it ranked". `pellier/backend/services/search_plan.py`
-- **Managed path.** AgentCore Runtime runs the same Router and agents, with their tools behind AgentCore Gateway. AgentCore Policy evaluates Cedar before the Lambda runs, so a denied call never executes. `pellier/backend/agentcore_runtime.py`, `scripts/deploy/gateway_tool_schemas.py`, `policies/`
-- **Identity and ownership.** Amazon Cognito signs in shoppers and staff. Runtime verifies the access token itself, and a customer-scoped read uses the customer in the signed token, never one the model names; Cedar checks it again at the Gateway. `get_orders` and `get_tickets` run as the `pellier_agent` role under row-level security, so Aurora returns only that customer's rows. The Gateway's Lambda signs in to Aurora with its own login, `pellier_store_tools`, which has no privilege on customers, orders, tickets or credits. It can become `pellier_agent` or the credit writer, and its code does so with `SET LOCAL ROLE`, for one transaction. `pellier/backend/services/runtime_identity.py`, `workshop/lab-3-row-ownership.sql`, `scripts/migrations/001_schema.sql`
-- **Human approval.** In the Operator, an Investigator and an Advisor (a Strands graph) read the case and propose one credit. `give_store_credit` writes only for a review a person approved with the same arguments, once per review key, as `pellier_credit_writer`, a role that may only execute the credit function. The function itself runs as `pellier_credit_owner`, a role nobody signs in as. `pellier/backend/services/operator_graph.py`, `workshop/lab-4-credit-writer.sql`
-- **Memory.** AgentCore Memory keeps conversation events and the preferences extracted from them. A remembered preference can guide a pick; prices and stock always come from Aurora. `pellier/backend/services/agentcore_memory.py`
-- **Evidence.** Every tool call that runs writes a `pellier.tool_audit` row with its turn's id; a denied call writes none. App and AgentCore spans reach CloudWatch tagged with `pellier.turn_id`, and on the workshop's Aurora cluster pgAudit writes each credit's `INSERT` to the PostgreSQL log. The Wrap-up's check joins the spans, the rows and that log line to follow one credit from the shopper's request to the saved row, and it fails if pgAudit cannot see the Gateway's credits. `pellier/backend/services/evidence_spans.py`, `scripts/observability_check.py`, `scripts/follow_credit.py`
+The diagram shows application and database paths. Amazon Bedrock supplies Claude Opus 5.5 for the Catalog and Support agents, Claude Sonnet 5.5 for the Stock agent and Operator graph, Cohere Embed v4 for embeddings, and Cohere Rerank 3.5 for reranking.
+
+### Retrieval and factual answers
+
+A deterministic [Router](pellier/backend/services/intent_router.py) selects the Catalog, Stock or Support specialist without making a model call. Each specialist has a bounded tool set. The [shared implementation](pellier/backend/services/store_tools.py) provides nine tools for the local agents and Gateway Lambda, including search, stock, customer reads, a human handoff and the staff credit operation. Shopper agents cannot invoke the credit writer.
+
+Hybrid retrieval applies shopper requirements to full-text and pgvector candidates, combines their ranks with reciprocal rank fusion (`k = 60`), and reranks the resulting pool with Cohere Rerank. [The search plan](pellier/backend/services/search_plan.py) separates requirements from preferences. Lab 1 repairs the vector ranking and the retry that loses those requirements.
+
+**Catalog size and search scope are different.** All 50,000 catalog products have embeddings. The Storefront and shopper tools use the 1,000 products with images, with the same visibility predicate in both retrieval paths and a partial HNSW index for that subset. The optional [index experiment](workshop/lab-1-index.sql) uses the larger corpus to compare exact and approximate retrieval. The required lab is not a benchmark of shopper search across all 50,000 products.
+
+Inventory answers come from the product's warehouse rows. The completed stock tool distinguishes a product the store does not carry, recorded zero stock, and a catalog product whose inventory records are missing. Retrieval receipts preserve the search plan and ranks for inspection in SQL and the Builder view.
+
+### Identity, approval and memory
+
+- **Caller identity.** [Runtime verifies the Cognito token](pellier/backend/services/runtime_identity.py) and binds customer-scoped tools to that caller. Gateway Policy evaluates Cedar before invoking Lambda. The completed Lab 3 path combines owner checks at Gateway with PostgreSQL row-level security for orders and tickets.
+- **Database access.** Lambda uses the restricted `pellier_store_tools` login. Customer reads switch to `pellier_agent` within a transaction. The completed credit-writer privileges allow execution of the credit function without direct writes to the credit table. The [schema migration](scripts/migrations/001_schema.sql) defines the roles, grants and constraints.
+- **Human approval.** The [Operator graph](pellier/backend/services/operator_graph.py) investigates a case and proposes a credit. [Governed execution](pellier/backend/services/governed_execution.py) requires an approved review with matching terms before calling Gateway. Cedar supplies the workshop's $100 limit. Unique approval and idempotency keys keep a retried request from creating another credit.
+- **Memory.** [AgentCore Memory](pellier/backend/services/agentcore_memory.py) stores conversation events and extracted preferences. [Runtime reads preferences](pellier/backend/services/runtime_memory.py) for the verified customer. Preferences can inform recommendations, but identity and permissions come from verified credentials and enforcement code. Product, stock and order facts come from PostgreSQL.
+
+### Evidence and its limits
+
+The managed credit path commits the new credit and its successful `tool_audit` receipt in one database transaction. A successful replay returns the existing credit without adding another success receipt. Other tool audit writes are best effort, so a missing audit row alone does not establish that a call was denied.
+
+[The credit reconstruction check](scripts/follow_credit.py) correlates approval and credit rows with tool receipts, Gateway request identifiers, build fingerprints and service traces. A request-specific Gateway denial supports non-execution. An ALLOW decision or a missing Lambda span alone does not establish execution. CloudWatch delivery is asynchronous, and the workshop's pgAudit logs provide additional database evidence subject to their correlation limits.
+
+### Aurora and RDS for PostgreSQL
+
+The supplied deployment uses **Aurora PostgreSQL Serverless v2**. Gateway Lambda reaches it through the [RDS Data API for Aurora](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/data-api.html). The SQL patterns for full-text search, pgvector, fusion, row-level security and transactional credits also apply to RDS for PostgreSQL, subject to its [supported extension versions](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.FeatureSupport.Extensions.html).
+
+RDS for PostgreSQL requires adapting the deployment and database transport to a PostgreSQL connection with appropriate TLS, credentials and network access. The provided CloudFormation templates and managed Data API path deploy Aurora.
 
 ## Run it
 
 ### In the workshop
 
-At an AWS event, Workshop Studio gives you an AWS account, at no cost to you, with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide. The guide is the source of truth for every step and check. In Code Editor, [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, each with a short README, links to its task files and a solution folder.
+At an AWS event, Workshop Studio provides a temporary AWS account and a prepared environment with Aurora PostgreSQL, Amazon Cognito, AgentCore resources and a browser-based Code Editor. Participants update the managed deployment in Lab 3. Follow the event's lab guide for the exact steps and checks. [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, with links to the task files and reference solutions.
 
 ### Locally
 
 Prerequisites:
 
 - Python 3.14 and Node.js 24. CI, the workshop box, AgentCore Runtime and the Lambdas all run Python 3.14.
-- PostgreSQL 18 or later with the `vector` (pgvector) and `pg_trgm` extensions, `psql`, and a superuser to run the setup, because the schema creates extensions and a `BYPASSRLS` role. On Aurora PostgreSQL, which the workshop uses, the cluster's master user runs it.
+- PostgreSQL 18 with the `vector` (pgvector) and `pg_trgm` extensions, `psql`, and a superuser for setup. The schema creates extensions and database roles. The Aurora deployment uses the cluster's master user for setup.
 - AWS credentials with Amazon Bedrock access to Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4 and Cohere Rerank 3.5.
 
-The checkout is about 370 MB, mostly product photography and the committed embeddings. `git clone --depth 1 https://github.com/aws-samples/sample-pellier-agentic-search-apg.git` checks out `governed` without the history, which roughly halves the download.
+Clone the default branch without its history:
+
+```bash
+git clone --depth 1 --branch governed https://github.com/aws-samples/sample-pellier-agentic-search-apg.git
+cd sample-pellier-agentic-search-apg
+```
 
 From the repository root:
 
@@ -134,25 +154,25 @@ npm run dev
 
 Locally the agents run in process. Ask Pellier works signed out, and AgentCore Memory falls back to a process-local store when `AGENTCORE_MEMORY_ID` is empty. Shopper sign-in and the Operator need the Cognito user pool and demo users the workshop deployment creates (`COGNITO_*` in `.env`).
 
-The code is in the labs' starting state: some marked regions are incomplete on purpose, and `solutions/` holds reference versions.
+### In your AWS account
 
-To run the whole workshop in your own account, follow [Run Pellier in your own account](docs/run-in-your-own-account.md): `deploy/own-account/deploy.py` creates the stack from the templates under `deploy/own-account/templates/`, the ones Workshop Studio deploys at an event, and tears it down again. The stack bills by the hour while it exists (see [What it costs](#what-it-costs)), and the guide's teardown section removes it. On the host, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`).
+Follow [Run Pellier in your own account](docs/run-in-your-own-account.md) for deployment, prerequisites, readiness checks and teardown. `deploy/own-account/deploy.py` uses the same four CloudFormation templates as Workshop Studio. On the host, `scripts/provision_agentcore_end_to_end.py` provisions the store tools Lambda and AgentCore resources with the pinned CLI (`@aws/agentcore@0.29.0`). Follow the guide's full teardown procedure to remove both the stack and the resources created outside CloudFormation.
 
 ### What it costs
 
-In your own account, these figures come from a test event, at list prices in us-east-1 on 6 November 2026, before tax and Free Tier credits. Your cost depends on Region, usage and agreements.
+The own-account guide records the following example estimates from a test event using us-east-1 list prices on **6 November 2026**, before tax and Free Tier credits. These are dated examples, not a current price quote or a spending limit.
 
 | What | Cost |
 |---|---|
-| The stack, every hour it exists, whether or not anyone uses it | $0.52 an hour, about $379 a month |
-| One scripted pass through the four labs, each lab's required requests sent once, the least a pass uses | $0.51 to $0.52 |
-| Deploying, a two-hour workshop and the teardown | about $2.55, before extra requests or the coach |
+| Hourly infrastructure under the recorded event's assumptions | $0.52 an hour, about $379 a month |
+| Incremental usage for one scripted pass through the required requests | $0.51 to $0.52 |
+| Deployment, a two-hour session and teardown | about $2.55, before extra requests or the coach |
 
-The EC2 host, which runs Code Editor and the app, is about half of the hourly figure; a production deployment would run the app on hosting sized for its own traffic. Run locally against your own PostgreSQL, signed out and with `AGENTCORE_MEMORY_ID` empty, only the Bedrock calls bill, at about 5 cents a request on average in the measured pass. [What you get and what it costs](docs/run-in-your-own-account.md#1-what-you-get-and-what-it-costs) breaks down every row, measured usage beside each price, and lists ways to spend less, including when Aurora I/O-Optimized pays off.
+Actual costs depend on Region, capacity, usage, session duration and pricing agreements. The recorded Aurora cluster remained active during idle hours, so its estimate includes that capacity. Additional requests and optional Claude Code coaching add usage. Local execution still incurs Bedrock charges and any costs of the database or host you provide. See [What you get and what it costs](docs/run-in-your-own-account.md#1-what-you-get-and-what-it-costs) for the measurements, assumptions, pricing links and cost controls.
 
 ## Take it home
 
-`takeaway/governed-postgres-agent` packages the four contracts the labs build (filter, then rank; bounded facts; ownership; write once) as an Agent Skill for reviewing an agent the way a DBA would: questions for the application team, a checklist per contract, templates from this source, and the SQL that proves each contract holds. To use it in Claude Code:
+`takeaway/governed-postgres-agent` packages the four contracts the labs build as a reusable Agent Skill. It includes review questions, checklists, source templates and SQL checks for filtering before ranking, grounding answers in records, enforcing ownership and writing an approved credit once. To use it in Claude Code:
 
 ```bash
 mkdir -p ~/.claude/skills
