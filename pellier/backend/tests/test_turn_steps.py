@@ -159,6 +159,9 @@ def test_stock_finding_distinguishes_zero_from_unknown() -> None:
     assert finding_for("check_stock", sold_out) == "Sold out in all three warehouses"
     assert finding_for("check_stock", {"status": "not_found"}) == "Not a piece Pellier carries"
     assert finding_for("check_stock", {"status": "ambiguous", "candidates": [1, 2]}) == "2 pieces match that name"
+    assert finding_for("check_stock", {
+        "status": "inventory_unknown", "total_units": None, "warehouses": [],
+    }) == "Stock and shipping are unknown"
 
 
 def test_ticket_and_order_findings() -> None:

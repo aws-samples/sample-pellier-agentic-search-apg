@@ -624,26 +624,6 @@ def _execution_tool_call(tool_call: Dict[str, Any]) -> Dict[str, Any]:
     return {key: value for key, value in tool_call.items() if key not in _BUILDER_STEP_FIELDS}
 
 
-async def _managed_remembered(memory: Any, turn_identity: Any) -> tuple[list, Optional[str]]:
-    """The signed-in customer's remembered preferences, and the failure code if the read failed.
-
-    Signed out reads no one. A failed strict read returns no preference and
-    ``managed_memory_unavailable``; nothing is substituted.
-    """
-    from services.agentcore_memory import ManagedMemoryError
-
-    if not turn_identity.authenticated:
-        return [], None
-    try:
-        return await memory.get_semantic_memories(turn_identity.shopper_customer_id), None
-    except ManagedMemoryError as exc:
-        logger.warning(
-            "Managed Memory preference read failed for this turn; it continues "
-            "without a remembered preference (%s)", exc.code,
-        )
-        return [], exc.code
-
-
 def _managed_skill_note(skills: List[Dict[str, Any]], skill_mode: str) -> Optional[str]:
     """What the Router step says about skills on the managed rail.
 
@@ -985,17 +965,6 @@ async def chat_stream(
                     error = classify_chat_error(exc.code)
                     yield f"data: {json.dumps(error, ensure_ascii=False)}\n\n"
                     return
-                # What AgentCore Memory extracted about this customer in
-                # earlier conversations, keyed on the server-resolved customer.
-                # It is the only shopper context the Runtime is given: no
-                # Aurora customer record is sent on this rail. Context, never
-                # permission: a failed read continues the turn without it,
-                # names the failure on the Router step, and substitutes
-                # nothing from Aurora or a local store.
-                remembered, remembered_error = await _managed_remembered(
-                    managed_memory, turn_identity
-                )
-
                 try:
                     managed_result = await run_agent_on_runtime_result(
                         message=request.message,
@@ -1005,7 +974,6 @@ async def chat_stream(
                         history=managed_history,
                         turn_id=turn_id,
                         customer_id=turn_identity.shopper_customer_id,
-                        preferences=remembered,
                     )
                 except ManagedRuntimeError as exc:
                     error = classify_chat_error(exc.code)
@@ -1094,7 +1062,7 @@ async def chat_stream(
                     # The records the Runtime reports it put ahead of the
                     # prompt, never the list the app sent.
                     remembered=remembered_receipt(
-                        managed_result.remembered, remembered_error,
+                        managed_result.remembered, managed_result.remembered_error,
                         read=turn_identity.authenticated,
                     ),
                     rail="gateway-mcp",

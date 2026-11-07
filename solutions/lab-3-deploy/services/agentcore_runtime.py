@@ -98,6 +98,7 @@ class ManagedRuntimeResult:
     # The AgentCore Memory records whose preferences the Runtime put ahead of
     # the prompt, as it reported them; empty when it sent none.
     remembered: List[str] = field(default_factory=list)
+    remembered_error: Optional[str] = None
 
 
 def _reported_skills(value: Any) -> List[Dict[str, Any]]:
@@ -448,7 +449,7 @@ def _runtime_session_id_for(session_id: Optional[str], user_id: Optional[str] = 
 # forwards every request here instead of running Strands locally.
 #
 # The runtime contract is a JSON payload ``{"prompt", "session_id",
-# "user_id", "history", "customer_id", "preferences", "turn_id"}``; the Runtime
+# "user_id", "history", "customer_id", "turn_id"}``; the Runtime
 # container unpacks it in the ``@app.entrypoint`` handler at
 # ``pellier/backend/agentcore_runtime.py``.
 #
@@ -475,9 +476,8 @@ async def run_agent_on_runtime_result(
             authorizer. The managed Runtime rejects anonymous requests.
         history: Prior user/assistant turns read from the identity-scoped
             AgentCore Memory namespace and forwarded as bounded context.
-        preferences: The user-preference records read from AgentCore Memory
-            for the server-resolved customer, each ``{record_id, preference}``.
-            The Runtime puts them ahead of the prompt and reports the ids.
+        preferences: Retained for caller compatibility; ignored. Runtime reads
+            preferences under the verified customer's namespace itself.
 
     Returns:
         Response text plus observed Gateway calls, products, and routing data.
@@ -512,7 +512,6 @@ async def run_agent_on_runtime_result(
         "user_id": user_id or "anonymous",
         "history": history or [],
         "customer_id": customer_id or None,
-        "preferences": list(preferences or []),
     }
     if turn_id:
         # This is minted by the storefront route, not supplied by the model.
@@ -618,6 +617,8 @@ async def run_agent_on_runtime_result(
             stop_reason=str(parsed.get("stop_reason") or ""),
             unpublished_tools=_reported_names(parsed.get("unpublished_tools")),
             remembered=_reported_names(parsed.get("remembered")),
+            remembered_error=("managed_memory_unavailable"
+                              if parsed.get("remembered_error") else None),
         )
     except ManagedRuntimeError:
         raise

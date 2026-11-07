@@ -271,10 +271,10 @@ def test_the_audit_writer_demands_an_explicit_session_handle() -> None:
     import inspect
 
     dataapi = _dataapi()
-    assert not hasattr(dataapi, "write_tool_audit"), "the in-transaction writer is gone"
-    session = inspect.signature(dataapi.write_tool_audit_independently).parameters["session_id"]
-    assert session.default is inspect.Parameter.empty
-    assert session.kind is inspect.Parameter.KEYWORD_ONLY
+    for writer in (dataapi.write_tool_audit, dataapi.write_tool_audit_independently):
+        session = inspect.signature(writer).parameters["session_id"]
+        assert session.default is inspect.Parameter.empty
+        assert session.kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_the_lambda_keys_its_audit_rows_deliberately() -> None:
@@ -293,4 +293,4 @@ def test_the_independent_audit_row_commits_in_its_own_transaction() -> None:
     source = inspect.getsource(_dataapi().write_tool_audit_independently)
 
     assert "transactionId" not in source
-    assert "'gateway'" in source
+    assert "'gateway'" in inspect.getsource(_dataapi().write_tool_audit)

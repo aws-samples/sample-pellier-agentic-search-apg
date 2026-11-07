@@ -305,6 +305,14 @@ def _judge(
                     f"returned, {len(broken_lines)} break a requirement")
         return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
                              NEXT_REQUEST)
+    # The scenario, not the extractor's own output, is the oracle. An initial
+    # plan and a retry that both omit the same requirement must not pass.
+    scenario = {"price": 100.0, "in_stock": True, "exclusions": ["candle"], "categories": []}
+    missing = dropped(scenario, requested)
+    if missing:
+        return check.Finding("1B", TITLE, check.FAILED, EXPECTED,
+                             "the initial reading omitted " + ", ".join(missing),
+                             evidence, NEXT_REQUEST)
     lost = dropped(requested, kept_limits(receipt))
     if broken_lines or lost:
         observed = f"{len(ids) - len(broken_lines)} of {len(ids)} keep every requirement asked for"

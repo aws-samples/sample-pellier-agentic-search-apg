@@ -29,11 +29,21 @@ lab3 = importlib.import_module("lab3_check")
 check = lab3.check
 
 BUILD = "b" * 64
+TOOLS_BUILD = "d" * 64
+
+
+@pytest.fixture(autouse=True)
+def tools_build(monkeypatch):
+    monkeypatch.setattr(lab3, "local_tools_fingerprint", lambda: TOOLS_BUILD)
 BUILD_ROW = {"audit_id": 7, "turn_id": "turn-theo", "tool": "get_tickets",
-             "deployed_fingerprint": BUILD}
+             "deployed_fingerprint": BUILD, "deployed_tools_fingerprint": TOOLS_BUILD}
 
 
 class TestTheBuild:
+    def test_correct_runtime_with_stale_or_missing_lambda_cannot_pass(self):
+        assert lab3.judge_build({**BUILD_ROW, "deployed_tools_fingerprint": "stale"}, BUILD).state == check.FAILED
+        assert lab3.judge_build({**BUILD_ROW, "deployed_tools_fingerprint": None}, BUILD).state == check.COULD_NOT_CHECK
+
     def test_the_same_build_is_proved_and_prints_both(self) -> None:
         finding = lab3.judge_build(BUILD_ROW, BUILD)
         assert finding.state == check.PASSED
@@ -113,6 +123,7 @@ class TestTheProbe:
         import gateway_client
 
         monkeypatch.setattr(gateway_client, "_load_env", lambda: None)
+        monkeypatch.setattr(lab3, "read_memory_turn", lambda: USED)
         finding = lab3.run_probe(None)
         assert finding.state == check.COULD_NOT_CHECK
         assert "workshop box" in finding.next_step
@@ -127,9 +138,20 @@ REMEMBERED = [{"record_id": "mem-theo-1",
                "preference": "Prefers hand-thrown ceramics and stoneware"}]
 
 
+USED = {"turn_id": "turn-theo-current", "record_ids": ["mem-theo-1"]}
+
+
 class TestTheMemory:
+    def test_service_records_without_an_actual_turn_are_not_proof(self):
+        assert lab3.judge_memory("mem-1", SEEDED, REMEMBERED).state == check.NOT_YET
+
+    def test_a_new_legitimate_preference_is_allowed_when_the_runtime_used_it(self):
+        fresh = {"record_id": "mem-theo-new", "preference": "Likes blue ceramics"}
+        used = {"turn_id": "turn-theo-current", "record_ids": ["mem-theo-new"]}
+        assert lab3.judge_memory("mem-1", SEEDED, REMEMBERED + [fresh], used).state == check.PASSED
+
     def test_the_managed_read_returning_the_provisioned_record_is_proved(self) -> None:
-        finding = lab3.judge_memory("mem-1", SEEDED, REMEMBERED)
+        finding = lab3.judge_memory("mem-1", SEEDED, REMEMBERED, USED)
         assert finding.state == check.PASSED
         evidence = "\n".join(finding.evidence)
         assert "source event 0000001-theo-1 (actor CUST-THEO, session prefseed)" in evidence
@@ -146,7 +168,7 @@ class TestTheMemory:
         assert "seed_agentcore_memory.py" in missing.next_step
         assert lab3.judge_memory("mem-1", SEEDED, []).state == check.FAILED
         foreign = [{"record_id": "mem-other", "preference": "Not from provisioning"}]
-        assert lab3.judge_memory("mem-1", SEEDED, foreign).state == check.FAILED
+        assert lab3.judge_memory("mem-1", SEEDED, foreign, USED).state == check.FAILED
 
     def test_memory_that_cannot_be_read_is_unchecked(self) -> None:
         def _no_memory() -> dict:
@@ -175,6 +197,7 @@ class TestTheMemory:
         import gateway_client
 
         monkeypatch.setattr(gateway_client, "_load_env", lambda: None)
+        monkeypatch.setattr(lab3, "read_memory_turn", lambda: USED)
         monkeypatch.setattr(settings, "AGENTCORE_MEMORY_ID", "mem-1", raising=False)
         monkeypatch.setattr(memory_module, "AgentCoreMemory", _Strict)
         monkeypatch.setattr(seed_agentcore_memory, "seeded_memory",
@@ -183,7 +206,7 @@ class TestTheMemory:
         found = lab3.read_memory()
         assert reads == [("init", "mem-1", True), ("read", "CUST-THEO")]
         assert lab3.judge_memory(found["memory_id"], found["seeded"],
-                                 found["remembered"]).state == check.PASSED
+                                 found["remembered"], found["used"]).state == check.PASSED
 
 
 def test_the_build_and_reads_are_read_from_the_real_schema(fresh_db: Any) -> None:  # noqa: F811
@@ -195,15 +218,43 @@ def test_the_build_and_reads_are_read_from_the_real_schema(fresh_db: Any) -> Non
         conn.execute("""
             INSERT INTO pellier.tool_audit
                    (session_id, tool, caller, args, result, latency_ms, build_fingerprint)
-            VALUES ('turn-theo-1', 'get_tickets', 'gateway', '{"customer_id": "CUST-THEO"}',
+            VALUES ('turn-theo-1', 'get_tickets', 'gateway', jsonb_build_object('customer_id', 'CUST-THEO', 'tools_fingerprint', %s::text),
                     '{"status": "success"}', 12, %s),
                    ('persona-theo-x', 'get_tickets', 'agent', '{"customer_id": "CUST-THEO"}',
-                    '{"status": "success"}', 9, NULL)""", (BUILD,))
+                    '{"status": "success"}', 9, NULL)""", (TOOLS_BUILD, BUILD))
     rows = lab3.read_rows(cfg)
     assert rows["build"]["deployed_fingerprint"] == BUILD
     assert [r["customer_id"] for r in rows["tickets"]] == ["CUST-THEO"], "Gateway reads only"
     assert lab3.judge_build(rows["build"], BUILD).state == check.PASSED
     assert lab3.judge_tickets(rows["tickets"]).state == check.PASSED
+
+
+def test_memory_evidence_uses_the_current_build_customer_and_reset(fresh_db, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    import json
+
+    now = datetime.now(timezone.utc)
+    cfg = {"DB_HOST": str(fresh_db.socket), "DB_PORT": "5432", "DB_NAME": "postgres",
+           "DB_USER": "postgres", "DB_PASSWORD": ""}
+    monkeypatch.setattr(check, "db_config", lambda: cfg)
+    monkeypatch.setattr(check, "reset_point", lambda lab: now - timedelta(minutes=1))
+    monkeypatch.setattr(lab3, "local_fingerprint", lambda: BUILD)
+    with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
+                         dbname="postgres", autocommit=True) as conn:
+        for turn, customer, build, when in [
+            ("turn-memory-current", "CUST-THEO", BUILD, now),
+            ("turn-memory-old", "CUST-THEO", BUILD, now - timedelta(days=1)),
+            ("turn-memory-foreign", "CUST-JESSICA", BUILD, now),
+            ("turn-memory-stale-build", "CUST-THEO", "a" * 64, now),
+        ]:
+            args = json.dumps({"customer_id": customer, "memory_record_ids_json": '["mem-current"]'})
+            conn.execute("INSERT INTO pellier.tool_audit "
+                         "(session_id, tool, caller, args, result, latency_ms, build_fingerprint, created_at) "
+                         "VALUES (%s, 'get_tickets', 'gateway', %s::jsonb, '{}', 1, %s, %s)",
+                         (turn, args, build, when))
+    assert lab3.read_memory_turn() == {"turn_id": "turn-memory-current", "record_ids": ["mem-current"]}
+    monkeypatch.setattr(check, "reset_point", lambda lab: now + timedelta(minutes=1))
+    assert lab3.read_memory_turn() is None
 
 
 def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
@@ -218,13 +269,13 @@ def test_the_reads_are_theos_turns_only(fresh_db: Any) -> None:  # noqa: F811
         conn.execute("""
             INSERT INTO pellier.tool_audit
                    (session_id, tool, caller, args, result, latency_ms, build_fingerprint)
-            VALUES ('turn-theo-scope', 'get_tickets', 'gateway', '{"customer_id": "CUST-THEO"}',
+            VALUES ('turn-theo-scope', 'get_tickets', 'gateway', jsonb_build_object('customer_id', 'CUST-THEO', 'tools_fingerprint', %s::text),
                     '{"status": "success"}', 12, %s),
                    ('turn-jessica-scope', 'get_tickets', 'gateway',
                     '{"customer_id": "CUST-JESSICA"}', '{"status": "success"}', 11, %s),
                    ('turn-jessica-scope', 'ask_a_person', 'gateway',
                     '{"customer_id": "CUST-JESSICA"}', '{"status": "handed_off"}', 10, %s)""",
-                     (BUILD, BUILD, BUILD))
+                     (TOOLS_BUILD, BUILD, BUILD, BUILD))
     mine = [r for r in lab3.read_rows(cfg)["tickets"] if r["turn_id"].endswith("-scope")]
     assert [r["turn_id"] for r in mine] == ["turn-theo-scope"]
     assert lab3.judge_tickets(mine).state == check.PASSED

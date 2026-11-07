@@ -293,7 +293,7 @@ def _logical_gateway_tool_name(name: str) -> str:
 # The Gateway publishes them as optional inputs so a direct call stays valid, but
 # the model never sees them: shown one, a model fills it in and may tell the
 # shopper so.
-_SERVER_SET_TOOL_INPUTS = frozenset({"turn_id", "build_fingerprint"})
+_SERVER_SET_TOOL_INPUTS = frozenset({"turn_id", "build_fingerprint", "requirements_json", "memory_record_ids_json"})
 
 
 def _model_input_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -398,11 +398,31 @@ def _bind_server_tool_context(
     *,
     customer_id: str,
     turn_id: str,
+    memory_record_ids: Optional[Sequence[str]] = None,
 ) -> Dict[str, Any]:
     """Bind server-owned identity and correlation arguments before execution."""
     bound = dict(tool_use)
     tool_input = dict(bound.get("input") or {})
     logical_name = _logical_gateway_tool_name(str(bound.get("name") or ""))
+    import json
+
+    tool_input.pop("memory_record_ids_json", None)
+    if memory_record_ids is not None:
+        tool_input["memory_record_ids_json"] = json.dumps(list(memory_record_ids))
+
+    # The model cannot remove requirements by shortening a query or choosing
+    # a department browse. Keep this server-owned argument out of its schema.
+    tool_input.pop("requirements_json", None)
+    if logical_name in {"search_products", "browse_department"}:
+        from services import active_requirements
+
+        if active_requirements.current_turn() is not None:
+            reading = active_requirements.managed_turn_requirements()
+            reading["max_price_is_shoppers"] = active_requirements.shopper_stated_ceiling(
+                tool_input.get("max_price"))
+            reading["department_named_by_shopper"] = active_requirements.shopper_named_department(
+                tool_input.get("department"))
+            tool_input["requirements_json"] = json.dumps(reading)
 
     if turn_id:
         tool_input["turn_id"] = turn_id
@@ -595,6 +615,7 @@ class ManagedGatewayDispatcher:
     access_token: str
     customer_id: str = ""
     routing_query: str = ""
+    memory_record_ids: list[str] | None = None
     trace_attributes: Dict[str, str] | None = None
     last_intent: str = ""
     last_specialist: str = ""
@@ -693,6 +714,7 @@ class ManagedGatewayDispatcher:
                         tool_use,
                         customer_id=self.customer_id,
                         turn_id=turn_id,
+                        memory_record_ids=self.memory_record_ids,
                     )
                 except ValueError as exc:
                     event.cancel_tool = str(exc)

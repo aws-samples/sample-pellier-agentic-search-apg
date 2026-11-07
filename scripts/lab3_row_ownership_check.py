@@ -309,6 +309,7 @@ def probe_gateway(dataapi: Any) -> Dict[str, Any]:
     Args:
         dataapi: ``common.dataapi``, configured for the cluster.
     """
+    dataapi.verify_tools_login()
     observed: Dict[str, Any] = {}
     transaction = dataapi.begin_transaction()
     try:
@@ -334,9 +335,9 @@ def probe_gateway(dataapi: Any) -> Dict[str, Any]:
 def _dataapi(env: Dict[str, str]) -> Any:
     """``common.dataapi`` configured as the Lambda is, from the box's settings."""
     cluster = env.get("DB_CLUSTER_ARN") or os.environ.get("DB_CLUSTER_ARN", "")
-    secret = env.get("DB_SECRET_ARN") or os.environ.get("DB_SECRET_ARN", "")
+    secret = env.get("STORE_TOOLS_SECRET_ARN") or os.environ.get("STORE_TOOLS_SECRET_ARN", "")
     if not cluster or not secret:
-        raise RuntimeError("DB_CLUSTER_ARN and DB_SECRET_ARN are not set")
+        raise RuntimeError("DB_CLUSTER_ARN and STORE_TOOLS_SECRET_ARN are not set")
     region = cluster.split(":")[3] if cluster.count(":") >= 3 else ""
     os.environ.update({"DB_CLUSTER_ARN": cluster, "SECRET_ARN": secret,
                        "DATABASE": env.get("DB_NAME") or "postgres"})

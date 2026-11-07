@@ -272,6 +272,79 @@ def test_a_credit_the_login_writes_lands_once(as_login) -> None:
     assert sorted(first["order_ids"]) == first["order_ids"] and len(first["order_ids"]) == 2
 
 
+def _credit_counts(cluster, key):
+    with _connect(cluster, "postgres") as conn:
+        credits = conn.execute("SELECT count(*) AS n FROM pellier.store_credits WHERE idempotency_key=%s",
+                               (key,)).fetchone()["n"]
+        receipts = conn.execute("SELECT count(*) AS n FROM pellier.tool_audit "
+            "WHERE tool='give_store_credit' AND args->>'idempotency_key'=%s "
+            "AND result->>'status'='success'", (key,)).fetchone()["n"]
+    return credits, receipts
+
+
+def test_failed_success_receipt_rolls_back_then_retry_commits_both(as_login, monkeypatch):
+    customer = "CUST-AUDITROLLBACK"
+    key = _approved_review(as_login, customer)
+    event = {"name": "give_store_credit", "arguments": {
+        "customer_id": customer, "amount_cents": 2500, "reason": "login", "idempotency_key": key}}
+    original = lambda_tools.write_tool_audit
+    def fail(**kwargs):
+        raise RuntimeError("receipt unavailable")
+    monkeypatch.setattr(lambda_tools, "write_tool_audit", fail)
+    assert lambda_tools.lambda_handler(event, None).get("isError") is True
+    assert _credit_counts(as_login, key) == (0, 0)
+    with _connect(as_login, "postgres") as conn:
+        assert conn.execute("SELECT count(*) AS n FROM pellier.orders "
+                            "WHERE customer_id=%s AND store_credit_id IS NOT NULL",
+                            (customer,)).fetchone()["n"] == 0
+    monkeypatch.setattr(lambda_tools, "write_tool_audit", original)
+    assert not lambda_tools.lambda_handler(event, None).get("isError")
+    # The first response may be lost. Retrying still leaves exactly one of each.
+    assert not lambda_tools.lambda_handler(event, None).get("isError")
+    assert _credit_counts(as_login, key) == (1, 1)
+
+
+def test_concurrent_lambda_duplicates_commit_one_credit_and_one_success_receipt(as_login):
+    from concurrent.futures import ThreadPoolExecutor
+    customer = "CUST-AUDITRACE"
+    key = _approved_review(as_login, customer)
+    event = {"name": "give_store_credit", "arguments": {
+        "customer_id": customer, "amount_cents": 2500, "reason": "login", "idempotency_key": key}}
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(lambda_tools.lambda_handler, event, None) for _ in range(2)]
+        results = [_json.loads(f.result(timeout=10)["text"]) for f in futures]
+    assert all(r["status"] == "success" for r in results)
+    assert results[0]["credit_id"] == results[1]["credit_id"]
+    assert sum(bool(r["idempotent_replay"]) for r in results) == 1
+    assert _credit_counts(as_login, key) == (1, 1)
+
+
+def test_lost_commit_response_retries_the_committed_credit_and_receipt(as_login, monkeypatch):
+    customer = "CUST-LOSTCOMMIT"
+    key = _approved_review(as_login, customer)
+    event = {"name": "give_store_credit", "arguments": {
+        "customer_id": customer, "amount_cents": 2500, "reason": "login", "idempotency_key": key}}
+    commit = dataapi.commit_transaction
+
+    def commit_without_ack(transaction_id):
+        commit(transaction_id)
+        raise TimeoutError("commit response lost")
+
+    monkeypatch.setattr(dataapi, "commit_transaction", commit_without_ack)
+    assert lambda_tools.lambda_handler(event, None).get("isError") is True
+    assert _credit_counts(as_login, key) == (1, 1)
+    monkeypatch.setattr(dataapi, "commit_transaction", commit)
+    result = _json.loads(lambda_tools.lambda_handler(event, None)["text"])
+    assert result["status"] == "success" and result["idempotent_replay"] is True
+    assert _credit_counts(as_login, key) == (1, 1)
+
+
+def test_gateway_proofs_reject_an_owner_login(as_login, monkeypatch):
+    monkeypatch.setattr(dataapi, "execute_sql", lambda sql: [{"login": "postgres", "role": "postgres"}])
+    with pytest.raises(RuntimeError, match="not connected as pellier_store_tools"):
+        dataapi.verify_tools_login()
+
+
 def test_pgaudit_can_log_the_credit_the_login_writes(as_login) -> None:
     # pgAudit skips a statement whose current role the session's login is not a member of
     # (pgaudit.c, log_select_dml), which is every statement inside a SECURITY DEFINER

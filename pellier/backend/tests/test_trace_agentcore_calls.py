@@ -100,6 +100,25 @@ def test_a_determining_policy_is_named_instead_of_the_service_reason() -> None:
     assert "missing field" not in "\n".join(lines)
 
 
+def test_an_allow_without_target_telemetry_cannot_claim_nonexecution() -> None:
+    (call,) = trace.calls_from_spans(_call("incomplete", 1000, "get_tickets", THEO_SUB,
+                                          "ALLOW", [], ran=False), "get_tickets")
+    text = "\n".join(trace.render_call(call, NAMES))
+    assert "never" not in text
+    assert "unknown" in text
+
+
+def test_policy_decision_without_gateway_enforcement_cannot_prove_nonexecution() -> None:
+    spans = _call("policy-only", 1000, "get_tickets", THEO_SUB, "DENY", [], ran=False)
+    for span in spans:
+        if span["name"] == "AgentCore.Gateway.InvokeTool":
+            span["attributes"].pop("aws.agentcore.policy.authorization_decision")
+    (call,) = trace.calls_from_spans(spans, "get_tickets")
+    text = "\n".join(trace.render_call(call, NAMES))
+    assert "never" not in text
+    assert "unknown" in text
+
+
 def test_an_unknown_subject_prints_as_its_prefix() -> None:
     (allow,) = trace.calls_from_spans(ALLOW, "get_tickets")
     assert "sub 34389418..." in trace.render_call(allow, {})[0]
@@ -297,9 +316,9 @@ def test_deny_allow_and_replay_read_as_nothing_one_insert_and_nothing() -> None:
     lines = trace.aurora_lines([deny, allow, replay], writes, None, now=INSERT_SECOND + 600)
     when = datetime.fromtimestamp(INSERT_SECOND, tz=timezone.utc).strftime("%H:%M:%S")
     assert lines == {
-        "req-deny": "pgAudit: no write to pellier.store_credits during this call",
-        "req-allow": f"pgAudit: INSERT into pellier.store_credits at {when}, key {KEY}",
-        "req-replay": "pgAudit: no write to pellier.store_credits during this call",
+        "req-deny": "pgAudit: no exported write to pellier.store_credits in this window; absence does not prove non-execution",
+        "req-allow": f"pgAudit: INSERT into pellier.store_credits at {when}, key {KEY} (time window only)",
+        "req-replay": "pgAudit: no exported write to pellier.store_credits in this window; absence does not prove non-execution",
     }
 
 
@@ -322,7 +341,7 @@ def test_a_second_of_clock_skew_keeps_the_write_with_its_call() -> None:
         line = trace.aurora_lines([call], writes, None, now=INSERT_SECOND + 600)["req-allow"]
         assert line.startswith("pgAudit: INSERT into"), line
     assert trace.aurora_lines([far], writes, None, now=INSERT_SECOND + 600)["req-other"] == (
-        "pgAudit: no write to pellier.store_credits during this call")
+        "pgAudit: no exported write to pellier.store_credits in this window; absence does not prove non-execution")
 
 
 def test_a_call_inside_the_export_lag_waits_instead_of_claiming_nothing_reached_aurora() -> None:
@@ -332,16 +351,16 @@ def test_a_call_inside_the_export_lag_waits_instead_of_claiming_nothing_reached_
                                  "minute, so run this again shortly")
     assert "no write" not in lines["req-deny"]
     later = trace.aurora_lines([deny], [], None, now=10_000 + trace.LOG_EXPORT_LAG_S + 5)
-    assert later["req-deny"] == "pgAudit: no write to pellier.store_credits during this call"
+    assert later["req-deny"] == "pgAudit: no exported write to pellier.store_credits in this window; absence does not prove non-execution"
 
 
-def test_a_write_in_the_second_two_calls_share_goes_to_the_earlier_and_says_so() -> None:
+def test_overlapping_calls_cannot_attribute_the_write_to_either_request() -> None:
     first = _credit("req-1", INSERT_SECOND + 0.1, ran=True, gateway_ms=300)
     second = _credit("req-2", INSERT_SECOND + 0.6, ran=True, gateway_ms=300)
     writes = trace.audited_writes([_event(INSERT_LINE)])
     lines = trace.aurora_lines([first, second], writes, None, now=INSERT_SECOND + 600)
-    assert lines["req-1"].endswith("(the next call began in the same second)")
-    assert lines["req-2"] == "pgAudit: no write to pellier.store_credits during this call"
+    assert lines["req-1"].endswith("(overlapping calls; attribution unknown)")
+    assert lines["req-2"].endswith("(overlapping calls; attribution unknown)")
 
 
 def test_with_pgaudit_off_every_call_says_why_and_claims_no_absence() -> None:

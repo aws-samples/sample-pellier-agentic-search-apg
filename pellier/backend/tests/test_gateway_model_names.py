@@ -129,7 +129,7 @@ def test_the_model_never_sees_the_arguments_the_server_sets(monkeypatch):
         shown = after.tool_spec["inputSchema"]["json"]
         assert not SERVER_SET & set(shown["properties"]), after.tool_name
         published = set(before.mcp_tool.inputSchema["properties"])
-        assert set(shown["properties"]) == published - SERVER_SET
+        assert set(shown["properties"]) == published - gateway._SERVER_SET_TOOL_INPUTS
         assert shown.get("required", []) == before.mcp_tool.inputSchema.get("required", [])
         assert SERVER_SET <= set(before.mcp_tool.inputSchema["properties"])  # Gateway copy kept
     check_stock = next(t for t in adapted if t.tool_name == "check_stock")

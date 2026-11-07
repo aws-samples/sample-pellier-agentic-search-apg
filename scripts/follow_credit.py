@@ -74,7 +74,12 @@ SELECT c.credit_id, c.amount_cents, c.idempotency_key, c.created_at AS credited_
            AND coalesce(t.result->>'idempotent_replay', 'false') <> 'true'
          ORDER BY t.audit_id LIMIT 1) AS credit_audit_id,
        (SELECT count(*) FROM pellier.store_credits s
-         WHERE s.idempotency_key = r.write_key) AS credits_with_key
+         WHERE s.idempotency_key = r.write_key) AS credits_with_key,
+       (SELECT t.args->>'gateway_request_id' FROM pellier.tool_audit t
+         WHERE t.tool = 'give_store_credit' AND t.args->>'idempotency_key' = r.write_key
+           AND t.result->>'status' = 'success'
+           AND coalesce(t.result->>'idempotent_replay', 'false') <> 'true'
+         ORDER BY t.audit_id LIMIT 1) AS credit_gateway_request_id
   FROM credit c
   LEFT JOIN review r ON true
   LEFT JOIN request q ON true;
@@ -134,15 +139,16 @@ def handoff_from_turn(calls: List[Dict[str, Any]], runtime: Dict[str, Any],
 
 
 def paid_call(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
-              key: str) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """The INSERTs pgAudit logged with ``key``, and the Gateway call that holds the first."""
+              key: str, request_id: Optional[str] = None,
+              ) -> Tuple[List[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Join the committed receipt's Gateway request id, never a time-window guess."""
     inserts = [w for w in writes if w["key"] == key and w["command"] == "INSERT"]
     if not inserts:
         return inserts, None
-    second = inserts[0]["second"]
-    holder = next((call for call in calls
-                   if trace.call_window(call)[0] < second + 1
-                   and second <= trace.call_window(call)[1]), None)
+    matches = [call for call in calls if request_id and call.get("request_id") == request_id
+               and call.get("tool") == CREDIT_TOOL and call.get("decision") == "ALLOW"
+               and call.get("lambda_ms") is not None]
+    holder = matches[0] if len(matches) == 1 else None
     return inserts, holder
 
 
@@ -253,7 +259,8 @@ def _credit_half(story: Dict[str, Any], records: Records, rows: List[List[str]],
                                   "labs. Raise your hand so a facilitator can check it.")
     if records.unavailable:
         return Followed(check.COULD_NOT_CHECK, rows, observed=records.unavailable)
-    inserts, paid = paid_call(records.credits, records.writes, story["write_key"])
+    inserts, paid = paid_call(records.credits, records.writes, story["write_key"],
+                             story.get("credit_gateway_request_id"))
     if not inserts:
         if now - story["credited_at"].timestamp() < trace.LOG_EXPORT_LAG_S:
             return Followed(check.COULD_NOT_CHECK, rows,
@@ -264,7 +271,7 @@ def _credit_half(story: Dict[str, Any], records: Records, rows: List[List[str]],
                         observed="pgAudit logged no INSERT with the review's key")
     if paid is None:
         return Followed(check.COULD_NOT_CHECK, rows, observed=(
-            f"no {CREDIT_TOOL} call in CloudWatch holds the INSERT's second"),
+            f"no {CREDIT_TOOL} ALLOW with target execution matches the receipt's Gateway request id"),
             next_step="run this again in a moment.")
     if len(inserts) != 1:
         return Followed(check.FAILED, rows, observed=(

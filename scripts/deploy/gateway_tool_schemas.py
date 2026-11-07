@@ -341,3 +341,16 @@ def schema_for(surface: str, *, workshop: bool) -> list[dict]:
         for tool in config["tools"]
         if not workshop or tool["name"] not in UNPUBLISHED_TOOLS
     ]
+
+
+# Server-owned context stays outside the model-facing schema. Kept here so
+# the workshop's editor line references above remain stable.
+for _target in TOOL_SCHEMAS.values():
+    for _tool in _target["tools"]:
+        _tool["inputSchema"]["properties"]["memory_record_ids_json"] = {
+            "type": "string", "description": "Memory record ids read by Runtime for this turn.",
+        }
+        if _tool["name"] in {"search_products", "browse_department"}:
+            _tool["inputSchema"]["properties"]["requirements_json"] = {
+                "type": "string", "description": "Runtime-bound shopper requirements",
+            }

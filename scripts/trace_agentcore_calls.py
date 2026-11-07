@@ -142,6 +142,7 @@ def one_call(spans: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         "started_ns": int(invoke.get("startTimeUnixNano") or 0),
         "tool": str(attrs.get("tool.name") or "").split("___")[-1],
         "decision": attrs.get(_DECISION) or _attrs(policy).get(_DECISION) or "none",
+        "gateway_denied": attrs.get(_DECISION) == "DENY",
         "policies": _policies(spans),
         "reason": _attrs(policy).get("aws.agentcore.policy.authorization_reason"),
         "subject": _attrs(inbound).get("jwt.sub"),
@@ -198,7 +199,9 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
     subject = call["subject"] or ""
     who = names.get(subject) or (f"sub {subject[:8]}..." if subject else "no token")
     ran = call["lambda_ms"] is not None
-    outcome = f"Lambda ran ({call['lambda_ms']} ms)" if ran else "Lambda never called"
+    denied = call.get("gateway_denied", False)
+    outcome = (f"Lambda ran ({call['lambda_ms']} ms)" if ran else
+               "Lambda never called" if denied else "Lambda execution unknown")
     identity = (f"{call['authorizer']} authorizer accepted {who}'s Cognito "
                 f"{call['token_use']} token") if call["identity_checked"] else "no Identity span"
     if call["policies"]:
@@ -206,7 +209,8 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
     else:
         policy = f"{call['decision']}: {call['reason'] or 'no policy named'}"
     gateway = (f"tools/call {call['gateway_ms']} ms; {TARGET} Lambda span present" if ran
-               else "tools/call refused; no Lambda span: the target was never invoked")
+               else "tools/call refused by the request's Cedar decision; target never invoked" if denied
+               else "no Lambda span: execution is unknown; telemetry may be incomplete")
     return [f"{when}  {who:<8} {call['tool']}  {call['decision']}  ->  {outcome}",
             f"  Runtime   {runtime_summary(call, runtime)}",
             f"  Identity  {identity}",
@@ -345,9 +349,8 @@ def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
                  unavailable: Optional[str], now: float) -> Dict[str, str]:
     """The Aurora line for each call, by request id.
 
-    A write belongs to the earliest call whose Gateway window, with CLOCK_SLACK_S each side,
-    overlaps the write's second.
-    A call with no write says so only once the PostgreSQL log has had time to arrive.
+    These are time-window observations only. Overlap cannot attribute a write
+    to a request, and missing exported logs cannot establish non-execution.
     ``unavailable``, when set, is every call's line: why there is no record to read.
     """
     if unavailable:
@@ -358,10 +361,10 @@ def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
         second = write["second"]
         hits = [c for c in calls
                 if call_window(c)[0] < second + 1 and second <= call_window(c)[1]]
-        if hits:
-            first = hits[0]["request_id"]
-            owned[first].append(write)
-            shared[first] = shared.get(first, False) or len(hits) > 1
+        for hit in hits:
+            request_id = hit["request_id"]
+            owned[request_id].append(write)
+            shared[request_id] = shared.get(request_id, False) or len(hits) > 1
     lines: Dict[str, str] = {}
     for call in calls:
         mine = owned[call["request_id"]]
@@ -371,13 +374,15 @@ def aurora_lines(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
                 when = datetime.fromtimestamp(write["second"], tz=timezone.utc).strftime("%H:%M:%S")
                 key = f", key {write['key']}" if write["key"] else ""
                 parts.append(f"{write['command']} into {AUDITED_TABLE} at {when}{key}")
-            note = " (the next call began in the same second)" if shared[call["request_id"]] else ""
+            note = (" (overlapping calls; attribution unknown)" if shared[call["request_id"]]
+                    else " (time window only)")
             lines[call["request_id"]] = "pgAudit: " + "; ".join(parts) + note
         elif now - call_window(call)[1] < LOG_EXPORT_LAG_S:
             lines[call["request_id"]] = ("pgAudit: not exported yet; the PostgreSQL log lags "
                                          "about a minute, so run this again shortly")
         else:
-            lines[call["request_id"]] = f"pgAudit: no write to {AUDITED_TABLE} during this call"
+            lines[call["request_id"]] = (f"pgAudit: no exported write to {AUDITED_TABLE} in this window; "
+                                         "absence does not prove non-execution")
     return lines
 
 

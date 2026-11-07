@@ -340,6 +340,13 @@ def bind_runtime_principal(transaction_id: str, *, customer_id: str) -> None:
 Result = TypeVar("Result")
 
 
+def verify_tools_login() -> None:
+    """A workshop Gateway probe must use the deployed login, never the owner."""
+    rows = execute_sql("SELECT session_user AS login, current_user AS role")
+    if rows != [{"login": "pellier_store_tools", "role": "pellier_store_tools"}]:
+        raise RuntimeError("Gateway probe is not connected as pellier_store_tools")
+
+
 def run_as_customer(customer_id: str, work: Callable[..., Result]) -> Result:
     """Run ``work(run)`` as ``pellier_agent`` with ``customer_id`` named.
 
@@ -362,14 +369,19 @@ def run_as_customer(customer_id: str, work: Callable[..., Result]) -> Result:
     return result
 
 
-def run_as_credit_writer(work: Callable[..., Result]) -> Result:
+def run_as_credit_writer(
+    work: Callable[..., Result],
+    *,
+    record_success: Optional[Callable[[str, Result], None]] = None,
+) -> Result:
     """Run ``work(run)`` as ``pellier_credit_writer``, the role that moves money.
 
     The role may only execute ``pellier.give_store_credit``, which runs with
     its owner's rights, so the credit this transaction writes is one the
     function's checks admit, and nothing in it can change a credit row
-    directly. The role is transaction-local: the audit receipt the caller
-    writes after the commit or rollback runs outside it, as its own statement.
+    directly. A successful mutation's receipt is written in this transaction,
+    after resetting to the tools login, which has INSERT on the audit ledger.
+    Failure to write that receipt rolls back the credit too.
     """
     transaction_id = begin_transaction()
     try:
@@ -379,11 +391,40 @@ def run_as_credit_writer(work: Callable[..., Result]) -> Result:
             return execute_in_transaction(transaction_id, *_named(sql, params))
 
         result = work(run)
+        if (record_success is not None and isinstance(result, dict)
+                and result.get("status") == "success" and not result.get("idempotent_replay")):
+            execute_in_transaction(transaction_id, "RESET ROLE;")
+            record_success(transaction_id, result)
+        commit_transaction(transaction_id)
     except Exception:
         rollback_transaction(transaction_id)
         raise
-    commit_transaction(transaction_id)
     return result
+
+
+def write_tool_audit(
+    *, tool: str, args: Dict[str, Any], result: Dict[str, Any], latency_ms: float,
+    session_id: str, build_fingerprint: Optional[str] = None,
+    transaction_id: Optional[str] = None,
+) -> None:
+    """Insert one receipt, propagating failures to the transaction's owner."""
+    sql = (
+        f"INSERT INTO {SCHEMA}.tool_audit "
+        "(session_id, tool, caller, args, result, latency_ms, build_fingerprint) "
+        "VALUES (:session_id, :tool, 'gateway', :args::jsonb, :result::jsonb, "
+        ":latency_ms, :build_fingerprint);"
+    )
+    parameters = [
+        _parameter("session_id", session_id), _parameter("tool", tool),
+        _parameter("args", json.dumps(args, default=str)),
+        _parameter("result", json.dumps(result, default=str)),
+        _parameter("latency_ms", int(latency_ms)),
+        _parameter("build_fingerprint", build_fingerprint or None),
+    ]
+    if transaction_id:
+        execute_in_transaction(transaction_id, sql, parameters)
+    else:
+        execute_write(sql, parameters)
 
 
 def write_tool_audit_independently(
@@ -395,41 +436,14 @@ def write_tool_audit_independently(
     session_id: str,
     build_fingerprint: Optional[str] = None,
 ) -> None:
-    """Write the execution receipt in its OWN transaction, so it survives.
+    """Keep read/refused-attempt evidence separately from a rolled-back write.
 
-    The audit row used to be written inside the mutation's transaction, which
-    meant a rolled-back business write took its receipt with it. That makes the
-    most important governance outcome unprovable: an action that Cedar allowed,
-    that entered the tool, and that Aurora then refused would leave no trace at
-    all, and "nothing happened" would be indistinguishable from "nothing was ever
-    attempted".
-
-    So the receipt commits independently. The ordering guarantee that matters is
-    preserved by the caller: nothing writes a receipt unless the tool was
-    actually entered, and a Cedar denial never reaches this module.
-
-    This writer can only INSERT into ``pellier.tool_audit``. It cannot alter
-    business state, by construction, so an audit failure can never corrupt a
-    mutation and vice versa.
+    Success receipts use ``write_tool_audit`` inside the credit transaction.
+    This best-effort path is never proof of non-entry when its row is absent.
     """
     try:
-        execute_write(
-            f"INSERT INTO {SCHEMA}.tool_audit "
-            "(session_id, tool, caller, args, result, latency_ms, build_fingerprint) "
-            "VALUES (:session_id, :tool, 'gateway', :args::jsonb, :result::jsonb, "
-            ":latency_ms, :build_fingerprint);",
-            [
-                {"name": "session_id", "value": {"stringValue": session_id}},
-                {"name": "tool", "value": {"stringValue": tool}},
-                {"name": "args", "value": {"stringValue": json.dumps(args, default=str)}},
-                {
-                    "name": "result",
-                    "value": {"stringValue": json.dumps(result, default=str)},
-                },
-                {"name": "latency_ms", "value": {"longValue": int(latency_ms)}},
-                _parameter("build_fingerprint", build_fingerprint or None),
-            ],
-        )
+        write_tool_audit(tool=tool, args=args, result=result, latency_ms=latency_ms,
+                         session_id=session_id, build_fingerprint=build_fingerprint)
     except Exception as exc:  # noqa: BLE001 - evidence must not break the write
         logger.error("independent tool_audit write failed for %s: %s", tool, exc)
 

@@ -406,6 +406,8 @@ def _stock_finding(parsed: Dict[str, Any]) -> str:
         return "Not a piece Pellier carries"
     if status == "ambiguous":
         return f"{len(parsed.get('candidates') or [])} pieces match that name"
+    if status == "inventory_unknown":
+        return "Stock and shipping are unknown"
     warehouses = [row for row in parsed.get("warehouses") or [] if isinstance(row, dict)]
     if _count(parsed.get("total_units")) == 0 or not warehouses:
         return "Sold out in all three warehouses"

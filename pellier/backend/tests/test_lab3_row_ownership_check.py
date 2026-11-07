@@ -63,7 +63,11 @@ def _gateway(monkeypatch: pytest.MonkeyPatch, conn: psycopg.Connection) -> dict:
     import common.dataapi as dataapi
 
     monkeypatch.setattr(dataapi, "rds_client", _DataApiOnPostgres(conn))
-    return rls.probe_gateway(dataapi)
+    conn.execute("SET SESSION AUTHORIZATION pellier_store_tools")
+    try:
+        return rls.probe_gateway(dataapi)
+    finally:
+        conn.execute("RESET SESSION AUTHORIZATION")
 
 
 @contextmanager
@@ -152,7 +156,8 @@ def test_the_data_api_module_is_pointed_at_the_box_cluster_even_if_already_impor
     for key in ("DB_CLUSTER_ARN", "SECRET_ARN", "DATABASE", "DB_REGION", "REGION"):
         monkeypatch.setenv(key, "old")
     cluster = "arn:aws:rds:eu-west-1:222222222222:cluster:pellier"
-    module = rls._dataapi({"DB_CLUSTER_ARN": cluster, "DB_SECRET_ARN": "box-secret",
+    module = rls._dataapi({"DB_CLUSTER_ARN": cluster, "DB_SECRET_ARN": "owner-secret",
+                            "STORE_TOOLS_SECRET_ARN": "box-secret",
                             "DB_NAME": "pellier"})
     assert (module.DB_CLUSTER_ARN, module.SECRET_ARN, module.DATABASE) == (
         cluster, "box-secret", "pellier")

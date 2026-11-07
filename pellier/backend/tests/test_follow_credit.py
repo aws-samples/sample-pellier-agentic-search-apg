@@ -57,7 +57,8 @@ def _story(**changes: Any) -> Dict[str, Any]:
              "write_key": KEY, "order_ids": [1041, 1042],
              "proposed_at": BASE + timedelta(minutes=2), "proposed_cents": 4000, "approver": "Nadia", "decided_at": BASE + timedelta(minutes=4),
              "request_id": 12, "turn_id": TURN, "requested_at": BASE + timedelta(seconds=1),
-             "handoff_audit_id": 812, "credit_audit_id": 820, "credits_with_key": 1}
+             "handoff_audit_id": 812, "credit_audit_id": 820, "credits_with_key": 1,
+             "credit_gateway_request_id": "req-paid"}
     story.update(changes)
     return story
 
@@ -178,7 +179,7 @@ def test_two_inserts_with_her_key_fail_the_paid_once_claim() -> None:
 def test_an_insert_no_gateway_call_holds_waits_for_the_spans() -> None:
     followed = follow_credit.follow(_story(), _records(credits=[DENIED]), NOW)
     assert followed.state == check.COULD_NOT_CHECK
-    assert followed.observed == "no give_store_credit call in CloudWatch holds the INSERT's second"
+    assert followed.observed == "no give_store_credit ALLOW with target execution matches the receipt's Gateway request id"
 
 
 def test_the_story_sql_follows_the_same_joins_as_the_wrap_up_reconstruction() -> None:
@@ -187,3 +188,17 @@ def test_the_story_sql_follows_the_same_joins_as_the_wrap_up_reconstruction() ->
                  "'operator-review:' || a.id || ':' || left(a.action_hash, 32)",
                  "t.session_id = q.source_turn_id"):
         assert join in reconstruct and join in follow_credit.STORY_SQL
+
+
+def test_an_overlapping_denial_cannot_become_the_paid_call():
+    denied = dict(DENIED, started_ns=PAID["started_ns"])
+    inserts, paid = follow_credit.paid_call([denied, PAID], [INSERT], KEY, "req-paid")
+    assert inserts == [INSERT] and paid == PAID
+    assert follow_credit.paid_call([denied, PAID], [INSERT], KEY, "req-deny")[1] is None
+    assert follow_credit.paid_call([denied, PAID], [INSERT], KEY)[1] is None
+    assert follow_credit.follow(_story(credit_gateway_request_id=None), _records(), NOW).state != check.PASSED
+
+
+def test_a_correlated_allow_with_missing_target_span_is_incomplete():
+    result = follow_credit.follow(_story(), _records(credits=[dict(PAID, lambda_ms=None)]), NOW)
+    assert result.state == check.COULD_NOT_CHECK

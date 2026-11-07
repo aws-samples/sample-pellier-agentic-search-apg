@@ -175,14 +175,14 @@ def test_the_credit_amount_travels_as_an_integer_and_the_issuer_is_not_wire_supp
     assert values["p4"] == {"isNull": True}, "an attribution the caller supplied is worse than none"
 
 
-def test_a_credit_runs_as_the_writer_in_one_transaction_and_its_receipt_after_the_commit(
+def test_a_credit_and_its_success_receipt_commit_in_one_transaction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """The credit and the role it runs as share one transaction; the receipt is its own.
+    """The credit and its successful execution receipt share one transaction.
 
     ``SET LOCAL ROLE`` lasts until the transaction ends, so the credit statement
     must carry the same transaction id or it would run as the owner. The receipt
-    must carry none, so it commits whatever the credit's transaction does.
+    must carry the same transaction id, so neither can commit alone.
     """
     module = _load_server("pellier_store_tools.py", "store_credit_receipt")
     client = _DataApi({"status": "success", "credit_id": 7})
@@ -191,14 +191,14 @@ def test_a_credit_runs_as_the_writer_in_one_transaction_and_its_receipt_after_th
     result = module.lambda_handler(_credit_event(), None)
 
     assert not result.get("isError")
-    assert client.events == ["begin", "role", "credit", "commit", "receipt"]
+    assert client.events == ["begin", "role", "credit", "other", "receipt", "commit"]
     role, credit = (call for call in client.statements
                     if "SET LOCAL ROLE" in call["sql"] or "give_store_credit" in call["sql"])
     assert role["sql"] == "SET LOCAL ROLE pellier_credit_writer;"
     assert role["transactionId"] == credit["transactionId"] == "tx-governed-1"
     receipts = _audit_statements(client)
     assert len(receipts) == 1
-    assert not receipts[0].get("transactionId")
+    assert receipts[0].get("transactionId") == credit["transactionId"]
     parameters = {p["name"]: p["value"] for p in receipts[0]["parameters"]}
     assert parameters["tool"] == {"stringValue": "give_store_credit"}
     assert parameters["session_id"] == {"stringValue": "gateway-CUST-THEO"}
@@ -243,18 +243,20 @@ def test_the_audit_receipt_survives_a_failed_business_write(
     assert not receipts[0].get("transactionId")
 
 
-def test_a_failing_receipt_write_does_not_change_the_credit_result(
+def test_a_failing_success_receipt_rolls_back_the_credit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Evidence must not break the write: the audit writer swallows its own failure."""
+    """The credit cannot commit if its successful execution receipt fails."""
     module = _load_server("pellier_store_tools.py", "store_credit_audit_fails")
     client = _DataApi({"status": "success", "credit_id": 7}, fail_audit=True)
     monkeypatch.setattr(_dataapi(), "rds_client", client)
 
     result = module.lambda_handler(_credit_event(), None)
 
-    assert not result.get("isError")
-    assert '"credit_id": 7' in result["text"]
+    assert result.get("isError") is True
+    assert '"credit_id": 7' not in result["text"]
+    assert not client.commits
+    assert len(client.rollbacks) == 1
 
 
 class _IdempotentDataApi(_DataApi):
@@ -344,10 +346,10 @@ def test_a_failure_inside_the_writer_transaction_rolls_back_and_the_retry_writes
 
     second = module.lambda_handler(_credit_event(), None)
     assert not second.get("isError")
-    assert client.events[5:] == ["begin", "role", "credit", "commit", "receipt"]
+    assert client.events[5:] == ["begin", "role", "credit", "other", "receipt", "commit"]
     assert len(client.credits) == 1 and len(client.commits) == 1 and len(client.rollbacks) == 1
     assert len(_audit_statements(client)) == 2, "one receipt per attempt"
-    assert all(not receipt.get("transactionId") for receipt in _audit_statements(client))
+    assert [bool(receipt.get("transactionId")) for receipt in _audit_statements(client)] == [False, True]
 
 
 def test_a_first_attempt_and_a_refusal_still_write_their_receipt(

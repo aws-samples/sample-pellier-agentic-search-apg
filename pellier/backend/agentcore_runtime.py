@@ -65,6 +65,7 @@ def _env_flag(name: str, *, default: bool) -> bool:
 
 def _answered(
     dispatcher: Any, response: Any, *, rail: str, stop_reason: str, remembered: list,
+    remembered_error: Optional[str] = None,
 ) -> Dict[str, Any]:
     """The Runtime's reply for a completed turn: the answer and what the agent was given."""
     return {
@@ -85,6 +86,7 @@ def _answered(
         # The AgentCore Memory records whose preferences went ahead of the
         # prompt, reported the same way.
         "remembered": list(remembered),
+        "remembered_error": remembered_error,
         # How the agent's turn ended, for the receipt. A truncated turn
         # never reaches here; it is rejected before.
         "stop_reason": stop_reason,
@@ -144,11 +146,10 @@ try:
     def invoke(payload: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
         """Handle the prompt, identity/session ids, and prior Memory history.
 
-        ``preferences`` are the user-preference records the app read from
-        AgentCore Memory for the signed-in customer, each a ``record_id`` and a
-        ``preference``. They go ahead of the prompt as labelled context, and
-        the ids of the ones sent come back as ``remembered``. The Runtime reads
-        no customer record from Aurora.
+        Runtime reads preferences from AgentCore Memory under the verified
+        customer's namespace. Payload preferences are ignored. The ids used
+        come back as ``remembered`` and travel with the tool execution receipts.
+        The Runtime reads no customer record from Aurora.
         """
         # Direct callers can submit arbitrary JSON. In particular, a Strands
         # toolUse content block must never be accepted as a user prompt.
@@ -174,10 +175,7 @@ try:
         from services.conversation_context import (
             build_conversation_prompt,
             build_remembered_prompt,
-            remembered_preferences,
         )
-
-        remembered = remembered_preferences((payload or {}).get("preferences"))
 
         # Tools execute only through Gateway MCP under the caller's identity.
         # A managed Runtime invocation must never degrade into local tools.
@@ -201,6 +199,17 @@ try:
             return {"error": str(exc), "products": [], "rail": rail}
         user_id = identity.subject
         customer_id = identity.customer_id
+        from services.runtime_memory import load_preferences
+
+        remembered_error = None
+        try:
+            remembered = load_preferences(customer_id)
+        except Exception:
+            # Availability of preferences cannot change the caller or permit
+            # payload text to masquerade as records from AgentCore Memory.
+            logger.warning("Runtime preference read unavailable", exc_info=False)
+            remembered = []
+            remembered_error = "managed_memory_unavailable"
 
         if not os.environ.get("AGENTCORE_GATEWAY_URL"):
             logger.error("Managed Runtime invocation rejected: Gateway URL missing")
@@ -224,6 +233,7 @@ try:
                 "rail": rail,
             }
         rail = "gateway-mcp"
+        dispatcher.memory_record_ids = [item["record_id"] for item in remembered]
 
         try:
             dispatcher.trace_attributes = {
@@ -236,9 +246,18 @@ try:
         except Exception:  # pragma: no cover
             pass
 
-        response = dispatcher(
-            build_remembered_prompt(build_conversation_prompt(prompt, history), remembered)
+        from services import active_requirements
+
+        requirements_turn = active_requirements.bind_turn(
+            session_id=session_id, principal=user_id, message=prompt,
+            conversation_history=history,
         )
+        try:
+            response = dispatcher(
+                build_remembered_prompt(build_conversation_prompt(prompt, history), remembered)
+            )
+        finally:
+            active_requirements.reset_turn(requirements_turn)
         stop_reason = str(getattr(response, "stop_reason", "") or "")
         if stop_reason == "max_tokens":
             logger.warning(
@@ -252,7 +271,8 @@ try:
                 "build_fingerprint": _build_fingerprint,
             }
         return _answered(dispatcher, response, rail=rail, stop_reason=stop_reason,
-                         remembered=[item["record_id"] for item in remembered])
+                         remembered=[item["record_id"] for item in remembered],
+                         remembered_error=remembered_error)
 
 except ImportError:
     logger.info("bedrock-agentcore not installed — Runtime entrypoint disabled")

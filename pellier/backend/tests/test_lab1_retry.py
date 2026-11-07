@@ -75,7 +75,7 @@ def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> Non
     assert "_next_attempt" not in finding.next_step
 
 
-def test_only_the_limits_asked_for_are_judged() -> None:
+def test_a_different_request_cannot_prove_annas_required_scenario() -> None:
     """A request with only an exclusion is not failed for a budget nobody stated."""
     wool = {"hard_constraints": {"price_max_usd": None, "in_stock_only": False,
                                  "categories": []}, "exclusions": ["wool"]}
@@ -84,7 +84,20 @@ def test_only_the_limits_asked_for_are_judged() -> None:
               "materials": ["wool"]}
     assert lab1.product_breaks(pricey, limits) == ["excluded wool"]
     finding = _judge(_receipt(requested=wool, kept={}, exclusions=["wool"]))
-    assert finding.state == "PASSED", finding
+    assert finding.state != "PASSED", finding
+
+
+@pytest.mark.parametrize("omitted", ["price_max_usd", "in_stock_only", "exclusions"])
+def test_matching_initial_and_final_plans_cannot_hide_an_omitted_requirement(omitted):
+    import copy
+    requested = copy.deepcopy(ASKED)
+    if omitted == "exclusions":
+        requested[omitted] = []
+    else:
+        requested["hard_constraints"][omitted] = None
+    finding = _judge(_receipt(requested=requested, kept=requested["hard_constraints"],
+                               exclusions=requested["exclusions"]))
+    assert finding.state != "PASSED"
 
 
 def test_a_department_the_answer_widened_is_dropped() -> None:

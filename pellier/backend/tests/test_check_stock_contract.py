@@ -103,3 +103,12 @@ def test_a_data_api_row_with_strings_and_json_text_reads_the_same() -> None:
     assert [w["quantity"] for w in result["warehouses"]] == [3, 3, 3]
     assert result["warehouses"][0]["ship_window_max"] == 2
     assert result["product"]["price"] == 193.13
+
+
+def test_a_catalog_product_without_inventory_is_unknown_not_sold_out() -> None:
+    result = store_tools.check_stock(_Run([_row("43", "Quilted Silk Vest", 0, [])]),
+                                     product_query="Quilted Silk Vest")
+    assert result["status"] == "inventory_unknown"
+    assert result["product"]["productId"] == "43"
+    assert result["total_units"] is None
+    assert result["warehouses"] == []

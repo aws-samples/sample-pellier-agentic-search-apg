@@ -313,22 +313,22 @@ def test_the_gateway_client_records_verified_identity_provenance() -> None:
 def test_store_lambda_writes_gateway_tool_audit() -> None:
     """The Lambda wires the audit; the shared transport performs it.
 
-    The credit receipt is written OUTSIDE the business transaction, so an Aurora
-    refusal still leaves exactly one attempt receipt. An idempotent replay
-    writes none, so a retry keeps one credit and one receipt. Reads write a
-    receipt only when the Runtime passed a turn id.
+    Successful credits record their receipt before committing; refused attempts
+    are recorded independently. PostgreSQL tests verify rollback and replay.
+    Reads write a receipt only when the Runtime passed a turn id.
     """
     source = STORE_LAMBDA.read_text()
     assert (
-        'if tool_name == "give_store_credit" and not _is_idempotent_replay(result):'
+        'if tool_name == "give_store_credit" and result.get("status") != "success":'
         in source
     )
     assert "write_tool_audit_independently(" in source
+    assert "record_success=record_success" in source
+    assert "build_fingerprint=build, transaction_id=transaction_id" in source
     assert "audit_read_call(tool_name, audited_arguments, result, started," in source
     assert "build_fingerprint=build" in source
     # Keyed on the real identity, which this tool's arguments carry.
     assert 'f"gateway-{execution_arguments.get(\'customer_id\') or \'unknown\'}"' in source
-    assert "_write_tool_audit_in_transaction" not in source
 
     transport = (STORE_LAMBDA.parent / "common" / "dataapi.py").read_text()
     assert "INSERT INTO" in transport and "tool_audit" in transport

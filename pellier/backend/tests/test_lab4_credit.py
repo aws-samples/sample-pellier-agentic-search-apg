@@ -89,6 +89,7 @@ def test_the_gateway_path_holds_the_role_to_the_function(deployed: Any, monkeypa
 
     with psycopg.connect(**_conninfo(deployed)) as conn:
         monkeypatch.setattr(dataapi, "rds_client", _DataApiOnPostgres(conn))
+        conn.execute("SET SESSION AUTHORIZATION pellier_store_tools")
         observed = credit_check.probe_gateway(dataapi)
     assert observed == credit_check.WANT, observed
     assert credit_check.judge_path("Gateway", observed).state == "PASSED"

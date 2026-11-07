@@ -212,6 +212,7 @@ SHARED_MODULES = {
   'common/types.py': 'common/types.py',
   'common/dataapi.py': 'common/dataapi.py',
   'common/handler.py': 'common/handler.py',
+  'common/fingerprint.py': 'common/fingerprint.py',
   'gateway_tool_schemas.py': 'gateway_tool_schemas.py',
   'services/__init__.py': '../../pellier/backend/services/__init__.py',
   'services/store_tools.py': SOLUTION_COPIES['services/store_tools.py'],

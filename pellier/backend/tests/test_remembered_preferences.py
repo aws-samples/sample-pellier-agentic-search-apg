@@ -100,16 +100,17 @@ MEMORY_EMPTY = {"source": "agentcore-memory", "strategy": "USER_PREFERENCE", "re
 def managed_theo(monkeypatch: pytest.MonkeyPatch, theo_memory: type):
     """Theo signed in on the managed rail; the Runtime reports what it was given."""
     sent: List[Dict[str, Any]] = []
-    reported: Dict[str, Optional[List[str]]] = {"ids": None}
+    reported: Dict[str, Any] = {"ids": None, "error": None}
 
     async def _runtime(**kwargs: Any) -> ManagedRuntimeResult:
         sent.append(kwargs)
         ids = reported["ids"]
         if ids is None:
-            ids = [item["record_id"] for item in kwargs.get("preferences") or []]
+            ids = ["mem-theo-1"] if kwargs.get("customer_id") == "CUST-THEO" else []
         return ManagedRuntimeResult(
             response="Start with the stoneware.", rail="gateway-mcp", intent="catalog",
             specialist="catalog", model="global.anthropic.claude-opus-5-5", remembered=ids,
+            remembered_error=reported["error"],
         )
 
     class _LocalChatMustNotRun:
@@ -147,16 +148,16 @@ def _route(events: List[Dict[str, Any]]) -> Dict[str, Any]:
     return next(e for e in events if e.get("type") == "step" and e["id"] == "route")
 
 
-def test_the_managed_payload_carries_theos_preference_and_the_step_names_its_record(
+def test_the_managed_payload_carries_identity_and_the_step_names_the_runtime_record(
     managed_theo, theo_memory,
 ) -> None:
     # The body names another customer: the read follows the token, not the body.
     events = managed_theo({"customer_id": "CUST-JESSICA"})
 
-    assert theo_memory.reads == ["CUST-THEO"]
+    assert theo_memory.reads == []
     assert theo_memory.strict_flags == [True]
     (call,) = managed_theo.sent
-    assert call["preferences"] == [THEO_RECORD]
+    assert "preferences" not in call
     assert call["customer_id"] == "CUST-THEO"
 
     route = _route(events)
@@ -174,7 +175,7 @@ def test_a_runtime_that_reports_no_record_says_none_was_given(managed_theo) -> N
     managed_theo.reported["ids"] = []
     route = _route(managed_theo())
 
-    assert managed_theo.sent[0]["preferences"] == [THEO_RECORD]
+    assert "preferences" not in managed_theo.sent[0]
     assert route["builder"]["remembered"] == MEMORY_EMPTY
 
 
@@ -186,7 +187,7 @@ def test_a_shopper_with_nothing_remembered_is_told_apart_from_signed_out(managed
     route = _route(managed_theo())
 
     assert managed_theo.sent[0]["customer_id"] == "CUST-JESSICA"
-    assert managed_theo.sent[0]["preferences"] == []
+    assert "preferences" not in managed_theo.sent[0]
     assert route["builder"]["remembered"] == MEMORY_EMPTY
     assert "Memory" in route["tags"]
 
@@ -195,11 +196,11 @@ def test_a_failed_preference_read_continues_the_turn_and_says_so(managed_theo,
                                                                  monkeypatch) -> None:
     """Memory is context, never permission: the turn goes on without it, and the
     Router step says the read failed rather than looking like nothing remembered."""
-    monkeypatch.setattr(_TheoMemory, "get_semantic_memories", _read_fails)
+    managed_theo.reported.update(ids=[], error="managed_memory_unavailable")
     events = managed_theo()
 
     (call,) = managed_theo.sent
-    assert call["preferences"] == []
+    assert "preferences" not in call
     assert not any(e.get("type") == "error" for e in events)
     route = _route(events)
     assert route["builder"]["remembered"] == MEMORY_FAILED
@@ -219,7 +220,7 @@ def test_a_failed_history_read_still_ends_the_managed_turn(managed_theo, monkeyp
     assert any(e.get("type") == "error" for e in events)
 
 
-def test_the_bridge_sends_the_preferences_and_parses_the_reported_ids(monkeypatch) -> None:
+def test_the_bridge_ignores_payload_preferences_and_parses_runtime_memory_status(monkeypatch) -> None:
     """Through the real ``run_agent_on_runtime_result``: the payload out, the ids back."""
     bodies: List[Dict[str, Any]] = []
 
@@ -230,6 +231,7 @@ def test_the_bridge_sends_the_preferences_and_parses_the_reported_ids(monkeypatc
             return json.dumps({
                 "response": "Start with the stoneware.", "rail": "gateway-mcp",
                 "orchestration": "dispatcher", "remembered": ["mem-theo-1", "", 7],
+                "remembered_error": "managed_memory_unavailable",
             }).encode("utf-8")
 
         def __enter__(self) -> "_Response":
@@ -252,7 +254,8 @@ def test_the_bridge_sends_the_preferences_and_parses_the_reported_ids(monkeypatc
         auth_token="jwt-theo", customer_id="CUST-THEO", preferences=[THEO_RECORD],
     ))
 
-    assert bodies[0]["preferences"] == [THEO_RECORD]
+    assert "preferences" not in bodies[0]
+    assert result.remembered_error == "managed_memory_unavailable"
     assert result.remembered == ["mem-theo-1"]
 
 

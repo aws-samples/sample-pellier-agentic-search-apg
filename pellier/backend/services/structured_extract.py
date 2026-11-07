@@ -40,12 +40,13 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import boto3
 
-from config import settings
 from services.catalog_vocabulary import KNOWN_CATEGORIES, KNOWN_MATERIALS, KNOWN_TAGS
+from services.specialist_models import settings
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,8 @@ class StructuredExtractor:
     def __init__(self, region: Optional[str] = None):
         self.client = boto3.client(
             "bedrock-runtime",
-            region_name=region or settings.aws_region_resolved,
+            region_name=region or getattr(settings, "aws_region_resolved", None)
+            or os.environ.get("AWS_REGION", "us-east-1"),
         )
         self.model_id = settings.BEDROCK_REPORTING_MODEL
 

@@ -131,10 +131,12 @@ def test_laying_the_zip_over_the_checkout_leaves_the_build_fingerprint_unchanged
 
 
 def test_lab_3b_proves_the_build_whatever_state_lab_1_is_in(tmp_path: Path) -> None:
-    """A participant's Lab 1 edits change the zip's twins, never the digest 3B compares."""
+    """Lab 1 changes Lambda's digest; Runtime and tools must each match their source."""
     sys.path[:0] = [str(REPO / "scripts"), str(DEPLOY)]
     import lab3_check
     import render_agentcore_project
+    from common.fingerprint import compute_fingerprint as tools_fingerprint
+    from deploy_lambda import package_files
 
     _, deployed = render_agentcore_project._render_runtime_source(tmp_path / "staged", BACKEND)
     solved = tmp_path / "solved" / "pellier" / "backend"
@@ -145,7 +147,12 @@ def test_lab_3b_proves_the_build_whatever_state_lab_1_is_in(tmp_path: Path) -> N
            "deployed_fingerprint": deployed}
     for checkout in (BACKEND, solved):
         local = compute_fingerprint(checkout, skills_root=REPO)
-        assert lab3_check.judge_build(row, local).state == "PASSED", checkout
+        files = package_files(str(DEPLOY / "pellier_store_tools.py"), "pellier_store_tools.lambda_handler")
+        files["services/search_plan.py"] = checkout / "services/search_plan.py"
+        tools = tools_fingerprint(files)
+        receipt = {**row, "deployed_tools_fingerprint": tools}
+        assert lab3_check.judge_build(receipt, local, tools).state == "PASSED", checkout
+        assert lab3_check.judge_build(receipt, local, "stale").state == "FAILED"
 
 
 # ---------------------------------------------------------------------------

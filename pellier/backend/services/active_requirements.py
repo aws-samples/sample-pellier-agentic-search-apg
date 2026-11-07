@@ -29,8 +29,8 @@ to carry limits consistently.
 
 Both catalog tools on the in-process rail read the same turn requirements,
 so the fallback from ``search_products`` to ``browse_department`` cannot lose
-them either. The managed rail has no server-side reading; its agent passes
-the limits as tool arguments.
+them either. The managed Runtime uses the same extractor and merge, then
+binds the reading to both catalog tools independently of model arguments.
 
 The per-turn scope is a ``ContextVar`` holding one object the chat stream
 creates before the agent runs. ``asyncio.to_thread`` copies the context into
@@ -493,3 +493,34 @@ def remember_turn() -> None:
     if scope is None or scope.reading is None:
         return
     remember(scope.session_id, scope.reading, principal=scope.principal)
+
+
+def managed_turn_requirements() -> Dict[str, Any]:
+    """Read the shopper's words, never the agent's query or remembered preferences.
+
+    On a cold Runtime, reconstruct prior limits from user messages in order.
+    A failed extraction cancels the tool instead of searching without limits.
+    The history is caller-provided conversation context, never authorization.
+    """
+    from services.structured_extract import get_structured_extractor
+
+    scope = current_turn()
+    if scope is None:
+        raise ValueError("Catalog tools require a bound shopper turn")
+
+    def read(message: str) -> Dict[str, Any]:
+        value = get_structured_extractor().extract(message)
+        if not value or value.get("extraction_status") == "extraction_failed":
+            raise ValueError("The shopper's requirements could not be read")
+        return value
+
+    if scope.reading is None and _key(scope.principal, scope.session_id or "") not in _by_session:
+        before = ActiveRequirements()
+        for message in scope.earlier:
+            merged, _ = merge(read(message), before=before, message=message)
+            before = remember(None, merged)
+        if scope.earlier:
+            remember(scope.session_id, merged, principal=scope.principal)
+    reading, _ = turn_requirements(lambda: read(scope.message))
+    remember_turn()
+    return reading or {}

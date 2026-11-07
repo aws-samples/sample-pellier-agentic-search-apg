@@ -45,6 +45,7 @@ the model seldom asks for another customer, so the probe makes it every time.
 from __future__ import annotations
 
 import pathlib
+import json
 import sys
 import uuid
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
@@ -70,6 +71,7 @@ SEND = "uv run scripts/lab_run.py send --lab 3"
 # because only they can be compared with this checkout.
 BUILD_SQL = f"""
 SELECT audit_id, session_id AS turn_id, tool, build_fingerprint AS deployed_fingerprint,
+       args->>'tools_fingerprint' AS deployed_tools_fingerprint,
        created_at
   FROM pellier.tool_audit
  WHERE caller = 'gateway'
@@ -306,7 +308,23 @@ def local_fingerprint() -> str:
         return ""
 
 
-def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
+def local_tools_fingerprint() -> str:
+    """Expected Lambda sources, including the participant's carried-forward search plan."""
+    try:
+        if str(DEPLOY) not in sys.path:
+            sys.path.insert(0, str(DEPLOY))
+        from deploy_lambda import package_files
+        from common.fingerprint import compute_fingerprint
+
+        files = package_files(str(DEPLOY / "pellier_store_tools.py"), "pellier_store_tools.lambda_handler")
+        files["services/search_plan.py"] = BACKEND / "services/search_plan.py"
+        return compute_fingerprint(files)
+    except (OSError, KeyError):
+        return ""
+
+
+def judge_build(row: Optional[Dict[str, Any]], local: str,
+                tools_local: Optional[str] = None) -> check.Finding:
     """The deployed build beside this checkout's, from one tool_audit row."""
     if not row:
         return check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
@@ -314,18 +332,22 @@ def judge_build(row: Optional[Dict[str, Any]], local: str) -> check.Finding:
                              f"run bash scripts/lab3-start.sh theo, then {SEND}."
                              + check.since_note(3, SEND))
     deployed = str(row.get("deployed_fingerprint") or "").strip()
+    tools_deployed = str(row.get("deployed_tools_fingerprint") or "").strip()
+    tools_local = local_tools_fingerprint() if tools_local is None else tools_local
     evidence = [
         f"pellier.tool_audit audit {row.get('audit_id')}: {row.get('tool')} in turn "
         f"{row.get('turn_id')}",
         f"deployed build   {deployed or 'none recorded'}",
         f"this checkout    {local or 'unreadable'}",
+        f"deployed tools   {tools_deployed or 'none recorded'}",
+        f"checkout tools   {tools_local or 'unreadable'}",
     ]
-    if not deployed or not local:
+    if not deployed or not local or not tools_deployed or not tools_local:
         return check.Finding("3B", _BUILD_TITLE, check.COULD_NOT_CHECK, BUILD_EXPECTED,
                              "a build could not be compared", evidence,
                              "deploy with --mode participant, then send Theo's requests "
                              f"again in a new conversation: {SEND}.")
-    if deployed == local:
+    if deployed == local and tools_deployed == tools_local:
         return check.Finding("3B", _BUILD_TITLE, check.PASSED, BUILD_EXPECTED,
                              "the two builds match", evidence)
     return check.Finding("3B", _BUILD_TITLE, check.FAILED, BUILD_EXPECTED,
@@ -414,7 +436,8 @@ def _event_text(event: Dict[str, Any]) -> str:
 
 
 def judge_memory(memory_id: str, seeded: Dict[str, Any],
-                 remembered: Sequence[Dict[str, str]]) -> check.Finding:
+                 remembered: Sequence[Dict[str, str]],
+                 used: Optional[Dict[str, Any]] = None) -> check.Finding:
     """What the managed rail reads for Theo, beside what provisioning recorded.
 
     ``seeded`` is ``seed_agentcore_memory.seeded_memory`` for CUST-THEO;
@@ -437,11 +460,42 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
         return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED, observed,
                              evidence, "extraction runs after the conversation; run this "
                                        "again in a minute.")
-    if not ids or not set(ids) <= provisioned:
+    if not ids:
         return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED, observed,
                              evidence, "the read and the provisioning record disagree; check "
                                        "the namespace /pellier/preferences/CUST-THEO/.")
+    if not used or not used.get("turn_id"):
+        return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED,
+                             "no current Runtime turn records the preferences it used", evidence, SEND)
+    used_ids = used.get("record_ids")
+    if (not isinstance(used_ids, list) or not used_ids
+            or not all(isinstance(value, str) for value in used_ids)
+            or not set(used_ids) <= set(ids)):
+        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
+                             "the Runtime turn's records are absent from Theo's Memory read",
+                             evidence, SEND)
+    evidence.append(f"Runtime turn {used['turn_id']} used records {', '.join(used_ids)}")
     return check.Finding("3B", _MEMORY_TITLE, check.PASSED, MEMORY_EXPECTED, observed, evidence)
+
+
+def read_memory_turn() -> Optional[Dict[str, Any]]:
+    """The newest Theo tool call records the IDs Runtime actually supplied to its agent."""
+    cfg = check.db_config()
+    if cfg is None:
+        return None
+    with check.connect(cfg) as conn, conn.cursor() as cur:
+        cur.execute(f"""
+            SELECT session_id AS turn_id, args->>'memory_record_ids_json' AS record_ids
+              FROM pellier.tool_audit
+             WHERE caller = 'gateway' AND args->>'customer_id' = 'CUST-THEO'
+               AND session_id LIKE 'turn-%%' AND build_fingerprint = %(build)s
+               AND created_at >= {check.SINCE_SQL}
+             ORDER BY audit_id DESC LIMIT 1
+        """, {"build": local_fingerprint(), "since": check.reset_point(3)})
+        row = cur.fetchone()
+    if not row:
+        return None
+    return {"turn_id": row["turn_id"], "record_ids": json.loads(row["record_ids"] or "[]")}
 
 
 def read_memory() -> Dict[str, Any]:
@@ -471,7 +525,8 @@ def read_memory() -> Dict[str, Any]:
     )
     strict = AgentCoreMemory(memory_id=memory_id, region=region, strict=True)
     remembered = asyncio.run(strict.get_semantic_memories(THEO))
-    return {"memory_id": memory_id, "seeded": seeded, "remembered": remembered}
+    return {"memory_id": memory_id, "seeded": seeded, "remembered": remembered,
+            "used": read_memory_turn()}
 
 
 def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Finding:
@@ -483,7 +538,7 @@ def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Fi
                              "AgentCore Memory could not be read here",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "run this on the workshop box, where Memory is provisioned.")
-    return judge_memory(found["memory_id"], found["seeded"], found["remembered"])
+    return judge_memory(found["memory_id"], found["seeded"], found["remembered"], found.get("used"))
 
 
 # ---------------------------------------------------------------------------

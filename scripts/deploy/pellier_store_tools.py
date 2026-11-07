@@ -14,16 +14,15 @@ inside the zip exactly as it does in the backend.
 
 Evidence contract:
 
-* ``give_store_credit`` writes its own ``pellier.tool_audit`` row for a first
-  attempt and for a refused one, in its own transaction, so an attempt
-  survives a rolled-back write. An idempotent replay writes none: Aurora
-  applied nothing, and the first row stays the one receipt for that key.
+* A successful credit and its ``pellier.tool_audit`` row commit together.
+  A refused or failed attempt is recorded independently after rollback.
+  An idempotent replay writes none: the original receipt stays with its credit.
 * A read writes an audit row only when the Runtime passed a ``turn_id``, so an
   uncorrelated probe cannot pose as a shopper turn.
-* Every audit row records the ``build_fingerprint`` the Runtime passed: the
-  build that made the call, which Lab 3 compares with the participant's checkout.
-* A Cedar DENY never invokes this function, so the absence of a row is the
-  proof that the tool was not entered.
+* Every audit row records the Runtime build and the Lambda's own source digest.
+  Gateway request ids come from service context, never caller arguments.
+* A Cedar DENY does not invoke this function. Missing rows alone cannot prove
+  non-entry because independent attempt auditing can also fail.
 
 ``get_orders`` and ``get_tickets`` read as ``pellier_agent`` with the customer
 named (``common.dataapi.run_as_customer``), so row-level security holds here as
@@ -35,6 +34,7 @@ import json
 import logging
 import re
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, Optional
 
 from common.dataapi import (
@@ -45,9 +45,11 @@ from common.dataapi import (
     run_as_credit_writer,
     run_as_customer,
     run_store_sql,
+    write_tool_audit,
     write_tool_audit_independently,
 )
 from common.handler import audit_read_call, tool_catalog
+from common.fingerprint import deployed_fingerprint
 from common.types import resolve_invocation
 from gateway_tool_schemas import TOOL_SCHEMAS
 from services import store_tools
@@ -56,6 +58,7 @@ logger = logging.getLogger(__name__)
 
 TARGET = "pellier-store-tools"
 RAIL = "gateway-mcp"
+TOOLS_FINGERPRINT = deployed_fingerprint(Path(__file__).resolve().parent)
 
 # A route-minted turn id. Anything else is not a shopper turn and gets no receipt.
 _TURN_ID = re.compile(r"^turn-[A-Za-z0-9_-]{6,}$")
@@ -63,7 +66,8 @@ _TURN_ID = re.compile(r"^turn-[A-Za-z0-9_-]{6,}$")
 _BUILD = re.compile(r"^[0-9a-f]{64}$")
 # Correlation the Runtime attaches beside the tool's own arguments. The audit
 # row keeps them; the tool never sees them.
-_CORRELATION_ARGUMENTS = ("turn_id", "build_fingerprint")
+_CORRELATION_ARGUMENTS = ("turn_id", "build_fingerprint", "memory_record_ids_json",
+                          "gateway_request_id", "tools_fingerprint")
 
 ToolFn = Callable[[Dict[str, Any], Optional[str]], Dict[str, Any]]
 
@@ -96,14 +100,17 @@ def _bool(value: Any) -> bool:
 
 
 def _requirements(args: Dict[str, Any], query: str) -> Optional[Dict[str, Any]]:
-    """The shopper's stock and exclusion requirements, as the plan reads them.
+    """Read Runtime's bound extraction, or explicit limits on a direct tool call.
 
-    No structured extractor runs on this rail. The Catalog agent passes what
-    the shopper said as explicit ``in_stock_only`` and ``exclusions``
-    arguments, and ``build_plan`` compiles them into the same SQL predicates
-    an in-process extraction produces. With neither argument the plan carries
-    only the explicit price ceiling and says so in its extraction status.
+    Runtime hides and overwrites requirements_json before every catalog call.
+    Direct Gateway callers may supply their own search criteria; this metadata
+    is retrieval context and never an identity or authorization credential.
     """
+    if "requirements_json" in args:
+        reading = json.loads(args["requirements_json"])
+        if not isinstance(reading, dict) or reading.get("extraction_status") == "extraction_failed":
+            raise ValueError("Invalid shopper requirements")
+        return reading
     in_stock_only = args.get("in_stock_only")
     exclusions = args.get("exclusions")
     if in_stock_only is None and exclusions is None:
@@ -127,13 +134,15 @@ def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, 
             "rerank_model": RERANK_MODEL_ID,
         }
     query = str(args.get("query") or "")
+    requirements = _requirements(args, query)
     return store_tools.search_products(
         run_store_sql,
         query=query,
         embed=query_embedding,
         rerank=rerank_documents,
-        extracted=_requirements(args, query),
+        extracted=requirements,
         max_price=_float(args.get("max_price")),
+        max_price_is_shoppers=bool((requirements or {}).get("max_price_is_shoppers")),
         min_rating=_float(args.get("min_rating")) or 0.0,
         category=args.get("category") or None,
         limit=_int(args.get("limit"), 5),
@@ -142,14 +151,14 @@ def _search_products(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, 
 
 
 def _browse_department(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
-    # The same requirement arguments as search_products: the Catalog agent
-    # passes the shopper's requirements, including ones stated earlier in the
-    # conversation, and the plan compiles them into the same predicates.
+    # A browse uses the same Runtime-bound reading as the preceding search.
+    requirements = _requirements(args, "")
     return store_tools.browse_department(
         run_store_sql,
         department=str(args.get("department") or ""),
         limit=_int(args.get("limit"), 5),
-        extracted=_requirements(args, ""),
+        extracted=requirements,
+        department_named_by_shopper=bool((requirements or {}).get("department_named_by_shopper")),
         max_price=_float(args.get("max_price")),
     )
 
@@ -186,18 +195,21 @@ def _get_tickets(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]
     ))
 
 
-def _give_store_credit(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
+def _give_store_credit(
+    args: Dict[str, Any], turn_id: Optional[str], *, record_success: Any = None,
+) -> Dict[str, Any]:
     # ``issued_by`` is not accepted from the wire. This rail has no verified
     # operator token to read, and an attribution the caller supplied would be
     # worse than none. The Operator desk attributes credits in its own review
     # record, where ``require_operator`` has already produced a verified sub.
+    options = {"record_success": record_success} if record_success is not None else {}
     return run_as_credit_writer(lambda run: store_tools.give_store_credit(
         run,
         customer_id=str(args.get("customer_id") or ""),
         amount_cents=args.get("amount_cents"),
         reason=str(args.get("reason") or ""),
         idempotency_key=str(args.get("idempotency_key") or ""),
-    ))
+    ), **options)
 
 
 def _ask_a_person(args: Dict[str, Any], turn_id: Optional[str]) -> Dict[str, Any]:
@@ -261,16 +273,37 @@ def lambda_handler(event: dict, context: Any) -> dict:
     execution_arguments = {
         key: value for key, value in arguments.items() if key not in _CORRELATION_ARGUMENTS
     }
-    audited_arguments = {key: value for key, value in arguments.items() if key != "build_fingerprint"}
+    audited_arguments = {key: value for key, value in arguments.items()
+                         if key not in {"build_fingerprint", "gateway_request_id", "tools_fingerprint"}}
+    audited_arguments["tools_fingerprint"] = TOOLS_FINGERPRINT or None
+    # Gateway supplies this service request id in Lambda client context. Never
+    # accept an event argument as provenance. It joins the committed receipt
+    # to AgentCore's aws.request.id without guessing from overlapping times.
+    custom = getattr(getattr(context, "client_context", None), "custom", {}) or {}
+    request_id = custom.get("bedrockAgentCoreAwsRequestId")
+    if isinstance(request_id, str) and request_id:
+        audited_arguments["gateway_request_id"] = request_id
+    logger.info("tool_entered tool=%s gateway_request_id=%s lambda_request_id=%s",
+                tool_name, request_id or "unknown", getattr(context, "aws_request_id", "unknown"))
     failed = False
     try:
-        result = TOOLS[tool_name](execution_arguments, turn_id)
+        if tool_name == "give_store_credit":
+            def record_success(transaction_id: str, result: Dict[str, Any]) -> None:
+                write_tool_audit(
+                    tool=tool_name, args=audited_arguments, result=result,
+                    latency_ms=int((time.monotonic() - started) * 1000),
+                    session_id=f"gateway-{execution_arguments.get('customer_id') or 'unknown'}",
+                    build_fingerprint=build, transaction_id=transaction_id,
+                )
+            result = _give_store_credit(execution_arguments, turn_id, record_success=record_success)
+        else:
+            result = TOOLS[tool_name](execution_arguments, turn_id)
     except Exception as exc:  # noqa: BLE001 - every failure becomes one envelope
         logger.error("Tool %s failed: %s", tool_name, exc)
         result = {"error": "The requested action could not be completed."}
         failed = True
 
-    if tool_name == "give_store_credit" and not _is_idempotent_replay(result):
+    if tool_name == "give_store_credit" and result.get("status") != "success":
         # The attempt is evidence even when Aurora refused it: the receipt
         # commits on its own, so a rolled-back write still leaves its row. A
         # replay is not an attempt: ``give_store_credit`` handed back the
@@ -284,11 +317,6 @@ def lambda_handler(event: dict, context: Any) -> dict:
             session_id=f"gateway-{execution_arguments.get('customer_id') or 'unknown'}",
             build_fingerprint=build,
         )
-    elif tool_name != "give_store_credit" and not failed:
+    elif tool_name != "give_store_credit":
         audit_read_call(tool_name, audited_arguments, result, started, build_fingerprint=build)
     return _envelope(result, is_error=failed)
-
-
-def _is_idempotent_replay(result: Any) -> bool:
-    """True when ``give_store_credit`` replayed an earlier write for this key."""
-    return isinstance(result, dict) and bool(result.get("idempotent_replay"))

@@ -80,14 +80,18 @@ def test_the_tiers_name_the_one_money_movement() -> None:
 
 
 def test_every_published_input_field_is_safe_to_inspect() -> None:
-    """A tool argument the catalog declares is one the trace may show."""
+    """Public tool inputs may be shown; server context stays out of the trace."""
     declared = {
         name
         for config in TOOL_SCHEMAS.values()
         for tool in config["tools"]
         for name in tool["inputSchema"]["properties"]
     }
-    assert declared <= gateway._SAFE_TOOL_INPUT_FIELDS, declared - gateway._SAFE_TOOL_INPUT_FIELDS
+    hidden = {"requirements_json", "memory_record_ids_json"}
+    assert hidden <= gateway._SERVER_SET_TOOL_INPUTS
+    assert not hidden & gateway._SAFE_TOOL_INPUT_FIELDS
+    assert declared - hidden <= gateway._SAFE_TOOL_INPUT_FIELDS
+    assert gateway._safe_tool_input({"input": {name: "private context" for name in hidden}}) == {}
 
 
 def test_the_managed_builder_input_keeps_list_arguments_such_as_exclusions() -> None:

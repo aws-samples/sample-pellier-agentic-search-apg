@@ -34,3 +34,23 @@ def test_uncorrelated_and_unknown_calls_cannot_invent_turn_evidence(monkeypatch)
         {'name': 'unknown', 'arguments': {'turn_id': 'turn-read-proof'}}, None)
     assert result == {'error': 'Unknown tool: unknown'}
     writer.assert_not_called()
+
+
+def test_receipt_provenance_comes_from_lambda_and_gateway_not_arguments(monkeypatch):
+    from types import SimpleNamespace
+    import common.dataapi as dataapi
+    writer = Mock()
+    monkeypatch.setattr(dataapi, "write_tool_audit_independently", writer)
+    monkeypatch.setattr(store_lambda, "TOOLS_FINGERPRINT", "d" * 64)
+    monkeypatch.setitem(store_lambda.TOOLS, "get_tickets", Mock(side_effect=RuntimeError("read failed")))
+    context = SimpleNamespace(client_context=SimpleNamespace(custom={
+        "bedrockAgentCoreToolName": "pellier-store-tools___get_tickets",
+        "bedrockAgentCoreAwsRequestId": "service-request",
+    }), aws_request_id="lambda-request")
+    result = store_lambda.lambda_handler({"turn_id": "turn-read-failure",
+        "customer_id": "CUST-THEO", "tools_fingerprint": "forged",
+        "gateway_request_id": "forged"}, context)
+    assert result["isError"] is True
+    args = writer.call_args.kwargs["args"]
+    assert args["gateway_request_id"] == "service-request"
+    assert args["tools_fingerprint"] == "d" * 64

@@ -36,6 +36,7 @@ SOLVED_RULE = REPO / "solutions" / "lab-4-govern" / "policies" / "credit_limit.c
 SOLVED_WRITER = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
 TASKS = ["1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B"]
 BUILD = "b" * 64
+TOOLS_BUILD = "d" * 64
 CREDIT = {
     "credit_id": 1, "approval_id": 3, "customer_id": "CUST-JESSICA",
     "amount_cents": 10000, "approved_cents": 10000,
@@ -147,7 +148,7 @@ def _finding(task: str, state: str) -> Any:
 
 class TestLabsThreeAndFour:
     BUILD_ROW = {"audit_id": 4, "turn_id": "turn-abc", "tool": "get_tickets",
-                 "deployed_fingerprint": BUILD}
+                 "deployed_fingerprint": BUILD, "deployed_tools_fingerprint": TOOLS_BUILD}
     THEO_READ = {"audit_id": 4, "turn_id": "turn-abc", "customer_id": "CUST-THEO"}
 
     @pytest.fixture(autouse=True)
@@ -156,11 +157,17 @@ class TestLabsThreeAndFour:
         monkeypatch.setattr(evidence, "source_state", lambda key: check.EDITED)
         rls = importlib.import_module("lab3_row_ownership_check")
         monkeypatch.setattr(rls, "collect", lambda *args: [_finding("3B", PASSED)])
+        lab3 = importlib.import_module("lab3_check")
+        monkeypatch.setattr(lab3, "local_tools_fingerprint", lambda: TOOLS_BUILD)
 
     def test_the_executed_build_and_reads_decide_3b(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         assert evidence.task_3b(rows, BUILD, _remembered()).state == PASSED
         assert evidence.task_3b(rows, "c" * 64, _remembered()).state == FAILED
+        wrong_tools = {**rows, "build": {**self.BUILD_ROW, "deployed_tools_fingerprint": "stale"}}
+        assert evidence.task_3b(wrong_tools, BUILD, _remembered()).state == FAILED
+        no_tools = {**rows, "build": {**self.BUILD_ROW, "deployed_tools_fingerprint": None}}
+        assert evidence.task_3b(no_tools, BUILD, _remembered()).state == COULD_NOT_CHECK
         unstamped = {**rows, "build": {**self.BUILD_ROW, "deployed_fingerprint": None}}
         assert evidence.task_3b(unstamped, BUILD, _remembered()).state == COULD_NOT_CHECK
         assert evidence.task_3b({"build": None, "tickets": []}, BUILD,

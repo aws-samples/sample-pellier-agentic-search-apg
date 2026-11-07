@@ -152,6 +152,7 @@ def test_the_gateway_publishes_no_amount_and_the_lambda_reads_none(
     properties = tools["ask_a_person"]["inputSchema"]["properties"]
     assert set(properties) == {
         "reason", "customer_id", "credit_request", "turn_id", "build_fingerprint",
+        "memory_record_ids_json",
     }
     assert properties["credit_request"] == {"type": "boolean"}
 

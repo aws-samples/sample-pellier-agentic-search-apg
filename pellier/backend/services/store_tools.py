@@ -401,15 +401,7 @@ def _stock_product(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
-    """Warehouse, quantity and ship window for one named product.
-
-    ``pellier.check_stock`` decides; this shapes its rows the way the agents and
-    the trace read them. No row is ``not_found``; two or more rows are
-    ``ambiguous`` with the candidates, so the agent asks which one is meant; one
-    row is ``success`` with that row's ``total_units`` and warehouse rows. The
-    row is passed on as the function returned it, so what the database says is
-    what the agent is told.
-    """
+    """Shape catalog matches, preserving ambiguity and missing inventory."""
     if not str(product_query or "").split():
         return {"status": "not_found", "query": product_query, "message": "Empty product query."}
     rows = run(_CHECK_STOCK_SQL, (str(product_query),))
@@ -433,6 +425,14 @@ def check_stock(run: Run, *, product_query: str) -> Dict[str, Any]:
             ),
         }
     row = rows[0]
+    if row.get("product_id") is not None and not _as_list(row.get("warehouses")):
+        return {
+            "status": "inventory_unknown",
+            "product": {**_stock_product(row), "price": as_number(row.get("price"))},
+            "total_units": None,
+            "warehouses": [],
+            "message": "This product has no inventory records. Stock and shipping are unknown.",
+        }
     warehouses = [
         {
             "warehouse_code": item.get("warehouse_code"),
