@@ -87,23 +87,23 @@ flowchart LR
 - **Store tools.** Nine tools, one implementation for the local agents and the Gateway Lambda: `search_products`, `browse_department`, `compare_products`, `check_stock`, `get_orders`, `get_return_policy`, `get_tickets`, `give_store_credit` and `ask_a_person`. `pellier/backend/services/store_tools.py`
 - **Hybrid search.** The shopper's requirements become SQL filters on a pgvector search and a full-text search. Reciprocal Rank Fusion (k = 60) merges them and Cohere Rerank 3.5 reorders the pool. Search covers the 1,000 photographed products of a 50,000-row catalog, through a filter applied before ranking and a partial HNSW index. A shopper's search records its ranks in a retrieval receipt, and Builder view shows them as "How it ranked". `pellier/backend/services/search_plan.py`
 - **Managed path.** AgentCore Runtime runs the same Router and agents, with their tools behind AgentCore Gateway. AgentCore Policy evaluates Cedar before the Lambda runs, so a denied call never executes. `pellier/backend/agentcore_runtime.py`, `scripts/deploy/gateway_tool_schemas.py`, `policies/`
-- **Identity and ownership.** Amazon Cognito signs in shoppers and staff. Runtime verifies the access token itself, and a customer-scoped read uses the customer in the signed token, never one the model names; Cedar checks it again at the Gateway. `get_orders` and `get_tickets` run as the `pellier_agent` role under row-level security, so Aurora returns only that customer's rows. `pellier/backend/services/runtime_identity.py`, `workshop/lab-3-row-ownership.sql`
-- **Human approval.** In the Operator, an Investigator and an Advisor (a Strands graph) read the case and propose one credit. `give_store_credit` writes only for a review a person approved with the same arguments, once per review key, as `pellier_credit_writer`, a role that may only execute the credit function. `pellier/backend/services/operator_graph.py`, `workshop/lab-4-credit-writer.sql`
+- **Identity and ownership.** Amazon Cognito signs in shoppers and staff. Runtime verifies the access token itself, and a customer-scoped read uses the customer in the signed token, never one the model names; Cedar checks it again at the Gateway. `get_orders` and `get_tickets` run as the `pellier_agent` role under row-level security, so Aurora returns only that customer's rows. The Gateway's Lambda signs in to Aurora with its own login, `pellier_store_tools`, which has no privilege on customers, orders, tickets or credits. It can become `pellier_agent` or the credit writer, and its code does so with `SET LOCAL ROLE`, for one transaction. `pellier/backend/services/runtime_identity.py`, `workshop/lab-3-row-ownership.sql`, `scripts/migrations/001_schema.sql`
+- **Human approval.** In the Operator, an Investigator and an Advisor (a Strands graph) read the case and propose one credit. `give_store_credit` writes only for a review a person approved with the same arguments, once per review key, as `pellier_credit_writer`, a role that may only execute the credit function. The function itself runs as `pellier_credit_owner`, a role nobody signs in as. `pellier/backend/services/operator_graph.py`, `workshop/lab-4-credit-writer.sql`
 - **Memory.** AgentCore Memory keeps conversation events and the preferences extracted from them. A remembered preference can guide a pick; prices and stock always come from Aurora. `pellier/backend/services/agentcore_memory.py`
-- **Evidence.** Every tool call that runs writes a `pellier.tool_audit` row with its turn's id; a denied call writes none. App and AgentCore spans reach CloudWatch tagged with `pellier.turn_id`. `pellier/backend/services/evidence_spans.py`, `scripts/observability_check.py`
+- **Evidence.** Every tool call that runs writes a `pellier.tool_audit` row with its turn's id; a denied call writes none. App and AgentCore spans reach CloudWatch tagged with `pellier.turn_id`, and on the workshop's Aurora cluster pgAudit writes each credit's `INSERT` to the PostgreSQL log. The Wrap-up's check joins the spans, the rows and that log line to follow one credit from the shopper's request to the saved row, and it fails if pgAudit cannot see the Gateway's credits. `pellier/backend/services/evidence_spans.py`, `scripts/observability_check.py`, `scripts/follow_credit.py`
 
 ## Run it
 
 ### In the workshop
 
-At an AWS event, Workshop Studio gives you an AWS account with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide. The guide is the source of truth for every step and check. In Code Editor, [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, each with a short README, links to its task files and a solution folder.
+At an AWS event, Workshop Studio gives you an AWS account, at no cost to you, with Aurora PostgreSQL, Amazon Cognito and the AgentCore resources already provisioned, a browser-based Code Editor with this repository, and the lab guide. The guide is the source of truth for every step and check. In Code Editor, [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, each with a short README, links to its task files and a solution folder.
 
 ### Locally
 
 Prerequisites:
 
 - Python 3.14 and Node.js 24. CI, the workshop box, AgentCore Runtime and the Lambdas all run Python 3.14.
-- PostgreSQL 18 or later with the `vector` (pgvector) and `pg_trgm` extensions, a user that can create extensions and roles, and `psql`. The workshop uses Aurora PostgreSQL.
+- PostgreSQL 18 or later with the `vector` (pgvector) and `pg_trgm` extensions, `psql`, and a superuser to run the setup, because the schema creates extensions and a `BYPASSRLS` role. On Aurora PostgreSQL, which the workshop uses, the cluster's master user runs it.
 - AWS credentials with Amazon Bedrock access to Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4 and Cohere Rerank 3.5.
 
 The checkout is about 370 MB, mostly product photography and the committed embeddings. `git clone --depth 1 https://github.com/aws-samples/sample-pellier-agentic-search-apg.git` checks out `governed` without the history, which roughly halves the download.
@@ -136,7 +136,19 @@ Locally the agents run in process. Ask Pellier works signed out, and AgentCore M
 
 The code is in the labs' starting state: some marked regions are incomplete on purpose, and `solutions/` holds reference versions.
 
-To run the whole workshop in your own account, follow [Run Pellier in your own account](docs/run-in-your-own-account.md): `deploy/own-account/deploy.py` creates the stack from the templates under `deploy/own-account/templates/`, the ones Workshop Studio deploys at an event, and tears it down again. The stack bills by the hour while it exists; the guide's first section lists what it costs and its teardown section removes it. On the host, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`).
+To run the whole workshop in your own account, follow [Run Pellier in your own account](docs/run-in-your-own-account.md): `deploy/own-account/deploy.py` creates the stack from the templates under `deploy/own-account/templates/`, the ones Workshop Studio deploys at an event, and tears it down again. The stack bills by the hour while it exists (see [What it costs](#what-it-costs)), and the guide's teardown section removes it. On the host, `scripts/provision_agentcore_end_to_end.py` deploys the store tools Lambda and the AgentCore Runtime, Memory, Gateway and Policy resources with the pinned AgentCore CLI (`@aws/agentcore@0.29.0`).
+
+### What it costs
+
+In your own account, these figures come from a test event, at list prices in us-east-1 on 6 November 2026, before tax and Free Tier credits. Your cost depends on Region, usage and agreements.
+
+| What | Cost |
+|---|---|
+| The stack, every hour it exists, whether or not anyone uses it | $0.52 an hour, about $379 a month |
+| One scripted pass through the four labs, each lab's required requests sent once, the least a pass uses | $0.51 to $0.52 |
+| Deploying, a two-hour workshop and the teardown | about $2.55, before extra requests or the coach |
+
+The EC2 host, which runs Code Editor and the app, is about half of the hourly figure; a production deployment would run the app on hosting sized for its own traffic. Run locally against your own PostgreSQL, signed out and with `AGENTCORE_MEMORY_ID` empty, only the Bedrock calls bill, at about 5 cents a request on average in the measured pass. [What you get and what it costs](docs/run-in-your-own-account.md#1-what-you-get-and-what-it-costs) breaks down every row, measured usage beside each price, and lists ways to spend less, including when Aurora I/O-Optimized pays off.
 
 ## Take it home
 

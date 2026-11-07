@@ -13,8 +13,10 @@ the labs' checks. The host sits in a private subnet behind CloudFront. Lab 3 the
 AgentCore Runtime, Gateway, Memory and Policy from the host, outside the stack, which is why the
 teardown in section 6 has two parts.
 
-Everything below bills by the hour or by use while it exists. Pricing is linked, not quoted,
-because it changes by Region and over time.
+Everything below bills by the hour or by use while it exists. The prices on this page are list
+prices in us-east-1 on 6 November 2026, before tax and Free Tier credits. Your cost depends on
+Region, usage and agreements. Check the linked pricing pages or the
+[AWS Pricing Calculator](https://calculator.aws/).
 
 | Resource | What the stack creates | Pricing |
 |---|---|---|
@@ -22,17 +24,107 @@ because it changes by Region and over time.
 | Aurora PostgreSQL | engine 18.3, one Serverless v2 writer scaling between 0 and 16 ACU, Advanced Database Insights, PostgreSQL logs to CloudWatch | [Aurora](https://aws.amazon.com/rds/aurora/pricing/) |
 | VPC | two NAT gateways with Elastic IPs and three interface endpoints (Bedrock Runtime, Secrets Manager, STS) in two subnets | [VPC](https://aws.amazon.com/vpc/pricing/) |
 | CloudFront and WAF | one distribution with a VPC origin; a web ACL in us-east-1 only | [CloudFront](https://aws.amazon.com/cloudfront/pricing/), [WAF](https://aws.amazon.com/waf/pricing/) |
-| Secrets Manager, Cognito, KMS | two database secrets (the master's and the store tools' own login) and demo accounts, a user pool with a hosted domain, one customer-managed key for AgentCore logs | [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [KMS](https://aws.amazon.com/kms/pricing/) |
+| Secrets Manager, Cognito, KMS | six secrets (two database logins, Code Editor, the CloudFront origin credential, the Cognito app client and the demo accounts), a user pool with a hosted domain, one customer-managed key for AgentCore logs | [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [KMS](https://aws.amazon.com/kms/pricing/) |
 | CloudWatch and Lambda | log groups, X-Ray transaction search, the custom-resource and tool Lambdas | [CloudWatch](https://aws.amazon.com/cloudwatch/pricing/), [Lambda](https://aws.amazon.com/lambda/pricing/) |
 | AgentCore (from Lab 3) | Runtime, Gateway, Memory and Policy | [AgentCore](https://aws.amazon.com/bedrock/agentcore/pricing/) |
 | Bedrock model calls | Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4, Cohere Rerank 3.5 | [Bedrock](https://aws.amazon.com/bedrock/pricing/) |
 | S3 | the private bucket holding the four templates | [S3](https://aws.amazon.com/s3/pricing/) |
 
-The NAT gateways and the host are the fixed hourly costs; Aurora scales to zero when idle.
 The newest proof run built the stack in 39 min 43 s and removed it in 31 min 7 s, as the
 deploy and teardown commands printed it (`Stack ready in 39 min 43 s`, `Stack deleted in 31
 min 7 s`, us-west-2, 30 October 2026); the whole run is in the newest record under
 [docs/evidence](evidence/), one per Region.
+
+### What the stack costs while it exists
+
+These are the main charges that run every hour the stack exists, whether or not anyone uses it.
+Per-request charges for CloudFront, WAF, KMS and Secrets Manager come on top, at fractions of a
+cent per thousand requests.
+
+| What | How many | List price | Per hour |
+|---|---|---|---|
+| EC2 host, `c6g.2xlarge` | 1 | $0.272 an hour | $0.272 |
+| NAT gateways | 2 | $0.045 an hour each, plus $0.045 per GB processed | $0.090 |
+| Interface endpoints | 3, each in two subnets | $0.01 an hour per subnet, plus $0.01 per GB | $0.060 |
+| Aurora Serverless v2 at its floor | 0.5 ACU | $0.12 per ACU-hour | $0.060 |
+| EBS volume, gp3 | 100 GiB | $0.08 per GiB a month | $0.011 |
+| Public IPv4 addresses of the NAT gateways | 2 | $0.005 an hour each | $0.010 |
+| WAF web ACL, us-east-1 only | 1, with 2 rules | $5 a month, plus $1 a month per rule | $0.010 |
+| Database Insights, Advanced mode | 0.5 ACU monitored | $0.003125 per ACU-hour | $0.002 |
+| KMS key and Secrets Manager secrets | 1 key, 6 secrets | $1 a month per key, $0.40 a month per secret | $0.005 |
+| **Total** | | | **$0.52 an hour, about $379 a month** |
+
+When c6g capacity is short, the stack takes the same size in c7g, m6g or m7g, at that type's price.
+
+Aurora is set to pause after five idle minutes, but on a test event on 6 November 2026 it did not.
+The cluster stayed at 0.5 ACU or more from 14:00 to 23:00 UTC, seven of those hours with no labs
+running, so the table counts that floor. Its storage, about
+0.8 GB once the catalog is loaded, adds $0.08 a month at $0.10 per GB-month. The demo shoppers'
+sign-ins fall within Cognito's free tier of 10,000 monthly active users, and CloudFront carried
+135 requests and 69 MB that day, under one cent. AgentCore has no minimum fee. It bills by use,
+shown below, and Memory bills for what it keeps, $0.10 per GB-month of events and $0.75 a month
+per 1,000 long-term records.
+
+### What one pass through the labs used
+
+On the same test event, the workshop's finish command
+(`uv run scripts/lab_run.py finish --lab N`) ran Labs 1 to 4 back to back in six and a half
+minutes, then the Wrap-up check. It installed each task's change and sent each
+lab's required requests once. That was Anna's two requests, Marco's two, Theo's three and
+Jessica's one, then Nadia's investigation and credit. This is the least a pass uses. A person
+retries and sends more requests, at about 5 cents each on average. The figures on this page leave
+out the Claude Code coach, which calls Bedrock in the same account when you use it.
+
+| What ran | Usage | Cost |
+|---|---|---|
+| Labs 1 and 2, Anna's two Catalog requests and Marco's two Stock requests | Claude Opus 5.5, 6 calls, 31,450 input and 1,275 output tokens. Claude Sonnet 5.5, 6 calls, 15,315 input and 689 output tokens | $0.189 |
+| Labs 3 and 4, Theo's three and Jessica's one Support requests, then Nadia's investigation | Claude Opus 5.5, 15 calls, 53,672 input and 2,468 output tokens. Claude Sonnet 5.5, 4 calls, 6,774 input and 704 output tokens | $0.285 |
+| Search ranking, Cohere Rerank 3.5 and Embed v4 | 7 reranks of at most 30 products each, 11 embeddings of 62 tokens in all | $0.014 |
+| AgentCore Runtime V1, Gateway, Policy and Memory | 8 Runtime invocations using 0.031 vCPU-hours and 1.87 GB-hours until their sessions closed, 58 Gateway operations, 15 Policy decisions, 34 Memory events written, 11 record lists and 6 event reads | $0.021 to $0.031 |
+| CloudWatch logs, Lambda and network traffic | 2.3 MB of logs, 26 Lambda tool calls, 2.8 MB through the NAT gateways, 1.0 MB through the endpoints | $0.001 |
+| **Total** | | **$0.51 to $0.52** |
+
+The prices behind it are $4 and $20 per million input and output tokens for Opus 5.5, $2 and $10
+for Sonnet 5.5, $0.002 per rerank, $0.12 per million Embed v4 tokens, $0.0895 per vCPU-hour and
+$0.00945 per GB-hour for Runtime V1, $0.005 per 1,000 Gateway operations, $0.000025 per Policy
+decision, $1 per GB of Memory events written and $0.20 per GB read, each event billed at 12 KB to
+64 KB, and $0.50 per 1,000 long-term record retrievals. The metrics do not show event sizes, how
+many events each read returned or whether a record list bills as a retrieval, so the AgentCore
+cost is a range. Model calls are almost all of the cost, about 5 cents a request on average across
+the pass's eight shopper requests and one investigation, and the Catalog and Support agents' Opus
+calls are most of that.
+
+### A whole run, start to finish
+
+Deploying, a two-hour workshop and the teardown take about 3.2 hours of the hourly charges, which
+is $1.65. Add about $0.51 for a pass through the labs and up to $0.39 for Aurora's work above its
+floor, which is what the test event's setup and two passes used. That comes to about $2.55
+before any extra Ask Pellier requests or the coach.
+
+### Ways to spend less
+
+1. **Delete the stack when you finish.** The hourly charges are most of the bill, about $379 a
+   month if the stack is left running. [Section 6](#6-tear-down) removes it.
+2. **Cache the prompt.** In the measured pass, Pellier's agents sent their instructions and tool
+   descriptions uncached on every model call, and Opus input tokens were $0.34 of the $0.47 the
+   pass's Claude calls cost. Bedrock bills an
+   Opus 5.5 cache read at $0.20 per million tokens, 5% of the $4 input price, and a cache write
+   at $5. That 5% is the best case. Bedrock's
+   [prompt caching guide](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html)
+   says a cache entry is stored on the server that processed the request, so a request served by
+   another server, as a global inference profile allows, writes a new entry instead of reading
+   one. Measure how often your requests read the cache before you count the saving.
+3. **Match the model to the job.** The Router makes no model call. The Stock agent, the Operator
+   and the extraction step in each product search use Sonnet 5.5, half the price of Opus 5.5 per
+   token.
+4. **Stay on Aurora Standard at this load.** I/O-Optimized drops the I/O charge but raises the
+   ACU price from $0.12 to $0.16 and storage from $0.10 to $0.225 per GB-month. It pays off when
+   I/O is more than about a quarter of the Aurora bill. Over the test event's 9.4 hours of setup,
+   two passes and idle time, billed I/O was 13% of Aurora's cost. Standard cost $1.10, and
+   I/O-Optimized would have cost $1.27.
+5. **Share one NAT gateway in a test stack.** The template creates one per public subnet for
+   availability, and each costs $0.045 an hour, $32.85 a month, before data. Sharing one means
+   editing `deploy/own-account/templates/pellier-vpc.yml`.
 
 ## 2. Before you start
 
