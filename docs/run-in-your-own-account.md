@@ -21,7 +21,7 @@ Region, usage and agreements. Check the linked pricing pages or the
 | Resource | What the stack creates | Pricing |
 |---|---|---|
 | EC2 | one `c6g.2xlarge` (8 Graviton vCPUs, 16 GiB) with a 100 GiB gp3 volume | [EC2](https://aws.amazon.com/ec2/pricing/on-demand/), [EBS](https://aws.amazon.com/ebs/pricing/) |
-| Aurora PostgreSQL | engine 18.3, one Serverless v2 writer scaling between 0 and 16 ACU, Advanced Database Insights, PostgreSQL logs to CloudWatch | [Aurora](https://aws.amazon.com/rds/aurora/pricing/) |
+| Aurora PostgreSQL | engine 18.6, one Serverless v2 writer scaling between 0 and 16 ACU, Advanced Database Insights, PostgreSQL logs to CloudWatch | [Aurora](https://aws.amazon.com/rds/aurora/pricing/) |
 | VPC | two NAT gateways with Elastic IPs and three interface endpoints (Bedrock Runtime, Secrets Manager, STS) in two subnets | [VPC](https://aws.amazon.com/vpc/pricing/) |
 | CloudFront and WAF | one distribution with a VPC origin; a web ACL in us-east-1 only | [CloudFront](https://aws.amazon.com/cloudfront/pricing/), [WAF](https://aws.amazon.com/waf/pricing/) |
 | Secrets Manager, Cognito, KMS | seven secrets (three database logins, Code Editor, the CloudFront origin credential, the Cognito app client and the demo accounts), a user pool with a hosted domain, one customer-managed key for AgentCore logs | [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [KMS](https://aws.amazon.com/kms/pricing/) |

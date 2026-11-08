@@ -1,8 +1,8 @@
 AWSTemplateFormatVersion: 2010-09-09
 
 Description: >
-  Pellier - Aurora PostgreSQL Serverless v2 with pgvector 0.8.1.
-  Engine version is parameter-driven (default 18.3) so the stack bumps
+  Pellier - Aurora PostgreSQL Serverless v2 with pgvector 0.8.2.
+  Engine version is parameter-driven (default 18.6) so the stack bumps
   cleanly before each event. All access uses the Secrets Manager
   credential - the backend over psycopg, the tool Lambdas over the
   RDS Data API.
@@ -29,7 +29,7 @@ Parameters:
 
   AuroraEngineVersion:
     Type: String
-    Default: "18.3"
+    Default: "18.6"
     Description: >-
       Aurora PostgreSQL engine version, major and minor. Change it only as a tested
       upgrade, outside the 14 days before an event.

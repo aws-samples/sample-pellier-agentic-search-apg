@@ -49,7 +49,7 @@ Parameters:
 
   AuroraEngineVersion:
     Type: String
-    Default: "18.3"
+    Default: "18.6"
     Description: Aurora PostgreSQL engine version.
 
   EditorInstanceType:
@@ -99,7 +99,7 @@ Parameters:
 
   InfrastructureRevision:
     Type: String
-    Default: "441d051e6f847ec0"
+    Default: "9f6661af0ca24fc6"
     AllowedPattern: ^[0-9a-f]{16}$
     ConstraintDescription: Use the 16-character release-tooling digest.
     Description: >
