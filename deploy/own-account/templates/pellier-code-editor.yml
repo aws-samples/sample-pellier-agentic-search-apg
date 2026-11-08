@@ -1362,8 +1362,111 @@ Resources:
       Principal: cloudformation.amazonaws.com
       SourceAccount: !Ref AWS::AccountId
 
+  # An account that has never encrypted an EBS volume has no aws/ebs key yet. AWS creates it
+  # when the first encrypted volume asks for it, and an instance launched in that moment is
+  # terminated with Client.InvalidKMSKey.InvalidState (a brand-new event account, 2026-11-08).
+  # Describing the alias makes KMS create the key; the instance launches once it is Enabled.
+  EbsDefaultKeyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DescribeEbsDefaultKey
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              # IAM checks DescribeKey against the key's ARN, not the alias it was asked by.
+              - Effect: Allow
+                Action: kms:DescribeKey
+                Resource: !Sub arn:${AWS::Partition}:kms:${AWS::Region}:${AWS::AccountId}:key/*
+
+  EbsDefaultKeyFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.13
+      Handler: index.lambda_handler
+      # Above the code's worst case (60 s of polling, then at most 30 s of settling), so it
+      # always answers CloudFormation; an unanswered custom resource holds the stack an hour.
+      Timeout: 120
+      Role: !GetAtt EbsDefaultKeyRole.Arn
+      Code:
+        ZipFile: |
+          import time
+          import boto3
+          import cfnresponse
+
+          ALIAS = "alias/aws/ebs"
+          POLL_SECONDS = 60
+          SETTLE_SECONDS = 30
+
+          def described(kms):
+              try:
+                  return kms.describe_key(KeyId=ALIAS)["KeyMetadata"]
+              except Exception as exc:
+                  code = getattr(exc, "response", {}).get("Error", {}).get("Code")
+                  if code == "NotFoundException":
+                      return None
+                  raise
+
+          def enabled_key(kms):
+              """The Enabled key, or None if the alias never resolved to a key."""
+              deadline = time.monotonic() + POLL_SECONDS
+              while True:
+                  key = described(kms)
+                  if key is not None and key["KeyState"] == "Enabled":
+                      return key
+                  if time.monotonic() > deadline:
+                      if key is None:
+                          return None
+                      raise RuntimeError(f"{ALIAS} is {key['KeyState']} after {POLL_SECONDS} s")
+                  time.sleep(3)
+
+          def lambda_handler(event, context):
+              physical_id = event.get("PhysicalResourceId", "pellier-ebs-default-key")
+              try:
+                  if event["RequestType"] == "Delete":
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {},
+                                       physicalResourceId=physical_id)
+                      return
+                  key = enabled_key(boto3.client("kms"))
+                  if key is None:
+                      # No worse than without this resource: EC2 creates the key at launch.
+                      print(f"{ALIAS} did not resolve in {POLL_SECONDS} s; EC2 makes it at launch")
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, {"KeyArn": ""},
+                                       physicalResourceId=physical_id)
+                      return
+                  # KMS is eventually consistent: a key created just now waits to settle. The
+                  # wait never passes SETTLE_SECONDS, even if the key's clock runs ahead.
+                  age = time.time() - key["CreationDate"].timestamp()
+                  wait = min(SETTLE_SECONDS, SETTLE_SECONDS - age)
+                  if wait > 0:
+                      time.sleep(wait)
+                  print(f"{ALIAS} is key {key['KeyId']}, Enabled, created {age:.0f} s before")
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {"KeyArn": key["Arn"]},
+                                   physicalResourceId=physical_id)
+              except Exception as exc:
+                  cfnresponse.send(
+                      event, context, cfnresponse.FAILED, {},
+                      reason=str(exc), physicalResourceId=physical_id,
+                  )
+
+  EbsDefaultKey:
+    Type: Custom::EbsDefaultKey
+    Properties:
+      ServiceToken: !GetAtt EbsDefaultKeyFunction.Arn
+
   CodeEditorInstance:
     Type: AWS::EC2::Instance
+    # The root volume is encrypted with aws/ebs, which EbsDefaultKey makes exist first.
+    DependsOn: EbsDefaultKey
     # No CreationPolicy here: WorkshopReadyGate below takes the bootstrap
     # signal, so the CloudFront VPC origin can build while the box bootstraps.
     Properties:
