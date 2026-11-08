@@ -247,6 +247,88 @@ def test_each_cli_command_is_printed_as_typed_without_the_token(
     assert "header.payload.signature" not in printed
 
 
+SYNTH_FAILED = ('Command failed: npx -y @aws/agentcore@0.29.0 deploy --yes --json\nstdout:\n'
+                '{"success":false,"error":"CDK synth failed: node dist/bin/cdk.js: '
+                'Subprocess exited with error 1"}\nstderr:\n')
+
+
+def _cli_calls(monkeypatch, provisioner, outcomes: list):
+    """Fake the CLI: each call takes the next outcome, an exception message or success."""
+    calls: list[list[str]] = []
+
+    def run(args, *, cwd, env):
+        calls.append(list(args))
+        outcome = outcomes.pop(0)
+        if outcome:
+            raise RuntimeError(outcome)
+        return subprocess.CompletedProcess(args, 0, stdout="{}")
+
+    monkeypatch.setattr(provisioner, "_run", run)
+    return calls
+
+
+def _diagnostic_synths(monkeypatch, provisioner, returncode: int = 1,
+                       stderr: str = "Error: the app could not read its project"):
+    synths: list[dict] = []
+
+    def run(args, **kwargs):
+        synths.append({"args": args, **kwargs})
+        return subprocess.CompletedProcess(args, returncode, stdout="", stderr=stderr)
+
+    monkeypatch.setattr(provisioner.subprocess, "run", run)
+    return synths
+
+
+def test_a_deploy_that_failed_in_synthesis_shows_the_apps_error_and_runs_once_more(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The pinned CLI drops the CDK app's error. A test event's closing reset failed once that
+    way and passed when run again (2026-11-08); a synth failure deploys nothing."""
+    provisioner = _load_provisioner()
+    root = _with_staged_lock(tmp_path)
+    calls = _cli_calls(monkeypatch, provisioner, [SYNTH_FAILED, None])
+    synths = _diagnostic_synths(monkeypatch, provisioner)
+
+    provisioner._agentcore(root, "deploy", "--yes", "--json", env={"PATH": "/usr/bin"})
+
+    assert [call[-3:] for call in calls] == [["deploy", "--yes", "--json"]] * 2
+    (synth,) = synths
+    assert synth["args"] == ["node", "dist/bin/cdk.js"]
+    assert synth["cwd"] == str(root / "agentcore" / "cdk")
+    assert synth["env"]["CDK_OUTDIR"] and synth["env"]["UV_CONSTRAINT"]
+    printed = capsys.readouterr().out
+    assert "    Error: the app could not read its project" in printed
+    assert "# again: the synth deployed nothing" in printed
+
+
+def test_a_synth_that_fails_twice_stops_the_deploy(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
+    provisioner = _load_provisioner()
+    root = _with_staged_lock(tmp_path)
+    calls = _cli_calls(monkeypatch, provisioner, [SYNTH_FAILED, SYNTH_FAILED])
+    _diagnostic_synths(monkeypatch, provisioner)
+    with pytest.raises(RuntimeError, match="CDK synth failed"):
+        provisioner._agentcore(root, "deploy", "--yes", "--json", env={})
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize("args", [("deploy", "--yes", "--json"), ("validate",)])
+def test_other_failures_are_not_retried(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, args: tuple,
+) -> None:
+    """A CloudFormation or validation failure may have changed something; only a deploy that
+    stopped in synthesis is known to have deployed nothing."""
+    provisioner = _load_provisioner()
+    root = _with_staged_lock(tmp_path)
+    failure = SYNTH_FAILED if args[0] != "deploy" else "Command failed: stack UPDATE_FAILED"
+    calls = _cli_calls(monkeypatch, provisioner, [failure, None])
+    synths = _diagnostic_synths(monkeypatch, provisioner)
+    with pytest.raises(RuntimeError):
+        provisioner._agentcore(root, *args, env={})
+    assert len(calls) == 1 and synths == []
+
+
 LOCK = BACKEND_DIR / "uv.lock"
 
 
