@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import difflib
 import hashlib
 import hmac
 import json
@@ -1927,6 +1928,16 @@ def _rendered_build_fingerprint(root: Path) -> str:
     return ""
 
 
+def _operator_tools_fingerprint() -> str:
+    """The digest the staff tools Lambda stamps on its receipts when it runs this checkout's
+    package: the one a full provision builds, and a participant deploy keeps current
+    (`_ship_participant_modules`)."""
+    from common.fingerprint import OPERATOR_SOURCE_PATHS, compute_fingerprint
+    return compute_fingerprint(deploy_lambda.package_files(
+        str(DEPLOY_DIR / "pellier_operator_tools.py"), "pellier_operator_tools.lambda_handler"
+    ), source_paths=OPERATOR_SOURCE_PATHS)
+
+
 def _operator_runtime_smoke(*, region: str, required: dict, client_secret_arn: str | None,
                             runtime_arn: str, expected_fingerprint: str) -> dict:
     """Prove staff identity, Gateway access, RLS visibility and the deployed build.
@@ -1936,10 +1947,7 @@ def _operator_runtime_smoke(*, region: str, required: dict, client_secret_arn: s
     Each attempt has its own turn; the audit row is correlated to that attempt.
     """
     from services.operator_runtime_client import investigate_on_runtime
-    from common.fingerprint import OPERATOR_SOURCE_PATHS, compute_fingerprint
-    tools_fingerprint = compute_fingerprint(deploy_lambda.package_files(
-        str(DEPLOY_DIR / "pellier_operator_tools.py"), "pellier_operator_tools.lambda_handler"
-    ), source_paths=OPERATOR_SOURCE_PATHS)
+    tools_fingerprint = _operator_tools_fingerprint()
     token, _username = _cognito_access_token(
         region=region, user_pool_id=required["cognito_pool"], client_id=required["cognito_client"],
         credentials_secret_arn=required["credentials_secret"], client_secret_arn=client_secret_arn,
@@ -2683,10 +2691,10 @@ def _existing_lambda_arns(
 ) -> dict[str, str]:
     """Read the Gateway targets' Lambda ARNs without republishing them.
 
-    No Lab 3 or Lab 4 edit changes how the Lambda is built, so the participant
+    No Lab 3 or Lab 4 edit changes how a Lambda is built, so the participant
     update looks the functions up by their deterministic names instead of
-    repackaging them; only Lab 1's search plan is swapped inside the deployed
-    package (`_ship_lab1_search`). A missing function means the
+    repackaging them. It swaps only the modules a lab edits inside the deployed
+    packages (`_ship_participant_modules`). A missing function means the
     environment was never provisioned, which no participant edit can repair.
     """
     lambda_client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
@@ -2707,6 +2715,12 @@ def _existing_lambda_arns(
 
 # Lab 1's two modules in the Gateway Lambda's package, by their path inside it.
 _STORE_TOOLS, _SEARCH_PLAN = "services/store_tools.py", "services/search_plan.py"
+# The Gateway's tool schemas, which both tools Lambdas import and Task 3A edits, and the
+# supplied Task 3A file that a participant's copy must match outside its marked block.
+_TOOL_SCHEMAS = "gateway_tool_schemas.py"
+_CHECKOUT_TOOL_SCHEMAS = DEPLOY_DIR / _TOOL_SCHEMAS
+_SUPPLIED_TOOL_SCHEMAS = (SCRIPTS_DIR.parent / "solutions" / "lab-3-deploy" / "gateway"
+                          / "gateway_tool_schemas_solution.py")
 # A region a participant builds, from its START marker to its END marker.
 _MARKED_REGION = re.compile(
     r"# === WORKSHOP - [^\n]*: START ===.*?# === WORKSHOP - [^\n]*: END ===", re.DOTALL)
@@ -2741,6 +2755,7 @@ def _ship_lab1_search(
     region: str,
     identity: DeploymentIdentity,
     env: dict[str, str],
+    also: dict[str, Path] | None = None,
 ) -> dict[str, Any]:
     """Put the participant's own search plan in the Gateway's Lambda when both Lab 1 checks
     pass and the file matches the supplied one outside its marked region, and the supplied
@@ -2757,12 +2772,88 @@ def _ship_lab1_search(
     edited = _edited_outside_region(yours, _supplied(_SEARCH_PLAN))
     ships_yours = not failing and not edited
     sources = {_STORE_TOOLS: _supplied(_STORE_TOOLS),
-               _SEARCH_PLAN: yours if ships_yours else _supplied(_SEARCH_PLAN)}
+               _SEARCH_PLAN: yours if ships_yours else _supplied(_SEARCH_PLAN), **(also or {})}
     function_name = f"{_deployment_targets(identity)['store']['server_name']}-function"
     updated = deploy_lambda.replace_package_modules(
         boto3.client("lambda", region_name=region, config=AWS_CONFIG), function_name, sources)
     return {"runs": "yours" if ships_yours else "supplied", "failing_checks": failing,
             "edited_outside_region": edited, "updated": updated}
+
+
+def _outside_block_lines(path: Path) -> list[str]:
+    """``path``'s lines outside its marked blocks, without blank lines or trailing spaces."""
+    text = _MARKED_REGION.sub("", path.read_text(encoding="utf-8"))
+    return [line.rstrip() for line in text.splitlines() if line.strip()]
+
+
+def _check_task_3a_file(shown: int = 6) -> None:
+    """Refuse a Task 3A file changed outside its marked block, and show what changed.
+
+    Blank lines and trailing spaces do not count: they cannot break either Lambda's import
+    or the Gateway's schemas. The message names the way back, which keeps the
+    participant's version beside the file.
+
+    Raises:
+        RuntimeError: a line outside the block differs from the supplied file.
+    """
+    supplied, yours = (_outside_block_lines(path)
+                       for path in (_SUPPLIED_TOOL_SCHEMAS, _CHECKOUT_TOOL_SCHEMAS))
+    if yours == supplied:
+        return
+    changed = [line for line in difflib.unified_diff(supplied, yours, lineterm="", n=0)
+               if line[:1] in "+-" and not line.startswith(("+++", "---"))]
+    more = [f"... and {len(changed) - shown} more"] if len(changed) > shown else []
+    lines = "\n".join(f"    {line}" for line in [*changed[:shown], *more])
+    raise RuntimeError(
+        "labs/03-deploy/3A-1-publish-tool.py changed outside its marked block, so nothing "
+        "was deployed. Lines that differ from the supplied file (- supplied, + yours):\n"
+        f"{lines}\n"
+        "Undo them, or put the supplied Task 3A change back, which keeps your version "
+        "beside the file: uv run scripts/lab_run.py solution --lab 3 --task 3A. "
+        "Then deploy again.")
+
+
+def _ship_participant_modules(
+    repo: Path,
+    *,
+    region: str,
+    identity: DeploymentIdentity,
+    env: dict[str, str],
+    reset_to_starters: bool,
+) -> dict[str, Any]:
+    """Put the modules the labs edit into the tools Lambdas' deployed packages.
+
+    Both Lambdas import the Gateway's tool schemas, and Task 3A edits them, so every
+    participant deploy and reset ships this checkout's copy to both. Each Lambda then imports
+    the schemas its Gateway publishes, and stamps the tools fingerprint that the staff proof
+    and Task 3B compute from this checkout. The store Lambda takes them in the same upload as
+    Lab 1's search (`_ship_lab1_search`); a reset to the starters leaves that search alone.
+    Returns what each upload did; a package that already carries the files is not uploaded.
+
+    Raises:
+        RuntimeError: the Task 3A file changed outside its marked block. Nothing ships and
+            nothing deploys: the Gateway and both Lambdas would run the change, and the
+            supplied copy in its place would leave the Lambdas on other schemas than the
+            Gateway's.
+    """
+    _check_task_3a_file()
+    schemas = {_TOOL_SCHEMAS: _CHECKOUT_TOOL_SCHEMAS}
+    targets = _deployment_targets(identity)
+    client = boto3.client("lambda", region_name=region, config=AWS_CONFIG)
+
+    def ship(surface: str) -> bool:
+        return deploy_lambda.replace_package_modules(
+            client, f"{targets[surface]['server_name']}-function", schemas)
+
+    shipped: dict[str, Any] = {}
+    if reset_to_starters:
+        store = ship("store")
+    else:
+        shipped["lab1_search"] = _ship_lab1_search(repo, region=region, identity=identity,
+                                                   env=env, also=schemas)
+        store = shipped["lab1_search"]["updated"]
+    shipped["tool_schemas"] = {"store": store, "operator": ship("operator")}
+    return shipped
 
 
 def _active_policy_names(*, region: str, policy_engine_id: str) -> set[str]:
@@ -3041,13 +3132,14 @@ def _participant_update(
     render reads from ``policies/credit_limit.cedar``. Either way it
     is one update of the deployed project.
 
-    Its first step also puts the participant's Lab 1 search plan in the Gateway's
-    Lambda when both Lab 1 checks pass and nothing outside its marked region was
-    edited, and the supplied one otherwise (`_ship_lab1_search`); a reset to the
-    starters leaves it.
+    Its first step also puts the modules the labs edit into the tools Lambdas
+    (`_ship_participant_modules`): the Gateway's tool schemas into both, and the
+    participant's Lab 1 search plan into the Gateway's when both Lab 1 checks pass and
+    nothing outside its marked region was edited, the supplied one otherwise; a reset
+    to the starters leaves the search plan.
 
     Environment preparation belongs to the facilitator's full provision. Lambda
-    packages, trace and Runtime log groups, Transaction Search activation, the
+    dependencies, trace and Runtime log groups, Transaction Search activation, the
     CloudTrail control-plane audit, the Cognito claim trigger, Gateway
     observability and Memory seeding are all unchanged by either Lab 3 edit, and
     each carries a wait a participant can neither shorten nor act on: the two
@@ -3072,9 +3164,9 @@ def _participant_update(
     result["lambdas"] = {
         surface: {"function_arn": arn} for surface, arn in lambda_arns.items()
     }
+    result.update(_ship_participant_modules(repo, region=region, identity=identity, env=env,
+                                            reset_to_starters=reset_to_starters))
     if not reset_to_starters:
-        result["lab1_search"] = _ship_lab1_search(repo, region=region, identity=identity,
-                                                  env=env)
         progress.amend("Checked your files and the deployed project; the Gateway "
                        + ("runs your Lab 1 search" if result["lab1_search"]["runs"] == "yours"
                           else "keeps the provided Lab 1 search"))

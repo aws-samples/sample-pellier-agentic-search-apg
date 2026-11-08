@@ -16,6 +16,10 @@ fingerprinted runtime source, and laying the zip over the checkout must leave
 the fingerprint unchanged. If either fails, 3B would compare a build the
 Gateway does not run, or fail for every participant.
 
+Each Lambda also stamps a tools fingerprint of its own sources (``common/fingerprint.py``).
+Task 3A edits one of them, the Gateway's tool schemas, so every participant deploy ships
+the checkout's copy into both Lambdas.
+
 The tests build the real zip with ``deploy_lambda.build_package``, without
 dependencies or AWS.
 """
@@ -256,3 +260,151 @@ def test_a_package_that_already_carries_the_files_is_not_uploaded(deployed,
         deployed, "pellier-store-tools-server-function",
         {"services/store_tools.py": tmp_path / "store_tools.py"})
     assert not changed and deployed.uploaded is None and deployed.waited == []
+
+
+# ---------------------------------------------------------------------------
+# A participant deploy keeps both tools Lambdas on this checkout's tool schemas
+# ---------------------------------------------------------------------------
+
+
+class _Lambdas:
+    """Deployed packages by function name, read and replaced the way the swaps do it."""
+
+    def __init__(self, packages: dict[str, bytes]) -> None:
+        self.packages = packages
+
+    def get_function(self, FunctionName: str) -> dict:  # noqa: N803 - boto3's name
+        return {"Code": {"Location": FunctionName}}
+
+    def update_function_code(self, FunctionName: str, ZipFile: bytes) -> dict:  # noqa: N803
+        self.packages[FunctionName] = ZipFile
+        return {}
+
+    def get_waiter(self, name: str):
+        class Waiter:
+            def wait(self, FunctionName: str) -> None:  # noqa: N803
+                return None
+
+        return Waiter()
+
+
+def _provisioner():
+    spec = importlib.util.spec_from_file_location(
+        "provisioner_lambda_package_test", REPO / "scripts" / "provision_agentcore_end_to_end.py")
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _package(deploy_lambda, entry: str, schemas: Path) -> bytes:
+    files = deploy_lambda.package_files(str(DEPLOY / f"{entry}.py"), f"{entry}.lambda_handler")
+    files["gateway_tool_schemas.py"] = schemas
+    return _zip({name: Path(path).read_bytes() for name, path in files.items()})
+
+
+def _stamped(package: bytes, root: Path, source_paths) -> str:
+    """The tools fingerprint the Lambda computes from its own package when it runs."""
+    from common.fingerprint import deployed_fingerprint
+
+    zipfile.ZipFile(io.BytesIO(package)).extractall(root)
+    return deployed_fingerprint(root, source_paths=source_paths)
+
+
+def _two_lambdas(provisioner, monkeypatch, schemas: Path) -> tuple[_Lambdas, str, str]:
+    """Both tools Lambdas, packaged with ``schemas``, behind a fake Lambda API."""
+    targets = provisioner._deployment_targets(provisioner.deployment_identity())
+    store, operator = (f"{targets[surface]['server_name']}-function"
+                       for surface in ("store", "operator"))
+    lambdas = _Lambdas({
+        store: _package(provisioner.deploy_lambda, "pellier_store_tools", schemas),
+        operator: _package(provisioner.deploy_lambda, "pellier_operator_tools", schemas),
+    })
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *args, **kwargs: lambdas)
+    monkeypatch.setattr(provisioner.deploy_lambda.urllib.request, "urlopen",
+                        lambda url, timeout: io.BytesIO(lambdas.packages[url]))
+    monkeypatch.setattr(provisioner, "_lab1_checks_failing", lambda repo, env: [])
+    return lambdas, store, operator
+
+
+PROVISIONED_SCHEMAS = (REPO / "solutions" / "lab-3-deploy" / "gateway"
+                       / "gateway_tool_schemas_solution.py")
+
+
+@pytest.mark.parametrize("reset", [False, True], ids=["deploy", "reset"])
+def test_a_participant_deploy_keeps_both_lambdas_on_this_checkouts_tool_schemas(
+        monkeypatch, tmp_path: Path, reset: bool) -> None:
+    """Task 3A edits gateway_tool_schemas.py, which both tools Lambdas import. On the
+    2026-11-08 test event the Lab 3 deploy left both Lambdas on the provisioned copy, so the
+    staff proof expected a tools fingerprint the operator Lambda never stamped and the deploy
+    failed; Task 3B would have read "another build answered" for the store Lambda."""
+    monkeypatch.syspath_prepend(str(DEPLOY))
+    monkeypatch.syspath_prepend(str(REPO / "scripts"))
+    import lab3_check
+    from common.fingerprint import OPERATOR_SOURCE_PATHS, SOURCE_PATHS
+
+    provisioner = _provisioner()
+    checkout = DEPLOY / "gateway_tool_schemas.py"
+    assert PROVISIONED_SCHEMAS.read_bytes() != checkout.read_bytes()
+    lambdas, store, operator = _two_lambdas(provisioner, monkeypatch, PROVISIONED_SCHEMAS)
+
+    shipped = provisioner._ship_participant_modules(
+        REPO, region="us-east-1", identity=provisioner.deployment_identity(), env={},
+        reset_to_starters=reset)
+
+    assert shipped["tool_schemas"] == {"store": True, "operator": True}
+    assert ("lab1_search" in shipped) is not reset
+    for name in (store, operator):
+        archive = zipfile.ZipFile(io.BytesIO(lambdas.packages[name]))
+        assert archive.read("gateway_tool_schemas.py") == checkout.read_bytes(), name
+    assert (_stamped(lambdas.packages[operator], tmp_path / "operator", OPERATOR_SOURCE_PATHS)
+            == provisioner._operator_tools_fingerprint())
+    if not reset:
+        assert (_stamped(lambdas.packages[store], tmp_path / "store", SOURCE_PATHS)
+                == lab3_check.local_tools_fingerprint())
+
+
+@pytest.mark.parametrize("reset", [False, True], ids=["deploy", "reset"])
+def test_a_task_3a_file_edited_outside_its_block_stops_the_deploy_before_anything_ships(
+        monkeypatch, tmp_path: Path, reset: bool) -> None:
+    """Both Lambdas import the file, and the Gateway is rendered from it, so an edit outside
+    the block (a tool dropped from the catalog fails the store Lambda's import) must stop the
+    deploy before either package changes."""
+    monkeypatch.syspath_prepend(str(DEPLOY))
+    provisioner = _provisioner()
+    stray = tmp_path / "gateway_tool_schemas.py"
+    stray.write_text((DEPLOY / "gateway_tool_schemas.py").read_text() + "\nSTRAY = True\n")
+    monkeypatch.setattr(provisioner, "_CHECKOUT_TOOL_SCHEMAS", stray)
+    lambdas, store, operator = _two_lambdas(provisioner, monkeypatch, PROVISIONED_SCHEMAS)
+    before = dict(lambdas.packages)
+
+    with pytest.raises(RuntimeError, match="changed outside its marked block") as refused:
+        provisioner._ship_participant_modules(
+            REPO, region="us-east-1", identity=provisioner.deployment_identity(), env={},
+            reset_to_starters=reset)
+    assert lambdas.packages == before
+    message = str(refused.value)
+    assert "    +STRAY = True" in message
+    assert "uv run scripts/lab_run.py solution --lab 3 --task 3A" in message
+
+
+def test_blank_lines_and_trailing_spaces_outside_the_block_still_deploy(
+        monkeypatch, tmp_path: Path) -> None:
+    """A stray Enter or space while reading the file changes nothing the Lambdas import or
+    the Gateway publishes, so it must not stop a participant's deploy."""
+    monkeypatch.syspath_prepend(str(DEPLOY))
+    provisioner = _provisioner()
+    lines = (DEPLOY / "gateway_tool_schemas.py").read_text().splitlines()
+    edited = tmp_path / "gateway_tool_schemas.py"
+    edited.write_text("\n\n".join(f"{line}   " for line in lines) + "\n\n")
+    monkeypatch.setattr(provisioner, "_CHECKOUT_TOOL_SCHEMAS", edited)
+    lambdas, store, operator = _two_lambdas(provisioner, monkeypatch, PROVISIONED_SCHEMAS)
+
+    shipped = provisioner._ship_participant_modules(
+        REPO, region="us-east-1", identity=provisioner.deployment_identity(), env={},
+        reset_to_starters=True)
+
+    assert shipped["tool_schemas"] == {"store": True, "operator": True}
+    for name in (store, operator):
+        archive = zipfile.ZipFile(io.BytesIO(lambdas.packages[name]))
+        assert archive.read("gateway_tool_schemas.py") == edited.read_bytes(), name
