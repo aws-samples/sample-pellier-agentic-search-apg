@@ -1381,7 +1381,9 @@ def _agentcore(
         if not args or args[0] != "deploy" or _SYNTH_FAILED not in str(exc):
             raise
     # A deploy that failed in synthesis deployed nothing, so one retry is safe.
-    _print_synth_error(root, cli_env)
+    found = _synth_error(root, cli_env)
+    print(found, flush=True)
+    _record_synth_retry(root, " ".join(_redacted(args)), found)
     print("+ agentcore " + " ".join(_redacted(args)) + "    # again: the synth deployed nothing",
           flush=True)
     return _run(command, cwd=root, env=cli_env)
@@ -1390,10 +1392,12 @@ def _agentcore(
 # How the pinned CLI reports a CDK app that exited during synthesis. It drops the app's own
 # error output; a test event hit one such failure that did not repeat (2026-11-08).
 _SYNTH_FAILED = "CDK synth failed"
+# Beside every deployment's project folder, so health-gate.sh finds it without the suffix.
+SYNTH_RETRIES = "synth-retries.log"
 
 
-def _print_synth_error(root: Path, env: dict[str, str]) -> None:
-    """Run the CDK app once here and print the end of its error output, which the CLI drops.
+def _synth_error(root: Path, env: dict[str, str]) -> str:
+    """Run the CDK app once here and describe the end of its error output, which the CLI drops.
 
     Diagnostic only: it never raises, and its output directory is thrown away.
     """
@@ -1404,15 +1408,23 @@ def _print_synth_error(root: Path, env: dict[str, str]) -> None:
                                   env={**env, "CDK_OUTDIR": out}, capture_output=True,
                                   text=True, timeout=300, check=False)
         except (OSError, subprocess.TimeoutExpired) as exc:
-            print(f"The CDK synth failed; running it again here failed too ({exc}).", flush=True)
-            return
+            return f"The CDK synth failed; running it again here failed too ({exc})."
     if done.returncode == 0:
-        print("The CDK synth failed, and passed when run again here; deploying again.",
-              flush=True)
-        return
+        return "The CDK synth failed, and passed when run again here; deploying again."
     tail = "\n".join(f"    {line}" for line in done.stderr.strip().splitlines()[-20:])
-    print(f"The CDK synth failed. The CDK app's own error (exit {done.returncode}):\n{tail}",
-          flush=True)
+    return f"The CDK synth failed. The CDK app's own error (exit {done.returncode}):\n{tail}"
+
+
+def _record_synth_retry(root: Path, command: str, found: str) -> None:
+    """Keep each retry where the health gate reports it, since a passing retry is otherwise
+    silent. One unindented line per retry, then what the app printed, indented."""
+    at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    first, _, rest = found.partition("\n")
+    try:
+        with (root.parent / SYNTH_RETRIES).open("a", encoding="utf-8") as record:
+            record.write(f"{at} agentcore {command}: {first}\n" + (f"{rest}\n" if rest else ""))
+    except OSError as exc:
+        print(f"Could not keep this retry in {root.parent / SYNTH_RETRIES} ({exc}).", flush=True)
 
 
 def _deploy_cli_project(

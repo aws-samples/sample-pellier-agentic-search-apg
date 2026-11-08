@@ -563,6 +563,7 @@ def _run_health_gate(
     schema_query_error: bool = False,
     credential_secret_arn: str | None = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
     node_version: str = "v24.21.0",
+    synth_retries: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
     repo = tmp_path / "repo"
     fake_bin = tmp_path / "bin"
@@ -578,6 +579,9 @@ def _run_health_gate(
         shopper_payload["custom:customer_id"] = "CUST-MARCO"
     shopper_jwt = ".".join((_jwt_segment({"alg": "none"}), _jwt_segment(shopper_payload), "sig"))
     repo.mkdir()
+    if synth_retries is not None:
+        (repo / ".agentcore-project").mkdir()
+        (repo / ".agentcore-project" / "synth-retries.log").write_text(synth_retries)
     fake_bin.mkdir()
     # Both lifecycle markers default to /var/lib/pellier on a box. Point them at
     # the sandbox so a developer's real markers never leak into the verdict.
@@ -1411,6 +1415,25 @@ def test_the_health_gate_passes_a_shopper_token_whose_claim_matches_the_mapping(
         tmp_path, model_ready=True, workshop_format="governed", managed_ready=True,
     )
     assert "custom:customer_id=CUST-MARCO, matching the mapping" in proc.stdout, proc.stdout
+
+
+def test_a_deploy_that_passed_on_its_second_try_is_reported_and_changes_no_verdict(
+        tmp_path) -> None:
+    """The provisioner retries a deploy whose CDK synth failed; a passing retry is silent
+    unless the gate names the record it keeps beside the project folder."""
+    record = ("2026-11-08T22:18:28Z agentcore deploy --yes --json: The CDK synth failed, "
+              "and passed when run again here; deploying again.\n")
+    common = {"model_ready": True, "workshop_format": "governed", "managed_ready": True}
+    for name in ("without", "with"):
+        (tmp_path / name).mkdir()
+    without = _run_health_gate(tmp_path / "without", **common)
+    with_record = _run_health_gate(tmp_path / "with", **common, synth_retries=record)
+    assert "passed only on a second try" not in without.stdout
+    assert ("1 AgentCore deploy(s) passed only on a second try after a CDK synth failure. "
+            "Keep ") in with_record.stdout
+    assert "Last: 2026-11-08T22:18:28Z agentcore deploy --yes --json: The CDK synth" in (
+        with_record.stdout)
+    assert with_record.returncode == without.returncode
 
 
 def test_the_runtime_role_never_requests_bypassrls() -> None:

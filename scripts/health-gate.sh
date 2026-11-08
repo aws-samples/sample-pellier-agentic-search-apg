@@ -586,6 +586,17 @@ else
   managed_missing "No Cognito pool id — operator group authorization is unverified"
 fi
 
+# A deploy that passed only on its second try after a CDK synth failure. The pinned CLI drops
+# the app's error and the retry hides the failure, so the provisioner keeps this record.
+synth_retries="$REPO/.agentcore-project/synth-retries.log"
+if [[ -s "$synth_retries" ]]; then
+  retries="$(grep -c -v '^ ' "$synth_retries" || true)"
+  last_retry="$(grep -v '^ ' "$synth_retries" | tail -1 | cut -c1-240)"
+  retry_line="${retries} AgentCore deploy(s) passed only on a second try after a CDK synth"
+  retry_line+=" failure. Keep ${synth_retries} for the workshop owner. Last: ${last_retry}"
+  warn "$retry_line"
+fi
+
 if $ok; then
   printf "${GREEN}● READY${NC} — all required checks passed.\n"
   exit 0

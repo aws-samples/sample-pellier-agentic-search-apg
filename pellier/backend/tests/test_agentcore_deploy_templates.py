@@ -285,7 +285,7 @@ def test_a_deploy_that_failed_in_synthesis_shows_the_apps_error_and_runs_once_mo
     """The pinned CLI drops the CDK app's error. A test event's closing reset failed once that
     way and passed when run again (2026-11-08); a synth failure deploys nothing."""
     provisioner = _load_provisioner()
-    root = _with_staged_lock(tmp_path)
+    root = _with_staged_lock(tmp_path / "pellier")
     calls = _cli_calls(monkeypatch, provisioner, [SYNTH_FAILED, None])
     synths = _diagnostic_synths(monkeypatch, provisioner)
 
@@ -299,13 +299,34 @@ def test_a_deploy_that_failed_in_synthesis_shows_the_apps_error_and_runs_once_mo
     printed = capsys.readouterr().out
     assert "    Error: the app could not read its project" in printed
     assert "# again: the synth deployed nothing" in printed
+    # A passing retry is otherwise silent: health-gate.sh reports this record.
+    header, error = (tmp_path / "synth-retries.log").read_text().splitlines()
+    assert re.fullmatch(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ agentcore deploy --yes --json: The CDK "
+                        r"synth failed\. The CDK app's own error \(exit 1\):", header), header
+    assert error == "    Error: the app could not read its project"
+
+
+def test_a_retry_that_cannot_be_recorded_still_deploys(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    provisioner = _load_provisioner()
+    root = _with_staged_lock(tmp_path / "pellier")
+    _cli_calls(monkeypatch, provisioner, [SYNTH_FAILED, None])
+    _diagnostic_synths(monkeypatch, provisioner, returncode=0, stderr="")
+    tmp_path.chmod(0o500)
+    try:
+        provisioner._agentcore(root, "deploy", "--yes", "--json", env={})
+    finally:
+        tmp_path.chmod(0o700)
+    printed = capsys.readouterr().out
+    assert "passed when run again here" in printed and "Could not keep this retry" in printed
 
 
 def test_a_synth_that_fails_twice_stops_the_deploy(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     provisioner = _load_provisioner()
-    root = _with_staged_lock(tmp_path)
+    root = _with_staged_lock(tmp_path / "pellier")
     calls = _cli_calls(monkeypatch, provisioner, [SYNTH_FAILED, SYNTH_FAILED])
     _diagnostic_synths(monkeypatch, provisioner)
     with pytest.raises(RuntimeError, match="CDK synth failed"):
@@ -320,7 +341,7 @@ def test_other_failures_are_not_retried(
     """A CloudFormation or validation failure may have changed something; only a deploy that
     stopped in synthesis is known to have deployed nothing."""
     provisioner = _load_provisioner()
-    root = _with_staged_lock(tmp_path)
+    root = _with_staged_lock(tmp_path / "pellier")
     failure = SYNTH_FAILED if args[0] != "deploy" else "Command failed: stack UPDATE_FAILED"
     calls = _cli_calls(monkeypatch, provisioner, [failure, None])
     synths = _diagnostic_synths(monkeypatch, provisioner)
