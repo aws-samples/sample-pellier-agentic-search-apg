@@ -1436,6 +1436,21 @@ def test_a_deploy_that_passed_on_its_second_try_is_reported_and_changes_no_verdi
     assert with_record.returncode == without.returncode
 
 
+def test_the_reset_finds_uv_whoever_starts_it(tmp_path) -> None:
+    """Bootstrap starts its closing reset with `sudo -u participant bash -c`, whose PATH lacks
+    the participant's ~/.local/bin. The reset's starter redeploy rebuilds the Runtime with uv,
+    and on the 2026-11-08 test event its CDK synth failed: "uv is required"."""
+    (line,) = [line for line in RESET_GOVERNED.read_text().splitlines()
+               if line.startswith("export PATH=")]
+    uv = tmp_path / ".local" / "bin" / "uv"
+    uv.parent.mkdir(parents=True)
+    uv.write_text("#!/bin/sh\n")
+    uv.chmod(0o755)
+    done = subprocess.run(["bash", "-c", f"{line}\ncommand -v uv"], capture_output=True,
+                          text=True, env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"})
+    assert done.stdout.strip() == str(uv), done.stderr
+
+
 def test_the_runtime_role_never_requests_bypassrls() -> None:
     """A runtime role with BYPASSRLS would void every policy silently.
 

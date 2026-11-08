@@ -34,8 +34,10 @@
 
 set -euo pipefail
 
-# Prefer workshop aliases without changing the operating system interpreter.
-export PATH="/opt/pellier/bin:$PATH"
+# Prefer workshop aliases without changing the operating system interpreter. ~/.local/bin
+# holds uv, which the starter redeploy's Runtime build needs; bootstrap starts this reset
+# from `sudo -u ... bash -c`, whose PATH lacks it.
+export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH"
 
 REPO="${PELLIER_REPO:-/workshop/sample-pellier-agentic-search-apg}"
 ENV_FILE="${REPO}/.env"
