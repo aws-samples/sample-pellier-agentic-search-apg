@@ -1417,8 +1417,7 @@ def test_the_runtime_role_never_requests_bypassrls() -> None:
     """A runtime role with BYPASSRLS would void every policy silently.
 
     Scoped to role-defining statements. The health gate then checks the live
-    attribute, because ALTER ROLE ... NOBYPASSRLS needs a true superuser on
-    Aurora and a later grant would change nothing in the schema file.
+    attribute, because a role changed after setup would not show in the schema file.
     ``ALTER ROLE <name> SET|RESET <setting>`` only sets a session default and
     cannot change a role attribute, so it is not a role-defining statement.
 

@@ -833,8 +833,12 @@ GRANT INSERT (approval_id, customer_id, amount_cents, reason, issued_by, idempot
     ON pellier.store_credits TO pellier_credit_owner;
 GRANT UPDATE (store_credit_id) ON pellier.orders TO pellier_credit_owner;
 GRANT UPDATE (status) ON pellier.approvals TO pellier_credit_owner;
+-- A new owner needs CREATE on the schema. Aurora's master user is let through without it;
+-- PostgreSQL's other non-superusers are not. The grant lasts for this one statement.
+GRANT CREATE ON SCHEMA pellier TO pellier_credit_owner;
 ALTER FUNCTION pellier.give_store_credit(text, text, integer, text, text)
     OWNER TO pellier_credit_owner;
+REVOKE CREATE ON SCHEMA pellier FROM pellier_credit_owner;
 -- pgAudit logs a statement only when the session's login is a member of the role it runs
 -- as (pgaudit.c, log_select_dml), so a credit the Lambda writes, which runs as this owner,
 -- would leave no audit line unless the login belongs to it. INHERIT FALSE and SET FALSE:
@@ -884,7 +888,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_operator_tools') THEN
         CREATE ROLE pellier_operator_tools NOLOGIN NOINHERIT NOBYPASSRLS;
     END IF;
-    ALTER ROLE pellier_operator_tools NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB NOINHERIT;
+    -- Aurora's master user is not a superuser, so it may not name SUPERUSER here, even to
+    -- turn it off. It cannot make a superuser either; check instead.
+    IF (SELECT rolsuper FROM pg_roles WHERE rolname = 'pellier_operator_tools') THEN
+        RAISE EXCEPTION 'pellier_operator_tools is a superuser; drop the role and run setup again';
+    END IF;
+    ALTER ROLE pellier_operator_tools NOBYPASSRLS NOCREATEROLE NOCREATEDB NOINHERIT;
     GRANT USAGE ON SCHEMA pellier TO pellier_operator_tools;
     GRANT SELECT (id, name, cognito_username) ON pellier.customers TO pellier_operator_tools;
     GRANT SELECT ON pellier.product_catalog, pellier.orders, pellier.support_tickets,

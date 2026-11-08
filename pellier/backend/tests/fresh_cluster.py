@@ -40,17 +40,22 @@ def _pg_bin() -> Path | None:
 
 @dataclass
 class Cluster:
+    """A running throwaway cluster. ``user`` and ``database`` are who the setup scripts and
+    ``psql`` connect as; ``dataclasses.replace`` gives the same cluster as another login."""
+
     bin: Path
     root: Path
     socket: Path
+    user: str = "postgres"
+    database: str = "postgres"
 
     def env(self) -> dict[str, str]:
         return {
             **os.environ,
             "DB_HOST": str(self.socket),
             "DB_PORT": "5432",
-            "DB_NAME": "postgres",
-            "DB_USER": "postgres",
+            "DB_NAME": self.database,
+            "DB_USER": self.user,
             "DB_PASSWORD": "",
             "PYTHON": sys.executable,
             "REPO": str(REPO),
@@ -59,8 +64,8 @@ class Cluster:
 
     def psql(self, sql: str) -> str:
         done = subprocess.run(
-            [str(self.bin / "psql"), "-X", "-h", str(self.socket), "-U", "postgres",
-             "-d", "postgres", "-At", "-v", "ON_ERROR_STOP=1"],
+            [str(self.bin / "psql"), "-X", "-h", str(self.socket), "-U", self.user,
+             "-d", self.database, "-At", "-v", "ON_ERROR_STOP=1"],
             input=sql, capture_output=True, text=True, timeout=120,
         )
         if done.returncode:
