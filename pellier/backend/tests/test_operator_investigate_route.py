@@ -206,3 +206,13 @@ def test_a_slow_model_call_is_bridged_by_heartbeats(monkeypatch: pytest.MonkeyPa
     response = _client().post("/api/operator/clients/CUST-JESSICA/investigate")
     assert ": keep-alive" in response.text
     assert [kind for kind, _ in _frames(response.text)] == ["status", "step", "step", "answer", "complete"]
+
+
+def test_managed_investigation_never_falls_back_to_local_graph(monkeypatch):
+    from config import settings
+    monkeypatch.setattr(settings, "USE_AGENTCORE_RUNTIME", True)
+    monkeypatch.setattr(settings, "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT", None)
+    seen = _fake_graph(monkeypatch)
+    response = _client().post("/api/operator/clients/CUST-JESSICA/investigate")
+    assert seen == {}
+    assert [kind for kind, _ in _frames(response.text)] == ["status", "error"]

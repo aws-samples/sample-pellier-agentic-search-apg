@@ -469,10 +469,12 @@ def test_the_lambda_is_deployed_with_the_store_tools_secret_not_the_masters(
         "get_function": lambda self, **kw: {"Configuration": {"FunctionArn": "arn:fn"}}})())
     provision._deploy_lambdas(
         repo=tmp_path, deploy_dir=tmp_path, region="us-east-1", db_region="us-east-1",
-        db_cluster_arn=CLUSTER, store_tools_secret_arn=LOGIN_SECRET, db_name="pellier")
-    assert commands
+        db_cluster_arn=CLUSTER, store_tools_secret_arn=LOGIN_SECRET,
+        operator_tools_secret_arn="staff-login-secret", db_name="pellier")
+    assert len(commands) == 2
     for command in commands:
-        assert command[command.index("--secret-arn") + 1] == LOGIN_SECRET
+        expected = "staff-login-secret" if any("pellier_operator_tools.py" in arg for arg in command) else LOGIN_SECRET
+        assert command[command.index("--secret-arn") + 1] == expected
         assert MASTER not in command
 
 

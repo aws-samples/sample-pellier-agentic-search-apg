@@ -372,7 +372,10 @@ def referenced_order_ids(review: Mapping[str, Any]) -> List[int]:
     """The order ids a review covers, from its ``order_ids`` column."""
     values = review.get("order_ids") or []
     if isinstance(values, str):
-        values = [part for part in values.strip("{}").split(",") if part]
+        # Direct psycopg reads return arrays; the Data API reads the graph's
+        # explicit JSON projection as text. Keep legacy PG array text readable.
+        values = json.loads(values) if values.startswith("[") else [
+            part for part in values.strip("{}").split(",") if part]
     return [int(value) for value in values]
 
 

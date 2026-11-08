@@ -30,6 +30,7 @@ from gateway_tool_schemas import (  # noqa: E402
     STAFF_ONLY_GATEWAY_TOOLS,
     discoverable_tools_for_claims,
     workshop_published_tools,
+    workshop_target_tools,
 )
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
@@ -58,18 +59,18 @@ def test_expected_discovery_counts_before_and_after_lab_three(monkeypatch) -> No
     staff = dict(has_staff_scope=True, has_customer_claim=False)
     assert len(workshop_published_tools()) == 8
     assert len(discoverable_tools_for_claims(**shopper)) == 7
-    assert len(discoverable_tools_for_claims(**staff)) == 7
+    assert len(discoverable_tools_for_claims(**staff)) == 14
 
     monkeypatch.setattr(gateway_tool_schemas, "UNPUBLISHED_TOOLS", frozenset())
     assert len(workshop_published_tools()) == 9
     visible = discoverable_tools_for_claims(**shopper)
     assert len(visible) == 8
     assert "get_tickets" in visible
-    assert len(discoverable_tools_for_claims(**staff)) == 7
+    assert len(discoverable_tools_for_claims(**staff)) == 14
 
 
 def test_no_claim_shape_can_discover_more_than_is_published() -> None:
-    published = workshop_published_tools()
+    published = {tool for tools in workshop_target_tools().values() for tool in tools}
     for staff in (True, False):
         for owner in (True, False):
             visible = discoverable_tools_for_claims(
@@ -79,11 +80,11 @@ def test_no_claim_shape_can_discover_more_than_is_published() -> None:
 
 
 def test_both_claims_together_see_every_published_tool() -> None:
-    """The operator desk carries both, and it must not be missing a capability."""
+    """A token with both claims can discover both authorized sets."""
     visible = discoverable_tools_for_claims(
         has_staff_scope=True, has_customer_claim=True
     )
-    assert visible == workshop_published_tools()
+    assert visible == {tool for tools in workshop_target_tools().values() for tool in tools}
 
 
 def test_the_backend_staff_only_set_matches_the_published_schema() -> None:

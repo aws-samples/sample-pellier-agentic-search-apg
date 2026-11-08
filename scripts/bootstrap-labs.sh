@@ -346,6 +346,7 @@ print(value.get("client_secret", "") if isinstance(value, dict) else value)
     cat > "$REPO_PATH/.env" << EOF
 DB_SECRET_ARN='${DB_SECRET_ARN:-}'
 STORE_TOOLS_SECRET_ARN='${STORE_TOOLS_SECRET_ARN:-}'
+OPERATOR_TOOLS_SECRET_ARN='${OPERATOR_TOOLS_SECRET_ARN:-}'
 DB_CLUSTER_ARN='${DB_CLUSTER_ARN}'
 DB_HOST='${DB_HOST}'
 DB_PORT='${DB_PORT}'
@@ -1282,6 +1283,111 @@ log "✅ Status marker created"
 # installs read.
 
 # ============================================================================
+# STEP 15b: OPERATOR IDENTITY BEFORE MANAGED READINESS
+#
+# The Pellier Operator desk is authorized by membership in one Cognito group, not by
+# holding any valid token. Before this existed, `require_operator` stopped at "the token
+# verifies and carries a subject", so `marco` could confirm, decline and execute any
+# review and call `give_store_credit` directly. The application forbade a shopper-facing agent
+# from issuing itself store credit while handing the same shopper the capability through
+# the desk.
+#
+# Seeded here rather than in the CloudFormation template so the group and its member
+# travel with the source revision the box checks out, and so a fix does not require an
+# asset re-sync. The pool and its four customer principals are created by the template; this
+# adds the group and the one account that belongs to it.
+#
+# NOT best-effort. A failed seeding leaves a console nobody can open, which is the correct
+# failure but must be loud: the health gate refuses readiness below.
+# ============================================================================
+OPERATOR_GROUP="pellier-operators"
+# Nadia is the staff member: the one account in the operator group, the one
+# who approves Jessica's credit in Lab 4. She signs in with her password.
+OPERATOR_USERNAME="${PELLIER_OPERATOR_USERNAME:-nadia}"
+OPERATOR_GROUP_OK=false
+
+_pool_id() { echo "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}"; }
+
+if [ -n "$(_pool_id)" ]; then
+    log "Seeding the $OPERATOR_GROUP Cognito group and its member..."
+    POOL="$(_pool_id)"
+    # A public workshop ID must never determine a staff credential.
+    # Reuse the password a previous run stored, so a re-run changes nothing in Cognito;
+    # the credentials file is rewritten from scratch each run and gets one staff block.
+    OPERATOR_PASSWORD="$(aws secretsmanager get-secret-value \
+        --secret-id "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" --region "$AWS_REGION" \
+        --query SecretString --output text 2>/dev/null \
+        | jq -r --arg u "$OPERATOR_USERNAME" \
+            '[.users[]? | select((.username | ascii_downcase) == ($u | ascii_downcase)) | .password][0] // empty' \
+        2>/dev/null || true)"
+    if [ -z "$OPERATOR_PASSWORD" ]; then
+        OPERATOR_PASSWORD="$(python3.14 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
+    fi
+    OPERATOR_PASSWORD_SET=false
+
+    aws cognito-idp create-group --user-pool-id "$POOL" \
+        --group-name "$OPERATOR_GROUP" --region "$AWS_REGION" \
+        --description "Authorizes the Pellier Operator desk" >/dev/null 2>&1 || true
+    aws cognito-idp admin-create-user --user-pool-id "$POOL" \
+        --username "$OPERATOR_USERNAME" --message-action SUPPRESS \
+        --region "$AWS_REGION" \
+        --user-attributes Name=email,Value="${OPERATOR_USERNAME}@pellier.example.com" \
+                          Name=email_verified,Value=true >/dev/null 2>&1 || true
+    # The password goes to the CLI through a 0600 file, not argv, which any user can list.
+    OPERATOR_CLI_INPUT="$(umask 077; mktemp)"
+    if OPERATOR_POOL="$POOL" OPERATOR_NAME="$OPERATOR_USERNAME" OPERATOR_SECRET="$OPERATOR_PASSWORD" \
+        jq -n '{UserPoolId: $ENV.OPERATOR_POOL, Username: $ENV.OPERATOR_NAME,
+                Password: $ENV.OPERATOR_SECRET, Permanent: true}' >"$OPERATOR_CLI_INPUT" \
+        && aws cognito-idp admin-set-user-password \
+            --cli-input-json "file://$OPERATOR_CLI_INPUT" \
+            --region "$AWS_REGION" >/dev/null 2>&1; then
+        OPERATOR_PASSWORD_SET=true
+    fi
+    rm -f "$OPERATOR_CLI_INPUT"
+    aws cognito-idp admin-add-user-to-group --user-pool-id "$POOL" \
+        --username "$OPERATOR_USERNAME" --group-name "$OPERATOR_GROUP" \
+        --region "$AWS_REGION" >/dev/null 2>&1 || true
+
+    # VERIFY, do not assume. Every call above tolerates "already exists", so success of
+    # the calls says nothing; membership is the only fact that matters.
+    if [ "$OPERATOR_PASSWORD_SET" = true ] && aws cognito-idp admin-list-groups-for-user --user-pool-id "$POOL" \
+         --username "$OPERATOR_USERNAME" --region "$AWS_REGION" \
+         --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
+         | grep -q "$OPERATOR_GROUP"; then
+        # boto3 belongs to the participant's Python 3.14 user site. The other values
+        # go as literal environment data, never through a shell string; the password
+        # goes on stdin, because sudo logs its command line to the journal and any
+        # user can list that command line while it runs.
+        if ! printf '%s' "$OPERATOR_PASSWORD" | sudo -u "$CODE_EDITOR_USER" env \
+            AWS_REGION="$AWS_REGION" \
+            COGNITO_TEST_CREDENTIALS_SECRET_ARN="$COGNITO_TEST_CREDENTIALS_SECRET_ARN" \
+            OPERATOR_USERNAME="$OPERATOR_USERNAME" \
+            python3.14 "$REPO_PATH/scripts/store_operator_credential.py"; then
+            fail "Could not persist the staff credential for readiness and Lab 4"
+        fi
+        OPERATOR_GROUP_OK=true
+        log "✅ $OPERATOR_USERNAME is in $OPERATOR_GROUP"
+    else
+        warn "Could not verify $OPERATOR_USERNAME in $OPERATOR_GROUP — the Operator desk will refuse every caller with 403"
+    fi
+
+    # A shopper must NOT be in the group. Asserted rather than assumed, because the whole
+    # point is that a valid token is not authorization.
+    for SHOPPER in marco anna theo jessica; do
+        if aws cognito-idp admin-list-groups-for-user --user-pool-id "$POOL" \
+             --username "$SHOPPER" --region "$AWS_REGION" \
+             --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
+             | grep -q "$OPERATOR_GROUP"; then
+            fail "$SHOPPER is in $OPERATOR_GROUP — a shopper must never authorize the desk"
+            OPERATOR_GROUP_OK=false
+        fi
+    done
+else
+    warn "No Cognito pool id — skipped the $OPERATOR_GROUP seeding; the Operator desk will refuse every caller"
+fi
+export OPERATOR_GROUP_SEEDED="$OPERATOR_GROUP_OK"
+
+# ============================================================================
 # STEP 16: WORKSHOP FORMAT — Pre-apply everything participants don't build
 # ============================================================================
 #
@@ -1396,6 +1502,7 @@ export PGDATABASE='${DB_NAME:-pellier}'
 export DB_CLUSTER_ARN='${DB_CLUSTER_ARN:-}'
 export DB_SECRET_ARN='${DB_SECRET_ARN:-}'
 export STORE_TOOLS_SECRET_ARN='${STORE_TOOLS_SECRET_ARN:-}'
+export OPERATOR_TOOLS_SECRET_ARN='${OPERATOR_TOOLS_SECRET_ARN:-}'
 export DB_NAME='${DB_NAME:-pellier}'
 export COGNITO_POOL='${COGNITO_POOL:-}'
 export COGNITO_CLIENT='${COGNITO_CLIENT:-}'
@@ -1441,6 +1548,7 @@ EOF
         export DB_CLUSTER_ARN='${DB_CLUSTER_ARN:-}'
         export DB_SECRET_ARN='${DB_SECRET_ARN:-}'
         export STORE_TOOLS_SECRET_ARN='${STORE_TOOLS_SECRET_ARN:-}'
+        export OPERATOR_TOOLS_SECRET_ARN='${OPERATOR_TOOLS_SECRET_ARN:-}'
         export DB_NAME='${DB_NAME:-pellier}'
         export COGNITO_POOL='${COGNITO_POOL:-}'
         export COGNITO_CLIENT='${COGNITO_CLIENT:-}'
@@ -1472,10 +1580,11 @@ EOF
         MEMORY_ID="$(jq -r '.memory.memory_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_ID="$(jq -r '.gateway.gateway_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_URL="$(jq -r '.gateway.gateway_url // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
+        OPERATOR_RUNTIME_ARN="$(jq -r '.operator_runtime.runtime_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         GATEWAY_ARN="$(jq -r '.gateway.gateway_arn // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         POLICY_ENGINE_ID="$(jq -r '.policy.policy_engine_id // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
         MANAGED_STATUS="$(jq -r '.status // empty' "$MANAGED_OUTPUT_JSON" 2>/dev/null || true)"
-        if [ -z "$RUNTIME_ARN" ] || [ -z "$MEMORY_ID" ] \
+        if [ -z "$RUNTIME_ARN" ] || [ -z "$OPERATOR_RUNTIME_ARN" ] || [ -z "$MEMORY_ID" ] \
             || [ -z "$GATEWAY_ID" ] || [ -z "$GATEWAY_URL" ] \
             || [ -z "$GATEWAY_ARN" ] || [ -z "$POLICY_ENGINE_ID" ] \
             || [ "$MANAGED_STATUS" != "ready" ]; then
@@ -1487,6 +1596,7 @@ EOF
 
     if [ "$AGENTCORE_OK" = true ]; then
         upsert_env "AGENTCORE_RUNTIME_ENDPOINT" "$RUNTIME_ARN" "$REPO_PATH/.env"
+        upsert_env "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT" "$OPERATOR_RUNTIME_ARN" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_MEMORY_ID" "$MEMORY_ID" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_ID" "$GATEWAY_ID" "$REPO_PATH/.env"
         upsert_env "AGENTCORE_GATEWAY_ARN" "$GATEWAY_ARN" "$REPO_PATH/.env"
@@ -1705,118 +1815,6 @@ TOKENEOF
     ln -sf "$_TOKEN_HELPER" "$HOME_FOLDER/pellier-token.sh" 2>/dev/null || true
     log "✅ Governed token helper ready: source ~/pellier-token.sh"
 fi
-
-# ============================================================================
-# STEP 18: OPERATOR AUTHORIZATION GROUP
-#
-# The Pellier Operator desk is authorized by membership in one Cognito group, not by
-# holding any valid token. Before this existed, `require_operator` stopped at "the token
-# verifies and carries a subject", so `marco` could confirm, decline and execute any
-# review and call `give_store_credit` directly. The application forbade a shopper-facing agent
-# from issuing itself store credit while handing the same shopper the capability through
-# the desk.
-#
-# Seeded here rather than in the CloudFormation template so the group and its member
-# travel with the source revision the box checks out, and so a fix does not require an
-# asset re-sync. The pool and its four customer principals are created by the template; this
-# adds the group and the one account that belongs to it.
-#
-# NOT best-effort. A failed seeding leaves a console nobody can open, which is the correct
-# failure but must be loud: the health gate refuses readiness below.
-# ============================================================================
-OPERATOR_GROUP="pellier-operators"
-# Nadia is the staff member: the one account in the operator group, the one
-# who approves Jessica's credit in Lab 4. She signs in with her password.
-OPERATOR_USERNAME="${PELLIER_OPERATOR_USERNAME:-nadia}"
-OPERATOR_GROUP_OK=false
-
-_pool_id() { echo "${COGNITO_USER_POOL_ID:-${COGNITO_POOL_ID:-}}"; }
-
-if [ -n "$(_pool_id)" ]; then
-    log "Seeding the $OPERATOR_GROUP Cognito group and its member..."
-    POOL="$(_pool_id)"
-    # A public workshop ID must never determine a staff credential.
-    # Reuse the password a previous run stored, so a re-run changes nothing in Cognito;
-    # the credentials file is rewritten from scratch each run and gets one staff block.
-    OPERATOR_PASSWORD="$(aws secretsmanager get-secret-value \
-        --secret-id "${COGNITO_TEST_CREDENTIALS_SECRET_ARN:-}" --region "$AWS_REGION" \
-        --query SecretString --output text 2>/dev/null \
-        | jq -r --arg u "$OPERATOR_USERNAME" \
-            '[.users[]? | select((.username | ascii_downcase) == ($u | ascii_downcase)) | .password][0] // empty' \
-        2>/dev/null || true)"
-    if [ -z "$OPERATOR_PASSWORD" ]; then
-        OPERATOR_PASSWORD="$(python3.14 -c 'import secrets; print("Pellier-" + secrets.token_urlsafe(24) + "-1aA")')"
-    fi
-    OPERATOR_PASSWORD_SET=false
-
-    aws cognito-idp create-group --user-pool-id "$POOL" \
-        --group-name "$OPERATOR_GROUP" --region "$AWS_REGION" \
-        --description "Authorizes the Pellier Operator desk" >/dev/null 2>&1 || true
-    aws cognito-idp admin-create-user --user-pool-id "$POOL" \
-        --username "$OPERATOR_USERNAME" --message-action SUPPRESS \
-        --region "$AWS_REGION" \
-        --user-attributes Name=email,Value="${OPERATOR_USERNAME}@pellier.example.com" \
-                          Name=email_verified,Value=true >/dev/null 2>&1 || true
-    # The password goes to the CLI through a 0600 file, not argv, which any user can list.
-    OPERATOR_CLI_INPUT="$(umask 077; mktemp)"
-    if OPERATOR_POOL="$POOL" OPERATOR_NAME="$OPERATOR_USERNAME" OPERATOR_SECRET="$OPERATOR_PASSWORD" \
-        jq -n '{UserPoolId: $ENV.OPERATOR_POOL, Username: $ENV.OPERATOR_NAME,
-                Password: $ENV.OPERATOR_SECRET, Permanent: true}' >"$OPERATOR_CLI_INPUT" \
-        && aws cognito-idp admin-set-user-password \
-            --cli-input-json "file://$OPERATOR_CLI_INPUT" \
-            --region "$AWS_REGION" >/dev/null 2>&1; then
-        OPERATOR_PASSWORD_SET=true
-    fi
-    rm -f "$OPERATOR_CLI_INPUT"
-    aws cognito-idp admin-add-user-to-group --user-pool-id "$POOL" \
-        --username "$OPERATOR_USERNAME" --group-name "$OPERATOR_GROUP" \
-        --region "$AWS_REGION" >/dev/null 2>&1 || true
-
-    # VERIFY, do not assume. Every call above tolerates "already exists", so success of
-    # the calls says nothing; membership is the only fact that matters.
-    if [ "$OPERATOR_PASSWORD_SET" = true ] && aws cognito-idp admin-list-groups-for-user --user-pool-id "$POOL" \
-         --username "$OPERATOR_USERNAME" --region "$AWS_REGION" \
-         --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
-         | grep -q "$OPERATOR_GROUP"; then
-        # boto3 belongs to the participant's Python 3.14 user site. The other values
-        # go as literal environment data, never through a shell string; the password
-        # goes on stdin, because sudo logs its command line to the journal and any
-        # user can list that command line while it runs.
-        if ! printf '%s' "$OPERATOR_PASSWORD" | sudo -u "$CODE_EDITOR_USER" env \
-            AWS_REGION="$AWS_REGION" \
-            COGNITO_TEST_CREDENTIALS_SECRET_ARN="$COGNITO_TEST_CREDENTIALS_SECRET_ARN" \
-            OPERATOR_USERNAME="$OPERATOR_USERNAME" \
-            python3.14 "$REPO_PATH/scripts/store_operator_credential.py"; then
-            fail "Could not persist the staff credential for readiness and Lab 4"
-        fi
-        OPERATOR_GROUP_OK=true
-        log "✅ $OPERATOR_USERNAME is in $OPERATOR_GROUP"
-        if ! printf 'Staff (Nadia, the Operator desk)\n  Username: %s\n  Password: %s\n\n' \
-            "$OPERATOR_USERNAME" "$OPERATOR_PASSWORD" \
-            >> "$CREDENTIALS_FILE"; then
-            fail "Could not add Pellier Operator credentials to $CREDENTIALS_FILE"
-        fi
-        chmod 600 "$CREDENTIALS_FILE"
-        chown "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$CREDENTIALS_FILE"
-    else
-        warn "Could not verify $OPERATOR_USERNAME in $OPERATOR_GROUP — the Operator desk will refuse every caller with 403"
-    fi
-
-    # A shopper must NOT be in the group. Asserted rather than assumed, because the whole
-    # point is that a valid token is not authorization.
-    for SHOPPER in marco anna theo jessica; do
-        if aws cognito-idp admin-list-groups-for-user --user-pool-id "$POOL" \
-             --username "$SHOPPER" --region "$AWS_REGION" \
-             --query "Groups[?GroupName=='${OPERATOR_GROUP}'].GroupName" --output text 2>/dev/null \
-             | grep -q "$OPERATOR_GROUP"; then
-            fail "$SHOPPER is in $OPERATOR_GROUP — a shopper must never authorize the desk"
-            OPERATOR_GROUP_OK=false
-        fi
-    done
-else
-    warn "No Cognito pool id — skipped the $OPERATOR_GROUP seeding; the Operator desk will refuse every caller"
-fi
-export OPERATOR_GROUP_SEEDED="$OPERATOR_GROUP_OK"
 
 # ============================================================================
 # STEP 18b: RESTORE THE GOVERNED PARTICIPANT STARTING STATE

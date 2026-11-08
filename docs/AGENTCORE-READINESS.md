@@ -8,16 +8,17 @@ participant still runs the checks for their own changes.
 
 | AgentCore capability | Supplied implementation | Where participants prove it |
 |---|---|---|
-| **Runtime** | One Python CodeZip runtime, `pellier_orchestrator` (with the deployment suffix when one is set), entrypoint `pellier/backend/agentcore_runtime.py`. It runs the same Router and three agents as the app and gets every tool through Gateway. Invocation requires a Cognito access token (`CUSTOM_JWT`). The package carries a build fingerprint over `RUNTIME_SOURCE_FILES` (`pellier/backend/services/build_fingerprint.py`). | Lab 3's `--mode participant` deploy of the 3A edits moves the Storefront onto the managed rail itself and ends `Pellier is now using AgentCore. Continue with Theo's requests.`; `scripts/lab3-start.sh` is the recovery when a deploy ends `Pellier did not move onto AgentCore`. `scripts/lab3_check.py` compares the executed build with the checkout's. |
-| **Gateway** | One Lambda target, `pellier-store-tools`, with nine tool schemas: eight published at baseline and nine after Lab 3A publishes `get_tickets` (`scripts/deploy/gateway_tool_schemas.py`). Discovery is filtered by policy per caller. Managed turns fail closed when Gateway is unavailable. | Lab 3A publishes `get_tickets` and binds it to the caller; `scripts/workshop_doctor.py --lab 3 --phase prerequisites` reads the catalog. |
+| **Runtime** | Two Python CodeZip runtimes, `pellier_orchestrator` and `pellier_operator` (with the deployment suffix when set). `pellier/backend/agentcore_runtime.py` runs the Router and three shopper agents. `pellier/backend/operator_runtime.py` runs the Investigator → Advisor Strands graph. Both require Cognito access tokens (`CUSTOM_JWT`), get tools through Gateway and carry the same source fingerprint. The staff Runtime also requires the signed `returns` scope. | Lab 3's `--mode participant` deploy moves both surfaces onto the managed path and ends `Pellier is now using AgentCore. Continue with Theo's requests.`; `scripts/lab3-start.sh` is the recovery when a deploy ends `Pellier did not move onto AgentCore`. `scripts/lab3_check.py` compares the shopper build with the checkout's. Deployment also verifies the staff Runtime's fingerprint and a case read through Gateway and RLS. |
+| **Gateway** | Two Lambda targets. `pellier-store-tools` has nine store tool schemas, eight published at baseline and nine after Lab 3A publishes `get_tickets`. `pellier-operator-tools` has seven staff operations. The graph exposes five of those to its agents; case binding and investigation completion stay in application code. Discovery is filtered by policy per caller. Managed turns fail closed when Gateway is unavailable. | Lab 3A publishes `get_tickets` and binds it to the caller; `scripts/workshop_doctor.py --lab 3 --phase prerequisites` reads the catalog. The deployment probe checks the staff target independently. |
 | **Policy** | A managed Cedar engine attached to Gateway in `ENFORCE` mode. Baseline permits: an exact allow-list of the five shopper-safe reads, `get_orders_owner_only` (and `get_tickets_owner_only` once published), `ask_a_person_caller_bound`, and `give_store_credit_staff_scope` with no amount condition. Provisioning also deploys the Lab 4 starter forbid `credit_limit`, which denies every credit. A managed output guardrail can suppress a credit response after execution. | Lab 3B's direct probe: Theo's token for Jessica's tickets is denied. Lab 4A: `scripts/lab4_check.py --task 4A` evaluates the rule with `cedarpy`, then gets a Gateway DENY for an over-limit credit with no row for its key. |
 | **Memory** | Conversation events with 30-day expiry and four extraction strategies (below). Provisioning records Theo's first conversation. Turns read Memory for an authenticated shopper; a failed read is reported in the turn and the turn continues. | Lab 3B: a new session's Builder view names the user-preference record the agent was given, and `scripts/lab3_check.py` reads it back. |
 | **Observability** | Runtime, Gateway and Memory log delivery, OpenTelemetry agent, model and tool spans, CloudWatch Transaction Search, KMS-encrypted Runtime logs with bounded retention, and control-plane audit. Transaction Search activates beside the Lambda and AgentCore deploys; both trace log groups are protected before Gateway or Memory tracing starts or the Runtime is invoked. | Not a required lab check. `workshop/lab-3-otel-contract.jq` checks span structure on a downloaded trace; the lab checks read Aurora's `tool_audit` as execution evidence. |
 | **Identity** | Cognito person identity for shoppers and staff. A pre-token trigger (`scripts/deploy/cognito_customer_claim.py`) stamps `custom:customer_id` on a shopper's access token from a map rendered from `pellier.customers`, and `custom:staff_scope` on a member of the operator group. Runtime and Gateway use service-managed workload identities. | Throughout Labs 3 and 4. There is no outbound credential-provider exercise. |
 
-The Operator's investigation (Investigator, then Advisor) runs in process in
-the app, not on Runtime. Nadia's Execute calls Gateway with her own token, so
-Cedar authorizes a person.
+Before Lab 3, the Operator's graph runs in process. After Lab 3 it runs on the
+staff Runtime. The app still serves the desk, records Nadia's approval and sends
+her explicit Execute request through Gateway with her token. Neither graph
+agent is given approval or credit execution as a tool.
 
 ## Identity and authority contract
 
@@ -54,6 +55,34 @@ The database checks the approved arguments and idempotency key. A JWT, an agent
 workload identity, a customer ID, memory and a human approval are distinct facts.
 None substitutes for the others.
 
+The staff graph follows a separate database path. `verified_operator_identity`
+requires the signed `returns` scope and binds Nadia's subject and selected case
+before constructing tools. Staff may select a case for another customer; a
+shopper's own-customer restriction does not describe a staff investigation.
+Each staff Cedar permit requires `principal.id == context.input.operator_sub`
+as well as the scope. The Lambda receives these admitted arguments and looks
+up the case's username from `pellier.customers`.
+
+The staff Lambda connects as `pellier_operator_tools`. That login is a
+non-owner, NOSUPERUSER, NOBYPASSRLS role with no membership in the agent,
+credit-writer or credit-owner roles. It binds the username with transaction-local
+`set_config` before reading orders or tickets. Its proposal and audit write
+commit together. Column grants allow a pending proposal but exclude human
+decision fields and changes to proposed terms. Its `status` grant, which answers
+requests, cannot reverse a decision: the `approvals_decision_is_final` trigger
+refuses any change to an approved, rejected or answered row, for every login. It
+cannot execute the credit function or write the credits table. Commit or
+rollback clears the case context.
+The deployment probe reads both protected tables without customer filters,
+requires only Jessica's rows and checks one audit row for its unique turn.
+It proves that read path, not a model-led investigation or human credit execution.
+
+Runtime creates an AgentCore workload identity automatically. No separate
+outbound credential provider is configured for these labs. That AgentCore
+Identity feature would be appropriate for a tool that needs delegated
+credentials for an external service. The staff graph does not read Memory;
+shopper preferences cannot replace signed identity or change tool permissions.
+
 These choices follow AWS's [Runtime security guidance](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-security-best-practices.html),
 [inbound JWT contract](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/inbound-jwt-authorizer.html),
 [Policy principal model](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/policy-core-concepts.html),
@@ -70,14 +99,14 @@ AgentCore components.
 
 ## Baseline authorization on a fresh stack
 
-4 policies, all permits, no forbid; 5 once Lab 3A publishes `get_tickets` and
+11 policies, all permits, no forbid; 12 once Lab 3A publishes `get_tickets` and
 its owner-only permit lands in the same deployment. Provisioning deploys Lab 4's
 starter forbid, `credit_limit`, beside them. The source is
 `scripts/deploy/render_agentcore_project.py`, and
 `pellier/backend/tests/test_fresh_policy_set.py` checks this table against it.
 Every statement types the principal as `AgentCore::OAuthUser`, pins the
 resource to the deployed Gateway ARN, and names actions
-`pellier-store-tools___<tool>`.
+`pellier-store-tools___<tool>` or `pellier-operator-tools___<tool>`.
 
 | Policy | Effect | Shape |
 |---|---|---|
@@ -85,6 +114,13 @@ resource to the deployed Gateway ARN, and names actions
 | `get_orders_owner_only` | permit | Only when the token's `custom:customer_id` equals `context.input.customer_id`. `get_tickets_owner_only` has the same shape once Lab 3A publishes that read. |
 | `ask_a_person_caller_bound` | permit | When the input names no customer, or when the token's `custom:customer_id` equals `context.input.customer_id`. The handoff can open a credit request on the named customer's case. |
 | `give_store_credit_staff_scope` | permit | A principal whose `custom:staff_scope` is `returns`. No amount condition: the $100 per-credit limit is the Lab 4 rule, and no shopper permit names this action. |
+| `operator_get_case_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
+| `operator_get_orders_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
+| `operator_get_tickets_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
+| `operator_get_store_credits_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
+| `operator_get_return_policy_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
+| `operator_propose_store_credit_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
+| `operator_finish_investigation_staff_scope` | permit | Requires the signed `returns` scope and the token's subject in `context.input.operator_sub`. |
 
 A token with neither claim may read the catalog and ask for a person without
 naming a customer, and nothing else.
@@ -155,6 +191,32 @@ participant identities, Lab 3's deploy and Lab 4's deploy, one Operator
 investigation and the cleanup. Record source SHA, Studio build, account,
 Region, cold provisioning time and each lab's time. A previous account's pass
 does not establish this event's readiness.
+
+The separate staff Runtime needs a fresh-event rehearsal before release. Its
+deployment inspection calls a real case tool and requires one audit row matching
+the turn, actor, customer, Runtime fingerprint and staff Lambda fingerprint.
+That probe does not run the model graph or approve a credit. Complete these
+additional checks on the exact published build:
+
+- Sign in as Nadia and investigate Jessica through the staff Runtime. Verify the
+  graph's pending proposal, its exact returned orders and both agents' trace
+  spans. Stop a stream and retry; reconcile the pending review from Aurora.
+- Use Theo's token against the staff Runtime and Gateway target, and try Nadia's
+  token with another staff subject. Require rejection at each boundary. For a
+  Gateway denial, correlate the service DENY and Lambda execution evidence to
+  that request; the staff audit lookup uses `args->>'turn_id'`, not the audit
+  session ID. Pair the denial with a successful Nadia call on the same build.
+- Approve Jessica's exact proposal in the app and select Execute. Confirm one
+  intended credit and its audit evidence in Aurora after sequential retries,
+  concurrent duplicates and an interrupted response. Repeat the over-limit and
+  changed-after-approval denials with request-specific absence checks.
+- Confirm both Runtime log groups and traces arrive without token or model
+  content exposure, measure Lab 3 deployment and the full Lab 4, then run the
+  optional DuckDB example and cleanup. Its direct connection must verify the
+  Aurora server certificate and use the inventory-only login.
+
+The timing records below predate the separate staff Runtime and the optional
+DuckDB example; they cannot establish either addition's delivery time.
 
 Proved at test event 6 (2026-10-19, source e853c80f, Studio cb247a0, a new
 account in us-east-1):

@@ -417,7 +417,20 @@ async def investigate_client(
         post("step", event)
 
     def investigate() -> None:
+        from services.operator_runtime_client import OperatorRuntimeError
+
         try:
+            from config import settings
+            if settings.USE_AGENTCORE_RUNTIME:
+                from services.operator_runtime_client import investigate_on_runtime
+
+                payload = investigate_on_runtime(
+                    customer_id=client_id, operator_sub=operator_sub,
+                    access_token=operator.get("access_token"), turn_id=turn_id, emit=emit,
+                )
+                post("answer", payload)
+                post("complete", {**payload, "type": "complete"})
+                return
             result = operator_graph.run_investigation(
                 run=run,
                 run_customer=run_customer,
@@ -430,6 +443,9 @@ async def investigate_client(
             payload = result.as_payload()
             post("answer", payload)
             post("complete", {**payload, "type": "complete"})
+        except OperatorRuntimeError as exc:
+            logger.warning("managed investigation failed: %s", exc)
+            post("error", {"detail": str(exc), "turnId": turn_id})
         except Exception as exc:  # noqa: BLE001 - the stream must close cleanly
             logger.warning("investigation stream failed: %s", exc)
             post("error", {"detail": "investigation_failed", "turnId": turn_id})

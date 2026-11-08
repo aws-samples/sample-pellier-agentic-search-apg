@@ -196,8 +196,11 @@ def test_names_follow_the_provisioner_with_and_without_a_suffix() -> None:
     assert rc.agentcore_stack == "AgentCore-pellierrc-default"
     assert rc.functions == (
         "pellier-rc-store-tools-server-function",
+        "pellier-rc-operator-tools-server-function",
         "pellier-rc-cognito-customer-claim",
     )
+    operator = "pellier-rc-operator-tools-server-role"
+    assert rc.roles[operator]["inline"] == (f"{operator}-policy",)
     store = "pellier-rc-store-tools-server-role"
     assert rc.roles[store]["inline"] == (f"{store}-policy",)
 
@@ -453,6 +456,7 @@ def test_deploy_refuses_an_account_that_already_holds_pellier_unless_suffixed() 
     assert "AgentCore-pellierown1030-default" in stacks
     assert clients.lambda_.args("get_function", "FunctionName") == [
         "pellier-own1030-store-tools-server-function",
+        "pellier-own1030-operator-tools-server-function",
         "pellier-own1030-cognito-customer-claim",
     ]
     stack = next(kw for name, kw in clients.cloudformation.calls if name == "create_stack")
@@ -903,10 +907,12 @@ def test_teardown_runs_on_the_box_first_then_deletes_in_order() -> None:
     ]
     assert clients.lambda_.args("delete_function", "FunctionName") == [
         "pellier-store-tools-server-function",
+        "pellier-operator-tools-server-function",
         "pellier-cognito-customer-claim",
     ]
     assert clients.iam.args("delete_role", "RoleName") == [
         "pellier-store-tools-server-role",
+        "pellier-operator-tools-server-role",
         "pellier-cognito-customer-claim-role",
     ]
     groups = clients.logs.args("delete_log_group", "logGroupName")

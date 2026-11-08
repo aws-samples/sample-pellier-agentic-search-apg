@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Canonical AgentCore Gateway tool schemas: nine tools on one target."""
+"""Gateway schemas for nine store tools and the separate staff graph target."""
 
 # AgentCore Gateway targets accept only this JSON-Schema keyword subset per
 # (sub)property. The CLI owns target deployment; this sanitizer keeps its
@@ -280,6 +280,8 @@ def discoverable_tools_for_claims(
     visible = set(workshop_published_tools())
     if not has_staff_scope:
         visible -= STAFF_ONLY_GATEWAY_TOOLS
+    else:
+        visible.update(tool["name"] for tool in OPERATOR_SCHEMA["tools"])
     if not has_customer_claim:
         visible -= OWNER_SCOPED_GATEWAY_TOOLS
     return frozenset(visible)
@@ -307,7 +309,7 @@ def workshop_target_tools() -> dict[str, tuple[str, ...]]:
             tool["name"] for tool in config["tools"]
             if tool["name"] not in UNPUBLISHED_TOOLS
         )
-        for config in TOOL_SCHEMAS.values()
+        for config in [*TOOL_SCHEMAS.values(), OPERATOR_SCHEMA]
     }
 
 
@@ -339,3 +341,36 @@ for _target in TOOL_SCHEMAS.values():
             _tool["inputSchema"]["properties"]["requirements_json"] = {
                 "type": "string", "description": "Runtime-bound shopper requirements",
             }
+
+
+# Staff tools have their own target, permissions and database login.
+OPERATOR_TARGET = "pellier-operator-tools"
+_OPERATOR_CONTEXT = {
+    "customer_id": {"type": "string", "description": "The case selected before the graph runs"},
+    "operator_sub": {"type": "string", "description": "Verified staff subject; Cedar matches the token"},
+    "turn_id": {"type": "string", "description": "The investigation's correlation id"},
+    "build_fingerprint": {"type": "string", "description": "Runtime source SHA-256"},
+}
+_OPERATOR_TOOLS = (
+    ("get_case", "Read the selected customer's name", {}),
+    ("get_orders", "Read the selected customer's orders", {"limit": {"type": "integer"}}),
+    ("get_tickets", "Read the selected customer's tickets", {"limit": {"type": "integer"}}),
+    ("get_store_credits", "Read the selected customer's credits", {"limit": {"type": "integer"}}),
+    ("get_return_policy", "Read policies for the selected customer's returned orders", {}),
+    ("propose_store_credit", "Open a pending review from recorded returns; cannot approve or pay", {
+        "order_ids": {"type": "array", "items": {"type": "integer"}},
+        "reason": {"type": "string"},
+    }),
+    ("finish_investigation", "Mark the selected customer's open requests as answered", {
+        "review_id": {"type": "integer", "description": "The case's review, or zero for no proposal"},
+    }),
+)
+OPERATOR_SCHEMA = {
+    "target_name": OPERATOR_TARGET,
+    "description": "Staff investigation and proposal tools; no approval or credit execution",
+    "tools": [{
+        "name": f"operator_{name}", "description": description,
+        "inputSchema": {"type": "object", "properties": {**_OPERATOR_CONTEXT, **fields},
+                        "required": [*_OPERATOR_CONTEXT, *([] if "limit" in fields else fields)]},
+    } for name, description, fields in _OPERATOR_TOOLS],
+}

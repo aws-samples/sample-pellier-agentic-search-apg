@@ -214,6 +214,24 @@ Resources:
         - Key: Event
           Value: !Ref EventName
 
+  OperatorToolsSecret:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Name: !Sub pellier/operator-tools-db-${WorkshopId}
+      Description: Aurora login for the staff graph tools (pellier_operator_tools)
+      GenerateSecretString:
+        SecretStringTemplate: '{"username":"pellier_operator_tools"}'
+        GenerateStringKey: password
+        PasswordLength: 40
+        ExcludePunctuation: true
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
   SecretTargetAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Properties:
@@ -238,6 +256,10 @@ Outputs:
     Value: !Ref StoreToolsSecret
     Export:
       Name: !Sub ${AWS::StackName}-StoreToolsSecretArn
+  OperatorToolsSecretArn:
+    Value: !Ref OperatorToolsSecret
+    Export:
+      Name: !Sub ${AWS::StackName}-OperatorToolsSecretArn
   ClusterIdentifier:
     Value: !Ref DBCluster
     Export:

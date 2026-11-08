@@ -50,6 +50,7 @@ def test_nadia_is_the_staff_user_everywhere_she_is_provisioned():
     # The shopper filter follows the configured staff name; no literal is left.
     assert '!="operator"' not in gate and '!="nadia"' not in gate
     assert 'ROLE_LABEL[5]="Staff (Nadia)' in credentials
+    assert bootstrap.index('scripts/store_operator_credential.py') < bootstrap.index('# STEP 16:')
 
 
 def test_the_script_takes_the_password_from_stdin(tmp_path):

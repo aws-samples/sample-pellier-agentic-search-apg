@@ -99,7 +99,7 @@ Parameters:
 
   InfrastructureRevision:
     Type: String
-    Default: "b9b801c2c03527c3"
+    Default: "441d051e6f847ec0"
     AllowedPattern: ^[0-9a-f]{16}$
     ConstraintDescription: Use the 16-character release-tooling digest.
     Description: >
@@ -190,6 +190,7 @@ Resources:
         InstanceType: !GetAtt VpcStack.Outputs.EditorInstanceType
         DBSecretArn: !GetAtt DatabaseStack.Outputs.MasterSecretArn
         StoreToolsSecretArn: !GetAtt DatabaseStack.Outputs.StoreToolsSecretArn
+        OperatorToolsSecretArn: !GetAtt DatabaseStack.Outputs.OperatorToolsSecretArn
         DBClusterArn: !Sub arn:${AWS::Partition}:rds:${AWS::Region}:${AWS::AccountId}:cluster:${DatabaseStack.Outputs.ClusterIdentifier}
         DBClusterEndpoint: !GetAtt DatabaseStack.Outputs.ClusterEndpoint
         DeploymentSuffix: !Ref DeploymentSuffix

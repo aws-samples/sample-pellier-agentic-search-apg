@@ -194,7 +194,9 @@ def test_the_only_privileged_mutation_is_the_operator_store_credit() -> None:
 
 
 def test_prompt_2_did_not_mint_a_second_correlation_identifier() -> None:
-    schemas = (REPO / "scripts" / "deploy" / "gateway_tool_schemas.py").read_text()
+    import json
+    import runpy
+    schemas = json.dumps(runpy.run_path(str(REPO / "scripts/deploy/gateway_tool_schemas.py"))["TOOL_SCHEMAS"])
     assert "turn_id" in schemas
     for rival in ("case_id", "correlation_id", "review_id"):
         assert rival not in schemas, f"a rival correlation key appeared: {rival}"

@@ -39,7 +39,8 @@ class RuntimeIdentityVerifier:
         # Keep an explicit timeout and verify every token's expiry on every call.
         self.jwks = jwt.PyJWKClient(issuer + "/.well-known/jwks.json", timeout=5)
 
-    def verify(self, token: str, payload: Mapping[str, Any]) -> RuntimeIdentity:
+    def claims(self, token: str) -> dict[str, Any]:
+        """Verify one access token before interpreting shopper or staff claims."""
         try:
             key = self.jwks.get_signing_key_from_jwt(token).key
             claims = jwt.decode(
@@ -54,14 +55,37 @@ class RuntimeIdentityVerifier:
         if claims.get("token_use") != "access" or claims.get("client_id") != self.client_id:
             raise RuntimeIdentityError("authentication_failed")
         subject = claims.get("sub")
-        customer = claims.get("custom:customer_id")
         if not isinstance(subject, str) or not subject.strip():
             raise RuntimeIdentityError("authentication_failed")
+        return claims
+
+    def verify(self, token: str, payload: Mapping[str, Any]) -> RuntimeIdentity:
+        claims = self.claims(token)
+        subject = claims["sub"]
+        customer = claims.get("custom:customer_id")
         if not isinstance(customer, str) or not re.fullmatch(r"CUST-[A-Z0-9-]{1,40}", customer):
             raise RuntimeIdentityError("customer_identity_unmapped")
         for name, verified in (("user_id", subject), ("customer_id", customer)):
             if payload.get(name) not in (None, "", verified):
                 raise RuntimeIdentityError("customer_scope_mismatch")
+        return RuntimeIdentity(subject=subject, customer_id=customer)
+
+    def verify_operator(self, token: str, payload: Mapping[str, Any]) -> RuntimeIdentity:
+        """Staff may select a case; they cannot substitute the recorded staff actor.
+
+        The returns scope is added by the Cognito pre-token trigger, not by the
+        client. Staff can investigate any customer the desk permits today. The
+        selected case is fixed before constructing the graph's tool closures.
+        """
+        claims = self.claims(token)
+        if claims.get("custom:staff_scope") != "returns":
+            raise RuntimeIdentityError("staff_scope_required")
+        subject = claims["sub"]
+        if any(payload.get(key) not in (None, "", subject) for key in ("user_id", "operator_sub")):
+            raise RuntimeIdentityError("staff_identity_mismatch")
+        customer = payload.get("customer_id")
+        if not isinstance(customer, str) or not re.fullmatch(r"CUST-[A-Z0-9-]{1,40}", customer):
+            raise RuntimeIdentityError("invalid_customer")
         return RuntimeIdentity(subject=subject, customer_id=customer)
 
 
@@ -75,3 +99,7 @@ def _verifier() -> RuntimeIdentityVerifier:
 
 def verified_runtime_identity(token: str, payload: Mapping[str, Any]) -> RuntimeIdentity:
     return _verifier().verify(token, payload)
+
+
+def verified_operator_identity(token: str, payload: Mapping[str, Any]) -> RuntimeIdentity:
+    return _verifier().verify_operator(token, payload)

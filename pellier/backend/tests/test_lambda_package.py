@@ -62,6 +62,31 @@ def _deploy_lambda():
     return module
 
 
+def test_staff_package_imports_without_loading_models_or_database_pool(tmp_path):
+    import os
+    import subprocess
+
+    module = _deploy_lambda()
+    files = module.package_files(str(DEPLOY / "pellier_operator_tools.py"),
+                                 "pellier_operator_tools.lambda_handler")
+    for relative, source in files.items():
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+    code = """
+import sys
+sys.path.insert(0, sys.argv[1])
+import pellier_operator_tools
+assert len(pellier_operator_tools.TOOLS) == 7
+assert 'strands' not in sys.modules
+assert 'services.database' not in sys.modules
+"""
+    result = subprocess.run([sys.executable, "-I", "-c", code, str(tmp_path)], capture_output=True,
+                            text=True, env={**os.environ, "AWS_EC2_METADATA_DISABLED": "true",
+                                            "AWS_ACCESS_KEY_ID": "test", "AWS_SECRET_ACCESS_KEY": "test"})
+    assert result.returncode == 0, result.stderr
+
+
 @pytest.fixture(scope="module")
 def package() -> dict[str, object]:
     deploy_lambda = _deploy_lambda()

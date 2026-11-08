@@ -873,3 +873,63 @@ CREATE POLICY support_tickets_own_rows ON pellier.support_tickets TO pellier_age
     WITH CHECK (customer_id = (SELECT id FROM pellier.customers
                                 WHERE cognito_username = current_setting('pellier.principal_username', true)));
 -- === SHIPPED STATE - Lab 3 row ownership: END ===
+
+-- The staff graph has its own login. Proposal and approval are different
+-- privileges: no decision columns, changed terms, credit tables or credit
+-- function are writable by this role. One DO statement also lets the existing
+-- release provisioner add this role to an event without rebuilding its data.
+-- === OPERATOR DATABASE ROLE: START ===
+DO $operator_role$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pellier_operator_tools') THEN
+        CREATE ROLE pellier_operator_tools NOLOGIN NOINHERIT NOBYPASSRLS;
+    END IF;
+    ALTER ROLE pellier_operator_tools NOSUPERUSER NOBYPASSRLS NOCREATEROLE NOCREATEDB NOINHERIT;
+    GRANT USAGE ON SCHEMA pellier TO pellier_operator_tools;
+    GRANT SELECT (id, name, cognito_username) ON pellier.customers TO pellier_operator_tools;
+    GRANT SELECT ON pellier.product_catalog, pellier.orders, pellier.support_tickets,
+        pellier.return_policies, pellier.store_credits, pellier.approvals TO pellier_operator_tools;
+    GRANT INSERT (customer_id, tool, status, args, action_hash, order_ids, issue,
+        recommendation, source_turn_id, requested_by_sub, requester_kind)
+        ON pellier.approvals TO pellier_operator_tools;
+    GRANT UPDATE (status, answered_turn_id, answered_by_review_id)
+        ON pellier.approvals TO pellier_operator_tools;
+    -- The audit receipt's own columns only, as the store tools' login holds them. REVOKE first,
+    -- so re-applying this block to an event also removes the earlier table-wide grant.
+    REVOKE INSERT ON pellier.tool_audit FROM pellier_operator_tools;
+    GRANT INSERT (session_id, tool, caller, args, result, latency_ms, build_fingerprint)
+        ON pellier.tool_audit TO pellier_operator_tools;
+    GRANT USAGE ON SEQUENCE pellier.approvals_id_seq, pellier.tool_audit_audit_id_seq
+        TO pellier_operator_tools;
+    DROP POLICY IF EXISTS operator_orders_case ON pellier.orders;
+    CREATE POLICY operator_orders_case ON pellier.orders FOR SELECT TO pellier_operator_tools
+        USING (customer_id = (SELECT id FROM pellier.customers
+            WHERE cognito_username = current_setting('pellier.principal_username', true)));
+    DROP POLICY IF EXISTS operator_tickets_case ON pellier.support_tickets;
+    CREATE POLICY operator_tickets_case ON pellier.support_tickets FOR SELECT TO pellier_operator_tools
+        USING (customer_id = (SELECT id FROM pellier.customers
+            WHERE cognito_username = current_setting('pellier.principal_username', true)));
+    -- UPDATE (status) lets this login answer open requests, and column grants cannot
+    -- say which rows. A rejected review would otherwise become approved under the
+    -- person who rejected it. A decision, once recorded, is final for every login.
+    CREATE OR REPLACE FUNCTION pellier.approvals_decision_is_final() RETURNS trigger
+    LANGUAGE plpgsql AS $decision$
+    BEGIN
+        IF OLD.status IN ('approved', 'rejected', 'answered')
+           AND (NEW.status, NEW.decided_by, NEW.decided_by_name, NEW.decided_at,
+                NEW.answered_turn_id, NEW.answered_by_review_id)
+               IS DISTINCT FROM (OLD.status, OLD.decided_by, OLD.decided_by_name,
+                                 OLD.decided_at, OLD.answered_turn_id, OLD.answered_by_review_id)
+        THEN
+            RAISE EXCEPTION 'approval % is already decided (%); a decision cannot change',
+                            OLD.id, OLD.status
+                USING ERRCODE = 'check_violation', CONSTRAINT = 'approvals_decision_is_final';
+        END IF;
+        RETURN NEW;
+    END $decision$;
+    DROP TRIGGER IF EXISTS approvals_decision_is_final ON pellier.approvals;
+    CREATE TRIGGER approvals_decision_is_final BEFORE UPDATE ON pellier.approvals
+        FOR EACH ROW EXECUTE FUNCTION pellier.approvals_decision_is_final();
+END
+$operator_role$;
+-- === OPERATOR DATABASE ROLE: END ===

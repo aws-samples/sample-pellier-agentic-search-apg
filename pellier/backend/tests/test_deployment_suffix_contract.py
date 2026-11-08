@@ -161,7 +161,7 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
     spec.loader.exec_module(module)
     inputs = {
         FLAG: "rctest", "AWS_REGION": "us-east-1", "DB_CLUSTER_ARN": "arn:aws:rds:us-east-1:123456789012:cluster:fixture",
-        "DB_SECRET_ARN": "fixture", "STORE_TOOLS_SECRET_ARN": "fixture",
+        "DB_SECRET_ARN": "fixture", "STORE_TOOLS_SECRET_ARN": "fixture", "OPERATOR_TOOLS_SECRET_ARN": "fixture",
         "COGNITO_POOL": "fixture", "COGNITO_CLIENT": "fixture",
         "COGNITO_TEST_CREDENTIALS_SECRET_ARN": "fixture", "AGENT_MODEL_ID": "fixture",
         "BEDROCK_FAST_MODEL": "fixture", "AGENTCORE_RUNTIME_LOG_RETENTION_DAYS": "30",
@@ -209,7 +209,7 @@ def test_direct_provisioner_resolves_dotenv_identity_before_first_deploy(tmp_pat
         "policyEngines": {identity.policy_engine_name: {"policyEngineId": "fixture"}},
         "runtimes": {
             name: {"runtimeArn": f"arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/{name}-abc123"}
-            for name in (identity.runtime_name,)
+            for name in (identity.runtime_name, identity.operator_runtime_name)
         },
     }}}}
     rendered = []
@@ -247,7 +247,7 @@ def test_direct_renderer_cli_reads_saved_suffix_and_writes_consistent_names(tmp_
     (tmp_path / ".env").write_text(f"{FLAG}='rctest'\n")
     if explicit is not None:
         monkeypatch.setenv(FLAG, explicit)
-    arns = {surface: f"arn:aws:lambda:us-east-1:123456789012:function:fixture-{surface}" for surface in renderer.TOOL_SCHEMAS}
+    arns = {surface: f"arn:aws:lambda:us-east-1:123456789012:function:fixture-{surface}" for surface in ("store", "operator")}
     arns_path = tmp_path / "lambda-arns.json"
     arns_path.write_text(json.dumps(arns))
     monkeypatch.setattr(renderer, "_render_runtime_source", lambda root, _: (root / "runtime-src", "fixture-fingerprint"))
@@ -256,7 +256,7 @@ def test_direct_renderer_cli_reads_saved_suffix_and_writes_consistent_names(tmp_
     identity = renderer.deployment_identity(expected)
     config = json.loads((tmp_path / ".agentcore-project" / identity.project_name / "agentcore/agentcore.json").read_text())
     assert config["name"] == identity.project_name
-    assert [runtime["name"] for runtime in config["runtimes"]] == [identity.runtime_name]
+    assert [runtime["name"] for runtime in config["runtimes"]] == [identity.runtime_name, identity.operator_runtime_name]
     assert config["memories"][0]["name"] == identity.memory_name
     assert config["agentCoreGateways"][0]["name"] == identity.gateway_name
     assert config["policyEngines"][0]["name"] == identity.policy_engine_name

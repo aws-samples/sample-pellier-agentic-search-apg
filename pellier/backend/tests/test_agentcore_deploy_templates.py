@@ -52,7 +52,7 @@ def _load_provisioner() -> Any:
 def _lambda_arns() -> dict[str, str]:
     return {
         surface: f"arn:aws:lambda:us-east-1:123456789012:function:pellier-{surface}"
-        for surface in renderer.TOOL_SCHEMAS
+        for surface in [*renderer.TOOL_SCHEMAS, "operator"]
     }
 
 
@@ -101,6 +101,7 @@ def test_the_codezip_runtime_exports_to_the_group_the_cli_queries(tmp_path):
     identity = renderer.deployment_identity()
     arns = {
         identity.runtime_name: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_orchestrator-abc123",
+        identity.operator_runtime_name: "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_operator-abc123",
     }
     _, project = _render(tmp_path, include_policies=False, runtime_arns=arns)
     for runtime in project["runtimes"]:
@@ -593,7 +594,7 @@ def test_memory_gateway_targets_and_policy_engine_share_one_project(
         "policyEngineName": renderer.POLICY_ENGINE_NAME,
         "mode": "ENFORCE",
     }
-    assert [t["name"] for t in gateway["targets"]] == ["pellier-store-tools"]
+    assert [t["name"] for t in gateway["targets"]] == ["pellier-store-tools", "pellier-operator-tools"]
     assert {target["targetType"] for target in gateway["targets"]} == {
         "lambdaFunctionArn"
     }
@@ -602,13 +603,12 @@ def test_memory_gateway_targets_and_policy_engine_share_one_project(
     } == set(_lambda_arns().values())
 
     schemas = sorted((root / "tool-schemas").glob("*.json"))
-    assert [path.name for path in schemas] == ["store.json"]
+    assert [path.name for path in schemas] == ["operator.json", "store.json"]
     # 8 at the start, not the canonical 9: `get_tickets` is deferred until Lab 3a
     # publishes it. Derived rather than written as a literal, because the literal is
     # what went stale.
-    assert sum(len(json.loads(path.read_text())) for path in schemas) == len(
-        schemas_module.workshop_published_tools()
-    )
+    assert sum(len(json.loads(path.read_text())) for path in schemas) == sum(
+        len(tools) for tools in schemas_module.workshop_target_tools().values())
 
     engine = project["policyEngines"][0]
     assert engine["name"] == renderer.POLICY_ENGINE_NAME
@@ -696,7 +696,7 @@ def test_the_published_schema_and_the_permits_agree(tmp_path: Path) -> None:
     }
     assert "get_tickets" not in published
     assert "give_store_credit" in published
-    assert len(published) == 8
+    assert len(published) == 8 + len(renderer.OPERATOR_SCHEMA["tools"])
 
 
 def test_deployed_state_reads_mcp_gateway_shape() -> None:
@@ -1677,6 +1677,7 @@ def test_deploy_sequence_validates_both_cli_phases(
                 "resources": {
                     "runtimes": {
                         renderer.RUNTIME_NAME: {"runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_orchestrator-abc123"},
+                        renderer.deployment_identity().operator_runtime_name: {"runtimeArn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/pellier_operator-abc123"},
                     },
                     "mcp": {
                         "gateways": {
@@ -1948,7 +1949,7 @@ def test_lambda_names_follow_the_suffix_while_target_names_do_not() -> None:
         [sys.executable, "-c", script], cwd=DEPLOY_DIR.parent, env=env,
         capture_output=True, text=True, check=True,
     ).stdout
-    assert out.strip() == "['pellier-rc-store-tools-server']"
+    assert out.strip() == "['pellier-rc-operator-tools-server', 'pellier-rc-store-tools-server']"
     schemas = PROVISIONER_PATH.parent / "deploy" / "gateway_tool_schemas.py"
     assert '"target_name": "pellier-store-tools"' in schemas.read_text()
 
@@ -2208,6 +2209,7 @@ def _participant_state(identity: Any) -> dict[str, Any]:
                 "resources": {
                     "runtimes": {
                         identity.runtime_name: {"runtimeArn": "arn:runtime"},
+                        identity.operator_runtime_name: {"runtimeArn": "arn:operator-runtime"},
                     },
                     "mcp": {
                         "gateways": {

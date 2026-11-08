@@ -95,7 +95,7 @@ def _render(renderer: ModuleType, repo: Path) -> tuple[Path, dict]:
         cognito_client="example-client",
         lambda_arns={
             surface: f"arn:aws:lambda:us-east-1:000000000000:function:example-{surface}"
-            for surface in renderer.TOOL_SCHEMAS
+            for surface in ("store", "operator")
         },
         model_id="example-model",
         workshop_id="dat416-rc",
@@ -176,7 +176,7 @@ def test_the_builders_format_does_not_gain_governed_tags_or_scaffold_changes(
     root, project = _render(renderer, repo)
 
     assert root.name == "pellier"
-    assert [item["name"] for item in project["runtimes"]] == ["pellier_orchestrator"]
+    assert [item["name"] for item in project["runtimes"]] == ["pellier_orchestrator", "pellier_operator"]
     assert project["memories"][0]["name"] == "PellierMemory"
     assert project["agentCoreGateways"][0]["name"] == "pellier-gateway"
     assert project["policyEngines"][0]["name"] == "pellier_policy_engine"

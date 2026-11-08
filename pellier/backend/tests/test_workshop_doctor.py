@@ -856,7 +856,8 @@ class TestLab3Start:
         repo.mkdir()
         (repo / ".env").write_text(
             "AGENTCORE_GATEWAY_URL=https://gw.example/mcp\n"
-            "AGENTCORE_RUNTIME_ENDPOINT=arn:aws:bedrock-agentcore:us-east-1:1:runtime/x\n",
+            "AGENTCORE_RUNTIME_ENDPOINT=arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/x\n"
+            "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT=arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/staff\n",
             encoding="utf-8",
         )
         run_env = tmp_path / "run.env"

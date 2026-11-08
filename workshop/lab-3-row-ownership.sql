@@ -68,7 +68,7 @@ SAVEPOINT probes;
 
 -- A denial below proves something only if the role is subject to the policy:
 -- no BYPASSRLS, no superuser, not the tables' owner, and exactly one
--- permissive policy per table (permissive policies combine with OR, so a
+-- applicable permissive policy per table (these combine with OR, so a
 -- second one would widen access whatever your expression says).
 SET LOCAL ROLE pellier_agent;
 DO $preconditions$
@@ -94,9 +94,12 @@ BEGIN
     END IF;
     SELECT count(*) INTO permissive_count FROM pg_policies
      WHERE schemaname = 'pellier' AND tablename IN ('orders', 'support_tickets')
-       AND permissive = 'PERMISSIVE';
+       AND permissive = 'PERMISSIVE'
+       AND EXISTS (SELECT 1 FROM unnest(roles) AS r(role_name)
+                   WHERE CASE WHEN role_name = 'public' THEN true
+                         ELSE pg_has_role(current_user, role_name, 'USAGE') END);
     IF permissive_count <> 2 THEN
-        RAISE EXCEPTION '% permissive policies on orders and support_tickets; expected one each',
+        RAISE EXCEPTION '% applicable permissive policies on orders and support_tickets; expected one each',
                         permissive_count;
     END IF;
 END

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
 import json
 import os
 import re
@@ -271,11 +272,13 @@ def _valid_managed_receipt() -> dict[str, object]:
     canonical_names = sorted(provisioner.discoverable_tools_for_claims(
         has_staff_scope=False, has_customer_claim=True
     ))
-    target_names = sorted(config["target_name"] for config in provisioner.TOOL_SCHEMAS.values())
+    target_names = sorted(config["target_name"] for config in
+                          [*provisioner.TOOL_SCHEMAS.values(), provisioner.OPERATOR_SCHEMA])
     receipt = {
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/test"},
+        "operator_runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/operator-test"},
         "memory": {
             "memory_id": "memory-123",
             "seed": {"status": "ready"},
@@ -474,6 +477,8 @@ def _valid_managed_receipt() -> dict[str, object]:
         },
     }
     observability = receipt["observability"]
+    observability["operator_runtime_log_group"] = copy.deepcopy(observability["runtime_log_group"])
+    observability["operator_runtime_log_group"]["name"] = "/aws/bedrock-agentcore/runtimes/pellier_operator-test-DEFAULT"
     for kind, prefix in (
         ("gateway", "/aws/vendedlogs/bedrock-agentcore/"),
         ("memory", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),
@@ -489,11 +494,23 @@ def _valid_managed_receipt() -> dict[str, object]:
             "logs_delivery_id": kind + "-logs", "traces_delivery_id": kind + "-traces",
         }
     receipt["verification"].update({
+        "operator_runtime_verified": True,
+        "operator_runtime_smoke": {
+            "mode": "inspect", "rail": "gateway-mcp", "audit_rows": 1,
+            "customer_id": "CUST-JESSICA", "turn_id": "turn-staff-test",
+            "tools_fingerprint": "a" * 64, "tools_fingerprint_expected": "a" * 64,
+            "tools_fingerprint_match": True,
+            "build_fingerprint": "fixture-package", "build_fingerprint_expected": "fixture-package",
+            "build_fingerprint_match": True,
+            "case_access": {"database_role": "pellier_operator_tools", "visible_orders": ["CUST-JESSICA"],
+                            "visible_tickets": ["CUST-JESSICA"]},
+        },
         "gateway_tracing_enabled": True, "memory_tracing_enabled": True,
         "service_log_groups_encrypted": True, "service_log_groups_retention_bounded": True,
     })
     log_groups = [
         observability["runtime_log_group"],
+        observability["operator_runtime_log_group"],
         *observability["trace_log_groups"]["groups"],
         observability["gateway"]["log_group_protection"],
         observability["memory"]["log_group_protection"],
@@ -964,6 +981,47 @@ def _load_provisioner():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+@pytest.mark.parametrize("audit_rows", [0, 1, 2])
+def test_staff_probe_requires_one_execution_of_the_expected_lambda(monkeypatch, audit_rows):
+    from services import operator_runtime_client
+    from common.fingerprint import OPERATOR_SOURCE_PATHS, compute_fingerprint
+
+    provisioner = _load_provisioner()
+    expected_tools = compute_fingerprint(provisioner.deploy_lambda.package_files(
+        str(REPO / "scripts/deploy/pellier_operator_tools.py"), "pellier_operator_tools.lambda_handler"
+    ), source_paths=OPERATOR_SOURCE_PATHS)
+    monkeypatch.setattr(provisioner, "_cognito_access_token", lambda **_: ("test-token", "nadia"))
+    monkeypatch.setattr(provisioner, "_unverified_token_claims", lambda _: {"sub": "staff-subject"})
+    calls = []
+
+    def invoke(**kwargs):
+        calls.append(kwargs)
+        return {"status": "ready", "build_fingerprint": "a" * 64,
+                "case_access": {"database_role": "pellier_operator_tools",
+                                "visible_orders": ["CUST-JESSICA"], "visible_tickets": ["CUST-JESSICA"]}}
+
+    def execute(**kwargs):
+        values = {p["name"]: p["value"]["stringValue"] for p in kwargs["parameters"]}
+        assert values == {"turn": calls[0]["turn_id"], "actor": "staff-subject",
+                          "build": "a" * 64, "tools": expected_tools}
+        assert "args->>'tools_fingerprint' = :tools" in kwargs["sql"]
+        assert "args->>'turn_id' = :turn" in kwargs["sql"]
+        return {"records": [[{"longValue": audit_rows}]]}
+
+    monkeypatch.setattr(operator_runtime_client, "investigate_on_runtime", invoke)
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *_a, **_k: SimpleNamespace(execute_statement=execute))
+    args = dict(region="us-east-1", client_secret_arn=None, runtime_arn="staff-runtime",
+                expected_fingerprint="a" * 64, required={"cognito_pool": "pool", "cognito_client": "client",
+                "credentials_secret": "credentials", "db_cluster_arn": "cluster", "db_secret_arn": "secret"})
+    if audit_rows != 1:
+        with pytest.raises(RuntimeError, match="unique correlated execution receipt"):
+            provisioner._operator_runtime_smoke(**args)
+    else:
+        proof = provisioner._operator_runtime_smoke(**args)
+        assert proof["tools_fingerprint"] == expected_tools
+        assert proof["turn_id"] == calls[0]["turn_id"]
 
 
 @pytest.mark.parametrize("mapped", [False, True])
@@ -2089,7 +2147,8 @@ def test_fresh_bootstrap_creates_operator_before_the_reset_health_gate() -> None
     reset = bootstrap.index("bash '$REPO_PATH/scripts/reset-governed-workshop.sh'")
     preferences = bootstrap.index('bash "$REPO_PATH/scripts/seed-sample-preferences.sh"')
     final_gate = bootstrap.index("bash '$REPO_PATH/scripts/health-gate.sh'")
-    assert credentials < operator < reset < preferences < final_gate
+    managed = bootstrap.index('log "Provisioning full AgentCore managed path')
+    assert operator < managed < credentials < reset < preferences < final_gate
     assert bootstrap.index('scripts/store_operator_credential.py') < operator
 
 
@@ -2150,7 +2209,7 @@ def test_governed_bootstrap_makes_the_participant_credentials_file_required() ->
 
     assert 'CREDENTIALS_FILE="$HOME_FOLDER/test-credentials.txt"' in bootstrap
     assert 'OUT_FILE="$CREDENTIALS_FILE"' in bootstrap
-    assert '>> "$CREDENTIALS_FILE"' in bootstrap
+    assert '"$USER" == "nadia"' not in WRITE_TEST_CREDENTIALS.read_text()
     assert "pellier-oauth-callback.service" not in bootstrap
     assert "OAuth callback registration is a CloudFormation readiness dependency" in bootstrap
 
@@ -2267,7 +2326,7 @@ def test_policy_probe_id_is_legal_inside_a_lambda_turn_id() -> None:
 
 
 def test_the_code_editor_installs_the_servers_psql_major() -> None:
-    """Aurora runs 18.3; a 17 client prints a version warning in every psql session."""
+    """Aurora runs PostgreSQL 18; a 17 client prints a version warning in every psql session."""
     source = ENVIRONMENT_BOOTSTRAP.read_text(encoding="utf-8")
     assert re.search(r"^\s+postgresql18\s*$", source, re.MULTILINE)
     assert "postgresql17" not in source

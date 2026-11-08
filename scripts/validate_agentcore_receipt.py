@@ -84,6 +84,7 @@ def _validate_participant_receipt(
 ) -> list[str]:
     """Bind a later catalog/build proof to the original provisioned resources."""
     errors: list[str] = []
+    errors.extend(_validate_operator_runtime(participant))
     expected = {
         "status": "ready",
         "mode": "participant",
@@ -103,6 +104,7 @@ def _validate_participant_receipt(
             errors.append(f"participant.{path} must be {value!r}")
     for path in (
         "runtime.runtime_arn",
+        "operator_runtime.runtime_arn",
         "gateway.gateway_id", "gateway.gateway_arn", "gateway.gateway_url",
         "policy.policy_engine_id",
     ):
@@ -121,6 +123,36 @@ def _validate_participant_receipt(
         participant, "verification.runtime_invoke_smoke.build_fingerprint_expected"
     ):
         errors.append("participant Runtime smoke must match the updated package fingerprint")
+    return errors
+
+
+def _validate_operator_runtime(payload: dict[str, Any]) -> list[str]:
+    """A readiness flag alone cannot prove staff identity reached scoped SQL."""
+    errors = []
+    arn = _value(payload, "operator_runtime.runtime_arn")
+    if not isinstance(arn, str) or not arn or arn == _value(payload, "runtime.runtime_arn"):
+        errors.append("operator_runtime.runtime_arn must identify a separate staff Runtime")
+    proof = _value(payload, "verification.operator_runtime_smoke")
+    if not isinstance(proof, dict):
+        return errors + ["verification.operator_runtime_smoke must contain executed staff evidence"]
+    expected = {"mode": "inspect", "rail": "gateway-mcp", "audit_rows": 1,
+                "customer_id": "CUST-JESSICA", "build_fingerprint_match": True,
+                "tools_fingerprint_match": True,
+                "case_access": {"database_role": "pellier_operator_tools",
+                                "visible_orders": ["CUST-JESSICA"], "visible_tickets": ["CUST-JESSICA"]}}
+    if _value(payload, "verification.operator_runtime_verified") is not True:
+        errors.append("verification.operator_runtime_verified must be true")
+    for key, value in expected.items():
+        if proof.get(key) != value or type(proof.get(key)) is not type(value):
+            errors.append(f"operator Runtime proof {key} must be {value!r}")
+    if (not str(proof.get("turn_id", "")).startswith("turn-")
+            or not proof.get("build_fingerprint")
+            or proof["build_fingerprint"] != proof.get("build_fingerprint_expected")
+            or proof["build_fingerprint"] != _value(payload, "verification.runtime_invoke_smoke.build_fingerprint")):
+        errors.append("operator Runtime proof must bind its turn and fingerprint to this deployment")
+    if (not re.fullmatch(r"[0-9a-f]{64}", str(proof.get("tools_fingerprint", "")))
+            or proof["tools_fingerprint"] != proof.get("tools_fingerprint_expected")):
+        errors.append("operator Runtime proof must match the executed staff Lambda fingerprint")
     return errors
 
 
@@ -183,6 +215,7 @@ def validate_receipt(
     """Return human-readable contract violations; an empty list means ready."""
     errors: list[str] = []
     errors.extend(validate_memory_acceptance(payload))
+    errors.extend(_validate_operator_runtime(payload))
     if participant is not None:
         errors.extend(_validate_participant_receipt(payload, participant))
     content_redacted = _value(
@@ -224,6 +257,8 @@ def validate_receipt(
         "observability.control_plane_audit.resource_type",
         "observability.runtime_log_group.name",
         "observability.runtime_log_group.kms_key_arn",
+        "observability.operator_runtime_log_group.name",
+        "observability.operator_runtime_log_group.kms_key_arn",
         "observability.trace_log_groups.kms_key_arn",
         "observability.unified_trace.trace_id",
         "observability.unified_trace.session_id",
@@ -384,7 +419,7 @@ def validate_receipt(
                     f"{role}={observed!r} is not allowlisted"
                 )
 
-    for runtime in ("runtime",):
+    for runtime in ("runtime", "operator_runtime"):
         log_path = f"observability.{runtime}_log_group"
         retention_days = _value(payload, f"{log_path}.retention_days")
         if type(retention_days) is not int or retention_days <= 0:
@@ -479,6 +514,7 @@ def validate_receipt(
 
     observed_groups = [
         _value(payload, "observability.runtime_log_group"),
+        _value(payload, "observability.operator_runtime_log_group"),
         *(trace_groups if isinstance(trace_groups, list) else []),
         *service_groups,
     ]

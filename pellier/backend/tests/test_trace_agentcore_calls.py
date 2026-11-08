@@ -70,6 +70,24 @@ CREDIT = _call("req-credit", 4_000, "give_store_credit", NADIA_SUB, "DENY",
 NAMES = {THEO_SUB: "theo", NADIA_SUB: "nadia"}
 
 
+def test_staff_target_trace_keeps_its_actual_target_and_request(monkeypatch):
+    spans = _call("req-staff", 1_000, "operator_get_case", NADIA_SUB, "ALLOW", ["staff-policy"])
+    for span in spans:
+        if "tool.name" in span["attributes"]:
+            span["attributes"]["tool.name"] = "pellier-operator-tools___operator_get_case"
+    filters = []
+
+    def filtered(_logs, _start, pattern):
+        filters.append(pattern)
+        return spans
+
+    monkeypatch.setattr(trace, "_filter", filtered)
+    calls = trace.fetch_calls(None, "operator_get_case", 60, 1, target="pellier-operator-tools")
+    assert filters[0] == '"pellier-operator-tools___operator_get_case"'
+    assert calls[0]["request_id"] == "req-staff"
+    assert "pellier-operator-tools Lambda span present" in "\n".join(trace.render_call(calls[0], NAMES))
+
+
 def test_an_allow_and_a_deny_read_as_two_calls_oldest_first() -> None:
     calls = trace.calls_from_spans(DENY + LIST + ALLOW + CREDIT, "get_tickets")
     assert [(c["request_id"], c["decision"]) for c in calls] == [

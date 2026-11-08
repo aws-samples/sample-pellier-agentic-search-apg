@@ -273,11 +273,26 @@ def test_the_runtime_package_imports_only_what_it_ships() -> None:
 
     packaged = {path.as_posix() for path in RUNTIME_SOURCE_FILES}
     local_roots = ("services", "agents", "skills", "routes", "pellier_copy")
+    # operator_graph.py serves two rails. Before Lab 3 the desk runs it in process with
+    # SQL runners; on the staff Runtime every read and write goes through the injected
+    # Gateway transport. These modules belong to the in-process rail only, and
+    # test_operator_runtime.py runs the managed path from the staged package to prove
+    # it never imports them.
+    in_process_rail_only = {
+        "services/operator_graph.py": {
+            "services.store_tools", "services.operator_review", "services.tool_audit_writer",
+        },
+    }
 
     def all_imports(tree: ast.Module):
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
                 yield node.module
+                # `from services import store_tools` imports a module too.
+                for alias in node.names:
+                    name = f"{node.module}.{alias.name}"
+                    if (BACKEND / (name.replace(".", "/") + ".py")).exists():
+                        yield name
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     yield alias.name
@@ -289,6 +304,8 @@ def test_the_runtime_package_imports_only_what_it_ships() -> None:
         tree = ast.parse((BACKEND / relative).read_text())
         for module in all_imports(tree):
             if module.split(".")[0] not in local_roots:
+                continue
+            if module in in_process_rail_only.get(relative, ()):
                 continue
             as_file = module.replace(".", "/") + ".py"
             as_package = module.replace(".", "/") + "/__init__.py"

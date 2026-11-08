@@ -17,7 +17,7 @@ stops, and the investigation answers the client's open credit requests.
 Nothing changes until a person approves, in a separate request, and nothing
 here can call the credit write.
 
-The graph runs in process, on a worker thread, and reports each step as it
+The graph runs on a worker thread, locally or in the staff Runtime, and reports each step as it
 happens through ``emit``: the same ``step`` shape Ask Pellier streams, so the
 desk renders it with the same components. Findings are fixed templates over
 the actual tool results; the model writes the brief, never the step lines.
@@ -34,9 +34,10 @@ import logging
 import re
 import time
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence, TYPE_CHECKING
 
-from services import store_tools
+if TYPE_CHECKING:
+    from services import store_tools
 
 logger = logging.getLogger(__name__)
 
@@ -178,6 +179,7 @@ class InvestigationResult:
     nodes: List[Dict[str, Any]] = field(default_factory=list)
     duration_ms: int = 0
     error: str = ""
+    execution: str = EXECUTION
 
     def as_payload(self) -> Dict[str, Any]:
         return {
@@ -191,7 +193,7 @@ class InvestigationResult:
             "graph": {
                 "graphId": GRAPH_ID,
                 "pattern": GRAPH_PATTERN,
-                "execution": EXECUTION,
+                "execution": self.execution,
                 "modelId": self.model_id,
                 "nodes": list(self.nodes),
                 "durationMs": self.duration_ms,
@@ -399,6 +401,9 @@ class _Case:
     # The status the Advisor's last propose_store_credit call returned, or
     # None when it never called the tool.
     advisor_outcome: Optional[str] = None
+    # Managed runs inject a caller-bound Gateway transport. Local runs retain
+    # the same business functions and SQL runners used before deployment.
+    call_tool: Optional[Callable[[str, Dict[str, Any]], Dict[str, Any]]] = None
 
     @property
     def first_name(self) -> str:
@@ -454,6 +459,8 @@ def read_return_policies(case: _Case) -> Dict[str, Any]:
     department with no policy of its own reads the default, and ``policy`` says
     so. With nothing returned, the read is the store-wide default.
     """
+    from services import store_tools
+
     orders = store_tools.get_orders(case.run_customer, customer_id=case.customer_id)["orders"]
     returned = [order for order in orders if order.get("returned") and order.get("category")]
     departments = sorted({str(order["category"]) for order in returned}) or ["default"]
@@ -489,6 +496,9 @@ def _investigator_tools(case: _Case) -> list:
         Args:
             limit: Maximum orders to return.
         """
+        if case.call_tool:
+            return _reply(case.call_tool("get_orders", {"limit": limit}))
+        from services import store_tools
         return _reply(store_tools.get_orders(
             case.run_customer, customer_id=case.customer_id, limit=limit))
 
@@ -499,6 +509,9 @@ def _investigator_tools(case: _Case) -> list:
         Args:
             limit: Maximum tickets to return.
         """
+        if case.call_tool:
+            return _reply(case.call_tool("get_tickets", {"limit": limit}))
+        from services import store_tools
         return _reply(store_tools.get_tickets(
             case.run_customer, customer_id=case.customer_id, limit=limit))
 
@@ -509,12 +522,16 @@ def _investigator_tools(case: _Case) -> list:
         Args:
             limit: Maximum credits to return.
         """
+        if case.call_tool:
+            return _reply(case.call_tool("get_store_credits", {"limit": limit}))
         return _reply(read_store_credits(case.run, customer_id=case.customer_id, limit=limit))
 
     @tool
     def get_return_policy() -> str:
         """Read the return window and refund method of each department this client
         returned an item from."""
+        if case.call_tool:
+            return _reply(case.call_tool("get_return_policy", {}))
         return _reply(read_return_policies(case))
 
     return [get_orders, get_tickets, get_store_credits, get_return_policy]
@@ -602,6 +619,8 @@ def _proposal_refusal(named: List[int], rows: Sequence[Dict[str, Any]]) -> Optio
 
 def _amount_refusal(rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Why the credit for ``rows`` cannot be proposed, else None."""
+    from services import store_tools
+
     amount = _paid_total(rows)
     if amount <= 0:
         return {"status": "error", "message": "The returned orders carry no paid amount."}
@@ -615,7 +634,7 @@ def _amount_refusal(rows: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
 # and an executed review stays approved, so a returned order a live review
 # covers is never proposed again. A declined review releases its orders.
 _LIVE_REVIEWS_SQL = """
-    SELECT id, status, args, action_hash, order_ids, recommendation
+    SELECT id, status, args, action_hash, to_jsonb(order_ids) AS order_ids, recommendation
       FROM pellier.approvals
      WHERE customer_id = %s
        AND tool = 'give_store_credit'
@@ -650,6 +669,8 @@ def propose_credit(case: _Case, *, order_ids: Sequence[Any], reason: str) -> Dic
     The Advisor's own sentence is kept as the review's rationale. One proposal
     per investigation: a second call returns the first.
     """
+    from services import store_tools
+
     if case.proposal is not None:
         return {**case.proposal_result, "status": "already_proposed"}
     rationale = " ".join(str(reason or "").split())
@@ -681,6 +702,8 @@ def _record_proposal(
     order_ids: List[int], items: List[str], rationale: str, status: str,
 ) -> Dict[str, Any]:
     """Keep the proposal on the case and return what the Advisor's tool reports."""
+    from services import store_tools
+
     action_hash = store_tools.write_request_hash(
         "give_store_credit", customer_id=case.customer_id, amount_cents=amount, reason=reason,
     )
@@ -723,6 +746,8 @@ _NEXT_BY_STATUS = {
 
 def _open_proposal(case: _Case, rows: Sequence[Dict[str, Any]], rationale: str) -> Dict[str, Any]:
     """Open the review for the credit ``rows`` support, and record the proposal."""
+    from services import store_tools
+
     returned = [int(row["order_id"]) for row in rows]
     items = [str(row.get("name") or "") for row in rows]
     amount = _paid_total(rows)
@@ -754,6 +779,7 @@ def _open_proposal(case: _Case, rows: Sequence[Dict[str, Any]], rationale: str) 
 
 def _resolve_proposal(case: _Case, row: Dict[str, Any], rationale: str) -> Dict[str, Any]:
     """Resolve to the live review that already covers every received return."""
+    from services import store_tools
     from services.operator_review import parse_json, referenced_order_ids
 
     args = parse_json(row.get("args")) or {}
@@ -794,6 +820,10 @@ def answer_open_requests(case: _Case) -> List[int]:
     """
     review_id = case.proposal.review_id if case.proposal else None
     try:
+        if case.call_tool:
+            result = case.call_tool("finish_investigation", {"review_id": review_id or 0})
+            return result["answered_ids"]
+        from services import store_tools
         return store_tools.answer_credit_requests(
             case.run, customer_id=case.customer_id, investigation_turn_id=case.turn_id,
             review_id=review_id,
@@ -820,7 +850,16 @@ def _advisor_tools(case: _Case) -> list:
                 an empty list when the brief does not give them.
             reason: One sentence a staff member would recognize, on why.
         """
-        result = propose_credit(case, order_ids=order_ids, reason=reason)
+        if case.call_tool:
+            result = dict(case.call_tool("propose_store_credit", {"order_ids": order_ids, "reason": reason}))
+            proposal = result.pop("proposal", None)
+            if proposal:
+                if proposal.get("customer_id") != case.customer_id:
+                    raise ValueError("operator_case_mismatch")
+                case.proposal = Proposal(**proposal)
+                case.proposal_result = dict(result)
+        else:
+            result = propose_credit(case, order_ids=order_ids, reason=reason)
         case.advisor_outcome = str(result.get("status") or "")
         return _reply(result)
 
@@ -891,7 +930,7 @@ class _NodeHooks:
                                       agent=self.node, model_id=self.model_id))
         names = getattr(getattr(event, "agent", None), "tool_names", None)
         held = names is None or name in names
-        if self.node == INVESTIGATOR_NODE and held:
+        if self.node == INVESTIGATOR_NODE and held and self.case.call_tool is None:
             # A tool outside the agent's registry never runs, so it leaves no row.
             from services import tool_audit_writer
 
@@ -918,7 +957,7 @@ class _NodeHooks:
             cancel_message=getattr(event, "cancel_message", None),
         )
         audit_id = None
-        if self.node == INVESTIGATOR_NODE:
+        if self.node == INVESTIGATOR_NODE and self.case.call_tool is None:
             from services import tool_audit_writer
 
             audit_id = tool_audit_writer.pending_audit_id(tool_use_id)
@@ -1056,6 +1095,7 @@ def run_investigation(
     operator_sub: str,
     turn_id: str,
     emit: Emit,
+    call_tool: Optional[Callable[[str, Dict[str, Any]], Dict[str, Any]]] = None,
 ) -> InvestigationResult:
     """Run the two-node graph for one client and return what it established.
 
@@ -1076,9 +1116,16 @@ def run_investigation(
     """
     from services.specialist_models import specialist_model
 
+    execution = "gateway-mcp" if call_tool else EXECUTION
+    original_emit = emit
+
+    def emit(event: Dict[str, Any]) -> None:
+        # This label follows the selected transport, never a caller payload.
+        original_emit({**event, "builder": {**event.get("builder", {}), "rail": execution}})
+
     case = _Case(run=run, run_customer=run_customer, customer_id=customer_id,
                  customer_name=customer_name,
-                 operator_sub=operator_sub, turn_id=turn_id, emit=emit)
+                 operator_sub=operator_sub, turn_id=turn_id, emit=emit, call_tool=call_tool)
     model_id, _configured_max = specialist_model("sonnet")
     hooks = {node: _NodeHooks(case, node, model_id) for node in (INVESTIGATOR_NODE, ADVISOR_NODE)}
     graph = _build_graph(case, model_id, hooks)
@@ -1098,7 +1145,7 @@ def run_investigation(
         return InvestigationResult(
             turn_id=turn_id, customer_id=customer_id, status="failed",
             proposal=case.proposal, model_id=model_id, duration_ms=duration,
-            error=exc.__class__.__name__,
+            error=exc.__class__.__name__, execution=execution,
         )
 
     duration = int((time.perf_counter() - started) * 1000)
@@ -1134,4 +1181,5 @@ def run_investigation(
         turn_id=turn_id, customer_id=customer_id, status="complete",
         facts=facts, missing=missing, advisor=" ".join(advisor_text.split()),
         proposal=case.proposal, model_id=model_id, nodes=nodes, duration_ms=duration,
+        execution=execution,
     )

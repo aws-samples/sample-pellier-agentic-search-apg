@@ -55,13 +55,21 @@ EXPECTED_CANONICAL: Set[str] = {
     "get_orders", "get_return_policy", "get_tickets", "give_store_credit", "ask_a_person",
 }
 EXPECTED_PUBLISHED: Set[str] = EXPECTED_CANONICAL - {"get_tickets"}
+OPERATOR_TOOLS = {
+    "operator_get_case", "operator_get_orders", "operator_get_tickets",
+    "operator_get_store_credits", "operator_get_return_policy",
+    "operator_propose_store_credit", "operator_finish_investigation",
+}
+OPERATOR_POLICIES = {f"{tool}_staff_scope" for tool in OPERATOR_TOOLS}
 SHOPPER_SAFE: Set[str] = {
     "search_products", "browse_department", "compare_products", "check_stock",
     "get_return_policy",
 }
 HANDOFF_ACTION = f"{STORE}___ask_a_person"
 
-EXPECTED_TARGETS: Dict[str, Set[str]] = {STORE: EXPECTED_PUBLISHED}
+EXPECTED_TARGETS: Dict[str, Set[str]] = {
+    STORE: EXPECTED_PUBLISHED, "pellier-operator-tools": OPERATOR_TOOLS,
+}
 
 RETIRED = {
     "floor_check", "running_low", "restock_shelf", "process_return", "find_pieces",
@@ -135,7 +143,7 @@ def test_the_store_target_publishes_eight_and_the_full_catalog_nine() -> None:
     assert len(full) == 9
 
 
-def test_there_is_exactly_one_gateway_target() -> None:
+def test_store_catalog_remains_separate_from_staff_graph_tools() -> None:
     assert list(TOOL_SCHEMAS) == ["store"]
     assert TOOL_SCHEMAS["store"]["target_name"] == STORE
 
@@ -152,6 +160,7 @@ def test_the_fresh_policy_set_is_exactly_the_named_baseline_and_scoped_reads() -
         "get_orders_owner_only",
         "ask_a_person_caller_bound",
         "give_store_credit_staff_scope",
+        *OPERATOR_POLICIES,
     }
 
 
@@ -162,7 +171,8 @@ def _policies_after_lab_three(monkeypatch) -> Dict[str, dict]:
     monkeypatch.setattr(
         render_agentcore_project,
         "workshop_target_tools",
-        lambda: {STORE: tuple(t["name"] for t in TOOL_SCHEMAS["store"]["tools"])},
+        lambda: {STORE: tuple(t["name"] for t in TOOL_SCHEMAS["store"]["tools"]),
+                 "pellier-operator-tools": tuple(OPERATOR_TOOLS)},
     )
     return {p["name"]: p for p in baseline_policies(gateway_arn=GATEWAY_ARN)}
 
@@ -174,6 +184,7 @@ def test_publishing_get_tickets_adds_its_owner_only_permit(monkeypatch) -> None:
         *CUSTOMER_READ_POLICIES,
         "ask_a_person_caller_bound",
         "give_store_credit_staff_scope",
+        *OPERATOR_POLICIES,
     }
 
 

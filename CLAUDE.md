@@ -214,6 +214,9 @@ The application must continue to demonstrate:
   Strands agents: Catalog, Stock and Support.
 - Nine store tools with one implementation for the local agents and the
   Gateway Lambda (`pellier/backend/services/store_tools.py`).
+- A separate staff Runtime hosts the Operator's Investigator → Advisor graph.
+  Its seven Gateway operations use the restricted `pellier_operator_tools`
+  login. Approval and explicit credit execution stay in the application.
 - Aurora PostgreSQL hybrid retrieval: full-text search and pgvector fused with
   RRF, then Cohere Rerank.
 - Ten Aurora tables (`scripts/migrations/001_schema.sql`): catalog, warehouse
@@ -247,9 +250,9 @@ deployed build fingerprint includes that edit. Do not move the task to an
 unpackaged file or infer deployed completion from source inspection.
 
 The schedule is 120 minutes. The opening block takes 20: the talk, then Getting started (about 3
-minutes; early arrivals may do it before). Then Lab 1 takes 15, Lab 2 15, Before Lab 3 (the one
-scheduled catch-up, then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 30 and the
-Wrap-up 10. Reading, deployment waits, and explanation share those allocations. These are targets
+minutes; early arrivals may do it before). Then Lab 1 takes 20, Lab 2 20, Before Lab 3 (the one
+scheduled catch-up, then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 25 and the
+Wrap-up 5. Reading, deployment waits, and explanation share those allocations. These are targets
 pending a timed fresh-account rehearsal.
 
 Do not reintroduce the old Act I/II/III taxonomy into flagship navigation or
@@ -264,6 +267,10 @@ documentation.
   row are distinct, intentional evidence.
 - Cognito identity travels in the signed token. Do not invent ambient identity
   or correlation fields across managed boundaries.
+- Bind shopper tools to the token's customer and staff tools to the verified
+  actor and selected case. Memory supplies preferences, never identity or
+  authority. Customer reads use non-owner, `NOBYPASSRLS` roles and transaction
+  context; staff proposals cannot approve or execute themselves.
 - Pellier has two surfaces. The Storefront (`/`) is where shoppers use Ask
   Pellier, the docked chat panel; its Builder view shows each turn's Router
   step, tool calls and "How it ranked". The Operator (`/operator`) is where

@@ -4,17 +4,21 @@ Deploy Pellier's governed agent path using Amazon Bedrock AgentCore.
 
 The pinned AgentCore CLI is the only control-plane deployment path for Runtime,
 Memory, Gateway, Gateway target registrations, AgentCore-managed service roles,
-the Policy engine, and Cedar policies. `deploy_lambda.py` creates the one
-external Lambda function and its execution role; other Python helpers seed
+the Policy engine, and Cedar policies. `deploy_lambda.py` creates the store and
+staff tool Lambda functions and their separate execution roles; other Python helpers seed
 Memory, authenticate test users, and verify the deployed path.
 
 ## What Gets Deployed
 
-1. **One Lambda MCP server**, `pellier-store-tools-server`, behind the one
+1. **Two Lambda MCP servers.** `pellier-store-tools-server` serves
    Gateway target `pellier-store-tools`: nine tool schemas, eight published at
    baseline and nine after Lab 3A publishes `get_tickets`. The tools are the
    same `services/store_tools.py` functions the in-process agents call; the
    Lambda hands them the RDS Data API instead of the psycopg pool.
+   `pellier-operator-tools-server` serves seven staff operations on
+   `pellier-operator-tools`. Five support the Investigator and Advisor. Two
+   load the selected case and finish its investigation. Its separate
+   `pellier_operator_tools` login cannot approve reviews or execute credits.
 
 2. **AgentCore Memory**: short-term conversation events with 30-day expiry,
    plus `USER_PREFERENCE`, `SEMANTIC`, `SUMMARIZATION` and `EPISODIC` strategies.
@@ -23,7 +27,7 @@ Memory, authenticate test users, and verify the deployed path.
    records, incomplete episodes, namespace drift or timeout fail readiness.
    The check does not write long-term records or reuse participant evidence.
 
-3. **AgentCore Gateway**: an MCP Gateway that registers the one Lambda target with:
+3. **AgentCore Gateway**: an MCP Gateway that registers both Lambda targets with:
    - Cognito JWT authentication
    - Runtime tool discovery over MCP streamable HTTP
    - Discovery filtered by policy for the authenticated caller
@@ -38,6 +42,8 @@ Memory, authenticate test users, and verify the deployed path.
    - A caller-bound permit for `ask_a_person`: it may name no customer, or
      only the token's own
    - One staff-scoped permit for `give_store_credit`, with no amount limit
+   - Seven action-specific staff permits requiring the returns scope and matching
+     `context.input.operator_sub` to `principal.id`
    - Lab 4's starter forbid, `credit_limit`, deployed from
      `workshop/starters/credit_limit.cedar` so every credit is denied
      until the participant writes the $100 limit; `--mode participant`
@@ -47,15 +53,21 @@ Memory, authenticate test users, and verify the deployed path.
      `gateway_policy_probe.py`: a catalog read is allowed with its audit row,
      and a store credit is denied with no row
 
-5. **AgentCore Runtime**: one managed runtime, `pellier_orchestrator`, running
-   the Router and the Catalog, Stock and Support agents:
+5. **AgentCore Runtime**: `pellier_orchestrator` runs the Router and the Catalog,
+   Stock and Support agents. `pellier_operator` runs the Investigator → Advisor
+   Strands graph. Both ship in the existing CLI project:
    - Invocation requires a Cognito access token through `CUSTOM_JWT`
    - The executing package carries a build fingerprint
    - Discovers tools via Gateway
    - Fails closed if identity or Gateway is unavailable
-   - Uses AgentCore Memory context supplied by the application request path
+   - The shopper Runtime reads Memory under the verified customer's namespace
 
-   The Operator's investigation runs in the app, not on Runtime.
+   The staff Runtime requires the returns scope, fixes the case before building
+   its tool closures, and reads no Memory. Human approval and the separate credit
+   execution request remain in the app. The readiness inspection runs through
+   staff Runtime, Gateway and the staff Lambda, compares the build fingerprint,
+   and checks unfiltered order and ticket reads under RLS against the selected case.
+   It creates no proposal and does not exercise the model-driven graph.
 
    Docs: [Runtime overview](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime.html)
 
@@ -100,14 +112,14 @@ backend environment.
 `scripts/provision_agentcore_end_to_end.py` is the canonical orchestrator.
 `deploy_all.sh` calls it. The full provisioning path runs these phases:
 
-1. Package and deploy the store-tools Lambda function, with
+1. Package and deploy the store and Operator tool Lambda functions, with
    `services/store_tools.py` and its two retrieval modules staged into the zip.
 2. Scaffold one stateful `@aws/agentcore@0.29.0` project with
    `agentcore create --skip-install`, then install its CDK project with `npm ci`
    from `scripts/deploy/agentcore-cdk-0.29.0/package-lock.json`. The scaffold names
    tilde ranges, so without the lockfile each provision resolved its own tree. CI
    audits that lockfile, and GitHub's dependency graph reads it.
-3. Render Runtime, Memory, Gateway, the one Lambda target registration, and
+3. Render both Runtimes, Memory, Gateway, the two Lambda target registrations, and
    the Policy engine into the CLI project. AgentCore role ARNs are intentionally
    omitted so CLI/CDK creates the managed service roles. The renderer also sets
    the Runtime's platform version to `V1` in the CLI's CDK scaffold: the CLI has
@@ -135,7 +147,8 @@ value, `30` in the workshop template).
 
 | File                              | Purpose                                        |
 | --------------------------------- | ---------------------------------------------- |
-| `pellier_store_tools.py`          | The one Lambda MCP server: nine store tools on one target |
+| `pellier_store_tools.py`          | The store Lambda: nine store tools on one target |
+| `pellier_operator_tools.py`       | The staff Lambda: case reads and pending proposals under a separate login |
 | `gateway_policy_probe.py`         | Calls one Gateway tool as a named Cognito user and reports the Cedar outcome and its rows |
 | `gateway_client.py`               | Cognito tokens and the shared policy-denial classifier |
 | `cognito_customer_claim.py`       | Pre-token trigger that stamps the customer and staff claims |

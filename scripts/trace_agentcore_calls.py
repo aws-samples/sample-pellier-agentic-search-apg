@@ -141,6 +141,7 @@ def one_call(spans: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         "parent_span_id": invoke.get("parentSpanId") or None,
         "started_ns": int(invoke.get("startTimeUnixNano") or 0),
         "tool": str(attrs.get("tool.name") or "").split("___")[-1],
+        "target": str(attrs.get("tool.name") or "").split("___")[0],
         "decision": attrs.get(_DECISION) or _attrs(policy).get(_DECISION) or "none",
         "gateway_denied": attrs.get(_DECISION) == "DENY",
         "policies": _policies(spans),
@@ -208,7 +209,7 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
         policy = f"{call['decision']}, determined by {', '.join(call['policies'])}"
     else:
         policy = f"{call['decision']}: {call['reason'] or 'no policy named'}"
-    gateway = (f"tools/call {call['gateway_ms']} ms; {TARGET} Lambda span present" if ran
+    gateway = (f"tools/call {call['gateway_ms']} ms; {call.get('target') or TARGET} Lambda span present" if ran
                else "tools/call refused by the request's Cedar decision; target never invoked" if denied
                else "no Lambda span: execution is unknown; telemetry may be incomplete")
     return [f"{when}  {who:<8} {call['tool']}  {call['decision']}  ->  {outcome}",
@@ -234,10 +235,11 @@ def _filter(logs: Any, start_ms: int, pattern: str, group: str = LOG_GROUP,
     return spans
 
 
-def fetch_calls(logs: Any, tool: str, minutes: int, limit: int) -> List[Dict[str, Any]]:
+def fetch_calls(logs: Any, tool: str, minutes: int, limit: int,
+                target: str = TARGET) -> List[Dict[str, Any]]:
     """The newest ``limit`` calls to ``tool``: find their requests, then read every span."""
     start_ms = int((time.time() - minutes * 60) * 1000)
-    action = f"{TARGET}___{tool}"
+    action = f"{target}___{tool}"
     # A tool list names every tool it allowed, so keep only the calls themselves.
     tagged = [span for span in _filter(logs, start_ms, f'"{action}"')
               if _attrs(span).get("tool.name") == action]
@@ -445,6 +447,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tool", required=True, help="a store tool, for example get_tickets")
+    parser.add_argument("--target", choices=(TARGET, "pellier-operator-tools"), default=TARGET,
+                        help="the store or staff Gateway target")
     parser.add_argument("--minutes", type=int, default=60, help="how far back to read")
     parser.add_argument("--limit", type=int, default=CALL_LIMIT, help="the newest calls to show")
     args = parser.parse_args()
@@ -459,7 +463,7 @@ def main() -> int:
     region = settings.aws_region_resolved
     logs = boto3.client("logs", region_name=region)
     try:
-        calls = fetch_calls(logs, args.tool, args.minutes, args.limit)
+        calls = fetch_calls(logs, args.tool, args.minutes, args.limit, target=args.target)
     except Exception as exc:  # noqa: BLE001 - report the AWS error code, not the request
         code = getattr(exc, "response", {}).get("Error", {}).get("Code", type(exc).__name__)
         print(f"Could not read {LOG_GROUP}: {code}", file=sys.stderr)
@@ -472,7 +476,9 @@ def main() -> int:
     names = subject_names(boto3.client("cognito-idp", region_name=settings.cognito_region_resolved),
                           settings.cognito_pool_id_resolved)
     try:
-        group: Optional[str] = runtime_log_group(settings.AGENTCORE_RUNTIME_ENDPOINT or "")
+        endpoint = (settings.AGENTCORE_OPERATOR_RUNTIME_ENDPOINT
+                    if args.target == "pellier-operator-tools" else settings.AGENTCORE_RUNTIME_ENDPOINT)
+        group: Optional[str] = runtime_log_group(endpoint or "")
     except ValueError:
         group = None
     runtime = runtime_spans(logs, group, calls, args.minutes)

@@ -36,6 +36,7 @@ def _valid_receipt() -> dict[str, Any]:
         "status": "ready",
         "cli": {"package": "@aws/agentcore@0.29.0"},
         "runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:runtime/example"},
+        "operator_runtime": {"runtime_arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/operator-example"},
         "memory": {"memory_id": "memory-1", "seed": {"status": "ready"}},
         "gateway": {
             "gateway_id": "gateway-1",
@@ -173,6 +174,17 @@ def _valid_receipt() -> dict[str, Any]:
                 "build_fingerprint_match": True,
             },
             "runtime_build_fingerprint_match": True,
+            "operator_runtime_verified": True,
+            "operator_runtime_smoke": {
+                "mode": "inspect", "rail": "gateway-mcp", "audit_rows": 1,
+                "customer_id": "CUST-JESSICA", "turn_id": "turn-staff-proof",
+                "tools_fingerprint": "a" * 64, "tools_fingerprint_expected": "a" * 64,
+                "tools_fingerprint_match": True,
+                "build_fingerprint": "fixture-package", "build_fingerprint_expected": "fixture-package",
+                "build_fingerprint_match": True,
+                "case_access": {"database_role": "pellier_operator_tools", "visible_orders": ["CUST-JESSICA"],
+                                "visible_tickets": ["CUST-JESSICA"]},
+            },
             "targets_attached": True,
             "gateway_tools_discovered": True,
             "memory_seeded": True,
@@ -230,6 +242,8 @@ def _valid_receipt() -> dict[str, Any]:
         },
     }
     observability = receipt["observability"]
+    observability["operator_runtime_log_group"] = copy.deepcopy(observability["runtime_log_group"])
+    observability["operator_runtime_log_group"]["name"] = "/aws/bedrock-agentcore/runtimes/pellier_operator-example-DEFAULT"
     for kind, identifier, prefix in (
         ("gateway", "gateway-1", "/aws/vendedlogs/bedrock-agentcore/"),
         ("memory", "memory-1", "/aws/vendedlogs/bedrock-agentcore/memory/APPLICATION_LOGS/"),
@@ -246,6 +260,7 @@ def _valid_receipt() -> dict[str, Any]:
     })
     for group in [
         observability["runtime_log_group"],
+        observability["operator_runtime_log_group"],
         *observability["trace_log_groups"]["groups"],
         observability["gateway"]["log_group_protection"],
         observability["memory"]["log_group_protection"],
@@ -382,6 +397,8 @@ def _participant_receipt(full: dict[str, Any]) -> dict[str, Any]:
     smoke["build_fingerprint"] = "updated-package"
     smoke["build_fingerprint_expected"] = "updated-package"
     smoke["session_id"] = "participant-new-session"
+    staff = receipt["verification"]["operator_runtime_smoke"]
+    staff["build_fingerprint"] = staff["build_fingerprint_expected"] = "updated-package"
     return receipt
 
 
@@ -424,6 +441,23 @@ def test_participant_receipt_cannot_bypass_current_deployment_proof(failure: str
     else:
         participant["verification"]["gateway_control_plane"]["policy_mode"] = "LOG_ONLY"
     assert _load_validator().validate_receipt(full, participant)
+
+
+@pytest.mark.parametrize("failure", ["empty", "stale", "flag", "audit", "scope"])
+def test_staff_readiness_requires_matching_code_and_a_case_execution(failure: str) -> None:
+    receipt = _valid_receipt()
+    proof = receipt["verification"]["operator_runtime_smoke"]
+    if failure == "empty":
+        proof["tools_fingerprint"] = proof["tools_fingerprint_expected"] = ""
+    elif failure == "stale":
+        proof["tools_fingerprint"] = "b" * 64
+    elif failure == "flag":
+        proof["tools_fingerprint_match"] = False
+    elif failure == "audit":
+        proof["audit_rows"] = 0
+    else:
+        proof["case_access"]["visible_orders"].append("CUST-THEO")
+    assert _load_validator().validate_receipt(receipt)
 
 
 def _redacted_receipt() -> dict[str, Any]:

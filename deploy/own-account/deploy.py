@@ -247,18 +247,21 @@ class Names:
         return f"AgentCore-pellier{self.suffix}-default"
 
     @property
-    def functions(self) -> tuple[str, str]:
+    def functions(self) -> tuple[str, ...]:
         return (
             f"pellier{self.dash}-store-tools-server-function",
+            f"pellier{self.dash}-operator-tools-server-function",
             f"pellier{self.dash}-cognito-customer-claim",
         )
 
     @property
     def roles(self) -> dict[str, dict[str, tuple[str, ...]]]:
         store = f"pellier{self.dash}-store-tools-server-role"
+        operator = f"pellier{self.dash}-operator-tools-server-role"
         claim = f"pellier{self.dash}-cognito-customer-claim-role"
         return {
             store: {"inline": (f"{store}-policy",), "managed": ()},
+            operator: {"inline": (f"{operator}-policy",), "managed": ()},
             claim: {
                 "inline": (),
                 "managed": ("arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",),

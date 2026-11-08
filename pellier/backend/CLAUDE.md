@@ -48,7 +48,10 @@ Gateway probe tests Cedar separately from the managed caller binding.
   `services/agent_tools.py` wraps them for the local agents and owns the
   caller-bound boundaries.
 - `services/operator_graph.py` is the Operator's Investigator and Advisor;
-  `routes/operator.py` serves the desk.
+  `routes/operator.py` serves the desk. After Lab 3, `operator_runtime.py` runs
+  that graph through `services/operator_gateway.py`, with the staff actor and
+  case fixed before model tools are constructed. Approval and Execute stay in
+  the desk; the Runtime has no database credentials or credit execution tool.
 - `skills/` loads root `skills/*/SKILL.md` files into the agents' prompts.
 - `agentcore_runtime.py`, `services/agentcore_*`, and `services/managed_policy.py`
   own managed-boundary behavior. Report what a managed service said; do not

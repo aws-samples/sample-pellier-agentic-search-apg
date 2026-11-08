@@ -51,17 +51,18 @@ flowchart LR
   subgraph app["Pellier application"]
     api["FastAPI"]
     local["Labs 1 and 2<br/>Router, Strands specialists<br/>and local store tools"]
-    investigation["Investigator and Advisor<br/>propose a credit"]
     approval["Human review<br/>approve exact credit terms"]
   end
 
   subgraph agentcore["Amazon Bedrock AgentCore"]
     runtime["Runtime<br/>Router and Strands specialists"]
+    investigation["Staff Runtime<br/>Investigator → Advisor graph<br/>propose a credit"]
     gateway["Gateway and Policy<br/>Cedar authorization"]
     memory["Memory<br/>conversation preferences"]
   end
 
   lambda["AWS Lambda<br/>shared store tool implementation"]
+  stafftools["Staff tools Lambda<br/>read a case and open a pending review"]
   aurora[("Aurora PostgreSQL<br/>catalog, inventory, customer records<br/>approvals, credits and evidence")]
 
   shopper --> api
@@ -71,8 +72,9 @@ flowchart LR
   api -->|Labs 3 and 4| runtime
   runtime --> memory
   runtime --> gateway --> lambda -->|RDS Data API| aurora
-  api --> investigation --> approval
-  investigation -->|read tools| aurora
+  api -->|staff token, selected case| investigation --> approval
+  investigation --> gateway
+  gateway --> stafftools -->|restricted Data API login| aurora
   approval -->|staff token and approved request| gateway
 ```
 
@@ -91,13 +93,13 @@ Inventory answers come from the product's warehouse rows. The completed stock to
 ### Identity, approval and memory
 
 - **Caller identity.** [Runtime verifies the Cognito token](pellier/backend/services/runtime_identity.py) and binds customer-scoped tools to that caller. Gateway Policy evaluates Cedar before invoking Lambda. The completed Lab 3 path combines owner checks at Gateway with PostgreSQL row-level security for orders and tickets.
-- **Database access.** Lambda uses the restricted `pellier_store_tools` login. Customer reads switch to `pellier_agent` within a transaction. The completed credit-writer privileges allow execution of the credit function without direct writes to the credit table. The [schema migration](scripts/migrations/001_schema.sql) defines the roles, grants and constraints.
+- **Database access.** Store tools use the restricted `pellier_store_tools` login. Customer reads switch to `pellier_agent` within a transaction. The staff graph uses a separate `pellier_operator_tools` login, and row-level security limits its order and ticket reads to the selected case's customer. Both read roles are non-owners with `NOBYPASSRLS`. The staff role can open a pending review but cannot approve it or become the credit writer. The completed credit-writer privileges allow execution of the credit function without direct writes to the credit table. The [schema migration](scripts/migrations/001_schema.sql) defines the roles, grants and constraints.
 - **Human approval.** The [Operator graph](pellier/backend/services/operator_graph.py) investigates a case and proposes a credit. [Governed execution](pellier/backend/services/governed_execution.py) requires an approved review with matching terms before calling Gateway. Cedar supplies the workshop's $100 limit. Unique approval and idempotency keys keep a retried request from creating another credit.
 - **Memory.** [AgentCore Memory](pellier/backend/services/agentcore_memory.py) stores conversation events and extracted preferences. [Runtime reads preferences](pellier/backend/services/runtime_memory.py) for the verified customer. Preferences can inform recommendations, but identity and permissions come from verified credentials and enforcement code. Product, stock and order facts come from PostgreSQL.
 
 ### Evidence and its limits
 
-The managed credit path commits the new credit and its successful `tool_audit` receipt in one database transaction. A successful replay returns the existing credit without adding another success receipt. Other tool audit writes are best effort, so a missing audit row alone does not establish that a call was denied.
+The managed credit path commits the new credit and its successful `tool_audit` receipt in one database transaction. A successful replay returns the existing credit without adding another success receipt. Staff proposals and their audit receipts also commit together. Store read receipts are best effort, so a missing audit row alone does not establish that a call was denied.
 
 [The credit reconstruction check](scripts/follow_credit.py) correlates approval and credit rows with tool receipts, Gateway request identifiers, build fingerprints and service traces. A request-specific Gateway denial supports non-execution. An ALLOW decision or a missing Lambda span alone does not establish execution. CloudWatch delivery is asynchronous, and the workshop's pgAudit logs provide additional database evidence subject to their correlation limits.
 
@@ -156,7 +158,7 @@ Locally the agents run in process. Ask Pellier works signed out, and AgentCore M
 
 ### In your AWS account
 
-Follow [Run Pellier in your own account](docs/run-in-your-own-account.md) for deployment, prerequisites, readiness checks and teardown. `deploy/own-account/deploy.py` uses the same four CloudFormation templates as Workshop Studio. On the host, `scripts/provision_agentcore_end_to_end.py` provisions the store tools Lambda and AgentCore resources with the pinned CLI (`@aws/agentcore@0.29.0`). Follow the guide's full teardown procedure to remove both the stack and the resources created outside CloudFormation.
+Follow [Run Pellier in your own account](docs/run-in-your-own-account.md) for deployment, prerequisites, readiness checks and teardown. `deploy/own-account/deploy.py` uses the same four CloudFormation templates as Workshop Studio. On the host, `scripts/provision_agentcore_end_to_end.py` provisions the store and Operator tool Lambdas and AgentCore resources with the pinned CLI (`@aws/agentcore@0.29.0`). Follow the guide's full teardown procedure to remove both the stack and the resources created outside CloudFormation.
 
 ### What it costs
 
@@ -211,6 +213,15 @@ The [governed-quality workflow](.github/workflows/quality.yml) runs the backend,
 ```
 
 These checks run without AWS. The tests that need a database start a throwaway PostgreSQL 18 cluster with pgvector from the binaries on `PATH` or in `PG_BIN` and run the real setup scripts against it; without one they skip, and the workflow's `backend-postgres` job installs one and sets `PELLIER_REQUIRE_POSTGRES=1` so they fail there instead. Runtime, Gateway, Cedar and Lambda behavior is proven only in a provisioned account.
+
+The optional [DuckDB example](scripts/duckdb_federation.py) joins live warehouse stock to a training forecast in Parquet. Run its `prepare`, `query`, `check` and `cleanup` commands on the workshop host after the required labs. It creates a separate inventory-only PostgreSQL login and leaves the application's data and agent tools unchanged. The [SQL](workshop/duckdb-inventory.sql) keeps the forecast separate from available stock.
+
+Its integration tests use an isolated local PostgreSQL cluster and install the optional dependencies through `uv`; they are separate from the backend suite:
+
+```bash
+uv run --no-project --with duckdb==2.0.0 --with 'psycopg[binary]==3.3.4' --with pytest==9.1.1 \
+  python -m pytest -q optional-tests/test_duckdb_federation.py
+```
 
 ## Security and responsible use
 

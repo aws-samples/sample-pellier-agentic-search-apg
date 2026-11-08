@@ -31,9 +31,9 @@ DEPLOY_LAMBDA = DEPLOY / "deploy_lambda.py"
 
 
 
-def test_the_store_lambda_is_the_only_surface() -> None:
+def test_store_and_operator_lambdas_are_the_two_surfaces() -> None:
     """Guards against a rename turning every assertion below vacuous."""
-    assert [p.name for p in SURFACES] == ["pellier_store_tools.py"]
+    assert [p.name for p in SURFACES] == ["pellier_operator_tools.py", "pellier_store_tools.py"]
 
 
 def _functions(path: Path) -> Dict[str, Tuple[str, int]]:
@@ -111,6 +111,7 @@ def test_the_zip_stages_every_backend_module_the_lambda_imports() -> None:
         "services/catalog_vocabulary.py",
     } <= staged
     for path in SURFACES:
+        staged = set(deploy_lambda.package_files(str(path), f"{path.stem}.lambda_handler"))
         for node in ast.parse(path.read_text(encoding="utf-8")).body:
             if isinstance(node, ast.ImportFrom) and node.module == "services":
                 for alias in node.names:

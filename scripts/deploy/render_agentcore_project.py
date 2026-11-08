@@ -11,6 +11,7 @@ control-plane APIs.
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import re
@@ -33,6 +34,7 @@ from gateway_tool_schemas import (
     schema_for,
     workshop_target_tools,
 )
+from gateway_tool_schemas import OPERATOR_SCHEMA, OPERATOR_TARGET
 
 
 AGENTCORE_CLI = "@aws/agentcore@0.29.0"
@@ -173,6 +175,10 @@ class DeploymentIdentity(NamedTuple):
     gateway_name: str
     policy_engine_name: str
     server_prefix: str
+
+    @property
+    def operator_runtime_name(self) -> str:
+        return self.runtime_name.removesuffix("orchestrator") + "operator"
 
 
 def deployment_identity(suffix: str | None = None) -> DeploymentIdentity:
@@ -531,6 +537,25 @@ def baseline_policies(*, gateway_arn: str) -> list[dict[str, Any]]:
         "validationMode": "FAIL_ON_ANY_FINDINGS",
         "enforcementMode": "ACTIVE",
     })
+    # Keep each conditional statement scoped to one action, as the managed
+    # validator requires for the existing customer-scoped permits above.
+    for tool in OPERATOR_SCHEMA["tools"]:
+        action = f'{OPERATOR_TARGET}___{tool["name"]}'
+        policies.append({
+            "name": f'{tool["name"]}_staff_scope',
+            "description": "Staff case tools require returns scope and the signed staff subject",
+            "statement": (
+                f'permit ({OAUTH_PRINCIPAL}, action == AgentCore::Action::"{action}", {gateway})\n'
+                "when {\n"
+                f'  principal.hasTag("{STAFF_CLAIM}") &&\n'
+                f'  principal.getTag("{STAFF_CLAIM}") == "{STAFF_RETURNS_SCOPE}" &&\n'
+                "  context.input has operator_sub &&\n"
+                "  principal.id == context.input.operator_sub\n"
+                "};"
+            ),
+            "validationMode": "FAIL_ON_ANY_FINDINGS",
+            "enforcementMode": "ACTIVE",
+        })
     return policies
 
 
@@ -643,9 +668,10 @@ def render_project(
         )
 
     targets: list[dict[str, Any]] = []
-    for surface, schema in TOOL_SCHEMAS.items():
+    for surface, schema in {**TOOL_SCHEMAS, "operator": OPERATOR_SCHEMA}.items():
         schema_path = schemas_dir / f"{surface}.json"
-        _write_json(schema_path, schema_for(surface, workshop=True))
+        _write_json(schema_path, OPERATOR_SCHEMA["tools"] if surface == "operator"
+                    else schema_for(surface, workshop=True))
         targets.append(
             {
                 "name": schema["target_name"],
@@ -764,6 +790,21 @@ def render_project(
             }
         ],
     }
+
+    # Keep the staff graph in one deployment with a separate execution role,
+    # endpoint and session. It carries no database secret and reads no Memory.
+    operator_runtime = copy.deepcopy(project["runtimes"][0])
+    operator_runtime.update(name=identity.operator_runtime_name, entrypoint="operator_runtime.py",
+                            description="Pellier staff Investigator and Advisor graph")
+    operator_runtime["authorizerConfiguration"]["customJwtAuthorizer"]["customClaims"].append({
+        "inboundTokenClaimName": STAFF_CLAIM,
+        "inboundTokenClaimValueType": "STRING",
+        "authorizingClaimMatchValue": {
+            "claimMatchOperator": "EQUALS",
+            "claimMatchValue": {"matchValueString": STAFF_RETURNS_SCOPE},
+        },
+    })
+    project["runtimes"].append(operator_runtime)
 
     # CodeZip's platform defaults can still send ADOT spans to aws/spans even
     # with unified tracing enabled. Once deployment supplies the Runtime IDs,

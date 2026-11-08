@@ -52,7 +52,9 @@ class TestTheSchemaAndTheSet:
     def test_only_published_tools_are_actions(self) -> None:
         actions = set(lab4.gateway_cedar_schema()["AgentCore"]["actions"]) - {"Mcp", "CallTool"}
         assert "pellier-store-tools___get_tickets" not in actions, "deferred until Lab 3A"
-        assert len(actions) == 8
+        expected = {f"{target}___{tool}" for target, tools in lab4.workshop_target_tools().items()
+                    for tool in tools}
+        assert actions == expected
 
     def test_the_baseline_validates_and_alone_allows_staff_any_amount(self) -> None:
         alone = lab4.assess(None, lab4.gateway_cedar_schema(), lab4.baseline_set())

@@ -243,6 +243,11 @@ def package_files(mcp_server_path, handler):
     if not os.path.exists(module_path):
       raise FileNotFoundError(f"Shared module not found: {module_path}")
     files[module] = module_path
+  if handler.startswith('pellier_operator_tools.'):
+    deploy_dir = Path(mcp_server_path).resolve().parent
+    backend = deploy_dir.parent.parent / 'pellier' / 'backend'
+    for name in ('operator_graph', 'operator_review'):
+      files[f'services/{name}.py'] = str(backend / 'services' / f'{name}.py')
   files[handler.split('.')[0] + '.py'] = mcp_server_path
   return files
 

@@ -225,6 +225,10 @@ else
   fail "AGENTCORE_RUNTIME_ENDPOINT is empty in $ENV_FILE; Runtime is not provisioned"
   refused=true
 fi
+if [ -z "${AGENTCORE_OPERATOR_RUNTIME_ENDPOINT:-}" ]; then
+  fail "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT is empty; the staff Runtime is not provisioned"
+  refused=true
+fi
 if $refused; then
   fail "Refusing to switch rails: the storefront would degrade to in-process and call it managed"
   exit 1

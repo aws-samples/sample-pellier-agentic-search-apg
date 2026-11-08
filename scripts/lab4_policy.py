@@ -57,6 +57,7 @@ for _path in (DEPLOY, BACKEND):
         sys.path.insert(0, str(_path))
 
 from gateway_tool_schemas import TOOL_SCHEMAS, workshop_target_tools  # noqa: E402
+from gateway_tool_schemas import OPERATOR_SCHEMA  # noqa: E402
 from render_agentcore_project import (  # noqa: E402
     CREDIT_LIMIT_POLICY,
     CREDIT_LIMIT_SOURCE,
@@ -223,7 +224,7 @@ def gateway_cedar_schema() -> Dict[str, Any]:
     """
     published = {tool for tools in workshop_target_tools().values() for tool in tools}
     actions: Dict[str, Any] = {"Mcp": {}, "CallTool": {"memberOf": [{"id": "Mcp"}]}}
-    for config in TOOL_SCHEMAS.values():
+    for config in [*TOOL_SCHEMAS.values(), OPERATOR_SCHEMA]:
         for tool in config["tools"]:
             if tool["name"] not in published:
                 continue

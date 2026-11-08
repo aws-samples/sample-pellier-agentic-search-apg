@@ -149,11 +149,12 @@ def test_the_staff_block_is_written_once_and_reuses_the_stored_password() -> Non
     writer = (SCRIPTS / "write-test-credentials.sh").read_text(encoding="utf-8")
     assert "umask 077" in writer
     assert writer.index("umask 077") < writer.index('} > "$OUT_FILE"')
-    assert "continue" in writer.split("PELLIER_OPERATOR_USERNAME", 1)[1][:200]
+    assert "Staff (Nadia)" in writer
+    assert '>> "$CREDENTIALS_FILE"' not in BOOTSTRAP
     assert "get-secret-value" in BOOTSTRAP.split("OPERATOR_PASSWORD=", 1)[1][:300]
 
 
-def test_the_credentials_writer_skips_the_staff_user(tmp_path: Path) -> None:
+def test_the_credentials_writer_includes_staff_once_without_shopper_preferences(tmp_path: Path) -> None:
     fake_bin = tmp_path / "bin"
     fake_bin.mkdir()
     secret = {"users": [{"username": "marco", "password": "pw-marco"},
@@ -170,7 +171,9 @@ def test_the_credentials_writer_skips_the_staff_user(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     body = out.read_text(encoding="utf-8")
     assert "pw-marco" in body
-    assert "old-nadia" not in body and "Nadia" not in body.split("Username:", 1)[1]
+    assert body.count("Username: Nadia") == 1 and body.count("Password: old-nadia") == 1
+    staff = body.split("Username: Nadia", 1)[1]
+    assert "Staff (Nadia)" in staff and "Pre-configured preferences" not in staff
     assert stat.S_IMODE(out.stat().st_mode) == 0o600
 
 

@@ -40,11 +40,11 @@ fi
 # Personalization preferences are seeded only for the three Storefront personas.
 # Jessica is a Lab 4 identity principal and Operator client, so her credential is
 # labeled separately and intentionally has no Storefront preference bundle.
-declare -A PREF_LABEL
+declare -a PREF_LABEL
 PREF_LABEL[1]="neutral, linen, travel, everyday, classic"
 PREF_LABEL[2]="bold, creative, warm, evening, dresses"
 PREF_LABEL[3]="minimal, serene, earth, slow, home"
-declare -A ROLE_LABEL
+declare -a ROLE_LABEL
 ROLE_LABEL[4]="Lab 4 shopper: Jessica's store-credit case"
 ROLE_LABEL[5]="Staff (Nadia): approves credits on the Operator desk; signs in with this password"
 
@@ -65,17 +65,17 @@ ROLE_LABEL[5]="Staff (Nadia): approves credits on the Operator desk; signs in wi
         n=$((i + 1))
         username=$(echo "$CREDS_JSON" | jq -r ".users[$i].username")
         password=$(echo "$CREDS_JSON" | jq -r ".users[$i].password")
-        # bootstrap-labs.sh writes the staff block itself, with the password it sets in
-        # Cognito; writing it here too would leave a second block with a stale password.
-        if [ "$(printf '%s' "$username" | tr '[:upper:]' '[:lower:]')" = "${PELLIER_OPERATOR_USERNAME:-nadia}" ]; then
-            continue
-        fi
+        # Staff identity is seeded before managed readiness and written here once.
+        # tr, not ${username,,}: the script also runs under macOS's bash 3.2.
+        lower=$(printf '%s' "$username" | tr '[:upper:]' '[:lower:]')
         echo "Username: $username"
         echo "Password: $password"
-        if [ -n "${PREF_LABEL[$n]:-}" ]; then
+        if [ "$lower" = "${PELLIER_OPERATOR_USERNAME:-nadia}" ]; then
+            echo "Workshop role: ${ROLE_LABEL[5]}"
+        elif [ -n "${PREF_LABEL[$n]:-}" ]; then
             echo "Pre-configured preferences: ${PREF_LABEL[$n]}"
         fi
-        if [ -n "${ROLE_LABEL[$n]:-}" ]; then
+        if [ "$lower" != "${PELLIER_OPERATOR_USERNAME:-nadia}" ] && [ -n "${ROLE_LABEL[$n]:-}" ]; then
             echo "Workshop role: ${ROLE_LABEL[$n]}"
         fi
         echo ""

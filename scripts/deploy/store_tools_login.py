@@ -57,12 +57,12 @@ def scram_verifier(password: str, salt: Optional[bytes] = None,
     return f"SCRAM-SHA-256${iterations}:{_b64(salt)}${_b64(stored_key)}:{_b64(server_key)}"
 
 
-def password_from_secret(secrets: Any, secret_arn: str) -> str:
+def password_from_secret(secrets: Any, secret_arn: str, login: str = LOGIN) -> str:
     """The login's password, after checking the secret names this login."""
     raw = secrets.get_secret_value(SecretId=secret_arn)["SecretString"]
     value = json.loads(raw)
-    if value.get("username") != LOGIN:
-        raise SystemExit(f"{secret_arn} must hold the {LOGIN} login, not "
+    if value.get("username") != login:
+        raise SystemExit(f"{secret_arn} must hold the {login} login, not "
                          f"{value.get('username')!r}; check the database stack's secret")
     return str(value.get("password") or "")
 
@@ -75,21 +75,23 @@ def _statement(rds_data: Any, cluster_arn: str, secret_arn: str, database: str,
 
 
 def ensure_login(*, secrets: Any, rds_data: Any, cluster_arn: str, master_secret_arn: str,
-                 login_secret_arn: str, database: str) -> None:
+                 login_secret_arn: str, database: str, login: str = LOGIN) -> None:
     """Give the login its password, then prove the login secret signs in as it.
 
     Raises:
         SystemExit: The secret names another user, or the login does not sign in as
             ``pellier_store_tools``. The message says which.
     """
-    verifier = scram_verifier(password_from_secret(secrets, login_secret_arn))
+    if login not in {LOGIN, "pellier_operator_tools"}:
+        raise ValueError("unrecognized tool login")
+    verifier = scram_verifier(password_from_secret(secrets, login_secret_arn, login))
     if not _VERIFIER.fullmatch(verifier):
         raise SystemExit("refusing to send a malformed SCRAM verifier")
     _statement(rds_data, cluster_arn, master_secret_arn, database,
-               f"ALTER ROLE {LOGIN} WITH LOGIN PASSWORD '{verifier}'")
+               f"ALTER ROLE {login} WITH LOGIN PASSWORD '{verifier}'")
     records = _statement(rds_data, cluster_arn, login_secret_arn, database,
                          "SELECT current_user::text")
     signed_in = records[0][0].get("stringValue") if records and records[0] else None
-    if signed_in != LOGIN:
-        raise SystemExit(f"the store tools' secret signs in as {signed_in!r}, not {LOGIN}; "
+    if signed_in != login:
+        raise SystemExit(f"the tools' secret signs in as {signed_in!r}, not {login}; "
                          "the Lambda was not deployed")

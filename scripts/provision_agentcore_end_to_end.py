@@ -52,6 +52,7 @@ from gateway_tool_schemas import (  # noqa: E402
     schema_for,
 )
 from runtime_log_delivery import ensure_runtime_log_delivery  # noqa: E402
+from gateway_tool_schemas import OPERATOR_SCHEMA  # noqa: E402
 from render_agentcore_project import (  # noqa: E402
     CREDIT_LIMIT_POLICY,
     CREDIT_LIMIT_SOURCE,
@@ -78,6 +79,11 @@ EXPECTED_TARGETS = {
         "handler": "pellier_store_tools.lambda_handler",
         "server_name": f"{_SERVER_PREFIX}-store-tools-server",
         "entrypoint": "scripts/deploy/pellier_store_tools.py",
+    },
+    "operator": {
+        "handler": "pellier_operator_tools.lambda_handler",
+        "server_name": f"{_SERVER_PREFIX}-operator-tools-server",
+        "entrypoint": "scripts/deploy/pellier_operator_tools.py",
     },
 }
 
@@ -1147,6 +1153,21 @@ def _ensure_store_tools_login(region: str, required: dict[str, str], db_name: st
         database=db_name,
     )
     print(f"Store tools sign in to Aurora as {store_tools_login.LOGIN}")
+    # This idempotent block also upgrades existing events without resetting data.
+    schema = (SCRIPTS_DIR / "migrations" / "001_schema.sql").read_text()
+    block = schema.split("-- === OPERATOR DATABASE ROLE: START ===", 1)[1].split(
+        "-- === OPERATOR DATABASE ROLE: END ===", 1)[0].strip()
+    data = boto3.client("rds-data", region_name=region, config=AWS_CONFIG)
+    data.execute_statement(resourceArn=required["db_cluster_arn"],
+                           secretArn=required["db_secret_arn"], database=db_name, sql=block)
+    store_tools_login.ensure_login(
+        secrets=boto3.client("secretsmanager", region_name=region, config=AWS_CONFIG),
+        rds_data=data, cluster_arn=required["db_cluster_arn"],
+        master_secret_arn=required["db_secret_arn"],
+        login_secret_arn=required["operator_tools_secret_arn"], database=db_name,
+        login="pellier_operator_tools",
+    )
+    print("Staff tools sign in to Aurora as pellier_operator_tools")
 
 
 def _ensure_data_api_enabled(region: str, db_cluster_arn: str) -> None:
@@ -1188,6 +1209,8 @@ def _cognito_access_token(
     credentials_secret_arn: str,
     client_secret_arn: str | None,
     expect_customer_claim: bool = False,
+    requested_user: str = "",
+    expect_staff_scope: bool = False,
     claim_attempts: int = 12,
     claim_wait_seconds: float = 10.0,
 ) -> tuple[str, str]:
@@ -1211,8 +1234,10 @@ def _cognito_access_token(
     if not users:
         raise RuntimeError("Cognito test credentials secret has no users")
 
-    username = str(users[0].get("username", ""))
-    password = str(users[0].get("password", ""))
+    from gateway_client import select_credential
+    user = select_credential(users, requested_user)
+    username = str(user.get("username", ""))
+    password = str(user.get("password", ""))
     if not username or not password:
         raise RuntimeError("Cognito test credentials are missing username/password")
 
@@ -1239,14 +1264,16 @@ def _cognito_access_token(
         access_token = response.get("AuthenticationResult", {}).get("AccessToken")
         if not access_token:
             raise RuntimeError("Cognito did not return an access token")
-        if not expect_customer_claim:
+        if not expect_customer_claim and not expect_staff_scope:
             break
-        claim = str(_unverified_token_claims(str(access_token)).get("custom:customer_id") or "")
-        if claim.strip():
+        claim_name = "custom:staff_scope" if expect_staff_scope else "custom:customer_id"
+        claim = str(_unverified_token_claims(str(access_token)).get(claim_name) or "")
+        claim_matches = claim == "returns" if expect_staff_scope else bool(claim.strip())
+        if claim_matches:
             break
         if attempt < claim_attempts:
             print(
-                "The access token carries no custom:customer_id yet (the pre-token "
+                f"The access token carries no {claim_name} yet (the pre-token "
                 f"trigger attachment is still taking effect); minting again in "
                 f"{claim_wait_seconds:g}s ({attempt}/{claim_attempts})",
                 flush=True,
@@ -1254,9 +1281,9 @@ def _cognito_access_token(
             time.sleep(claim_wait_seconds)
     else:
         raise RuntimeError(
-            f"The access token carried no custom:customer_id after {claim_attempts} "
+            f"The access token carried no {claim_name} after {claim_attempts} "
             "sign-ins: the pre-token claim trigger is attached but not stamping tokens, "
-            "so no shopper could reach the Runtime"
+            "so this caller cannot reach the Runtime"
         )
     verified_user = cognito.get_user(AccessToken=str(access_token))
     verified_username = str(verified_user.get("Username", "")).strip()
@@ -1398,11 +1425,8 @@ def _deploy_cli_project(
     state = _read_deployed_state(root)
     gateway_state = _require_gateway_state(state, identity.gateway_name)
     _require_state_resource(state, "policyEngines", identity.policy_engine_name)
-    runtime_arns = {
-        identity.runtime_name: str(
-            _require_state_resource(state, "runtimes", identity.runtime_name)["runtimeArn"]
-        )
-    }
+    runtime_arns = {name: str(_require_state_resource(state, "runtimes", name)["runtimeArn"])
+                    for name in (identity.runtime_name, identity.operator_runtime_name)}
     if after_first_deploy is not None:
         after_first_deploy(state)
 
@@ -1493,6 +1517,7 @@ def _deploy_lambdas(
     db_region: str,
     db_cluster_arn: str,
     store_tools_secret_arn: str,
+    operator_tools_secret_arn: str,
     db_name: str,
     identity: DeploymentIdentity | None = None,
 ) -> dict[str, str]:
@@ -1513,7 +1538,7 @@ def _deploy_lambdas(
                 "--db-region",
                 db_region,
                 "--secret-arn",
-                store_tools_secret_arn,
+                operator_tools_secret_arn if surface == "operator" else store_tools_secret_arn,
                 "--database",
                 db_name,
                 "--mcp-server-path",
@@ -1607,8 +1632,9 @@ def _verify_local_schema() -> dict[str, Any]:
     """
     names: list[str] = []
     target_for: dict[str, str] = {}
-    for surface, config in TOOL_SCHEMAS.items():
-        for tool in schema_for(surface, workshop=True):
+    for surface, config in {**TOOL_SCHEMAS, "operator": OPERATOR_SCHEMA}.items():
+        for tool in (OPERATOR_SCHEMA["tools"] if surface == "operator"
+                     else schema_for(surface, workshop=True)):
             names.append(tool["name"])
             target_for.setdefault(tool["name"], config["target_name"])
 
@@ -1638,7 +1664,7 @@ def _verify_gateway_control_plane(
         region_name=region,
         config=AWS_CONFIG,
     )
-    expected = {schema["target_name"] for schema in TOOL_SCHEMAS.values()}
+    expected = {schema["target_name"] for schema in TOOL_SCHEMAS.values()} | {OPERATOR_SCHEMA["target_name"]}
     observed: set[str] = set()
     paginator = control.get_paginator("list_gateway_targets")
     for page in paginator.paginate(gatewayIdentifier=gateway_id):
@@ -1825,6 +1851,10 @@ def _discover_live_gateway_tools(
         for surface in TOOL_SCHEMAS
         for tool in schema_for(surface, workshop=True)
     }
+    operator_names = {tool["name"] for tool in OPERATOR_SCHEMA["tools"]}
+    published |= operator_names
+    if has_staff_scope:
+        expected |= operator_names
     if len(tools) != len(expected) or canonical_names != expected:
         raise RuntimeError(
             "Live Gateway discovery mismatch for a caller with "
@@ -1832,7 +1862,7 @@ def _discover_live_gateway_tools(
             f"expected {sorted(expected)}, observed {sorted(canonical_names)} "
             f"(published tools are {sorted(published)})"
         )
-    leaked = sorted(canonical_names & STAFF_ONLY_GATEWAY_TOOLS) if not has_staff_scope else []
+    leaked = sorted(canonical_names & (STAFF_ONLY_GATEWAY_TOOLS | operator_names)) if not has_staff_scope else []
     if leaked:
         raise RuntimeError(
             f"Staff-only tools are discoverable by a non-staff token: {leaked}"
@@ -1895,6 +1925,65 @@ def _rendered_build_fingerprint(root: Path) -> str:
         elif isinstance(node, list):
             stack.extend(node)
     return ""
+
+
+def _operator_runtime_smoke(*, region: str, required: dict, client_secret_arn: str | None,
+                            runtime_arn: str, expected_fingerprint: str) -> dict:
+    """Prove staff identity, Gateway access, RLS visibility and the deployed build.
+
+    Inspection runs no model and creates no proposal. It invokes a real staff
+    tool whose unfiltered order/ticket reads must return only the selected case.
+    Each attempt has its own turn; the audit row is correlated to that attempt.
+    """
+    from services.operator_runtime_client import investigate_on_runtime
+    from common.fingerprint import OPERATOR_SOURCE_PATHS, compute_fingerprint
+    tools_fingerprint = compute_fingerprint(deploy_lambda.package_files(
+        str(DEPLOY_DIR / "pellier_operator_tools.py"), "pellier_operator_tools.lambda_handler"
+    ), source_paths=OPERATOR_SOURCE_PATHS)
+    token, _username = _cognito_access_token(
+        region=region, user_pool_id=required["cognito_pool"], client_id=required["cognito_client"],
+        credentials_secret_arn=required["credentials_secret"], client_secret_arn=client_secret_arn,
+        requested_user="nadia", expect_staff_scope=True,
+    )
+    subject = _unverified_token_claims(token).get("sub")
+    if not isinstance(subject, str) or not subject:
+        raise RuntimeError("Staff token has no subject")
+    for attempt in range(12):
+        turn = f"turn-staff-smoke-{uuid.uuid4().hex}"
+        result = investigate_on_runtime(
+            customer_id="CUST-JESSICA", operator_sub=subject, access_token=token, turn_id=turn,
+            emit=lambda _step: None, operation="inspect", endpoint=runtime_arn, region=region,
+        )
+        if result["build_fingerprint"] == expected_fingerprint:
+            break
+        if attempt < 11:
+            time.sleep(20)
+    else:
+        raise RuntimeError("Staff Runtime did not serve the deployed build")
+    expected_case = {"database_role": "pellier_operator_tools", "visible_orders": ["CUST-JESSICA"],
+                     "visible_tickets": ["CUST-JESSICA"]}
+    if result.get("status") != "ready" or result.get("case_access") != expected_case:
+        raise RuntimeError("Staff Runtime case/RLS proof failed")
+    db = boto3.client("rds-data", region_name=os.environ.get("DB_REGION", region), config=AWS_CONFIG)
+    records = db.execute_statement(
+        resourceArn=required["db_cluster_arn"], secretArn=required["db_secret_arn"],
+        database=os.environ.get("DB_NAME", "postgres"),
+        sql="SELECT count(*) FROM pellier.tool_audit WHERE tool = 'operator_get_case' "
+            "AND args->>'turn_id' = :turn AND args->>'operator_sub' = :actor "
+            "AND args->>'customer_id' = 'CUST-JESSICA' AND build_fingerprint = :build "
+            "AND args->>'tools_fingerprint' = :tools",
+        parameters=[{"name": name, "value": {"stringValue": value}} for name, value in
+                    (("turn", turn), ("actor", subject), ("build", expected_fingerprint),
+                     ("tools", tools_fingerprint))],
+    ).get("records", [])
+    if records != [[{"longValue": 1}]]:
+        raise RuntimeError("Staff Runtime proof has no unique correlated execution receipt")
+    return {"mode": "inspect", "turn_id": turn, "customer_id": "CUST-JESSICA",
+            "build_fingerprint": result["build_fingerprint"], "build_fingerprint_expected": expected_fingerprint,
+            "build_fingerprint_match": True, "case_access": expected_case, "audit_rows": 1,
+            "tools_fingerprint": tools_fingerprint, "tools_fingerprint_expected": tools_fingerprint,
+            "tools_fingerprint_match": True,
+            "rail": "gateway-mcp"}
 
 
 def _decode_runtime_invoke(proc: subprocess.CompletedProcess[str]) -> dict[str, Any]:
@@ -2738,11 +2827,8 @@ def _redeploy_participant_edits(
     deployed_state = _read_deployed_state(root)
     gateway_state = _require_gateway_state(deployed_state, identity.gateway_name)
     policy_state = _require_state_resource(deployed_state, "policyEngines", identity.policy_engine_name)
-    runtime_arns = {
-        identity.runtime_name: str(
-            _require_state_resource(deployed_state, "runtimes", identity.runtime_name)["runtimeArn"]
-        )
-    }
+    runtime_arns = {name: str(_require_state_resource(deployed_state, "runtimes", name)["runtimeArn"])
+                    for name in (identity.runtime_name, identity.operator_runtime_name)}
     active_policies = _active_policy_names(
         region=region, policy_engine_id=str(policy_state["policyEngineId"])
     )
@@ -3028,6 +3114,9 @@ def _participant_update(
         "runtime_arn": str(runtime_state["runtimeArn"]),
         "agent_model_id": required["model_id"],
     }
+    result["operator_runtime"] = {
+        "runtime_arn": str(_require_state_resource(state, "runtimes", identity.operator_runtime_name)["runtimeArn"]),
+    }
     # The participant's render carries the Cedar policies, and Lab 3's own proof
     # is that a foreign customer's ticket read is denied. A deploy that quietly
     # dropped the policy engine would leave that read allowed, so attachment is
@@ -3046,7 +3135,7 @@ def _participant_update(
     progress.begin("Checking the Gateway's published tools", typical=STEP_SECONDS["gateway"])
     control_proof = _verify_gateway_control_plane(region=region, gateway_id=gateway_id)
     result["verification"]["gateway_control_plane"] = control_proof
-    result["verification"]["targets_attached"] = control_proof["target_count"] == 1
+    result["verification"]["targets_attached"] = control_proof["target_count"] == len(EXPECTED_TARGETS)
 
     access_token, smoke_username = _cognito_access_token(
         region=region,
@@ -3086,12 +3175,18 @@ def _participant_update(
     result["verification"]["runtime_build_fingerprint_match"] = runtime_smoke[
         "build_fingerprint_match"
     ]
+    result["verification"]["operator_runtime_smoke"] = _operator_runtime_smoke(
+        region=region, required=required, client_secret_arn=client_secret_arn,
+        runtime_arn=result["operator_runtime"]["runtime_arn"], expected_fingerprint=_rendered_build_fingerprint(root),
+    )
+    result["verification"]["operator_runtime_verified"] = True
     progress.end()
 
     # Named apart from the full run's `required_checks` on purpose: that gate is
     # the complete managed contract, and a narrower list must never be mistaken
     # for it by a reader or by a contract test scanning this source.
     participant_checks = (
+        "operator_runtime_verified",
         "targets_attached",
         "gateway_tools_discovered",
         "authenticated_runtime_invoke_smoke",
@@ -3207,6 +3302,7 @@ def _provision(
         "db_cluster_arn": _require_env("DB_CLUSTER_ARN"),
         "db_secret_arn": _require_env("DB_SECRET_ARN"),
         "store_tools_secret_arn": _require_env("STORE_TOOLS_SECRET_ARN"),
+        "operator_tools_secret_arn": _require_env("OPERATOR_TOOLS_SECRET_ARN"),
         "cognito_pool": _require_env("COGNITO_POOL"),
         "cognito_client": _require_env("COGNITO_CLIENT"),
         "credentials_secret": _require_env(
@@ -3400,6 +3496,7 @@ def _provision(
             db_region=db_region,
             db_cluster_arn=required["db_cluster_arn"],
             store_tools_secret_arn=required["store_tools_secret_arn"],
+            operator_tools_secret_arn=required["operator_tools_secret_arn"],
             db_name=db_name,
             identity=identity,
         )
@@ -3479,6 +3576,9 @@ def _provision(
             "opus_model_id": opus_model_id,
             "sonnet_model_id": sonnet_model_id,
         }
+        result["operator_runtime"] = {
+            "runtime_arn": str(_require_state_resource(state, "runtimes", identity.operator_runtime_name)["runtimeArn"]),
+        }
         runtime_log_group = _ensure_runtime_log_group(
             region=region,
             runtime_arn=runtime_arn,
@@ -3487,9 +3587,19 @@ def _provision(
             on_cleanup_state=checkpoint_runtime_log_group,
         )
         result["observability"]["runtime_log_group"] = runtime_log_group
+        def checkpoint_operator_log(group):
+            result["observability"]["operator_runtime_log_group"] = group
+            checkpoint()
+
+        operator_log_group = _ensure_runtime_log_group(
+            region=region, runtime_arn=result["operator_runtime"]["runtime_arn"],
+            kms_key_arn=required["runtime_log_kms_key_arn"], retention_days=runtime_log_retention_days,
+            on_cleanup_state=checkpoint_operator_log,
+        )
+        result["observability"]["operator_runtime_log_group"] = operator_log_group
         checkpoint()
         encrypted, bounded = _log_protection_checks(
-            [runtime_log_group],
+            [runtime_log_group, operator_log_group],
             kms_key_arn=required["runtime_log_kms_key_arn"],
             retention_days=runtime_log_retention_days,
         )
@@ -3517,7 +3627,7 @@ def _provision(
         )
         result["verification"]["gateway_control_plane"] = control_proof
         result["verification"]["targets_attached"] = (
-            control_proof["target_count"] == 1
+            control_proof["target_count"] == len(EXPECTED_TARGETS)
         )
 
         # Identity reaches Cedar as a claim, so the pool's pre-token trigger is
@@ -3655,6 +3765,11 @@ def _provision(
             "build_fingerprint_match"
         ]
         stage("unified agent, model and tool trace (maximum 900s)")
+        result["verification"]["operator_runtime_smoke"] = _operator_runtime_smoke(
+            region=region, required=required, client_secret_arn=client_secret_arn,
+            runtime_arn=result["operator_runtime"]["runtime_arn"], expected_fingerprint=_rendered_build_fingerprint(root),
+        )
+        result["verification"]["operator_runtime_verified"] = True
         trace_proof = _wait_for_unified_trace(
             root=root,
             session_id=runtime_smoke["session_id"],
@@ -3687,6 +3802,7 @@ def _provision(
         )
 
         required_checks = (
+            "operator_runtime_verified",
             "targets_attached",
             "gateway_tools_discovered",
             "memory_seeded",

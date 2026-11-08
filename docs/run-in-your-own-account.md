@@ -24,11 +24,14 @@ Region, usage and agreements. Check the linked pricing pages or the
 | Aurora PostgreSQL | engine 18.3, one Serverless v2 writer scaling between 0 and 16 ACU, Advanced Database Insights, PostgreSQL logs to CloudWatch | [Aurora](https://aws.amazon.com/rds/aurora/pricing/) |
 | VPC | two NAT gateways with Elastic IPs and three interface endpoints (Bedrock Runtime, Secrets Manager, STS) in two subnets | [VPC](https://aws.amazon.com/vpc/pricing/) |
 | CloudFront and WAF | one distribution with a VPC origin; a web ACL in us-east-1 only | [CloudFront](https://aws.amazon.com/cloudfront/pricing/), [WAF](https://aws.amazon.com/waf/pricing/) |
-| Secrets Manager, Cognito, KMS | six secrets (two database logins, Code Editor, the CloudFront origin credential, the Cognito app client and the demo accounts), a user pool with a hosted domain, one customer-managed key for AgentCore logs | [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [KMS](https://aws.amazon.com/kms/pricing/) |
+| Secrets Manager, Cognito, KMS | seven secrets (three database logins, Code Editor, the CloudFront origin credential, the Cognito app client and the demo accounts), a user pool with a hosted domain, one customer-managed key for AgentCore logs | [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [KMS](https://aws.amazon.com/kms/pricing/) |
 | CloudWatch and Lambda | log groups, X-Ray transaction search, the custom-resource and tool Lambdas | [CloudWatch](https://aws.amazon.com/cloudwatch/pricing/), [Lambda](https://aws.amazon.com/lambda/pricing/) |
 | AgentCore (from Lab 3) | Runtime, Gateway, Memory and Policy | [AgentCore](https://aws.amazon.com/bedrock/agentcore/pricing/) |
 | Bedrock model calls | Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4, Cohere Rerank 3.5 | [Bedrock](https://aws.amazon.com/bedrock/pricing/) |
 | S3 | the private bucket holding the four templates | [S3](https://aws.amazon.com/s3/pricing/) |
+
+The measured run below predates the separate Operator Runtime and staff tool Lambda.
+Their deployment time and usage need a new rehearsal.
 
 The newest proof run built the stack in 39 min 43 s and removed it in 31 min 7 s, as the
 deploy and teardown commands printed it (`Stack ready in 39 min 43 s`, `Stack deleted in 31
@@ -51,7 +54,7 @@ cent per thousand requests.
 | Public IPv4 addresses of the NAT gateways | 2 | $0.005 an hour each | $0.010 |
 | WAF web ACL, us-east-1 only | 1, with 2 rules | $5 a month, plus $1 a month per rule | $0.010 |
 | Database Insights, Advanced mode | 0.5 ACU monitored | $0.003125 per ACU-hour | $0.002 |
-| KMS key and Secrets Manager secrets | 1 key, 6 secrets | $1 a month per key, $0.40 a month per secret | $0.005 |
+| KMS key and Secrets Manager secrets | 1 key, 7 secrets | $1 a month per key, $0.40 a month per secret | $0.005 |
 | **Total** | | | **$0.52 an hour, about $379 a month** |
 
 When c6g capacity is short, the stack takes the same size in c7g, m6g or m7g, at that type's price.
@@ -242,7 +245,7 @@ receipt lives only on the host, so if the host is stopped, the receipt is gone o
 fails, the command stops before deleting anything and says what to fix (`--force` deletes
 anyway and lists what you must restore by hand). It then deletes the log deliveries, the
 inline policy on the Gateway role and the `AgentCore-pellier-default` stack the AgentCore CLI
-created; the two Lambda functions, their roles and their log groups; the AgentCore log groups;
+created; the three Lambda functions, their roles and their log groups; the AgentCore log groups;
 and the workshop stack, which it waits for. With the two flags below it also schedules the
 retained KMS key for deletion, only when the host restored the account-wide settings, and
 empties and deletes the bucket, only if this script created it. It refuses a stack name it

@@ -49,6 +49,7 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     assert _rows(fresh_db, "SELECT p.proname FROM pg_proc p JOIN pg_namespace n "
                            "ON n.oid = p.pronamespace WHERE n.nspname = 'pellier' "
                            "ORDER BY 1") == [
+        "approvals_decision_is_final",  # a recorded decision cannot change, for any login
         "check_stock", "give_store_credit", "retrieval_receipts_append_only",
         "set_updated_at",
         "store_credits_require_approval", "tool_audit_fill_once",
@@ -56,17 +57,20 @@ def test_the_objects_beside_the_tables_are_few_and_named(fresh_db):
     assert _rows(fresh_db, "SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid "
                            "JOIN pg_namespace n ON n.oid = c.relnamespace "
                            "WHERE n.nspname = 'pellier' AND NOT t.tgisinternal ORDER BY 1") == [
+        "approvals_decision_is_final",
         "product_catalog_set_updated_at", "retrieval_receipts_append_only",
         "store_credits_require_approval", "tool_audit_fill_once",
     ]
     assert _rows(fresh_db, "SELECT tablename || '.' || policyname FROM pg_policies "
                            "WHERE schemaname = 'pellier' ORDER BY 1") == [
-        "orders.orders_own_rows", "support_tickets.support_tickets_own_rows",
+        "orders.operator_orders_case", "orders.orders_own_rows",
+        "support_tickets.operator_tickets_case", "support_tickets.support_tickets_own_rows",
     ]
     assert _rows(fresh_db, "SELECT rolname FROM pg_roles WHERE rolname LIKE 'pellier%' "
                            "ORDER BY 1") == ["pellier_agent",
                                              "pellier_credit_owner",  # owns give_store_credit
                                              "pellier_credit_writer",
+                                             "pellier_operator_tools",
                                              "pellier_store_tools"]  # the Gateway Lambda's login
     # This cluster has no pgAudit library, so the schema built without the extension.
     assert _rows(fresh_db, "SELECT extname FROM pg_extension ORDER BY 1") == [

@@ -243,3 +243,18 @@ def test_the_solution_worksheet_deploys_a_predicate_the_check_recognises(
             conn.execute(f"ALTER POLICY {policy} USING ({row['qual']}) "
                          f"WITH CHECK ({row['with_check']})")
             conn.execute(f"COMMENT ON POLICY {policy} IS NULL")
+
+
+@pytest.mark.parametrize("role", ["public", "pellier_agent"])
+def test_worksheet_still_refuses_an_extra_policy_that_applies_to_the_shopper(fresh_db, conn, role):
+    import subprocess
+
+    conn.execute(f"CREATE POLICY extra_read ON pellier.orders FOR SELECT TO {role} USING (true)")
+    try:
+        done = subprocess.run(
+            [str(fresh_db.bin / "psql"), "-X", "-h", str(fresh_db.socket), "-U", "postgres",
+             "-d", "postgres", "-f", str(SOLUTION)], capture_output=True, text=True, timeout=60)
+        assert done.returncode != 0
+        assert "3 applicable permissive policies" in done.stderr
+    finally:
+        conn.execute("DROP POLICY extra_read ON pellier.orders")
