@@ -99,7 +99,7 @@ Parameters:
 
   InfrastructureRevision:
     Type: String
-    Default: "9f6661af0ca24fc6"
+    Default: "715fc40ac378ec6b"
     AllowedPattern: ^[0-9a-f]{16}$
     ConstraintDescription: Use the 16-character release-tooling digest.
     Description: >

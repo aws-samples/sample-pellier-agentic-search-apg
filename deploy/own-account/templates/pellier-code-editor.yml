@@ -1397,13 +1397,16 @@ Resources:
           Value: pellier
         - Key: Event
           Value: !Ref EventName
+      # The worker logs to a file: CloudFormation gets the authoritative signal from the
+      # bootstrap, and plain redirection avoids process substitution in minimal shells.
+      # Rationale lives here, not in the script: EC2 caps user data at 16 KB.
       UserData:
         Fn::Base64: !Sub
         - |
           #!/bin/bash
           set -Eeuo pipefail
           umask 077
-          # Persist the worker before any package install; account-managed patching may reboot this host.
+          # Persist the worker first; account-managed patching may reboot this host.
           install -d -o root -g root -m 0700 /var/lib/pellier-bootstrap
           cat > /var/lib/pellier-bootstrap/inputs.env.tmp <<'PELLIER_INPUTS'
           export WORKSHOP_ID="${WorkshopId}"
@@ -1451,10 +1454,7 @@ Resources:
           test ! -f "$STATE/completed" || exit 0
           test ! -f "$STATE/failed" || exit 1
           source "$STATE/inputs.env"
-          # Keep the worker portable across AL2023 and local contract fixtures.
-          # Durable file logging is sufficient here; CloudFormation receives the
-          # authoritative signal below, and this avoids process-substitution
-          # dependencies in minimal bootstrap shells.
+          # Portable across AL2023 and local contract fixtures.
           exec >> /var/log/pellier-bootstrap-worker.log 2>&1
           phase=initializing
 
@@ -1602,7 +1602,7 @@ Resources:
 
             mark_done cognito.done
           fi
-          # Participant convenience exports exclude the two secret values. Root never sources this copy.
+          # Participant exports omit both secrets; root never sources this copy.
           sed '/^export CODE_EDITOR_PASSWORD=/d; /^export ORIGIN_VERIFY_TOKEN=/d' "$STATE/inputs.env" > '${HomeFolder}/.pellier-env'
           chown ${CodeEditorUser}:${CodeEditorUser} '${HomeFolder}/.pellier-env'
           chmod 600 '${HomeFolder}/.pellier-env'
@@ -1653,7 +1653,7 @@ Resources:
           PELLIER_UNIT
           systemctl daemon-reload
           systemctl enable pellier-bootstrap.service
-          # cloud-final must return before this worker starts; do not synchronously wait here.
+          # cloud-final must return before this worker starts; never wait on it here.
           systemctl start --no-block pellier-bootstrap.service
         - RuntimeLogKeyArn: !If
             - CreateRuntimeLogKey
