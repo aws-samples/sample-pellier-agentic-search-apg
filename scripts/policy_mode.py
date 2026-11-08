@@ -100,11 +100,32 @@ def gateway_id_from_arn(arn: str) -> str:
     return arn.rsplit("/", 1)[-1] if "/" in arn else arn
 
 
+def _every_policy(client: Any, engine_id: str) -> List[Dict[str, Any]]:
+    """Every policy in the engine. ListPolicies returns ten a page, and the engine holds more.
+
+    Raises:
+        RuntimeError: the service repeated a page token, so the list cannot be trusted.
+    """
+    policies: List[Dict[str, Any]] = []
+    token: Optional[str] = None
+    seen: Set[str] = set()
+    while True:
+        page = (client.list_policies(policyEngineId=engine_id, nextToken=token) if token
+                else client.list_policies(policyEngineId=engine_id))
+        policies.extend(page.get("policies", []))
+        token = page.get("nextToken")
+        if not token:
+            return policies
+        if token in seen:
+            raise RuntimeError("ListPolicies repeated a page token; policy modes not read")
+        seen.add(token)
+
+
 def describe(client: Any, engine_id: str, gateway_id: Optional[str]) -> Dict[str, Any]:
     """Return the current mode at both scopes."""
     state: Dict[str, Any] = {"engine_id": engine_id, "policies": [], "gateway": None}
 
-    for policy in client.list_policies(policyEngineId=engine_id).get("policies", []):
+    for policy in _every_policy(client, engine_id):
         state["policies"].append(
             {
                 "policy_id": policy["policyId"],

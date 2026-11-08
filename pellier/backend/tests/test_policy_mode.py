@@ -56,8 +56,14 @@ class _FakeControlPlane:
         self.update_policy_calls: List[Dict[str, Any]] = []
         self.update_gateway_calls: List[Dict[str, Any]] = []
 
-    def list_policies(self, policyEngineId):  # noqa: N803 - boto3 casing
-        return {"policies": [dict(p) for p in self._policies.values()]}
+    def list_policies(self, policyEngineId, nextToken=None):  # noqa: N803 - boto3 casing
+        # Ten a page with a nextToken, as the live service answered on 2026-11-08.
+        start = int(nextToken or 0)
+        policies = [dict(p) for p in self._policies.values()]
+        page = {"policies": policies[start:start + 10]}
+        if start + 10 < len(policies):
+            page["nextToken"] = str(start + 10)
+        return page
 
     def get_policy(self, policyEngineId, policyId):  # noqa: N803
         return dict(self._policies[policyId])
@@ -93,6 +99,31 @@ def _policy(name: str, mode: str = "ACTIVE", effect: str = "forbid") -> Dict[str
         "status": "ACTIVE",
         "definition": {"cedar": {"statement": f'{effect}(principal, action, resource);'}},
     }
+
+
+def test_every_policy_is_read_past_the_first_page(monkeypatch):
+    """The governed engine holds 13 policies since the staff Runtime, and ListPolicies returns
+    ten a page. A one-page read reported three staff permits missing on the 2026-11-08 test
+    event, and the whole-workshop reset quarantined the box."""
+    tool = _load_tool()
+    monkeypatch.setattr(tool.time, "sleep", lambda _s: None)
+    names = [f"policy_{i:02d}" for i in range(13)]
+    client = _FakeControlPlane([_policy(name) for name in names])
+
+    assert sorted(p["name"] for p in tool.describe(client, "engine", None)["policies"]) == names
+    assert tool.verify_live(client, "engine", None,
+                            policy_modes=dict.fromkeys(names, "ACTIVE")) == []
+
+
+def test_a_repeated_page_token_is_refused():
+    tool = _load_tool()
+
+    class _Looping(_FakeControlPlane):
+        def list_policies(self, policyEngineId, nextToken=None):  # noqa: N803
+            return {"policies": [_policy("again")], "nextToken": "same"}
+
+    with pytest.raises(RuntimeError, match="repeated a page token"):
+        tool.describe(_Looping([]), "engine", None)
 
 
 def test_describe_identifies_general_output_policy_statement():
