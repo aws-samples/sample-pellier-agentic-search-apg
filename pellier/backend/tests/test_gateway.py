@@ -341,10 +341,11 @@ def test_the_managed_report_is_empty_when_the_bundle_carries_no_skills(monkeypat
     assert "SKILLS - loaded for this agent" not in prompt
 
 
-def test_the_managed_catalog_prompt_carries_requirements_across_the_conversation() -> None:
+def test_the_managed_catalog_prompt_says_requirements_come_from_the_conversation() -> None:
+    """The Runtime carries them across turns (active_requirements), so the model passes none."""
     _, prompt, _, _ = gateway._managed_specialist_spec("catalog")
-    assert "browse_department as arguments" in prompt
-    assert "including requirements the shopper stated earlier in this conversation" in prompt
+    assert "read from what the shopper typed in this conversation" in prompt
+    assert "search_products and browse_department take neither as an argument" in prompt
 
 
 @pytest.mark.usefixtures("solved_binding")

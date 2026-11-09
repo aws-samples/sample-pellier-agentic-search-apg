@@ -1,8 +1,9 @@
 """Managed ``search_products`` carries the shopper's requirements as SQL filters.
 
-The Gateway rail runs no structured extractor. The Catalog agent passes the
-shopper's budget, stock and exclusion requirements as explicit arguments, and
-the plan compiles them into the same predicates an in-process reading produces.
+The Gateway Lambda runs no structured extractor. A managed call carries the
+Runtime's reading of the shopper's words as ``requirements_json``, which replaces
+the stock and exclusion arguments; a direct Gateway call carries them as explicit
+arguments. The plan compiles either into the predicates an in-process reading produces.
 These tests drive ``lambda_handler`` with a Data API stand-in that applies the
 predicates it is handed, so a sold-out item, a candle and an item over budget
 can only come back if the SQL never asked to exclude them.
@@ -176,13 +177,57 @@ def test_the_published_schema_declares_the_two_requirement_arguments() -> None:
     assert "hard filter" in properties["exclusions"]["description"]
 
 
-def test_the_managed_catalog_prompt_asks_for_the_requirements_as_arguments() -> None:
+def test_the_managed_catalog_prompt_names_only_the_argument_the_runtime_honours() -> None:
+    """The Runtime reads stock and refusals from the shopper's words; the prompt offers neither."""
     from services.agentcore_gateway import _managed_specialist_prompt
 
     catalog = _managed_specialist_prompt("catalog")
-    for argument in ("max_price", "in_stock_only=true", "exclusions"):
-        assert argument in catalog
-    assert "in_stock_only" not in _managed_specialist_prompt("support")
+    assert "max_price" in catalog
+    assert "read from what the shopper typed" in catalog
+    for argument in ("in_stock_only", "exclusions"):
+        assert argument not in catalog
+    assert "max_price" not in _managed_specialist_prompt("support")
+
+
+def test_the_model_is_not_offered_the_requirements_the_runtime_reads_itself() -> None:
+    """On the 2026-11-09 release event the Catalog agent passed in_stock_only=true for Theo, the
+    Runtime's reading of his words replaced it, and Pellier told him the filter was not applied."""
+    from services.agentcore_gateway import _model_input_schema
+    from gateway_tool_schemas import schema_for
+
+    for name in ("search_products", "browse_department"):
+        tool = next(t for t in schema_for("store", workshop=True) if t["name"] == name)
+        published = set(tool["inputSchema"]["properties"])
+        shown = set(_model_input_schema(tool["inputSchema"])["properties"])
+        assert {"in_stock_only", "exclusions"} <= published, name
+        assert not {"in_stock_only", "exclusions", "requirements_json"} & shown, name
+        assert "max_price" in shown, name
+
+
+def test_managed_binding_drops_a_stock_filter_the_shopper_never_asked_for(monkeypatch):
+    from services import active_requirements, structured_extract
+    from services.agentcore_gateway import _bind_server_tool_context
+
+    class Extractor:
+        def extract(self, words):
+            return {"in_stock_only": False, "exclusions": [], "extraction_status": "parsed"}
+    monkeypatch.setattr(structured_extract, "get_structured_extractor", Extractor)
+    asked = {"query": "linen throw", "in_stock_only": True, "exclusions": ["wool"]}
+    token = active_requirements.bind_turn(session_id="managed-theo", principal="sub-theo",
+        message="Pick one piece you think I'd love.", conversation_history=[])
+    try:
+        bound = _bind_server_tool_context({"name": "search_products", "input": dict(asked)},
+                                          customer_id="CUST-THEO", turn_id="turn-test123")["input"]
+    finally:
+        active_requirements.reset_turn(token)
+        active_requirements.forget_session("managed-theo")
+    assert "in_stock_only" not in bound and "exclusions" not in bound
+    reading = json.loads(bound["requirements_json"])
+    assert reading["in_stock_only"] is False and reading["exclusions"] == []
+
+    unbound = _bind_server_tool_context({"name": "search_products", "input": dict(asked)},
+                                        customer_id="", turn_id="")["input"]
+    assert unbound["in_stock_only"] is True and unbound["exclusions"] == ["wool"]
 
 
 def test_browse_department_carries_the_same_requirement_arguments(

@@ -197,12 +197,11 @@ def _managed_specialist_prompt(
         )
     if specialist == "catalog":
         prompt += (
-            " Pass the shopper's requirements to search_products and "
-            "browse_department as arguments, never as words in the query: a "
-            "budget as max_price in dollars, a request for what is available as "
-            "in_stock_only=true, and anything they ruled out as exclusions, a "
-            "list of those words, including requirements the shopper stated earlier "
-            "in this conversation. The database enforces them as filters."
+            " Stock and anything the shopper ruled out are read from what the "
+            "shopper typed in this conversation, and the database enforces them "
+            "as filters, so search_products and browse_department take neither "
+            "as an argument. Put only what to find in the query. Pass a budget "
+            "the shopper stated as max_price in dollars."
         )
     prompt += "\n" + OUTPUT_RULES[specialist]
     return inject_skills(prompt, skills)
@@ -294,25 +293,32 @@ def _logical_gateway_tool_name(name: str) -> str:
 # the model never sees them: shown one, a model fills it in and may tell the
 # shopper so.
 _SERVER_SET_TOOL_INPUTS = frozenset({"turn_id", "build_fingerprint", "requirements_json", "memory_record_ids_json"})
+# Requirements the Runtime reads from the shopper's words into `requirements_json`, which
+# replaces these two arguments on a managed call. The model is not offered them either: on the
+# 2026-11-09 event the Catalog agent passed in_stock_only=true unasked, the reading replaced
+# it, and Pellier told the shopper its filter was not applied. A direct Gateway call has no
+# reading, so the Gateway's own schema keeps both.
+_SHOPPER_READ_TOOL_INPUTS = frozenset({"in_stock_only", "exclusions"})
+_MODEL_HIDDEN_TOOL_INPUTS = _SERVER_SET_TOOL_INPUTS | _SHOPPER_READ_TOOL_INPUTS
 
 
 def _model_input_schema(schema: Dict[str, Any]) -> Dict[str, Any]:
-    """The tool's input schema as the model sees it: without the server-set arguments."""
+    """The tool's input schema as the model sees it: without what the server sets or reads."""
     properties = schema.get("properties") or {}
-    if not _SERVER_SET_TOOL_INPUTS & set(properties):
+    if not _MODEL_HIDDEN_TOOL_INPUTS & set(properties):
         return schema
     shown = dict(schema)
     shown["properties"] = {name: spec for name, spec in properties.items()
-                           if name not in _SERVER_SET_TOOL_INPUTS}
+                           if name not in _MODEL_HIDDEN_TOOL_INPUTS}
     if "required" in schema:
         shown["required"] = [name for name in schema["required"]
-                             if name not in _SERVER_SET_TOOL_INPUTS]
+                             if name not in _MODEL_HIDDEN_TOOL_INPUTS]
     return shown
 
 
 @functools.lru_cache(maxsize=1)
 def _model_gateway_tool_class() -> type:
-    """Strands' MCP agent tool, with the server-set arguments left out of the model's spec.
+    """Strands' MCP agent tool, with the hidden arguments left out of the model's spec.
 
     It filters the spec Strands builds, never the MCP Tool itself: the Runtime installs
     newer packages than this lock, and their Tool names its schema differently.
@@ -423,6 +429,8 @@ def _bind_server_tool_context(
             reading["department_named_by_shopper"] = active_requirements.shopper_named_department(
                 tool_input.get("department"))
             tool_input["requirements_json"] = json.dumps(reading)
+            for name in _SHOPPER_READ_TOOL_INPUTS:
+                tool_input.pop(name, None)
 
     if turn_id:
         tool_input["turn_id"] = turn_id
