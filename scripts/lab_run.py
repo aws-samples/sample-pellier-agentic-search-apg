@@ -764,6 +764,28 @@ def _one_line(text: str, width: int = 140) -> str:
     return flat if len(flat) <= width else flat[: width - 3].rstrip() + "..."
 
 
+ANSWER_LABEL = "Pellier: "
+
+
+def _answer_lines(text: str, width: int) -> List[str]:
+    """Pellier's whole answer, wrapped to ``width``, with its own line breaks kept."""
+    lines: List[str] = []
+    for line in text.splitlines():
+        flat = " ".join(line.split())
+        if flat:
+            lines += textwrap.wrap(flat, max(width, 20), break_on_hyphens=False)
+    return lines or [""]
+
+
+def _print_answer(answer: str) -> None:
+    """Every word of the answer under its label: the terminal shows what the shopper reads."""
+    hang = TRACE_INDENT + " " * len(ANSWER_LABEL)
+    lines = _answer_lines(answer, check.terminal_width() - len(hang))
+    print(f"{TRACE_INDENT}{ANSWER_LABEL}{lines[0]}", flush=True)
+    for line in lines[1:]:
+        print(hang + line, flush=True)
+
+
 def converse(backend: Backend, lab: int, token: str, persona: str,
              requests: Sequence[str], trace: bool = True) -> None:
     """Start a new conversation as this shopper and send the requests in order.
@@ -798,8 +820,11 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
             ok(f"ran {RAIL_NAMES[served]} {turn}")
         else:
             ok(f'{persona.title()}: "{message}" ran {RAIL_NAMES[served]} {turn}')
-        print(f"{TRACE_INDENT}Pellier: {_one_line(answer, check.terminal_width() - 19)}",
-              flush=True)
+        if trace:
+            _print_answer(answer)
+        else:
+            width = check.terminal_width() - len(TRACE_INDENT + ANSWER_LABEL)
+            print(f"{TRACE_INDENT}{ANSWER_LABEL}{_one_line(answer, width)}", flush=True)
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
 
 

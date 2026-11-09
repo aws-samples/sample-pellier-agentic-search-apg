@@ -63,6 +63,8 @@ class FakeBackend:
         self.reviews: List[Dict[str, Any]] = []
         self.credited = False
         self.replay_writes_again = False
+        # Pellier's answer to each turn; None answers with the request it received.
+        self.reply: Optional[str] = None
 
     def answer(self, path: str, body: Dict[str, Any]) -> Any:
         if path == "/api/health":
@@ -107,7 +109,7 @@ class FakeBackend:
         if self.chat_error:
             return [(None, {"type": "turn_start"}),
                     (None, {"type": "error", "error": self.chat_error})]
-        response = {"response": f"Answer to {body['message']}", "rail": self.rail,
+        response = {"response": self.reply or f"Answer to {body['message']}", "rail": self.rail,
                     "turn_id": f"turn-{len(self.requests)}",
                     "railDecision": {"reason": "managed rail selected"}}
         return [(None, {"type": "turn_start"}), *[(None, step) for step in self.steps],
@@ -1649,6 +1651,59 @@ def test_quiet_keeps_the_one_line_output(
     assert "Router" not in out and "How it ranked" not in out
     assert '  + OK    Anna: "' in out and '" ran in process (turn ' in out
     assert all(turn["body"]["source"] == "terminal" for turn in _turns(fake))
+
+
+LONG_ANSWER = (
+    "Your records show we received both returns, the Reed Diffuser and the Waffle Bath Robe in "
+    "Sage, but the refund has not been issued yet. A person from the team will look at it today "
+    "and reply to you by email with what they find.\n"
+    "\n"
+    "- The Reed Diffuser was received on 2 November.\n"
+    "- The Waffle Bath Robe was received on 3 November."
+)
+
+
+def _answer_block(out: str) -> List[str]:
+    """The first answer as printed: its labelled line and the lines hung under it."""
+    lines = out.splitlines()
+    start = next(i for i, line in enumerate(lines)
+                 if line.startswith(lab_run.TRACE_INDENT + "Pellier: "))
+    hang = lab_run.TRACE_INDENT + " " * len("Pellier: ")
+    block = [lines[start]]
+    for line in lines[start + 1:]:
+        if not line.startswith(hang):
+            break
+        block.append(line)
+    return block
+
+
+def test_a_traced_send_prints_pelliers_whole_answer(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The answer used to be cut to one line ending "...", so the terminal hid what Pellier said."""
+    fake.steps = STEPS
+    fake.reply = LONG_ANSWER
+    monkeypatch.setattr(lab_run.check, "terminal_width", lambda: 100)
+    assert _run(fake, 1) == 0
+    block = _answer_block(capsys.readouterr().out)
+    assert all(len(line) <= 100 for line in block), block
+    words = " ".join(line.strip() for line in block).removeprefix("Pellier: ")
+    assert words.split() == LONG_ANSWER.split()
+    assert not block[-1].endswith("...")
+    hang = lab_run.TRACE_INDENT + " " * len("Pellier: ")
+    assert hang + "- The Reed Diffuser was received on 2 November." in block
+    assert hang + "- The Waffle Bath Robe was received on 3 November." in block
+
+
+def test_a_quiet_send_keeps_the_answer_to_one_line(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake.steps = STEPS
+    fake.reply = LONG_ANSWER
+    monkeypatch.setattr(lab_run.check, "terminal_width", lambda: 100)
+    assert _run(fake, 1, None, "--quiet") == 0
+    block = _answer_block(capsys.readouterr().out)
+    assert len(block) == 1 and block[0].endswith("...") and len(block[0]) <= 100, block
 
 
 def test_next_commands_print_whole_on_their_own_lines(
