@@ -89,3 +89,54 @@ def test_preexisting_role_with_excess_authority_is_refused(database, grant, expe
     with pytest.raises(ValueError, match=f"unexpected {expected} privileges"):
         federation.prepare_reader(owner, directory, options)
     assert not (directory / "reader.pgpass").exists()
+
+
+MASTER, MASTER_PASSWORD = "pellier_master", "owner-password-the-terminal-exports"
+
+
+@pytest.fixture
+def aurora_like(tmp_path, monkeypatch):
+    """The workshop host as it is: a master login that is not a superuser, SCRAM passwords for
+    every login, and the master's password exported as PGPASSWORD for psql. On the 2026-11-09
+    test event the reader signed in with that password and was refused, and cleanup's
+    DROP OWNED BY was refused to the master."""
+    server = tmp_path / "server"
+    server.mkdir()
+    cluster = cluster_module.start_cluster(server)
+    try:
+        cluster.psql(f"CREATE ROLE {MASTER} LOGIN NOSUPERUSER CREATEROLE "
+                     f"PASSWORD '{MASTER_PASSWORD}';"
+                     "CREATE ROLE pellier_credit_writer NOLOGIN;"
+                     f"CREATE SCHEMA pellier AUTHORIZATION {MASTER};")
+        (server / "data" / "pg_hba.conf").write_text(
+            "local all postgres trust\nlocal all all scram-sha-256\n")
+        cluster.psql("SELECT pg_reload_conf()")
+        options = {"host": str(cluster.socket), "dbname": "postgres", "user": MASTER}
+        with psycopg.connect(**options, password=MASTER_PASSWORD, autocommit=True) as conn:
+            conn.execute('CREATE TABLE pellier.product_catalog '
+                         '("productId" text PRIMARY KEY, name text)')
+            conn.execute("CREATE TABLE pellier.warehouse_inventory "
+                         "(product_id text, warehouse_code text, quantity int)")
+            conn.execute("INSERT INTO pellier.product_catalog VALUES ('2', 'Hadley Linen Shirt')")
+            conn.execute("INSERT INTO pellier.warehouse_inventory VALUES "
+                         "('2', 'ATX-02', 6), ('2', 'BK-01', 0), ('2', 'PDX-01', 14)")
+            for table in ("customers", "orders", "support_tickets", "approvals", "store_credits",
+                          "tool_audit", "retrieval_receipts"):
+                conn.execute(f"CREATE TABLE pellier.{table} (id int)")
+            monkeypatch.setenv("PGPASSWORD", MASTER_PASSWORD)
+            yield conn, options, tmp_path / "client"
+    finally:
+        cluster.stop()
+
+
+def test_the_page_runs_as_an_aurora_master_with_the_terminals_pgpassword(aurora_like):
+    owner, options, directory = aurora_like
+    federation.prepare_reader(owner, directory, options)
+    with federation.connect_duckdb(directory) as conn:
+        federation.create_forecast(conn, directory)
+        assert [(row[1], row[2], row[3]) for row in federation.query(conn, directory)[1]] == [
+            ("ATX-02", 6, 25), ("BK-01", 0, 12), ("PDX-01", 14, None)]
+    federation.check_reader(directory)
+    federation.cleanup_reader(owner, directory)
+    role = owner.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (federation.ROLE,))
+    assert role.fetchone() is None

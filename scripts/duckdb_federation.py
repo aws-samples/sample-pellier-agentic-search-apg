@@ -94,10 +94,22 @@ def prepare_reader(conn, directory: Path, connection: dict) -> None:
     _private_file(directory / "reader.json", json.dumps(options))
 
 
+def _reader_signs_in_with_its_passfile() -> None:
+    """Drop an inherited PGPASSWORD before a reader connection.
+
+    libpq prefers PGPASSWORD to a passfile, and the workshop terminal exports the owner's
+    password so that psql needs none. The reader then signed in with the owner's password and
+    was refused (test event, 2026-11-09). Only this process changes, after the owner's
+    connection has closed.
+    """
+    os.environ.pop("PGPASSWORD", None)
+
+
 def connect_duckdb(directory: Path):
     import duckdb
     from psycopg.conninfo import make_conninfo
 
+    _reader_signs_in_with_its_passfile()
     options = json.loads((directory / "reader.json").read_text())
     conn = duckdb.connect()
     try:
@@ -137,6 +149,7 @@ def check_reader(directory: Path) -> None:
     """
     import psycopg
 
+    _reader_signs_in_with_its_passfile()
     options = json.loads((directory / "reader.json").read_text())
     with psycopg.connect(**options, autocommit=True) as reader:
         actual = reader.execute("SELECT current_user").fetchone()[0]
@@ -199,7 +212,14 @@ def cleanup_reader(conn, directory: Path) -> None:
             if conn.execute("SELECT 1 FROM pg_shdepend WHERE refobjid = %s::regrole "
                             "AND deptype = 'o' LIMIT 1", (ROLE,)).fetchone():
                 raise ValueError("inventory reader unexpectedly owns objects; cleanup stopped")
-            conn.execute(sql.SQL("DROP OWNED BY {}").format(sql.Identifier(ROLE)))
+            # Not DROP OWNED BY: it needs the reader's own privileges, and Aurora's master user
+            # holds only ADMIN on the roles it creates. Revoke what prepare_reader granted (a
+            # table REVOKE also revokes its column grants); DROP ROLE refuses if more remains.
+            for statement in (
+                "REVOKE ALL ON pellier.product_catalog, pellier.warehouse_inventory FROM {}",
+                "REVOKE ALL ON SCHEMA pellier FROM {}",
+            ):
+                conn.execute(sql.SQL(statement).format(sql.Identifier(ROLE)))
             conn.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(ROLE)))
     for name in ("reader.json", "reader.pgpass", "restock.parquet", "rds-global-bundle.pem"):
         (directory / name).unlink(missing_ok=True)
