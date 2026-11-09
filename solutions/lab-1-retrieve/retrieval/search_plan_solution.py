@@ -407,6 +407,40 @@ def _clamp_top_k(value: Any) -> int:
     return max(1, min(requested, 50))
 
 
+# Words that ask for a recommendation without saying what to recommend: "Pick one piece you
+# think I'd love." A soft signal made only of these names no product, material, style or
+# occasion, so Cohere Rerank would score the pool against nothing. The search's own words
+# rank instead: the agent wrote them from the request and what Pellier remembers about the
+# shopper. The shopper's requirements are unaffected; they come from the extraction.
+REQUEST_WORDS = frozenset("""
+    a about again all an and another any anything are as at based be best buy by can choose
+    could do else favorite favourite find for from get give good great guess have he
+    help her him i i'd i'll i'm i've idea ideas in is it it's just kind know let's like look
+    looking love me might mine mom more mum my need nice now of on one ones option options or
+    other our perfect pick picks piece pieces please popular recommend recommendation
+    recommendations select she should show so some somebody someone something sort style
+    suggest suggestion suggestions surprise taste that that's the them there's they thing things
+    think this to treat type us want we what what's which will with would you you'd you'll
+    you've your yours
+""".split())
+
+
+def names_what_to_find(phrase: str) -> bool:
+    """Say whether a shopper's phrase holds any word beyond asking for a recommendation.
+
+    A hyphenated word stays whole ("one-of-a-kind", "hand-thrown"), and every apostrophe a
+    keyboard makes reads as one, so "I\u2019d" and "I'd" are the same word.
+    """
+    if not isinstance(phrase, str):
+        return False
+    text = phrase.lower()
+    for mark in "\u2018\u2019\u02bc":
+        text = text.replace(mark, "'")
+    letters = "".join(c if c.isalpha() or c in "'-" else " " for c in text)
+    words = (word.strip("'-") for word in letters.split())
+    return any(word not in REQUEST_WORDS for word in words if word)
+
+
 def build_plan(
     query: str,
     extracted: Optional[Dict[str, Any]] = None,
@@ -517,7 +551,7 @@ def build_plan(
     )
 
     soft_signal = payload.get("soft_signal")
-    if not isinstance(soft_signal, str) or not soft_signal.strip():
+    if not isinstance(soft_signal, str) or not names_what_to_find(soft_signal):
         soft_signal = (query or "").strip()
 
     if retrieval_strategy not in _STRATEGIES:

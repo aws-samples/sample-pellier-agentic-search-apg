@@ -85,7 +85,8 @@ def _redact_plan(plan: Dict[str, Any]) -> Dict[str, Any]:
     The structured half of a plan -- categories, price ceiling, stock, tags,
     exclusions, relaxations, strategy -- is what makes a receipt explainable,
     and none of it is free text. Two fields are: ``intent`` is the query
-    verbatim, and ``soft_signal`` is the residual phrase carved out of it.
+    verbatim, and ``soft_signal`` is the phrase the reranker scored, the
+    shopper's residual phrase or, when that names nothing, the search's words.
     Both are replaced with the same bounded preview the receipt already stores,
     so a receipt stays readable without holding the sentence indefinitely.
     """
@@ -183,7 +184,7 @@ class RetrievalReceipt:
         """Project this receipt onto ``pellier.retrieval_receipts`` columns.
 
         The plan is redacted first. ``SearchPlan.intent`` is the raw query and
-        ``SoftPreferences.soft_signal`` is the residual phrase from it, so
+        ``SoftPreferences.soft_signal`` is the phrase the reranker scored, so
         persisting the plan verbatim contradicted this module's own
         minimization claim in two columns while ``query_preview`` was being
         carefully truncated in a third.

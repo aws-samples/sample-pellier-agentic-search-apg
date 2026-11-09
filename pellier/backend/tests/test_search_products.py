@@ -571,6 +571,32 @@ class TestTheShoppersWordsDriveRequirements:
             assert _PREDICATE_EXCLUSION in sql
             assert "price <= %s" in sql
 
+    @pytest.mark.parametrize(("soft_signal", "ranked_by"), [
+        # "Pick one piece you think I'd love" names nothing to look for. Ranking by it gave
+        # Theo five cotton blankets on 2026-11-09; his remembered taste is in the agent's words.
+        ("Pick one piece you think I'd love.", "hand-thrown stoneware and raw linen"),
+        ("a housewarming gift for slow mornings", "a housewarming gift for slow mornings"),
+    ])
+    def test_the_reranker_scores_the_shoppers_taste_or_else_the_agents_search_words(
+        self, monkeypatch: pytest.MonkeyPatch, pipeline: _FakeDB, patch_rerank: MagicMock,
+        soft_signal: str, ranked_by: str,
+    ) -> None:
+        import services.structured_extract as structured_extract
+        from services.turn_identity import shopper_words_var
+
+        class _Extractor:
+            def extract(self, _text: str) -> Dict[str, Any]:
+                return {"soft_signal": soft_signal, "extraction_status": "parsed"}
+
+        monkeypatch.setattr(structured_extract, "get_structured_extractor", _Extractor)
+        token = shopper_words_var.set("Pick one piece you think I'd love.")
+        try:
+            agent_tools.search_products(query="hand-thrown stoneware and raw linen")
+        finally:
+            shopper_words_var.reset(token)
+
+        assert patch_rerank.rerank.call_args.kwargs["query"] == ranked_by
+
 
 # ---------------------------------------------------------------------------
 # The @tool wrapper: what it decides, and what it hands the shared pipeline
