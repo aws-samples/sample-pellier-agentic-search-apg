@@ -860,6 +860,12 @@ def _execute_once(backend: Backend, token: str, review: int,
     except BackendError as exc:
         if exc.status == 502 and exc.detail.startswith("gateway_unavailable"):
             return None, f"the Gateway did not answer ({exc.detail})"
+        # Another process reading the policy engine at the same moment (a Lab 4 check) can get
+        # the control plane throttled; the refusal wrote nothing, so the same key may try again.
+        # A mode that was read and is not ENFORCE is a real refusal and still stops here.
+        if (exc.status == 409 and "governed_rail_unavailable" in exc.detail
+                and "observed: unreadable" in exc.detail):
+            return None, "the policy engine's mode could not be read just now"
         raise
     policy = (payload.get("assurance") or {}).get("policy")
     if policy == POLICY_ALLOW:

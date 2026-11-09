@@ -96,11 +96,17 @@ def _no_aws_network(monkeypatch):
     test that drives an agent without a stand-in cannot quietly reach Bedrock
     wherever credentials happen to exist.
     """
+    import urllib.parse
     import urllib.request
 
     import botocore.httpsession
 
+    real_send = botocore.httpsession.URLLib3Session.send
+
     def _refuse_boto(self, request, *args, **kwargs):
+        # A loopback endpoint is a test's own stand-in server, never AWS.
+        if urllib.parse.urlsplit(request.url).hostname in ("127.0.0.1", "localhost"):
+            return real_send(self, request, *args, **kwargs)
         raise TestReachedAws(
             f"test reached AWS through botocore: {request.method} {request.url}"
         )

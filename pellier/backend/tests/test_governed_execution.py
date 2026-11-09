@@ -748,6 +748,165 @@ async def test_engine_state_for_action_is_labeled_inferred(
     assert "WOULD_DENY" not in str(state)
 
 
+class _SlowControlPlane(_FakeControlPlane):
+    """A control plane whose gateway read takes a moment, counting every engine read."""
+
+    reads = 0
+    fail = False
+
+    def get_gateway(self, **kw: Any) -> Dict[str, Any]:
+        import time
+
+        type(self).reads += 1
+        time.sleep(0.2)
+        if type(self).fail:
+            raise RuntimeError("ThrottlingException: Too Many Requests")
+        return super().get_gateway(**kw)
+
+
+def _slow_control_plane(monkeypatch: pytest.MonkeyPatch, *, fail: bool) -> None:
+    _governed(monkeypatch)
+    from config import settings
+
+    monkeypatch.setattr(settings, "AGENTCORE_GATEWAY_ARN",
+                        "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/gw-1",
+                        raising=False)
+    import boto3
+
+    monkeypatch.setattr(_SlowControlPlane, "reads", 0)
+    monkeypatch.setattr(_SlowControlPlane, "fail", fail)
+    monkeypatch.setattr(boto3, "client", lambda *_a, **_k: _SlowControlPlane("ENFORCE"))
+
+
+@pytest.mark.asyncio
+async def test_concurrent_executes_share_one_engine_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Six concurrent Executes on the 2026-11-09 test event each started their own engine
+    read, about fifteen control-plane calls apiece. GetPolicy was throttled and five of
+    the six were refused as an unreadable engine. Concurrent identical reads share one."""
+    from services import managed_policy as mp
+
+    _slow_control_plane(monkeypatch, fail=False)
+    action = "pellier-store-tools___give_store_credit"
+    states = await asyncio.gather(*(mp.engine_state_for_action(action) for _ in range(6)))
+    assert _SlowControlPlane.reads == 1
+    assert all(state == states[0] for state in states)
+    states[0]["policies"].clear()
+    assert states[1]["policies"], "each request must get its own copy of the reading"
+    await mp.engine_state_for_action(action)
+    assert _SlowControlPlane.reads == 2, "a finished read must not be served again"
+
+
+@pytest.mark.asyncio
+async def test_a_shared_read_failure_is_recorded_for_every_waiting_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from services import managed_policy as mp
+
+    _slow_control_plane(monkeypatch, fail=True)
+
+    async def one_request() -> Optional[str]:
+        with pytest.raises(RuntimeError, match="ThrottlingException"):
+            await mp.engine_state_for_action("pellier-store-tools___give_store_credit")
+        return mp.control_plane_failure()
+
+    failures = await asyncio.gather(*(one_request() for _ in range(3)))
+    assert _SlowControlPlane.reads == 1
+    assert all(failure and "ThrottlingException" in failure for failure in failures)
+
+
+@pytest.mark.asyncio
+async def test_a_read_that_outlives_its_deadline_is_still_shared(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A thread cannot be cancelled: when a caller's deadline passes, its read keeps running.
+    A later request must join that read rather than start a second one against a control
+    plane that is already throttling."""
+    from services import managed_policy as mp
+
+    _slow_control_plane(monkeypatch, fail=False)
+    monkeypatch.setattr(mp, "_CONTROL_DEADLINE_S", 0.05)
+    action = "pellier-store-tools___give_store_credit"
+    for _ in range(2):
+        with pytest.raises(TimeoutError):
+            await mp.engine_state_for_action(action)
+    assert _SlowControlPlane.reads == 1
+    await asyncio.sleep(0.4)
+    monkeypatch.setattr(mp, "_CONTROL_DEADLINE_S", 15.0)
+    assert (await mp.engine_state_for_action(action))["gateway_mode"] == "ENFORCE"
+    assert _SlowControlPlane.reads == 2, "a finished read must not be served again"
+
+
+@pytest.mark.asyncio
+async def test_a_throttled_engine_read_is_retried_within_its_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A Lab 4 check reads the engine in its own process, so the app cannot share that read.
+    Real botocore against a local endpoint that throttles the first three requests, more than the
+    two retries the client once allowed: the read must still finish, inside the deadline."""
+    import json as _json
+    import threading
+    import time
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+    from services import managed_policy as mp
+
+    calls: List[str] = []
+    statement = ('forbid(principal, action == AgentCore::Action::'
+                 '"pellier-store-tools___give_store_credit", resource) unless { true };')
+
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, *args: Any) -> None:
+            pass
+
+        def do_GET(self) -> None:
+            calls.append(self.path)
+            if len(calls) <= 3:
+                status, body = 429, {"message": "Too Many Requests"}
+                self.send_response(status)
+                self.send_header("x-amzn-ErrorType", "ThrottlingException")
+            else:
+                if self.path.startswith("/gateways/"):
+                    body = {"policyEngineConfiguration": {"mode": "ENFORCE"}}
+                elif self.path.endswith("/policies"):
+                    body = {"policies": [{"policyId": "credit_limit-0123456789"}]}
+                else:
+                    body = {"name": "credit_limit", "enforcementMode": "ACTIVE",
+                            "definition": {"cedar": {"statement": statement}}}
+                self.send_response(200)
+            payload = _json.dumps(body).encode()
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        _governed(monkeypatch, engine_id="pellier_engine-0123456789")
+        from config import settings
+
+        monkeypatch.setattr(
+            settings, "AGENTCORE_GATEWAY_ARN",
+            "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/pellier-gateway-0123456789",
+            raising=False)
+        import boto3
+
+        real_client = boto3.client
+        monkeypatch.setattr(boto3, "client", lambda *a, **k: real_client(
+            *a, endpoint_url=f"http://127.0.0.1:{server.server_port}",
+            aws_access_key_id="test", aws_secret_access_key="test", **k))
+        started = time.monotonic()
+        state = await mp.engine_state_for_action("pellier-store-tools___give_store_credit")
+        assert state["gateway_mode"] == "ENFORCE"
+        assert state["matching"] == ["credit_limit"]
+        assert len(calls) == 6, calls
+        assert time.monotonic() - started < mp._CONTROL_DEADLINE_S
+    finally:
+        server.shutdown()
+
+
 def test_the_mode_precondition_applies_only_to_the_governed_managed_rail(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

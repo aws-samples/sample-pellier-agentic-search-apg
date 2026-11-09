@@ -84,6 +84,9 @@ class FakeBackend:
             policy = self.policies.pop(0) if len(self.policies) > 1 else self.policies[0]
             if policy == "502":
                 return 502, {"detail": "gateway_unavailable:ReadTimeout"}
+            if policy.startswith("409:"):
+                return 409, {"detail": {"error": "governed_rail_unavailable", "missing": [
+                    f"policy_engine_mode=ENFORCE (observed: {policy[4:]})"]}}
             replay = self.credited and not self.replay_writes_again
             if policy == "ALLOW":
                 self.credited = True
@@ -855,6 +858,24 @@ def test_lab_4_retries_while_the_gateway_and_policy_state_settle(
     out = capsys.readouterr().out
     assert "the Gateway did not answer (gateway_unavailable:ReadTimeout)" in out
     assert "Policy could not confirm enforcement yet" in out
+
+
+def test_lab_4_retries_when_the_policy_engine_could_not_be_read(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A Lab 4 check reading the engine at the same moment got the control plane throttled on
+    the 2026-11-09 test event; the app refused the Execute as unreadable and wrote nothing."""
+    fake.rail = lab_run.MANAGED
+    fake.policies = ["409:unreadable", "ALLOW"]
+    assert _run(fake, 4) == 0
+    assert "the policy engine's mode could not be read just now" in capsys.readouterr().out
+
+
+def test_lab_4_stops_when_the_gateway_is_not_enforcing(fake: FakeBackend) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.policies = ["409:LOG_ONLY"]
+    assert _run(fake, 4) == 1
+    assert len([r for r in fake.requests if r["path"].endswith("/execute")]) == 1
 
 
 def test_lab_4_stops_on_an_execution_error_that_will_not_clear(

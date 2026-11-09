@@ -15,12 +15,13 @@ records that engine state (``engine_state_for_action``).
 from __future__ import annotations
 
 import asyncio
+import copy
 import hashlib
 import logging
 import os
 import re
 from contextvars import ContextVar
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,11 @@ class ControlPlaneUnavailable(RuntimeError):
 # for minutes on a degraded account.
 _CONTROL_CONNECT_TIMEOUT_S = 3.0
 _CONTROL_READ_TIMEOUT_S = 8.0
-_CONTROL_MAX_ATTEMPTS = 2
+# botocore's ``max_attempts`` in Config counts retries after the first request.
+# Four, so a throttled read backs off and finishes: a Lab 4 check reading the engine in its own
+# process can overlap an Execute, which the shared read below cannot cover. The deadline still
+# bounds the whole read.
+_CONTROL_MAX_RETRIES = 4
 # The whole engine read: a get_gateway, a list_policies, and a get_policy per
 # policy. Wider than one call's read timeout, narrower than their sum.
 _CONTROL_DEADLINE_S = 15.0
@@ -110,6 +115,10 @@ _CONTROL_DEADLINE_S = 15.0
 _CONTROL_FAILURE: ContextVar[Optional[str]] = ContextVar(
     "managed_policy_control_plane_failure", default=None
 )
+
+
+# Engine reads in flight, by (event loop, engine, action, gateway); see `_shared_read`.
+_READS_IN_FLIGHT: Dict[Tuple[Any, str, str, str], "asyncio.Future[Any]"] = {}
 
 
 def control_plane_failure() -> Optional[str]:
@@ -131,7 +140,7 @@ def _control_client_config() -> Any:
     return Config(
         connect_timeout=_CONTROL_CONNECT_TIMEOUT_S,
         read_timeout=_CONTROL_READ_TIMEOUT_S,
-        retries={"max_attempts": _CONTROL_MAX_ATTEMPTS, "mode": "standard"},
+        retries={"max_attempts": _CONTROL_MAX_RETRIES, "mode": "standard"},
     )
 
 
@@ -293,7 +302,9 @@ async def engine_state_for_action(action_id: str) -> Optional[Dict[str, Any]]:
     The reads run in a worker thread under a deadline. They are synchronous
     botocore calls and this coroutine is awaited from request handlers, so
     running them inline would stall every other request in the process, not just
-    this one. A failure is recorded for the rest of the request (see
+    this one. Requests that arrive while an identical read runs share it (see
+    ``_shared_read``), each with its own copy. A failure is recorded for the rest of
+    each waiting request (see
     ``control_plane_failure``) and then re-raised unchanged, so a later caller on
     the same request can decline to repeat a read that has just failed.
 
@@ -330,10 +341,43 @@ async def engine_state_for_action(action_id: str) -> Optional[Dict[str, Any]]:
         gateway_arn = os.environ.get("AGENTCORE_GATEWAY_ARN", "").strip()
 
     try:
-        return await asyncio.wait_for(
-            asyncio.to_thread(_read_engine_state, engine_id, action_id, gateway_arn),
+        state = await asyncio.wait_for(
+            asyncio.shield(_shared_read(engine_id, action_id, gateway_arn)),
             timeout=_CONTROL_DEADLINE_S,
         )
     except Exception as exc:  # noqa: BLE001 - recorded for the request, then re-raised
         _CONTROL_FAILURE.set(f"{type(exc).__name__}: {exc}")
         raise
+    return copy.deepcopy(state)
+
+
+def _shared_read(engine_id: str, action_id: str, gateway_arn: str) -> "asyncio.Future[Any]":
+    """The read already in flight for this engine, action and gateway, or a new one.
+
+    One read is a get_gateway, a list_policies and a get_policy per policy, about fifteen
+    control-plane calls. Concurrent Executes each starting their own read were throttled
+    (ThrottlingException on GetPolicy) and then refused as an unreadable engine. A request
+    that arrives while an identical read runs waits for that read instead, so each still
+    gets a reading taken during its own request, and nothing is cached once the read ends.
+    Keyed by the running loop too: a future belongs to the loop that made it.
+
+    The read stays registered until its worker thread finishes, not until a caller's deadline:
+    a thread cannot be cancelled, so a later request joins it instead of starting a second
+    read against a control plane that is already throttling. Each caller keeps its own deadline.
+    """
+    loop = asyncio.get_running_loop()
+    key = (loop, engine_id, action_id, gateway_arn)
+    running = _READS_IN_FLIGHT.get(key)
+    if running is None:
+        running = asyncio.ensure_future(
+            asyncio.to_thread(_read_engine_state, engine_id, action_id, gateway_arn))
+        _READS_IN_FLIGHT[key] = running
+        running.add_done_callback(lambda done: _finish_shared_read(key, done))
+    return running
+
+
+def _finish_shared_read(key: Tuple[Any, str, str, str], done: "asyncio.Future[Any]") -> None:
+    """Forget a finished read; its error is each waiting caller's, retrieved here once."""
+    _READS_IN_FLIGHT.pop(key, None)
+    if not done.cancelled():
+        done.exception()
