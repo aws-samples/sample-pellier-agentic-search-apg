@@ -564,6 +564,8 @@ def _run_health_gate(
     credential_secret_arn: str | None = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
     node_version: str = "v24.21.0",
     synth_retries: str | None = None,
+    engine_version: str = "18.6",
+    extension_versions: str = "pg_stat_statements 1.12, pg_trgm 1.6, pgaudit 18.0, vector 0.8.2",
 ) -> subprocess.CompletedProcess[str]:
     repo = tmp_path / "repo"
     fake_bin = tmp_path / "bin"
@@ -645,6 +647,8 @@ esac
         fake_bin / "psql",
         f"""#!/bin/bash
 case "$*" in
+  *engine_version_check*) printf '%s\\n' '{engine_version}' ;;
+  *extension_versions_check*) printf '%s\\n' '{extension_versions}' ;;
   *inventory_consistency_check*) printf '0\n' ;;
   *customer_claim_check*) printf 'CUST-MARCO\n' ;;
   *schema_tables_check*) {schema_answer or f"printf '{table_count}\\n'"} ;;
@@ -793,6 +797,25 @@ def test_governed_health_gate_requires_complete_managed_receipt(
     assert "The ten Pellier tables are installed" in proc.stdout
     assert "Row-level security binds pellier_agent" in proc.stdout
     assert "READY" in proc.stdout
+
+
+@pytest.mark.parametrize("engine, extensions, shown", [
+    ("18.6", "pg_stat_statements 1.12, pg_trgm 1.6, pgaudit 18.0, vector 0.8.2",
+     "Aurora PostgreSQL 18.6; extensions pg_stat_statements 1.12, pg_trgm 1.6, pgaudit 18.0, "
+     "vector 0.8.2"),
+    ("18.7", "pg_stat_statements 1.12, pg_trgm 1.6, vector 0.8.3",
+     "Aurora PostgreSQL 18.7; extensions pg_stat_statements 1.12, pg_trgm 1.6, vector 0.8.3"),
+    ("", "", "Aurora PostgreSQL unknown; extensions none found"),
+])
+def test_the_database_versions_are_recorded_and_never_decide_readiness(
+    tmp_path: Path, engine: str, extensions: str, shown: str,
+) -> None:
+    proc = _run_health_gate(tmp_path, model_ready=True, workshop_format="governed",
+                            managed_ready=True, engine_version=engine,
+                            extension_versions=extensions)
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert f"  Database: {shown}\n" in proc.stdout
+    assert "NOT READY" not in proc.stdout
 
 
 @pytest.mark.parametrize("node_version", ["v20.20.2", "v22.20.0", "v26.5.0", ""])

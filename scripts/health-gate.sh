@@ -12,6 +12,8 @@
 #   3. Warehouse inventory present (150000 rows: 50000 products x 3 warehouses)
 #   3b. The ten tables, the evidence triggers, the pellier_agent role and its
 #       row-level security policies, and the seeded customers and orders
+#   3c. Prints the Aurora engine and extension versions the server reports: a
+#       record of what ran, which never changes the verdict
 #   4. node --version is 24 LTS                   (required for governed format;
 #      warning for builders format; CLI minimum compatibility alone does not
 #      establish a supported workshop release runtime)
@@ -299,6 +301,17 @@ SELECT count(*) FROM pg_policies p
     fail "Orders incomplete or missing (got: ${order_n:-none}, expected at least 21)"
     ok=false
   fi
+
+  # 3c. What this box's database runs, as the server reports it, for the readiness
+  # log. A record, not a check: the verdict does not depend on it.
+  engine_version="$(_psql '/* engine_version_check */ SHOW server_version;' || echo '')"
+  extension_versions="$(_psql "
+/* extension_versions_check */
+SELECT string_agg(extname || ' ' || extversion, ', ' ORDER BY extname)
+  FROM pg_extension
+ WHERE extname IN ('pg_stat_statements', 'pg_trgm', 'pgaudit', 'vector');" || echo '')"
+  echo "  Database: Aurora PostgreSQL ${engine_version:-unknown};" \
+    "extensions ${extension_versions:-none found}"
 fi
 
 # 4. Node version: use the same supported LTS major as bootstrap and CI.

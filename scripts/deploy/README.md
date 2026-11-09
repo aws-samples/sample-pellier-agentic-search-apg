@@ -178,4 +178,5 @@ value, `30` in the workshop template).
 Run `bash scripts/health-gate.sh` for the governed readiness verdict. It also
 requires all four Memory strategies with the expected configuration and a
 complete extraction receipt, exactly 150,000 warehouse rows, Policy `ENFORCE`,
-and the structured provisioning receipt.
+and the structured provisioning receipt. It also prints the Aurora engine and extension
+versions the server reports, as a record of what ran; they never change the verdict.
