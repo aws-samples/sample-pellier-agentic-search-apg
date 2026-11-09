@@ -13,11 +13,16 @@ import re
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from services.runtime_env import bridge_cli_injected_names
-from services.otel_content_redaction import apply_model_content_redaction, redact_adot_mcp_tool_content
+from services.otel_content_redaction import (
+    apply_model_content_redaction,
+    redact_adot_mcp_tool_content,
+    withhold_botocore_message_content,
+)
 
 os.environ.update(bridge_cli_injected_names(os.environ))
 apply_model_content_redaction(enabled=True)
 redact_adot_mcp_tool_content()
+withhold_botocore_message_content()
 
 from services.operator_gateway import operator_tools
 from services.operator_graph import run_investigation

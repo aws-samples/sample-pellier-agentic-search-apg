@@ -120,6 +120,27 @@ def apply_model_content_redaction(*, enabled: bool) -> str:
     return updated
 
 
+# The botocore Bedrock instrumentation emits each Converse request and response as
+# GenAI log events, which the Runtime exports to its log group. It includes the
+# message text only when this variable is "true", reading it on every call, and
+# aws-opentelemetry-distro 0.19.0 sets it to "true" by default whenever agent
+# observability is on (aws_opentelemetry_distro.py: os.environ.setdefault). On the
+# 2026-11-09 test event both Runtime log groups held prompts and completions in
+# clear: the Advisor's case facts and Theo's remembered preferences.
+BOTOCORE_CAPTURE_ENV = "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT"
+
+
+def withhold_botocore_message_content() -> None:
+    """Stop the botocore Bedrock instrumentation from exporting message text.
+
+    Set, not defaulted: the distro has already set "true" before the Runtime
+    entrypoint is imported. The log events still carry the model, the token counts
+    and the finish reason, so a call stays visible without its words.
+    """
+    os.environ[BOTOCORE_CAPTURE_ENV] = "false"
+    logger.info("✅ botocore Bedrock log events export without message content.")
+
+
 # ADOT's MCP client instrumentation (aws-opentelemetry-distro, Runtime bundle
 # only) records gen_ai.tool.call.arguments and gen_ai.tool.call.result on every
 # `mcp tools/call` span, and versions 0.19.0 to 0.21.0 have no switch for it:

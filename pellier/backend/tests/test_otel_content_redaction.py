@@ -322,3 +322,53 @@ def test_the_runtime_lock_pins_an_adot_whose_mcp_spans_are_covered():
         "instrumentation/mcp/_wrappers.py, confirm both tool attributes still go "
         "through to_tool_attribute_value, then add the version to ADOT_VERSIONS_CHECKED"
     )
+
+
+# The botocore Bedrock instrumentation's GenAI log events, which both Runtimes export
+# to their log groups. On the 2026-11-09 test event they carried the Advisor's case
+# facts and Theo's remembered preferences in clear text.
+
+BACKEND = pathlib.Path(__file__).resolve().parents[1]
+BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED = {"0.65b0"}
+
+
+def test_botocore_message_content_is_withheld_after_adot_turns_it_on(monkeypatch):
+    from services.otel_content_redaction import (
+        BOTOCORE_CAPTURE_ENV,
+        withhold_botocore_message_content,
+    )
+
+    # aws-opentelemetry-distro 0.19.0 sets this default before the entrypoint runs.
+    monkeypatch.setenv(BOTOCORE_CAPTURE_ENV, "true")
+    withhold_botocore_message_content()
+    import os
+
+    assert os.environ[BOTOCORE_CAPTURE_ENV] == "false"
+
+
+@pytest.mark.parametrize("entrypoint", ["agentcore_runtime.py", "operator_runtime.py"])
+def test_both_runtime_entrypoints_withhold_botocore_message_content(entrypoint):
+    source = (BACKEND / entrypoint).read_text()
+    # In the same block as the MCP redaction: the call that runs when redaction is on.
+    same_block = (r"^( *)redact_adot_mcp_tool_content\(\)\n"
+                  r"\1withhold_botocore_message_content\(\)$")
+    assert re.search(same_block, source, re.MULTILINE), (
+        f"{entrypoint} must withhold the botocore Bedrock message content beside the MCP redaction"
+    )
+
+
+def test_the_runtime_lock_pins_a_botocore_instrumentation_whose_switch_is_known():
+    """A new version may read its content switch another way; re-read it before bumping."""
+    lock = (BACKEND / "uv.lock").read_text()
+    pinned = re.search(
+        r'^name = "opentelemetry-instrumentation-botocore"\nversion = "([^"]+)"', lock,
+        re.MULTILINE,
+    )
+
+    assert pinned, "uv.lock does not pin opentelemetry-instrumentation-botocore"
+    assert pinned.group(1) in BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED, (
+        f"uv.lock pins opentelemetry-instrumentation-botocore {pinned.group(1)}; read its "
+        "extensions/bedrock_utils.py genai_capture_message_content, confirm it still reads "
+        "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT on each call, then add the "
+        "version to BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED"
+    )

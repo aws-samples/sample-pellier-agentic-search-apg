@@ -102,15 +102,18 @@ def _answered(
 # runs that lifespan, and the platform's own instrumentation would otherwise
 # ship the shopper's words in clear text.
 # ADOT's MCP client spans carry tool arguments and results outside that token,
-# so they are withheld separately (see redact_adot_mcp_tool_content).
+# so they are withheld separately (see redact_adot_mcp_tool_content), as are the
+# botocore Bedrock log events (see withhold_botocore_message_content).
 from services.otel_content_redaction import (
     apply_model_content_redaction,
     redact_adot_mcp_tool_content,
+    withhold_botocore_message_content,
 )
 
 if _env_flag("OTEL_REDACT_MODEL_CONTENT", default=True):
     apply_model_content_redaction(enabled=True)
     redact_adot_mcp_tool_content()
+    withhold_botocore_message_content()
 else:
     apply_model_content_redaction(enabled=False)
 
