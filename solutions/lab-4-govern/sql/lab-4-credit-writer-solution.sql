@@ -202,8 +202,8 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
 \echo ''
 -- Each probe on one row with the reason it came out as it did; after a failed run, each probe
 -- that differs again, with what was expected beside what was observed.
-SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result",
-       probe AS "Test", observed AS "Observed", source AS "Source"
+SELECT probe AS "Test", source AS "Source", observed AS "Observed",
+       CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
   FROM lab_4_probes ORDER BY ord;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes

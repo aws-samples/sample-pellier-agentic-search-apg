@@ -171,8 +171,8 @@ SELECT count(w.*) AS warehouse_rows, sum(w.quantity) AS "sum(quantity)",
                            AND strpos(lower(p.name), 'cape') > 0);
 -- Each probe on one row; after a failed run, each probe that differs again, with what was
 -- expected beside what was observed and the call that observed it.
-SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result",
-       probe AS "Test", observed AS "Observed"
+SELECT probe AS "Test", observed AS "Observed",
+       CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
   FROM lab_2_probes ORDER BY ord;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_2_probes

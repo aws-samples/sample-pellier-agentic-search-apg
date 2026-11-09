@@ -208,9 +208,9 @@ INSERT INTO lab_3_probes VALUES
 \echo 'Evidence  policies orders_own_rows and support_tickets_own_rows, rewritten inside this transaction'
 \echo '          sign-in names in pellier.customers:' :owner_names
 \echo ''
-SELECT CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result",
-       probe AS "Test", bound_as AS "Signed in as", expected AS "Expected",
-       observed AS "Observed"
+SELECT probe AS "Test", bound_as AS "Signed in as", expected AS "Expected",
+       observed AS "Observed",
+       CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
   FROM lab_3_probes;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_3_probes
