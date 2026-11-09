@@ -103,8 +103,8 @@ SELECT 'Lab 2B function sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
 \gset
 COMMENT ON FUNCTION pellier.check_stock(text) IS :'stamp';
 
--- The four cases. Each expected answer is read from the tables directly, with the
--- same every-word rule; each observed answer is what your function returns.
+-- The four cases. Each expected answer is read from the tables directly, by the function's
+-- rules (every word, a photo); each observed answer is what your function returns.
 CREATE TEMP TABLE lab_2_cases (ord integer, probe text, query text) ON COMMIT DROP;
 INSERT INTO lab_2_cases VALUES
     (1, 'not carried', 'Velvet Opera Cape'),
@@ -119,7 +119,7 @@ WITH named AS (
     SELECT c.ord, p."productId" AS id
       FROM lab_2_cases c
       JOIN pellier.product_catalog p
-        ON NOT EXISTS (SELECT 1
+        ON NULLIF(btrim(p."imgUrl"), '') IS NOT NULL AND NOT EXISTS (SELECT 1
                          FROM regexp_split_to_table(lower(c.query), '[[:space:]]+') AS word
                         WHERE strpos(lower(p.name), word) = 0)
 ), tables AS (

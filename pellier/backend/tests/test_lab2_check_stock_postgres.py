@@ -148,6 +148,30 @@ def test_the_solution_passes_every_probe_and_commits_the_function(fresh_db) -> N
     assert int(count) >= 2 and count == distinct and no_counts == "t"
 
 
+def test_the_expected_answers_search_only_photographed_products(  # noqa: F811
+        fresh_db, tmp_path) -> None:
+    """check_stock searches only products with a photo; the test's expected answers must too.
+
+    They used to search all 50,000 products, so a name that matches only a photo-less product
+    (a tester's "Absorbent Microfiber Head Turban", 2026-11-09) expected a row the correct
+    function rightly does not return.
+    """
+    hidden = fresh_db.psql('SELECT name FROM pellier.product_catalog WHERE "productId" = \'37168\'')
+    assert fresh_db.psql("SELECT count(*) FROM pellier.product_catalog WHERE name = $q$"
+                         + hidden + "$q$ AND NULLIF(btrim(\"imgUrl\"), '') IS NULL") == "1"
+    text = SOLUTION.read_text(encoding="utf-8")
+    case = "(4, 'in stock', 'Hadley Linen Shirt')"
+    assert text.count(case) == 1
+    variant = tmp_path / "lab-2-check-stock.sql"
+    variant.write_text(text.replace(case, "(4, 'in stock', $q$" + hidden + "$q$)"),
+                       encoding="utf-8")
+    done = _run(fresh_db, variant)
+    assert done.returncode == 0, done.stdout + done.stderr
+    probes = _probes(done.stdout)
+    hidden_probe = next(row for name, row in probes.items() if name.startswith("in stock: "))
+    assert hidden_probe == ["no row", "no row", hidden_probe[2], "matches"], probes
+
+
 def test_like_metacharacters_in_the_query_match_only_themselves(fresh_db) -> None:  # noqa: F811
     """%, _ and \\ are the shopper's characters, never wildcards.
 
