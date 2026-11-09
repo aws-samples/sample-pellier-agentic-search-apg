@@ -1695,6 +1695,35 @@ def test_a_traced_send_prints_pelliers_whole_answer(
     assert hang + "- The Waffle Bath Robe was received on 3 November." in block
 
 
+@pytest.mark.parametrize("quiet", [(), ("--quiet",)])
+def test_a_send_prints_bold_words_as_the_shopper_reads_them(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    quiet: tuple,
+) -> None:
+    """Ask Pellier renders **bold**; the terminal printed the asterisks around it."""
+    fake.steps = STEPS
+    fake.reply = "The **Ceramic Tumblers** are my top pick at **$34**, 2 * 17 for the pair."
+    monkeypatch.setattr(lab_run.check, "terminal_width", lambda: 100)
+    assert _run(fake, 1, None, *quiet) == 0
+    words = " ".join(line.strip() for line in _answer_block(capsys.readouterr().out))
+    assert words == "Pellier: The Ceramic Tumblers are my top pick at $34, 2 * 17 for the pair."
+
+
+@pytest.mark.parametrize("reply", ["A lone ** stays as written.", "2 ** 3 and 4 ** 5 are not bold.",
+                                   "** spaced inside** is not bold either."])
+def test_asterisks_markdown_does_not_render_as_bold_stay(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    reply: str,
+) -> None:
+    """Only a run Ask Pellier shows in bold loses its asterisks: CommonMark's flanking rule."""
+    fake.steps = STEPS
+    fake.reply = reply
+    monkeypatch.setattr(lab_run.check, "terminal_width", lambda: 100)
+    assert _run(fake, 1) == 0
+    words = " ".join(line.strip() for line in _answer_block(capsys.readouterr().out))
+    assert words == f"Pellier: {reply}"
+
+
 def test_a_quiet_send_keeps_the_answer_to_one_line(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:

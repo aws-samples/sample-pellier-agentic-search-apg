@@ -83,6 +83,7 @@ import http.client
 import json
 import os
 import pathlib
+import re
 import shlex
 import shutil
 import subprocess
@@ -765,6 +766,13 @@ def _one_line(text: str, width: int = 140) -> str:
 
 
 ANSWER_LABEL = "Pellier: "
+# CommonMark's flanking rule: ** opens before a non-space and closes after one, on one line.
+_BOLD = re.compile(r"\*\*(?=\S)(.+?)(?<=\S)\*\*")
+
+
+def _as_read(answer: str) -> str:
+    """The answer's words as Ask Pellier shows them: **bold** renders without its asterisks."""
+    return _BOLD.sub(r"\1", answer)
 
 
 def _answer_lines(text: str, width: int) -> List[str]:
@@ -821,10 +829,10 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
         else:
             ok(f'{persona.title()}: "{message}" ran {RAIL_NAMES[served]} {turn}')
         if trace:
-            _print_answer(answer)
+            _print_answer(_as_read(answer))
         else:
             width = check.terminal_width() - len(TRACE_INDENT + ANSWER_LABEL)
-            print(f"{TRACE_INDENT}{ANSWER_LABEL}{_one_line(answer, width)}", flush=True)
+            print(f"{TRACE_INDENT}{ANSWER_LABEL}{_one_line(_as_read(answer), width)}", flush=True)
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
 
 
