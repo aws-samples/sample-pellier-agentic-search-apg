@@ -83,8 +83,8 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     assert differs == sorted([
         "Insert a credit row directly", "Raise the approved credit to $500 directly",
         "The function's rights",
-        "The role's privileges and row policies on store_credits, orders, approvals"])
-    granted = probes["The role's privileges and row policies on store_credits, orders, approvals"][1]
+        "The role's privileges and row policies on Pellier's tables"])
+    granted = probes["The role's privileges and row policies on Pellier's tables"][1]
     assert granted.splitlines()[-1] == (
         "policy orders_credit_writer on orders USING (true): every customer's rows")
     assert "Your change was undone. The live state is unchanged." in done.stdout
@@ -114,6 +114,31 @@ def test_a_definer_with_another_path_is_told_the_pinned_one(fresh_db, tmp_path) 
     assert "owner's rights and search_path pinned to" in done.stdout
     assert "pg_catalog, pg_temp: it names every table with its schema" in done.stdout
     assert "which single privilege" not in done.stdout
+    assert _state(fresh_db) == before
+
+
+def test_a_grant_left_on_any_pellier_table_fails_the_privilege_probe(  # noqa: F811
+        fresh_db, tmp_path) -> None:
+    """The starter's GRANT SELECT ON pellier.customers, left in place, used to pass.
+
+    The probe read only store_credits, orders and approvals, so a participant who removed
+    every other starter grant but kept this one saw the check pass (a tester, 2026-11-09).
+    """
+    text = SOLUTION.read_text(encoding="utf-8")
+    kept = "      TO pellier_credit_writer;\n$privileges$ AS privileges"
+    assert text.count(kept) == 1
+    variant = tmp_path / "lab-4-credit-writer.sql"
+    variant.write_text(text.replace(kept, kept.replace(
+        "\n$privileges$", "\n  GRANT SELECT ON pellier.customers TO pellier_credit_writer;\n"
+                          "$privileges$")), encoding="utf-8")
+    before = _state(fresh_db)
+    done = _run(fresh_db, variant)
+    assert done.returncode != 0
+    probes = _probes(done.stdout)
+    differs = [name for name, row in probes.items() if row[-1] == "does not match"]
+    assert differs == ["The role's privileges and row policies on Pellier's tables"], probes
+    assert probes[differs[0]][1] == "customers SELECT"
+    assert "Lab 4B privileges check failed" in done.stdout
     assert _state(fresh_db) == before
 
 

@@ -34,7 +34,7 @@ SET LOCAL statement_timeout = '15s';
 SELECT count(*) AS credits_before FROM pellier.store_credits \gset
 
 -- A clean slate: no table privilege, no row policy, no EXECUTE, invoker's rights.
-REVOKE ALL ON pellier.store_credits, pellier.orders, pellier.approvals, pellier.customers
+REVOKE ALL ON ALL TABLES IN SCHEMA pellier
     FROM pellier_credit_writer;
 REVOKE ALL ON FUNCTION pellier.give_store_credit(text, text, integer, text, text)
     FROM pellier_credit_writer, PUBLIC;
@@ -159,7 +159,7 @@ SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS table
                   FROM (SELECT DISTINCT table_name, privilege_type
                           FROM information_schema.role_table_grants
                          WHERE grantee = 'pellier_credit_writer'
-                           AND table_name IN ('store_credits', 'orders', 'approvals')) d
+                           AND table_schema = 'pellier') d
                  GROUP BY table_name) per_table) g,
        (SELECT string_agg(format('policy %s on %s USING (%s): %s', policyname, tablename, qual,
                                  CASE WHEN qual = 'true' THEN 'every customer''s rows'
@@ -167,7 +167,7 @@ SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS table
                  AS policies
           FROM pg_policies
          WHERE 'pellier_credit_writer' = ANY (roles)
-           AND tablename IN ('store_credits', 'orders', 'approvals')) p
+           AND schemaname = 'pellier') p
 \gset writer_
 
 -- Undo the probe case and its credit; your statements stay in the transaction.
@@ -193,7 +193,7 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
      'pg_proc'),
     ('Who may execute the function',
      'pellier_credit_writer yes, pellier_agent no, public no', :'fn_execute', 'pg_proc ACL'),
-    ('The role''s privileges and row policies on store_credits, orders, approvals', 'none',
+    ('The role''s privileges and row policies on Pellier''s tables', 'none',
      :'writer_tables', 'role_table_grants and pg_policies');
 
 \echo 'Lab 4B: your privileges for pellier_credit_writer, tested'
