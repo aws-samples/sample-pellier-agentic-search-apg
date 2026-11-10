@@ -148,8 +148,10 @@ def test_the_worksheet_shows_her_words_finding_the_wrong_things(fresh_db) -> Non
 
 
 def test_the_meaning_worksheet_shows_distances_without_ranking_them(fresh_db) -> None:  # noqa: F811
-    rows = {row[0]: row[1:] for row in _worksheet_rows(fresh_db, MEANING)
-            if row[0] != "name"}
+    printed = _worksheet_rows(fresh_db, MEANING)
+    # The index prints as three fields too (index, definition, options), below the products.
+    rows = {row[0]: row[1:] for row in printed
+            if row[0] not in ("name", "index") and not row[0].startswith("product_catalog_")}
     assert set(rows) == {
         "Ceramic Tumblers", "Espresso Cups, Set of 4", "Morning Run Shorts",
         "Neroli Oil", "Quilted Silk Vest", "Stoneware Mugs, Set of 2",
@@ -163,10 +165,11 @@ def test_the_meaning_worksheet_shows_distances_without_ranking_them(fresh_db) ->
         assert abs(float(similarity) - (1 - float(distance))) < 1e-4
     assert float(rows["Ceramic Tumblers"][0]) < float(rows["Morning Run Shorts"][0])
     # Task 1A needs the operator class only; the partial index waits for Go deeper.
-    indexes = {row[0]: row[1] for row in _worksheet_rows(fresh_db, MEANING, bars=1)
-               if row[0].startswith("product_catalog_")}
+    indexes = {row[0]: row[1:] for row in printed if row[0].startswith("product_catalog_")}
     assert list(indexes) == ["product_catalog_embedding_hnsw"]
-    assert "vector_cosine_ops" in indexes["product_catalog_embedding_hnsw"]
+    definition, options = indexes["product_catalog_embedding_hnsw"]
+    assert definition == "hnsw (embedding vector_cosine_ops)"
+    assert options.startswith("(m=") and "ef_construction" in options
 
 
 def test_the_worksheet_ranks_the_fitting_products_outside_the_rerank_pool(
