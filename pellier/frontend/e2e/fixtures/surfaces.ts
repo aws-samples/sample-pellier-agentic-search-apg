@@ -2,17 +2,15 @@
  * Every storefront and Operator surface, opened against recorded fixtures.
  *
  * `theme-surfaces.spec.ts` captures each one in both themes and runs the
- * dark contrast sweep on it; `theme-screenshots.spec.ts` shares the
- * storefront stubs. Each surface answers `/api` itself from the Anna turn
- * (`anna-turn.ts`) and Jessica's case (`jessica-case.ts`), so no backend or
- * model runs.
+ * dark contrast sweep on it; the other specs share the storefront stubs.
+ * Each surface answers `/api` itself from the Anna turn (`anna-turn.ts`) and
+ * Jessica's case (`jessica-case.ts`), so no backend or model runs.
  */
 import { expect, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { ANNA, ANNA_ME, ANNA_QUESTION, ANNA_TURN_EVENTS, sseBody } from './anna-turn'
 import { ANNA_RESULT_CARDS } from './anna-cards'
-import { HADLEY_RESULT_CARDS } from './two-searches-turn'
 import { BOOK, NADIA_ME, OPEN_REQUEST, RECORD } from './jessica-case'
 
 export const WAREHOUSES = [
@@ -71,7 +69,7 @@ const CATALOG: typeof PRODUCTS = (JSON.parse(readFileSync(
  * pages it: the home edit first, then every other piece by department,
  * highest rated first, then by name.
  */
-export const CATALOG_ORDER = [
+const CATALOG_ORDER = [
   ...HOME_EDIT,
   ...CATALOG.filter(row => !HOME_EDIT.some(card => card.id === row.id)).sort((a, b) =>
     a.category.localeCompare(b.category) || b.rating - a.rating || a.name.localeCompare(b.name)),
@@ -100,12 +98,10 @@ const SCENARIOS = {
 
 const json = (body: unknown, status = 200) => ({ status, contentType: 'application/json', body: JSON.stringify(body) })
 
-const RECORDED_CARDS = [...ANNA_RESULT_CARDS, ...HADLEY_RESULT_CARDS]
-
 /** `GET /api/products?ids=`: the recorded cards for exactly those ids, in that order. */
 export function resultCards(ids: string): unknown[] {
   return ids.split(',').filter(Boolean)
-    .map(id => RECORDED_CARDS.find(card => String(card.id) === id))
+    .map(id => ANNA_RESULT_CARDS.find(card => String(card.id) === id))
     .filter(Boolean)
 }
 
@@ -166,15 +162,21 @@ interface Visit {
   signedIn?: boolean
   overlay?: boolean
   cart?: boolean
+  /** Builder view starts on in a new browser; false turns it off before the page loads. */
+  builderView?: boolean
 }
 
 /** The storage a visit starts with, set before the first script runs. */
-export async function visit(page: Page, { signedIn = true, overlay = false, cart = false }: Visit = {}) {
-  await page.addInitScript(({ persona, signedIn, overlay, cart }) => {
+export async function visit(
+  page: Page,
+  { signedIn = true, overlay = false, cart = false, builderView = true }: Visit = {},
+) {
+  await page.addInitScript(({ persona, signedIn, overlay, cart, builderView }) => {
     if (!overlay) sessionStorage.setItem('pellier-storefront-spotlight-seen', 'true')
     localStorage.removeItem('pellier-theme')
     localStorage.removeItem('pellier-drawer-storefront')
-    localStorage.removeItem('pellier-builder-view')
+    if (builderView) localStorage.removeItem('pellier-builder-view')
+    else localStorage.setItem('pellier-builder-view', 'off')
     localStorage.setItem('pellier-session-id', 'session-shots')
     if (signedIn) {
       sessionStorage.setItem('pellier-persona', JSON.stringify(persona))
@@ -187,16 +189,20 @@ export async function visit(page: Page, { signedIn = true, overlay = false, cart
         image: '/products/theo-stoneware-pour-over-set.webp', origin: 'manual', addedAt: 1,
       }]))
     }
-  }, { persona: ANNA, signedIn, overlay, cart })
+  }, { persona: ANNA, signedIn, overlay, cart, builderView })
 }
 
-/** Anna asks from the home bar; the page fills with her result and the dock answers. */
-export async function askAnna(page: Page, { turn, question = ANNA_QUESTION }: { turn?: object[]; question?: string } = {}) {
-  await visit(page)
-  await stubStorefront(page, { turn })
+/**
+ * Anna asks from the home bar; the page fills with her result and the dock
+ * answers. Builder view is set before the page loads, never by clicking its
+ * switch: a click only flips whatever state the browser started in.
+ */
+async function askAnna(page: Page, { builderView = true }: { builderView?: boolean } = {}) {
+  await visit(page, { builderView })
+  await stubStorefront(page)
   await page.goto('/')
   const ask = page.getByTestId('pellier-hero-search')
-  await ask.fill(question)
+  await ask.fill(ANNA_QUESTION)
   await ask.press('Enter')
   await expect(page.getByTestId('results-grid')).toBeVisible({ timeout: 20_000 })
   await expect(page.getByTestId('chat-drawer').getByTestId('turn-fold')).toBeVisible({ timeout: 20_000 })
@@ -294,7 +300,6 @@ export const SURFACES: Surface[] = [
     open: async (page) => {
       await askAnna(page)
       const drawer = page.getByTestId('chat-drawer')
-      await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
       await drawer.getByTestId('turn-fold').click()
       await expect(drawer.getByTestId('ranking-summary')).toBeVisible()
     },
@@ -303,7 +308,8 @@ export const SURFACES: Surface[] = [
     name: 'results',
     fullPage: true,
     open: async (page) => {
-      await askAnna(page)
+      await askAnna(page, { builderView: false })
+      await expect(page.getByTestId('results-view').getByTestId('ranking-panel')).toHaveCount(0)
     },
   },
   {
@@ -311,7 +317,6 @@ export const SURFACES: Surface[] = [
     fullPage: true,
     open: async (page) => {
       await askAnna(page)
-      await page.getByTestId('surface-navigation').getByRole('switch', { name: 'Builder view' }).click()
       await expect(page.getByTestId('results-view').getByTestId('ranking-panel')).toBeVisible()
     },
   },

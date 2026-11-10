@@ -116,13 +116,6 @@ export function detail(review: Record<string, unknown>, record: Record<string, u
   }
 }
 
-export const EXECUTE_RESULT = {
-  reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
-  actorPrincipal: 'sub-nadia', assurance: EXECUTED_REVIEW.assurance,
-  notes: { policy: 'AgentCore Policy evaluated the action and permitted it.' }, tool: 'give_store_credit',
-  result: { status: 'success', credit_id: 12, amount: '100.00', idempotent_replay: false }, record: RECORDED_ONCE,
-}
-
 const step = (id: string, label: string, status: string, extra: Record<string, unknown> = {}) => ({
   type: 'step', id, label, status, tags: id === 'advisor' ? ['Advisor', 'Approval'] : id === 'investigator' ? ['Investigator'] : ['Aurora'],
   builder: { tool: id.startsWith('get_') ? id : null, rail: 'in-process', agent: id === 'advisor' ? 'advisor' : 'investigator' },

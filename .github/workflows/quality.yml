@@ -232,7 +232,8 @@ jobs:
 
       # These specs answer every /api call with an in-test stand-in, so they need
       # the app on Vite and nothing from AWS. workshop-smoke and retail-journey
-      # need a deployment; the *-screenshots specs only produce captures.
+      # need a deployment; theme-surfaces captures every surface and sweeps the
+      # dark theme's contrast, and is run by hand.
       - name: Start the app on Vite
         run: |
           npx vite --port 5199 --strictPort > "$RUNNER_TEMP/vite.log" 2>&1 &
