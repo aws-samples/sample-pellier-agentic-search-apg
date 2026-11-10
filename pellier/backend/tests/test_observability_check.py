@@ -346,3 +346,22 @@ def test_a_cluster_without_a_creation_time_reads_the_window() -> None:
     _, _, log = _run(cluster=cluster, logs_events=[_refusal_at(NOW - timedelta(minutes=80))])
     assert log.state == obs.NOT_YET
     assert "within the last 60 minutes" in log.expected
+
+
+@pytest.mark.parametrize("states, words, colour", [
+    (("PASSED", "PASSED", "PASSED"), "Observability check passed", "32"),
+    (("PASSED", "FAILED", "PASSED"), "Observability check: 2 of 3 passed", "31"),
+    (("PASSED", "NOT YET", "PASSED"), "Observability check: 2 of 3 passed", None),
+    (("PASSED", "COULD NOT CHECK", "PASSED"), "Observability check: 2 of 3 passed", None),
+])
+def test_the_closing_line_is_red_only_when_a_finding_failed(
+        monkeypatch: pytest.MonkeyPatch, states: tuple, words: str,
+        colour: Optional[str]) -> None:
+    """Green when all passed, red when one failed, plain when some are only unfinished."""
+    findings = [workshop_check.Finding("O1", "title", state, "expected", "observed", [])
+                for state in states]
+    assert obs.closing_line(findings) == words
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("TERM", "xterm-256color")
+    monkeypatch.setattr(workshop_check, "_is_terminal", lambda stream: True)
+    assert obs.closing_line(findings) == (f"\033[{colour}m{words}\033[0m" if colour else words)

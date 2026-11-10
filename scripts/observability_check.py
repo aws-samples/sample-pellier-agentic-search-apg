@@ -49,7 +49,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from wait_progress import waiting  # noqa: E402
 from workshop_check import (FAILED, NOT_YET, PASSED, COULD_NOT_CHECK,  # noqa: E402
-                            Finding, render, reset_point)
+                            Finding, overall, paint, render, reset_point)
 
 SPANS_GROUP = "aws/spans"
 TURN_ATTR = "pellier.turn_id"  # services/evidence_spans.py ATTR_TURN_ID
@@ -303,6 +303,15 @@ def check(logs: Any, rds: Any, pi: Any, cluster_arn: str, minutes: int,
                        postgresql_log(logs, cluster, start_ms, since)]
 
 
+def closing_line(findings: List[Finding]) -> str:
+    """The check's last line, with the count unless all passed: green when every finding
+    passed, red when one failed, and plain when some are only unfinished."""
+    proved = sum(f.state == PASSED for f in findings)
+    words = ("Observability check passed" if proved == len(findings)
+             else f"Observability check: {proved} of {len(findings)} passed")
+    return paint(words, overall(f.state for f in findings))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -328,11 +337,9 @@ def main() -> int:
     for finding in findings:
         print()
         print(render(finding))
-    proved = sum(f.state == PASSED for f in findings)
     print()
-    print("Observability check passed" if proved == len(findings)
-          else f"Observability check: {proved} of {len(findings)} passed")
-    return 0 if proved == len(findings) else 1
+    print(closing_line(findings))
+    return 0 if all(f.state == PASSED for f in findings) else 1
 
 
 if __name__ == "__main__":

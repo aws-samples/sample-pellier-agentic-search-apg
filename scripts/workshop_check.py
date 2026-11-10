@@ -177,6 +177,7 @@ def table(header: Sequence[str], rows: Sequence[Sequence[Any]],
 # has to strip them.
 _COLOURS = {PASSED: "\033[32m", FAILED: "\033[31m"}
 _COLOUR_OFF = "\033[0m"
+_COLOUR_CODE = re.compile(r"\033\[[0-9;]*m")
 
 
 def colour_enabled(stream: Any = None) -> bool:
@@ -196,6 +197,20 @@ def paint(text: str, state: str, stream: Any = None) -> str:
     if not colour or not colour_enabled(stream):
         return text
     return f"{colour}{text}{_COLOUR_OFF}"
+
+
+def overall(states: Iterable[str]) -> str:
+    """One state for several findings: FAILED when any failed, PASSED when all passed, and
+    NOT_YET otherwise. Work that is only unfinished is not a failure and is not painted as one."""
+    found = list(states)
+    if FAILED in found:
+        return FAILED
+    return PASSED if all(state == PASSED for state in found) else NOT_YET
+
+
+def plain(text: str) -> str:
+    """``text`` without colour codes: what a saved file keeps of a report painted for a terminal."""
+    return _COLOUR_CODE.sub("", text)
 
 
 # What a participant does after a task's check passes: a few words, then each command whole on

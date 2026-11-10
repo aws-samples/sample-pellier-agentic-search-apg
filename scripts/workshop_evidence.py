@@ -423,7 +423,8 @@ def render_report(findings: Sequence[check.Finding]) -> str:
                 lines.append(check.render(finding))
         lines.append("")
     proved = sum(1 for finding in findings if finding.state == PASSED)
-    lines.append(f"{proved} of {len(findings)} tasks passed")
+    counted = f"{proved} of {len(findings)} tasks passed"
+    lines.append(check.paint(counted, check.overall(finding.state for finding in findings)))
     return "\n".join(lines)
 
 
@@ -437,7 +438,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(report)
     if args.save:
         pathlib.Path(args.save).parent.mkdir(parents=True, exist_ok=True)
-        pathlib.Path(args.save).write_text(report + "\n", encoding="utf-8")
+        pathlib.Path(args.save).write_text(check.plain(report) + "\n", encoding="utf-8")
     return 0
 
 

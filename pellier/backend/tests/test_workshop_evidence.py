@@ -15,7 +15,7 @@ import importlib
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import psycopg
 import pytest
@@ -113,6 +113,50 @@ class TestTheEightLines:
         assert evidence.main(["--save", str(target)]) == 0
         assert target.read_text(encoding="utf-8").startswith("Pellier workshop evidence")
         assert "Pellier workshop evidence" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("states, colour", [
+        ((PASSED, PASSED), "32"), ((PASSED, check.FAILED), "31"),
+        ((PASSED, check.NOT_YET), None), ((PASSED, COULD_NOT_CHECK), None),
+    ])
+    def test_the_closing_count_is_red_only_when_a_task_failed(
+            self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+            capsys: pytest.CaptureFixture[str], states: tuple, colour: Optional[str]) -> None:
+        """At a terminal the last line is green when every task passed and red when one
+        failed. Tasks that are only unfinished are not a failure, so the count stays plain.
+        The file a participant downloads is plain text: no colour code from any line."""
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        monkeypatch.setenv("TERM", "xterm-256color")
+        monkeypatch.setattr(check, "_is_terminal", lambda stream: True)
+        findings = [check.Finding(task, "title", state, "expected", "observed", ["row"])
+                    for task, state in zip(("1A", "1B"), states)]
+        monkeypatch.setattr(evidence, "collect", lambda: findings)
+        target = tmp_path / "evidence.txt"
+        assert evidence.main(["--save", str(target)]) == 0
+        passed = states.count(PASSED)
+        shown = capsys.readouterr().out.rstrip()
+        assert "\033[32mPASSED\033[0m" in shown
+        count = f"{passed} of 2 tasks passed"
+        assert shown.splitlines()[-1] == (f"\033[{colour}m{count}\033[0m" if colour else count)
+        saved = target.read_text(encoding="utf-8")
+        assert "\033" not in saved
+        assert saved.rstrip().endswith(f"{passed} of 2 tasks passed")
+
+    def test_the_closing_count_is_plain_away_from_a_terminal(
+            self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+        monkeypatch.setattr(evidence, "collect", lambda: [])
+        assert evidence.main([]) == 0
+        assert capsys.readouterr().out.rstrip().endswith("0 of 0 tasks passed")
+
+    @pytest.mark.parametrize("states, expected", [
+        ([], PASSED),
+        ([PASSED, PASSED], PASSED),
+        ([PASSED, check.NOT_YET], check.NOT_YET),
+        ([PASSED, COULD_NOT_CHECK], check.NOT_YET),
+        ([check.NOT_YET, check.FAILED, PASSED], check.FAILED),
+    ])
+    def test_unfinished_work_is_not_a_failure(self, states: list, expected: str) -> None:
+        """Several findings read as failed only when one failed, as passed only when all did."""
+        assert check.overall(states) == expected
 
 
 class TestRegionState:
