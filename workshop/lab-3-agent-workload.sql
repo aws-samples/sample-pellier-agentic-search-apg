@@ -79,17 +79,19 @@ SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(su
    AND query !~ 'lab_3_probe'
 \gset lab_3_agent_
 \echo '          ' :lab_3_agent_summary
-SELECT sum(calls) AS calls, sum(rows) AS rows,
-       round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
-  FROM (SELECT calls, rows, total_exec_time,
-               left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
-          FROM pg_stat_statements
-         WHERE dbid = :lab_3_db AND userid = current_user::regrole
-           AND (query ~ 'pellier\.' OR query ~* '^\s*select set_config')
-           AND query !~ 'lab_3_probe') recorded
- GROUP BY statement
- ORDER BY calls DESC, statement
- LIMIT 5;
+SELECT s.calls, s.rows, s.mean_ms, left(s.statement, 64) AS statement
+  FROM (SELECT sum(calls) AS calls, sum(rows) AS rows,
+               round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
+          FROM (SELECT calls, rows, total_exec_time,
+                       left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
+                  FROM pg_stat_statements
+                 WHERE dbid = :lab_3_db AND userid = current_user::regrole
+                   AND (query ~ 'pellier\.' OR query ~* '^\s*select set_config')
+                   AND query !~ 'lab_3_probe') recorded
+         GROUP BY statement
+         ORDER BY calls DESC, statement
+         LIMIT 5) s
+ ORDER BY s.calls DESC, s.statement;
 RESET ROLE;
 
 \echo ''
@@ -103,16 +105,18 @@ SELECT format('distinct statements %s, calls %s', count(*), coalesce(sum(calls),
 \gset lab_3_writer_
 \if :lab_3_writer_seen
   \echo '          ' :lab_3_writer_summary
-  SELECT sum(calls) AS calls,
-         round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
-    FROM (SELECT calls, total_exec_time,
-                 left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
-            FROM pg_stat_statements
-           WHERE dbid = :lab_3_db AND userid = current_user::regrole
-             AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
-   GROUP BY statement
-   ORDER BY calls DESC, statement
-   LIMIT 3;
+  SELECT s.calls, s.mean_ms, left(s.statement, 64) AS statement
+    FROM (SELECT sum(calls) AS calls,
+                 round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
+            FROM (SELECT calls, total_exec_time,
+                         left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
+                    FROM pg_stat_statements
+                   WHERE dbid = :lab_3_db AND userid = current_user::regrole
+                     AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
+           GROUP BY statement
+           ORDER BY calls DESC, statement
+           LIMIT 3) s
+   ORDER BY s.calls DESC, s.statement;
 \else
   \echo '           none yet: no credit has run. Lab 4 writes the first one.'
 \endif
@@ -130,16 +134,18 @@ SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(su
 \gset lab_3_tools_
 \if :lab_3_tools_seen
   \echo '          ' :lab_3_tools_summary
-  SELECT sum(calls) AS calls, sum(rows) AS rows,
-         round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
-    FROM (SELECT calls, rows, total_exec_time,
-                 left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
-            FROM pg_stat_statements
-           WHERE dbid = :lab_3_db AND userid = current_user::regrole
-             AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
-   GROUP BY statement
-   ORDER BY calls DESC, statement
-   LIMIT 3;
+  SELECT s.calls, s.rows, s.mean_ms, left(s.statement, 64) AS statement
+    FROM (SELECT sum(calls) AS calls, sum(rows) AS rows,
+                 round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
+            FROM (SELECT calls, rows, total_exec_time,
+                         left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
+                    FROM pg_stat_statements
+                   WHERE dbid = :lab_3_db AND userid = current_user::regrole
+                     AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
+           GROUP BY statement
+           ORDER BY calls DESC, statement
+           LIMIT 3) s
+   ORDER BY s.calls DESC, s.statement;
 \else
   \echo '           none yet: the Gateway has not run a store tool since the cluster started.'
 \endif
@@ -154,16 +160,18 @@ SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(su
    AND query !~ 'lab_3_probe'
 \gset lab_3_login_
 \echo '          ' :lab_3_login_summary
-SELECT sum(calls) AS calls, sum(rows) AS rows,
-       round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
-  FROM (SELECT calls, rows, total_exec_time,
-               left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
-          FROM pg_stat_statements
-         WHERE dbid = :lab_3_db AND userid = session_user::regrole
-           AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
- GROUP BY statement
- ORDER BY calls DESC, statement
- LIMIT 5;
+SELECT s.calls, s.rows, s.mean_ms, left(s.statement, 64) AS statement
+  FROM (SELECT sum(calls) AS calls, sum(rows) AS rows,
+               round((sum(total_exec_time) / sum(calls))::numeric, 2) AS mean_ms, statement
+          FROM (SELECT calls, rows, total_exec_time,
+                       left(regexp_replace(query, '\s+', ' ', 'g'), 80) AS statement
+                  FROM pg_stat_statements
+                 WHERE dbid = :lab_3_db AND userid = session_user::regrole
+                   AND query ~ 'pellier\.' AND query !~ 'lab_3_probe') recorded
+         GROUP BY statement
+         ORDER BY calls DESC, statement
+         LIMIT 5) s
+ ORDER BY s.calls DESC, s.statement;
 
 -- One plan: Theo is bound, and the query asks for Jessica's orders. The policy
 -- is part of the plan: an InitPlan reads the bound name, and a one-time filter

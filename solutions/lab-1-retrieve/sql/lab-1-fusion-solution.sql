@@ -58,7 +58,7 @@ SELECT product_id,
 
 SELECT coalesce(max(receipt_id)::text, 'none') AS lab_1_receipt,
        coalesce(max(session_id), 'none') AS lab_1_session,
-       coalesce(max(query_preview), '') AS lab_1_query,
+       coalesce(left(max(query_preview), 80), '') AS lab_1_query,
        count(*) > 0 AS lab_1_has_receipt
   FROM lab_1_ranks
 \gset
@@ -76,7 +76,8 @@ SELECT count(*) AS lab_1_products,
 \echo 'Lab 1, Go deeper: recompute Anna''s recorded ranking from its two ranks'
 
 \if :lab_1_has_receipt
-  \echo 'Evidence  pellier.retrieval_receipts receipt' :lab_1_receipt 'in session' :lab_1_session
+  \echo 'Evidence  pellier.retrieval_receipts receipt' :lab_1_receipt
+  \echo '          in session' :lab_1_session
   \echo '          query:' :'lab_1_query'
   \echo '          products in one list only:' :lab_1_one_list 'of' :lab_1_products
   \echo ''
@@ -112,7 +113,8 @@ SELECT count(*) AS lab_1_products,
       DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
     \endif
   \else
-    \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only, so it cannot tell a missing rank apart'
+    \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only,'
+    \echo '          so it cannot tell a missing rank apart'
     \echo 'Next      send Anna''s request again: uv run scripts/lab_run.py send --lab 1'
     \echo 'Lab 1 fusion check not yet'
     DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;

@@ -77,7 +77,8 @@ SELECT format('%s, %s, %s and %s',
 \else
   \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
   \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
-  \echo 'Next      run uv run scripts/lab4_check.py --task 4A after deploying your rule, then run this again.'
+  \echo 'Next      run uv run scripts/lab4_check.py --task 4A after deploying your rule,'
+  \echo '          then run this again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

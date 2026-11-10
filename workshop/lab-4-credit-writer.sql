@@ -199,7 +199,8 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
      :'writer_tables', 'role_table_grants and pg_policies');
 
 \echo 'Lab 4B: your privileges for pellier_credit_writer, tested'
-\echo 'Evidence  pellier.give_store_credit and the role pellier_credit_writer, rewritten inside this transaction'
+\echo 'Evidence  pellier.give_store_credit and the role pellier_credit_writer, rewritten'
+\echo '          inside this transaction'
 \echo '          a test case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
 \echo ''
 -- Each probe on one row with the reason it came out as it did; after a failed run, each probe
