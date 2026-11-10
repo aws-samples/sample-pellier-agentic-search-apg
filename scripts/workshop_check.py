@@ -95,7 +95,8 @@ RELAYED_COLUMNS_ENV = "PELLIER_TERMINAL_COLUMNS"
 def relayed_columns() -> Optional[int]:
     """The width of the terminal a parent command relays this output to, when it has said."""
     value = os.environ.get(RELAYED_COLUMNS_ENV, "")
-    return int(value) if value.isdigit() and int(value) > 0 else None
+    # isascii first: isdigit alone accepts characters such as a superscript two, which int refuses.
+    return int(value) if value.isascii() and value.isdigit() and int(value) > 0 else None
 
 
 def terminal_width() -> int:

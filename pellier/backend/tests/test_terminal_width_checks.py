@@ -215,3 +215,21 @@ def test_memory_showcase_record_lines_fit(monkeypatch: pytest.MonkeyPatch, colum
     found = {"actor": "CUST-JESSICA", "session": "prefseed", "events": [],
              "strategies": strategies}
     assert_fits(showcase.render_strategies(found, "memory-id", found), width)
+
+
+@TERMINALS
+def test_marcos_two_lines_fit_and_keep_their_words(
+        monkeypatch: pytest.MonkeyPatch, columns: int) -> None:
+    """On the box the second line ran 96 columns in an 85-column terminal."""
+    lab2_check = importlib.import_module("lab2_check")
+    width = terminal(monkeypatch, columns)
+    request = lab2_check.marco_cape_request()
+    rows = [("not carried", "Velvet Opera Cape", "default",
+             "not_found: no product matches Velvet Opera Cape", "not_found", "matches")]
+    lines = lab2_check.marco_line(rows, request).splitlines()
+    assert all(len(line) <= width for line in lines), lines
+    assert lines[0] == f'Marco asks "{request}"'
+    assert " ".join(" ".join(lines[1:]).split()) == (
+        'check_stock("Velvet Opera Cape") answers not_found; the catalog: '
+        "not_found: no product matches Velvet Opera Cape")
+    assert all(line.startswith("  ") for line in lines[1:])

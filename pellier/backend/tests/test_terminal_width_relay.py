@@ -18,6 +18,7 @@ REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO / "scripts"))
 
 import lab_reset  # noqa: E402
+import lab_run  # noqa: E402
 import provision_agentcore_end_to_end as deploy  # noqa: E402
 import workshop_check as check  # noqa: E402
 
@@ -63,7 +64,7 @@ def test_a_relayed_child_fits_what_it_prints_to_that_width(
     assert check.terminal_width() == expected
 
 
-@pytest.mark.parametrize("told", ["", "wide", "0", "-5"])
+@pytest.mark.parametrize("told", ["", "wide", "0", "-5", "\u00b2", "1e2"])
 def test_a_width_that_is_not_a_number_is_ignored(
         monkeypatch: pytest.MonkeyPatch, told: str) -> None:
     monkeypatch.delenv(check.RELAYED_COLUMNS_ENV, raising=False)
@@ -82,3 +83,15 @@ def test_a_relayed_participant_deploy_prints_for_a_person(monkeypatch: pytest.Mo
     assert deploy._fitted_to_terminal()
     monkeypatch.setitem(deploy._PARTICIPANT_VIEW, "on", False)
     assert not deploy._fitted_to_terminal(), "only the participant deploy changes"
+
+
+def test_the_catch_up_echoes_the_deploy_as_the_guide_writes_it() -> None:
+    """The catch-up printed the deploy with the repository's whole path, 127 columns in a
+    100-column terminal. It runs from that folder, so "$PWD" is the same command, the one the
+    guide gives and a participant can copy."""
+    repo = Path("/workshop/sample-pellier-agentic-search-apg")
+    shown = lab_run.shown_command(lab_run._deploy(repo), repo)
+    assert shown == lab_run.DEPLOY
+    assert len(f"  $ {shown}") <= 100
+    assert lab_run.shown_command(["psql", "-f", "workshop/lab-4-absence.sql"], repo) == \
+        "psql -f workshop/lab-4-absence.sql"

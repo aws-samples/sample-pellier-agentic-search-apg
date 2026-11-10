@@ -665,8 +665,8 @@ def marco_line(rows: Sequence[Sequence[str]], request: str) -> str:
     unknown = next((row for row in rows if row[0] == _CASE_LABEL["unknown"]), None)
     if unknown is None:
         return ""
-    return (f'Marco asks "{request}"\n'
-            f'  check_stock("{unknown[1]}") answers {unknown[4]}; the catalog: {unknown[3]}')
+    answers = f'check_stock("{unknown[1]}") answers {unknown[4]}; the catalog: {unknown[3]}'
+    return check.wrapped("", f'Marco asks "{request}"') + "\n" + check.wrapped("  ", answers)
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:

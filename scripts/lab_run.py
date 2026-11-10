@@ -1165,6 +1165,12 @@ def _check(task: str) -> List[str]:
     return ["uv", "run", f"scripts/lab{task[0]}_check.py", "--task", task]
 
 
+def shown_command(argv: List[str], repo: pathlib.Path) -> str:
+    """A catch-up's command as it prints it: run from the repository folder, so that folder
+    reads "$PWD", as the guide writes the same command, and the line stays short."""
+    return shlex.join(argv).replace(shlex.quote(str(repo)), '"$PWD"')
+
+
 def _deploy(repo: pathlib.Path) -> List[str]:
     return ["uv", "run", "scripts/provision_agentcore_end_to_end.py", "--repo-path", str(repo),
             "--mode", "participant"]
@@ -1205,7 +1211,7 @@ class Finish:
         self.run, self.repo = run, repo
 
     def command(self, argv: List[str]) -> None:
-        shown = shlex.join(argv)
+        shown = shown_command(argv, self.repo)
         print(f"  $ {shown}", flush=True)
         with _no_next_lines():
             code = self.run(_executable(argv), cwd=str(self.repo), check=False).returncode
