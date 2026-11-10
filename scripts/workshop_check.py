@@ -101,6 +101,15 @@ def _lines(text: str, width: int) -> List[str]:
     return [line.replace("\0", " ") for line in lines]
 
 
+def wrapped(prefix: str, text: str, width: Optional[int] = None) -> str:
+    """``prefix`` then ``text``, broken at words to the terminal (or ``width``), with later
+    lines indented under where the text starts. A word longer than the room, such as a key,
+    stays whole, and so does a command a participant copies."""
+    room = max(_NARROWEST, width or terminal_width()) - len(prefix)
+    lines = _lines(text, max(room, _MIN_COLUMN))
+    return "\n".join([prefix + lines[0]] + [" " * len(prefix) + line for line in lines[1:]])
+
+
 def _longest_word(text: str) -> int:
     kept = _COMMAND.sub(lambda match: match.group(0).replace(" ", "\0"), text)
     return max((len(word) for word in kept.split()), default=0)
