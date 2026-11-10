@@ -645,7 +645,7 @@ def test_a_managed_lab_refuses_an_in_process_turn(
     assert _run(fake, 3) == 1
     err = capsys.readouterr().err
     deploy = err.index(lab_run.DEPLOY)
-    assert "Lab 3's deploy moves Pellier onto AgentCore" in err
+    assert "Lab 3's deploy moves Pellier onto AgentCore" in " ".join(err.split())
     assert err.index("bash scripts/lab3-start.sh theo") > deploy
     assert len(_turns(fake)) == 1
 
@@ -730,7 +730,7 @@ def test_resends_stop_once_the_retry_budget_is_spent(
     fake.chat_error = "ThrottlingException: slow down"
     assert _run(fake, 1) == 1
     assert len(_turns(fake)) == sends
-    err = capsys.readouterr().err
+    err = " ".join(capsys.readouterr().err.split())
     assert "your files are fine" in err and "Run the same command again in a minute" in err
 
 
@@ -835,7 +835,7 @@ def test_lab_4_stops_rather_than_overrule_a_person_who_rejected_the_credit(
     fake.reviews = [_review("rejected", "NOT_REACHED")]
     assert _run(fake, 4) == 1
     assert [r["path"] for r in _operator(fake)] == ["/api/operator/reviews"]
-    err = capsys.readouterr().err
+    err = " ".join(capsys.readouterr().err.split())
     assert "review 41 was rejected" in err
     assert "investigate Jessica's case in the Operator" in err
 
@@ -982,7 +982,7 @@ def test_a_missing_credentials_file_says_where_to_get_the_password(
     monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", missing)
     fake.rail = lab_run.MANAGED
     assert _run(fake, 4, None, "--shopper-only") == 0
-    last = capsys.readouterr().out.rstrip("\n").splitlines()[-1]
+    last = " ".join(capsys.readouterr().out.split())
     assert str(missing) in last and "ask a facilitator for her password" in last
 
 
@@ -1191,8 +1191,8 @@ def test_a_check_that_judges_the_newest_turn_gets_a_new_turn_and_a_second_look(
     assert commands.ran.count(f"uv run scripts/{check}") == 2
     turns = _turns(fake)
     assert [turn["auth"] for turn in turns[sent_by_the_lab:]] == resent
-    assert f"sending the request Task {task}'s check judges again (2 of 3)" in (
-        capsys.readouterr().out)
+    assert f"sending the request Task {task}'s check judges again (2 of 3)" in " ".join(
+        capsys.readouterr().out.split())
 
 
 @pytest.mark.usefixtures("box")

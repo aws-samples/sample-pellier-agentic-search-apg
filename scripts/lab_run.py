@@ -247,26 +247,42 @@ RELOAD_HINT = ("If the file is open and still shows your old lines, "
 
 
 def ok(message: str) -> None:
-    print(f"  + OK    {message}", flush=True)
+    print(lab_reset.status("+ OK", message), flush=True)
 
 
 def wait(message: str) -> None:
-    print(f"  - WAIT  {message}", flush=True)
+    print(lab_reset.status("- WAIT", message), flush=True)
 
 
 def fail(message: str) -> None:
-    first, *rest = message.split("\n")
-    lines = [f"  x FAIL  {first}"] + [f"          {line}" for line in rest]
-    print("\n".join(lines), file=sys.stderr, flush=True)
+    print(lab_reset.status("x FAIL", message), file=sys.stderr, flush=True)
+
+
+def say(text: str) -> None:
+    """A sentence indented two columns, broken at words to the terminal."""
+    print(check.wrapped("  ", text), flush=True)
+
+
+def print_reload_hint() -> None:
+    say(RELOAD_HINT)
 
 
 def print_next(*commands: str) -> None:
-    """The next commands, each whole on its own line so it copies and pastes as one command."""
+    """The next step, broken at words to the terminal; a command stays whole on its own line
+    so it copies and pastes as one command."""
     if commands:
         print("", flush=True)
     for index, command in enumerate(commands):
         prefix = "  Next: " if index == 0 else "        then "
-        print(prefix + command, flush=True)
+        print(check.wrapped(prefix, command), flush=True)
+
+
+def print_nadia_next() -> None:
+    """Lab 4's closing after Jessica's request: Nadia's part, then her sign-in on its own."""
+    print_next("as Nadia in the Operator, investigate Jessica's case, approve the "
+               "proposed credit and select Execute.")
+    print("", flush=True)
+    say(nadias_sign_in())
 
 
 def print_next_steps(steps: Sequence[str]) -> None:
@@ -427,7 +443,7 @@ def install_task(task: str, repo: pathlib.Path = REPO,
         changed = True
         backend_changed = backend_changed or entry["source"].startswith(BACKEND_DIR)
     if changed:
-        print(f"  {RELOAD_HINT}", flush=True)
+        print_reload_hint()
     if backend_changed and restart is not None:
         restart()
     if next_line:
@@ -493,8 +509,10 @@ def show_diff(lab: int, repo: pathlib.Path = REPO, color: bool = False) -> int:
         for line in lines:
             print(_paint(line.rstrip("\n"), color), flush=True)
     if differs:
-        print(f"'-' lines are the finished version: what 'uv run scripts/lab_run.py solution "
-              f"--lab {lab}' would write.\n'+' lines are your file as it is now.", flush=True)
+        print(check.wrapped("", "'-' lines are the finished version: what this command would "
+                                "write."), flush=True)
+        print(f"  uv run scripts/lab_run.py solution --lab {lab}", flush=True)
+        print("'+' lines are your file as it is now.", flush=True)
     return differs
 
 
@@ -1123,9 +1141,7 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
         converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
                  trace=trace)
     if lab == 4 and shopper_only:
-        print_next("as Nadia in the Operator, investigate Jessica's case, approve the "
-                   "proposed credit and select Execute.")
-        print(f"  {nadias_sign_in()}", flush=True)
+        print_nadia_next()
     elif lab == 4:
         settle_credit(backend, token_for(OPERATOR))
     if say_next:
@@ -1206,9 +1222,9 @@ class Finish:
             except LabRunError:
                 if task not in TURN_JUDGED_CHECKS or attempt == CHECK_ATTEMPTS or not may_retry():
                     raise
-            print(f"  The answers are in place, so this verdict came from the model's turn: "
-                  f"sending the request Task {task}'s check judges again "
-                  f"({attempt + 1} of {CHECK_ATTEMPTS})", flush=True)
+            say(f"The answers are in place, so this verdict came from the model's turn: "
+                f"sending the request Task {task}'s check judges again "
+                f"({attempt + 1} of {CHECK_ATTEMPTS})")
             send(self.lab, self.backend, self.token_for, task=TURN_JUDGED_CHECKS[task])
 
     def restart(self) -> None:
@@ -1216,8 +1232,8 @@ class Finish:
 
     def credit(self) -> None:
         """Jessica's request and Nadia's part, once, then the same-key replay proof."""
-        print("  Nadia's approval and execution are done for you here; in the lab you make "
-              "that decision yourself in the Operator.", flush=True)
+        say("Nadia's approval and execution are done for you here; in the lab you make "
+            "that decision yourself in the Operator.")
         wait_until_healthy(self.backend)
         nadia = self.token_for(OPERATOR)
         reviews = jessicas_reviews(self.backend, nadia)

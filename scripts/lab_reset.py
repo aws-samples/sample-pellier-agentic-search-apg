@@ -159,6 +159,33 @@ def database_sql(lab: int, repo: pathlib.Path = REPO) -> Optional[str]:
     return f"{CLEAN_BEFORE[lab]}\n{shipped_sql(lab, repo)}\n"
 
 
+def status(label: str, message: str, width: Optional[int] = None) -> str:
+    """One status line (``+ OK``, ``- WAIT`` or ``x FAIL``) broken at words to the terminal.
+
+    Later lines sit under the text. A line of ``message`` that starts with spaces is a command:
+    it stays whole on its own line so it copies as one. Sentence lines that follow each other
+    are one sentence, so a message that was broken by hand is broken again to this terminal.
+    """
+    prefix = f"  {label:<8}"
+    blocks: List[List[Any]] = []
+    for line in message.split("\n"):
+        command = line[:1].isspace()
+        if blocks and not command and line and not blocks[-1][0] and blocks[-1][1]:
+            blocks[-1][1] += " " + line
+        else:
+            blocks.append([command, line])
+    out: List[str] = []
+    for command, text in blocks:
+        lead = prefix if not out else " " * len(prefix)
+        if command:
+            out.append(lead + text)
+        elif text:
+            out.append(check.wrapped(lead, text, width))
+        else:
+            out.append(lead.rstrip())
+    return "\n".join(out)
+
+
 def credit_blocker(conn: Any) -> Optional[str]:
     """Why Lab 4 cannot be reset: the credit that exists, else None."""
     with conn.cursor() as cur:
@@ -313,25 +340,25 @@ def reset_lab(
                                 f"uv run scripts/repair_workshop_files.py, or reset the whole "
                                 f"workshop: {FULL_RESET}") from exc
         _timed(steps, f"files: {', '.join(restored)}", started)
-        report(f"  + OK    restored {check.counted(len(restored), 'file region')} "
-               f"from the originals ({', '.join(restored)})")
+        report(status("+ OK", f"restored {check.counted(len(restored), 'file region')} "
+                              f"from the originals ({', '.join(restored)})"))
 
         started = time.monotonic()
         point = apply_database(conn, lab, repo)
         if lab in SHIPPED_BLOCKS:
             _timed(steps, f"database: {SHIPPED_BLOCKS[lab]}", started)
-            report(f"  + OK    reinstalled the original database piece ({SHIPPED_BLOCKS[lab]}, "
-                   f"from {SCHEMA})")
+            report(status("+ OK", "reinstalled the original database piece "
+                                  f"({SHIPPED_BLOCKS[lab]}, from {SCHEMA})"))
         check.record_reset_point(lab, point)
-        report(f"  + OK    reset point {point.astimezone(timezone.utc):%H:%M:%S} UTC: Lab "
-               f"{lab}'s checks ignore earlier turns")
+        report(status("+ OK", f"reset point {point.astimezone(timezone.utc):%H:%M:%S} UTC: Lab "
+                              f"{lab}'s checks ignore earlier turns"))
     finally:
         conn.close()
 
     started = time.monotonic()
     managed(lab)
     _timed(steps, "managed state", started)
-    report("  + OK    restored the lab's execution and AgentCore state")
+    report(status("+ OK", "restored the lab's execution and AgentCore state"))
 
     if lab in RESTARTS_BACKEND:
         started = time.monotonic()
@@ -339,11 +366,11 @@ def reset_lab(
         if outcome == "restarted" and wait_healthy is not None:
             wait_healthy()
         _timed(steps, f"backend: {outcome}", started)
-        report(f"  + OK    backend {outcome}" if outcome == "restarted"
-               else f"  - WAIT  backend not restarted ({outcome}); restart it yourself")
-    report(f"  Not reset: {NOT_RESET[lab]}")
+        report(status("+ OK", f"backend {outcome}") if outcome == "restarted"
+               else status("- WAIT", f"backend not restarted ({outcome}); restart it yourself"))
+    report(check.wrapped("  Not reset: ", NOT_RESET[lab]))
     report(f"  Took {time.monotonic() - began:.0f} s.")
-    report("  Next: " + next_step(lab))
+    report(check.wrapped("  Next: ", next_step(lab)))
     return steps
 
 
