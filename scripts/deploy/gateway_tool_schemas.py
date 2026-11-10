@@ -234,7 +234,7 @@ for _target in TOOL_SCHEMAS.values():
 #
 #   get_tickets         reads a customer's support history. The read is only safe
 #                       under an ownership condition, and binding that condition is
-#                       Task 3A, so as shipped it is withheld.
+#                       Task 3A, so it stays withheld until then.
 #
 # Derived, never hand-copied. A second literal tool list would drift from this one the
 # first time a tool is added, and the drift would be invisible until a fresh provision.
@@ -243,8 +243,8 @@ for _target in TOOL_SCHEMAS.values():
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo asks the Support agent for his ticket history. `get_tickets` has a
-# schema in the catalog above but is withheld from the Gateway, so the managed
-# rail cannot serve it.
+# schema in the catalog above but is withheld from the Gateway, so no managed
+# caller can reach it.
 #
 # Publishing makes a tool discoverable and adds it to the policy action set. It
 # does not decide whose records a call may read: that is the caller binding in

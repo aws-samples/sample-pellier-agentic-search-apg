@@ -8,7 +8,7 @@
 -- Every credit is written by one function, pellier.give_store_credit. It
 -- refuses any credit a person did not approve exactly, under that review's own
 -- key, and a trigger on pellier.store_credits refuses the same for any insert.
--- Both rails run the credit as the pellier_credit_writer role: in process
+-- Both callers run the credit as the pellier_credit_writer role: in process
 -- through DatabaseService.fetch_all_as_credit_writer, on the Gateway through
 -- run_as_credit_writer. That role's privileges decide what else a credit path
 -- could do. The trigger covers inserts only, so a role that may UPDATE
@@ -22,9 +22,9 @@
 -- Run with:
 --   psql -f workshop/lab-4-credit-writer.sql
 --
--- Everything below runs in one transaction. If every probe matches, it
--- commits: your statements become the live privileges and the probe credit is
--- undone. If any probe differs, it rolls back and the live privileges stay.
+-- Everything below runs in one transaction. If every test matches, it
+-- commits: your statements become the live privileges and the test credit is
+-- undone. If any test differs, it rolls back and the live privileges stay.
 
 SET client_min_messages TO warning;
 BEGIN;
@@ -64,12 +64,12 @@ SELECT 'Lab 4B privileges sha256 ' || hash AS stamp, left(hash, 12) AS stamp_sho
 \gset
 COMMENT ON FUNCTION pellier.give_store_credit(text, text, integer, text, text) IS :'stamp';
 
--- The probes run inside a savepoint. Rolling back to it undoes the probe
+-- The tests run inside a savepoint. Rolling back to it undoes the test
 -- customer, its orders, its approved review and its credit; your statements
 -- above stay in the transaction.
 SAVEPOINT probes;
 
--- A probe case, written as the owner: two received returns and a review a
+-- A test case, written as the owner: two received returns and a review a
 -- person approved for $25.00 of them, with the review's own write key.
 INSERT INTO pellier.customers (id, name, cognito_username)
 VALUES ('CUST-LABFOURPROBE', 'Lab 4 probe', 'lab4-probe');
@@ -87,7 +87,7 @@ SELECT id AS review, 'operator-review:' || id || ':' || left(action_hash, 32) AS
 \gset probe_
 SELECT set_config('lab4.review', :'probe_review', true) AS review \gset
 
--- Each credit probe runs as pellier_credit_writer. A refusal is recorded as its
+-- Each credit test runs as pellier_credit_writer. A refusal is recorded as its
 -- SQLSTATE and where it came from: 42501 is a privilege the role does not
 -- hold; 23514 is a rule the table's trigger enforces.
 SET LOCAL ROLE pellier_credit_writer;
@@ -170,7 +170,7 @@ SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS table
            AND schemaname = 'pellier') p
 \gset writer_
 
--- Undo the probe case and its credit; your statements stay in the transaction.
+-- Undo the test case and its credit; your statements stay in the transaction.
 ROLLBACK TO SAVEPOINT probes;
 
 CREATE TEMP TABLE lab_4_probes (ord serial, probe text, expected text, observed text,
@@ -202,7 +202,7 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
 \echo '          a test case: CUST-LABFOURPROBE, two received returns, a $25.00 review'
 \echo '            a person approved'
 \echo ''
--- Each probe on one row with the reason it came out as it did; after a failed run, each probe
+-- Each test on one row with the reason it came out as it did; after a failed run, each test
 -- that differs again, with what was expected beside what was observed.
 SELECT probe AS "Test", source AS "Source", observed AS "Observed",
        CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
@@ -210,7 +210,7 @@ SELECT probe AS "Test", source AS "Source", observed AS "Observed",
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes
 \gset lab_4_
--- Point a failed run's next step at the first kind of probe that differs: table access,
+-- Point a failed run's next step at the first kind of test that differs: table access,
 -- then the function's rights, then what the function itself refused or wrote.
 SELECT bool_or(expected <> observed) FILTER (WHERE ord IN (1, 2, 8)) AS tables_differ,
        bool_or(expected <> observed) FILTER (WHERE ord = 6) AS rights_differ

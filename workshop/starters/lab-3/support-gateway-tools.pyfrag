@@ -6,8 +6,8 @@
 # agent works: it answers a returns question with get_return_policy and hands
 # off with ask_a_person. Theo's household request needs more.
 #
-# SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. On the managed
-# rail the Router asks the Gateway for exactly these, and a tool the Gateway
+# SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. When it runs on
+# AgentCore the Router asks the Gateway for exactly these, and a tool the Gateway
 # does not publish is left out, so this tuple and the published catalog have
 # to agree.
 #
@@ -21,8 +21,8 @@
 # deploys the agent and prints each agentcore command it runs; then send
 # Theo's requests with uv run scripts/lab_run.py send --lab 3, and
 # uv run scripts/lab3_check.py --task 3B reads the bound customer and the
-# executed build. Its direct Gateway probe checks a foreign request against
-# Cedar separately.
+# executed build. It also asks the Gateway directly, with Theo's token, for
+# Jessica's tickets, and Cedar must refuse.
 SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
     "get_return_policy",
     "ask_a_person",

@@ -3,7 +3,7 @@ Stock agent: reports how many of one product each warehouse holds, and the
 ship window it records.
 
 ``build_stock_agent()`` returns the configured Strands Agent the Router runs
-for the ``stock`` intent. The tools it is granted are the Lab 2A build: only
+for the ``stock`` intent. Lab 2A decides which tools it may call: only
 ``check_stock`` reads the warehouse rows a stock answer must come from.
 """
 from strands import Agent

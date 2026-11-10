@@ -8,7 +8,7 @@ targets. From the orchestrator's perspective, "having a Gateway" means
 tool definitions stop living in Python imports and start being
 discovered dynamically over the wire.
 
-The Gateway publishes Pellier's nine store tools on one target,
+The Gateway publishes Pellier's store tools on one target,
 ``pellier-store-tools`` (``scripts/deploy/gateway_tool_schemas.py``). This
 module is the client side: the managed Router builds the routed agent over the
 tools it discovers through ``MCPClient.list_tools_sync()``, so the Gateway, not

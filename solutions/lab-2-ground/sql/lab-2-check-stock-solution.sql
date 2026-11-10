@@ -6,15 +6,15 @@
 
 -- Lab 2, Task 2B: what check_stock says about a piece Pellier does not carry.
 --
--- Both rails answer check_stock with this one function: the Stock agent's
+-- Both callers answer check_stock with this one function: the Stock agent's
 -- in-process tool and the Gateway Lambda both run
 --   SELECT * FROM pellier.check_stock(<the name the shopper used>)
 -- and pellier/backend/services/store_tools.py turns its rows into the tool's
 -- answer. No row is not_found; several rows are the pieces to ask about; one row
 -- is that piece's stock.
 --
--- As shipped, the function totals the stock of what matched without testing that
--- anything did. An aggregate over no rows still returns one row: sum(quantity) is
+-- Without a test for the product, the function totals the stock of what matched
+-- even when nothing did. An aggregate over no rows still returns one row: sum is
 -- NULL, COALESCE makes it 0, and a piece Pellier does not carry reads as 0 in
 -- stock. A missing product is a missing row, not a zero, so the function has to
 -- test for the product before it aggregates. Write that test between the markers.
@@ -22,8 +22,8 @@
 -- Run with:
 --   psql -f workshop/lab-2-check-stock.sql
 --
--- Everything below runs in one transaction. If every probe matches, it commits and
--- your function is the live one. If any probe differs, it rolls back and the live
+-- Everything below runs in one transaction. If every test passes, it commits and
+-- your function is the live one. If any test fails, it rolls back and the live
 -- function stays.
 
 SET client_min_messages TO warning;
@@ -172,7 +172,7 @@ SELECT count(w.*) AS warehouse_rows, sum(w.quantity) AS "sum(quantity)",
                          WHERE strpos(lower(p.name), 'velvet') > 0
                            AND strpos(lower(p.name), 'opera') > 0
                            AND strpos(lower(p.name), 'cape') > 0);
--- Each probe on one row; after a failed run, each probe that differs again, with what was
+-- Each test on one row; after a failed run, each test that differs again, with what was
 -- expected beside what was observed and the call that observed it.
 SELECT probe AS "Test", observed AS "Observed",
        CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"

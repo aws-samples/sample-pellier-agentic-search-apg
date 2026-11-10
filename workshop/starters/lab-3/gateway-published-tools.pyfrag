@@ -1,8 +1,8 @@
 # WORKSHOP_EXERCISE_STUB
 #
 # Task 3A. Theo asks the Support agent for his ticket history. `get_tickets` has a
-# schema in the catalog above but is withheld from the Gateway, so the managed
-# rail cannot serve it.
+# schema in the catalog above but is withheld from the Gateway, so no managed
+# caller can reach it.
 #
 # Publishing makes a tool discoverable and adds it to the policy action set. It
 # does not decide whose records a call may read: that is the caller binding in

@@ -20,9 +20,9 @@
 -- Run with:
 --   psql -f workshop/lab-3-row-ownership.sql
 --
--- Everything below runs in one transaction. If every probe matches, it
--- commits: your predicate becomes the live policy and the probe writes are
--- undone. If any probe differs, it rolls back and the live policies stay.
+-- Everything below runs in one transaction. If every test matches, it
+-- commits: your predicate becomes the live policy and the test writes are
+-- undone. If any test differs, it rolls back and the live policies stay.
 
 SET client_min_messages TO warning;
 BEGIN;
@@ -53,7 +53,7 @@ COMMENT ON POLICY orders_own_rows ON pellier.orders IS :'stamp';
 COMMENT ON POLICY support_tickets_own_rows ON pellier.support_tickets IS :'stamp';
 
 -- What the tables hold, read as the owner, which row-level security does not
--- apply to: the numbers each probe below must reproduce under your policy.
+-- apply to: the numbers each test below must reproduce under your policy.
 SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS theo_orders,
        (SELECT count(*) FROM pellier.support_tickets WHERE customer_id = 'CUST-THEO')
          AS theo_tickets,
@@ -64,7 +64,7 @@ SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS 
           FROM pellier.customers WHERE id IN ('CUST-THEO', 'CUST-JESSICA')) AS names
 \gset owner_
 
--- The probes run inside a savepoint. Rolling back to it undoes their test
+-- The tests run inside a savepoint. Rolling back to it undoes their test
 -- writes; your policy edit above stays in the transaction.
 SAVEPOINT probes;
 
@@ -153,7 +153,7 @@ RESET ROLE;
 
 -- Every customer, one at a time, as pellier_agent: each must see exactly their
 -- own orders and tickets. A predicate that names Theo and Jessica would pass the
--- probes above and still hide everyone else's rows, so it is refused here.
+-- tests above and still hide everyone else's rows, so it is refused here.
 DO $every_customer$
 DECLARE
     names text[];
@@ -185,7 +185,7 @@ SELECT current_setting('lab3.customers') AS customers,
        current_setting('lab3.customers_exact') AS exact
 \gset every_
 
--- Undo the probe writes and settings; your policy edit stays in the transaction.
+-- Undo the test writes and settings; your policy edit stays in the transaction.
 ROLLBACK TO SAVEPOINT probes;
 
 -- A temporary table, dropped when the transaction ends either way.

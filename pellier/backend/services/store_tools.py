@@ -1,6 +1,6 @@
 """Pellier's nine store tools: one bounded, parameterized query each.
 
-Every tool's SQL and row shaping is stated once, here, and two rails call it:
+Every tool's SQL and row shaping is written once, here, and two callers use it:
 
 * the in-process ``@tool`` wrappers in ``services/agent_tools.py``, through
   the psycopg pool;
@@ -13,10 +13,10 @@ binds it directly and the Data API adapter rewrites it to named parameters (a
 list parameter binds as ``text[]``). Every statement returns rows: a write ends
 in ``RETURNING`` so both drivers can fetch its result the same way.
 
-Values come back typed differently on the two rails. psycopg returns
+Values come back typed differently to the two callers. psycopg returns
 ``Decimal``, ``datetime`` and parsed JSON; the Data API returns numbers and
 timestamps as strings and JSON columns as text. The shaping helpers below
-accept both, so a tool answers identically whichever rail ran it.
+accept both, so a tool answers identically whichever caller ran it.
 
 This module imports only the standard library and the two pure retrieval
 modules it plans and proves searches with, so the Lambda can package it.

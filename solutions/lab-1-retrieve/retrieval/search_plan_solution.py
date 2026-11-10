@@ -1,11 +1,11 @@
 """Typed query planning — the ``Plan`` step of Plan → Retrieve → Rank → Act → Prove.
 
-This module plans the in-process retrieval paths in Pellier. Managed Gateway
-search uses a separate Lambda implementation; deploying Runtime does not deploy
-this module. The
-shipped Catalog agent tool path and the Lab 1 strategy comparison both compile
-their retrieval through :func:`build_plan`, so the "agentic" strategy the
-workshop *demonstrates* is the same one shoppers actually get.
+This module plans every Pellier search. The in-process Catalog agent tool and the
+Gateway Lambda, which packages this file, both compile their retrieval through
+:func:`build_plan`, and so does the Lab 1 strategy comparison. That is why the
+"agentic" strategy the workshop *demonstrates* is the same one shoppers
+actually get, with no separate demo path. The model only proposes the plan;
+this module decides what runs.
 
 The division of labour is the lesson:
 

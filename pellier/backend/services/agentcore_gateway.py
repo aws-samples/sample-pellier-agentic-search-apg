@@ -8,7 +8,7 @@ targets. From the orchestrator's perspective, "having a Gateway" means
 tool definitions stop living in Python imports and start being
 discovered dynamically over the wire.
 
-The Gateway publishes Pellier's nine store tools on one target,
+The Gateway publishes Pellier's store tools on one target,
 ``pellier-store-tools`` (``scripts/deploy/gateway_tool_schemas.py``). This
 module is the client side: the managed Router builds the routed agent over the
 tools it discovers through ``MCPClient.list_tools_sync()``, so the Gateway, not
@@ -64,8 +64,8 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 # agent works: it answers a returns question with get_return_policy and hands
 # off with ask_a_person. Theo's household request needs more.
 #
-# SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. On the managed
-# rail the Router asks the Gateway for exactly these, and a tool the Gateway
+# SUPPORT_GATEWAY_TOOLS: the Gateway tools the agent asks for. When it runs on
+# AgentCore the Router asks the Gateway for exactly these, and a tool the Gateway
 # does not publish is left out, so this tuple and the published catalog have
 # to agree.
 #
@@ -79,8 +79,8 @@ def assert_no_staff_only_binding(specialist: str, allowed_tools: Sequence[str]) 
 # deploys the agent and prints each agentcore command it runs; then send
 # Theo's requests with uv run scripts/lab_run.py send --lab 3, and
 # uv run scripts/lab3_check.py --task 3B reads the bound customer and the
-# executed build. Its direct Gateway probe checks a foreign request against
-# Cedar separately.
+# executed build. It also asks the Gateway directly, with Theo's token, for
+# Jessica's tickets, and Cedar must refuse.
 SUPPORT_GATEWAY_TOOLS: tuple[str, ...] = (
     "get_return_policy",
     "ask_a_person",
