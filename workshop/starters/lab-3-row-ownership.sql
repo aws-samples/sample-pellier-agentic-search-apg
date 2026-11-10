@@ -223,7 +223,17 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
   \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Saved, your predicate is now the live policy.'
   \echo 'Deployed  your predicate on orders_own_rows and support_tickets_own_rows, sha256' :stamp_short
   \echo '          the test writes were undone before the commit'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 3B predicate check passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
+  -- A catch-up (lab_run.py finish) runs the next step itself, so it asks for no Next.
+  \if :{?quiet_next}
+  \else
+    \echo ''
+    \echo 'Next: go back to the deploy in the Pellier workshop terminal. When it has finished,'
+    \echo '      send Theo''s requests.'
+    \echo '      uv run scripts/lab_run.py send --lab 3'
+  \endif
 \else
   ROLLBACK;
   \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Your change was undone. The live policies are unchanged.'
@@ -233,6 +243,8 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
   \echo '          current_setting(''pellier.principal_username'', true). If only the'
   \echo '          every-customer row does not match, it names particular customers instead of the'
   \echo '          one bound on the session.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3B predicate check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3B predicate check failed; see the lines above'; END $fail$;
 \endif

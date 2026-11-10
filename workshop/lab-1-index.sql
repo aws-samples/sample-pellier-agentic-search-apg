@@ -73,7 +73,9 @@ SELECT (SELECT count(*) FROM pellier.product_catalog
 \else
   \echo 'Observed  no Linen Photo Album with an embedding in pellier.product_catalog'
   \echo 'Next      this is not Pellier''s seeded catalog; this file is optional, so skip it.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 index check failed; see the lines above'; END $fail$;
 \endif
 
@@ -246,13 +248,19 @@ ROLLBACK;
 \else
   \echo 'Observed  fewer than 20 products are $35 or less and not candles, so no plan can return 20'
   \echo 'Next      this is not Pellier''s seeded catalog; this file is optional, so skip it.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 index check failed; see the lines above'; END $fail$;
 \endif
 \if :lab_1_filled
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 1 index check passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
   \echo 'Next      inspect pgvector version (0.8.0+), filter selectivity and hnsw scan limits.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 index check failed; see the lines above'; END $fail$;
 \endif

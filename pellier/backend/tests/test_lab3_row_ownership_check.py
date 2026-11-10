@@ -181,7 +181,7 @@ def test_a_starter_worksheet_is_not_yet_deployed() -> None:
     finding = rls.judge_deployed(_stamp(SOLUTION), is_starter=True, deployed={})
     assert finding.state == rls.check.NOT_YET
     assert "ships with" in finding.observed
-    assert "workshop/lab-3-row-ownership.sql" in finding.next_step
+    assert "labs/03-deploy/3B-row-ownership.sql" in finding.next_step
 
 
 def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
@@ -189,7 +189,8 @@ def test_unstamped_policies_are_the_shipped_ones_not_yours() -> None:
                                   deployed={"orders_own_rows": "", "support_tickets_own_rows": ""})
     assert finding.state == rls.check.NOT_YET
     assert "shipped" in finding.observed
-    assert "psql" in finding.next_step and "workshop/lab-3-row-ownership.sql" in finding.next_step
+    assert "psql" in finding.next_step
+    assert "labs/03-deploy/3B-row-ownership.sql" in finding.next_step
 
 
 def test_a_file_edited_after_it_was_deployed_is_named() -> None:

@@ -187,7 +187,16 @@ SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
   COMMIT;
   \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Saved, your function is live.'
   \echo 'Deployed  pellier.check_stock, sha256' :stamp_short
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 2B function check passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
+  -- A catch-up (lab_run.py finish) runs the next step itself, so it asks for no Next.
+  \if :{?quiet_next}
+  \else
+    \echo ''
+    \echo 'Next: prove the live function.'
+    \echo '      uv run scripts/lab2_check.py --task 2B'
+  \endif
 \else
   SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed", source AS "Source"
     FROM lab_2_probes WHERE expected <> observed ORDER BY ord;
@@ -195,6 +204,8 @@ SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
   \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Your change was undone. The live function is unchanged.'
   \echo 'Next      what should a piece Pellier does not carry return? Read the aggregate above: over'
   \echo '          no rows it still returns one row, and COALESCE turns its NULL sum into 0.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 2B function check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 2B function check failed; see the lines above'; END $fail$;
 \endif

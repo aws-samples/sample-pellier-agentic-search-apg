@@ -43,7 +43,7 @@ def _judge(receipt: Dict[str, Any], broken: Optional[List[str]] = None):
 def test_kept_limits_after_the_fallback_prove_it() -> None:
     finding = _judge(_receipt())
     assert finding.state == "PASSED"
-    assert finding.observed == "all 2 keep under $100, in stock, no candles after the fallback"
+    assert finding.observed == "all 2 keep under $100, in stock, no candles after the retry"
     assert "the shopper asked: under $100, in stock, no candles" in finding.evidence
 
 
@@ -71,7 +71,7 @@ def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, o
 def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> None:
     finding = _judge(_receipt(relaxations=[]), ["80 Sunday Morning Candle is excluded candle"])
     assert finding.state == "NOT YET"
-    assert finding.observed.startswith("the first search answered, so the fallback never ran")
+    assert finding.observed.startswith("the first search answered, so the retry never ran")
     assert "_next_attempt" not in finding.next_step
 
 

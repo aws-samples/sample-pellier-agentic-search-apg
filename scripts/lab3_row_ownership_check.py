@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lab 3B, live: your deployed predicate stops a wrong query on both database paths.
 
-``workshop/lab-3-row-ownership.sql`` probes your predicate and, when every probe matches,
+``labs/03-deploy/3B-row-ownership.sql`` probes your predicate and, when every probe matches,
 commits it as the live policy on ``orders_own_rows`` and ``support_tickets_own_rows``,
 commented with its sha256. This check first confirms both live policies carry
 the predicate now in your file, so the policies it probes are yours and not the
@@ -50,10 +50,10 @@ STARTER = REPO / "workshop" / "starters" / "lab-3-row-ownership.sql"
 REGION = "Row ownership - predicate"
 STAMP_PREFIX = "Lab 3B predicate sha256 "
 POLICY_NAMES = ("orders_own_rows", "support_tickets_own_rows")
-RUN_WORKSHEET = "psql -f workshop/lab-3-row-ownership.sql"
+RUN_WORKSHEET = "psql -f labs/03-deploy/3B-row-ownership.sql"
 DEPLOYED_TITLE = "your predicate is the live policy on both tables"
 DEPLOYED_EXPECTED = ("orders_own_rows and support_tickets_own_rows carry the predicate now in "
-                     "workshop/lab-3-row-ownership.sql, committed by its passing run")
+                     "labs/03-deploy/3B-row-ownership.sql, committed by its passing run")
 DEPLOYED_SQL = """
 SELECT pol.polname AS policy,
        coalesce(obj_description(pol.oid, 'pg_policy'), '') AS stamp,
@@ -133,18 +133,18 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
     if stamp is None:
         return check.Finding("3B", DEPLOYED_TITLE, check.COULD_NOT_CHECK, DEPLOYED_EXPECTED,
                              "the file's predicate region could not be read",
-                             ["workshop/lab-3-row-ownership.sql: no $predicate$ quotes"],
+                             ["labs/03-deploy/3B-row-ownership.sql: no $predicate$ quotes"],
                              "restore the region from workshop/starters/lab-3-row-ownership.sql.")
     if is_starter:
         return check.Finding("3B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
                              "the file still holds the predicate it ships with",
-                             ["workshop/lab-3-row-ownership.sql: Row ownership - predicate "
+                             ["labs/03-deploy/3B-row-ownership.sql: Row ownership - predicate "
                               "is false"],
-                             "write the predicate in workshop/lab-3-row-ownership.sql, then run "
+                             "write the predicate in labs/03-deploy/3B-row-ownership.sql, then run "
                              f"{RUN_WORKSHEET}.")
     short = stamp[len(STAMP_PREFIX):][:12]
     evidence = [_stamp_line(name, deployed.get(name, "")) for name in POLICY_NAMES]
-    evidence.append(f"workshop/lab-3-row-ownership.sql: sha256 {short}...")
+    evidence.append(f"labs/03-deploy/3B-row-ownership.sql: sha256 {short}...")
     if all(deployed.get(name) == stamp for name in POLICY_NAMES):
         return check.Finding("3B", DEPLOYED_TITLE, check.PASSED, DEPLOYED_EXPECTED,
                              f"both policies carry your predicate, sha256 {short}", evidence)
@@ -409,8 +409,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)
-    print("Lab 3B row ownership live check passed" if passed
-          else "Lab 3B row ownership live check failed")
+    print(check.closing("Lab 3B row ownership live check", passed))
     return 0 if passed else 1
 
 

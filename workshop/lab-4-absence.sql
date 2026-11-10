@@ -78,7 +78,9 @@ SELECT format('%s, %s, %s and %s',
   \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
   \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
   \echo 'Next      run uv run scripts/lab4_check.py --task 4A after deploying your rule, then run this again.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif
 \if :lab_4_has_allow_key
@@ -86,7 +88,9 @@ SELECT format('%s, %s, %s and %s',
   \echo 'Expected  the store credit Nadia''s approval of Jessica''s case wrote'
   \echo 'Observed  none yet: Jessica has no store credit'
   \echo 'Next      in the Operator, approve and execute Jessica''s review as Nadia, then run this again.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif
 
@@ -119,13 +123,26 @@ SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4
 \else
   \echo 'Next      the allowed key does not find exactly one credit and one audit row, so this search'
   \echo '          cannot vouch for an absence.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif
 \if :lab_4_absence_holds
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 4 absence check passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
+  -- A catch-up (lab_run.py finish) runs the next step itself, so it asks for no Next.
+  \if :{?quiet_next}
+  \else
+    \echo ''
+    \echo 'Next: the Wrap-up. Follow Jessica''s credit from her request to the row Aurora wrote.'
+    \echo '      uv run scripts/follow_credit.py'
+  \endif
 \else
   \echo 'Next      the denied key left rows behind: read them by that key; a denied call must never run.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
 \endif

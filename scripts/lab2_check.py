@@ -24,7 +24,7 @@ rows read directly:
     in stock      the Hadley Linen Shirt              -> success, the warehouse rows
 
 It also reads the live function's source: it must be the one
-``workshop/lab-2-check-stock.sql`` committed. You choose the first three queries;
+``labs/02-ground/2B-check-stock.sql`` committed. You choose the first three queries;
 a query that is not what it claims to be fails as a test input, so a weak test
 cannot pass. A blank choice uses the default and the report says so.
 
@@ -67,7 +67,7 @@ RESTART = "sudo systemctl restart pellier"
 STOCK_AGENT_FILE = BACKEND / "agents" / "stock_agent.py"
 WORKSHEET = REPO / "workshop" / "lab-2-check-stock.sql"
 WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
-WORKSHEET_RUN = "psql -f workshop/lab-2-check-stock.sql"
+WORKSHEET_RUN = "psql -f labs/02-ground/2B-check-stock.sql"
 FUNCTION_REGION = "Stock check - not carried"
 STAMP_PREFIX = "Lab 2B function sha256 "
 _DOLLAR = "$check_stock$"
@@ -86,7 +86,7 @@ EXPECTED_2B = ("not carried -> not_found with no count; several -> ambiguous wit
                "candidates; sold out -> success with 0 units; in stock -> success with "
                "the warehouse rows; the live pellier.check_stock is the one in your file")
 _NEXT_2B = ("what should a piece Pellier does not carry return? Write that test in the "
-            f"{FUNCTION_REGION} region of workshop/lab-2-check-stock.sql, then run it: "
+            f"{FUNCTION_REGION} region of labs/02-ground/2B-check-stock.sql, then run it: "
             f"{WORKSHEET_RUN}. It saves your function only when its four tests pass.")
 
 # The catalog's own answer to "which pieces does this query name?": every word
@@ -688,7 +688,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(cases_table(rows))
     print(check.render(finding))
     passed = finding.state == check.PASSED
-    print(f"Lab {args.task} check {'passed' if passed else 'failed'}")
+    print(check.closing(f"Lab {args.task} check", passed, args.task))
     return 0 if passed else 1
 
 

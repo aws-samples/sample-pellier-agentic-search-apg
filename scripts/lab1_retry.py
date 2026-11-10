@@ -43,9 +43,9 @@ SEND = "uv run scripts/lab_run.py send --lab 1 --task 1B"
 # first search cannot fill, so the fallback has to run.
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "
                 "In stock, under $100, and no candles.")
-TITLE = "Anna's requirements survive the fallback"
+TITLE = "Anna's requirements survive the retry"
 EXPECTED = (
-    "the fallback ran and the search that answered kept every requirement the shopper "
+    "the retry ran and the search that answered kept every requirement the shopper "
     "asked for; every product it returned meets them"
 )
 NEXT_STEP = (
@@ -301,7 +301,7 @@ def _judge(
         return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
                              NEXT_REQUEST)
     if not _relaxations(receipt):
-        observed = (f"the first search answered, so the fallback never ran; {len(ids)} "
+        observed = (f"the first search answered, so the retry never ran; {len(ids)} "
                     f"returned, {len(broken_lines)} break a requirement")
         return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
                              NEXT_REQUEST)
@@ -324,7 +324,7 @@ def _judge(
                              NEXT_STEP)
     return check.Finding("1B", TITLE, check.PASSED, EXPECTED,
                          f"all {len(ids)} keep {', '.join(phrases(requested))} after the "
-                         "fallback", evidence)
+                         "retry", evidence)
 
 
 def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List[Sequence[Any]]]:
@@ -354,5 +354,5 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         print(check.table(("product", "name", "price", "in stock", "verdict"), rows))
     print(check.render(finding))
     passed = finding.state == check.PASSED
-    print("Lab 1B check passed" if passed else "Lab 1B check failed")
+    print(check.closing("Lab 1B check", passed, "1B"))
     return 0 if passed else 1

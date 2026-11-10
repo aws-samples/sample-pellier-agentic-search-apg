@@ -317,11 +317,12 @@ def report(followed: Followed) -> str:
     if followed.rows:
         lines += [check.table(HEADER, followed.rows), ""]
     if followed.state == check.PASSED:
-        return "\n".join([*lines, *followed.joins, "", "End-to-end check passed"])
+        return "\n".join([*lines, *followed.joins, "",
+                          check.closing("End-to-end check", True)])
     lines.append(f"{followed.state}  {followed.observed}")
     if followed.next_step:
         lines.append(f"Next  {followed.next_step}")
-    return "\n".join([*lines, "End-to-end check failed"])
+    return "\n".join([*lines, check.closing("End-to-end check", False)])
 
 
 def read_story() -> Tuple[Optional[Dict[str, Any]], Optional[str]]:

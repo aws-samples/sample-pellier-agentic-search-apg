@@ -172,16 +172,95 @@ def table(header: Sequence[str], rows: Sequence[Sequence[Any]],
     return _pairs(records, ends, room)
 
 
+# A verdict is green when it passed and red when it failed, on a terminal only: a pipe, a file
+# and NO_COLOR get the same words without the escape codes, so nothing that reads the output
+# has to strip them.
+_COLOURS = {PASSED: "\033[32m", FAILED: "\033[31m"}
+_COLOUR_OFF = "\033[0m"
+
+
+def colour_enabled(stream: Any = None) -> bool:
+    """Whether ``stream`` (stdout when omitted) is a terminal that should get colour."""
+    if "NO_COLOR" in os.environ or os.environ.get("TERM") == "dumb":
+        return False
+    return _is_terminal(sys.stdout if stream is None else stream)
+
+
+def _is_terminal(stream: Any) -> bool:
+    return bool(getattr(stream, "isatty", lambda: False)())
+
+
+def paint(text: str, state: str, stream: Any = None) -> str:
+    """``text`` in the colour of ``state`` when the stream takes colour; unchanged otherwise."""
+    colour = _COLOURS.get(state)
+    if not colour or not colour_enabled(stream):
+        return text
+    return f"{colour}{text}{_COLOUR_OFF}"
+
+
+# What a participant does after a task's check passes: a few words, then each command whole on
+# its own line so it copies as one command. The guide's steps follow the same order.
+_DEPLOY = 'uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
+NEXT_AFTER_PASS: Dict[str, List[str]] = {
+    "1A": ["Task 1B. Send Anna's full request, with her three requirements.",
+           "uv run scripts/lab_run.py send --lab 1 --task 1B"],
+    "1B": ["Lab 2. Send Marco's stock question.",
+           "uv run scripts/lab_run.py send --lab 2 --task 2A"],
+    "2A": ["Task 2B. Ask about a product Pellier does not carry.",
+           "uv run scripts/lab_run.py send --lab 2 --task 2B"],
+    "2B": ["ask about the same product again. Then read From local agents to Amazon Bedrock "
+           "AgentCore in the guide, which leads into Lab 3.",
+           "uv run scripts/lab_run.py send --lab 2 --task 2B"],
+    "3A": ["Task 3B. Deploy these files, and build the ownership rule while it runs.", _DEPLOY],
+    "3B": ["Lab 4. Send Jessica's store credit request.",
+           "uv run scripts/lab_run.py send --lab 4 --shopper-only"],
+    "4A": ["count the rows for the denied key and for Jessica's approved key.",
+           "psql -f workshop/lab-4-absence.sql"],
+    "4B": ["when the deploy has finished, go back to Jessica's review in the Operator. Select "
+           "Execute again, then Replay with the same key. Then check the deployed rule.",
+           "uv run scripts/lab4_check.py --task 4A"],
+}
+
+
+# A catch-up (lab_run.py finish, fast-track) runs each next step itself and sets this for the
+# commands it runs, so they do not tell the participant to do what is already under way.
+NO_NEXT_ENV = "PELLIER_NO_NEXT"
+
+
+def says_next() -> bool:
+    """False inside a catch-up, which runs the next step itself."""
+    return not os.environ.get(NO_NEXT_ENV)
+
+
+def next_lines(steps: Sequence[str]) -> str:
+    """``Next:`` and what to do, then each command indented under it on its own line."""
+    if not steps:
+        return ""
+    first, *commands = steps
+    return "\n".join([f"Next: {first}"] + [f"      {command}" for command in commands])
+
+
+def closing(label: str, passed: bool, task: str = "") -> str:
+    """A check's last lines: ``<label> passed`` in green or ``<label> failed`` in red, and
+    after a pass, what to do next when ``task`` names one of the eight tasks."""
+    line = paint(f"{label} {'passed' if passed else 'failed'}", PASSED if passed else FAILED)
+    following = next_lines(NEXT_AFTER_PASS.get(task, [])) if passed and says_next() else ""
+    # A blank line sets the next step apart from the verdict above it.
+    return f"{line}\n\n{following}" if following else line
+
+
 def render(finding: Finding) -> str:
     """The finding as one bordered box sized to the terminal: the task and its state, then
-    each field on its own row."""
+    each field on its own row. PASSED is green and FAILED is red on a terminal."""
     rows = [[f"Task {finding.task}", f"{finding.state}  {finding.title}"],
             ["Expected", finding.expected], ["Observed", finding.observed]]
     for index, line in enumerate(finding.evidence or ["(none)"]):
         rows.append(["Evidence" if index == 0 else "", line])
     if finding.state != PASSED and finding.next_step:
         rows.append(["Next", finding.next_step])
-    return _pairs(rows, {0}, terminal_width())
+    box = _pairs(rows, {0}, terminal_width())
+    # Painted after the box is laid out, so the escape codes never count as columns.
+    return box.replace(f" {finding.state}  ", f" {paint(finding.state, finding.state)}  ", 1)
 
 
 def parse_dotenv(env_path: pathlib.Path) -> Dict[str, str]:

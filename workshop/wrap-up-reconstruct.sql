@@ -77,7 +77,9 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
 \else
   \echo 'Observed  NOT YET: Jessica has no store credit'
   \echo 'Next      finish Lab 4 (Nadia approves and executes her review), then run this again.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Wrap-up reconstruction failed; see the lines above'; END $fail$;
 \endif
 
@@ -173,9 +175,13 @@ SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
 \echo 'Expected  every link finds its row: request, turn, review, key, audit row, credit, orders'
 \if :wrap_whole
   \echo 'Observed  the request, the approval, the write and the credit join into one story'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Wrap-up reconstruction passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
   \echo 'Observed  NOT YET:' :wrap_missing
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Wrap-up reconstruction failed; see the lines above'; END $fail$;
 \endif

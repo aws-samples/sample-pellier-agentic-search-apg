@@ -147,7 +147,7 @@ class TestLab2:
         check = _by_name(doctor.lab2_checks(evidence, **paths))[FUNCTION]
         assert check.passed is False
         assert check.detail.endswith(
-            "run psql -f workshop/lab-2-check-stock.sql")
+            "run psql -f labs/02-ground/2B-check-stock.sql")
 
     @pytest.mark.parametrize("body", [
         "_STOCK_TOOLS = [agent_tools.check_stock, agent_tools.search_products]\n",

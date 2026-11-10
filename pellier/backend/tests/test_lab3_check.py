@@ -329,4 +329,7 @@ class TestTask3AToken:
             ("get_orders", "get_return_policy", "get_tickets"),
             frozenset({"get_orders", "get_tickets"})))
         assert lab3.main(["--task", "3A"]) == 0
-        assert capsys.readouterr().out.rstrip().endswith("Lab 3A check passed")
+        closing = capsys.readouterr().out.rstrip().splitlines()[-4:]
+        assert closing[:2] == ["Lab 3A check passed", ""]
+        assert closing[2].startswith("Next: Task 3B.")
+        assert closing[3].startswith("      uv run scripts/provision_agentcore_end_to_end.py ")

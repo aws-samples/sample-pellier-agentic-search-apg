@@ -1016,8 +1016,9 @@ class Commands:
     def __call__(self, argv: List[str], **kwargs: Any) -> Any:
         self.executed.append(list(argv))
         typed = ["uv", "run", *argv[1:]] if argv[0] == sys.executable else list(argv)
-        if typed[:6] == ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off"]:
-            typed = ["psql", *typed[6:]]
+        if typed[:8] == ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-v", "quiet_next=1", "-P",
+                         "pager=off"]:
+            typed = ["psql", *typed[8:]]
         shown = " ".join(typed)
         self.ran.append(shown)
         failed = bool(self.failing) and shown.endswith(self.failing)
@@ -1052,7 +1053,7 @@ def test_finish_prints_uv_and_psql_but_runs_without_either_setup() -> None:
     assert lab_run._executable(["uv", "run", "scripts/lab2_check.py", "--task", "2B"]) == [
         sys.executable, "scripts/lab2_check.py", "--task", "2B"]
     assert lab_run._executable(lab_run._psql("labs/02-ground/2B-check-stock.sql")) == [
-        "psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-f",
+        "psql", "-X", "-v", "ON_ERROR_STOP=1", "-v", "quiet_next=1", "-P", "pager=off", "-f",
         "labs/02-ground/2B-check-stock.sql"]
     assert lab_run._executable(["sudo", "-n", "systemctl", "restart", "pellier"]) == [
         "sudo", "-n", "systemctl", "restart", "pellier"]

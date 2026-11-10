@@ -4,7 +4,7 @@
     uv run scripts/lab1_check.py --task 1A   the vector search ranks Anna's products by meaning
     uv run scripts/lab1_check.py --task 1B   Anna's retry kept every requirement she asked for
 
-Each prints its findings and ends with one line, such as ``Lab 1A check passed``.
+Each prints its findings and prints one verdict line, such as ``Lab 1A check passed``.
 """
 
 from __future__ import annotations

@@ -660,8 +660,10 @@ def test_lab3_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
         assert len(re.findall(r"^\s*ROLLBACK;", text, re.MULTILINE)) == 1
         order = ["BEGIN;", "ALTER POLICY", "COMMENT ON POLICY", "SAVEPOINT probes;",
                  "SET LOCAL ROLE pellier_agent", "ROLLBACK TO SAVEPOINT probes;",
-                 "\\if :lab_3_passed", "  COMMIT;", "Lab 3B predicate check passed", "\\else",
-                 "  ROLLBACK;", "Lab 3B predicate check failed", "\\endif"]
+                 "\\if :lab_3_passed", "  COMMIT;", "Lab 3B predicate check passed", "\n\\else",
+                 "  ROLLBACK;", "Lab 3B predicate check failed", "\n\\endif"]
+        # The outer branch markers start a line; the indented pair inside the passing branch
+        # only decides whether a Next block follows the verdict.
         positions = [text.index(marker) for marker in order]
         assert positions == sorted(positions), list(zip(order, positions))
         after_probes = text[text.index("ROLLBACK TO SAVEPOINT probes;"):]

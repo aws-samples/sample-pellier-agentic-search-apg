@@ -186,10 +186,12 @@ TWO_DEPLOYS = (
 # How long each participant-deploy step usually takes, in seconds, for its progress bar.
 # Measured in Code Editor on the 2026-10-21 test event, Lab 3's deploy, 3:33 in all: the
 # check under 1 s, the two deploys 67 and 76 s, the Gateway check 2 s, the Runtime proof
-# 21 s and the move onto AgentCore 45 s. Every step prints its real duration.
+# 21 s and the move onto AgentCore 45 s. Every step prints its real duration. On the
+# 2026-11-09 test event the deploys took 85, 109 and 85 s, past the 75 s the bar then promised,
+# so the deploy step's usual time is the median of the five measurements (85 s), rounded up.
 STEP_SECONDS = {
     "check": 5,
-    "deploy": 75,
+    "deploy": 90,
     "gateway": 5,
     "smoke": 25,
     "move": 45,
@@ -3078,6 +3080,12 @@ def _retire_policies(
 # the service and proves one managed turn; this only decides whether it is still needed.
 MOVED_ONTO_AGENTCORE = "Pellier is now using AgentCore. Continue with Theo's requests."
 ALREADY_ON_AGENTCORE = "Pellier is already using AgentCore."
+# After the move the next step is Theo's requests, once the ownership file of Task 3B has
+# passed. A later deploy (Lab 4's rule, or a repeat) ends on ALREADY_ON_AGENTCORE alone, because
+# what follows depends on the lab. A catch-up (lab_run.py finish) sends the requests itself and
+# sets PELLIER_NO_NEXT, as workshop_check.NO_NEXT_ENV names it.
+NEXT_AFTER_MOVE = ("\nNext: when your ownership tests have passed, send Theo's three requests.\n"
+                   "      uv run scripts/lab_run.py send --lab 3")
 RUN_ENV_FILE = Path(os.environ.get("PELLIER_RUN_ENV", "/etc/pellier/run.env"))
 
 
@@ -3133,6 +3141,8 @@ def move_onto_agentcore(
         return completed.returncode
     progress.finish()
     print(MOVED_ONTO_AGENTCORE, flush=True)
+    if not os.environ.get("PELLIER_NO_NEXT"):
+        print(NEXT_AFTER_MOVE, flush=True)
     return 0
 
 

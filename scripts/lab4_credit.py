@@ -1,6 +1,6 @@
 """Lab 4B's check: your deployed privileges hold the credit-writer role to the credit function.
 
-``workshop/lab-4-credit-writer.sql`` probes your statements for
+``labs/04-govern/4B-credit-writer.sql`` probes your statements for
 ``pellier_credit_writer`` and, when every probe matches, commits them, stamping
 ``pellier.give_store_credit`` with their sha256. This check first confirms the
 live function carries the statements now in your file, so the privileges it
@@ -8,7 +8,7 @@ probes are yours and not the ones the database shipped with, and reads what the
 catalog says the role holds. Then it opens each way Pellier writes a credit:
 
     in process   DatabaseService.credit_writer_session, which the Operator's
-                 in-process rail uses
+                 in-process path uses
     Gateway      run_as_credit_writer over the RDS Data API, which the
                  store-tools Lambda uses for give_store_credit
 
@@ -46,10 +46,10 @@ REGION = "Credit writer - privileges"
 STAMP_PREFIX = "Lab 4B privileges sha256 "
 ROLE = "pellier_credit_writer"
 FUNCTION = "pellier.give_store_credit(text, text, integer, text, text)"
-RUN_WORKSHEET = "psql -f workshop/lab-4-credit-writer.sql"
+RUN_WORKSHEET = "psql -f labs/04-govern/4B-credit-writer.sql"
 DEPLOYED_TITLE = "your privileges are the live ones"
 DEPLOYED_EXPECTED = ("give_store_credit carries the statements now in "
-                     "workshop/lab-4-credit-writer.sql, and the role holds EXECUTE on it and "
+                     "labs/04-govern/4B-credit-writer.sql, and the role holds EXECUTE on it and "
                      "nothing else")
 LIVE_RIGHTS = "definer, search_path=pg_catalog, pg_temp"
 LIVE_EXECUTE = "pellier_credit_writer yes, pellier_agent no, public no"
@@ -89,7 +89,7 @@ ERROR = "error:"
 EXPECTED = ("as pellier_credit_writer: the function refuses a credit no one approved, and a "
             "direct insert or update of a credit is refused with 42501")
 _PATHS = {
-    "in process": "DatabaseService.credit_writer_session (the Operator's in-process rail)",
+    "in process": "DatabaseService.credit_writer_session (the Operator's in-process path)",
     "Gateway": "run_as_credit_writer over the RDS Data API (the store-tools Lambda)",
 }
 
@@ -126,12 +126,12 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
     if stamp is None:
         return check.Finding("4B", DEPLOYED_TITLE, check.COULD_NOT_CHECK, DEPLOYED_EXPECTED,
                              "the file's privileges region could not be read",
-                             ["workshop/lab-4-credit-writer.sql: no $privileges$ quotes"],
+                             ["labs/04-govern/4B-credit-writer.sql: no $privileges$ quotes"],
                              "restore the region from workshop/starters/lab-4-credit-writer.sql.")
     if is_starter:
         return check.Finding("4B", DEPLOYED_TITLE, check.NOT_YET, DEPLOYED_EXPECTED,
                              "the file still holds the grants it ships with",
-                             ["workshop/lab-4-credit-writer.sql: Credit writer - privileges is "
+                             ["labs/04-govern/4B-credit-writer.sql: Credit writer - privileges is "
                               "the original"],
                              f"write the role's privileges in the file, then run "
                              f"{RUN_WORKSHEET}.")
@@ -140,7 +140,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
     evidence = [
         "give_store_credit: " + (f"sha256 {deployed[len(STAMP_PREFIX):][:12]}..."
                                   if deployed.startswith(STAMP_PREFIX) else "no Lab 4B comment"),
-        f"workshop/lab-4-credit-writer.sql: sha256 {short}...",
+        f"labs/04-govern/4B-credit-writer.sql: sha256 {short}...",
         f"function rights: {live.get('rights')}",
         f"EXECUTE: {live.get('execute')}",
         f"{ROLE}: {live.get('table_grants')} table grants, {live.get('policies')} row policies",
@@ -237,7 +237,7 @@ def _answer(rows: Sequence[Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# In process: the session the Operator's in-process rail opens
+# In process: the session the Operator's in-process path opens
 # ---------------------------------------------------------------------------
 
 
@@ -379,5 +379,5 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)
-    print("Lab 4B check passed" if passed else "Lab 4B check failed")
+    print(check.closing("Lab 4B check", passed, "4B"))
     return 0 if passed else 1

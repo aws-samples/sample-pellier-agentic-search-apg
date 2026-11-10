@@ -22,7 +22,7 @@ It prints seven findings, each with Expected, Observed and Evidence:
     probe    Theo's own token, asking the Gateway directly for Jessica's
              tickets, is denied by Cedar (the owner-only permit does not match,
              so nothing permits it) and leaves no ``tool_audit`` row
-    rows     the row-ownership predicate from ``workshop/lab-3-row-ownership.sql`` is the
+    rows     the row-ownership predicate from ``labs/03-deploy/3B-row-ownership.sql`` is the
              live policy, and bound as Theo on both database paths a wrong
              query sees none of Jessica's rows and cannot write in her name
              (``scripts/lab3_row_ownership_check.py``, three findings)
@@ -183,7 +183,7 @@ def _reads_rule(managed: Sequence[str]) -> check.Finding:
     expected = ("SUPPORT_GATEWAY_TOOLS holds the reads Theo's household request needs: "
                 "get_orders and get_tickets")
     asks = _and(list(managed)) or "no tools"
-    evidence = [f"services/agentcore_gateway.py: SUPPORT_GATEWAY_TOOLS asks for {asks}"]
+    evidence = [f"labs/03-deploy/3A-2-bind-caller.py: SUPPORT_GATEWAY_TOOLS asks for {asks}"]
     if any(read not in managed for read in SHOPPER_READS):
         return check.Finding("3A", title, check.NOT_YET, expected,
                              f"the Support agent asks for {asks}; Theo's household request needs "
@@ -200,7 +200,7 @@ def _bound_rule(bound: frozenset,
     expected = ("get_orders and get_tickets are in SUPPORT_CALLER_BOUND_TOOLS, so the server sets "
                 "their customer_id from the signed-in caller; ask_a_person's handoff is bound "
                 "whenever the caller is known")
-    evidence = ["services/agentcore_gateway.py binds to the caller: "
+    evidence = ["labs/03-deploy/3A-2-bind-caller.py binds to the caller: "
                 + (", ".join(sorted(bound)) or "none")]
     for read in SHOPPER_READS:
         if probes and read in probes:
@@ -689,7 +689,7 @@ def main_3a() -> int:
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)
-    print("Lab 3A check passed" if passed else "Lab 3A check failed")
+    print(check.closing("Lab 3A check", passed, "3A"))
     return 0 if passed else 1
 
 
@@ -713,7 +713,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)
-    print("Lab 3B check passed" if passed else "Lab 3B check failed")
+    print(check.closing("Lab 3B check", passed, "3B"))
     return 0 if passed else 1
 
 

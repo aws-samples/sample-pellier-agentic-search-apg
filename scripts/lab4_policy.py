@@ -73,6 +73,8 @@ from services.operator_review import (  # noqa: E402
 )
 
 POLICY_FILE = REPO / CREDIT_LIMIT_SOURCE
+# The name a participant opened the rule under, which is what the check prints.
+POLICY_LINK = "labs/04-govern/4A-credit-limit.cedar"
 STARTER_FILE = REPO / CREDIT_LIMIT_STARTER
 LOCAL_GATEWAY_ARN = "arn:aws:bedrock-agentcore:us-east-1:000000000000:gateway/pellier-local-check"
 ALLOW, DENY = "ALLOW", "DENY"
@@ -488,7 +490,7 @@ def _local_evidence(rule_text: str, *, rule: str, head_kept: bool, policies: Opt
                     baseline: Sequence[Tuple[str, str]], tools: int) -> List[str]:
     digest = hashlib.sha256(rule.encode("utf-8")).hexdigest()
     evidence = [
-        f"{CREDIT_LIMIT_SOURCE} sha256:{digest[:16]}, unless {{ {unless_body(rule_text)} }}",
+        f"{POLICY_LINK} sha256:{digest[:16]}, unless {{ {unless_body(rule_text)} }}",
         "policy head: " + ("original, unchanged" if head_kept
                            else "does not match the original file (principal, action or resource)"),
         "policies in the file: " + (str(policies) if policies is not None
@@ -535,10 +537,10 @@ def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, your
 def _no_unless_block(rule_text: str) -> LocalResult:
     finding = check.Finding("4A", _LOCAL_TITLE, check.FAILED, _LOCAL_EXPECTED,
                             "the policy has no final unless block",
-                            [f"{CREDIT_LIMIT_SOURCE} sha256:"
+                            [f"{POLICY_LINK} sha256:"
                              f"{hashlib.sha256(rule_text.encode('utf-8')).hexdigest()[:16]}"],
                             "restore the original with cp workshop/starters/"
-                            "credit_limit.cedar policies/credit_limit.cedar, "
+                            f"credit_limit.cedar {POLICY_LINK}, "
                             "then edit only its final unless block.")
     return LocalResult(finding, [])
 
@@ -751,7 +753,7 @@ def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: b
                                 "provisioning deploys the original rule; ask for the environment to "
                                 "be reprovisioned.")
     if not same_rule(deployed, local_rule):
-        return _managed_finding(check.NOT_YET, "the deployed rule is not your file yet", evidence,
+        return _managed_finding(check.NOT_YET, NOT_DEPLOYED, evidence,
                                 'deploy it: uv run scripts/provision_agentcore_end_to_end.py '
                                 '--repo-path "$PWD" --mode participant')
     if not local_proved:
@@ -894,6 +896,25 @@ def managed_check(
     return judge_managed(payload=payload, rows=rows, review=review, **common)
 
 
+# The one state where nothing is wrong and the check still cannot pass: the rule in the file
+# is right, and the Gateway runs the old one until the deploy. It gets its own closing line, in
+# plain text, so a participant who did the step correctly does not read a red "failed".
+NOT_DEPLOYED = "the deployed rule is not your file yet"
+NOT_DEPLOYED_CLOSING = ("Lab 4A check not finished: your rule passes on this machine and is not "
+                        "deployed yet")
+NEXT_DEPLOY = ["deploy your rule. Leave it running and start Task 4B in your second terminal.",
+               'uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" '
+               '--mode participant']
+
+
+def closing(local_passed: bool, managed: check.Finding) -> str:
+    """The check's last lines: passed, failed, or right here and waiting for its deploy."""
+    if local_passed and managed.state == check.NOT_YET and managed.observed == NOT_DEPLOYED:
+        following = check.next_lines(NEXT_DEPLOY) if check.says_next() else ""
+        return f"{NOT_DEPLOYED_CLOSING}\n\n{following}" if following else NOT_DEPLOYED_CLOSING
+    return check.closing("Lab 4A check", local_passed and managed.state == check.PASSED, "4A")
+
+
 def print_table(rows: List[List[str]]) -> None:
     header = ["request", "baseline alone", "original", "with your rule", "expected",
               "verdict"]
@@ -917,6 +938,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print("Lab 4A, part 2: the deployed rule and one over-limit credit through the Gateway")
     managed = managed_check(local, rule_text, check.db_config())
     print(check.render(managed))
-    passed = local.finding.state == check.PASSED and managed.state == check.PASSED
-    print("Lab 4A check passed" if passed else "Lab 4A check failed")
-    return 0 if passed else 1
+    local_passed = local.finding.state == check.PASSED
+    print(closing(local_passed, managed))
+    return 0 if local_passed and managed.state == check.PASSED else 1

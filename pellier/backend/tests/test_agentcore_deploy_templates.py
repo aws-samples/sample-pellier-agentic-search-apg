@@ -2445,7 +2445,7 @@ def test_a_participant_deploy_numbers_its_steps_once_the_plan_is_known(
     assert lines[1] == "  - 1  Checking your files (usually about 0:10)"
     assert lines[2].endswith("1/5  Checked your files")
     assert lines.index(provisioner.TWO_DEPLOYS) == 3, "the plan is explained after the check"
-    assert "  - 2/5  Publishing Gateway schemas (usually about 1:15)" in lines
+    assert "  - 2/5  Publishing Gateway schemas (usually about 1:30)" in lines
     assert lines[-1].endswith("3/5  Published policies for the new Gateway actions")
     assert lines.index("Publishing policies for the newly registered Gateway actions") < len(
         lines) - 2

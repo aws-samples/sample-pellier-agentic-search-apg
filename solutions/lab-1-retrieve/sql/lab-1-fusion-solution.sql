@@ -100,11 +100,15 @@ SELECT count(*) AS lab_1_products,
     \echo 'Observed ' :lab_1_matched 'of' :lab_1_products 'scores match'
     SELECT :lab_1_matched = :lab_1_products AS lab_1_passed \gset
     \if :lab_1_passed
+      \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
       \echo 'Lab 1 fusion check passed'
+      \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
     \else
       \echo 'Next      in the fusion expression, what should a rank shown as - add to the score?'
       \echo '          Compute one row marked differs by hand from its two ranks.'
+      \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
       \echo 'Lab 1 fusion check failed'
+      \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
       DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 fusion check failed; see the lines above'; END $fail$;
     \endif
   \else

@@ -20,11 +20,11 @@ What each line reads:
     3A  the source: the Gateway's published tools and the caller binding
     3B  pellier.tool_audit (the executed build beside this checkout's digest,
         and every get_tickets read), AgentCore Memory (Theo's record), and the
-        live row policies beside workshop/lab-3-row-ownership.sql, probed on both paths
+        live row policies beside labs/03-deploy/3B-row-ownership.sql, probed on both paths
     4A  policies/credit_limit.cedar, evaluated with Cedar here, then
         the stored Gateway denial and Jessica's credit in pellier.approvals,
         pellier.store_credits and pellier.tool_audit
-    4B  the live credit function beside workshop/lab-4-credit-writer.sql, and
+    4B  the live credit function beside labs/04-govern/4B-credit-writer.sql, and
         the credit-writer role probed on both paths; every probe rolls back
 
 Rows alone prove 1B, 2A and 2B, so those lines read no source and no code of
@@ -171,8 +171,8 @@ def task_3a() -> check.Finding:
                              [f"{key}: {state}" for key, state in states.items()])
     if any(state == check.STARTER for state in states.values()):
         where = " and ".join(
-            {"3A-catalog": "scripts/deploy/gateway_tool_schemas.py",
-             "3A-binding": "services/agentcore_gateway.py"}[key]
+            {"3A-catalog": "labs/03-deploy/3A-1-publish-tool.py",
+             "3A-binding": "labs/03-deploy/3A-2-bind-caller.py"}[key]
             for key, state in states.items() if state == check.STARTER)
         return _starter_finding("3A", title, "both Lab 3 marked regions edited", where)
     try:
@@ -188,7 +188,7 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
             ownership: Optional[Callable[[], List[check.Finding]]] = None) -> check.Finding:
     """Lab 3B: Theo's managed turn ran this build, was given his remembered taste
     from AgentCore Memory, read only his own tickets, and the live row policies
-    are the predicate in workshop/lab-3-row-ownership.sql.
+    are the predicate in labs/03-deploy/3B-row-ownership.sql.
 
     ``memory`` reads AgentCore Memory (``lab3_check.memory_finding`` unless
     given); ``ownership`` reads and probes the live row policies
@@ -205,7 +205,7 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
     if rows is None:
         return check.Finding("3B", title, COULD_NOT_CHECK, expected, "the check could not look")
     if source_state("3B") == check.STARTER:
-        owned = [_starter_finding("3B", title, expected, "workshop/lab-3-row-ownership.sql")]
+        owned = [_starter_finding("3B", title, expected, "labs/03-deploy/3B-row-ownership.sql")]
     else:
         owned = (ownership or lab3_row_ownership_check.collect)()
     return _combine("3B", title, expected, [
@@ -319,7 +319,7 @@ def task_4a(rows: Optional[Dict[str, Any]]) -> check.Finding:
     except OSError as exc:
         return check.Finding("4A", title, COULD_NOT_CHECK, expected, f"unreadable: {exc}")
     if rule == starter:
-        return _starter_finding("4A", title, expected, "policies/credit_limit.cedar")
+        return _starter_finding("4A", title, expected, "labs/04-govern/4A-credit-limit.cedar")
     try:
         local = lab4.local_check(rule, starter).finding
     except Exception as exc:  # noqa: BLE001 - the reason is the finding
@@ -341,7 +341,7 @@ def task_4b(writer: Optional[Callable[[], List[check.Finding]]] = None) -> check
     title = "the credit-writer role writes only through the credit function"
     expected = f"{lab4b.DEPLOYED_EXPECTED}; {lab4b.EXPECTED}"
     if source_state("4B") == check.STARTER:
-        return _starter_finding("4B", title, expected, "workshop/lab-4-credit-writer.sql")
+        return _starter_finding("4B", title, expected, "labs/04-govern/4B-credit-writer.sql")
     return _combine("4B", title, expected, (writer or lab4b.collect)())
 
 

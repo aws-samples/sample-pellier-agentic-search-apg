@@ -192,16 +192,22 @@ ROLLBACK;
 \if :lab_3_wrong_lab_3_none
 \if :lab_3_agent_tool_seen
   \echo 'Observed ' :lab_3_agent_tool_reads 'tool statement(s): the agent is a role with a workload and plans'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 3 workload check passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
   \echo 'Observed  none yet: no get_orders or get_tickets statement under pellier_agent'
   \echo 'Next      send Theo''s requests with uv run scripts/lab_run.py send --lab 3, then run this again.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3 workload check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
 \endif
 \else
   \echo 'Observed ' :lab_3_wrong_lab_3_probe 'of Jessica''s orders were visible to Theo''s session'
-  \echo 'Next      the row policy did not hold; run workshop/lab-3-row-ownership.sql until it passes.'
+  \echo 'Next      the row policy did not hold; run labs/03-deploy/3B-row-ownership.sql until it passes.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3 workload check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
 \endif

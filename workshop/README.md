@@ -28,7 +28,7 @@ The two SQL files run during their labs' deploys and print their own lines:
 `psql -f labs/03-deploy/3B-row-ownership.sql` ends
 `Lab 3B predicate check passed` and
 `psql -f labs/04-govern/4B-credit-writer.sql`
-ends `Lab 4B privileges check passed`. Lab 4 closes with the supplied
+prints `Lab 4B privileges check passed`. Lab 4 closes with the supplied
 `psql -f workshop/lab-4-absence.sql`.
 
 Two more supplied SQL files read the agent from the database's side and change nothing.

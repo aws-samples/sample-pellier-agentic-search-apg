@@ -128,7 +128,7 @@ def test_the_solution_fallback_keeps_annas_limits(conn, monkeypatch) -> None:
 
     finding, rows = lab1_retry.evaluate(conn)
     assert finding.state == "PASSED", finding
-    assert "keep under $100, in stock, no candles after the fallback" in finding.observed
+    assert "keep under $100, in stock, no candles after the retry" in finding.observed
     assert rows and all(row[-1] == "ok" for row in rows)
 
 

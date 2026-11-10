@@ -135,12 +135,12 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
   embedding, the kind of vector the check searches with. Then rank the eligible products by meaning in the `Vector search -
   order by meaning` region of `pellier/backend/services/store_tools.py`: order
   by cosine distance to the query embedding and report similarity as 1 minus
-  it. `uv run scripts/lab1_check.py --task 1A` ends `Lab 1A check passed`.
+  it. `uv run scripts/lab1_check.py --task 1A` prints `Lab 1A check passed`.
 - **Task 1B:** after `uv run scripts/lab_run.py send --lab 1`,
   `uv run scripts/lab1_check.py --task 1B` shows the retry dropped her requirements. Keep
   them in `pellier/backend/services/search_plan.py`: a retry may relax a
   preference, never the budget, the stock rule or the exclusions. The check
-  ends `Lab 1B check passed`.
+  prints `Lab 1B check passed`.
 - **Lesson:** similarity decides the order; SQL decides what is eligible.
 - **Managed path:** the Gateway's store tools Lambda is packaged at
   provisioning from the finished copies of
@@ -164,12 +164,12 @@ Marco needs reliable stock and dispatch facts before his trip.
   (`pellier/backend/agents/stock_agent.py`). A prompt can name a tool; only
   the grant decides what the agent can call. The check reads the grant from the
   answering agent's audit row, so a definition no turn has run with is not yet
-  done; it ends `Lab 2A check passed`.
+  done; it prints `Lab 2A check passed`.
 - **Task 2B:** write the not-carried test in `pellier.check_stock`
   (`labs/02-ground/2B-check-stock.sql`, region `Stock check - not carried`). The
   file saves the function only when its four tests pass and ends
   `Lab 2B function check passed`; `uv run scripts/lab2_check.py --task 2B`
-  then runs the live function and ends `Lab 2B check passed`.
+  then runs the live function and prints `Lab 2B check passed`.
 - **Lesson:** an agent can only claim what its tool returns, and a missing
   product is a missing row, not a zero.
 
@@ -193,14 +193,14 @@ Theo wants his taste remembered and help with his own chipped bowl.
   `Lab 3A check passed`.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
   row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; the file saves
-  the predicate as the live policy once every test passes and ends `Lab 3B
+  the predicate as the live policy once every test passes and prints `Lab 3B
   predicate check passed`. Then `uv run scripts/lab_run.py send --lab 3` sends
   Theo's three sentences, including the household request ("Jessica and I
   share an address... Can you check her ticket too?"), and
   `uv run scripts/lab3_check.py --task 3B` prints the executed build beside this
   checkout's, the Memory record, every ticket read bound to Theo, Cedar's
   denial of his direct read of Jessica's tickets, and his row policies holding
-  on both database paths. It ends `Lab 3B check passed`.
+  on both database paths. It prints `Lab 3B check passed`.
 - **Lesson:** the caller comes from the signed token, not the conversation;
   Memory is context, never permission.
 
@@ -229,18 +229,18 @@ credit, and the system must prove what moved.
   `labs/04-govern/4B-credit-writer.sql`. Before the fix it over-grants: its tests show
   `pellier_credit_writer` raising an approved $25 credit to $500 with a direct
   `UPDATE`. The file saves the privileges once all eight tests pass
-  and ends `Lab 4B privileges check passed`.
+  and prints `Lab 4B privileges check passed`.
 - **The decision:** Nadia selects **Execute again** (ALLOW, recorded once),
   then **Replay with the same key** (nothing written twice).
 - **Proof, back in the terminal:** `uv run scripts/lab4_check.py --task 4A`
   evaluates the rule with Cedar beside the deployed baseline (shopper $100 DENY,
   Nadia 10000 cents ALLOW, 10001 DENY), rejects eight wrong rules, then sends
   one over-limit credit through the Gateway: a Cedar DENY with no row for its
-  key, ending `Lab 4A check passed`. `uv run scripts/lab4_check.py --task 4B`
+  key, printing `Lab 4A check passed`. `uv run scripts/lab4_check.py --task 4B`
   confirms the live function carries the participant's statements, then probes
   the credit-writer role in process and through the Gateway Lambda's Data API: the
   function refuses a credit no one approved and a direct insert or update is
-  refused with 42501, ending `Lab 4B check passed`. The supplied
+  refused with 42501, printing `Lab 4B check passed`. The supplied
   `workshop/lab-4-absence.sql` prints 0 and 0 for the denied key, then 1 credit and
   1 audit row for the allowed key, so a search that always returns zero cannot pass.
 - **Lesson:** Cedar decides who may move money and how much; the database

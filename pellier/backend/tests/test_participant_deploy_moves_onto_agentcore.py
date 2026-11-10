@@ -56,7 +56,9 @@ def test_a_fresh_deploy_switches_onto_agentcore_and_says_so(
         repo, run=runs, run_env=tmp_path / "absent-run.env") == 0
     assert runs.commands == [["bash", str(repo / "scripts" / "lab3-start.sh"), "theo"]]
     out = capsys.readouterr().out.splitlines()
-    assert out[-1] == "Pellier is now using AgentCore. Continue with Theo's requests."
+    assert out[-4:] == ["Pellier is now using AgentCore. Continue with Theo's requests.", "",
+                        "Next: when your ownership tests have passed, send Theo's three requests.",
+                        "      uv run scripts/lab_run.py send --lab 3"]
 
 
 @pytest.mark.parametrize("where", ["env", "run_env"])
@@ -144,7 +146,9 @@ def test_the_move_is_the_deploys_last_step_and_the_closing_line_stays_last(
     assert out[0] == "  - 1/1  Moving Pellier onto AgentCore (usually about 0:45)"
     assert out[1].endswith("1/1  Moved Pellier onto AgentCore")
     assert out[2].startswith("  Done in ")
-    assert out[-1] == "Pellier is now using AgentCore. Continue with Theo's requests."
+    assert out[-4:] == ["Pellier is now using AgentCore. Continue with Theo's requests.", "",
+                        "Next: when your ownership tests have passed, send Theo's three requests.",
+                        "      uv run scripts/lab_run.py send --lab 3"]
 
 
 def test_a_failed_move_marks_its_step_failed(

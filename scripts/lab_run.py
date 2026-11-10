@@ -78,6 +78,7 @@ with exit status 1.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import difflib
 import http.client
 import json
@@ -261,9 +262,70 @@ def fail(message: str) -> None:
 
 def print_next(*commands: str) -> None:
     """The next commands, each whole on its own line so it copies and pastes as one command."""
+    if commands:
+        print("", flush=True)
     for index, command in enumerate(commands):
         prefix = "  Next: " if index == 0 else "        then "
         print(prefix + command, flush=True)
+
+
+def print_next_steps(steps: Sequence[str]) -> None:
+    """What to do next in a few words, then each command whole on its own line."""
+    if not steps:
+        return
+    print("", flush=True)
+    for line in check.next_lines(steps).splitlines():
+        print(f"  {line}", flush=True)
+
+
+# The region each task's request depends on and its starter, so a send can say what comes next:
+# before the fix the next step looks at the fault, after it the next step is the check.
+_STARTERS = "workshop/starters"
+SEND_REGIONS = {
+    "1A": ("pellier/backend/services/store_tools.py", "Vector search - order by meaning",
+           f"{_STARTERS}/lab-1/vector-search.pyfrag"),
+    "1B": ("pellier/backend/services/search_plan.py", "Search plan - preserve requirements",
+           f"{_STARTERS}/lab-1/preserve-requirements.pyfrag"),
+    "2A": ("pellier/backend/agents/stock_agent.py", "Stock agent - definition",
+           f"{_STARTERS}/lab-2/stock-agent-definition.pyfrag"),
+    "2B": ("workshop/lab-2-check-stock.sql", "Stock check - not carried",
+           f"{_STARTERS}/lab-2-check-stock.sql"),
+}
+NEXT_AFTER_SEND = {
+    ("1A", True): ["open 01 - Retrieve > 1A-vector-search.py to see why the Vector column is "
+                   "empty, then install the fix.",
+                   "uv run scripts/lab_run.py solution --lab 1 --task 1A"],
+    ("1A", False): ["prove the search ranks by meaning.",
+                    "uv run scripts/lab1_check.py --task 1A"],
+    ("1B", True): ["read what the retry was asked to keep and what it kept.",
+                   f"{PSQL} workshop/lab-1-receipt.sql"],
+    ("1B", False): ["prove the retry keeps her requirements.",
+                    "uv run scripts/lab1_check.py --task 1B"],
+    ("2A", True): ["open 02 - Ground > 2A-stock-agent.py to see the agent's tool list, then "
+                   "install the fix.",
+                   "uv run scripts/lab_run.py solution --lab 2 --task 2A"],
+    ("2A", False): ["prove the answer came from the warehouse table.",
+                    "uv run scripts/lab2_check.py --task 2A"],
+    ("2B", True): ["test the database function behind the tool.",
+                   f"{PSQL} labs/02-ground/2B-check-stock.sql"],
+    # An edited file is not a proven one, so this names the proof and never calls the lab done.
+    ("2B", False): ["if the stock step above reads Not a piece Pellier carries and you have seen "
+                    "Lab 2B check passed, Lab 2 is complete. Otherwise run the check.",
+                    "uv run scripts/lab2_check.py --task 2B"],
+}
+NEXT_AFTER_LAB_SEND = {
+    3: ["check what happened on AgentCore and in the database.",
+        "uv run scripts/lab3_check.py --task 3B"],
+}
+
+
+def next_after_send(lab: int, task: Optional[str], repo: pathlib.Path = REPO) -> List[str]:
+    """The step that follows a send: by task and whether its region still holds the starter."""
+    if task in SEND_REGIONS:
+        path, label, starter = SEND_REGIONS[task]
+        untouched = check.region_state(repo / path, label, repo / starter) == check.STARTER
+        return NEXT_AFTER_SEND[(task, untouched)]
+    return [] if task else NEXT_AFTER_LAB_SEND.get(lab, [])
 
 
 # ---------------------------------------------------------------------------
@@ -1014,9 +1076,10 @@ def mint_token(username: str) -> str:
 
 
 def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
-         shopper_only: bool = False, trace: bool = True, task: Optional[str] = None) -> None:
+         shopper_only: bool = False, trace: bool = True, task: Optional[str] = None,
+         say_next: bool = False) -> None:
     """Make the lab's requests on the lab's path, or one task's with ``task``, and for Lab 4
-    do Nadia's part unless ``shopper_only``."""
+    do Nadia's part unless ``shopper_only``. ``say_next`` ends with the step that follows."""
     global _ranking_key_shown
     _ranking_key_shown = False
     configured = _configured_rail()
@@ -1035,6 +1098,8 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
         print(f"  {nadias_sign_in()}", flush=True)
     elif lab == 4:
         settle_credit(backend, token_for(OPERATOR))
+    if say_next:
+        print_next_steps(next_after_send(lab, task))
 
 
 # ---------------------------------------------------------------------------
@@ -1066,8 +1131,23 @@ def _executable(argv: List[str]) -> List[str]:
     if argv[:2] == ["uv", "run"]:
         return [sys.executable, *argv[2:]]
     if argv[0] == "psql":
-        return ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-P", "pager=off", *argv[1:]]
+        return ["psql", "-X", "-v", "ON_ERROR_STOP=1", "-v", "quiet_next=1", "-P", "pager=off",
+                *argv[1:]]
     return argv
+
+
+@contextlib.contextmanager
+def _no_next_lines() -> Iterator[None]:
+    """Run a catch-up's command without its Next block: the catch-up runs the next step itself."""
+    before = os.environ.get(check.NO_NEXT_ENV)
+    os.environ[check.NO_NEXT_ENV] = "1"
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop(check.NO_NEXT_ENV, None)
+        else:
+            os.environ[check.NO_NEXT_ENV] = before
 
 
 class Finish:
@@ -1081,7 +1161,8 @@ class Finish:
     def command(self, argv: List[str]) -> None:
         shown = shlex.join(argv)
         print(f"  $ {shown}", flush=True)
-        code = self.run(_executable(argv), cwd=str(self.repo), check=False).returncode
+        with _no_next_lines():
+            code = self.run(_executable(argv), cwd=str(self.repo), check=False).returncode
         if code:
             raise LabRunError(f"{shown} exited {code}; the lines above say why. Fix it, then run "
                               f"uv run scripts/lab_run.py finish --lab {self.lab} again.")
@@ -1331,7 +1412,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                 Backend(base_url)))
         else:
             send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only,
-                 trace=not args.quiet, task=args.task)
+                 trace=not args.quiet, task=args.task, say_next=True)
     except (LabRunError, lab_reset.LabResetError, SystemExit) as exc:
         fail(str(exc))
         return 1

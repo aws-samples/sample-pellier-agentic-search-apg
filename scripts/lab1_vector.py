@@ -197,5 +197,5 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                           rows))
     print(check.render(finding))
     passed = finding.state == check.PASSED
-    print("Lab 1A check passed" if passed else "Lab 1A check failed")
+    print(check.closing("Lab 1A check", passed, "1A"))
     return 0 if passed else 1

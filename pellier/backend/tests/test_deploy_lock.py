@@ -282,7 +282,7 @@ def test_the_followers_bar_expects_as_many_steps_as_the_running_deploy_has() -> 
     assert deploy_lock.total_steps("  - 2/6  Publishing Gateway schemas (usually about 1:15)\n") == 6
     provisioner = sys.modules.get("deploy_lock_provisioner") or _provisioner()
     four, six = provisioner.participant_typical(4), provisioner.participant_typical(6)
-    assert four == 110 and six == 230
+    assert four == 125 and six == 260
     assert provisioner.participant_typical(None) == six
 
 

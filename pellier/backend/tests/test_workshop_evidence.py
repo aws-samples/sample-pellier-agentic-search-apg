@@ -197,7 +197,7 @@ class TestLabsThreeAndFour:
         assert evidence.task_3b(None, BUILD).state == COULD_NOT_CHECK
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
         finding = evidence.task_3b(rows, BUILD, _remembered())
-        assert finding.state == NOT_YET and "lab-3-row-ownership.sql" in finding.observed
+        assert finding.state == NOT_YET and "3B-row-ownership.sql" in finding.observed
 
     def test_3b_needs_the_live_row_policies(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}
@@ -235,7 +235,7 @@ class TestLabsThreeAndFour:
             raise AssertionError("a starter region must not be probed")
 
         finding = evidence.task_4b(must_not_probe)
-        assert finding.state == NOT_YET and "lab-4-credit-writer.sql" in finding.observed
+        assert finding.state == NOT_YET and "4B-credit-writer.sql" in finding.observed
 
     def test_3a_reads_the_catalog_once_the_regions_are_edited(
         self, monkeypatch: pytest.MonkeyPatch,

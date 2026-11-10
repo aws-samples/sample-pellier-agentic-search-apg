@@ -357,7 +357,7 @@ def test_a_right_function_your_worksheet_did_not_commit_is_not_yet(conn) -> None
     finding, _rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), _defaults())
     assert finding.state == "NOT YET", finding
     assert "not the one in your file" in finding.observed
-    assert "lab-2-check-stock.sql" in finding.next_step
+    assert "labs/02-ground/2B-check-stock.sql" in finding.next_step
 
 
 def test_a_test_input_that_is_not_its_case_cannot_pass(conn) -> None:

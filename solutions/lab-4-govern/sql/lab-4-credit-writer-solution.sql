@@ -224,7 +224,16 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Saved, your privileges are live.'
   \echo 'Deployed  your statements for pellier_credit_writer, sha256' :stamp_short
   \echo '         ' :credits_rows
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 4B privileges check passed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
+  -- A catch-up (lab_run.py finish) runs the next step itself, so it asks for no Next.
+  \if :{?quiet_next}
+  \else
+    \echo ''
+    \echo 'Next: test the role inside Pellier and through the Gateway.'
+    \echo '      uv run scripts/lab4_check.py --task 4B'
+  \endif
 \else
   SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed"
     FROM lab_4_probes WHERE expected <> observed ORDER BY ord;
@@ -246,6 +255,8 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
     \echo 'Next      the role reaches no table, so the function must: run it as its owner and'
     \echo '          grant EXECUTE on it to pellier_credit_writer alone.'
   \endif
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4B privileges check failed'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4B privileges check failed; see the lines above'; END $fail$;
 \endif
