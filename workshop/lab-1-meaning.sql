@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 SET client_min_messages = warning;
 
 -- Lab 1A: how far products sit from one product in meaning, in psql, before you
@@ -45,6 +45,7 @@ SELECT p.name,
 \echo '2. The index the search can use, and the operator class it was built for.'
 
 SELECT indexname AS index,
-       substring(indexdef FROM 'USING (.*)$') AS definition
+       split_part(substring(indexdef FROM 'USING (.*)$'), ' WITH ', 1) AS definition,
+       nullif(split_part(substring(indexdef FROM 'USING (.*)$'), ' WITH ', 2), '') AS options
   FROM pg_indexes
  WHERE schemaname = 'pellier' AND indexname = 'product_catalog_embedding_hnsw';

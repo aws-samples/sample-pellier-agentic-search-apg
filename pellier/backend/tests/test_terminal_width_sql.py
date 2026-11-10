@@ -2,8 +2,9 @@
 
 Participants run ``psql -f <file>`` in Code Editor's terminal on a laptop: about 85
 columns on a 1280-pixel window at 150% scaling. A longer line breaks mid-word, so every
-``\\echo`` prints at most 84 columns and every file that prints results asks psql for its
-wrapped format, which fits a table to the terminal.
+``\\echo`` prints at most 84 columns. A result table that is too wide switches by itself to
+psql's record layout, one field per line; only the files named in WRAPPED_FILES ask for the
+wrapped format.
 """
 
 from __future__ import annotations
@@ -173,13 +174,30 @@ def test_a_query_plan_is_printed_in_the_wrapped_format() -> None:
     assert seen >= 5
 
 
-# Files with no psql result to fit. duckdb-inventory.sql runs in DuckDB, not psql.
-WRAPPED_EXEMPT = {"duckdb-inventory.sql"}
+# psql's wrapped format fits a too-wide table by cutting cells mid-word, and it stops psql
+# from switching that table to the record layout, one field per line, which is what keeps the
+# labs' test tables readable on a laptop. So only the files that need it set it: the two that
+# print query plans (one column, which never switches to records) and the receipt, a single
+# record whose JSON values can run past a narrow terminal.
+WRAPPED_FILES = {"lab-1-index.sql", "lab-3-agent-workload.sql", "lab-1-receipt.sql"}
 
 
-@pytest.mark.parametrize("path", SQL_FILES, ids=lambda p: str(p.relative_to(ROOT)))
-def test_a_file_that_prints_results_sets_the_wrapped_format(path: Path) -> None:
-    """psql fits its boxes and tables to the terminal only in the wrapped format."""
-    if path.name in WRAPPED_EXEMPT:
-        pytest.skip(f"{path.name} does not run in psql")
-    assert "\\pset format wrapped" in path.read_text(), f"{path.name} never sets wrapped"
+def test_only_the_files_that_need_it_set_the_wrapped_format() -> None:
+    found = {path.name for path in SQL_FILES if "\\pset format wrapped" in path.read_text()}
+    assert found == WRAPPED_FILES
+
+
+def test_the_receipts_constraints_print_compact() -> None:
+    """With JSON's spaces the receipt's record is 89 columns wide; psql then cut the values
+    mid-number on an 85-column terminal. Without them it is 84."""
+    text = (ROOT / "workshop" / "lab-1-receipt.sql").read_text()
+    compact = "'\": ', '\":'), ', \"', ',\"')"
+    assert text.count(compact) == 2
+    widest = '{"categories":[],"in_stock_only":false,"price_max_usd":null}'
+    assert 2 + len("asked_constraints") + 3 + len(widest) + 2 <= MAX_COLUMNS
+
+
+def test_the_index_definition_and_its_options_print_as_two_fields() -> None:
+    """As one field the definition made Lab 1's meaning record 87 columns wide."""
+    text = (ROOT / "workshop" / "lab-1-meaning.sql").read_text()
+    assert " AS definition," in text and " AS options" in text

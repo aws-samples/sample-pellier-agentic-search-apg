@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
 \pset null NULL
 
 -- Lab 2, Task 2B: what check_stock says about a piece Pellier does not carry.

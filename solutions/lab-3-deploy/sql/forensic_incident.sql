@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
-\pset footer off \pset format wrapped
+\pset footer off
 
 -- Pellier governed workshop: the auditor's question, after Lab 4.
 --

@@ -11,7 +11,9 @@ SET client_min_messages = warning;
 -- retrieval_config holds the request as the Catalog agent asked for it; its
 -- hard_constraints and exclusions columns hold what the search actually applied;
 -- relaxations records a retry and the soft tags it dropped. This prints her
--- latest turn's receipt, the retry's when one ran, as one record.
+-- latest turn's receipt, the retry's when one ran, as one record. The two
+-- constraints print without the spaces JSON text puts after ':' and ',', so
+-- the record is 84 columns wide and fits a small laptop's terminal uncut.
 -- No model is called and nothing changes.
 --
 -- Supplied and read-only. Run:
@@ -25,9 +27,10 @@ WITH newest AS (
      LIMIT 1
 )
 SELECT r.receipt_id,
-       r.retrieval_config->'requested'->'hard_constraints' AS asked_constraints,
+       replace(replace((r.retrieval_config->'requested'->'hard_constraints')::text,
+                       '": ', '":'), ', "', ',"') AS asked_constraints,
        r.retrieval_config->'requested'->'exclusions' AS asked_exclusions,
-       r.hard_constraints AS kept_constraints,
+       replace(replace(r.hard_constraints::text, '": ', '":'), ', "', ',"') AS kept_constraints,
        r.exclusions AS kept_exclusions,
        r.relaxations->0->>'step' AS relaxation,
        r.relaxations->0->'dropped' AS dropped
