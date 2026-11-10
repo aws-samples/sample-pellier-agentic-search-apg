@@ -159,8 +159,15 @@ def database_sql(lab: int, repo: pathlib.Path = REPO) -> Optional[str]:
     return f"{CLEAN_BEFORE[lab]}\n{shipped_sql(lab, repo)}\n"
 
 
-def status(label: str, message: str, width: Optional[int] = None) -> str:
+# The colour of each status label: green is good, red is bad, orange is waiting.
+LABEL_STATES = {"+ OK": check.PASSED, "- WAIT": check.NOT_YET, "x FAIL": check.FAILED}
+
+
+def status(label: str, message: str, width: Optional[int] = None, stream: Any = None) -> str:
     """One status line (``+ OK``, ``- WAIT`` or ``x FAIL``) broken at words to the terminal.
+
+    The label is painted at a terminal (``stream``, stdout when omitted) after the line is
+    laid out, so the colour never changes where a line breaks.
 
     Later lines sit under the text. A line of ``message`` that starts with spaces is a command:
     it stays whole on its own line so it copies as one. Sentence lines that follow each other
@@ -183,6 +190,10 @@ def status(label: str, message: str, width: Optional[int] = None) -> str:
             out.append(check.wrapped(lead, text, width))
         else:
             out.append(lead.rstrip())
+    if label in LABEL_STATES:
+        start = len(prefix) - len(f"{label:<8}")
+        painted = check.paint(label, LABEL_STATES[label], stream)
+        out[0] = out[0][:start] + painted + out[0][start + len(label):]
     return "\n".join(out)
 
 

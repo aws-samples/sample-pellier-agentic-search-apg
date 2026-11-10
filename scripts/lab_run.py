@@ -255,7 +255,7 @@ def wait(message: str) -> None:
 
 
 def fail(message: str) -> None:
-    print(lab_reset.status("x FAIL", message), file=sys.stderr, flush=True)
+    print(lab_reset.status("x FAIL", message, stream=sys.stderr), file=sys.stderr, flush=True)
 
 
 def say(text: str) -> None:

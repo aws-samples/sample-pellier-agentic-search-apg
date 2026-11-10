@@ -116,13 +116,13 @@ class TestTheEightLines:
 
     @pytest.mark.parametrize("states, colour", [
         ((PASSED, PASSED), "32"), ((PASSED, check.FAILED), "31"),
-        ((PASSED, check.NOT_YET), None), ((PASSED, COULD_NOT_CHECK), None),
+        ((PASSED, check.NOT_YET), "38;5;208"), ((PASSED, COULD_NOT_CHECK), "38;5;208"),
     ])
-    def test_the_closing_count_is_red_only_when_a_task_failed(
+    def test_the_closing_count_is_coloured_by_the_overall_state(
             self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
             capsys: pytest.CaptureFixture[str], states: tuple, colour: Optional[str]) -> None:
         """At a terminal the last line is green when every task passed and red when one
-        failed. Tasks that are only unfinished are not a failure, so the count stays plain.
+        failed and orange when tasks are only unfinished, which is not a failure.
         The file a participant downloads is plain text: no colour code from any line."""
         monkeypatch.delenv("NO_COLOR", raising=False)
         monkeypatch.setenv("TERM", "xterm-256color")

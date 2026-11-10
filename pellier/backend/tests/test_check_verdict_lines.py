@@ -1,6 +1,6 @@
 """A check's last lines: the verdict in colour on a terminal, then what to do next.
 
-Green and red are for a person at a terminal. A pipe, a file and ``NO_COLOR`` get the same
+Green, red and orange are for a person at a terminal. A pipe, a file and ``NO_COLOR`` get the same
 words with no escape codes, so nothing that reads the output has to strip them. After a pass
 the check names the next step, and every command it names exists in the repository.
 """
@@ -62,12 +62,14 @@ def test_a_terminal_that_asks_for_no_colour_gets_none(at_a_terminal, monkeypatch
     assert check.closing("Lab 1A check", False) == "Lab 1A check failed"
 
 
-def test_only_passed_and_failed_take_a_colour(at_a_terminal) -> None:
-    assert check.paint("NOT YET", check.NOT_YET) == "NOT YET"
-    assert check.paint("COULD NOT CHECK", check.COULD_NOT_CHECK) == "COULD NOT CHECK"
+def test_an_unfinished_state_is_orange_not_green_or_red(at_a_terminal) -> None:
+    orange = "\033[38;5;208m"
+    assert check.paint("NOT YET", check.NOT_YET) == f"{orange}NOT YET{OFF}"
+    assert check.paint("COULD NOT CHECK", check.COULD_NOT_CHECK) == \
+        f"{orange}COULD NOT CHECK{OFF}"
 
 
-@pytest.mark.parametrize("state", [check.PASSED, check.FAILED])
+@pytest.mark.parametrize("state", check.STATES)
 def test_the_colour_never_changes_the_box(at_a_terminal, monkeypatch, state) -> None:
     finding = check.Finding("1A", "the vector search ranks by meaning", state, "expected",
                             "observed", ["evidence"])
@@ -75,7 +77,7 @@ def test_the_colour_never_changes_the_box(at_a_terminal, monkeypatch, state) -> 
     monkeypatch.setenv("NO_COLOR", "1")
     plain = check.render(finding)
     assert coloured != plain
-    assert re.sub(r"\033\[\d+m", "", coloured) == plain
+    assert check.plain(coloured) == plain
     assert coloured.count("\033[") == 2
 
 
@@ -172,13 +174,13 @@ def _managed(state: str, observed: str) -> check.Finding:
 
 def test_a_right_rule_that_is_not_deployed_yet_is_not_called_a_failure(at_a_terminal) -> None:
     """Task 4A runs its check between the fix and the deploy. Nothing is wrong at that point,
-    so the closing line is plain, says what is still to do and gives the deploy command."""
+    so the closing line is orange, says what is still to do and gives the deploy command."""
     import lab4_policy
 
     waiting = _managed(check.NOT_YET, lab4_policy.NOT_DEPLOYED)
     lines = lab4_policy.closing(True, waiting).splitlines()
-    assert lines[0] == lab4_policy.NOT_DEPLOYED_CLOSING
-    assert "failed" not in lines[0] and "\033[" not in lines[0]
+    assert check.plain(lines[0]) == lab4_policy.NOT_DEPLOYED_CLOSING
+    assert "failed" not in lines[0] and lines[0].startswith("\033[38;5;208m")
     assert lines[1] == "" and lines[2].startswith("Next: deploy your rule.")
     assert lines[3].strip() == lab_run.DEPLOY
 

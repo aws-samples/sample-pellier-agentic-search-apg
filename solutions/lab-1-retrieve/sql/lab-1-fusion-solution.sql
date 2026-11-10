@@ -117,7 +117,9 @@ SELECT count(*) AS lab_1_products,
     \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only,'
     \echo '          so it cannot tell a missing rank apart'
     \echo 'Next      send Anna''s request again: uv run scripts/lab_run.py send --lab 1'
+    \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[38;5;208m' || true`
     \echo 'Lab 1 fusion check not yet'
+    \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
     DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
   \endif
 \else
@@ -125,6 +127,8 @@ SELECT count(*) AS lab_1_products,
   \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting'
   \echo '          persona-anna-'
   \echo 'Next      run uv run scripts/lab_run.py send --lab 1, then run this again.'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[38;5;208m' || true`
   \echo 'Lab 1 fusion check not yet'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif

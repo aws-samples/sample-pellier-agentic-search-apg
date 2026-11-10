@@ -305,7 +305,7 @@ def check(logs: Any, rds: Any, pi: Any, cluster_arn: str, minutes: int,
 
 def closing_line(findings: List[Finding]) -> str:
     """The check's last line, with the count unless all passed: green when every finding
-    passed, red when one failed, and plain when some are only unfinished."""
+    passed, red when one failed, and orange when some are only unfinished."""
     proved = sum(f.state == PASSED for f in findings)
     words = ("Observability check passed" if proved == len(findings)
              else f"Observability check: {proved} of {len(findings)} passed")

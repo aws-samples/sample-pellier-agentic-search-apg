@@ -55,7 +55,9 @@ SELECT current_setting('lab3.workload') = 'ok' AS ready,
   \echo 'Observed  pg_stat_statements is' :lab_3_state
   \echo 'Next      the workshop cluster loads it; run this on the workshop database'
   \echo '          (check PGHOST).'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[38;5;208m' || true`
   \echo 'Lab 3 workload check unchecked'
+  \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif
 

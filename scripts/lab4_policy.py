@@ -898,7 +898,7 @@ def managed_check(
 
 # The one state where nothing is wrong and the check still cannot pass: the rule in the file
 # is right, and the Gateway runs the old one until the deploy. It gets its own closing line, in
-# plain text, so a participant who did the step correctly does not read a red "failed".
+# orange, so a participant who did the step correctly does not read a red "failed".
 NOT_DEPLOYED = "the deployed rule is not your file yet"
 NOT_DEPLOYED_CLOSING = ("Lab 4A check not finished: your rule passes on this machine and is not "
                         "deployed yet")
@@ -911,7 +911,8 @@ def closing(local_passed: bool, managed: check.Finding) -> str:
     """The check's last lines: passed, failed, or right here and waiting for its deploy."""
     if local_passed and managed.state == check.NOT_YET and managed.observed == NOT_DEPLOYED:
         following = check.next_lines(NEXT_DEPLOY) if check.says_next() else ""
-        return f"{NOT_DEPLOYED_CLOSING}\n\n{following}" if following else NOT_DEPLOYED_CLOSING
+        line = check.paint(NOT_DEPLOYED_CLOSING, check.NOT_YET)
+        return f"{line}\n\n{following}" if following else line
     return check.closing("Lab 4A check", local_passed and managed.state == check.PASSED, "4A")
 
 

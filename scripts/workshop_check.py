@@ -194,10 +194,11 @@ def table(header: Sequence[str], rows: Sequence[Sequence[Any]],
     return _pairs(records, ends, room)
 
 
-# A verdict is green when it passed and red when it failed, on a terminal only: a pipe, a file
+# Green is good, red is bad and orange is waiting or not yet, on a terminal only: a pipe, a file
 # and NO_COLOR get the same words without the escape codes, so nothing that reads the output
-# has to strip them.
-_COLOURS = {PASSED: "\033[32m", FAILED: "\033[31m"}
+# has to strip them. Only a state word, a status label or one verdict line is painted.
+_GREEN, _RED, _ORANGE = "\033[32m", "\033[31m", "\033[38;5;208m"
+_COLOURS = {PASSED: _GREEN, FAILED: _RED, NOT_YET: _ORANGE, COULD_NOT_CHECK: _ORANGE}
 _COLOUR_OFF = "\033[0m"
 _COLOUR_CODE = re.compile(r"\033\[[0-9;]*m")
 
@@ -304,7 +305,7 @@ def closing(label: str, passed: bool, task: str = "") -> str:
 
 def render(finding: Finding) -> str:
     """The finding as one bordered box sized to the terminal: the task and its state, then
-    each field on its own row. PASSED is green and FAILED is red on a terminal."""
+    each field on its own row. The state word is green, red or orange on a terminal."""
     rows = [[f"Task {finding.task}", f"{finding.state}  {finding.title}"],
             ["Expected", finding.expected], ["Observed", finding.observed]]
     for index, line in enumerate(finding.evidence or ["(none)"]):

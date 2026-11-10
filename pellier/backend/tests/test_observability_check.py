@@ -351,13 +351,14 @@ def test_a_cluster_without_a_creation_time_reads_the_window() -> None:
 @pytest.mark.parametrize("states, words, colour", [
     (("PASSED", "PASSED", "PASSED"), "Observability check passed", "32"),
     (("PASSED", "FAILED", "PASSED"), "Observability check: 2 of 3 passed", "31"),
-    (("PASSED", "NOT YET", "PASSED"), "Observability check: 2 of 3 passed", None),
-    (("PASSED", "COULD NOT CHECK", "PASSED"), "Observability check: 2 of 3 passed", None),
+    (("PASSED", "NOT YET", "PASSED"), "Observability check: 2 of 3 passed", "38;5;208"),
+    (("PASSED", "COULD NOT CHECK", "PASSED"), "Observability check: 2 of 3 passed",
+     "38;5;208"),
 ])
-def test_the_closing_line_is_red_only_when_a_finding_failed(
+def test_the_closing_line_is_coloured_by_the_overall_state(
         monkeypatch: pytest.MonkeyPatch, states: tuple, words: str,
         colour: Optional[str]) -> None:
-    """Green when all passed, red when one failed, plain when some are only unfinished."""
+    """Green when all passed, red when one failed, orange when some are only unfinished."""
     findings = [workshop_check.Finding("O1", "title", state, "expected", "observed", [])
                 for state in states]
     assert obs.closing_line(findings) == words
