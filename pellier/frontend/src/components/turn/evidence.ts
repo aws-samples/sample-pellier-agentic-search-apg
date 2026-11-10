@@ -47,6 +47,23 @@ export function rememberedFailedSentence(error: string): string {
   return `Remembered: AgentCore Memory read failed (${error}); none given`
 }
 
+/** "1 fact, 5 orders from Aurora PostgreSQL": the customer record the prompt carried. */
+function customerRecordSentence(memory: { facts: number; orders: number; source: string }): string {
+  const counted = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
+  return `${counted(memory.facts, 'fact')}, ${counted(memory.orders, 'order')} from ${memory.source}`
+}
+
+/**
+ * How a skill reached the agent, in plain words. "fixed" puts every skill the
+ * agent is given into its prompt on each turn; "on demand" means the agent
+ * opened that skill's instructions itself during the turn.
+ */
+function skillLoadedWords(loaded: string): string {
+  if (loaded === 'fixed') return 'carried in the prompt'
+  if (loaded === 'on demand') return 'opened on demand'
+  return loaded
+}
+
 /**
  * "Stock agent may call: check_stock; prompt rule: "Every stock answer starts
  * from check_stock"": the tools the running agent was built with, beside the
@@ -66,13 +83,13 @@ export function evidenceLine(step: TurnStep): string {
     if (builder.intent) parts.push(`intent ${builder.intent}`)
     if (builder.model_id) parts.push(`model ${builder.model_id}`)
     if (builder.grant) parts.push(grantSentence(builder.agent, builder.grant))
-    if (builder.memory) parts.push(`${builder.memory.facts} facts, ${builder.memory.orders} orders from ${builder.memory.source}`)
+    if (builder.memory) parts.push(customerRecordSentence(builder.memory))
     if (builder.remembered?.error) parts.push(rememberedFailedSentence(builder.remembered.error))
     else if (builder.remembered?.records.length) parts.push(rememberedSentence(builder.remembered.records))
     else if (builder.remembered) parts.push(REMEMBERED_NONE)
     if (builder.skills && builder.skills.length > 0) {
-      const mode = builder.skills[0].loaded
-      parts.push(`skills ${builder.skills.map(skill => skill.name).join(', ')} (${mode})`)
+      const loaded = skillLoadedWords(builder.skills[0].loaded)
+      parts.push(`skills ${builder.skills.map(skill => skill.name).join(', ')} (${loaded})`)
     } else if (builder.skill_mode === 'on_demand') {
       parts.push('skills on demand')
     }
@@ -121,8 +138,7 @@ const codes = (values: string[]): FactPart[] => values.map(code)
 function routerMemoryFacts(builder: StepBuilder): EvidenceFact[] {
   const facts: EvidenceFact[] = []
   if (builder.memory) {
-    const { facts: count, orders, source } = builder.memory
-    facts.push({ label: 'Customer record', parts: [text(`${count} facts, ${orders} orders from ${source}`)] })
+    facts.push({ label: 'Customer record', parts: [text(customerRecordSentence(builder.memory))] })
   }
   const remembered = builder.remembered
   if (!remembered) return facts
@@ -157,7 +173,10 @@ function routerFacts(builder: StepBuilder): EvidenceFact[] {
   if (builder.skills && builder.skills.length > 0) {
     facts.push({
       label: 'Skills',
-      parts: [...codes(builder.skills.map(skill => skill.name)), text(`(${builder.skills[0].loaded})`)],
+      parts: [
+        ...codes(builder.skills.map(skill => skill.name)),
+        text(`(${skillLoadedWords(builder.skills[0].loaded)})`),
+      ],
     })
   } else if (builder.skill_mode === 'on_demand') {
     facts.push({ label: 'Skills', parts: [text('Loaded on demand')] })

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 import StepList, { HIDE_EARLIER, earlierSummary, failedSuffix, foldSummary } from './StepList'
 import { SHOW_RAW_STEP } from './StepFacts'
+import { evidenceLine } from './evidence'
 import type { TurnStep } from './turnTypes'
 
 const ROUTE: TurnStep = {
@@ -128,10 +129,39 @@ describe('StepList', () => {
     expect(factRows(router)).toEqual({
       Intent: 'catalog',
       Model: 'global.anthropic.claude-opus-5-5',
-      Skills: 'gifts(fixed)',
+      Skills: 'gifts(carried in the prompt)',
     })
     expect(factRows(search)).toMatchObject({ 'Audit row': '9031', Receipt: '412', Rail: 'in-process', Took: '184 ms' })
     expect(screen.getByTestId('ranking-panel')).toBeInTheDocument()
+  })
+
+  it('says in plain words how each skill reached the agent', () => {
+    expect(evidenceLine(ROUTE)).toContain('skills gifts (carried in the prompt)')
+    const opened: TurnStep = {
+      ...ROUTE,
+      builder: {
+        ...ROUTE.builder!,
+        skills: [{ name: 'gifts', display_name: 'The Gift Table', path: 'skills/gifts/SKILL.md', loaded: 'on demand' }],
+        skill_mode: 'on_demand',
+      },
+    }
+    render(<StepList steps={[opened]} live={false} builderView />)
+    expect(factRows(screen.getByTestId('turn-evidence'))).toMatchObject({ Skills: 'gifts(opened on demand)' })
+    expect(evidenceLine(opened)).toContain('skills gifts (opened on demand)')
+  })
+
+  it.each([
+    [1, 5, '1 fact, 5 orders from Aurora PostgreSQL'],
+    [2, 1, '2 facts, 1 order from Aurora PostgreSQL'],
+    [0, 0, '0 facts, 0 orders from Aurora PostgreSQL'],
+  ])('counts %i customer facts and %i orders in plain English', (facts, orders, expected) => {
+    const route: TurnStep = {
+      ...ROUTE,
+      builder: { ...ROUTE.builder!, memory: { facts, orders, source: 'Aurora PostgreSQL' } },
+    }
+    render(<StepList steps={[route]} live={false} builderView />)
+    expect(factRows(screen.getByTestId('turn-evidence'))).toMatchObject({ 'Customer record': expected })
+    expect(evidenceLine(route)).toContain(expected)
   })
 
   it('stacks a model id above its label so it never breaks inside the token', () => {

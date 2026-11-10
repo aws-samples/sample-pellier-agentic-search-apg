@@ -169,7 +169,7 @@ describe('evidenceLine', () => {
       },
     }
     expect(evidenceLine(route)).toBe(
-      'intent catalog; 1 facts, 4 orders from Aurora PostgreSQL; '
+      'intent catalog; 1 fact, 4 orders from Aurora PostgreSQL; '
       + 'Remembered: AgentCore Memory record mem-theo-1 (user preference)',
     )
     const managed = { ...route, builder: { tool: null, remembered: { ...route.builder.remembered, records: ['mem-a', 'mem-b'] } } }

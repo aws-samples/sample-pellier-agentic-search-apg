@@ -36,7 +36,7 @@ export const TOUR = {
       {
         id: "builder-view",
         title: "Builder view",
-        body: "On by default. Under each answer: who answered, the tools Pellier called and how the results ranked.",
+        body: "On by default. Each answer shows who answered, the tools Pellier called and how the results ranked.",
       },
       {
         id: "operator",
