@@ -31,24 +31,36 @@ const OperatorState: React.FC<OperatorStateProps> = ({
 }) => {
   const Heading = `h${level}` as 'h1' | 'h2' | 'h3'
   return (
-    <div className="op-state" data-busy={busy ? 'true' : 'false'} data-testid={testId}>
+    <div
+      className="op-state"
+      data-busy={busy ? 'true' : 'false'}
+      data-reason={typeof reason === 'string' ? reason : undefined}
+      data-testid={testId}
+    >
       <p className="op-eyebrow">{eyebrow}</p>
       <Heading className="op-state-headline">
         {busy ? <span className="tn-dot" aria-hidden="true" /> : null}
         {headline}
       </Heading>
       {body ? <p className="op-state-body">{body}</p> : null}
-      {reason ? <code className="op-state-reason">{reason}</code> : null}
+      {reason && !isSignInCode(reason) ? <code className="op-state-reason">{reason}</code> : null}
       {action ? <div className="op-state-action">{action}</div> : null}
     </div>
   )
+}
+
+const SIGN_IN_CODES = ['authentication_required', 'invalid_credentials', 'operator_sign_in_required']
+
+/** A sign-in code means nothing to a participant; the headline already says it. */
+function isSignInCode(reason: React.ReactNode): boolean {
+  return typeof reason === 'string' && SIGN_IN_CODES.includes(reason)
 }
 
 export default OperatorState
 
 /** The desk's three ways of being locked, in one place. */
 export function describeOperatorError(error: string, what: string): { headline: string; body: string; signIn: boolean } {
-  if (error === 'authentication_required' || error === 'invalid_credentials' || error === 'operator_sign_in_required') {
+  if (SIGN_IN_CODES.includes(error)) {
     return {
       headline: 'Staff sign-in required',
       body: `Sign in as Nadia with her password to ${what}. No database request was attempted.`,

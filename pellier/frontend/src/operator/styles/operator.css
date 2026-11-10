@@ -507,10 +507,13 @@
 }
 
 .op-note-replay {
-  display: flex;
   flex-wrap: wrap;
   gap: 6px 8px;
-  align-items: center;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--pellier-tag-good-ink);
+  border-radius: 8px;
+  font-size: 15px;
 }
 
 .op-error {

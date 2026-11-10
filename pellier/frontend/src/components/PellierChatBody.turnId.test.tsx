@@ -6,7 +6,7 @@
  * it, and a turn still revealing does not show it, so it never moves the
  * answer above it.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import PellierChatBody from './PellierChatBody'
@@ -88,5 +88,29 @@ describe('the turn id in the Builder view', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy turn id' }))
     await waitFor(() => expect(window.getSelection()?.toString()).toBe(TURN))
     expect(screen.getByRole('button', { name: 'Copy turn id' })).toBeInTheDocument()
+  })
+})
+
+describe('relative time of a terminal turn', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('keeps counting while nothing else re-renders the panel', () => {
+    vi.useFakeTimers({ now: new Date('2026-10-09T17:02:00Z') })
+    const sent = answer({ role: 'user', content: 'chair', source: 'terminal', turnId: undefined,
+      timestamp: new Date('2026-10-09T17:00:00Z') })
+    renderBody([sent], false)
+    expect(screen.getByText(/Sent from the terminal, 2m ago/)).toBeInTheDocument()
+    act(() => { vi.advanceTimersByTime(38 * 60_000) })
+    expect(screen.getByText(/Sent from the terminal, 40m ago/)).toBeInTheDocument()
+  })
+
+  it('runs one interval however many terminal turns are shown', () => {
+    vi.useFakeTimers({ now: new Date('2026-10-09T17:02:00Z') })
+    const spy = vi.spyOn(window, 'setInterval')
+    const turn = (n: number) => answer({ role: 'user', content: `q${n}`, source: 'terminal',
+      turnId: `turn-${n}`, timestamp: new Date('2026-10-09T17:00:00Z') })
+    renderBody([turn(1), turn(2), turn(3)], false)
+    expect(spy.mock.calls.filter(([, ms]) => ms === 30_000)).toHaveLength(1)
+    spy.mockRestore()
   })
 })

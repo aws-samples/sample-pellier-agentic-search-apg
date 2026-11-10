@@ -298,6 +298,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
   // The Lab 4 check's probe is probe data: the desk never executes it.
   const approved = review.humanState === 'confirmed' && !review.policyCheckProbe
   const executed = Boolean(record && record.readable && record.creditRows === 1)
+  const replayed = Boolean(attempted && record?.readable && executed && execution?.result?.idempotent_replay)
   const writeKey = execution?.idempotencyKey ?? review.execution?.idempotencyKey
     ?? `operator-review:${review.reviewId}:${review.actionHash.slice(0, 32)}`
   const named = items ?? review.recommendation.items ?? []
@@ -336,12 +337,28 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
         ))}
       </ol>
 
-      {busy ? (
-        <p className="op-live" role="status" data-testid="operator-credit-live">
-          <LoaderCircle className="op-live-icon" aria-hidden />
-          {busy === 'approving' ? 'Recording the approval' : busy === 'declining' ? 'Recording the decision' : 'Executing the approved credit'}
-        </p>
-      ) : null}
+      <div role="status" aria-live="polite" data-testid="operator-credit-announce">
+        {replayed ? (
+          <p className="op-note op-note-good op-note-replay" data-testid="operator-credit-replayed">
+            <CheckCircle2 size={16} aria-hidden />
+            <StatusTag tone="good">{REPLAYED_TAG}</StatusTag>
+            <span>This run found credit #{record?.creditIds[0]} already recorded for this key and wrote nothing.</span>
+          </p>
+        ) : null}
+
+        {busy ? (
+          <p className="op-live" data-testid="operator-credit-live">
+            <LoaderCircle className="op-live-icon" aria-hidden />
+            {busy === 'approving' ? 'Recording the approval' : busy === 'declining' ? 'Recording the decision' : 'Executing the approved credit'}
+          </p>
+        ) : null}
+        {attempted && record?.readable && executed && !replayed ? (
+          <p className="op-note op-note-good" data-testid="operator-credit-recorded">
+            <CheckCircle2 size={14} aria-hidden />
+            Credit #{record.creditIds[0]} recorded for {review.customerName}.
+          </p>
+        ) : null}
+      </div>
 
       <div ref={actionsRef} className="op-credit-actions">
         {pending ? (
@@ -368,18 +385,6 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
 
       {approved && !attempted ? (
         <p className="op-note">A person approved these terms. Executing asks whether the system may carry them out.</p>
-      ) : null}
-      {attempted && record?.readable && executed && execution?.result?.idempotent_replay ? (
-        <p className="op-note op-note-replay" data-testid="operator-credit-replayed">
-          <StatusTag tone="pending">{REPLAYED_TAG}</StatusTag>
-          <span>This run found credit #{record.creditIds[0]} already recorded for this key and wrote nothing.</span>
-        </p>
-      ) : null}
-      {attempted && record?.readable && executed && !execution?.result?.idempotent_replay ? (
-        <p className="op-note op-note-good" data-testid="operator-credit-recorded">
-          <CheckCircle2 size={14} aria-hidden />
-          Credit #{record.creditIds[0]} recorded for {review.customerName}.
-        </p>
       ) : null}
       {attempted && axes.policy === 'DENY' ? (
         <p className="op-note op-note-blocked" data-testid="operator-credit-denied">

@@ -110,6 +110,8 @@ describe('the clients', () => {
     expect(await screen.findByTestId('operator-book-error')).toHaveTextContent('Staff sign-in required')
     expect(screen.getByTestId('operator-book-error')).toHaveTextContent(/Nadia with her password/)
     expect(screen.getByTestId('operator-state-sign-in')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-book-error')).not.toHaveTextContent('authentication_required')
+    expect(screen.getByTestId('operator-book-error')).toHaveAttribute('data-reason', 'authentication_required')
   })
 
   it('refuses a signed-in shopper without offering sign-in again', async () => {
@@ -333,6 +335,10 @@ describe('the review record', () => {
     expect(within(checks).getByText('Recorded once')).toBeInTheDocument()
     expect(checks).toHaveTextContent('Credit #12 and tool_audit row #4051')
     expect(screen.getByTestId('operator-credit-recorded')).toHaveTextContent('Credit #12 recorded for Jessica Nakamura')
+    const live = screen.getByTestId('operator-credit-announce')
+    expect(live).toHaveAttribute('role', 'status')
+    expect(live).toContainElement(screen.getByTestId('operator-credit-recorded'))
+    expect(screen.getByTestId('operator-credit-recorded')).not.toHaveAttribute('role')
     expect(screen.getByTestId('operator-review-retry')).toHaveTextContent('Replay with the same key')
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('gateway-mcp')
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent(WRITE_KEY)
@@ -695,7 +701,7 @@ describe('the execution actions and their outcomes', () => {
     await waitFor(() => expect(screen.getByTestId('operator-review-execute')).toHaveTextContent(/^Execute again$/))
   })
 
-  it('shows a replay as its own neutral outcome that names the original credit', async () => {
+  it('shows a replay as a visible success under the checks that names the original credit', async () => {
     api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
     api.executeReview.mockResolvedValueOnce({
       reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-2', idempotencyKey: WRITE_KEY,
@@ -706,8 +712,14 @@ describe('the execution actions and their outcomes', () => {
     fireEvent.click(await screen.findByTestId('operator-review-retry'))
     const replayed = await screen.findByTestId('operator-credit-replayed')
     expect(within(replayed).getByTestId('status-tag')).toHaveTextContent('Replayed, no new row')
-    expect(within(replayed).getByTestId('status-tag')).toHaveAttribute('data-tone', 'pending')
+    expect(within(replayed).getByTestId('status-tag')).toHaveAttribute('data-tone', 'good')
     expect(replayed).toHaveTextContent('credit #12 already recorded')
+    expect(screen.getByTestId('operator-credit-announce')).toContainElement(replayed)
+    expect(replayed).not.toHaveAttribute('role')
+    expect(replayed.closest('[role="status"]')).toBe(screen.getByTestId('operator-credit-announce'))
+    const checks = screen.getByTestId('operator-credit-checks')
+    expect(checks.compareDocumentPosition(replayed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(replayed.compareDocumentPosition(screen.getByTestId('operator-review-retry')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByTestId('operator-credit-recorded')).not.toBeInTheDocument()
   })
 
@@ -733,7 +745,7 @@ describe('the execution actions and their outcomes', () => {
     const card = await screen.findByTestId('operator-proposed-credit')
     fireEvent.click(within(card).getByRole('button', { name: 'Copy write key' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(WRITE_KEY))
-    expect(await within(card).findByRole('status')).toHaveTextContent('write key copied')
+    expect(await within(card).findByText(/write key copied/)).toBeInTheDocument()
     expect(within(card).getByRole('button', { name: 'Copy write key' })).toBeInTheDocument()
   })
 })

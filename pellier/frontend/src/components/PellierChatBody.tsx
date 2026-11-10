@@ -10,7 +10,7 @@
  * search's "How it ranked" table sits on the page above the results; here it
  * is one line that scrolls to it, so the table is never shown twice.
  */
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'motion/react'
 import { Terminal } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -140,6 +140,7 @@ export default function PellierChatBody({
   builderView = false,
 }: PellierChatBodyProps) {
   const reducedMotion = useReducedMotion()
+  useClockTick()
   const lastAssistantIndex = (() => {
     for (let i = messages.length - 1; i >= 0; i--) {
       if (messages[i].role === 'assistant') return i
@@ -185,6 +186,15 @@ export default function PellierChatBody({
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+/** One timer for the whole panel: re-renders it each half minute so "2m ago" keeps counting in an idle panel. */
+function useClockTick(): void {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = window.setInterval(() => setTick(n => n + 1), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
+}
 
 function UserMessage({ message }: { message: AgentChatMessage }) {
   const fromTerminal = message.source === 'terminal'
