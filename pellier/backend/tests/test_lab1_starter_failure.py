@@ -266,5 +266,7 @@ def test_a_receipt_with_no_one_list_product_is_not_yet(
     done = _psql_file(fresh_db, lab_variants.LAB1_RRF[variant])
     assert done.returncode != 0
     assert "Lab 1 fusion check not yet" in done.stdout, done.stdout
-    assert "is in one list only, so it cannot tell a missing rank apart" in done.stdout
+    # The sentence wraps to fit a 100-column terminal, so compare its words, not its line.
+    assert ("is in one list only, so it cannot tell a missing rank apart"
+            in " ".join(done.stdout.split()))
     assert "Lab 1 fusion check passed" not in done.stdout
