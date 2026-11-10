@@ -111,14 +111,14 @@ SELECT count(*) AS lab_1_products,
       \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
       \echo 'Lab 1 fusion check failed'
       \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-      DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
+      DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
     \endif
   \else
     \echo 'Observed  none yet: no product in receipt' :lab_1_receipt 'is in one list only,'
     \echo '          so it cannot tell a missing rank apart'
     \echo 'Next      send Anna''s request again: uv run scripts/lab_run.py send --lab 1'
     \echo 'Lab 1 fusion check not yet'
-    DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
+    DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
   \endif
 \else
   \echo 'Expected  a search receipt written in a session of Anna''s'
@@ -126,5 +126,5 @@ SELECT count(*) AS lab_1_products,
   \echo '          persona-anna-'
   \echo 'Next      run uv run scripts/lab_run.py send --lab 1, then run this again.'
   \echo 'Lab 1 fusion check not yet'
-  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif

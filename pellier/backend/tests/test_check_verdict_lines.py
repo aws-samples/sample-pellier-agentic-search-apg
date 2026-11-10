@@ -215,7 +215,8 @@ def test_a_count_takes_the_singular_only_for_one(count: int, expected: str) -> N
 
 STOP = re.compile(r"DO \$fail\$ BEGIN RAISE EXCEPTION '([^']*)'; END \$fail\$;")
 BRANCH = re.compile(r"\\(?:if|elif|else)\b")
-LAPTOP_COLUMNS = 100
+# A 1280-pixel laptop window gives Code Editor's terminal about 85 columns.
+LAPTOP_COLUMNS = 84
 
 
 def _run_as(path: Path) -> list[str]:
@@ -241,7 +242,7 @@ def test_a_sql_file_that_stops_says_so_and_names_the_line_to_read() -> None:
             named = "Next" if any(r"\echo 'Next" in said for said in lines[start:index]) \
                 else "Observed"
             where = f"{path.relative_to(REPO)}:{index + 1}"
-            assert found.group(1) == f"stopped here on purpose; read {named} above", where
+            assert found.group(1) == f"stopped on purpose; see {named}", where
             if path.parent.name != "workshop":
                 continue
             for run_as in _run_as(path):
