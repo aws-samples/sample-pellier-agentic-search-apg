@@ -232,12 +232,19 @@ def says_next() -> bool:
     return not os.environ.get(NO_NEXT_ENV)
 
 
-def next_lines(steps: Sequence[str]) -> str:
-    """``Next:`` and what to do, then each command indented under it on its own line."""
+def next_lines(steps: Sequence[str], width: Optional[int] = None) -> str:
+    """``Next:`` and what to do, then each command indented under it on its own line.
+
+    The sentence wraps at word breaks to ``width`` (the terminal's when omitted), so a long
+    one never breaks mid-word at the terminal's edge. A command stays whole, to copy as one.
+    """
     if not steps:
         return ""
     first, *commands = steps
-    return "\n".join([f"Next: {first}"] + [f"      {command}" for command in commands])
+    room = max(_NARROWEST, width or terminal_width()) - len("Next: ")
+    told = textwrap.wrap(first, width=room, break_long_words=False, break_on_hyphens=False)
+    lines = [f"Next: {told[0]}"] + [f"      {line}" for line in told[1:]]
+    return "\n".join(lines + [f"      {command}" for command in commands])
 
 
 def closing(label: str, passed: bool, task: str = "") -> str:

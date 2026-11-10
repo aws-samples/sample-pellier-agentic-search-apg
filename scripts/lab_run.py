@@ -274,7 +274,7 @@ def print_next_steps(steps: Sequence[str]) -> None:
     if not steps:
         return
     print("", flush=True)
-    for line in check.next_lines(steps).splitlines():
+    for line in check.next_lines(steps, check.terminal_width() - 2).splitlines():
         print(f"  {line}", flush=True)
 
 
@@ -341,6 +341,32 @@ def solution_files(lab: int, repo: pathlib.Path = REPO) -> List[Dict[str, str]]:
     if not mine:
         raise LabRunError(f"workshop/participant-files.json lists no files for Lab {lab}")
     return mine
+
+
+def python_edit_problem(repo: Optional[pathlib.Path] = None) -> Optional[str]:
+    """The first lab Python file that does not parse, in words a participant can act on.
+
+    The backend cannot start on a file Python cannot read, so every restart and send would wait
+    out the health limit and report only that the backend is down. The usual cause is a pasted
+    line that does not start under the lines around it.
+    """
+    repo = repo or REPO
+    entries = json.loads((repo / "workshop" / "participant-files.json").read_text("utf-8"))
+    for entry in entries:
+        source = repo / entry["source"]
+        if source.suffix != ".py" or not source.exists():
+            continue
+        alias = entry["alias"]
+        try:
+            compile(source.read_text("utf-8"), alias, "exec")
+        except SyntaxError as exc:
+            task = pathlib.PurePosixPath(alias).name[:2]
+            return (f"{alias}, line {exc.lineno}: {type(exc).__name__}: {exc.msg}. Pellier cannot "
+                    "start until this file is valid Python. A pasted line must start under the "
+                    "lines around it, with the same spaces in front. Fix that line and save the "
+                    "file, or install the answer:\n"
+                    f"uv run scripts/lab_run.py solution --lab {task[0]} --task {task}")
+    return None
 
 
 def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
@@ -415,6 +441,9 @@ def _keep(repo: pathlib.Path, alias: str, yours: bytes) -> str:
 
 def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run) -> None:
     """Restart the Pellier service the way the guide does, then wait until it is healthy."""
+    problem = python_edit_problem()
+    if problem:
+        raise LabRunError(problem)
     if shutil.which("systemctl") is None:
         raise LabRunError("systemctl is not on this machine, so the backend was not restarted. "
                           "Restart it yourself, then run the next command.")
@@ -568,8 +597,9 @@ def wait_until_healthy(backend: Backend) -> None:
                 break
             last = f"status {status!r}" if status else last
             if time.monotonic() >= deadline:
-                raise LabRunError(f"the backend is not healthy after {HEALTH_WAIT_SECONDS} s "
-                                  f"({last}). Check with: journalctl -u pellier -n 50")
+                raise LabRunError(python_edit_problem() or (
+                    f"the backend is not healthy after {HEALTH_WAIT_SECONDS} s "
+                    f"({last}). Check with: journalctl -u pellier -n 50"))
             time.sleep(2)
     ok("the backend is healthy")
 
@@ -1211,11 +1241,14 @@ class Step(NamedTuple):
 # Usual seconds for the catch-up steps, on event 14 at fe7f321e (2026-10-24): Lab 3's deploy took
 # 3:31 and 3:50, Lab 4's 1:27, Nadia's part 28 s, Theo's three turns 38 s, Anna's two 20 to 28 s
 # and Marco's two 7 s; a restart about 3 s, and each check and SQL file about a second.
-DEPLOY_TYPICAL = {3: 215, 4: 90}
+# The deploys and Nadia's part ran longer on the 2026-11-09 and 2026-11-10 events (Lab 3's deploy
+# 4:14, 4:30 and 4:37; Lab 4's 1:52, 1:56 and 1:58; Nadia's part 44 s), so each is the median of
+# every measurement, rounded to 5 s: a bar that promises less than the run takes reads as a hang.
+DEPLOY_TYPICAL = {3: 240, 4: 115}
 SEND_TYPICAL = {1: 25, 2: 7, 3: 40}
 CHECK_TYPICAL = {"3B": 5, "4A": 4, "4B": 2}
 RESTART_STEP_TYPICAL = 3
-CREDIT_TYPICAL = 30
+CREDIT_TYPICAL = 35
 SHOPPERS = {1: "Anna", 2: "Marco", 3: "Theo"}
 WHERE = {IN_PROCESS: "in process", MANAGED: "on AgentCore"}
 

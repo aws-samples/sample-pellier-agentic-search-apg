@@ -193,3 +193,14 @@ def test_every_other_4a_outcome_keeps_its_pass_or_fail_line(at_a_terminal) -> No
     passed = lab4_policy.closing(True, _managed(check.PASSED, "Cedar denied it"))
     assert wrong_rule == deployed_wrong == f"{RED}Lab 4A check failed{OFF}"
     assert passed.splitlines()[0] == f"{GREEN}Lab 4A check passed{OFF}"
+
+
+def test_a_long_next_sentence_wraps_at_a_word_and_a_command_stays_whole() -> None:
+    """Event 2026-11-10: a 131-column Next sentence broke mid-word at the terminal's edge."""
+    for steps in [*check.NEXT_AFTER_PASS.values(), *lab_run.NEXT_AFTER_SEND.values()]:
+        lines = check.next_lines(steps, width=100).splitlines()
+        told = [line for line in lines if line.strip() not in steps[1:]]
+        assert all(len(line) <= 100 for line in told), told
+        assert " ".join(line.removeprefix("Next: ").strip() for line in told) == steps[0]
+        assert [line.strip() for line in lines[len(told):]] == steps[1:]
+    assert len(check.next_lines(check.NEXT_AFTER_PASS["4B"], width=100).splitlines()) == 3
