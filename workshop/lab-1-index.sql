@@ -76,7 +76,7 @@ SELECT (SELECT count(*) FROM pellier.product_catalog
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 index check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 
 \echo ''
@@ -251,7 +251,7 @@ ROLLBACK;
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 index check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 \if :lab_1_filled
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
@@ -262,5 +262,5 @@ ROLLBACK;
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 1 index check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif

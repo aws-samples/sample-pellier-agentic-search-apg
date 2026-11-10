@@ -57,7 +57,7 @@ def test_the_customer_namespace_comes_first_and_each_session_actor_after_it() ->
 
 def test_empty_session_actors_are_counted_not_listed() -> None:
     lines = namespaces.report(FakeMemory([LIVE, LIVE + "-2"], {}), "mem-id", SUB)
-    assert lines[-1] == "2 more session actor(s) of Theo's hold no record yet"
+    assert lines[-1] == "no record yet for 2 more session actors of Theo's"
     assert lines.count("  no record yet") == 1, "only the customer's own empty namespace"
     assert f"/pellier/preferences/{LIVE}/" not in lines
 

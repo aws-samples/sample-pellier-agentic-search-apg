@@ -204,3 +204,47 @@ def test_a_long_next_sentence_wraps_at_a_word_and_a_command_stays_whole() -> Non
         assert " ".join(line.removeprefix("Next: ").strip() for line in told) == steps[0]
         assert [line.strip() for line in lines[len(told):]] == steps[1:]
     assert len(check.next_lines(check.NEXT_AFTER_PASS["4B"], width=100).splitlines()) == 3
+
+
+@pytest.mark.parametrize("count, expected", [
+    (0, "0 tool_audit rows"), (1, "1 tool_audit row"), (2, "2 tool_audit rows"),
+])
+def test_a_count_takes_the_singular_only_for_one(count: int, expected: str) -> None:
+    assert check.counted(count, "tool_audit row") == expected
+
+
+STOP = re.compile(r"DO \$fail\$ BEGIN RAISE EXCEPTION '([^']*)'; END \$fail\$;")
+BRANCH = re.compile(r"\\(?:if|elif|else)\b")
+LAPTOP_COLUMNS = 100
+
+
+def _run_as(path: Path) -> list[str]:
+    """The paths a participant gives psql for one file: its own, and its ``labs/`` link."""
+    links = [link for link in REPO.glob("labs/*/*.sql") if link.resolve() == path.resolve()]
+    return [str(found.relative_to(REPO)) for found in [path, *links]]
+
+
+def test_a_sql_file_that_stops_says_so_and_names_the_line_to_read() -> None:
+    """A lab's SQL file ends a failed run by raising an error: that undoes its change and
+    gives psql a failing exit status. psql prints it as ``psql:<file>:<line>: ERROR:  <words>``,
+    which reads like a crash on that line. So the words say the stop is deliberate and name
+    the line that tells the participant what to do, and the whole line fits a laptop terminal."""
+    seen = 0
+    for path in SQL_FILES:
+        lines = path.read_text().splitlines()
+        for index, line in enumerate(lines):
+            found = STOP.search(line)
+            if not found:
+                continue
+            seen += 1
+            start = max(i for i in range(index) if BRANCH.match(lines[i].strip()))
+            named = "Next" if any(r"\echo 'Next" in said for said in lines[start:index]) \
+                else "Observed"
+            where = f"{path.relative_to(REPO)}:{index + 1}"
+            assert found.group(1) == f"stopped here on purpose; read {named} above", where
+            if path.parent.name != "workshop":
+                continue
+            for run_as in _run_as(path):
+                shown = f"psql:{run_as}:{index + 1}: ERROR:  {found.group(1)}"
+                assert len(shown) <= LAPTOP_COLUMNS, shown
+    assert seen == 30

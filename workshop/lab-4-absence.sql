@@ -81,7 +81,7 @@ SELECT format('%s, %s, %s and %s',
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 \if :lab_4_has_allow_key
 \else
@@ -91,7 +91,7 @@ SELECT format('%s, %s, %s and %s',
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 
 \echo 'Evidence  denied key  ' :lab_4_deny_key
@@ -126,7 +126,7 @@ SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 \if :lab_4_absence_holds
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
@@ -144,5 +144,5 @@ SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 4 absence check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif

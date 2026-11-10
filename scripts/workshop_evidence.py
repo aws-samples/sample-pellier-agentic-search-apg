@@ -293,12 +293,15 @@ def credit_finding(row: Optional[Dict[str, Any]]) -> check.Finding:
         return check.Finding("4A", title, NOT_YET, expected, "no store credit yet", [],
                              "approve and execute Jessica's review as Nadia in the Operator.")
     evidence = [f"pellier.store_credits credit {row.get('credit_id')}, key "
-                f"{row.get('idempotency_key')}: {row.get('credit_rows')} credit row(s), "
-                f"{row.get('audit_rows')} audit row(s), {row.get('amount_cents')} of "
+                f"{row.get('idempotency_key')}: "
+                f"{check.counted(int(row.get('credit_rows') or 0), 'credit row')}, "
+                f"{check.counted(int(row.get('audit_rows') or 0), 'audit row')}, "
+                f"{row.get('amount_cents')} of "
                 f"{row.get('approved_cents')} cents approved"]
     attempts = int(row.get("attempt_rows") or 0)
     if attempts:
-        evidence.append(f"tool_audit also keeps {attempts} other attempt(s) that did not apply")
+        evidence.append(f"tool_audit also keeps {check.counted(attempts, 'other attempt')} "
+                        "that did not apply")
     state = PASSED if set(found.values()) == {PASSED} else FAILED
     return check.Finding("4A", title, state, expected,
                          f"recorded once {found['once']}, approved amount {found['amount']}",

@@ -75,7 +75,8 @@ def provisioned_finding(seeded: dict, memory_id: str):
     evidence += [f"{seeded['strategy']} record {r.get('memoryRecordId')}: {_text(r)}"
                  for r in records]
     evidence.append(f"namespace {seeded['namespace']}")
-    observed = f"{len(events)} source event(s), {len(records)} preference record(s)"
+    observed = (f"{_plural(len(events), 'source event')}, "
+                f"{_plural(len(records), 'preference record')}")
     if not events:
         return check.Finding("3B", "the provisioning conversation is remembered",
                              check.FAILED, expected, observed, evidence,

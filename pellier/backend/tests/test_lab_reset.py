@@ -573,11 +573,11 @@ def test_the_command_is_wired_into_lab_run(monkeypatch: pytest.MonkeyPatch,
 def test_a_refused_reset_exits_one_with_the_reason(monkeypatch: pytest.MonkeyPatch,
                                                    capsys: pytest.CaptureFixture[str]) -> None:
     def refuse(lab: int, **_kw: Any) -> None:
-        raise lab_reset.LabResetError("1 store credit(s) exist")
+        raise lab_reset.LabResetError("1 store credit exists")
 
     monkeypatch.setattr(lab_reset, "reset_lab", refuse)
     assert lab_run.main(["reset", "--lab", "4"]) == 1
-    assert "store credit(s) exist" in capsys.readouterr().err
+    assert "1 store credit exists" in capsys.readouterr().err
 
 
 # ---------------------------------------------------------------------------

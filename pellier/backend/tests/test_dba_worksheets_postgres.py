@@ -116,7 +116,7 @@ def test_the_workload_waits_for_the_agent_then_shows_it_by_role(statements_db: C
     done = _worksheet(statements_db, WORKLOAD)
     assert done.returncode == 0, done.stdout + done.stderr
     assert done.stdout.rstrip().endswith("Lab 3 workload check passed")
-    assert "Observed  2 tool statement(s)" in done.stdout
+    assert "Observed  tool statements: 2. The agent is a role" in done.stdout
     assert "One-Time Filter" in done.stdout and "current_setting('pellier.principal_username'" \
         in done.stdout
     assert "Observed  0 rows: the row policy runs inside the plan" in done.stdout

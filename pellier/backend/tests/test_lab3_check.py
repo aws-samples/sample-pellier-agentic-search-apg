@@ -76,11 +76,12 @@ class TestTheReads:
     def test_theos_own_reads_are_proved(self) -> None:
         finding = lab3.judge_tickets([self.THEO])
         assert finding.state == check.PASSED
-        assert finding.observed == "1 executed call(s), 1 for CUST-THEO, 0 for anyone else"
+        assert finding.observed == "1 executed call, 1 for CUST-THEO, 0 for anyone else"
 
     def test_a_read_for_jessica_contradicts(self) -> None:
         finding = lab3.judge_tickets([self.THEO, {**self.THEO, "customer_id": "CUST-JESSICA"}])
         assert finding.state == check.FAILED
+        assert finding.observed == "2 executed calls, 1 for CUST-THEO, 1 for anyone else"
         assert "CUST-JESSICA" in " ".join(finding.evidence)
 
     def test_no_read_is_not_yet(self) -> None:
@@ -95,6 +96,7 @@ class TestTheProbe:
     def test_a_cedar_denial_with_no_row_is_proved(self) -> None:
         finding = lab3.judge_probe(self.DENY, 0)
         assert finding.state == check.PASSED
+        assert "turn turn-lab3-probe-1: 0 tool_audit rows" in finding.evidence
         assert "Gateway diagnostic, verbatim: Tool call not allowed" in finding.evidence[-1]
 
     def test_an_allow_contradicts(self) -> None:
@@ -108,7 +110,9 @@ class TestTheProbe:
         assert "not a policy decision" in finding.next_step
 
     def test_a_denial_that_left_a_row_contradicts(self) -> None:
-        assert lab3.judge_probe(self.DENY, 1).state == check.FAILED
+        finding = lab3.judge_probe(self.DENY, 1)
+        assert finding.state == check.FAILED
+        assert finding.observed == "denied, but its turn left 1 tool_audit row"
 
     def test_a_denial_whose_rows_could_not_be_read_is_unchecked(self) -> None:
         """Could not look is not did not happen: no rows read, no verdict on them."""

@@ -263,7 +263,7 @@ class TestLabsThreeAndFour:
     def test_a_failed_attempt_beside_the_applied_row_is_still_once(self) -> None:
         row = {**CREDIT, "attempt_rows": 1}
         assert evidence.credit_findings(row) == {"once": PASSED, "amount": PASSED}
-        assert "1 other attempt(s) that did not apply" in " ".join(evidence.credit_finding(row).evidence)
+        assert "1 other attempt that did not apply" in " ".join(evidence.credit_finding(row).evidence)
 
 
 # ---------------------------------------------------------------------------

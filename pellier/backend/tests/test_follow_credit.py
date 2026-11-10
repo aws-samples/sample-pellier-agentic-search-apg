@@ -121,7 +121,7 @@ def test_a_missing_aurora_link_fails_and_names_the_link() -> None:
     assert followed.state == check.FAILED
     assert followed.observed == "no ask_a_person audit row carries her request's turn"
     keyed = follow_credit.follow(_story(credits_with_key=2), _records(), NOW)
-    assert keyed.state == check.FAILED and "2 credit(s) carry the review's key" in keyed.observed
+    assert keyed.state == check.FAILED and "the review's key is on 2 credits" in keyed.observed
 
 
 def test_an_agent_span_from_another_turn_is_not_hers() -> None:

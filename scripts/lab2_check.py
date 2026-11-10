@@ -393,7 +393,8 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
                              "rerun this check after "
                              f"sending Marco's requests again ({SEND}).")
     calls = sum(1 for row in rows if row["tool"] == "check_stock")
-    observed = (f"held check_stock alone; {calls} check_stock call(s), every count and ship "
+    observed = (f"held check_stock alone; {check.counted(calls, 'check_stock call')}, every "
+                "count and ship "
                 "window for a piece Pellier carries matches")
     return check.Finding("2A", title, check.PASSED, EXPECTED_2A, observed, evidence)
 

@@ -53,7 +53,7 @@ SELECT current_setting('lab3.workload') = 'ok' AS ready,
   \echo 'Observed  pg_stat_statements is' :lab_3_state
   \echo 'Next      the workshop cluster loads it; run this on the workshop database (check PGHOST).'
   \echo 'Lab 3 workload check unchecked'
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check unchecked; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 
 -- Each role reads its own statements: pg_stat_statements shows a statement's
@@ -191,7 +191,7 @@ ROLLBACK;
 \echo '          0 of Jessica''s orders visible to a session bound to Theo'
 \if :lab_3_wrong_lab_3_none
 \if :lab_3_agent_tool_seen
-  \echo 'Observed ' :lab_3_agent_tool_reads 'tool statement(s): the agent is a role with a workload and plans'
+  \echo 'Observed  tool statements:' :lab_3_agent_tool_reads'. The agent is a role with a workload and plans.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 3 workload check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -201,7 +201,7 @@ ROLLBACK;
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3 workload check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 \else
   \echo 'Observed ' :lab_3_wrong_lab_3_probe 'of Jessica''s orders were visible to Theo''s session'
@@ -209,5 +209,5 @@ ROLLBACK;
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3 workload check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Lab 3 workload check failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif

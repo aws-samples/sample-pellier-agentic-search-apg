@@ -80,7 +80,7 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Wrap-up reconstruction failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
 
 -- The story, step by step. Each line names the row it comes from. The audit row
@@ -183,5 +183,5 @@ SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'Wrap-up reconstruction failed; see the lines above'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Observed above'; END $fail$;
 \endif

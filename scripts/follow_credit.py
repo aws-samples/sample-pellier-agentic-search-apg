@@ -223,8 +223,8 @@ def aurora_gap(story: Optional[Dict[str, Any]]) -> Optional[Followed]:
                                       "which row is missing.")
     if story["idempotency_key"] != story["write_key"] or story["credits_with_key"] != 1:
         return Followed(check.FAILED, observed=(
-            f"{story['credits_with_key']} credit(s) carry the review's key "
-            f"{story['write_key']}; the credit's own key is {story['idempotency_key']}"))
+            f"the review's key is on {check.counted(story['credits_with_key'], 'credit')} "
+            f"({story['write_key']}); the credit's own key is {story['idempotency_key']}"))
     return None
 
 

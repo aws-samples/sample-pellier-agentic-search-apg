@@ -166,7 +166,8 @@ def credit_blocker(conn: Any) -> Optional[str]:
         credits = int(cur.fetchone()["n"])
     if credits == 0:
         return None
-    return (f"{credits} store credit(s) exist. A credit, the review a person approved and its "
+    return (f"{check.counted(credits, 'store credit')} {'exists' if credits == 1 else 'exist'}. "
+            "A credit, the review a person approved and its "
             "tool_audit row are the evidence this lab produces, and none of them can be "
             "undone from a lab. Nothing was changed. To start Lab 4 over from a clean ledger "
             f"reset the whole workshop: {FULL_RESET}")
@@ -312,8 +313,8 @@ def reset_lab(
                                 f"uv run scripts/repair_workshop_files.py, or reset the whole "
                                 f"workshop: {FULL_RESET}") from exc
         _timed(steps, f"files: {', '.join(restored)}", started)
-        report(f"  + OK    restored {len(restored)} file region(s) to their originals "
-               f"({', '.join(restored)})")
+        report(f"  + OK    restored {check.counted(len(restored), 'file region')} "
+               f"from the originals ({', '.join(restored)})")
 
         started = time.monotonic()
         point = apply_database(conn, lab, repo)

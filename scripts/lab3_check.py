@@ -384,7 +384,8 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
                              f"send Theo's ticket question on the managed path: {SEND}."
                              + check.since_note(3, SEND))
     others = [r for r in rows if r.get("customer_id") != THEO]
-    observed = (f"{len(rows)} executed call(s), {len(rows) - len(others)} for {THEO}, "
+    observed = (f"{check.counted(len(rows), 'executed call')}, "
+                f"{len(rows) - len(others)} for {THEO}, "
                 f"{len(others)} for anyone else")
     if others:
         return check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
@@ -450,7 +451,8 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
     evidence += [f"source event {e.get('eventId')} (actor {seeded.get('actor')}, session "
                  f"{seeded.get('session')}): {_event_text(e)}" for e in seeded.get("events") or []]
     evidence += [f"record {item['record_id']}: {item['preference'][:90]}" for item in remembered]
-    observed = (f"the managed rail's read returns {len(ids)} record(s); provisioning's "
+    observed = (f"the managed rail's read returns {check.counted(len(ids), 'record')}; "
+                "provisioning's "
                 f"conversation produced {len(provisioned)}")
     if not seeded.get("events"):
         return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
@@ -556,7 +558,8 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
     evidence = [
         f"principal theo, action {payload.get('action')}, customer_id {JESSICA}",
         f"turn {payload.get('turn_id')}: "
-        + (f"{audit_rows} tool_audit row(s)" if audit_rows is not None else "rows not read"),
+        + (check.counted(audit_rows, "tool_audit row") if audit_rows is not None
+           else "rows not read"),
     ]
     said = str(payload.get("error") or payload.get("result") or "")[:200]
     if said:
@@ -579,7 +582,8 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
                                        "a denial is half the proof, the absent row the other.")
     if audit_rows != 0:
         return check.Finding("3B", _PROBE_TITLE, check.FAILED, PROBE_EXPECTED,
-                             f"denied, but {audit_rows} tool_audit row(s) carry its turn",
+                             "denied, but its turn left "
+                             + check.counted(audit_rows, "tool_audit row"),
                              evidence, "a denied call must leave no row; read those rows.")
     return check.Finding("3B", _PROBE_TITLE, check.PASSED, PROBE_EXPECTED,
                          "Cedar denied it before the tool ran; no row was written", evidence)

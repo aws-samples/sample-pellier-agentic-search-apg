@@ -89,7 +89,7 @@ def test_the_finding_prints_event_ids_beside_record_ids() -> None:
     seeded, _calls = _seeded([THEO_EVENT], [THEO_RECORD])
     finding = showcase.provisioned_finding(seeded, "mem-1")
     assert finding.state == check.PASSED
-    assert finding.observed == "1 source event(s), 1 preference record(s)"
+    assert finding.observed == "1 source event, 1 preference record"
     rendered = check.render(finding)
     assert "source event 0000001-theo-1" in rendered
     assert "PellierUserPreferences record mem-theo-1" in rendered

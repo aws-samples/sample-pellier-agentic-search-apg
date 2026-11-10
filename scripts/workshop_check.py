@@ -488,6 +488,11 @@ def region_state(path: pathlib.Path, label: str, starter: pathlib.Path) -> str:
     return STARTER if body == expected else EDITED
 
 
+def counted(count: int, noun: str) -> str:
+    """A count with its noun in the right number: "1 tool_audit row", "2 tool_audit rows"."""
+    return f"{count} {noun}" + ("" if count == 1 else "s")
+
+
 def short(value: Any, width: int = 12) -> str:
     """A long identifier cut to a readable prefix."""
     text = str(value or "")

@@ -157,7 +157,7 @@ def report(client: Any, memory_id: str, sub: str) -> List[str]:
         else:
             empty += 1
     if empty:
-        lines.append(f"{empty} more session actor(s) of Theo's hold no record yet")
+        lines.append(f"no record yet for {check.counted(empty, 'more session actor')} of Theo's")
     return lines
 
 
