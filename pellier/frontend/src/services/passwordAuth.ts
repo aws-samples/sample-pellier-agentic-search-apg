@@ -146,3 +146,10 @@ export function safeSignInReturn(value: string | null, fallback = '/'): string {
     return `${url.pathname}${url.search}${url.hash}`
   } catch { return fallback }
 }
+
+/** Whether a sign-in address is the Operator's: opened for it by name, or returning to one of its pages. */
+export function signInIsForOperator(search: string): boolean {
+  const params = new URLSearchParams(search)
+  return params.get('workspace') === 'operator'
+    || /\/operator(?:\/|\?|$)/.test(safeSignInReturn(params.get('returnTo')))
+}

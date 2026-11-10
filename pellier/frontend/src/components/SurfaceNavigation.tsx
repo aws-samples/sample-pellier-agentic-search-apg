@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { NAV } from '../copy'
 import { useUI } from '../contexts/UIContext'
+import { signInIsForOperator } from '../services/passwordAuth'
 import ThemeControl from '../theme/ThemeControl'
 import { TourHost, TourReplayButton } from './SpotlightTour'
 import { BuilderViewToggle } from './turn'
@@ -40,8 +41,10 @@ const STOREFRONT_LINKS = [
   { label: NAV.ABOUT, to: '/about', current: (path: string) => path === '/about' },
 ] as const
 
-function surfaceFor(path: string): Surface {
+function surfaceFor(path: string, search: string): Surface {
   if (path === '/operator' || path.startsWith('/operator/')) return 'operator'
+  // The Operator's sign-in page belongs to the Operator, so the header names it there too.
+  if (path === '/signin' && signInIsForOperator(search)) return 'operator'
   return 'storefront'
 }
 
@@ -72,7 +75,7 @@ function surfaceFor(path: string): Surface {
 export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
   const { openModal, turnRunning } = useUI()
-  const active = surfaceFor(pathname)
+  const active = surfaceFor(pathname, search)
   const onStorefront = active === 'storefront' && pathname !== '/signin'
   const [destinations, setDestinations] = useState<Record<Surface, string>>({
     storefront: '/',

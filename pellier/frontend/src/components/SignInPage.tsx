@@ -4,7 +4,7 @@ import { Eye, EyeOff, LoaderCircle } from 'lucide-react'
 import ResponsiveImage from './ResponsiveImage'
 import { WordmarkLetters } from './Wordmark'
 import { asset } from '../utils/assetPath'
-import { hostedSignInAvailable, isRequestsLimited, passwordAuth, PasswordAuthError, safeSignInReturn } from '../services/passwordAuth'
+import { hostedSignInAvailable, isRequestsLimited, passwordAuth, PasswordAuthError, safeSignInReturn, signInIsForOperator } from '../services/passwordAuth'
 import { HOSTED_SIGN_IN, REQUESTS_LIMITED } from '../copy'
 import '../styles/surface-navigation.css'
 import '../styles/pellier-signin.css'
@@ -53,7 +53,7 @@ export default function SignInPage() {
   // sign-in here never replaces the shopper signed in on the storefront. The
   // backend still verifies staff group membership before returning any
   // Operator or cross-principal data.
-  const operator = workspaceOperator || /\/operator(?:\/|\?|$)/.test(returnTo)
+  const operator = signInIsForOperator(window.location.search)
   const surface = operator ? 'staff' : 'shopper'
   // A hosted sign-in that stopped, or a staff sign-in refused on the storefront, lands here with its reason.
   const returned = params.get('error')

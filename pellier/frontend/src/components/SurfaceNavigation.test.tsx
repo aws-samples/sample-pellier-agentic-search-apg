@@ -26,6 +26,29 @@ describe('connected surface navigation', () => {
     expect(screen.getAllByRole('link', { current: 'page' })).toHaveLength(1)
   })
 
+  it.each([
+    ['returns to an Operator page', '/signin?returnTo=%2Foperator%2Freviews'],
+    ['was opened for the Operator by name', '/signin?workspace=operator'],
+  ])('marks the Operator as current on a sign-in page that %s', (_case, address) => {
+    render(<UIProvider><MemoryRouter initialEntries={[address]}>
+      <SurfaceNavigation />
+    </MemoryRouter></UIProvider>)
+    expect(screen.getByRole('link', { name: 'Operator' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getAllByRole('link', { current: 'page' })).toHaveLength(1)
+  })
+
+  it.each([
+    ['names no return', '/signin'],
+    ['returns to the collection', '/signin?returnTo=%2Fproduct%2F17'],
+    ['names a return on another site', '/signin?returnTo=https%3A%2F%2Fexample.com%2Foperator%2F'],
+  ])('keeps the Storefront current on a sign-in page that %s', (_case, address) => {
+    render(<UIProvider><MemoryRouter initialEntries={[address]}>
+      <SurfaceNavigation />
+    </MemoryRouter></UIProvider>)
+    expect(screen.getByRole('link', { name: 'Storefront' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getAllByRole('link', { current: 'page' })).toHaveLength(1)
+  })
+
   it('keeps a product location when browser history returns from another surface', () => {
     render(<UIProvider><MemoryRouter initialEntries={['/product/17']}>
       <SurfaceNavigation /><Probe />
