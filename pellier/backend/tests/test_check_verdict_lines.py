@@ -140,7 +140,7 @@ def test_every_sql_verdict_is_coloured_only_at_a_terminal() -> None:
                 continue
             seen += 1
             code = "32" if found.group(1) == "passed" else "31"
-            guard = r'\echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf ' 
+            guard = r'\echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '
             assert lines[number - 1].strip() == guard + rf"'\033[{code}m' || true`", path.name
             assert lines[number + 1].strip() == guard + r"'\033[0m' || true`", path.name
     assert seen >= 30
