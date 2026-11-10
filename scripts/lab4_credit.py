@@ -375,7 +375,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if check.refuse_missing_lab_file(4):
         return 1
     findings = collect()
-    print("Lab 4B: your deployed privileges, then the credit-writer role on both database paths")
+    print(check.wrapped("", "Lab 4B: your deployed privileges, then the credit-writer role on "
+                        "both database paths"))
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)

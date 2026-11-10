@@ -311,17 +311,25 @@ def follow(story: Optional[Dict[str, Any]], records: Records, now: float) -> Fol
     return _credit_half(story, records, rows, now)
 
 
+def _join_line(join: str) -> str:
+    """A join sentence wrapped under its label: ``Turn``, ``Key`` or ``Paid once:``."""
+    label, _, rest = join.partition(" ")
+    if label in ("Turn", "Key"):
+        return check.wrapped("Turn  " if label == "Turn" else "Key   ", rest.lstrip())
+    return check.wrapped("", join)
+
+
 def report(followed: Followed) -> str:
     """The chain as a table, then the joins, or the state and what to do next."""
-    lines = [TITLE, ""]
+    lines = [check.wrapped("", TITLE), ""]
     if followed.rows:
         lines += [check.table(HEADER, followed.rows), ""]
     if followed.state == check.PASSED:
-        return "\n".join([*lines, *followed.joins, "",
+        return "\n".join([*lines, *(_join_line(join) for join in followed.joins), "",
                           check.closing("End-to-end check", True)])
-    lines.append(f"{followed.state}  {followed.observed}")
+    lines.append(check.wrapped("", f"{followed.state}  {followed.observed}"))
     if followed.next_step:
-        lines.append(f"Next  {followed.next_step}")
+        lines.append(check.wrapped("Next  ", followed.next_step))
     return "\n".join([*lines, check.closing("End-to-end check", False)])
 
 

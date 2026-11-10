@@ -140,6 +140,12 @@ def _block(actor: str, writer: str, found: List[Tuple[str, str]]) -> List[str]:
     return lines + ([] if found else ["  no record yet"])
 
 
+def _fit(line: str) -> str:
+    """One report line wrapped to the terminal, later lines under the first one's indent."""
+    text = line.lstrip()
+    return check.wrapped(line[: len(line) - len(text)], text)
+
+
 def report(client: Any, memory_id: str, sub: str) -> List[str]:
     """The customer's namespace and its records, then each session actor that holds one.
 
@@ -183,28 +189,32 @@ def _connect() -> Tuple[Any, str, str]:
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     del argv
-    print("Lab 3, Go deeper: where Theo's preferences land, beside where the agent reads them")
+    print(check.wrapped("", "Lab 3, Go deeper: where Theo's preferences land, beside where "
+                            "the agent reads them"))
     try:
         client, memory_id, sub = _connect()
         pending = extracting(client, memory_id, sub)
         if pending:
-            print(f"Theo's newest turn is {clock(min(age for _, age in pending))} old and "
-                  "nothing is extracted from it yet. Waiting for it; Ctrl-C stops the wait.")
+            print(check.wrapped("", f"Theo's newest turn is {clock(min(age for _, age in pending))}"
+                                    " old and nothing is extracted from it yet. Waiting for it; "
+                                    "Ctrl-C stops the wait."))
             try:
                 if not wait_for_extraction(client, memory_id, pending):
-                    print("Nothing was extracted from it. A turn that states no preference "
-                          "leaves no record to extract.")
+                    print(check.wrapped("", "Nothing was extracted from it. A turn that states "
+                                            "no preference leaves no record to extract."))
             except KeyboardInterrupt:
-                print("Stopped waiting; here is what has landed so far.")
+                print(check.wrapped("", "Stopped waiting; here is what has landed so far."))
         lines = report(client, memory_id, sub)
     except (Exception, SystemExit) as exc:  # noqa: BLE001 - say why it could not look
-        print(f"Could not read AgentCore Memory here: {type(exc).__name__}: {str(exc)[:200]}")
-        print("Run this on the workshop box, where pellier/backend/.env names the Memory.")
+        print(check.wrapped("", f"Could not read AgentCore Memory here: {type(exc).__name__}: "
+                                f"{str(exc)[:200]}"))
+        print(check.wrapped("", "Run this on the workshop box, where pellier/backend/.env names "
+                                "the Memory."))
         return 1
-    print(f"AgentCore Memory {memory_id}")
-    print("\n".join(lines))
-    print("A preference stated in a live turn lands under that turn's session actor, not under")
-    print(f"CUST-THEO, and extraction took {DELAY}.")
+    print(check.wrapped("", f"AgentCore Memory {memory_id}"))
+    print("\n".join(_fit(line) for line in lines))
+    print(check.wrapped("", "A preference stated in a live turn lands under that turn's session "
+                            f"actor, not under CUST-THEO, and extraction took {DELAY}."))
     return 0
 
 

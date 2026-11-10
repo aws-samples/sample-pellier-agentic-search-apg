@@ -349,7 +349,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if check.refuse_missing_lab_file(1):
         return 1
     finding, rows = run()
-    print("Lab 1B: every product in Anna's latest search keeps the requirements she asked for")
+    print(check.wrapped("", "Lab 1B: every product in Anna's latest search keeps the "
+                            "requirements she asked for"))
     if rows:
         print(check.table(("product", "name", "price", "in stock", "verdict"), rows))
     print(check.render(finding))

@@ -689,7 +689,7 @@ def findings_3a() -> List[check.Finding]:
 def main_3a() -> int:
     """Task 3A from source, before any deploy: one finding per rule."""
     findings = findings_3a()
-    print("Lab 3A: the Support agent, assembled for AgentCore")
+    print(check.wrapped("", "Lab 3A: the Support agent, assembled for AgentCore"))
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)
@@ -709,8 +709,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
     if task == "3A":
         return main_3a()
-    print("Lab 3B: Theo's managed turns, read from tool_audit, AgentCore Memory, the Gateway "
-          "and the row policies", flush=True)
+    print(check.wrapped("", "Lab 3B: Theo's managed turns, read from tool_audit, AgentCore "
+                            "Memory, the Gateway and the row policies"), flush=True)
     with waiting("Reading tool_audit, AgentCore Memory, the Gateway and the row policies",
                  typical=4):
         findings = collect()

@@ -119,7 +119,7 @@ def test_reach_and_use_are_said_for_every_strategy() -> None:
 
 def test_a_shopper_with_no_records_is_named_beside_theo() -> None:
     text = showcase.render_strategies(_found("CUST-THEO"), "mem-1", _found("CUST-JESSICA"))
-    assert text.endswith(
+    assert " ".join(text.split()).endswith(
         "CUST-JESSICA, the same five reads: 0 records. CUST-JESSICA's turns are given no "
         "remembered preference, and none of CUST-THEO's: every read is keyed by the "
         "signed-in customer.")

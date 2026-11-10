@@ -930,12 +930,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
     rule_text = POLICY_FILE.read_text(encoding="utf-8")
     local = local_check(rule_text, STARTER_FILE.read_text(encoding="utf-8"))
-    print("Lab 4A, part 1: your rule, evaluated with Cedar beside the baseline (nothing deployed)")
+    print(check.wrapped("", "Lab 4A, part 1: your rule, evaluated with Cedar beside the "
+                            "baseline (nothing deployed)"))
     if local.table:
         print_table(local.table)
     print(check.render(local.finding))
     print("")
-    print("Lab 4A, part 2: the deployed rule and one over-limit credit through the Gateway")
+    print(check.wrapped("", "Lab 4A, part 2: the deployed rule and one over-limit credit "
+                            "through the Gateway"))
     managed = managed_check(local, rule_text, check.db_config())
     print(check.render(managed))
     local_passed = local.finding.state == check.PASSED

@@ -683,7 +683,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.task == "2A":
         print("Lab 2A: Marco's latest stock answer comes from check_stock alone")
     else:
-        print("Lab 2B: pellier.check_stock answers from the catalog and warehouse_inventory")
+        print(check.wrapped("", "Lab 2B: pellier.check_stock answers from the catalog and "
+                            "warehouse_inventory"))
         if rows:
             print(marco_line(rows, marco_cape_request()))
             print(cases_table(rows))

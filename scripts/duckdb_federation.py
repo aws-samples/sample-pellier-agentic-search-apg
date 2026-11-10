@@ -19,6 +19,9 @@ import secrets
 import sys
 import urllib.request
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import workshop_check  # noqa: E402  (sibling module)
+
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / ".local" / "duckdb"
 ROLE = "pellier_inventory_reader"
@@ -182,7 +185,6 @@ def check_reader(directory: Path) -> None:
 def owner_connection(directory: Path):
     """Workshop host or existing SSM tunnel, using the supplied DB configuration."""
     import psycopg
-    import workshop_check
 
     cfg = workshop_check.db_config()
     if not cfg:
@@ -241,23 +243,28 @@ def main() -> int:
                 prepare_reader(owner, LOCAL, options)
             with connect_duckdb(LOCAL) as conn:
                 create_forecast(conn, LOCAL)
-            print("Prepared an inventory-only login and a training forecast in .local/duckdb.")
+            print(workshop_check.wrapped("", "Prepared an inventory-only login and a training "
+                                             "forecast in .local/duckdb."))
         elif args.operation == "check":
             check_reader(LOCAL)
-            print("DuckDB check passed: live stock matches; missing forecast stays NULL; customer reads and writes are denied.")
+            print(workshop_check.paint("DuckDB check passed", workshop_check.PASSED))
+            print(workshop_check.wrapped("", "Live stock matches; missing forecast stays NULL; "
+                                             "customer reads and writes are denied."))
         else:
             with connect_duckdb(LOCAL) as conn:
                 columns, rows = query(conn, LOCAL, explain=args.explain)
                 print(" | ".join(columns))
                 for row in rows:
                     print(" | ".join("NULL" if value is None else str(value) for value in row))
-            print("Forecast values are training data. They do not increase stock or establish a shipping date.")
+            print(workshop_check.wrapped("", "Forecast values are training data. They do not "
+                                             "increase stock or establish a shipping date."))
         return 0
     except Exception as exc:
         # Driver errors can include connection details. Keep them off the terminal.
-        print(f"Optional federation could not finish ({type(exc).__name__}). "
-              "Run prepare on the workshop host, then retry. Check database access and extension downloads.",
-              file=sys.stderr)
+        print(workshop_check.wrapped("", f"Optional federation could not finish "
+                                         f"({type(exc).__name__}). Run prepare on the workshop "
+                                         "host, then retry. Check database access and extension "
+                                         "downloads."), file=sys.stderr)
         return 1
 
 

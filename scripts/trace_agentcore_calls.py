@@ -47,6 +47,9 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "pellier" / "backend"))
 sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import workshop_check as check  # noqa: E402  (sibling module)
 
 LOG_GROUP = "aws/spans"
 # The Wrap-up names Nadia's first DENY, the oldest of her credit calls in the hour. Extra Execute
@@ -212,13 +215,20 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
     gateway = (f"tools/call {call['gateway_ms']} ms; {call.get('target') or TARGET} Lambda span present" if ran
                else "tools/call refused by the request's Cedar decision; target never invoked" if denied
                else "no Lambda span: execution is unknown; telemetry may be incomplete")
-    return [f"{when}  {who:<8} {call['tool']}  {call['decision']}  ->  {outcome}",
-            f"  Runtime   {runtime_summary(call, runtime)}",
-            f"  Identity  {identity}",
-            f"  Policy    {policy}",
-            f"  Gateway   {gateway}",
-            *([f"  Aurora    {aurora}"] if aurora is not None else []),
-            f"  trace {call['trace_id']}  request {call['request_id']}"]
+    labelled = [("Runtime", runtime_summary(call, runtime)), ("Identity", identity),
+                ("Policy", policy), ("Gateway", gateway)]
+    if aurora is not None:
+        labelled.append(("Aurora", aurora))
+    return [check.wrapped("", f"{when}  {who:<8} {call['tool']}  {call['decision']}  "
+                              f"->  {outcome}"),
+            *(check.wrapped(f"  {label:<10}", text) for label, text in labelled),
+            check.wrapped("  ", f"trace {call['trace_id']}  request {call['request_id']}")]
+
+
+def no_call_message(tool: str) -> str:
+    """What to do when no ``tool`` call has reached CloudWatch yet, wrapped to the terminal."""
+    return check.wrapped("", f"No {tool} call yet. Spans arrive about ten seconds after a "
+                             "call; run this again in a moment.")
 
 
 def _filter(logs: Any, start_ms: int, pattern: str, group: str = LOG_GROUP,
@@ -393,7 +403,6 @@ def read_aurora(logs: Any, minutes: int) -> Tuple[List[Dict[str, Any]], Optional
 
     ``why not`` is ``None`` when the log was read; otherwise it is the Aurora line to print.
     """
-    import workshop_check as check
     from observability_check import aws_code, cluster_id
 
     cfg = check.db_config()
@@ -468,10 +477,10 @@ def main() -> int:
         code = getattr(exc, "response", {}).get("Error", {}).get("Code", type(exc).__name__)
         print(f"Could not read {LOG_GROUP}: {code}", file=sys.stderr)
         return 1
-    print(f"AgentCore spans for {args.tool}, last {args.minutes} minutes ({LOG_GROUP})")
+    print(check.wrapped("", f"AgentCore spans for {args.tool}, last {args.minutes} minutes "
+                            f"({LOG_GROUP})"))
     if not calls:
-        print(f"No {args.tool} call yet. Spans arrive about ten seconds after a call; "
-              "run this again in a moment.")
+        print(no_call_message(args.tool))
         return 1
     names = subject_names(boto3.client("cognito-idp", region_name=settings.cognito_region_resolved),
                           settings.cognito_pool_id_resolved)

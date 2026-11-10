@@ -404,8 +404,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if check.refuse_missing_lab_file(3):
         return 1
     findings = collect()
-    print("Lab 3B, live: your deployed predicate, then the policies as Theo on both "
-          "database paths")
+    print(check.wrapped("", "Lab 3B, live: your deployed predicate, then the policies as Theo on "
+                            "both database paths"))
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)

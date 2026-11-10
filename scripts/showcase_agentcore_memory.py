@@ -224,7 +224,15 @@ def render_strategies(found: dict, memory_id: str, versus: Optional[dict] = None
             lines.append("  none yet: AgentCore extracts after the conversation; run this again")
     if versus is not None:
         lines += ["", *_versus_lines(found["actor"], versus)]
-    return "\n".join(lines)
+    return "\n".join(_fit(line) for line in lines)
+
+
+def _fit(line: str) -> str:
+    """One line wrapped to the terminal, later lines under the first one's indent."""
+    import workshop_check as check
+
+    text = line.lstrip()
+    return check.wrapped(line[: len(line) - len(text)], text)
 
 
 def _versus_lines(actor: str, versus: dict) -> list:
