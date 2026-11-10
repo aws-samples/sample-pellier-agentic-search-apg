@@ -250,7 +250,7 @@ def relay(argv: List[str], *, cwd: pathlib.Path, timeout: float) -> int:
         subprocess.TimeoutExpired: it ran longer than ``timeout``; it has been killed.
     """
     with subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                          text=True) as child:
+                          text=True, env=check.relay_environment()) as child:
         relays = [threading.Thread(target=_relay_lines, args=(pipe, name), daemon=True)
                   for pipe, name in ((child.stdout, "stdout"), (child.stderr, "stderr"))]
         for thread in relays:

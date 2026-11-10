@@ -87,9 +87,21 @@ _COMMAND = re.compile(r"\b(?:uv run|psql|python3|bash|sudo) .*?(?=, |; |\. |\.?$
 _MIN_COLUMN = 8
 
 
+# A command that relays a child's output to a person's terminal (lab_run.py finish and reset)
+# tells the child how wide that terminal is: the child writes to a pipe and cannot measure it.
+RELAYED_COLUMNS_ENV = "PELLIER_TERMINAL_COLUMNS"
+
+
+def relayed_columns() -> Optional[int]:
+    """The width of the terminal a parent command relays this output to, when it has said."""
+    value = os.environ.get(RELAYED_COLUMNS_ENV, "")
+    return int(value) if value.isdigit() and int(value) > 0 else None
+
+
 def terminal_width() -> int:
-    """The terminal's width in columns, at most WIDTH; WIDTH when output is not a terminal."""
-    columns = shutil.get_terminal_size((WIDTH + 1, 24)).columns
+    """The width to print at, in columns, at most WIDTH: the terminal's, or the one a relaying
+    parent passed down; WIDTH when the output goes to neither."""
+    columns = relayed_columns() or shutil.get_terminal_size((WIDTH + 1, 24)).columns
     return max(_NARROWEST, min(WIDTH, columns - 1))
 
 
@@ -198,6 +210,15 @@ def colour_enabled(stream: Any = None) -> bool:
 
 def _is_terminal(stream: Any) -> bool:
     return bool(getattr(stream, "isatty", lambda: False)())
+
+
+def relay_environment(stream: Any = None) -> Dict[str, str]:
+    """The environment for a child whose output this command relays: its own, plus the
+    terminal's width when ``stream`` (stdout when omitted) is a terminal."""
+    env = dict(os.environ)
+    if _is_terminal(sys.stdout if stream is None else stream):
+        env[RELAYED_COLUMNS_ENV] = str(shutil.get_terminal_size().columns)
+    return env
 
 
 def paint(text: str, state: str, stream: Any = None) -> str:

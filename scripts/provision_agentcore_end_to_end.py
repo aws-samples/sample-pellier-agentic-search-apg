@@ -226,8 +226,10 @@ _ELIDED_ARG = 20
 
 
 def _fitted_to_terminal() -> bool:
-    """True only for a person watching a participant deploy in a terminal."""
-    return _PARTICIPANT_VIEW["on"] and sys.stdout.isatty()
+    """True only for a person watching a participant deploy: in a terminal, or through a
+    catch-up that relays this output to one and has passed its width down."""
+    watched = sys.stdout.isatty() or workshop_check.relayed_columns() is not None
+    return _PARTICIPANT_VIEW["on"] and watched
 
 
 def _human(text: str, prefix: str = "") -> str:
