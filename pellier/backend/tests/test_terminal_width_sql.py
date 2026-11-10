@@ -29,7 +29,7 @@ COUNT_COLUMNS = 6
 VARIABLE_COLUMNS = {
     "stamp_short": 12,                # left(sha256, 12)
     "lab_1_session": 40,              # a 36-character session id, or "none"
-    "lab_1_query": 74,                # left(query_preview, 74)
+    "lab_1_query": 72,                # left(query_preview, 72), printed in quotes
     "lab_1_scope": 31,              # "Photographed storefront subset"
     "lab_1_line_1": 73,               # format(...) with a 6-digit product count
     "lab_1_line_2": 56,
@@ -84,8 +84,11 @@ def printed_columns(arguments: str, constants: dict[str, int]) -> int:
         if pending_space and width > 0:
             width += 1
         pending_space = False
-        if match.group(2) or match.group(3):
-            width += variable_columns(match.group(2) or match.group(3), constants)
+        if match.group(2):
+            # :'name' prints the value as a quoted literal: two more columns for the quotes.
+            width += variable_columns(match.group(2), constants) + 2
+        elif match.group(3):
+            width += variable_columns(match.group(3), constants)
         else:
             width += len(match.group(1).replace("''", "'"))
     return width

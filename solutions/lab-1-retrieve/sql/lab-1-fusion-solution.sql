@@ -58,7 +58,7 @@ SELECT product_id,
 
 SELECT coalesce(max(receipt_id)::text, 'none') AS lab_1_receipt,
        coalesce(max(session_id), 'none') AS lab_1_session,
-       coalesce(left(max(query_preview), 74), '') AS lab_1_query,
+       coalesce(left(max(query_preview), 72), '') AS lab_1_query,
        count(*) > 0 AS lab_1_has_receipt
   FROM lab_1_ranks
 \gset

@@ -251,7 +251,8 @@ def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
     for line in ("Theo reads his own orders", "Theo writes a ticket in his own name",
                  "The Investigator reads Jessica's orders"):
         assert _result(done.stdout, line) == "does not match", line
-    assert "Your change was undone. The live policies are unchanged." in " ".join(done.stdout.split())
+    assert ("Your change was undone. The live policies are unchanged."
+            in " ".join(done.stdout.split()))
     assert _live_state(conn) == before
 
 

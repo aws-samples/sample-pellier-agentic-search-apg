@@ -156,7 +156,7 @@ RESET ROLE;
 
 \echo ''
 \echo 'Your login:' :lab_3_login
-\echo '(the app on this instance, and your own psql)'
+\echo '            (the app on this instance, and your own psql)'
 SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(sum(calls), 0),
               coalesce(sum(rows), 0)) AS summary
   FROM pg_stat_statements
