@@ -44,6 +44,7 @@ for _path in (SCRIPTS_DIR, DEPLOY_DIR):
         sys.path.insert(0, str(_path))
 
 from wait_progress import Progress  # noqa: E402
+import workshop_check  # noqa: E402
 import deploy_lambda  # noqa: E402
 import deploy_lock  # noqa: E402
 from gateway_tool_schemas import (  # noqa: E402
@@ -218,6 +219,42 @@ def _redacted(cmd: Sequence[str]) -> list[str]:
         if value in _SECRET_FLAGS:
             redacted[index + 1] = "<redacted>"
     return redacted
+
+
+_PARTICIPANT_VIEW = {"on": False}
+_ELIDED_ARG = 20
+
+
+def _fitted_to_terminal() -> bool:
+    """True only for a person watching a participant deploy in a terminal."""
+    return _PARTICIPANT_VIEW["on"] and sys.stdout.isatty()
+
+
+def _human(text: str, prefix: str = "") -> str:
+    """A sentence for a person: wrapped to the terminal in a participant deploy, else as is."""
+    if not _fitted_to_terminal():
+        return prefix + text
+    return workshop_check.wrapped(prefix, text, workshop_check.terminal_width())
+
+
+def _echoed(args: Sequence[str], suffix: str = "") -> str:
+    """The ``+ agentcore ...`` line, redacted, and in a participant terminal kept within width.
+
+    Too wide, a long value (a session id, a prompt) becomes ``...``; still too wide, the line
+    names only the subcommand. The command that runs is never changed.
+    """
+    shown = _redacted(args)
+    full = "+ agentcore " + " ".join(shown) + suffix
+    if not _fitted_to_terminal():
+        return full
+    room = workshop_check.terminal_width() - len(suffix)
+    if len("+ agentcore " + " ".join(shown)) <= room:
+        return full
+    short = [item if item.startswith("-") or len(item) <= _ELIDED_ARG else "..." for item in shown]
+    line = "+ agentcore " + " ".join(short)
+    if len(line) > room:
+        line = "+ agentcore " + (shown[0] + " ..." if len(shown) > 1 else shown[0])
+    return line + suffix
 
 
 def _run(
@@ -1375,7 +1412,7 @@ def _agentcore(
         cli_env = runtime_build_environment(root, cli_env)
     # Printed as a participant would type it: on the workshop box, `agentcore` is the
     # shell function that runs this pinned CLI from the project folder.
-    print("+ agentcore " + " ".join(_redacted(args)), flush=True)
+    print(_echoed(args), flush=True)
     command = ["npx", "-y", AGENTCORE_CLI, *args]
     try:
         return _run(command, cwd=root, env=cli_env)
@@ -1386,8 +1423,7 @@ def _agentcore(
     found = _synth_error(root, cli_env)
     print(found, flush=True)
     _record_synth_retry(root, " ".join(_redacted(args)), found)
-    print("+ agentcore " + " ".join(_redacted(args)) + "    # again: the synth deployed nothing",
-          flush=True)
+    print(_echoed(args, "    # again: the synth deployed nothing"), flush=True)
     return _run(command, cwd=root, env=cli_env)
 
 
@@ -1637,7 +1673,7 @@ def _lab4_rule_gate(repo: Path) -> str:
     except Exception as exc:  # noqa: BLE001 - an unrun check refuses an edit, never passes it
         reason = f"{type(exc).__name__}: {str(exc)[:160]}"
         _refuse_an_unchecked_edit(rule, starter, reason)
-        print(f"WARNING: Lab 4's rule was not checked before this deploy: {reason}",
+        print(_human(f"Lab 4's rule was not checked before this deploy: {reason}", "WARNING: "),
               file=sys.stderr)
         return "COULD NOT CHECK"
     if finding.state == "FAILED":
@@ -1650,7 +1686,7 @@ def _lab4_rule_gate(repo: Path) -> str:
         )
     if finding.state == "COULD NOT CHECK":
         _refuse_an_unchecked_edit(rule, starter, finding.observed)
-        print(f"WARNING: Lab 4's Cedar check could not decide: {finding.observed}",
+        print(_human(f"Lab 4's Cedar check could not decide: {finding.observed}", "WARNING: "),
               file=sys.stderr)
     return finding.state
 
@@ -3009,7 +3045,7 @@ def _redeploy_participant_edits(
         staged_engine = next(item for item in staged["policyEngines"] if item["name"] == identity.policy_engine_name)
         staged_engine["policies"] = [policy for policy in engine["policies"] if policy["name"] in active_policies]
         progress.end()
-        print(TWO_DEPLOYS, flush=True)
+        print(_human(TWO_DEPLOYS), flush=True)
         print("Publishing Gateway schemas with the active policy baseline retained", flush=True)
         progress.begin("Publishing Gateway schemas", typical=STEP_SECONDS["deploy"],
                        done="Published Gateway schemas, active policies kept")
@@ -3062,8 +3098,8 @@ def _retire_policies(
     ]
     config_path = root / "agentcore" / "agentcore.json"
     progress.end()
-    print("Retiring policies the original files no longer declare: " + ", ".join(sorted(missing)),
-          flush=True)
+    print(_human("Retiring policies the original files no longer declare: "
+                 + ", ".join(sorted(missing))), flush=True)
     progress.begin("Retiring those policies", typical=STEP_SECONDS["deploy"],
                    done="Retired the policies the original files no longer declare")
     try:
@@ -3133,8 +3169,8 @@ def move_onto_agentcore(
     if completed.returncode != 0:
         progress.fail()
         print(
-            "The deploy is ready, but Pellier did not move onto AgentCore; the lines above "
-            "say why. Fix that, then run: bash scripts/lab3-start.sh theo",
+            _human("The deploy is ready, but Pellier did not move onto AgentCore; the lines "
+                   "above say why. Fix that, then run: bash scripts/lab3-start.sh theo"),
             file=sys.stderr,
             flush=True,
         )
@@ -3351,18 +3387,19 @@ def _participant_update(
         )
     result["status"] = "ready"
     checkpoint()
-    print(
-        json.dumps(
-            {
-                "status": "ready",
-                "mode": "participant",
-                "gateway_tool_count": live_gateway["count"],
-                "build_fingerprint_match": runtime_smoke["build_fingerprint_match"],
-                "output_json": str(output_path),
-            }
-        ),
-        flush=True,
-    )
+    if not _fitted_to_terminal():
+        print(
+            json.dumps(
+                {
+                    "status": "ready",
+                    "mode": "participant",
+                    "gateway_tool_count": live_gateway["count"],
+                    "build_fingerprint_match": runtime_smoke["build_fingerprint_match"],
+                    "output_json": str(output_path),
+                }
+            ),
+            flush=True,
+        )
     if reset_to_starters:
         progress.finish()
     return 0
@@ -3396,6 +3433,7 @@ def main() -> int:
     if args.reset_to_starters and args.mode != "participant":
         parser.error("--reset-to-starters needs --mode participant")
 
+    _PARTICIPANT_VIEW["on"] = args.mode == "participant"
     repo = Path(args.repo_path).resolve()
     deploy_dir = repo / "scripts" / "deploy"
     # The full receipt records the complete managed contract, and both
