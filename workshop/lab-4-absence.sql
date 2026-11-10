@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
 
 -- Lab 4: prove the denied credit moved nothing, beside the one that did.
 --
@@ -88,7 +88,8 @@ SELECT format('%s, %s, %s and %s',
 \else
   \echo 'Expected  the store credit Nadia''s approval of Jessica''s case wrote'
   \echo 'Observed  none yet: Jessica has no store credit'
-  \echo 'Next      in the Operator, approve and execute Jessica''s review as Nadia, then run this again.'
+  \echo 'Next      in the Operator, approve and execute Jessica''s review as Nadia,'
+  \echo '          then run this again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -105,16 +106,17 @@ SELECT * FROM (VALUES
     ('tool_audit rows that applied the allowed key', '1', :'lab_4_allowed_audit_rows')
 ) AS counts(count, expected, observed);
 
-\echo 'Expected  0, 0, 1 and 1: nothing ran or moved for the denied key, and the same search finds'
-\echo '          the allowed credit and the one audit row that applied it'
+\echo 'Expected  0, 0, 1 and 1: nothing ran or moved for the denied key, and the same'
+\echo '          search finds the allowed credit and the one audit row that applied it'
 SELECT :lab_4_allowed_attempt_rows > 0 AS lab_4_has_attempts,
-       format('%s other attempt%s for the allowed key did not apply; tool_audit keeps %s',
+       format('%s other attempt%s for the allowed key did not apply;',
               :lab_4_allowed_attempt_rows,
-              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN '' ELSE 's' END,
-              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN 'it' ELSE 'them' END) AS lab_4_attempts
+              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN '' ELSE 's' END) AS lab_4_attempts,
+       CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN 'it' ELSE 'them' END AS lab_4_kept
 \gset
 \if :lab_4_has_attempts
   \echo 'Also     ' :lab_4_attempts
+  \echo '          tool_audit keeps' :lab_4_kept
 \endif
 \echo 'Observed ' :lab_4_observed
 SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4_control_holds,
@@ -122,8 +124,8 @@ SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4
 \gset
 \if :lab_4_control_holds
 \else
-  \echo 'Next      the allowed key does not find exactly one credit and one audit row, so this search'
-  \echo '          cannot vouch for an absence.'
+  \echo 'Next      the allowed key does not find exactly one credit and one audit row,'
+  \echo '          so this search cannot vouch for an absence.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -141,7 +143,8 @@ SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4
     \echo '      uv run scripts/follow_credit.py'
   \endif
 \else
-  \echo 'Next      the denied key left rows behind: read them by that key; a denied call must never run.'
+  \echo 'Next      the denied key left rows behind: read them by that key; a denied call'
+  \echo '          must never run.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

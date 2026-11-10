@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
 \pset null NULL
 
 -- Lab 2, Task 2B: what check_stock says about a piece Pellier does not carry.
@@ -198,9 +198,11 @@ SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
   SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed", source AS "Source"
     FROM lab_2_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
-  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Your change was undone. The live function is unchanged.'
-  \echo 'Next      what should a piece Pellier does not carry return? Read the aggregate above: over'
-  \echo '          no rows it still returns one row, and COALESCE turns its NULL sum into 0.'
+  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Your change was undone.'
+  \echo '          The live function is unchanged.'
+  \echo 'Next      what should a piece Pellier does not carry return? Read the aggregate'
+  \echo '          above: over no rows it still returns one row, and COALESCE turns its'
+  \echo '          NULL sum into 0.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 2B function check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

@@ -1,7 +1,9 @@
-"""The lab SQL files and the Cedar file must read in a 100-column terminal.
+"""The lab SQL files and the Cedar file must read in an 85-column terminal.
 
-Participants run ``psql -f <file>`` in Code Editor's terminal on a laptop: about 100
-columns. A longer line breaks mid-word, so every ``\\echo`` prints at most 99 columns.
+Participants run ``psql -f <file>`` in Code Editor's terminal on a laptop: about 85
+columns on a 1280-pixel window at 150% scaling. A longer line breaks mid-word, so every
+``\\echo`` prints at most 84 columns and every file that prints results asks psql for its
+wrapped format, which fits a table to the terminal.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[3]
-MAX_COLUMNS = 99
+MAX_COLUMNS = 84
 SQL_FILES = sorted(
     [*ROOT.glob("workshop/*.sql"), *ROOT.glob("workshop/starters/*.sql"),
      *ROOT.glob("solutions/*/sql/*.sql")])
@@ -27,24 +29,27 @@ COUNT_COLUMNS = 6
 VARIABLE_COLUMNS = {
     "stamp_short": 12,                # left(sha256, 12)
     "lab_1_session": 40,              # a 36-character session id, or "none"
-    "lab_1_query": 80,                # left(query_preview, 80)
+    "lab_1_query": 74,                # left(query_preview, 74)
     "lab_1_scope": 31,              # "Photographed storefront subset"
     "lab_1_line_1": 73,               # format(...) with a 6-digit product count
     "lab_1_line_2": 56,
-    "lab_1_line_3": 78,
-    "lab_1_line_4": 75,
+    "lab_1_line_3": 56,
+    "lab_1_line_3b": 30,              # "the exact 20 in the same order"
+    "lab_1_line_4": 74,               # 2-digit row counts, recall at most "100.0"
     "lab_3_login": 40,
     "lab_3_state": 52,                # "installed but not loaded (shared_preload_libraries)"
     "lab_3_agent_summary": 56,        # "distinct statements N, calls N, rows N", 6-digit counts
     "lab_3_writer_summary": 56,
     "lab_3_tools_summary": 56,
     "lab_3_login_summary": 56,
-    "lab_4_attempts": 75,             # "999 other attempts for the allowed key did not apply; ..."
+    "lab_4_attempts": 56,             # "999 other attempts for the allowed key did not apply;"
+    "lab_4_kept": 4,                  # "it" or "them"
     "lab_4_observed": 30,             # four counts joined as "N, N, N and N"
-    "credits_rows": 75,               # "store_credits rows before N, after N: the test credit ..."
+    "credits_rows": 46,               # "store_credits rows before N, after N", 6-digit counts
     "owner_names": 48,                # "jessica -> CUST-JESSICA, theo -> CUST-THEO"
-    "wrap_attempts": 75,
-    "wrap_missing": 77,               # the longest reason, with a 6-digit review id
+    "wrap_attempts": 56,
+    "wrap_kept": 4,                   # "it" or "them"
+    "wrap_missing": 64,               # the longest reason, with a 6-digit count
 }
 COUNT_SUFFIXES = ("_matched", "_probes", "_products", "_one_list", "_receipt", "_eligible",
                   "_total_products", "_photographed_products", "_tool_reads", "_probe")
@@ -105,7 +110,7 @@ def test_the_three_folders_hold_sql_files() -> None:
     assert len(SQL_FILES) >= 15
 
 
-def test_every_echo_prints_at_most_99_columns() -> None:
+def test_every_echo_prints_at_most_84_columns() -> None:
     too_wide = []
     for path in SQL_FILES:
         constants = file_constants(path)
@@ -113,7 +118,7 @@ def test_every_echo_prints_at_most_99_columns() -> None:
             columns = printed_columns(arguments, constants)
             if columns > MAX_COLUMNS:
                 too_wide.append(f"{path.relative_to(ROOT)}:{number} prints {columns}")
-    assert not too_wide, "\\echo lines wider than 99 columns:\n" + "\n".join(too_wide)
+    assert not too_wide, "\\echo lines wider than 84 columns:\n" + "\n".join(too_wide)
 
 
 def test_the_workload_tables_fit_the_terminal() -> None:
@@ -121,7 +126,9 @@ def test_the_workload_tables_fit_the_terminal() -> None:
     shown = [int(n) for n in re.findall(r"left\(s\.statement, (\d+)\)", text)]
     assert len(shown) == 4, "each statement table shows a shortened statement"
     # Widest row: 7-digit counts, a 7-character mean, and the table's separators.
-    assert all(7 + 7 + 7 + 9 + width <= MAX_COLUMNS for width in shown)
+    # psql's wrapped format breaks the widest cell to the terminal, so the table needs only
+    # the shortened statement to be bounded; the 100-column bound is the cap before wrapping.
+    assert all(7 + 7 + 7 + 9 + width <= 99 for width in shown)
 
 
 def _header(path: Path) -> list[str]:
@@ -161,3 +168,15 @@ def test_a_query_plan_is_printed_in_the_wrapped_format() -> None:
                 seen += 1
                 assert layout == "wrapped", f"{path.name}:{number} prints a plan as {layout}"
     assert seen >= 5
+
+
+# Files with no psql result to fit. duckdb-inventory.sql runs in DuckDB, not psql.
+WRAPPED_EXEMPT = {"duckdb-inventory.sql"}
+
+
+@pytest.mark.parametrize("path", SQL_FILES, ids=lambda p: str(p.relative_to(ROOT)))
+def test_a_file_that_prints_results_sets_the_wrapped_format(path: Path) -> None:
+    """psql fits its boxes and tables to the terminal only in the wrapped format."""
+    if path.name in WRAPPED_EXEMPT:
+        pytest.skip(f"{path.name} does not run in psql")
+    assert "\\pset format wrapped" in path.read_text(), f"{path.name} never sets wrapped"

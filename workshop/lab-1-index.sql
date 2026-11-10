@@ -205,13 +205,13 @@ SELECT :lab_1_eligible >= 20 AS enough,
               round(100.0 * (SELECT count(*) FROM unnest(:'lab_1_off_ids'::text[]) AS ids(id)
                              WHERE id = ANY(:'lab_1_exact_ids'::text[]))
                     / nullif(:lab_1_exact_rows, 0), 1)) AS line_2,
-       format('4. HNSW, strict_order: %s of 20; recall@20 %s%%; %s', :lab_1_strict_rows,
+       format('4. HNSW, strict_order: %s of 20; recall@20 %s%%;', :lab_1_strict_rows,
               round(100.0 * (SELECT count(*) FROM unnest(:'lab_1_strict_ids'::text[]) AS ids(id)
                              WHERE id = ANY(:'lab_1_exact_ids'::text[]))
-                    / nullif(:lab_1_exact_rows, 0), 1),
-              CASE WHEN :'lab_1_strict_ids' = :'lab_1_exact_ids'
-                   THEN 'the exact 20 in the same order'
-                   ELSE 'not the exact 20 in order' END) AS line_3,
+                    / nullif(:lab_1_exact_rows, 0), 1)) AS line_3,
+       CASE WHEN :'lab_1_strict_ids' = :'lab_1_exact_ids'
+            THEN 'the exact 20 in the same order'
+            ELSE 'not the exact 20 in order' END AS line_3b,
        format('5. photographed-only index, iterative scan off: %s of 20; recall@20 %s%%',
               :lab_1_partial_rows,
               round(100.0 * (SELECT count(*) FROM unnest(:'lab_1_partial_ids'::text[]) AS ids(id)
@@ -233,6 +233,7 @@ ROLLBACK;
 \echo 'Observed ' :lab_1_line_1
 \echo '         ' :lab_1_line_2
 \echo '         ' :lab_1_line_3
+\echo '            ' :lab_1_line_3b
 \if :storefront_only
   \echo '         ' :lab_1_line_4
 \endif
@@ -248,7 +249,8 @@ ROLLBACK;
 \endif
 \if :lab_1_enough
 \else
-  \echo 'Observed  fewer than 20 products are $35 or less and not candles, so no plan can return 20'
+  \echo 'Observed  fewer than 20 products are $35 or less and not candles, so no plan'
+  \echo '          can return 20'
   \echo 'Next      this is not Pellier''s seeded catalog; this file is optional, so skip it.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
@@ -260,7 +262,8 @@ ROLLBACK;
   \echo 'Lab 1 index check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
-  \echo 'Next      inspect pgvector version (0.8.0+), filter selectivity and hnsw scan limits.'
+  \echo 'Next      inspect pgvector version (0.8.0+), filter selectivity and hnsw scan'
+  \echo '          limits.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 1 index check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

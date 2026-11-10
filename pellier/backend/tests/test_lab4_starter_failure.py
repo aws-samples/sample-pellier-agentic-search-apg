@@ -251,7 +251,7 @@ def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
     for line in ("Theo reads his own orders", "Theo writes a ticket in his own name",
                  "The Investigator reads Jessica's orders"):
         assert _result(done.stdout, line) == "does not match", line
-    assert "Your change was undone. The live policies are unchanged." in done.stdout
+    assert "Your change was undone. The live policies are unchanged." in " ".join(done.stdout.split())
     assert _live_state(conn) == before
 
 
@@ -260,7 +260,7 @@ def test_the_solution_passes_every_probe_and_becomes_the_live_policy(  # noqa: F
     done = _psql(fresh_db, RLS_SOLUTION)
     assert done.returncode == 0, done.stdout + done.stderr
     assert "10 of 10 tests passed" in done.stdout
-    assert "your predicate is now the live policy" in done.stdout
+    assert "your predicate is now the live policy" in " ".join(done.stdout.split())
     assert "42501" in done.stdout and "Lab 3B predicate check passed" in done.stdout
     after = _live_state(conn)
     stamp = _stamp_for(RLS_SOLUTION)

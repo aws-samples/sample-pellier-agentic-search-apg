@@ -87,7 +87,7 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     granted = probes["The role's privileges and row policies on Pellier's tables"][1]
     assert granted.splitlines()[-1] == (
         "policy orders_credit_writer on orders USING (true): every customer's rows")
-    assert "Your change was undone. The live state is unchanged." in done.stdout
+    assert "Your change was undone. The live state is unchanged." in " ".join(done.stdout.split())
     assert "Next      which single privilege does a credit path need?" in done.stdout
     assert "Lab 4B privileges check failed" in done.stdout
     assert _state(fresh_db) == before

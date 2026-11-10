@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
 
 -- Lab 4, Task 4B: what the credit-writer role may do.
 --
@@ -201,7 +201,8 @@ INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
 \echo 'Lab 4B: your privileges for pellier_credit_writer, tested'
 \echo 'Evidence  pellier.give_store_credit and the role pellier_credit_writer, rewritten'
 \echo '          inside this transaction'
-\echo '          a test case: CUST-LABFOURPROBE, two received returns, a $25.00 review a person approved'
+\echo '          a test case: CUST-LABFOURPROBE, two received returns, a $25.00 review'
+\echo '            a person approved'
 \echo ''
 -- Each probe on one row with the reason it came out as it did; after a failed run, each probe
 -- that differs again, with what was expected beside what was observed.
@@ -222,11 +223,12 @@ SELECT bool_or(expected <> observed) FILTER (WHERE ord IN (1, 2, 8)) AS tables_d
 SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
 \if :lab_4_passed
   COMMIT;
-  SELECT format('store_credits rows before %s, after %s: the test credit was undone',
+  SELECT format('store_credits rows before %s, after %s',
                 :credits_before, count(*)) AS rows FROM pellier.store_credits \gset credits_
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Saved, your privileges are live.'
   \echo 'Deployed  your statements for pellier_credit_writer, sha256' :stamp_short
   \echo '         ' :credits_rows
+  \echo '          the test credit was undone'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 4B privileges check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -243,17 +245,19 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   ROLLBACK;
   SELECT format('store_credits rows before %s, after %s', :credits_before, count(*)) AS rows
     FROM pellier.store_credits \gset credits_
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Your change was undone. The live state is unchanged.'
+  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Your change was undone.'
+  \echo '          The live state is unchanged.'
   \echo '         ' :credits_rows
   \if :lab_4_tables_differ
-    \echo 'Next      which single privilege does a credit path need? In the rows that do not match,'
-    \echo '          23514 is the trigger refusing a row your role was allowed to insert: a rule'
-    \echo '          the owner can switch off, not a privilege the role lacks. A direct UPDATE'
-    \echo '          that goes through changes an approved amount with no check at all.'
+    \echo 'Next      which single privilege does a credit path need? In the rows that do not'
+    \echo '          match, 23514 is the trigger refusing a row your role was allowed to'
+    \echo '          insert: a rule the owner can switch off, not a privilege the role lacks.'
+    \echo '          A direct UPDATE that goes through changes an approved amount with no'
+    \echo '          check at all.'
   \elif :lab_4_rights_differ
     \echo 'Next      run the function with its owner''s rights and search_path pinned to'
-    \echo '          pg_catalog, pg_temp: it names every table with its schema, and pg_temp last'
-    \echo '          keeps a caller''s temporary objects from being found first.'
+    \echo '          pg_catalog, pg_temp: it names every table with its schema, and pg_temp'
+    \echo '          last keeps a caller''s temporary objects from being found first.'
   \else
     \echo 'Next      the role reaches no table, so the function must: run it as its owner and'
     \echo '          grant EXECUTE on it to pellier_credit_writer alone.'

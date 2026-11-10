@@ -53,7 +53,8 @@ SELECT current_setting('lab3.workload') = 'ok' AS ready,
 \if :lab_3_ready
 \else
   \echo 'Observed  pg_stat_statements is' :lab_3_state
-  \echo 'Next      the workshop cluster loads it; run this on the workshop database (check PGHOST).'
+  \echo 'Next      the workshop cluster loads it; run this on the workshop database'
+  \echo '          (check PGHOST).'
   \echo 'Lab 3 workload check unchecked'
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;
 \endif
@@ -154,7 +155,8 @@ SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(su
 RESET ROLE;
 
 \echo ''
-\echo 'Your login:' :lab_3_login '(the app on this instance, and your own psql)'
+\echo 'Your login:' :lab_3_login
+\echo '(the app on this instance, and your own psql)'
 SELECT format('distinct statements %s, calls %s, rows %s', count(*), coalesce(sum(calls), 0),
               coalesce(sum(rows), 0)) AS summary
   FROM pg_stat_statements
@@ -197,8 +199,9 @@ RESET ROLE;
 ROLLBACK;
 
 \echo ''
-\echo 'Expected  at least one get_orders or get_tickets call recorded under pellier_agent, and'
-\echo '          0 of Jessica''s orders visible to a session bound to Theo'
+\echo 'Expected  at least one get_orders or get_tickets call recorded under'
+\echo '          pellier_agent, and 0 of Jessica''s orders visible to a session bound'
+\echo '          to Theo'
 \if :lab_3_wrong_lab_3_none
 \if :lab_3_agent_tool_seen
   \echo 'Observed  tool statements:' :lab_3_agent_tool_reads'. The agent is a role with a workload and plans.'
@@ -207,7 +210,8 @@ ROLLBACK;
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
   \echo 'Observed  none yet: no get_orders or get_tickets statement under pellier_agent'
-  \echo 'Next      send Theo''s requests with uv run scripts/lab_run.py send --lab 3, then run this again.'
+  \echo 'Next      send Theo''s requests with uv run scripts/lab_run.py send --lab 3,'
+  \echo '          then run this again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3 workload check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -215,7 +219,8 @@ ROLLBACK;
 \endif
 \else
   \echo 'Observed ' :lab_3_wrong_lab_3_probe 'of Jessica''s orders were visible to Theo''s session'
-  \echo 'Next      the row policy did not hold; run labs/03-deploy/3B-row-ownership.sql until it passes.'
+  \echo 'Next      the row policy did not hold; run labs/03-deploy/3B-row-ownership.sql'
+  \echo '          until it passes.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3 workload check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

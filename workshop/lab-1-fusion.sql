@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
 
 -- Lab 1, Go deeper: recompute Anna's recorded ranking.
 --
@@ -58,7 +58,7 @@ SELECT product_id,
 
 SELECT coalesce(max(receipt_id)::text, 'none') AS lab_1_receipt,
        coalesce(max(session_id), 'none') AS lab_1_session,
-       coalesce(left(max(query_preview), 80), '') AS lab_1_query,
+       coalesce(left(max(query_preview), 74), '') AS lab_1_query,
        count(*) > 0 AS lab_1_has_receipt
   FROM lab_1_ranks
 \gset
@@ -78,7 +78,8 @@ SELECT count(*) AS lab_1_products,
 \if :lab_1_has_receipt
   \echo 'Evidence  pellier.retrieval_receipts receipt' :lab_1_receipt
   \echo '          in session' :lab_1_session
-  \echo '          query:' :'lab_1_query'
+  \echo '          query:'
+  \echo '         ' :'lab_1_query'
   \echo '          products in one list only:' :lab_1_one_list 'of' :lab_1_products
   \echo ''
   SELECT product_id AS product,
@@ -121,7 +122,8 @@ SELECT count(*) AS lab_1_products,
   \endif
 \else
   \echo 'Expected  a search receipt written in a session of Anna''s'
-  \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting persona-anna-'
+  \echo 'Observed  none yet: no pellier.retrieval_receipts row has a session starting'
+  \echo '          persona-anna-'
   \echo 'Next      run uv run scripts/lab_run.py send --lab 1, then run this again.'
   \echo 'Lab 1 fusion check not yet'
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped here on purpose; read Next above'; END $fail$;

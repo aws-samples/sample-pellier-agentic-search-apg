@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
 
 -- Lab 3, Task 3B: the row-ownership predicate.
 --
@@ -205,8 +205,10 @@ INSERT INTO lab_3_probes VALUES
      :'every_customers', :'every_exact');
 
 \echo 'Lab 3B: your ownership predicate, tested as pellier_agent'
-\echo 'Evidence  policies orders_own_rows and support_tickets_own_rows, rewritten inside this transaction'
-\echo '          sign-in names in pellier.customers:' :owner_names
+\echo 'Evidence  policies orders_own_rows and support_tickets_own_rows, rewritten'
+\echo '          inside this transaction'
+\echo '          sign-in names in pellier.customers:'
+\echo '         ' :owner_names
 \echo ''
 SELECT probe AS "Test", bound_as AS "Signed in as", expected AS "Expected",
        observed AS "Observed",
@@ -216,12 +218,15 @@ SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probe
   FROM lab_3_probes
 \gset lab_3_
 
-\echo 'Expected  every test passes; then the file saves your predicate and it is the live policy'
+\echo 'Expected  every test passes; then the file saves your predicate and it is the'
+\echo '          live policy'
 SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
 \if :lab_3_passed
   COMMIT;
-  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Saved, your predicate is now the live policy.'
-  \echo 'Deployed  your predicate on orders_own_rows and support_tickets_own_rows, sha256' :stamp_short
+  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Saved, your predicate is now'
+  \echo '          the live policy.'
+  \echo 'Deployed  your predicate on orders_own_rows and support_tickets_own_rows,'
+  \echo '          sha256' :stamp_short
   \echo '          the test writes were undone before the commit'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 3B predicate check passed'
@@ -236,13 +241,14 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
   \endif
 \else
   ROLLBACK;
-  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Your change was undone. The live policies are unchanged.'
-  \echo 'Next      whose rows should your predicate match? In the rows that do not match, 0 where'
-  \echo '          a number is expected means it matches nobody, and a number where 0 is'
-  \echo '          expected means it matches everybody. The bound name is'
+  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Your change was undone.'
+  \echo '          The live policies are unchanged.'
+  \echo 'Next      whose rows should your predicate match? In the rows that do not match,'
+  \echo '          0 where a number is expected means it matches nobody, and a number where'
+  \echo '          0 is expected means it matches everybody. The bound name is'
   \echo '          current_setting(''pellier.principal_username'', true). If only the'
-  \echo '          every-customer row does not match, it names particular customers instead of the'
-  \echo '          one bound on the session.'
+  \echo '          every-customer row does not match, it names particular customers'
+  \echo '          instead of the one bound on the session.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3B predicate check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

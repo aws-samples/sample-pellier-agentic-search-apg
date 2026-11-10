@@ -126,7 +126,7 @@ def test_the_starter_fails_only_not_carried_and_shows_the_null_sum(fresh_db) -> 
     assert probes['sold out: "Quilted Silk Vest"'][1].startswith("1 row: 0 units; ")
     # The cause, printed as a row: no warehouse rows, a NULL sum, a 0 after COALESCE.
     assert re.search(r"^\u2502\s+0 \u2502\s+NULL \u2502\s+0 \u2502$", done.stdout, re.MULTILINE), done.stdout
-    assert "3 of 4 tests passed. Your change was undone. The live function is unchanged." in done.stdout
+    assert "3 of 4 tests passed. Your change was undone. The live function is unchanged." in " ".join(done.stdout.split())
     assert "Lab 2B function check failed" in done.stdout
     assert _live(fresh_db) == before
 

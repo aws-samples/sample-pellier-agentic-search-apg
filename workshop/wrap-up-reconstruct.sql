@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto \pset format wrapped
 
 -- Wrap-up: rebuild Jessica's store credit, from her request to the row.
 --
@@ -76,7 +76,8 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
 \if :wrap_has_credit
 \else
   \echo 'Observed  NOT YET: Jessica has no store credit'
-  \echo 'Next      finish Lab 4 (Nadia approves and executes her review), then run this again.'
+  \echo 'Next      finish Lab 4 (Nadia approves and executes her review), then run this'
+  \echo '          again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -148,8 +149,7 @@ SELECT * FROM (VALUES
 ) AS links(link, expected, observed);
 
 SELECT CASE
-         WHEN :wrap_requests = 0 THEN 'no request for review '
-              || :'wrap_review_id' || '; send hers: uv run scripts/lab_run.py send --lab 4'
+         WHEN :wrap_requests = 0 THEN 'no request for review ' || :'wrap_review_id' || '; send hers:'
          WHEN :wrap_handoff_rows = 0 THEN 'her request''s turn left no ask_a_person row in tool_audit'
          WHEN NOT :'wrap_key_matches'::boolean THEN 'the key derived from the review is not the credit''s'
          WHEN :wrap_credit_audit_rows <> 1 THEN :'wrap_credit_audit_rows'
@@ -158,21 +158,24 @@ SELECT CASE
          WHEN NOT :'wrap_orders_match'::boolean THEN 'the credited orders are not the review''s orders'
          ELSE ''
        END AS missing,
+       :wrap_requests = 0 AS no_request,
        :wrap_requests > 0 AND :wrap_handoff_rows > 0 AND :'wrap_key_matches'::boolean
          AND :wrap_credit_audit_rows = 1 AND :wrap_credit_rows = 1
          AND :'wrap_orders_match'::boolean AS whole
 \gset wrap_
 
 SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
-       format('%s other attempt%s with the key did not apply; tool_audit keeps %s',
+       format('%s other attempt%s with the key did not apply;',
               :wrap_credit_attempt_rows,
-              CASE WHEN :wrap_credit_attempt_rows = 1 THEN '' ELSE 's' END,
-              CASE WHEN :wrap_credit_attempt_rows = 1 THEN 'it' ELSE 'them' END) AS attempts
+              CASE WHEN :wrap_credit_attempt_rows = 1 THEN '' ELSE 's' END) AS attempts,
+       CASE WHEN :wrap_credit_attempt_rows = 1 THEN 'it' ELSE 'them' END AS kept
 \gset wrap_
 \if :wrap_has_attempts
   \echo 'Also     ' :wrap_attempts
+  \echo '          tool_audit keeps' :wrap_kept
 \endif
-\echo 'Expected  every link finds its row: request, turn, review, key, audit row, credit, orders'
+\echo 'Expected  every link finds its row: request, turn, review, key, audit row,'
+\echo '          credit, orders'
 \if :wrap_whole
   \echo 'Observed  the request, the approval, the write and the credit join into one story'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
@@ -180,6 +183,9 @@ SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
   \echo 'Observed  NOT YET:' :wrap_missing
+  \if :wrap_no_request
+    \echo '          uv run scripts/lab_run.py send --lab 4'
+  \endif
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
