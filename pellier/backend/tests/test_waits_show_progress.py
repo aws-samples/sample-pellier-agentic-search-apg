@@ -70,7 +70,7 @@ def test_the_observability_check_names_what_it_reads_before_reading(monkeypatch,
     bars = Bars(capsys)
     monkeypatch.setattr(observability_check, "waiting", bars)
     monkeypatch.setattr(observability_check, "check",
-                        lambda *args, **kwargs: [_proved("O1"), _proved("O2"), _proved("O3")])
+                        lambda *args, **kwargs: [_proved("1"), _proved("2"), _proved("3")])
     monkeypatch.setattr(boto3, "client", lambda *args, **kwargs: object())
     monkeypatch.setenv("DB_CLUSTER_ARN", "arn:aws:rds:us-east-1:123456789012:cluster:c1")
     monkeypatch.setattr(sys, "argv", ["observability_check.py"])

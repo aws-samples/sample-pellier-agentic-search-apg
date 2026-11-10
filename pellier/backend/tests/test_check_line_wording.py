@@ -54,6 +54,12 @@ def test_a_cut_product_name_ends_in_dots() -> None:
     assert len(name) == 30 and name.endswith("...")
 
 
+def test_a_name_of_exactly_the_column_width_is_kept_whole() -> None:
+    name = "x" * 30
+    assert lab1._cut(name) == name
+    assert lab1._cut(name + "y") == "x" * 27 + "..."
+
+
 def test_a_name_that_fits_is_not_marked() -> None:
     rows, _ = lab1._rows(["P1"], {"P1": {**PRODUCT, "name": "Tea Towel"}}, lab1.limits_of({}, []))
     assert rows[0][1] == "Tea Towel"

@@ -189,7 +189,7 @@ Theo wants his taste remembered and help with his own chipped bowl.
   `customer_id` the model chose. The task is applied with `uv run scripts/lab_run.py solution --lab 3 --task 3A`. The check's four rules: `get_tickets`
   published; `get_orders` and `get_tickets` asked for; both bound, by a
   read that names Jessica and must go out as `CUST-THEO`; and `give_store_credit`
-  refused on a shopper agent (published is not permitted). It ends
+  refused on a shopper agent (publishing a tool does not permit every agent to call it). It ends
   `Lab 3A check passed`.
 - **Task 3B:** deploy with `--mode participant`. During the deploy, write the
   row-ownership predicate in `labs/03-deploy/3B-row-ownership.sql`; the file saves

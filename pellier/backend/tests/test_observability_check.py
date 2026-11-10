@@ -359,7 +359,7 @@ def test_the_closing_line_is_coloured_by_the_overall_state(
         monkeypatch: pytest.MonkeyPatch, states: tuple, words: str,
         colour: Optional[str]) -> None:
     """Green when all passed, red when one failed, orange when some are only unfinished."""
-    findings = [workshop_check.Finding("O1", "title", state, "expected", "observed", [])
+    findings = [workshop_check.Finding("1", "title", state, "expected", "observed", [])
                 for state in states]
     assert obs.closing_line(findings) == words
     monkeypatch.delenv("NO_COLOR", raising=False)

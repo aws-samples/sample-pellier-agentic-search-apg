@@ -920,7 +920,7 @@ async def chat_stream(
                 from services.specialist_models import AGENT_NAMES, build_intent_signal
 
                 # The Router still runs here on the managed rail, so the turn gets the
-                # same routing span the in-process path opens; observability_check's O1
+                # same routing span the in-process path opens; observability_check's Record 1
                 # counts a turn by it.
                 with evidence_spans.routing_span(
                     turn_id=turn_id,

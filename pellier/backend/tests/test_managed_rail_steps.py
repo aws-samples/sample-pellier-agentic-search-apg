@@ -184,8 +184,8 @@ def test_a_managed_turn_opens_one_routing_span_for_its_turn(
 ) -> None:
     """The Router runs in the app on the managed rail too, so the turn has a routing span.
 
-    observability_check.py's O1 counts a turn once its routing span carries the turn id; without
-    it, no turn after the Lab 3 deploy could ever prove the app's spans.
+    observability_check.py's Record 1 counts a turn once its routing span carries the turn id;
+    without it, no turn after the Lab 3 deploy could ever prove the app's spans.
     """
     opened: List[Dict[str, Any]] = []
     real_span = evidence_spans.routing_span
@@ -206,7 +206,7 @@ def test_a_managed_turn_opens_one_routing_span_for_its_turn(
     assert opened[0]["turn_id"] == turn_id
     assert opened[0]["principal_sub"] == "principal-theo"
     assert opened[0]["authenticated"] is True
-    # O1 counts only turns routed onto AgentCore, so a Lab 1 turn cannot stand in for them.
+    # Record 1 counts only turns routed onto AgentCore, so a Lab 1 turn cannot stand in for them.
     assert opened[0]["rail"] == "gateway-mcp"
 
 

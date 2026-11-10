@@ -7,13 +7,13 @@ this instance, which exports its Router's span and its agents' spans, and the da
 which no span describes because spans never carry SQL. This check reads the
 evidence for both, and never writes:
 
-    O1  App spans           the routing span of a turn on AgentCore, with its agents'
-                            spans, is in aws/spans
-    O2  Database Insights   the cluster runs Advanced mode and records the
-                            queries that reached Aurora, with the top SQL by
-                            load when a statement was sampled
-    O3  PostgreSQL log      a write that row-level security refused is in the
-                            cluster's postgresql log group
+    Record 1  App spans           the routing span of a turn on AgentCore, with its
+                                  agents' spans, is in aws/spans
+    Record 2  Database Insights   the cluster runs Advanced mode and records the
+                                  queries that reached Aurora, with the top SQL by
+                                  load when a statement was sampled
+    Record 3  PostgreSQL log      a write that row-level security refused is in the
+                                  cluster's postgresql log group
 
 Run it after uv run scripts/lab_run.py send --lab 3 and
 uv run scripts/lab3_row_ownership_check.py:
@@ -21,11 +21,11 @@ uv run scripts/lab3_row_ownership_check.py:
     uv run scripts/observability_check.py
     uv run scripts/observability_check.py --minutes 120
 
-O1 and O3 read back to the start of Lab 3, however long Labs 3 and 4 took: from Lab 3's reset
-point when the lab was reset, otherwise from the cluster's creation. No step before Lab 3 makes
-row-level security refuse a write, and O1 counts only a turn routed onto AgentCore, which
-starts at Lab 3: a Lab 1 turn cannot stand in for the managed path's spans. O2 reads Database
-Insights over the last --minutes.
+Records 1 and 3 read back to the start of Lab 3, however long Labs 3 and 4 took: from Lab 3's
+reset point when the lab was reset, otherwise from the cluster's creation. No step before Lab 3
+makes row-level security refuse a write, and Record 1 counts only a turn routed onto AgentCore,
+which starts at Lab 3: a Lab 1 turn cannot stand in for the managed path's spans. Record 2
+reads Database Insights over the last --minutes.
 
 Spans reach CloudWatch about ten seconds after a turn; Database Insights'
 counters and the exported log, about a minute after the statement.
@@ -51,7 +51,6 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from wait_progress import waiting  # noqa: E402
 from workshop_check import (FAILED, NOT_YET, PASSED, COULD_NOT_CHECK,  # noqa: E402
                             Finding, overall, paint, render, reset_point)
-
 
 
 @dataclass
@@ -95,7 +94,7 @@ def _events(logs: Any, group: str, start_ms: int, pattern: str) -> List[Dict[str
 
 
 def app_spans(logs: Any, start_ms: int, since: str) -> Finding:
-    """O1: the spans of a turn on AgentCore, read back from Transaction Search.
+    """Record 1: the spans of a turn on AgentCore, read back from Transaction Search.
 
     Only the app's chat path opens the ``routing`` span, and it names the rail the turn ran
     on, so a turn counts once its routing span arrives from the ``gateway-mcp`` rail; the
@@ -190,7 +189,7 @@ def top_sql(pi: Any, resource_id: str, minutes: int, now: datetime) -> Tuple[Lis
 
 def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
                       now: datetime) -> Finding:
-    """O2: Database Insights in Advanced mode, recording the queries that reached Aurora."""
+    """Record 2: Database Insights in Advanced mode, recording the queries Aurora ran."""
     expected = ("Database Insights in advanced mode, with Performance Insights, recording "
                 f"the queries Aurora finished in the last {minutes} minutes")
     mode = cluster.get("DatabaseInsightsMode") or "not set"
@@ -239,7 +238,7 @@ def _utc(moment: datetime) -> str:
 
 def since_lab_3(cluster: Optional[Dict[str, Any]], window_start: datetime,
                 minutes: int) -> Tuple[datetime, str]:
-    """Where O1 and O3 start reading, and the words for it.
+    """Where Records 1 and 3 start reading, and the words for it.
 
     Lab 3's check refuses the write, and Lab 4's first step sends the last turn, often well
     over an hour before the Wrap-up reads them back. No earlier step makes row-level security
@@ -257,7 +256,7 @@ def since_lab_3(cluster: Optional[Dict[str, Any]], window_start: datetime,
 
 
 def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, since: str) -> Finding:
-    """O3: a refused write in the cluster's PostgreSQL log, exported to CloudWatch."""
+    """Record 3: a refused write in the cluster's PostgreSQL log, exported to CloudWatch."""
     group = f"/aws/rds/cluster/{cluster['DBClusterIdentifier']}/postgresql"
     expected = (f"an ERROR '{RLS_REFUSAL}' in {group} {since}; "
                 "the log line does not print the SQLSTATE")
@@ -326,7 +325,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--minutes", type=int, default=60,
-                        help="how far back Database Insights reads (O2)")
+                        help="how far back Database Insights reads (Record 2)")
     args = parser.parse_args()
 
     import boto3
