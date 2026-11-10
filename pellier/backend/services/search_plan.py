@@ -1,11 +1,11 @@
 """Typed query planning — the ``Plan`` step of Plan → Retrieve → Rank → Act → Prove.
 
-This module plans every Pellier search. The in-process Catalog agent tool and the
-Gateway Lambda, which packages this file, both compile their retrieval through
-:func:`build_plan`, and so does the Lab 1 strategy comparison. That is why the
-"agentic" strategy the workshop *demonstrates* is the same one shoppers
-actually get, with no separate demo path. The model only proposes the plan;
-this module decides what runs.
+This module plans every Pellier search. The in-process Catalog agent tool, the
+Gateway Lambda and the Lab 1 strategy comparison all compile their retrieval
+through :func:`build_plan`. The Lambda starts with this module's solution copy;
+a participant deploy ships this file once both Lab 1 checks pass. So the
+"agentic" strategy the workshop *demonstrates* is the one shoppers get, with
+no separate demo path. The model only proposes the plan; this module decides what runs.
 
 The division of labour is the lesson:
 
