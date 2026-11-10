@@ -13,7 +13,9 @@ SET client_min_messages = warning;
 -- relaxations records a retry and the soft tags it dropped. This prints her
 -- latest turn's receipt, the retry's when one ran, as one record. The two
 -- constraints print without the spaces JSON text puts after ':' and ',', so
--- the record is 84 columns wide and fits a small laptop's terminal uncut.
+-- the receipt of the lab's own request, which names no category, is 84 columns
+-- wide and fits a small laptop's terminal. A receipt that names a category is
+-- wider, and psql continues its value on the next line.
 -- No model is called and nothing changes.
 --
 -- Supplied and read-only. Run:

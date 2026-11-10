@@ -188,13 +188,15 @@ def test_only_the_files_that_need_it_set_the_wrapped_format() -> None:
 
 
 def test_the_receipts_constraints_print_compact() -> None:
-    """With JSON's spaces the receipt's record is 89 columns wide; psql then cut the values
-    mid-number on an 85-column terminal. Without them it is 84."""
+    """With JSON's spaces the record of the lab's own request is 89 columns wide; psql then
+    cut the values mid-number on an 85-column terminal. Without them it is 84. Anna's lab
+    request names no category; a receipt that names one is wider and psql continues it."""
     text = (ROOT / "workshop" / "lab-1-receipt.sql").read_text()
     compact = "'\": ', '\":'), ', \"', ',\"')"
     assert text.count(compact) == 2
-    widest = '{"categories":[],"in_stock_only":false,"price_max_usd":null}'
-    assert 2 + len("asked_constraints") + 3 + len(widest) + 2 <= MAX_COLUMNS
+    for the_labs_own in ('{"categories":[],"in_stock_only":true,"price_max_usd":100.0}',
+                         '{"categories":[],"in_stock_only":false,"price_max_usd":null}'):
+        assert 2 + len("asked_constraints") + 3 + len(the_labs_own) + 2 <= MAX_COLUMNS
 
 
 def test_the_index_definition_and_its_options_print_as_two_fields() -> None:
