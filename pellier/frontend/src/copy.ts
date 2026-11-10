@@ -22,23 +22,85 @@ export const TOUR = {
   DONE: "Done",
   REPLAY: "Show the tour",
   progress: (step: number, total: number): string => `${step} of ${total}`,
-  STEPS: [
-    {
-      id: "ask-pellier",
-      title: "Ask Pellier",
-      body: "Ask in your own words. Choose a shopper in the panel, and Pellier answers from the store's records in Aurora PostgreSQL.",
-    },
-    {
-      id: "builder-view",
-      title: "Builder view",
-      body: "On by default. Under each answer: who answered, the tools Pellier called and how the results ranked.",
-    },
-    {
-      id: "operator",
-      title: "The Operator",
-      body: "The staff desk. A store credit waits here until a person approves or declines it.",
-    },
-  ],
+  /**
+   * Four short chapters, each seen once. `storefront` opens on a first visit;
+   * the others open when the part of the page they describe first appears.
+   */
+  CHAPTERS: {
+    storefront: [
+      {
+        id: "ask-pellier",
+        title: "Ask Pellier",
+        body: "Ask in your own words. Choose a shopper in the panel, and Pellier answers from the store's records in Aurora PostgreSQL.",
+      },
+      {
+        id: "builder-view",
+        title: "Builder view",
+        body: "On by default. Under each answer: who answered, the tools Pellier called and how the results ranked.",
+      },
+      {
+        id: "operator",
+        title: "The Operator",
+        body: "The staff desk. A store credit waits here until a person approves or declines it.",
+      },
+      {
+        id: "choose-shopper",
+        title: "Choose a shopper",
+        body: "Choosing a shopper signs you in as them and offers their questions. Ask one, and Builder view shows how Pellier got to its answer.",
+      },
+    ],
+    answer: [
+      {
+        id: "who-asked",
+        title: "Who asked",
+        body: "Who the server found behind this turn. It reads the signed token, never the shopper chosen on screen.",
+      },
+      {
+        id: "how-answered",
+        title: "How Pellier answered",
+        body: "Open this for each step: where the Router sent the request, then every tool call.",
+      },
+      {
+        id: "how-ranked",
+        title: "How it ranked",
+        body: "Each product's full-text rank and its rank by meaning. The line at the top names the ranking method, and any filter that removed products is counted under it.",
+      },
+    ],
+    desk: [
+      {
+        id: "desk-sections",
+        title: "Clients and Reviews",
+        body: "Clients holds each customer's record. Reviews holds the proposed credits, and counts the ones waiting for a person.",
+      },
+      {
+        id: "asked-in-chat",
+        title: "Asked in chat",
+        body: "A request handed over from Ask Pellier. It names no amount. Ask Pellier may ask for a credit. It may not give one.",
+      },
+      {
+        id: "investigate",
+        title: "Investigate",
+        body: "Runs the Investigator, then the Advisor. The Advisor may propose one store credit for a person to decide. Then it stops.",
+      },
+    ],
+    proposal: [
+      {
+        id: "records-show",
+        title: "What the records show",
+        body: "The Investigator's summary of what it read, in its own words. Anything it could not find is listed apart.",
+      },
+      {
+        id: "three-checks",
+        title: "Three checks",
+        body: "Three separate answers: did a person approve, did Cedar allow it, and what did Aurora record.",
+      },
+      {
+        id: "decision",
+        title: "Your decision",
+        body: "Approve records your decision. No credit is written yet. Execute comes next, and Cedar is asked when the credit goes through the Gateway.",
+      },
+    ],
+  },
 } as const;
 
 /** The announcement bar's store notes, in turn. Service leads: with reduced motion it is the only one shown. */

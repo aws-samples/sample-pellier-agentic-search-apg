@@ -245,6 +245,16 @@ function recordedCheck(record: ExecutionRecord | null, attempted: boolean, polic
   }
 }
 
+/**
+ * A credit a person has still to decide. The tour's proposal chapter describes
+ * that decision (investigation/InvestigationSteps.tsx), so it stays away from
+ * a decided credit and from the Lab 4 check's probe, which nobody on the desk
+ * decides.
+ */
+export function awaitsDecision(review: OperatorReview | null | undefined): boolean {
+  return review?.humanState === 'confirmation_required' && !review.policyCheckProbe
+}
+
 /** The three words of the execution action, quoted by the lab guide and the deck. */
 export const EXECUTE_LABEL = 'Execute'
 export const EXECUTE_AGAIN_LABEL = 'Execute again'
@@ -360,7 +370,7 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
         ) : null}
       </div>
 
-      <div ref={actionsRef} className="op-credit-actions">
+      <div ref={actionsRef} className="op-credit-actions" data-tour={pending ? 'credit-decision' : undefined}>
         {pending ? (
           <>
             <button type="button" className="op-button" onClick={() => void approve()} disabled={Boolean(busy)} data-testid="operator-review-confirm">

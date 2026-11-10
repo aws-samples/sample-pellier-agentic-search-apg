@@ -1,54 +1,70 @@
 /**
- * SpotlightTour: a short tour of the Storefront, three stops.
+ * SpotlightTour: a short tour of Pellier, told in chapters.
  *
- * Each stop rings one control: the Ask Pellier button, the Builder view switch
- * and the Operator link. A stop whose control is not on the page (on a phone
- * the switches fold into the menu) shows its card in the middle of the page
- * rather than ringing nothing.
+ * Each stop rings one control and says what it is. The Storefront chapter
+ * opens on a first visit and rings the header: the Ask Pellier button, the
+ * Builder view switch, the Operator link, then the shoppers in the dock. The
+ * other chapters open when the part of the page they describe first appears:
+ * a settled answer, a client record on the Operator, a proposed credit. The
+ * component that owns that part says when, with `useTourChapter`
+ * (tourChapters.ts).
  *
- * FirstVisitTour, which the Storefront home mounts, opens it once per browser
- * and never with `?tour=off`, so it does not open by itself on the Operator or
- * in a guide capture. The header's replay button opens it again on any
- * Storefront page; TourHost, in the shared header, listens for both.
+ * A chapter opens once per browser and never with `?tour=off`, so it stays
+ * out of a guide capture. It never clicks anything for the visitor. The
+ * header's replay button plays the chapters that are on the page; TourHost,
+ * in the shared header, opens them one at a time.
  *
  * Motion is a fade for the card and a copper pulse on the ring, both off when
  * the visitor asks for reduced motion. Every color is a token.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 import { useReducedMotion } from 'motion/react'
 import { CircleHelp } from 'lucide-react'
 import { TOUR } from '../copy'
+import {
+  TOUR_START_EVENT,
+  chapterRank,
+  hasSeen,
+  markSeen,
+  replayStops,
+  targetElement,
+  toursOff,
+  useTourChapter,
+  type ChapterId,
+  type TourStop,
+  type TourSurface,
+  wholeChapter,
+} from './tourChapters'
 import '../styles/spotlight-tour.css'
-
-/** Announced on window to open the tour: on a first visit, or from the replay button. */
-export const TOUR_START_EVENT = 'pellier:tour-start'
-export const SPOTLIGHT_SEEN_KEY = 'pellier-storefront-spotlight-seen'
-/** The first visit waits for the page to lay out, so the first ring lands on the button. */
-export const FIRST_VISIT_DELAY_MS = 600
-
-const TARGETS: Record<(typeof TOUR.STEPS)[number]['id'], string> = {
-  'ask-pellier': '[data-tour="ask-pellier"]',
-  'builder-view': '.pellier-builder-toggle',
-  operator: '[data-tour="operator"]',
-}
 
 const GUTTER = 16
 const RING_PAD = 6
 const CARD_GAP = 14
+/** How often an open tour looks again for its control: a record or a photo can load and move it with no scroll. */
+const FOLLOW_MS = 250
+/** The kinds of field a visitor writes in. */
+const WRITTEN_INPUTS = ['text', 'search', 'email', 'url', 'tel', 'password', 'number']
 const FOCUSABLE = 'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
 
 interface Box { top: number; left: number; width: number; height: number }
-type Placement = 'below' | 'above' | 'center'
+type Placement = 'below' | 'above' | 'over' | 'center'
+interface CardPlace { placement: Placement; top: number; left: number }
+type TourRequest = ChapterId | 'replay'
 
-function targetBox(selector: string | null): Box | null {
-  if (!selector) return null
-  // The first match the page lays out: the shopper stop has two candidates,
-  // and only one shows at a time.
-  const rect = Array.from(document.querySelectorAll(selector))
-    .map(element => element.getBoundingClientRect())
-    .find(box => box.width > 0 && box.height > 0)
-  if (!rect) return null
+function sameBox(a: Box | null, b: Box | null): boolean {
+  if (!a || !b) return a === b
+  return a.top === b.top && a.left === b.left && a.width === b.width && a.height === b.height
+}
+
+function samePlace(a: CardPlace | null, b: CardPlace): boolean {
+  return a !== null && a.placement === b.placement && a.top === b.top && a.left === b.left
+}
+
+function ringAround(element: Element | null): Box | null {
+  if (!element) return null
+  const rect = element.getBoundingClientRect()
   return {
     top: rect.top - RING_PAD,
     left: rect.left - RING_PAD,
@@ -76,12 +92,18 @@ function placeCard(ring: Box | null, card: { width: number; height: number }) {
     GUTTER,
     viewportWidth - GUTTER - card.width,
   )
+  // The card stays in the window even when the visitor scrolls its control out of it.
+  const lowest = viewportHeight - GUTTER - card.height
   const below = ring.top + ring.height + CARD_GAP
-  if (below + card.height <= viewportHeight - GUTTER) {
-    return { placement: 'below' as Placement, top: below, left }
+  if (below <= lowest) {
+    return { placement: 'below' as Placement, top: Math.max(GUTTER, below), left }
   }
   const above = ring.top - CARD_GAP - card.height
-  return { placement: 'above' as Placement, top: Math.max(GUTTER, above), left }
+  if (above >= GUTTER) {
+    return { placement: 'above' as Placement, top: Math.min(above, lowest), left }
+  }
+  // No room beside a tall panel: the card covers its lower edge and leaves its heading in view.
+  return { placement: 'over' as Placement, top: Math.max(GUTTER, lowest), left }
 }
 
 function trapTab(event: KeyboardEvent, dialog: HTMLElement): void {
@@ -105,17 +127,18 @@ function trapTab(event: KeyboardEvent, dialog: HTMLElement): void {
 }
 
 /**
- * The open tour. Mounting it opens it at the first stop; `onClose` runs on
- * Skip, Done or Escape.
+ * The open tour. Mounting it opens it at the first of `stops`; `onClose` runs
+ * on Skip, Done or Escape. A stop whose control has left the page shows its
+ * card in the middle rather than ringing nothing.
  */
-export default function SpotlightTour({ onClose }: { onClose: () => void }) {
+export default function SpotlightTour({ stops, onClose }: { stops: TourStop[]; onClose: () => void }) {
   const [step, setStep] = useState(0)
   const [ring, setRing] = useState<Box | null>(null)
-  const [card, setCard] = useState<{ placement: Placement; top: number; left: number } | null>(null)
+  const [card, setCard] = useState<CardPlace | null>(null)
   const dialogRef = useRef<HTMLDivElement>(null)
   const reduceMotion = Boolean(useReducedMotion())
-  const current = TOUR.STEPS[step]
-  const total = TOUR.STEPS.length
+  const current = stops[step]
+  const total = stops.length
   const isLast = step === total - 1
 
   const next = useCallback(() => {
@@ -127,20 +150,31 @@ export default function SpotlightTour({ onClose }: { onClose: () => void }) {
   }, [step])
 
   useLayoutEffect(() => {
+    const { target } = current
+    // jsdom has no scrollIntoView; a browser always does.
+    if (target.inPage) {
+      targetElement(target)?.scrollIntoView?.({ block: 'center', inline: 'nearest', behavior: 'instant' })
+    }
     const measure = () => {
-      const box = targetBox(TARGETS[current.id])
+      const box = ringAround(targetElement(target))
       const dialog = dialogRef.current
-      setRing(box)
-      if (dialog) setCard(placeCard(box, { width: dialog.offsetWidth, height: dialog.offsetHeight }))
+      setRing(previous => (sameBox(previous, box) ? previous : box))
+      if (!dialog) return
+      const place = placeCard(box, { width: dialog.offsetWidth, height: dialog.offsetHeight })
+      setCard(previous => (samePlace(previous, place) ? previous : place))
     }
     measure()
+    // Caught on the way down, so the dock and the Operator's columns count: scroll does not bubble.
+    const scrolling = { passive: true, capture: true }
     window.addEventListener('resize', measure)
-    window.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('scroll', measure, scrolling)
+    const following = window.setInterval(measure, FOLLOW_MS)
     return () => {
       window.removeEventListener('resize', measure)
-      window.removeEventListener('scroll', measure)
+      window.removeEventListener('scroll', measure, scrolling)
+      window.clearInterval(following)
     }
-  }, [current.id])
+  }, [current])
 
   // Declared before the focus effect, so it records the control that opened
   // the tour rather than the dialog.
@@ -185,6 +219,7 @@ export default function SpotlightTour({ onClose }: { onClose: () => void }) {
         <div
           className="spotlight-tour-ring"
           data-testid="spotlight-tour-ring"
+          data-shape={current.target.panel ? 'panel' : 'control'}
           aria-hidden="true"
           style={{ top: ring.top, left: ring.left, width: ring.width, height: ring.height }}
         />
@@ -228,43 +263,9 @@ export default function SpotlightTour({ onClose }: { onClose: () => void }) {
   )
 }
 
-// Seen once in this browser means seen in every tab: Lab 4 opens the
-// storefront in a second tab, where a tour reopening over the header blocked
-// the Operator link. sessionStorage is still read so a tab that set it keeps
-// working. `?tour=off` counts as seen for the tab.
-function hasSeenTour(): boolean {
-  try {
-    if (new URLSearchParams(window.location.search).get('tour') === 'off') {
-      window.sessionStorage.setItem(SPOTLIGHT_SEEN_KEY, 'true')
-      return true
-    }
-    return (
-      window.localStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
-      || window.sessionStorage.getItem(SPOTLIGHT_SEEN_KEY) === 'true'
-    )
-  } catch {
-    return true
-  }
-}
-
-function markTourSeen(): void {
-  try {
-    window.localStorage.setItem(SPOTLIGHT_SEEN_KEY, 'true')
-  } catch {
-    // Storage is optional. Without it the tour may show again; it never traps the visitor.
-  }
-}
-
-/** Opens the tour once per browser, a moment after the Storefront home first renders. */
+/** Opens the Storefront chapter once per browser, a moment after the home page first renders. */
 export function FirstVisitTour() {
-  useEffect(() => {
-    if (hasSeenTour()) return
-    const timer = window.setTimeout(() => {
-      markTourSeen()
-      window.dispatchEvent(new Event(TOUR_START_EVENT))
-    }, FIRST_VISIT_DELAY_MS)
-    return () => window.clearTimeout(timer)
-  }, [])
+  useTourChapter('storefront', true)
   return null
 }
 
@@ -284,16 +285,75 @@ export function TourReplayButton() {
   )
 }
 
-/** The open tour, when a first visit or the replay button asks for it. */
-export function TourHost() {
-  const [open, setOpen] = useState(false)
+function requestOf(event: Event): TourRequest {
+  return event instanceof CustomEvent && typeof event.detail === 'string' ? (event.detail as ChapterId) : 'replay'
+}
+
+/** True while the visitor is partway through writing something, such as their next question. */
+function isWriting(): boolean {
+  const field = document.activeElement
+  const written = field instanceof HTMLTextAreaElement
+    || (field instanceof HTMLInputElement && WRITTEN_INPUTS.includes(field.type))
+  return written && field.value.trim() !== ''
+}
+
+/** Orientation before detail, and a replay after whatever was already waiting. */
+function inTellingOrder(a: TourRequest, b: TourRequest): number {
+  const rank = (request: TourRequest) => (request === 'replay' ? Number.MAX_SAFE_INTEGER : chapterRank(request))
+  return rank(a) - rank(b)
+}
+
+/**
+ * The open tour, for a chapter that is ready or for the replay button.
+ *
+ * One chapter shows at a time; another that becomes ready meanwhile waits its
+ * turn. `hold` keeps a chapter from opening over a running turn. A chapter
+ * opens by itself only on a page that shows all of it, and never over a
+ * question the visitor is writing: it is let go, and its part of the page asks
+ * again the next time it is ready. A chapter counts as seen when it opens,
+ * never when it is only asked for, and a new page closes the tour and forgets
+ * what was waiting.
+ */
+export function TourHost({ surface, hold = false }: { surface: TourSurface; hold?: boolean }) {
+  const { pathname } = useLocation()
+  const [waiting, setWaiting] = useState<TourRequest[]>([])
+  const [stops, setStops] = useState<TourStop[] | null>(null)
+  // Storage may refuse the seen flag; while this header stays mounted a chapter still opens only once.
+  const opened = useRef(new Set<ChapterId>())
 
   useEffect(() => {
-    const start = () => setOpen(true)
+    const start = (event: Event) => {
+      const request = requestOf(event)
+      setWaiting(current => (current.includes(request) ? current : [...current, request].sort(inTellingOrder)))
+    }
     window.addEventListener(TOUR_START_EVENT, start)
     return () => window.removeEventListener(TOUR_START_EVENT, start)
   }, [])
 
-  const close = useCallback(() => setOpen(false), [])
-  return open ? <SpotlightTour onClose={close} /> : null
+  // `?tour=off` is read here, on the first page of the tab, whether or not that page has a chapter.
+  useEffect(() => {
+    toursOff()
+  }, [])
+
+  useEffect(() => {
+    setStops(null)
+    setWaiting(current => (current.length === 0 ? current : []))
+  }, [pathname])
+
+  useEffect(() => {
+    if (stops || hold || waiting.length === 0) return
+    const [request, ...rest] = waiting
+    setWaiting(rest)
+    if (request !== 'replay' && (opened.current.has(request) || hasSeen(request) || isWriting())) return
+    const found = request === 'replay' ? replayStops(surface) : wholeChapter(request)
+    if (found.length === 0) return
+    if (request !== 'replay') {
+      opened.current.add(request)
+      markSeen(request)
+    }
+    setStops(found)
+  }, [stops, hold, waiting, surface])
+
+  const close = useCallback(() => setStops(null), [])
+  return stops ? <SpotlightTour stops={stops} onClose={close} /> : null
 }

@@ -4,7 +4,10 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { Link, MemoryRouter, Route, Routes } from 'react-router-dom'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  SPOTLIGHT_SEEN_KEY, TOUR_OPEN_DELAY_MS, TOUR_START_EVENT, chapterSeenKey,
+} from '../components/tourChapters'
 import type { TurnStep } from '../components/turn/turnTypes'
 import type { InvestigationAnswer, OperatorReview } from '../services/operator'
 import {
@@ -53,7 +56,7 @@ import ClientBook, { ClientList, shortDate } from './surfaces/ClientBook'
 import ClientRecord from './surfaces/ClientRecord'
 import ReviewRecord from './surfaces/ReviewRecord'
 import { ReviewList, reviewOutcome } from './surfaces/ReviewQueue'
-import ProposedCreditCard, { gatewayDetail, splitDetail } from './components/ProposedCreditCard'
+import ProposedCreditCard, { awaitsDecision, gatewayDetail, splitDetail } from './components/ProposedCreditCard'
 import { ReviewQueueContext } from './hooks/useReviewQueue'
 import OperatorFrame, { operatorTitleForPath } from './shell/OperatorFrame'
 
@@ -849,5 +852,88 @@ describe('the keyboard route and the narrow order', () => {
     const record = renderDesk('/operator/clients/CUST-JESSICA')
     await screen.findByTestId('operator-record')
     expect(record.container.querySelector('.op-desk')).toHaveAttribute('data-view', 'record')
+  })
+})
+
+describe('the tour on the desk', () => {
+  let asked: string[]
+  const hear = (event: Event) => { asked.push((event as CustomEvent<string>).detail) }
+  /** Long enough for a chapter to have been asked for, had the page been ready for it. */
+  const pastTheDelay = () => new Promise(resolve => setTimeout(resolve, TOUR_OPEN_DELAY_MS + 150))
+
+  beforeEach(() => {
+    asked = []
+    localStorage.removeItem(chapterSeenKey('desk'))
+    localStorage.removeItem(chapterSeenKey('proposal'))
+    sessionStorage.removeItem(SPOTLIGHT_SEEN_KEY)
+    window.addEventListener(TOUR_START_EVENT, hear)
+  })
+
+  afterEach(() => window.removeEventListener(TOUR_START_EVENT, hear))
+
+  it('asks for the desk chapter once a client record has loaded', async () => {
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    await screen.findByTestId('operator-record')
+    expect(asked).toEqual([])
+    await waitFor(() => expect(asked).toEqual(['desk']), { timeout: 2000 })
+  })
+
+  it('asks for nothing when there is no record to show', async () => {
+    const { OperatorApiError } = await vi.importActual<typeof import('../services/operator')>('../services/operator')
+    api.fetchClientRecord.mockRejectedValue(new OperatorApiError('client_not_found', 404))
+    renderAt('/operator/clients/CUST-NOBODY', <ClientRecord />)
+    await screen.findByTestId('operator-record-error')
+    await pastTheDelay()
+    expect(asked).toEqual([])
+  })
+
+  it('asks for the proposal chapter when the investigation ends with a credit waiting for a person', async () => {
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    await screen.findByTestId('operator-proposed-credit')
+    await waitFor(() => expect(asked).toContain('proposal'), { timeout: 2000 })
+    // The decision stop rings Approve and Decline together.
+    const decision = document.querySelector('[data-tour="credit-decision"]')
+    expect(decision).toContainElement(screen.getByTestId('operator-review-confirm'))
+    expect(decision).toContainElement(screen.getByTestId('operator-review-decline'))
+  })
+
+  it('does not ask once the visitor has pressed Approve', async () => {
+    api.confirmReview.mockReturnValue(new Promise(() => {}))
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    fireEvent.click(await screen.findByTestId('operator-review-confirm'))
+    await pastTheDelay()
+    expect(asked).not.toContain('proposal')
+  })
+
+  it('asks for nothing on the review record, which shows no brief to go with the proposal', async () => {
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    await screen.findByTestId('operator-review-confirm')
+    await pastTheDelay()
+    expect(asked).toEqual([])
+  })
+
+  it('leaves a decided credit alone: there is no decision left to describe', async () => {
+    const approvedAnswer: InvestigationAnswer = { ...ANSWER, proposal: { ...ANSWER.proposal!, status: 'approved' } }
+    api.streamInvestigation.mockImplementationOnce(async (_id: string, onStep: (s: TurnStep) => void, onAnswer: (a: InvestigationAnswer) => void) => {
+      for (const step of STEPS) onStep(step)
+      onAnswer(approvedAnswer)
+      return approvedAnswer
+    })
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_ONCE))
+    renderAt('/operator/clients/CUST-JESSICA', <ClientRecord />)
+    fireEvent.click(await screen.findByTestId('operator-investigate'))
+    await screen.findByTestId('operator-proposed-credit')
+    await pastTheDelay()
+    expect(asked).not.toContain('proposal')
+    expect(document.querySelector('[data-tour="credit-decision"]')).toBeNull()
+  })
+
+  it("never counts the Lab 4 check's probe review as a decision for a person", () => {
+    expect(awaitsDecision(PENDING_REVIEW)).toBe(true)
+    expect(awaitsDecision({ ...PROBE_REVIEW, status: 'pending', humanState: 'confirmation_required' })).toBe(false)
+    expect(awaitsDecision(EXECUTED_REVIEW)).toBe(false)
+    expect(awaitsDecision(null)).toBe(false)
   })
 })

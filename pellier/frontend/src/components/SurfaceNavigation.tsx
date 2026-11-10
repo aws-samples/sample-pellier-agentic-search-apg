@@ -64,9 +64,10 @@ function surfaceFor(path: string): Surface {
  * button, so a phone shows one menu.
  *
  * The whole bar is a labelled region, so the switches sit inside a landmark.
- * On the Storefront it also holds the short tour (SpotlightTour): its replay
- * button beside the theme control, and the host that opens it, outside the
- * menu so a first visit on a phone still opens it.
+ * It also holds the tour (SpotlightTour) on both surfaces: its replay button
+ * beside the theme control, and the host that opens a chapter, outside the
+ * menu so a first visit on a phone still opens it. A chapter waits while an
+ * Ask Pellier turn runs.
  */
 export default function SurfaceNavigation() {
   const { pathname, search, hash } = useLocation()
@@ -166,7 +167,7 @@ export default function SurfaceNavigation() {
             ))}
           </nav>
           {pathname !== '/signin' ? <BuilderViewToggle className="pellier-builder-toggle" /> : null}
-          {onStorefront ? <TourReplayButton /> : null}
+          {pathname !== '/signin' ? <TourReplayButton /> : null}
           <ThemeControl />
         </div>
       )}
@@ -201,7 +202,7 @@ export default function SurfaceNavigation() {
         ) : null}
       </div>
       ) : null}
-      {onStorefront ? <TourHost /> : null}
+      {pathname !== '/signin' ? <TourHost surface={active} hold={turnRunning} /> : null}
     </div>
   )
 }

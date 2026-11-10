@@ -12,7 +12,8 @@ import { StatusLine, StepList, useBuilderView } from '../../components/turn'
 import type { ReviewController } from '../hooks/useReview'
 import type { InvestigationState, InvestigationPhase } from '../hooks/useInvestigation'
 import type { TurnStatus } from '../../components/turn/turnTypes'
-import ProposedCreditCard from '../components/ProposedCreditCard'
+import { useTourChapter } from '../../components/tourChapters'
+import ProposedCreditCard, { awaitsDecision } from '../components/ProposedCreditCard'
 
 interface Props {
   investigation: InvestigationState & { status: TurnStatus | null }
@@ -49,6 +50,10 @@ const InvestigationSteps: React.FC<Props> = ({ investigation, review, onStart, h
   const [builderView] = useBuilderView()
   const { phase, steps, answer, status, error } = investigation
   const live = phase === 'running'
+  // The tour's proposal chapter describes the brief and the decision together,
+  // so it waits for an investigation to finish here with a credit still to
+  // decide, and stands down the moment the visitor presses Approve or Decline.
+  useTourChapter('proposal', phase === 'done' && !review?.busy && awaitsDecision(review?.detail?.review))
   const shown = decidedStatus(status, review, answer?.proposal?.status === 'pending')
 
   return (

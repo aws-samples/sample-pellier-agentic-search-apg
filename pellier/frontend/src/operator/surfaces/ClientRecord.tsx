@@ -16,6 +16,7 @@ import {
   type OperatorReview,
 } from '../../services/operator'
 import { imageSrc } from '../../utils/assetPath'
+import { useTourChapter } from '../../components/tourChapters'
 import ClientAvatar from '../components/ClientAvatar'
 import CopyValue from '../components/CopyValue'
 import OperatorSignInAction from '../components/OperatorSignInAction'
@@ -107,6 +108,9 @@ const ClientRecordPage: React.FC = () => {
   }, [customerId])
 
   useEffect(load, [load, retry])
+
+  // The tour's desk chapter describes a record, so it waits for one to show.
+  useTourChapter('desk', Boolean(record) && !error)
 
   // A decision or an execution changes the credits and the review the record
   // shows, so the record is re-read when the review's own read completes.

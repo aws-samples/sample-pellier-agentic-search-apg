@@ -20,6 +20,7 @@ import type { CartItemOrigin } from '../contexts/CartContext'
 import ProductArtifactCard from './ProductArtifactCard'
 import StylistHandoffCard from './StylistHandoffCard'
 import ChatFailureCard from './ChatFailureCard'
+import { useTourChapter } from './tourChapters'
 import {
   LayerTag,
   RankingSummary,
@@ -260,6 +261,14 @@ function AgentMessage({
   }, [])
   const revealFinished = streamDone && reveal.finished
   const steps = message.steps ?? []
+  // The tour's answer chapter rings the Identity line and the folded steps, so
+  // it waits for the Builder view and for the latest answer to settle. Only a
+  // turn that ran in this page carries its principal: a restored one does not.
+  useTourChapter(
+    'answer',
+    isLastAssistantMessage && builderView && Boolean(message.principal)
+      && revealFinished && !message.failure && steps.length > 0,
+  )
 
   const orderedProducts = message.products ? productsNamedInAnswer(message.products, message.content) : []
   const recommendedProducts = orderedProducts.filter((product) => product.ownership !== 'owned')
