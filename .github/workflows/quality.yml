@@ -231,9 +231,9 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # These specs answer every /api call with an in-test stand-in, so they need
-      # the app on Vite and nothing from AWS. workshop-smoke and retail-journey
-      # need a deployment; theme-surfaces captures every surface and sweeps the
-      # dark theme's contrast, and is run by hand.
+      # the app on Vite and nothing from AWS. theme-surfaces opens every surface
+      # in both themes and fails on low contrast in the dark one. workshop-smoke
+      # and retail-journey need a deployment, so they do not run here.
       - name: Start the app on Vite
         run: |
           npx vite --port 5199 --strictPort > "$RUNNER_TEMP/vite.log" 2>&1 &
@@ -254,3 +254,4 @@ jobs:
           e2e/two-sessions.spec.ts
           e2e/live-turn-trace.spec.ts
           e2e/operator-execution-states.spec.ts
+          e2e/theme-surfaces.spec.ts
