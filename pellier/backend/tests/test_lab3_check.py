@@ -309,7 +309,7 @@ def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> 
     assert [finding.task for finding in findings] == ["3B"] * 7
     assert findings[4].title == rls.DEPLOYED_TITLE
     assert [finding.title for finding in findings[5:]] == [
-        "in process path: the live policy stops a wrong query",
+        "in-process path: the live policy stops a wrong query",
         "Gateway path: the live policy stops a wrong query",
     ]
 

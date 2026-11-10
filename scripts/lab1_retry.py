@@ -265,6 +265,11 @@ def evaluate(conn: Any, when: Optional[Timeline] = None
     return _judge(receipt, requested, ids, broken_lines), rows
 
 
+def _cut(name: str, width: int = 30) -> str:
+    """A product name cut to ``width``, ending in ``...`` so the cut shows."""
+    return name if len(name) <= width else name[: width - 3] + "..."
+
+
 def _rows(
     ids: Sequence[str], catalog: Dict[str, Dict[str, Any]], limits: Dict[str, Any],
 ) -> Tuple[List[Sequence[Any]], List[str]]:
@@ -279,7 +284,7 @@ def _rows(
         broken = product_breaks(product, limits)
         verdict = ("breaks: " + ", ".join(broken)) if broken else "ok"
         rows.append((
-            product_id, str(product["name"])[:30], f"${float(product['price']):.2f}",
+            product_id, _cut(str(product["name"])), f"${float(product['price']):.2f}",
             int(product["quantity"] or 0), verdict,
         ))
         if broken:

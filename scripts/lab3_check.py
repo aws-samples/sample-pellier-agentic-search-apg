@@ -230,19 +230,20 @@ def _bound_rule(bound: frozenset,
 
 def _staff_rule(managed: Sequence[str]) -> check.Finding:
     title = "give_store_credit is refused on a shopper agent"
-    expected = ("published is not permitted: give_store_credit is published for the Operator, and "
-                "no shopper agent names it")
+    expected = ("publishing does not permit every agent to call a tool: give_store_credit is "
+                "published for the Operator, and no shopper agent names it")
     evidence = ["give_store_credit moves money; Cedar decides each call, and the Router refuses to "
                 "build a shopper agent that names it"]
     named = sorted(set(managed) & STAFF_ONLY)
     if named:
         return check.Finding("3A", title, check.FAILED, expected,
-                             "the Support agent names give_store_credit: published is not "
-                             "permitted, and the Router refuses to build this agent", evidence,
+                             "the Support agent names give_store_credit: publishing does not "
+                             "permit every agent to call a tool, and the Router refuses to "
+                             "build this agent", evidence,
                              "which of the nine tools moves money? Only the Operator calls it.")
     return check.Finding("3A", title, check.PASSED, expected,
-                         "published is not permitted: the Support agent does not name "
-                         "give_store_credit", evidence)
+                         "publishing does not permit every agent to call a tool: the Support "
+                         "agent does not name give_store_credit", evidence)
 
 
 def judge_catalog(

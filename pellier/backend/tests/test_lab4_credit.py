@@ -80,7 +80,7 @@ async def test_the_in_process_path_holds_the_role_to_the_function(deployed: Any)
     async with await psycopg.AsyncConnection.connect(**_conninfo(deployed)) as aconn:
         observed = await credit_check.probe_in_process(_PgDb(aconn))
     assert observed == credit_check.WANT, observed
-    assert credit_check.judge_path("in process", observed).state == "PASSED"
+    assert credit_check.judge_path("in-process", observed).state == "PASSED"
 
 
 def test_the_gateway_path_holds_the_role_to_the_function(deployed: Any, monkeypatch) -> None:
@@ -105,7 +105,7 @@ async def test_a_table_privilege_on_credits_is_caught_on_the_path(deployed: Any)
                 observed = await credit_check.probe_in_process(_PgDb(aconn))
         finally:
             conn.execute("REVOKE UPDATE ON pellier.store_credits FROM pellier_credit_writer")
-    finding = credit_check.judge_path("in process", observed)
+    finding = credit_check.judge_path("in-process", observed)
     assert observed[credit_check.UPDATE] == "00000"
     assert finding.state == "FAILED"
     assert "raise a credit's amount directly" in finding.observed

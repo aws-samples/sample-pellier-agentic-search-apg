@@ -38,6 +38,7 @@ import json
 import os
 import sys
 import time
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -50,6 +51,15 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from wait_progress import waiting  # noqa: E402
 from workshop_check import (FAILED, NOT_YET, PASSED, COULD_NOT_CHECK,  # noqa: E402
                             Finding, overall, paint, render, reset_point)
+
+
+
+@dataclass
+class Record(Finding):
+    """One of the three records, boxed as ``Record 1`` to ``Record 3`` and not as a lab task."""
+
+    label: str = "Record"
+
 
 SPANS_GROUP = "aws/spans"
 TURN_ATTR = "pellier.turn_id"  # services/evidence_spans.py ATTR_TURN_ID
@@ -97,7 +107,7 @@ def app_spans(logs: Any, start_ms: int, since: str) -> Finding:
     try:
         events = _events(logs, SPANS_GROUP, start_ms, f'"{TURN_ATTR}"')
     except Exception as exc:  # noqa: BLE001 - the finding says which read failed
-        return Finding("O1", "App spans in CloudWatch", COULD_NOT_CHECK, expected,
+        return Record("1", "App spans in CloudWatch", COULD_NOT_CHECK, expected,
                        f"could not read {SPANS_GROUP}: {aws_code(exc)}")
     spans = []
     for event in events:
@@ -114,7 +124,7 @@ def app_spans(logs: Any, start_ms: int, since: str) -> Finding:
     routed = [(start, turn) for start, name, turn, managed in spans
               if name == "routing" and managed]
     if not routed:
-        return Finding("O1", "App spans in CloudWatch", NOT_YET, expected,
+        return Record("1", "App spans in CloudWatch", NOT_YET, expected,
                        "no routing span from a turn on AgentCore yet",
                        next_step="send a request (uv run scripts/lab_run.py send --lab 3), "
                                  "wait about ten seconds and run this again; if it stays empty, "
@@ -125,7 +135,7 @@ def app_spans(logs: Any, start_ms: int, since: str) -> Finding:
     _, newest = routed[-1]
     names = list(dict.fromkeys(name for _, name, turn, _ in spans if turn == newest))
     in_turns = sum(1 for _, _, turn, _ in spans if turn in turns)
-    return Finding("O1", "App spans in CloudWatch", PASSED, expected,
+    return Record("1", "App spans in CloudWatch", PASSED, expected,
                    f"{_plural(in_turns, 'span')} across {_plural(len(turns), 'routed turn')}",
                    [f"newest turn {newest}: {', '.join(names)}"])
 
@@ -187,7 +197,7 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
     try:
         writer = _writer(rds, cluster)
     except Exception as exc:  # noqa: BLE001 - the finding says which read failed
-        return Finding("O2", "Database Insights on Aurora", COULD_NOT_CHECK, expected,
+        return Record("2", "Database Insights on Aurora", COULD_NOT_CHECK, expected,
                        f"DatabaseInsightsMode {mode}; could not describe its writer: "
                        f"{aws_code(exc)}")
     # An Aurora cluster may report Performance Insights only on its instances.
@@ -198,17 +208,17 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
     setting = (f"DatabaseInsightsMode {mode}, Performance Insights "
                + (f"on, retention {retention} days" if enabled else "off"))
     if mode != "advanced" or not enabled:
-        return Finding("O2", "Database Insights on Aurora", FAILED, expected, setting,
+        return Record("2", "Database Insights on Aurora", FAILED, expected, setting,
                        next_step="this event's database stack predates Database Insights; "
                                  "provision from the current template")
     try:
         busy, reported = busy_minutes(pi, writer["DbiResourceId"], minutes, now)
         statements, sampled = top_sql(pi, writer["DbiResourceId"], minutes, now)
     except Exception as exc:  # noqa: BLE001 - the setting is proved; the read is not
-        return Finding("O2", "Database Insights on Aurora", COULD_NOT_CHECK, expected,
+        return Record("2", "Database Insights on Aurora", COULD_NOT_CHECK, expected,
                        f"{setting}; could not read its metrics: {aws_code(exc)}")
     if not busy:
-        return Finding("O2", "Database Insights on Aurora", NOT_YET, expected,
+        return Record("2", "Database Insights on Aurora", NOT_YET, expected,
                        f"{setting}; no finished queries recorded in the window yet",
                        next_step="send a request (uv run scripts/lab_run.py send --lab 3), "
                                  "wait about a minute and run this again")
@@ -220,7 +230,7 @@ def database_insights(rds: Any, pi: Any, cluster: Dict[str, Any], minutes: int,
         evidence.append("top SQL by load: none; the load sampled in the window names no statement")
     else:
         evidence.append("top SQL by load: no statement sampled in the window")
-    return Finding("O2", "Database Insights on Aurora", PASSED, expected, setting, evidence)
+    return Record("2", "Database Insights on Aurora", PASSED, expected, setting, evidence)
 
 
 def _utc(moment: datetime) -> str:
@@ -252,7 +262,7 @@ def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, since: str
     expected = (f"an ERROR '{RLS_REFUSAL}' in {group} {since}; "
                 "the log line does not print the SQLSTATE")
     if "postgresql" not in (cluster.get("EnabledCloudwatchLogsExports") or []):
-        return Finding("O3", "Refused writes in the PostgreSQL log", FAILED, expected,
+        return Record("3", "Refused writes in the PostgreSQL log", FAILED, expected,
                        "the cluster does not export its postgresql log to CloudWatch",
                        next_step="this event's database stack predates the log export; "
                                  "provision from the current template")
@@ -261,11 +271,11 @@ def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, since: str
     except Exception as exc:  # noqa: BLE001 - a group appears with its first exported line
         code = aws_code(exc)
         if code != "ResourceNotFoundException":
-            return Finding("O3", "Refused writes in the PostgreSQL log", COULD_NOT_CHECK, expected,
+            return Record("3", "Refused writes in the PostgreSQL log", COULD_NOT_CHECK, expected,
                            f"could not read {group}: {code}")
         events = []
     if not events:
-        return Finding("O3", "Refused writes in the PostgreSQL log", NOT_YET, expected,
+        return Record("3", "Refused writes in the PostgreSQL log", NOT_YET, expected,
                        "no refused write in the window",
                        next_step="run uv run scripts/lab3_row_ownership_check.py, wait about a "
                                  "minute and run this again")
@@ -274,7 +284,7 @@ def postgresql_log(logs: Any, cluster: Dict[str, Any], start_ms: int, since: str
                                   tz=timezone.utc).astimezone().strftime("%H:%M:%S")
     line = ((newest.get("message") or "").strip().splitlines() or [""])[0]
     detail = line[line.find("ERROR"):] if "ERROR" in line else line
-    return Finding("O3", "Refused writes in the PostgreSQL log", PASSED, expected,
+    return Record("3", "Refused writes in the PostgreSQL log", PASSED, expected,
                    f"{_plural(len(events), 'refused write')} logged", [f"{when}  {detail}"])
 
 
@@ -295,9 +305,9 @@ def check(logs: Any, rds: Any, pi: Any, cluster_arn: str, minutes: int,
     findings = [app_spans(logs, start_ms, since)]
     if cluster is None:
         return findings + [
-            Finding("O2", "Database Insights on Aurora", COULD_NOT_CHECK,
+            Record("2", "Database Insights on Aurora", COULD_NOT_CHECK,
                     "Database Insights in advanced mode", unreadable),
-            Finding("O3", "Refused writes in the PostgreSQL log", COULD_NOT_CHECK,
+            Record("3", "Refused writes in the PostgreSQL log", COULD_NOT_CHECK,
                     "a refused write in the exported PostgreSQL log", unreadable)]
     return findings + [database_insights(rds, pi, cluster, minutes, now),
                        postgresql_log(logs, cluster, start_ms, since)]

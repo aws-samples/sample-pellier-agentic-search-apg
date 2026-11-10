@@ -96,7 +96,7 @@ async def test_the_shipped_policies_pass_on_both_paths_and_keep_nothing(
     own = _theo_tickets(conn)
     assert own > 0, "the seed gives Theo tickets, or the own-rows probe proves nothing"
 
-    in_process = rls.judge_path("in process", await _in_process(fresh_db), own)
+    in_process = rls.judge_path("in-process", await _in_process(fresh_db), own)
     gateway = rls.judge_path("Gateway", _gateway(monkeypatch, conn), own)
 
     assert in_process.state == rls.check.PASSED, in_process
@@ -114,7 +114,7 @@ async def test_a_policy_that_lets_everyone_through_is_contradicted_on_both_paths
 ) -> None:
     own = _theo_tickets(conn)
     with _policies(conn, "true"):
-        in_process = rls.judge_path("in process", await _in_process(fresh_db), own)
+        in_process = rls.judge_path("in-process", await _in_process(fresh_db), own)
         gateway = rls.judge_path("Gateway", _gateway(monkeypatch, conn), own)
 
     for finding in (in_process, gateway):
@@ -138,7 +138,7 @@ def test_a_write_that_failed_for_another_reason_is_unchecked_not_wrong() -> None
     observed = {label: 0 for label, _sql in rls.READS}
     observed[rls.READS[0][0]] = 2
     observed[rls.WRITE_LABEL] = f"{rls.ERROR} 23503"
-    finding = rls.judge_path("in process", observed, 2)
+    finding = rls.judge_path("in-process", observed, 2)
     assert finding.state == rls.check.COULD_NOT_CHECK
     assert "a reason other than the policy" in finding.observed
 

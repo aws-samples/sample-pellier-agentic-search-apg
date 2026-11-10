@@ -189,7 +189,8 @@ def test_the_starter_check_names_the_reads_and_the_unpublished_tool() -> None:
     assert bound.state == lab3.check.NOT_YET
     assert bound.next_step.startswith("which of the nine tools take a customer_id?")
     assert staff.state == lab3.check.PASSED
-    assert "published is not permitted" in staff.observed
+    assert staff.observed == ("publishing does not permit every agent to call a tool: the "
+                              "Support agent does not name give_store_credit")
 
 
 def test_the_solution_meets_all_four_rules() -> None:
@@ -205,7 +206,7 @@ def test_a_staff_only_tool_on_the_support_agent_is_refused() -> None:
     findings = lab3.judge_catalog(_published(lab_variants.SOLUTION),
                                     managed + ("give_store_credit",), bound)
     assert findings[3].state == lab3.check.FAILED
-    assert "published is not permitted" in findings[3].observed
+    assert "publishing does not permit every agent to call a tool" in findings[3].observed
     assert lab3.catalog_verdict(findings) is findings[3]
 
 

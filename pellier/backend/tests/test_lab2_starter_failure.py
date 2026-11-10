@@ -330,7 +330,7 @@ def test_both_ask_which_when_several_pieces_match(conn, variant) -> None:
 
 
 def _defaults() -> Dict[str, Any]:
-    return {case: (lab2.DEFAULT_INPUTS[case], "default") for case in lab2.CASES}
+    return {case: (lab2.DEFAULT_INPUTS[case], "the check") for case in lab2.CASES}
 
 
 def test_the_2b_check_fails_the_starter_on_the_not_carried_case_alone(conn) -> None:
@@ -363,7 +363,7 @@ def test_a_right_function_your_worksheet_did_not_commit_is_not_yet(conn) -> None
 def test_a_test_input_that_is_not_its_case_cannot_pass(conn) -> None:
     _install(conn, lab_variants.SOLUTION, stamp=True)
     inputs = _defaults()
-    inputs["unknown"] = ("Hadley Linen Shirt", "you")
+    inputs["unknown"] = ("Hadley Linen Shirt", "your flag")
     finding, _rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), inputs,
                                    worksheet=SOLUTION_WORKSHEET)
     assert finding.state == "NOT YET"

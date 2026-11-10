@@ -991,7 +991,7 @@ class TestManagedCatalogsAgree:
             bound={"get_orders", "get_tickets"},
         )
         assert not check.passed
-        assert "names give_store_credit: published is not permitted" in check.detail
+        assert "names give_store_credit: publishing does not permit every agent" in check.detail
 
     def test_an_unbound_read_is_its_own_failure(self, monkeypatch):
         """Published and reachable is not enough: the caller must be bound."""

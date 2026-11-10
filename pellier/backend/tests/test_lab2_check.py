@@ -89,10 +89,10 @@ def test_a_query_is_classified_from_the_catalog_alone(catalog, expected) -> None
 
 def test_blank_choices_use_the_defaults_and_say_so() -> None:
     inputs = check._inputs(argparse.Namespace(unknown="Opera cloak", ambiguous=None, sold_out="  "))
-    assert inputs["unknown"] == ("Opera cloak", "you")
-    assert inputs["several"] == (check.DEFAULT_INPUTS["several"], "default")
-    assert inputs["sold_out"] == (check.DEFAULT_INPUTS["sold_out"], "default")
-    assert inputs["in_stock"] == ("Hadley Linen Shirt", "fixed")
+    assert inputs["unknown"] == ("Opera cloak", "your flag")
+    assert inputs["several"] == (check.DEFAULT_INPUTS["several"], "the check")
+    assert inputs["sold_out"] == (check.DEFAULT_INPUTS["sold_out"], "the check")
+    assert inputs["in_stock"] == ("Hadley Linen Shirt", "the check")
 
 
 @pytest.mark.parametrize("grant, state", [
@@ -141,7 +141,7 @@ def test_the_worksheet_body_is_the_text_between_its_dollar_quotes() -> None:
 
 def test_marcos_cape_sentence_comes_from_the_scenarios() -> None:
     assert check.marco_cape_request() == "Is the Velvet Opera Cape in stock?"
-    line = check.marco_line([("not carried", "Velvet Opera Cape", "default",
+    line = check.marco_line([("not carried", "Velvet Opera Cape", "the check",
                               "not_found: no product matches", "success, 0 units (no rows)",
                               "does not match")], check.marco_cape_request())
     assert line.splitlines() == [
@@ -172,17 +172,17 @@ def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
     """The event's rows ran to about 150 columns and wrapped at 133; each now fits the
     renderer's width, and a case that differs repeats with what the catalog expects."""
     rows = [
-        ("not carried", "Velvet Opera Cape", "default", "not_found: no product matches",
+        ("not carried", "Velvet Opera Cape", "the check", "not_found: no product matches",
          "success, 0 units (no rows)", "does not match"),
-        ("sold out", "Quilted Silk Vest", "default", "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)",
+        ("sold out", "Quilted Silk Vest", "the check", "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)",
          "success, 0 units (ATX-02 0, BK-01 0, PDX-01 0)", "matches"),
-        ("in stock", "Hadley Linen Shirt", "fixed", "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)",
+        ("in stock", "Hadley Linen Shirt", "the check", "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)",
          "success, 20 units (ATX-02 6, BK-01 0, PDX-01 14)", "matches"),
     ]
     text = check.cases_table(rows)
     assert max(len(line) for line in text.splitlines()) <= workshop_check.WIDTH
     cases, differs = psql_tables.tables(text)
-    assert list(cases[0]) == ["case", "query", "chosen by", "verdict", "observed"]
+    assert list(cases[0]) == ["case", "query", "name from", "verdict", "observed"]
     assert [row["verdict"] for row in cases] == ["does not match", "matches", "matches"]
     assert differs == [{"does not match": "not carried", "expected": "not_found: no product matches",
                         "observed": "success, 0 units (no rows)"}]

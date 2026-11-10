@@ -88,6 +88,10 @@ SKIP_DIRS = {
     # Gitignored local scratch: logs from earlier runs keep the words they printed.
     "tmp",
 }
+# Folders that hold gitignored scratch copies of the repository: everything under `.local/`
+# and the agent worktrees under `.claude/worktrees/`. A copy there repeats every file this
+# scan reads. The tracked files under `.claude/skills/` are still scanned.
+SKIP_ROOTS = ((".local",), (".claude", "worktrees"))
 SKIP_SUFFIXES = {
     ".png", ".jpg", ".jpeg", ".webp", ".avif", ".svg", ".ico", ".pdf", ".woff",
     ".woff2", ".ttf", ".zip", ".gz", ".pyc", ".map", ".csv", ".lock",
@@ -95,7 +99,7 @@ SKIP_SUFFIXES = {
 SKIP_NAMES = {"embeddings_cache.json", "package-lock.json"}
 
 
-def _text_files():
+def _text_files(root: Path = REPO, minimum: int = 200):
     """Yield (repo-relative path, text) for every scannable file.
 
     Skip directories are matched against the path RELATIVE to the repo root. An
@@ -104,10 +108,12 @@ def _text_files():
     forever.
     """
     scanned = 0
-    for path in REPO.rglob("*"):
+    for path in root.rglob("*"):
         if not path.is_file():
             continue
-        rel_path = path.relative_to(REPO)
+        rel_path = path.relative_to(root)
+        if any(rel_path.parts[:len(root_parts)] == root_parts for root_parts in SKIP_ROOTS):
+            continue
         if any(part in SKIP_DIRS for part in rel_path.parts):
             continue
         if path.suffix.lower() in SKIP_SUFFIXES or path.name in SKIP_NAMES:
@@ -122,7 +128,7 @@ def _text_files():
         scanned += 1
         yield rel, text
 
-    assert scanned > 200, (
+    assert scanned > minimum, (
         f"agent-vocabulary scan only inspected {scanned} files. The skip rules "
         "are excluding the repository; the guard is not actually checking "
         "anything."
@@ -233,3 +239,16 @@ def test_the_dispatcher_internal_keys_are_unchanged() -> None:
     assert set(INTENTS) == set(CANONICAL_AGENTS)
     assert set(AGENT_NAMES) == set(CANONICAL_AGENTS)
     assert {key: label for key, (label, _m) in CANONICAL_AGENTS.items()} == AGENT_NAMES
+
+
+def test_a_scratch_copy_under_a_local_folder_is_not_scanned(tmp_path: Path) -> None:
+    """A copy under `.local/` or `.claude/worktrees/` is skipped; `.claude/skills/` is read."""
+    for kept in ("pellier", ".claude/skills/demo"):
+        (tmp_path / kept).mkdir(parents=True)
+        (tmp_path / kept / "kept.md").write_text("kept", encoding="utf-8")
+    for top in (".local/worktrees/x/pellier", ".claude/worktrees/y"):
+        copy = tmp_path / top
+        copy.mkdir(parents=True)
+        (copy / "copied.md").write_text("copied", encoding="utf-8")
+    scanned = [rel for rel, _text in _text_files(tmp_path, minimum=0)]
+    assert sorted(scanned) == [".claude/skills/demo/kept.md", "pellier/kept.md"]

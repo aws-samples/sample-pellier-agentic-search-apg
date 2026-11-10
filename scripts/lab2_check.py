@@ -616,10 +616,10 @@ def marco_cape_request(repo: pathlib.Path = REPO) -> str:
 
 def _inputs(args: argparse.Namespace) -> Dict[str, Tuple[str, str]]:
     chosen = {"unknown": args.unknown, "several": args.ambiguous, "sold_out": args.sold_out}
-    inputs = {case: ((value.strip(), "you") if value and value.strip()
-                     else (DEFAULT_INPUTS[case], "default"))
+    inputs = {case: ((value.strip(), "your flag") if value and value.strip()
+                     else (DEFAULT_INPUTS[case], "the check"))
               for case, value in chosen.items()}
-    inputs["in_stock"] = (DEFAULT_INPUTS["in_stock"], "fixed")
+    inputs["in_stock"] = (DEFAULT_INPUTS["in_stock"], "the check")
     return inputs
 
 
@@ -649,7 +649,7 @@ def run(task: str, inputs: Dict[str, Tuple[str, str]],
 def cases_table(rows: Sequence[Sequence[str]]) -> str:
     """The 2B cases as bordered tables: each case with its verdict and what check_stock said,
     then each case that differs with what the catalog expects beside what it said."""
-    table = check.table(("case", "query", "chosen by", "verdict", "observed"),
+    table = check.table(("case", "query", "name from", "verdict", "observed"),
                         [(case, query, chosen_by, verdict, observed)
                          for case, query, chosen_by, _expected, observed, verdict in rows])
     differs = [(case, expected, observed)

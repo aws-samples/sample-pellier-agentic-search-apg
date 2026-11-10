@@ -65,6 +65,7 @@ class Finding:
         observed: What the check saw.
         evidence: The rows, decisions or keys behind the observation.
         next_step: What to look at next; empty when the claim is proved.
+        label: The word before ``task`` in the box; ``Task`` for the eight lab tasks.
     """
 
     task: str
@@ -74,6 +75,7 @@ class Finding:
     observed: str
     evidence: List[str] = field(default_factory=list)
     next_step: str = ""
+    label: str = "Task"
 
 
 # A laptop-size Code Editor terminal is about 124 columns wide; beside the guide it is narrower,
@@ -306,7 +308,7 @@ def closing(label: str, passed: bool, task: str = "") -> str:
 def render(finding: Finding) -> str:
     """The finding as one bordered box sized to the terminal: the task and its state, then
     each field on its own row. The state word is green, red or orange on a terminal."""
-    rows = [[f"Task {finding.task}", f"{finding.state}  {finding.title}"],
+    rows = [[f"{finding.label} {finding.task}", f"{finding.state}  {finding.title}"],
             ["Expected", finding.expected], ["Observed", finding.observed]]
     for index, line in enumerate(finding.evidence or ["(none)"]):
         rows.append(["Evidence" if index == 0 else "", line])

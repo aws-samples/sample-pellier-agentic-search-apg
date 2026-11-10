@@ -265,9 +265,9 @@ class TestLabsThreeAndFour:
     def test_4b_names_the_path_behind_each_probe_count(self) -> None:
         parts = [check.Finding("4B", f"{path} path: the role writes only through the function",
                                PASSED, "expected", "4 of 4 tests passed", ["evidence"], "")
-                 for path in ("in process", "Gateway")]
+                 for path in ("in-process", "Gateway")]
         finding = evidence.task_4b(lambda: [_finding("4B", PASSED), *parts])
-        assert finding.observed == (f"observed {PASSED}; in process: 4 of 4 tests passed; "
+        assert finding.observed == (f"observed {PASSED}; in-process: 4 of 4 tests passed; "
                                     "Gateway: 4 of 4 tests passed"), finding
 
     def test_4b_with_the_starters_grants_is_not_yet_without_probing(

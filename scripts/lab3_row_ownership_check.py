@@ -8,7 +8,7 @@ the predicate now in your file, so the policies it probes are yours and not the
 ones the database shipped with. Then it probes them through each way Pellier
 binds a customer before it reads their rows:
 
-    in process   DatabaseService.principal_session, which Ask Pellier and the
+    in-process   DatabaseService.principal_session, which Ask Pellier and the
                  Operator's Investigator use
     Gateway      bind_runtime_principal over the RDS Data API, which the
                  store-tools Lambda uses for get_orders and get_tickets
@@ -89,7 +89,7 @@ ERROR = "error:"
 EXPECTED = ("bound as Theo: his own tickets come back, none of Jessica's orders or tickets "
             "do, and a ticket written in her name is refused with 42501")
 _PATHS = {
-    "in process": "DatabaseService.principal_session (Ask Pellier, the Operator)",
+    "in-process": "DatabaseService.principal_session (Ask Pellier, the Operator)",
     "Gateway": "bind_runtime_principal over the RDS Data API (the store-tools Lambda)",
 }
 
@@ -191,7 +191,7 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
     """One path's verdict.
 
     Args:
-        path: ``in process`` or ``Gateway``.
+        path: ``in-process`` or ``Gateway``.
         observed: Each read's count by label, and the write's SQLSTATE under
             ``WRITE_LABEL``.
         own_tickets: Theo's tickets, counted as the owner, whom the policy
@@ -385,7 +385,7 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
         return [deployed] + [unchecked(path, exc) for path in _PATHS]
     findings: List[check.Finding] = [deployed]
     probes: Sequence[Tuple[str, Callable[[], Dict[str, Any]]]] = (
-        ("in process", lambda: asyncio.run(_in_process(cfg))),
+        ("in-process", lambda: asyncio.run(_in_process(cfg))),
         ("Gateway", lambda: probe_gateway(_dataapi(check.parse_dotenv(env_path)))),
     )
     for path, probe in probes:

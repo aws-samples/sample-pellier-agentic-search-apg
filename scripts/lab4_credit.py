@@ -7,7 +7,7 @@ live function carries the statements now in your file, so the privileges it
 probes are yours and not the ones the database shipped with, and reads what the
 catalog says the role holds. Then it opens each way Pellier writes a credit:
 
-    in process   DatabaseService.credit_writer_session, which the Operator's
+    in-process   DatabaseService.credit_writer_session, which the Operator's
                  in-process path uses
     Gateway      run_as_credit_writer over the RDS Data API, which the
                  store-tools Lambda uses for give_store_credit
@@ -89,7 +89,7 @@ ERROR = "error:"
 EXPECTED = ("as pellier_credit_writer: the function refuses a credit no one approved, and a "
             "direct insert or update of a credit is refused with 42501")
 _PATHS = {
-    "in process": "DatabaseService.credit_writer_session (the Operator's in-process path)",
+    "in-process": "DatabaseService.credit_writer_session (the Operator's in-process path)",
     "Gateway": "run_as_credit_writer over the RDS Data API (the store-tools Lambda)",
 }
 
@@ -356,7 +356,7 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
         deployed = _unchecked_deployed(exc)
     findings: List[check.Finding] = [deployed]
     probes: Sequence[Tuple[str, Callable[[], Dict[str, str]]]] = (
-        ("in process", lambda: asyncio.run(_in_process(cfg))),
+        ("in-process", lambda: asyncio.run(_in_process(cfg))),
         ("Gateway", lambda: probe_gateway(_dataapi(check.parse_dotenv(env_path)))),
     )
     for path, probe in probes:
