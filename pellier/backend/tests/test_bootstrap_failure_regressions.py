@@ -178,6 +178,19 @@ def test_generating_the_service_does_not_execute_its_comments(tmp_path: Path) ->
     assert "ExecStartPre=" in unit.read_text()
 
 
+def test_the_backend_stops_within_seconds_while_a_browser_watches() -> None:
+    """An open Ask Pellier panel holds ``GET /api/chat/watch`` open for as long as it is open.
+
+    Without a limit uvicorn waits for that stream on every stop, so each restart in a lab took
+    the unit's 90 second stop timeout and ended in SIGKILL (test event, 2026-11-09).
+    """
+    start = re.search(r"^ExecStart=.*uvicorn app:app.*$", LABS.read_text(), re.M)
+    assert start
+    limit = re.search(r"--timeout-graceful-shutdown (\d+)\b", start[0])
+    assert limit, start[0]
+    assert 1 <= int(limit[1]) <= 5
+
+
 def test_environment_summary_does_not_print_the_editor_password() -> None:
     summary = ENVIRONMENT.read_text().split("# SUMMARY\n", 1)[1]
     result = run_bash(

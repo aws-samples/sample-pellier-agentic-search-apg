@@ -1190,7 +1190,11 @@ Environment=VITE_BASE_PATH=/ports/8000/
 # frontend), so a restart for a lab edit waits for the backend alone.
 ExecStartPre=-/bin/bash -c 'cd $REPO_PATH/pellier/backend && python3.14 generate_mcp_config.py 2>/dev/null || true'
 ExecStartPre=-/bin/bash -c 'bash $REPO_PATH/scripts/build-frontend-if-changed.sh $REPO_PATH/pellier/frontend || true'
-ExecStart=/usr/bin/python3.14 -m uvicorn app:app --host 127.0.0.1 --port 8000 $UVICORN_RELOAD_ARGS
+# An open Ask Pellier panel holds GET /api/chat/watch open, and uvicorn waits for open
+# connections when it stops. Without this limit every restart with the panel open took the
+# unit's 90 s stop timeout and ended in SIGKILL (test event, 2026-11-09): 90.2 s, against 3.3 s
+# with it.
+ExecStart=/usr/bin/python3.14 -m uvicorn app:app --host 127.0.0.1 --port 8000 --timeout-graceful-shutdown 3 $UVICORN_RELOAD_ARGS
 Restart=always
 RestartSec=3
 StandardOutput=append:/tmp/pellier/uvicorn.log
