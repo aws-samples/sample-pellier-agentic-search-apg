@@ -148,8 +148,8 @@ SELECT * FROM (VALUES
 ) AS links(link, expected, observed);
 
 SELECT CASE
-         WHEN :wrap_requests = 0 THEN 'no chat request answers review '
-              || :'wrap_review_id' || ': uv run scripts/lab_run.py send --lab 4'
+         WHEN :wrap_requests = 0 THEN 'no request for review '
+              || :'wrap_review_id' || '; send hers: uv run scripts/lab_run.py send --lab 4'
          WHEN :wrap_handoff_rows = 0 THEN 'her request''s turn left no ask_a_person row in tool_audit'
          WHEN NOT :'wrap_key_matches'::boolean THEN 'the key derived from the review is not the credit''s'
          WHEN :wrap_credit_audit_rows <> 1 THEN :'wrap_credit_audit_rows'

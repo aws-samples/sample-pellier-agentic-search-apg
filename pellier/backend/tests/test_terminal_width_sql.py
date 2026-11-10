@@ -144,3 +144,20 @@ def test_the_cedar_header_is_true_in_both_states(path: Path) -> None:
 def test_the_two_cedar_headers_are_identical() -> None:
     first, second = (_header(path) for path in CEDAR_FILES)
     assert first == second
+
+
+def test_a_query_plan_is_printed_in_the_wrapped_format() -> None:
+    """EXPLAIN prints each plan line as long as it is, and one column never switches to the
+    record layout, so a plan ran 102 columns wide in a 100-column terminal. psql's wrapped
+    format breaks a long cell to the terminal's width and leaves narrower tables alone."""
+    seen = 0
+    for path in sorted(ROOT.glob("workshop/*.sql")):
+        layout = "aligned"
+        for number, line in enumerate(path.read_text().splitlines(), start=1):
+            found = re.search(r"\\pset\s+format\s+(\w+)", line)
+            if found:
+                layout = found.group(1)
+            if line.lstrip().startswith("EXPLAIN"):
+                seen += 1
+                assert layout == "wrapped", f"{path.name}:{number} prints a plan as {layout}"
+    assert seen >= 5

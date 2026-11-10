@@ -2,6 +2,8 @@
 \set QUIET on
 \set VERBOSITY terse
 \pset footer off \pset border 1 \pset linestyle ascii \pset expanded off
+-- A table wider than the terminal wraps its long cells instead of running past the edge.
+\pset format wrapped
 
 -- Lab 1, Go deeper: does Aurora use the HNSW index, and what does a filter do to it?
 --
