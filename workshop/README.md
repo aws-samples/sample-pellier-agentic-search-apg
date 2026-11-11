@@ -51,8 +51,9 @@ recomputes the fused scores her search recorded; and `psql -f workshop/lab-1-ind
 compares exact and HNSW search, with and without the storefront filter. All four only read.
 
 Only edit the lab's marked regions; there are nine. Python edits in Labs 1 and
-2 need the guide's backend restart. Lab 3's edits and Lab 4's rule reach AWS
-only through `uv run scripts/provision_agentcore_end_to_end.py --repo-path
+2 take effect at the next send, which restarts the backend. Lab 3's edits and
+Lab 4's rule reach AWS only through
+`uv run scripts/provision_agentcore_end_to_end.py --repo-path
 "$PWD" --mode participant`: changing a local file does not update AWS.
 Provisioning deploys Lab 4's starter rule, so the deploy updates it.
 
