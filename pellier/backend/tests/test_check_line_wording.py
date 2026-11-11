@@ -55,6 +55,14 @@ def test_task_1a_failing_next_step_is_the_command_that_applies_it() -> None:
     assert "store_tools.py" not in vector.NEXT_STEP, "Task 1A is applied by command, not written"
 
 
+def test_no_lab_1_or_2_hint_asks_for_a_hand_restart() -> None:
+    """send restarts the backend itself when a lab file changed, so no hint asks for one."""
+    lab2 = importlib.import_module("lab2_check")
+    for hint in (lab1.NEXT_STEP, lab2._NEXT_2A_GRANT):
+        assert "restart" not in hint.lower(), hint
+        assert "uv run scripts/lab_run.py send --lab" in hint
+
+
 def test_a_cut_product_name_ends_in_dots() -> None:
     rows, _ = lab1._rows(["P1"], {"P1": PRODUCT}, lab1.limits_of({}, []))
     name = rows[0][1]

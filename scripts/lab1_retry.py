@@ -50,8 +50,8 @@ EXPECTED = (
 )
 NEXT_STEP = (
     "open _next_attempt in pellier/backend/services/search_plan.py: does the "
-    "next attempt keep the budget, the stock rule and the exclusions? Restart, "
-    f"send Anna's request again ({SEND}), then rerun this check."
+    "next attempt keep the budget, the stock rule and the exclusions? Send Anna's request "
+    f"again ({SEND}), then rerun this check."
 )
 NEXT_REQUEST = f"send Anna's request with {SEND}, then rerun this check."
 SEARCH_PLAN = check.REPO / "pellier" / "backend" / "services" / "search_plan.py"

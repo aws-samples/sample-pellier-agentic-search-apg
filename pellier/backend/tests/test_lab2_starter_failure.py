@@ -182,7 +182,9 @@ def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
     assert finding.state == "NOT YET", finding
     assert "still held the tools it ships with: search_products" in finding.observed
     assert "none of which reads warehouse_inventory" in finding.observed
-    assert "restart the backend" in finding.next_step.lower()
+    # send restarts the backend itself when the agent file changed, so the hint is the send.
+    assert "restart" not in finding.next_step.lower()
+    assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step
     assert lab2.STARTER_GRANT == tuple(_names(lab_variants.stock_grant(lab_variants.STARTER)))
 
 

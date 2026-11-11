@@ -232,8 +232,7 @@ EXPECTED_2A = ("the Stock agent that answered Marco's latest stock question held
                "for every piece Pellier carries equal warehouse_inventory")
 _NEXT_2A_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
                   "connect for a stock answer to come from a warehouse row, and what else may "
-                  "it hold? Restart the backend so the running agent loads it, send Marco's "
-                  f"requests again ({SEND}), then rerun this check.")
+                  f"it hold? Send Marco's requests again ({SEND}), then rerun this check.")
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:

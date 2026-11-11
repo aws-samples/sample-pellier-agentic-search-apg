@@ -173,7 +173,10 @@ class TestLab2:
         check = _by_name(doctor.lab2_checks(evidence, **paths))[GRANT]
         assert check.passed is False
         assert "(audit 41) held search_products" in check.detail
-        assert check.detail.endswith("restart the backend, then ask again")
+        # send restarts the backend itself when the agent file changed, so no hand restart.
+        assert check.detail.endswith(
+            "send his request again: uv run scripts/lab_run.py send --lab 2 --task 2A")
+        assert "restart" not in check.detail
         loaded = FakeEvidence({"args->>'agent' = 'stock'": {"audit_id": 42,
                                                             "grant": ["check_stock"]}})
         assert _by_name(doctor.lab2_checks(loaded, **paths))[GRANT].passed is True

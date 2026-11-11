@@ -305,7 +305,7 @@ def _grant_check(evidence: Evidence, path: pathlib.Path) -> Check:
         return Check(name, False, (
             f"{path.name} grants check_stock alone, but the Stock agent that answered Marco's "
             f"latest stock turn (audit {running.get('audit_id')}) held {', '.join(held)}: "
-            "restart the backend, then ask again"))
+            "send his request again: uv run scripts/lab_run.py send --lab 2 --task 2A"))
     return Check(name, True, f"{path.name} grants check_stock alone")
 
 
