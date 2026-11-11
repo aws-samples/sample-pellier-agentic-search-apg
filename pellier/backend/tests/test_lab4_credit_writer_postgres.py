@@ -90,6 +90,9 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     assert "Your change was undone. The live state is unchanged." in " ".join(done.stdout.split())
     assert "Next      which single privilege does a credit path need?" in done.stdout
     assert "Lab 4B privileges check failed" in done.stdout
+    # The summary of tests that differ names what the rights test wants, not its value: the
+    # value is the answer to the Build task.
+    assert "search_path=pg_catalog, pg_temp" not in " ".join(done.stdout.split())
     assert _state(fresh_db) == before
 
 
@@ -116,6 +119,7 @@ def test_a_definer_with_another_path_is_told_the_pinned_one(fresh_db, tmp_path) 
     assert "needs no other schema in the path" in " ".join(done.stdout.split())
     hint = done.stdout.split("Next      ", 1)[1].split("Lab 4B privileges check failed")[0]
     assert "pg_catalog" not in hint and "pg_temp" not in hint
+    assert "search_path=pg_catalog, pg_temp" not in " ".join(done.stdout.split())
     assert "which single privilege" not in done.stdout
     assert _state(fresh_db) == before
 

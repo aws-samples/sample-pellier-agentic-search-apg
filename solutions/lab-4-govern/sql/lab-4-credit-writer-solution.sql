@@ -238,7 +238,11 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
     \echo '      uv run scripts/lab4_check.py --task 4B'
   \endif
 \else
-  SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed"
+  -- The rights test prints what it wants, not its value: the value is the Build task's answer.
+  SELECT probe AS "Does not match",
+         CASE WHEN ord = 6 THEN 'definer, with a pinned search_path' ELSE expected END
+           AS "Expected",
+         observed AS "Observed"
     FROM lab_4_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
   SELECT format('store_credits rows before %s, after %s', :credits_before, count(*)) AS rows
