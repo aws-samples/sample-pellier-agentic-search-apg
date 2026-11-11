@@ -1,6 +1,6 @@
 """The evidence export: eight task lines, each never blurring "did not happen" with "did not look".
 
-A line that reports an unreachable database as NOT YET tells a participant they
+A line that reports an unreachable database as NOT YET PASSED tells a participant they
 failed a task they may have passed. These tests pin that separation, the
 starter rule for the lines whose proof runs the participant's source (a region
 still holding its starter is never proved), and the Lab 1 and Lab 2 lines on

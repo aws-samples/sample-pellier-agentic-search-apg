@@ -179,7 +179,7 @@ def test_a_turn_the_starter_grant_answered_is_not_yet(conn) -> None:
            {"status": "success", "count": 1, "products": [{"productId": "2"}]},
            grant=STARTER_GRANT)
     finding = lab2.judge_2a(conn)
-    assert finding.state == "NOT YET", finding
+    assert finding.state == "NOT YET PASSED", finding
     assert "still held the tools it ships with: search_products" in finding.observed
     assert "none of which reads warehouse_inventory" in finding.observed
     # send restarts the backend itself when the agent file changed, so the hint is the send.
@@ -206,7 +206,7 @@ def test_a_turn_from_before_the_edit_cannot_vouch_for_it(conn) -> None:
     _grounded_turn(conn, "turn-before-edit")
     later = datetime.now(timezone.utc) + timedelta(minutes=1)
     finding = lab2.judge_2a(conn, lab2.check.Timeline(later, later + timedelta(minutes=1)))
-    assert finding.state == "NOT YET", finding
+    assert finding.state == "NOT YET PASSED", finding
     assert "before your last change to stock_agent.py" in finding.observed
     assert "send --lab 2 --task 2A" in finding.next_step
 
@@ -215,7 +215,7 @@ def test_a_backend_started_before_the_edit_is_not_yet(conn) -> None:
     _grounded_turn(conn, "turn-old-backend")
     now = datetime.now(timezone.utc)
     finding = lab2.judge_2a(conn, lab2.check.Timeline(now, now - timedelta(minutes=1)))
-    assert finding.state == "NOT YET", finding
+    assert finding.state == "NOT YET PASSED", finding
     assert "the running agent is not your edit yet" in finding.observed
     assert finding.next_step.startswith("send Marco's Brooklyn count again")
     assert "lab_run.py restart" not in finding.next_step
@@ -291,7 +291,7 @@ def test_the_2a_check_fails_a_count_the_warehouse_rows_do_not_hold(conn) -> None
 def test_no_stock_agent_turn_is_not_yet(conn, monkeypatch) -> None:
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_2a(conn)
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step
     assert ("apply Task 2A (uv run scripts/lab_run.py solution --lab 2 --task 2A)"
             in finding.next_step)
@@ -358,7 +358,7 @@ def test_the_2b_check_passes_the_committed_solution(conn) -> None:
 def test_a_right_function_your_worksheet_did_not_commit_is_not_yet(conn) -> None:
     _install(conn, lab_variants.SOLUTION)
     finding, _rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), _defaults())
-    assert finding.state == "NOT YET", finding
+    assert finding.state == "NOT YET PASSED", finding
     assert "not the one in your file" in finding.observed
     assert "labs/02-ground/2B-check-stock.sql" in finding.next_step
 
@@ -369,7 +369,7 @@ def test_a_test_input_that_is_not_its_case_cannot_pass(conn) -> None:
     inputs["unknown"] = ("Hadley Linen Shirt", "your flag")
     finding, _rows = lab2.judge_2b(conn, lab2.live_tool(conn, {}), inputs,
                                    worksheet=SOLUTION_WORKSHEET)
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert "is in stock" in finding.observed
 
 
@@ -404,5 +404,5 @@ def test_the_recorded_2b_line_follows_marcos_latest_not_carried_question(conn) -
 def test_the_recorded_2b_line_waits_for_a_not_carried_question(conn, monkeypatch) -> None:
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_recorded_2b(conn)
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step

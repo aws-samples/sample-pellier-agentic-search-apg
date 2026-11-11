@@ -75,7 +75,7 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
 \echo 'Wrap-up: Jessica''s store credit, rebuilt from her request to the row'
 \if :wrap_has_credit
 \else
-  \echo 'Observed  NOT YET: Jessica has no store credit'
+  \echo 'Observed  NOT YET PASSED: Jessica has no store credit'
   \echo 'Next      finish Lab 4 (Nadia approves and executes her review), then run this'
   \echo '          again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
@@ -182,7 +182,8 @@ SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
   \echo 'Wrap-up reconstruction passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
-  \echo 'Observed  NOT YET:' :wrap_missing
+  \echo 'Observed  NOT YET PASSED:'
+  \echo '         ' :wrap_missing
   \if :wrap_no_request
     \echo '          uv run scripts/lab_run.py send --lab 4'
   \endif

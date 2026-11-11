@@ -97,9 +97,9 @@ def test_blank_choices_use_the_defaults_and_say_so() -> None:
 
 @pytest.mark.parametrize("grant, state", [
     (["check_stock"], None),
-    (["search_products", "browse_department", "compare_products"], "NOT YET"),
-    (["compare_products", "browse_department", "search_products"], "NOT YET"),
-    (None, "NOT YET"),
+    (["search_products", "browse_department", "compare_products"], "NOT YET PASSED"),
+    (["compare_products", "browse_department", "search_products"], "NOT YET PASSED"),
+    (None, "NOT YET PASSED"),
     # check_stock connected but the catalog tools left in: a wrong grant, not an unfinished one.
     (["search_products", "browse_department", "compare_products", "check_stock"], "FAILED"),
     (["search_products", "check_stock"], "FAILED"),
@@ -154,7 +154,7 @@ def _finding(state: str) -> object:
     return check.check.Finding("2B", "title", state, "expected", "observed", ["row"])
 
 
-@pytest.mark.parametrize("recorded", ["NOT YET", "FAILED"])
+@pytest.mark.parametrize("recorded", ["NOT YET PASSED", "FAILED"])
 def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(recorded) -> None:
     """The check runs the live function; Marco's chat and the export read his turns.
 
@@ -188,7 +188,7 @@ def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
                         "observed": "success, 0 units (no rows)"}]
 
 
-@pytest.mark.parametrize("guide, recorded", [("PASSED", "PASSED"), ("FAILED", "NOT YET")])
+@pytest.mark.parametrize("guide, recorded", [("PASSED", "PASSED"), ("FAILED", "NOT YET PASSED")])
 def test_no_resend_line_when_the_turns_agree_or_the_check_fails(guide, recorded) -> None:
     finding = check.with_resend_hint(_finding(guide), _finding(recorded))
     assert finding.evidence == ["row"]

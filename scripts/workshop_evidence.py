@@ -31,12 +31,12 @@ Rows alone prove 1B, 2A and 2B, so those lines read no source and no code of
 yours runs: 2A and 2B need Marco's requests sent again after the edit before
 they can pass, where the guide's 2B check runs the live pellier.check_stock
 directly. The other lines run or read what you wrote, so a region that still
-holds its starter is NOT YET whatever the rows say; the summary's cleanup
+holds its starter is NOT YET PASSED whatever the rows say; the summary's cleanup
 restores the Cedar starter, so run this export before it.
 
 Every line is in one of four states, never two (``workshop_check``):
-PASSED, NOT YET, COULD NOT CHECK and FAILED. COULD NOT CHECK is not a soft NOT
-YET: "this did not happen" and "I could not look" are different findings.
+PASSED, NOT YET PASSED, COULD NOT CHECK and FAILED. COULD NOT CHECK is not a soft NOT YET
+PASSED: "this did not happen" and "I could not look" are different findings.
 Lab 3B's direct Cedar probe calls the Gateway, so it stays in
 ``scripts/lab3_check.py``.
 

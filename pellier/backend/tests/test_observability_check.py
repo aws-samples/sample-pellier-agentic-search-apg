@@ -4,7 +4,7 @@ Each fake returns what the live service returns: span JSON in ``aws/spans``,
 the RDS cluster and instance descriptions, Performance Insights dimension keys,
 and PostgreSQL log lines exported to CloudWatch Logs. A finding is PASSED only
 when the evidence itself is there; a cluster without the settings is
-FAILED, and evidence that has not arrived yet is NOT YET.
+FAILED, and evidence that has not arrived yet is NOT YET PASSED.
 """
 
 from __future__ import annotations
@@ -351,7 +351,7 @@ def test_a_cluster_without_a_creation_time_reads_the_window() -> None:
 @pytest.mark.parametrize("states, words, colour", [
     (("PASSED", "PASSED", "PASSED"), "Observability check passed", "32"),
     (("PASSED", "FAILED", "PASSED"), "Observability check: 2 of 3 passed", "31"),
-    (("PASSED", "NOT YET", "PASSED"), "Observability check: 2 of 3 passed", "38;5;208"),
+    (("PASSED", "NOT YET PASSED", "PASSED"), "Observability check: 2 of 3 passed", "38;5;208"),
     (("PASSED", "COULD NOT CHECK", "PASSED"), "Observability check: 2 of 3 passed",
      "38;5;208"),
 ])

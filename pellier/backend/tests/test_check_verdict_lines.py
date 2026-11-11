@@ -64,7 +64,7 @@ def test_a_terminal_that_asks_for_no_colour_gets_none(at_a_terminal, monkeypatch
 
 def test_an_unfinished_state_is_orange_not_green_or_red(at_a_terminal) -> None:
     orange = "\033[38;5;208m"
-    assert check.paint("NOT YET", check.NOT_YET) == f"{orange}NOT YET{OFF}"
+    assert check.paint("NOT YET PASSED", check.NOT_YET) == f"{orange}NOT YET PASSED{OFF}"
     assert check.paint("COULD NOT CHECK", check.COULD_NOT_CHECK) == \
         f"{orange}COULD NOT CHECK{OFF}"
 

@@ -212,7 +212,7 @@ def credit_rows(story: Dict[str, Any], call: Dict[str, Any], insert: Dict[str, A
 
 
 def aurora_gap(story: Optional[Dict[str, Any]]) -> Optional[Followed]:
-    """NOT YET without a credit; FAILED when a link between her rows is missing."""
+    """NOT YET PASSED without a credit; FAILED when a link between her rows is missing."""
     if not story or story.get("credit_id") is None:
         return Followed(check.NOT_YET, observed="Jessica has no store credit yet",
                         next_step=f"finish Lab 4 ({FINISH_LAB_4}), then run this again.")

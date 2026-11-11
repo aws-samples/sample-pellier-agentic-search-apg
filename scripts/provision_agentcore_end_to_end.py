@@ -1649,7 +1649,7 @@ def _lab4_rule_gate(repo: Path) -> str:
     does not assess the participant's rule. ``scripts/lab4_check.py --task 4A``
     evaluates it with real Cedar beside the rendered baseline in about a
     second; a rule it marks FAILED would cost a redeploy and could deny
-    every shopper tool, so it is refused here, before any AWS change. NOT YET
+    every shopper tool, so it is refused here, before any AWS change. NOT YET PASSED
     (the starter, a reset) and PASSED deploy. COULD NOT CHECK, a check that could
     not run (``cedarpy`` missing, say), deploys the byte-identical starter with
     a warning, so bootstrap and Lab 3 are unaffected, and refuses an edited

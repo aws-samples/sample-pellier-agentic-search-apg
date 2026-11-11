@@ -2685,7 +2685,7 @@ def test_a_deploy_refuses_a_lab_4_rule_the_cedar_check_contradicts(tmp_path, cap
     assert re.search(r"Task 4A\s+\u2502 FAILED", capsys.readouterr().err)
 
 
-@pytest.mark.parametrize("which, state", [("starter", "NOT YET"), ("solution", "PASSED")])
+@pytest.mark.parametrize("which, state", [("starter", "NOT YET PASSED"), ("solution", "PASSED")])
 def test_a_deploy_allows_the_starter_and_a_correct_rule(tmp_path, which, state) -> None:
     provisioner = _load_provisioner()
     source = {"starter": LAB4_STARTER, "solution": LAB4_SOLUTION}

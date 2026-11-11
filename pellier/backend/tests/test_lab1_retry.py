@@ -63,14 +63,14 @@ def test_a_dropped_limit_is_named_and_blames_the_fallback() -> None:
 def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, observed) -> None:
     """Anna's chip used to state no limit; a fix must not read FAILED for it."""
     finding = _judge(_receipt(requested=requested, kept={}, exclusions=[]))
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert finding.observed == observed
     assert "uv run scripts/lab_run.py send --lab 1" in finding.next_step
 
 
 def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> None:
     finding = _judge(_receipt(relaxations=[]), ["80 Sunday Morning Candle is excluded candle"])
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert finding.observed.startswith("the first search answered, so the retry never ran")
     assert "_next_attempt" not in finding.next_step
 
@@ -166,7 +166,7 @@ def test_a_search_older_than_the_edit_is_not_judged() -> None:
     """The tester's sequence: the solution installed and restarted, Anna not sent again."""
     conn = _Conn(_dropped_at(RAN), [CANDLE])
     finding, rows = lab1.evaluate(conn, lab1.Timeline(EDITED, RESTARTED))
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert finding.observed == ("Anna's newest search ran at 14:45:43 UTC, before your last "
                                 "change to search_plan.py at 14:46:10 UTC, so the code before "
                                 "your edit made it")
@@ -179,7 +179,7 @@ def test_a_search_older_than_the_edit_is_not_judged() -> None:
 def test_a_backend_started_before_the_edit_asks_for_a_restart() -> None:
     finding, rows = lab1.evaluate(_Conn(_dropped_at(RAN), [CANDLE]),
                                   lab1.Timeline(RESTARTED, EDITED))
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert finding.observed.startswith("pellier last started at 14:46:10 UTC, before your last "
                                        "change to search_plan.py at 14:46:19 UTC")
     assert finding.next_step.startswith("send Anna's request again")
@@ -201,7 +201,7 @@ def test_a_later_restart_for_another_lab_does_not_date_the_search() -> None:
 
 def test_without_systemd_the_edit_alone_dates_the_search() -> None:
     finding, _rows = lab1.evaluate(_Conn(_dropped_at(RAN), [CANDLE]), lab1.Timeline(EDITED, None))
-    assert finding.state == "NOT YET"
+    assert finding.state == "NOT YET PASSED"
     assert "before your last change to search_plan.py at 14:46:10 UTC" in finding.observed
 
 

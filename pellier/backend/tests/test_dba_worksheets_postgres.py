@@ -1,10 +1,10 @@
 """The DBA worksheets on real PostgreSQL, built by the real setup scripts.
 
 The workload worksheet runs on a cluster that preloads pg_stat_statements, as the
-workshop's Aurora parameter group does: it fails NOT YET before any tool call,
+workshop's Aurora parameter group does: it fails NOT YET PASSED before any tool call,
 passes once get_orders and get_tickets have run as pellier_agent, and says
 unchecked on a cluster without the library. The reconstruction worksheet runs on
-Jessica's chain written by the app's own functions: it fails NOT YET while a link
+Jessica's chain written by the app's own functions: it fails NOT YET PASSED while a link
 is missing and passes once every link finds its row. Neither changes a table.
 """
 
@@ -203,12 +203,13 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
         fresh_db: Cluster) -> None:  # noqa: F811
     nothing = _worksheet(fresh_db, RECONSTRUCT)
     assert nothing.returncode != 0
-    assert "Observed  NOT YET: Jessica has no store credit" in nothing.stdout
+    assert "Observed  NOT YET PASSED: Jessica has no store credit" in nothing.stdout
 
     chain = _jessica_chain(fresh_db, handoff_row=False)
     gap = _worksheet(fresh_db, RECONSTRUCT)
     assert gap.returncode != 0
-    assert "NOT YET: her request's turn left no ask_a_person row in tool_audit" in gap.stdout
+    assert ("Observed  NOT YET PASSED:\n"
+            "          her request's turn left no ask_a_person row in tool_audit") in gap.stdout
     assert gap.stdout.rstrip().endswith("Wrap-up reconstruction failed")
 
     with _connect(fresh_db) as conn:

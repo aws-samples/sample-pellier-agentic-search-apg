@@ -9,7 +9,7 @@ columns, so a participant reads one shape everywhere.
 A finding is in one of four states, never two:
 
     PASSED           a durable row exists and satisfies the claim
-    NOT YET          the lab has not left its evidence
+    NOT YET PASSED   the lab has not left its evidence
     COULD NOT CHECK  the check could not look (no database, no psql, no settings)
     FAILED           the check looked and found evidence against the claim
 
@@ -39,7 +39,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_ENV = REPO / "pellier" / "backend" / ".env"
 
 PASSED = "PASSED"
-NOT_YET = "NOT YET"
+NOT_YET = "NOT YET PASSED"
 COULD_NOT_CHECK = "COULD NOT CHECK"
 FAILED = "FAILED"
 STATES = (PASSED, NOT_YET, COULD_NOT_CHECK, FAILED)
@@ -496,7 +496,7 @@ def clear_reset_points() -> None:
 
 
 def since_note(lab: int, send_again: str) -> str:
-    """The sentence a NOT YET finding adds when the lab was reset, else an empty string."""
+    """The sentence a NOT YET PASSED finding adds when the lab was reset, else an empty string."""
     moment = reset_point(lab)
     if moment is None:
         return ""
