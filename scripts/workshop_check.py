@@ -426,13 +426,8 @@ def service_started(value: str) -> Optional[datetime]:
         return None
 
 
-def edit_timeline(edited_file: pathlib.Path) -> Timeline:
-    """This box's timeline: the task file's modification time and pellier's systemd start."""
-    try:
-        edited: Optional[datetime] = datetime.fromtimestamp(edited_file.stat().st_mtime,
-                                                            tz=timezone.utc)
-    except OSError:
-        edited = None
+def service_start_time() -> Optional[datetime]:
+    """When systemd last started pellier, in UTC; None without systemd or a started service."""
     # Microseconds: the solution command writes the file and restarts within one second, and
     # whole seconds would date that restart before the edit.
     try:
@@ -443,7 +438,17 @@ def edit_timeline(edited_file: pathlib.Path) -> Timeline:
         ).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         shown = ""
-    return Timeline(edited, service_started(shown))
+    return service_started(shown)
+
+
+def edit_timeline(edited_file: pathlib.Path) -> Timeline:
+    """This box's timeline: the task file's modification time and pellier's systemd start."""
+    try:
+        edited: Optional[datetime] = datetime.fromtimestamp(edited_file.stat().st_mtime,
+                                                            tz=timezone.utc)
+    except OSError:
+        edited = None
+    return Timeline(edited, service_start_time())
 
 
 def clock(moment: datetime) -> str:

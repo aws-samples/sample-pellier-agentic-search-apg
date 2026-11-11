@@ -182,7 +182,8 @@ def test_a_backend_started_before_the_edit_asks_for_a_restart() -> None:
     assert finding.state == "NOT YET"
     assert finding.observed.startswith("pellier last started at 14:46:10 UTC, before your last "
                                        "change to search_plan.py at 14:46:19 UTC")
-    assert finding.next_step.startswith("restart the backend (uv run scripts/lab_run.py restart)")
+    assert finding.next_step.startswith("send Anna's request again")
+    assert "restart" not in finding.next_step.split(";")[0], "the send restarts Pellier itself"
     assert rows == []
 
 

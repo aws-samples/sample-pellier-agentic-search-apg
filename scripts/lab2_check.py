@@ -63,7 +63,6 @@ STOCK_AGENT_NAME = "stock"
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 SEND = "uv run scripts/lab_run.py send --lab 2"
 SEND_2A = "uv run scripts/lab_run.py send --lab 2 --task 2A"
-RESTART = "uv run scripts/lab_run.py restart"
 STOCK_AGENT_FILE = BACKEND / "agents" / "stock_agent.py"
 WORKSHEET = REPO / "workshop" / "lab-2-check-stock.sql"
 WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
@@ -340,8 +339,8 @@ def stale_2a(created: Any, when: Optional[check.Timeline]) -> Optional[Tuple[str
         return (f"pellier last started at {check.clock(started)}, before your last change to "
                 f"stock_agent.py at {check.clock(edited)}, so the running agent is not your "
                 "edit yet",
-                f"restart the backend ({RESTART}), send Marco's Brooklyn count again "
-                f"({SEND_2A}), then rerun this check.")
+                f"send Marco's Brooklyn count again ({SEND_2A}); it restarts the backend first, "
+                "so your edit runs. Then rerun this check.")
     if not isinstance(created, datetime) or edited is None:
         return None
     if created.tzinfo is None:

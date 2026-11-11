@@ -93,6 +93,7 @@ import textwrap
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime
 from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, Optional,
                     Sequence, Tuple)
 
@@ -155,10 +156,9 @@ NEXT_AFTER_TASK = {
 }
 BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
-    1: "restart the backend (sudo systemctl restart pellier), then send the lab's request.",
-    2: ("run the Task 2B SQL file (psql -f "
-        "labs/02-ground/2B-check-stock.sql), restart the backend (sudo systemctl restart "
-        "pellier), then send the lab's requests."),
+    1: "send the lab's request (uv run scripts/lab_run.py send --lab 1).",
+    2: ("run the Task 2B SQL file (psql -f labs/02-ground/2B-check-stock.sql), then send the "
+        "lab's requests (uv run scripts/lab_run.py send --lab 2)."),
     3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",
     4: f"deploy the Cedar rule ({DEPLOY}), then send the lab's requests.",
 }
@@ -455,7 +455,8 @@ def _keep(repo: pathlib.Path, alias: str, yours: bytes) -> str:
     return lab_reference.keep_version(repo, alias, yours)
 
 
-def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run) -> None:
+def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run,
+                    reason: str = "restarting the backend so it serves the new code") -> None:
     """Restart the Pellier service the way the guide does, then wait until it is healthy."""
     problem = python_edit_problem()
     if problem:
@@ -465,7 +466,7 @@ def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run
                           "Restart it yourself, then run the next command.")
     command = (["systemctl", "restart", "pellier"] if os.geteuid() == 0
                else ["sudo", "-n", "systemctl", "restart", "pellier"])
-    wait("restarting the backend so it serves the new code")
+    wait(reason)
     with waiting("Restarting the backend", typical=RESTART_TYPICAL_SECONDS):
         restarted = run(command, check=False).returncode == 0
     if not restarted:
@@ -1124,6 +1125,32 @@ def mint_token(username: str) -> str:
         raise LabRunError(f"could not sign in as {username}: {exc}") from exc
 
 
+def edited_after_start(started: Optional[datetime],
+                       repo: Optional[pathlib.Path] = None) -> Optional[str]:
+    """The lab file the backend imports that was saved after it started, newest first, by the
+    name the Explorer shows; None when nothing is newer or the start time is unknown.
+
+    Labs 1 and 2 run their agents inside the backend, which reads Python once, when it starts,
+    so a saved edit runs only after a restart. SQL takes effect when it commits and Cedar when
+    it deploys, so neither asks for one.
+    """
+    if started is None:
+        return None
+    repo = repo or REPO
+    newest: Optional[Tuple[float, str]] = None
+    for entry in json.loads((repo / "workshop" / "participant-files.json").read_text("utf-8")):
+        source = repo / entry["source"]
+        if not entry["source"].startswith(BACKEND_DIR) or source.suffix != ".py":
+            continue
+        try:
+            saved = source.stat().st_mtime
+        except OSError:
+            continue
+        if saved > started.timestamp() and (newest is None or saved > newest[0]):
+            newest = (saved, pathlib.PurePosixPath(entry["alias"]).name)
+    return newest[1] if newest else None
+
+
 def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
          shopper_only: bool = False, trace: bool = True, task: Optional[str] = None,
          say_next: bool = False) -> None:
@@ -1134,7 +1161,14 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
     configured = _configured_rail()
     if configured is not None and configured != LAB_RAIL[lab]:
         raise LabRunError(_rail_problem(lab, configured, {}, before=True))
-    wait_until_healthy(backend)
+    # A participant who saved an edit should not have to restart the backend by hand first.
+    edited = (edited_after_start(check.service_start_time())
+              if LAB_RAIL[lab] == IN_PROCESS else None)
+    if edited:
+        restart_backend(backend, reason=f"{edited} was saved after the backend started; "
+                                        "restarting the backend so it runs your edit")
+    else:
+        wait_until_healthy(backend)
     tokens: Dict[str, str] = {}
     for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
         if persona not in tokens:

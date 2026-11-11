@@ -9,11 +9,13 @@ from __future__ import annotations
 
 import importlib
 import json
+import os
 import re
 import shutil
 import sys
 import threading
 import time
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
@@ -321,7 +323,9 @@ def test_solution_replaces_the_task_file_and_reports_a_second_run(
         assert (repo / entry["source"]).read_bytes() == (repo / entry["solution"]).read_bytes()
     first = capsys.readouterr().out
     assert "1B-search-plan.py now holds the solution" in first
-    assert "sudo systemctl restart pellier" in first
+    # The send that follows restarts Pellier itself, so the next step names only the send.
+    assert "systemctl" not in first and "restart" not in first
+    assert "uv run scripts/lab_run.py send --lab 1" in first
 
     lab_run.install_solution(1, repo)
     assert "1B-search-plan.py already holds the solution" in capsys.readouterr().out
@@ -1793,3 +1797,88 @@ def test_a_catch_up_command_relays_its_output_through_this_process(
     assert result.returncode == 0
     assert out == "Lab 1A check passed\n" and err == "a warning\n"
     assert lab_run.relayed([sys.executable, "-c", "raise SystemExit(3)"]).returncode == 3
+
+
+# ---------------------------------------------------------------------------
+# send restarts Pellier itself when a lab Python file was saved after it started
+# ---------------------------------------------------------------------------
+
+STARTED = datetime(2026, 11, 11, 1, 0, tzinfo=timezone.utc)
+
+
+def _saved_at(path: Path, moment: datetime) -> None:
+    os.utime(path, (moment.timestamp(), moment.timestamp()))
+
+
+def _aged(repo: Path, moment: datetime) -> None:
+    for entry in json.loads((repo / "workshop/participant-files.json").read_text("utf-8")):
+        if (repo / entry["source"]).exists():
+            _saved_at(repo / entry["source"], moment)
+
+
+def test_a_backend_file_saved_after_the_start_is_named(tmp_path: Path) -> None:
+    repo = _scratch_repo(tmp_path)
+    _aged(repo, STARTED - timedelta(hours=1))
+    _saved_at(repo / "pellier/backend/services/search_plan.py", STARTED + timedelta(seconds=5))
+    assert lab_run.edited_after_start(STARTED, repo) == "1B-search-plan.py"
+
+
+def test_nothing_is_named_when_every_file_is_older_or_the_start_is_unknown(
+    tmp_path: Path,
+) -> None:
+    repo = _scratch_repo(tmp_path)
+    _aged(repo, STARTED - timedelta(hours=1))
+    assert lab_run.edited_after_start(STARTED, repo) is None
+    _saved_at(repo / "pellier/backend/services/search_plan.py", STARTED + timedelta(seconds=5))
+    assert lab_run.edited_after_start(None, repo) is None
+
+
+def test_a_saved_sql_or_cedar_file_needs_no_restart(tmp_path: Path) -> None:
+    """SQL takes effect when it commits and Cedar when it deploys; the app serves neither."""
+    repo = _scratch_repo(tmp_path)
+    _aged(repo, STARTED - timedelta(hours=1))
+    for name in ("workshop/lab-2-check-stock.sql", "policies/credit_limit.cedar"):
+        _saved_at(repo / name, STARTED + timedelta(seconds=5))
+    assert lab_run.edited_after_start(STARTED, repo) is None
+
+
+@pytest.fixture
+def restarts(monkeypatch: pytest.MonkeyPatch) -> List[str]:
+    """The service restart is systemd's; record each request for one and why."""
+    calls: List[str] = []
+
+    def restart(backend: Any, reason: str = "") -> None:
+        calls.append(reason)
+
+    monkeypatch.setattr(lab_run, "restart_backend", restart)
+    monkeypatch.setattr(lab_run.check, "service_start_time", lambda: STARTED)
+    return calls
+
+
+def test_send_restarts_pellier_before_a_request_when_the_edit_is_newer(
+    fake: FakeBackend, restarts: List[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run, "edited_after_start",
+                        lambda started, repo=None: "1B-search-plan.py" if started else None)
+    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert len(restarts) == 1 and "1B-search-plan.py" in restarts[0]
+    assert _turns(fake), "the request still goes out after the restart"
+
+
+def test_send_does_not_restart_pellier_when_nothing_changed(
+    fake: FakeBackend, restarts: List[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run, "edited_after_start", lambda started, repo=None: None)
+    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert restarts == []
+
+
+def test_a_lab_on_agentcore_never_restarts_the_local_app(
+    fake: FakeBackend, restarts: List[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """From Lab 3 the agents run on AgentCore; a deploy, not a restart, ships an edit."""
+    monkeypatch.setattr(lab_run, "edited_after_start",
+                        lambda started, repo=None: "3A-2-bind-caller.py")
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 3) == 0
+    assert restarts == []

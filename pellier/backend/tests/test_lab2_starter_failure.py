@@ -215,7 +215,8 @@ def test_a_backend_started_before_the_edit_is_not_yet(conn) -> None:
     finding = lab2.judge_2a(conn, lab2.check.Timeline(now, now - timedelta(minutes=1)))
     assert finding.state == "NOT YET", finding
     assert "the running agent is not your edit yet" in finding.observed
-    assert "uv run scripts/lab_run.py restart" in finding.next_step
+    assert finding.next_step.startswith("send Marco's Brooklyn count again")
+    assert "lab_run.py restart" not in finding.next_step
 
 
 def test_a_turn_after_the_edit_and_the_restart_is_judged(conn) -> None:

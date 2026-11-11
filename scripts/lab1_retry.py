@@ -55,7 +55,6 @@ NEXT_STEP = (
 )
 NEXT_REQUEST = f"send Anna's request with {SEND}, then rerun this check."
 SEARCH_PLAN = check.REPO / "pellier" / "backend" / "services" / "search_plan.py"
-RESTART = "uv run scripts/lab_run.py restart"
 
 
 Timeline = check.Timeline
@@ -76,8 +75,8 @@ def stale(receipt: Dict[str, Any], when: Optional[Timeline]) -> Optional[Tuple[s
     if edited and started and started < edited:
         return (f"pellier last started at {_clock(started)}, before your last change to "
                 f"search_plan.py at {_clock(edited)}, so the code running is not your edit yet",
-                f"restart the backend ({RESTART}), send Anna's request again ({SEND}), then "
-                "rerun this check.")
+                f"send Anna's request again ({SEND}); it restarts the backend first, so your "
+                "edit runs. Then rerun this check.")
     created = receipt.get("created_at")
     if not isinstance(created, datetime) or edited is None:
         return None

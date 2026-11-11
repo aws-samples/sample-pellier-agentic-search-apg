@@ -361,8 +361,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  skipped {line}", file=sys.stderr, flush=True)
     changed = [*report.restored, *report.recreated]
     if not args.check and any(RESTART_PATTERN.match(path) for path in changed):
-        print("  Next: restart the backend (sudo systemctl restart pellier) so it runs the "
-              "restored code.", flush=True)
+        print("  Next: restart the backend so it runs the restored code: "
+              "uv run scripts/lab_run.py restart", flush=True)
     return 0
 
 
