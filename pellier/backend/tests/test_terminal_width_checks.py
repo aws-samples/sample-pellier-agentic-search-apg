@@ -233,3 +233,30 @@ def test_marcos_two_lines_fit_and_keep_their_words(
         'check_stock("Velvet Opera Cape") answers not_found; the catalog: '
         "not_found: no product matches Velvet Opera Cape")
     assert all(line.startswith("  ") for line in lines[1:])
+
+
+@TERMINALS
+def test_the_not_deployed_4a_box_fits_the_terminal(
+        monkeypatch: pytest.MonkeyPatch, columns: int) -> None:
+    """A box row wider than the terminal wraps, and every row after it breaks the box."""
+    lab4_policy = importlib.import_module("lab4_policy")
+    width = terminal(monkeypatch, columns)
+    waiting = lab4_policy._deployed_rule_gap(
+        "forbid(principal, action, resource) unless { false };",
+        "forbid(principal, action, resource) unless { context.input.amount_cents <= 10000 };",
+        True, ["policy credit_limit credit_limit-abc, policy set sha256:" + "0" * 16])
+    assert waiting is not None and waiting.observed == lab4_policy.NOT_DEPLOYED
+    for line in check.render(waiting).splitlines():
+        assert len(check.plain(line)) <= width, line
+
+
+def test_a_catch_up_never_points_at_a_next_line_it_hides(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Inside a catch-up no closing Next prints, so the box must not send the reader to one."""
+    lab4_policy = importlib.import_module("lab4_policy")
+    monkeypatch.setenv(check.NO_NEXT_ENV, "1")
+    waiting = lab4_policy._deployed_rule_gap(
+        "forbid(principal, action, resource) unless { false };",
+        "forbid(principal, action, resource) unless { context.input.amount_cents <= 10000 };",
+        True, ["policy credit_limit credit_limit-abc"])
+    assert waiting is not None and "Next line" not in waiting.next_step
+    assert "Next:" not in check.plain(lab4_policy.closing(True, waiting))

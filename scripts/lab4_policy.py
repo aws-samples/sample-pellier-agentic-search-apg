@@ -753,9 +753,11 @@ def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: b
                                 "provisioning deploys the original rule; ask for the environment to "
                                 "be reprovisioned.")
     if not same_rule(deployed, local_rule):
-        return _managed_finding(check.NOT_YET, NOT_DEPLOYED, evidence,
-                                'deploy it: uv run scripts/provision_agentcore_end_to_end.py '
-                                '--repo-path "$PWD" --mode participant')
+        # The command itself is on the closing Next line: at 86 characters it cannot stay whole
+        # inside a box and still fit a 100-column terminal. A catch-up prints no Next line.
+        step = ("deploy your rule with the command on the Next line below." if check.says_next()
+                else "deploy your rule, then run this check again.")
+        return _managed_finding(check.NOT_YET, NOT_DEPLOYED, evidence, step)
     if not local_proved:
         return _managed_finding(check.NOT_YET, "your rule is deployed but did not pass Part 1",
                                 evidence, "fix the rule until Part 1 passes, then deploy it again.")

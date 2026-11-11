@@ -287,7 +287,8 @@ class TestTheManagedVerdict:
     def test_a_deployed_rule_that_is_not_the_file_is_not_yet(self) -> None:
         finding = _judge(deployed=lab4.render_rule(STARTER))
         assert finding.state == check.NOT_YET
-        assert "--mode participant" in finding.next_step
+        assert "Next line below" in finding.next_step
+        assert "--mode participant" in lab4.closing(True, finding)
 
     def test_comments_and_spacing_do_not_count_as_a_different_rule(self) -> None:
         rule = lab4.render_rule(SOLUTION)
