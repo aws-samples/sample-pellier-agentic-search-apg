@@ -225,10 +225,12 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
             check.wrapped("  ", f"trace {call['trace_id']}  request {call['request_id']}")]
 
 
-def no_call_message(tool: str) -> str:
-    """What to do when no ``tool`` call has reached CloudWatch yet, wrapped to the terminal."""
+def no_call_message(tool: str, minutes: int) -> str:
+    """What to do when no ``tool`` call is in the window, wrapped to the terminal: wait for a
+    call's spans to arrive, or look further back for one older than ``minutes``."""
     return check.wrapped("", f"No {tool} call yet. Spans arrive about ten seconds after a "
-                             "call; run this again in a moment.")
+                             f"call; run this again in a moment. If the call was more than "
+                             f"{minutes} minutes ago, add --minutes {minutes * 3}.")
 
 
 def _filter(logs: Any, start_ms: int, pattern: str, group: str = LOG_GROUP,
@@ -480,7 +482,7 @@ def main() -> int:
     print(check.wrapped("", f"AgentCore spans for {args.tool}, last {args.minutes} minutes "
                             f"({LOG_GROUP})"))
     if not calls:
-        print(no_call_message(args.tool))
+        print(no_call_message(args.tool, args.minutes))
         return 1
     names = subject_names(boto3.client("cognito-idp", region_name=settings.cognito_region_resolved),
                           settings.cognito_pool_id_resolved)

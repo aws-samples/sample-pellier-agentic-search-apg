@@ -108,10 +108,11 @@ def test_the_trace_and_request_line_keeps_both_ids(
 @TERMINALS
 def test_the_no_call_message_fits(monkeypatch: pytest.MonkeyPatch, columns: int) -> None:
     width = terminal(monkeypatch, columns)
-    text = trace.no_call_message("give_store_credit")
+    text = trace.no_call_message("give_store_credit", 60)
     assert_fits(text, width)
     assert words(text) == words("No give_store_credit call yet. Spans arrive about ten seconds "
-                                "after a call; run this again in a moment.")
+                                "after a call; run this again in a moment. If the call was more "
+                                "than 60 minutes ago, add --minutes 180.")
 
 
 def _followed() -> Any:
