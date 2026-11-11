@@ -637,6 +637,8 @@ def test_an_in_process_lab_refuses_a_turn_that_ran_on_agentcore(
     err = capsys.readouterr().err
     assert "Lab 1 runs in process, but this turn ran on gateway-mcp" in err
     assert "USE_AGENTCORE_RUNTIME=false" in err
+    # "Restart the backend" named no command; this is the one the guide uses.
+    assert "uv run scripts/lab_run.py restart" in err
 
 
 def test_a_managed_lab_refuses_an_in_process_turn(

@@ -254,8 +254,8 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
     \echo '          check at all.'
   \elif :lab_4_rights_differ
     \echo 'Next      run the function with its owner''s rights and search_path pinned to'
-    \echo '          pg_catalog, pg_temp: it names every table with its schema, and pg_temp'
-    \echo '          last keeps a caller''s temporary objects from being found first.'
+    \echo '          the system catalog, with the temporary schema last: the function names'
+    \echo '          every table with its schema, so it needs no other schema in the path.'
   \else
     \echo 'Next      the role reaches no table, so the function must: run it as its owner and'
     \echo '          grant EXECUTE on it to pellier_credit_writer alone.'

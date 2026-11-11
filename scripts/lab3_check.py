@@ -330,7 +330,7 @@ def judge_build(row: Optional[Dict[str, Any]], local: str,
     if not row:
         return check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
                              "no Gateway tool call in a shopper turn yet", [],
-                             f"run bash scripts/lab3-start.sh theo, then {SEND}."
+                             f"send Theo's requests: {SEND}."
                              + check.since_note(3, SEND))
     deployed = str(row.get("deployed_fingerprint") or "").strip()
     tools_deployed = str(row.get("deployed_tools_fingerprint") or "").strip()

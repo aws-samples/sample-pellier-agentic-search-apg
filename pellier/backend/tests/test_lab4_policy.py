@@ -261,6 +261,7 @@ class TestTheManagedVerdict:
         # The rule as shipped denies 10001 too: a DENY while the update propagates proves less.
         assert "cannot tell your rule from the original one still propagating" in evidence
         assert "Jessica's $100.00 credit" in evidence
+        assert "workshop_evidence.py" not in evidence, "that script takes no task argument"
 
     def test_the_gateway_words_print_whole_and_a_guardrail_field_is_explained(self) -> None:
         """2026-10-14: the verbatim line stopped at 160 characters on "contex" and named the

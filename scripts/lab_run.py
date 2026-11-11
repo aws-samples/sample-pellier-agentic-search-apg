@@ -859,9 +859,10 @@ def _rail_problem(lab: int, served: str, response: Dict[str, Any], *, before: bo
         observed += f" ({reason})" if reason else ""
     if wanted == IN_PROCESS:
         return (f"Lab {lab} runs in process, but {observed}.\n"
-                "Lab 3's deploy has moved Pellier onto AgentCore, so a turn would not run the code\n"
-                "you edited. To rerun it, set USE_AGENTCORE_RUNTIME=false in .env, restart the\n"
-                "backend and rerun this command. To move back to AgentCore, run:\n"
+                "Lab 3's deploy has moved Pellier onto AgentCore, so a turn would not run the\n"
+                "code you edited. To rerun it, set USE_AGENTCORE_RUNTIME=false in .env, then run:\n"
+                "  uv run scripts/lab_run.py restart\n"
+                "and rerun this command. To move back to AgentCore, run:\n"
                 "  bash scripts/lab3-start.sh theo")
     return (f"Lab {lab} runs on AgentCore Runtime and Gateway, but {observed}.\n"
             "Lab 3's deploy moves Pellier onto AgentCore. Run:\n"

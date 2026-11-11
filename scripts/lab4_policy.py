@@ -779,8 +779,8 @@ def _call_outcome(payload: Dict[str, Any], rows: Dict[str, int],
     # The starter denies 10001 cents too, so a DENY read while the update is
     # still propagating cannot tell the two apart on its own.
     evidence.append("the original rule denies 10001 cents too, so this DENY alone cannot tell your "
-                    "rule from the original one still propagating; Jessica's $100.00 credit, which only your "
-                    "rule allows, is the other half (uv run scripts/workshop_evidence.py, 4A)")
+                    "rule from the original one still propagating; Jessica's $100.00 credit, "
+                    "which only your rule allows, is the other half")
     return _managed_finding(check.PASSED, "Cedar denied the over-limit credit before the tool "
                                           "ran; its key left no row", evidence)
 

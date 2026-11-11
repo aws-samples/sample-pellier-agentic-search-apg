@@ -55,7 +55,7 @@ NEXT_STEP = (
 )
 NEXT_REQUEST = f"send Anna's request with {SEND}, then rerun this check."
 SEARCH_PLAN = check.REPO / "pellier" / "backend" / "services" / "search_plan.py"
-RESTART = "sudo systemctl restart pellier"
+RESTART = "uv run scripts/lab_run.py restart"
 
 
 Timeline = check.Timeline

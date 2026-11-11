@@ -59,7 +59,12 @@ class TestTheBuild:
         assert "uv run scripts/lab_run.py send --lab 3" in finding.next_step
 
     def test_no_turn_is_not_yet_and_an_unstamped_row_is_unchecked(self) -> None:
-        assert lab3.judge_build(None, BUILD).state == check.NOT_YET
+        nothing_sent = lab3.judge_build(None, BUILD)
+        assert nothing_sent.state == check.NOT_YET
+        # The deploy has already moved Pellier onto AgentCore, so the next step is the send.
+        assert nothing_sent.next_step.startswith(
+            "send Theo's requests: uv run scripts/lab_run.py send --lab 3")
+        assert "lab3-start.sh" not in nothing_sent.next_step
         unstamped = {**BUILD_ROW, "deployed_fingerprint": None}
         assert lab3.judge_build(unstamped, BUILD).state == check.COULD_NOT_CHECK
         assert lab3.judge_build(BUILD_ROW, "").state == check.COULD_NOT_CHECK

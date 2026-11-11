@@ -33,10 +33,8 @@ BACKEND = check.REPO / "pellier" / "backend"
 TITLE = "the vector search ranks by meaning"
 EXPECTED = ("each product's own embedding finds that product first, the rest by rising "
             "distance, similarity = 1 - distance, a full pool, and Anna's requirements kept")
-NEXT_STEP = ("open the Vector search - order by meaning region in "
-             "pellier/backend/services/store_tools.py: which pgvector operator measures how "
-             "far a product is from the query embedding, and which way should the rows run? "
-             "Then rerun this check.")
+NEXT_STEP = ("apply Task 1A (uv run scripts/lab_run.py solution --lab 1 --task 1A), then rerun "
+             "this check.")
 
 SELF_PROBES = ("Stoneware Mugs, Set of 2", "Hadley Linen Shirt", "Sunday Morning Candle")
 LIMITS_PROBE = "Sunday Morning Candle"

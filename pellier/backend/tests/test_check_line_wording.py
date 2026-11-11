@@ -49,6 +49,12 @@ def test_the_observability_boxes_are_records_not_tasks() -> None:
         assert len({line.index("\u2502", 1) for line in rows}) == 1
 
 
+def test_task_1a_failing_next_step_is_the_command_that_applies_it() -> None:
+    vector = importlib.import_module("lab1_vector")
+    assert "uv run scripts/lab_run.py solution --lab 1 --task 1A" in vector.NEXT_STEP
+    assert "store_tools.py" not in vector.NEXT_STEP, "Task 1A is applied by command, not written"
+
+
 def test_a_cut_product_name_ends_in_dots() -> None:
     rows, _ = lab1._rows(["P1"], {"P1": PRODUCT}, lab1.limits_of({}, []))
     name = rows[0][1]
