@@ -274,7 +274,7 @@ class SearchPlan:
         # Task 1B: build the next attempt from this validated request.
         if not relaxations:
             return replace(self, relaxations=[])
-        # A retry is a fresh plan: it keeps only the fields passed below.
+        # A retry is a fresh, broader search built from the shopper's words.
         return SearchPlan(
             intent=self.intent,
             soft=self.soft,
