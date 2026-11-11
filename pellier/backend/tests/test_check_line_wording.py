@@ -38,7 +38,8 @@ def test_the_observability_boxes_are_records_not_tasks() -> None:
         def __getattr__(self, name: str):
             raise RuntimeError("no AWS here")
 
-    findings = observability.check(_Broken(), _Broken(), _Broken(), "arn:aws:rds:x:y:cluster:c", 5)
+    findings = observability.check(_Broken(), _Broken(), _Broken(),
+                                  "arn:aws:rds:us-east-1:123456789012:cluster:c", 5)
     assert len(findings) == 3
     boxes = [check.render(finding) for finding in findings]
     for number, box in enumerate(boxes, start=1):
