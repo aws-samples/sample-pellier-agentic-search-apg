@@ -86,23 +86,25 @@ class Holder:
 def _deploy(repo: Path, receipt: Path, *flags: str, holder: Optional[Holder] = None,
             then: Optional[str] = None) -> subprocess.CompletedProcess[str]:
     """Run the provisioner as a participant; while it follows, end the holder with ``then``."""
+    # Unbuffered: communicate() reads the pipe itself, so lines a buffered readline() had
+    # already taken past "Following it here" (the running deploy's log) would be lost.
     second = subprocess.Popen(
         [sys.executable, str(PROVISIONER), "--repo-path", str(repo), "--mode", "participant",
          "--output-json", str(receipt), *flags],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0,
         env={**_bare_env(), deploy_lock.POLL_ENV: "0.1"})
-    seen = ""
+    seen = b""
     if holder is not None and then is not None:
         assert second.stdout is not None
-        while "Following it here" not in seen:  # end the holder only once the second follows
+        while b"Following it here" not in seen:  # end the holder only once the second follows
             line = second.stdout.readline()
             assert line, "the second deploy ended without following the first"
             seen += line
         holder.end(then)
     out, err = second.communicate(timeout=120)
     # A terminal message wraps at deploy_lock.WIDTH; compare its words, not its line breaks.
-    return subprocess.CompletedProcess(second.args, second.returncode, _flat(seen + out),
-                                       _flat(err))
+    return subprocess.CompletedProcess(second.args, second.returncode,
+                                       _flat((seen + out).decode()), _flat(err.decode()))
 
 
 def _flat(text: str) -> str:
