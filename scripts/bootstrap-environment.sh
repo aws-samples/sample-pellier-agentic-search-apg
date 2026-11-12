@@ -720,6 +720,46 @@ install_extension "dbaeumer.vscode-eslint" "ESLint"
 install_extension "esbenp.prettier-vscode" "Prettier"
 install_extension "bradlc.vscode-tailwindcss" "Tailwind CSS"
 
+# Task 4A's policy is a .cedar file. The Cedar project's extension gives it the Cedar icon in
+# the Explorer and Cedar syntax colours; without it the file opens as Plain Text. Open VSX, the
+# Code Editor's registry, does not carry it, so it comes from the project's GitHub release
+# (Apache-2.0), pinned by version and sha256. It is cosmetic: a failed download, hash or
+# install logs why, leaves the file as Plain Text, and never stops setup. Pellier ships no
+# Cedar schema for the extension to validate against, and every .cedar file in the repository
+# parses with the Cedar parser. 0.10.6 rather than 0.12.0: the same icon and colours, without
+# 0.12.0's Testing view and Cedar CLI additions, which no lab uses.
+CEDAR_EXTENSION_VERSION="0.10.6"
+CEDAR_EXTENSION_SHA256="b985dd29fc19d91db368031005effa3a875e02bb0a7ec6e4a3c42eb9eb387761"
+CEDAR_EXTENSION_RELEASES="https://github.com/cedar-policy/vscode-cedar/releases/download"
+
+install_cedar_extension() {
+    local name="vscode-cedar-${CEDAR_EXTENSION_VERSION}.vsix"
+    local url="$CEDAR_EXTENSION_RELEASES/v${CEDAR_EXTENSION_VERSION}/$name"
+    local plain=".cedar files open as Plain Text"
+    local vsix_dir vsix
+    vsix_dir="$(mktemp -d "${TMPDIR:-/tmp}/cedar-vsix.XXXXXX")" || return 1
+    vsix="$vsix_dir/$name"
+    if ! curl -fsSL --retry 3 --max-time 30 "$url" -o "$vsix"; then
+        warn "  ⚠️  Cedar extension download failed; $plain"
+    elif [ "$(sha256sum "$vsix" | cut -d' ' -f1)" != "$CEDAR_EXTENSION_SHA256" ]; then
+        warn "  ⚠️  Cedar extension sha256 mismatch, not installed; $plain"
+    else
+        chmod 0755 "$vsix_dir" && chmod 0644 "$vsix"
+        sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" \
+            --install-extension "$vsix" --force 2>&1 || true
+        if sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" \
+            --list-extensions --show-versions 2>/dev/null |
+            grep -Fxiq -- "cedar-policy.vscode-cedar@${CEDAR_EXTENSION_VERSION}"; then
+            log "  ✅ Cedar ${CEDAR_EXTENSION_VERSION}"
+        else
+            warn "  ⚠️  Cedar extension not installed; $plain"
+        fi
+    fi
+    rm -f "$vsix"
+    rmdir "$vsix_dir"
+}
+install_cedar_extension || warn "  ⚠️  Cedar extension step failed; .cedar files open as Plain Text"
+
 log "✅ VS Code extensions installed"
 
 # ============================================================================
