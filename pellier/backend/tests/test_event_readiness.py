@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -117,6 +118,40 @@ def test_a_facilitator_issue_is_not_ready_even_when_lab_one_could_start() -> Non
                                   "records for Lab 3", "- WARN\x1b[0m  " + MEMORY_MISSING)
     lines, code = readiness.run_checks(run=_runner(output))
     assert readiness.verdict(lines, code, 180) == (False, MEMORY_MISSING)
+
+
+RUNTIME_OFF_V1 = ("Facilitator: AgentCore Runtime pellier_operator: platform V2, not the pinned "
+                  "V1. Fix: remove PELLIER_RUNTIME_PLATFORM_VERSION")
+
+
+def test_the_record_asks_workshop_start_for_the_runtime_check() -> None:
+    seen: List[Dict[str, Any]] = []
+
+    def run(argv: List[str], **kwargs: Any) -> Completed:
+        seen.append(kwargs)
+        return Completed(READY_OUTPUT)
+
+    readiness.run_checks(run=run)
+    assert seen[0]["env"]["PELLIER_READINESS_RECORD"] == "1"
+    assert seen[0]["env"]["PATH"] == os.environ["PATH"], "the rest of the environment is kept"
+
+
+def test_a_runtime_off_v1_makes_the_box_not_ready_and_names_the_fix() -> None:
+    output = READY_OUTPUT.replace(
+        "  \x1b[32m+ OK\x1b[0m    Ready for Lab 1",
+        f"  \x1b[33m- WARN\x1b[0m  {RUNTIME_OFF_V1}\n  \x1b[32m+ OK\x1b[0m    Ready for Lab 1")
+    lines, code = readiness.run_checks(run=_runner(output))
+    assert readiness.verdict(lines, code, 180) == (False, RUNTIME_OFF_V1)
+
+
+def test_a_runtime_version_that_cannot_be_read_is_not_ready() -> None:
+    unread = ("Facilitator: AgentCore Runtime pellier_operator: could not read the platform "
+              "version (the response has no platformVersion)")
+    output = READY_OUTPUT.replace(
+        "  \x1b[32m+ OK\x1b[0m    Ready for Lab 1",
+        f"  \x1b[33m- WARN\x1b[0m  {unread}\n  \x1b[32m+ OK\x1b[0m    Ready for Lab 1")
+    lines, code = readiness.run_checks(run=_runner(output))
+    assert readiness.verdict(lines, code, 180) == (False, unread)
 
 
 def test_a_check_that_runs_past_the_cap_is_recorded_as_a_failure() -> None:

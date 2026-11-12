@@ -902,8 +902,14 @@ class TestWorkshopStart:
     MEMORY_MISSING = ("Facilitator: Theo's AgentCore Memory has no preference records, so Lab "
                       "3's Memory finding will fail.")
 
+    RUNTIMES_OK = ("ok\tAgentCore Runtime pellier_orchestrator: READY on platform V1\n"
+                   "ok\tAgentCore Runtime pellier_operator: READY on platform V1")
+    RUNTIME_V2 = ("Facilitator: AgentCore Runtime pellier_operator: platform V2, not the pinned "
+                  "V1. Fix: redeploy")
+
     def _run(self, tmp_path: Path, health_body: Optional[str], memory_line: str = MEMORY_OK,
-             memory_exit: int = 0) -> Any:
+             memory_exit: int = 0, runtimes: str = RUNTIMES_OK, runtimes_exit: int = 0,
+             runtimes_stderr: str = "", readiness_record: bool = True) -> Any:
         repo = tmp_path / "repo"
         repo.mkdir()
         (repo / ".env").write_text("DB_HOST=h\nDB_NAME=n\nDB_USER=u\n", encoding="utf-8")
@@ -911,11 +917,14 @@ class TestWorkshopStart:
         if health_body is not None:
             health.write_text(health_body, encoding="utf-8")
         psql_log = tmp_path / "psql.log"
-        # The Memory read is AWS; everything else runs the real doctor.
+        # The Memory and Runtime reads are AWS; everything else runs the real doctor.
         python = tmp_path / "python-memory-stub"
         python.write_text(
             '#!/bin/sh\nfor arg in "$@"; do\n  if [ "$arg" = "--memory" ]; then\n'
-            '    printf "%s\\n" "$MEMORY_LINE"; exit "$MEMORY_EXIT"\n  fi\ndone\n'
+            '    printf "%s\\n" "$MEMORY_LINE"; exit "$MEMORY_EXIT"\n  fi\n'
+            '  if [ "$arg" = "--runtimes" ]; then\n    printf "%s\\n" "$RUNTIMES_LINES"\n'
+            '    if [ -n "$RUNTIMES_STDERR" ]; then printf "%s\\n" "$RUNTIMES_STDERR" >&2; fi\n'
+            '    exit "$RUNTIMES_EXIT"\n  fi\ndone\n'
             f'exec "{sys.executable}" "$@"\n', encoding="utf-8")
         python.chmod(0o755)
         result = subprocess.run(
@@ -931,9 +940,65 @@ class TestWorkshopStart:
                 PELLIER_PYTHON=str(python),
                 MEMORY_LINE=memory_line,
                 MEMORY_EXIT=str(memory_exit),
+                RUNTIMES_LINES=runtimes,
+                RUNTIMES_EXIT=str(runtimes_exit),
+                RUNTIMES_STDERR=runtimes_stderr,
+                PELLIER_READINESS_RECORD="1" if readiness_record else "",
             ),
         )
         return result, psql_log
+
+    @staticmethod
+    def _plain(text: str) -> str:
+        return re.sub(r"\x1b\[[0-9;]*m", "", text)
+
+    def test_each_runtime_on_v1_is_reported(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}')
+        out = self._plain(result.stdout)
+        assert "+ OK    AgentCore Runtime pellier_orchestrator: READY on platform V1" in out
+        assert "+ OK    AgentCore Runtime pellier_operator: READY on platform V1" in out
+
+    def test_a_runtime_off_v1_is_a_facilitator_warning_and_lab_one_can_still_start(
+        self, tmp_path: Path,
+    ) -> None:
+        lines = ("ok\tAgentCore Runtime pellier_orchestrator: READY on platform V1\n"
+                 f"warn\t{self.RUNTIME_V2}")
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', runtimes=lines, runtimes_exit=1)
+        out = self._plain(result.stdout)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert f"- WARN  {self.RUNTIME_V2}" in out
+        assert "Ready for Lab 1" in out
+
+    def test_a_crashed_runtime_read_cannot_confirm_v1_and_says_why(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', runtimes="", runtimes_exit=1,
+                              runtimes_stderr=("Traceback (most recent call last):\n"
+                                               "ModuleNotFoundError: No module named 'boto3'"))
+        out = self._plain(result.stdout)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert ("- WARN  Facilitator: AgentCore Runtime platform check did not finish: "
+                "ModuleNotFoundError: No module named 'boto3'") in out
+
+    def test_a_warning_on_stderr_does_not_unconfirm_two_good_runtimes(
+        self, tmp_path: Path,
+    ) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}',
+                              runtimes_stderr="DeprecationWarning: datetime.utcnow() is deprecated")
+        out = self._plain(result.stdout)
+        assert "+ OK    AgentCore Runtime pellier_operator: READY on platform V1" in out
+        assert "platform check did not finish" not in out
+
+    def test_a_participant_run_skips_the_runtime_check(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', readiness_record=False)
+        out = self._plain(result.stdout)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert "AgentCore Runtime pellier_" not in out, "only the readiness record reads it"
+        assert "Ready for Lab 1" in out
+
+    def test_a_runtime_read_that_prints_nothing_cannot_confirm_v1(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', runtimes="", runtimes_exit=1)
+        out = self._plain(result.stdout)
+        assert ("- WARN  Facilitator: AgentCore Runtime platform check did not finish: "
+                "it printed nothing") in out
 
     def test_theos_memory_is_checked_and_reported(self, tmp_path: Path) -> None:
         result, _ = self._run(tmp_path, '{"status": "healthy"}')
@@ -1097,3 +1162,158 @@ class TestTheosMemory:
         monkeypatch.setattr(doctor, "read_theo_preferences", lambda: [])
         assert doctor.main(["--memory"]) == 1
         assert capsys.readouterr().out.startswith("Facilitator: Theo's AgentCore Memory")
+
+
+# ---------------------------------------------------------------------------
+# --runtimes: every AgentCore Runtime on the pinned platform, V1
+# ---------------------------------------------------------------------------
+
+
+def _runtime_arn(runtime_id: str) -> str:
+    # Joined so no tracked line carries an ARN prefix or an account ID.
+    return ":".join(("arn", "aws", "bedrock-agentcore", "us-east-1", "<account>",
+                      f"runtime/{runtime_id}"))
+
+
+class TestRuntimePlatform:
+    """The owner pins every Runtime to V1 until AWS retires it (2026-11-11).
+
+    Readiness must confirm V1: a runtime off V1 makes the box not ready, with the fix, and
+    so does a version that cannot be read.
+    """
+
+    SHOPPER = _runtime_arn("pellier_orchestrator-a1")
+    STAFF = _runtime_arn("pellier_operator-b2")
+    ENV = {"AGENTCORE_RUNTIME_ENDPOINT": SHOPPER, "AGENTCORE_OPERATOR_RUNTIME_ENDPOINT": STAFF}
+
+    @staticmethod
+    def _body(name: str, status: str = "READY", platform: Optional[str] = "V1") -> Dict[str, Any]:
+        body: Dict[str, Any] = {"agentRuntimeName": name, "status": status}
+        if platform is not None:
+            body["platformVersion"] = platform
+        return body
+
+    def _checks(self, bodies: Dict[str, Any], env: Optional[Dict[str, str]] = None):
+        reads = []
+
+        def read(arn: str) -> Dict[str, Any]:
+            reads.append(arn)
+            body = bodies[arn]
+            if isinstance(body, Exception):
+                raise body
+            return body
+
+        return doctor.runtime_platform_checks(self.ENV if env is None else env, read), reads
+
+    def test_both_runtimes_ready_on_v1_pass(self):
+        checks, reads = self._checks({self.SHOPPER: self._body("pellier_orchestrator"),
+                                      self.STAFF: self._body("pellier_operator")})
+        assert [c.detail for c in checks] == [
+            "AgentCore Runtime pellier_orchestrator: READY on platform V1",
+            "AgentCore Runtime pellier_operator: READY on platform V1",
+        ]
+        assert all(c.passed for c in checks)
+        assert reads == [self.SHOPPER, self.STAFF], "the shopper and the staff Runtime, once each"
+
+    def test_a_v2_runtime_is_not_ready_and_names_the_fix(self):
+        checks, _ = self._checks({self.SHOPPER: self._body("pellier_orchestrator"),
+                                  self.STAFF: self._body("pellier_operator", platform="V2")})
+        staff = checks[1]
+        assert not staff.passed
+        assert staff.detail == ("Facilitator: AgentCore Runtime pellier_operator: platform V2, "
+                                f"not the pinned V1. Fix: {doctor.REDEPLOY_ON_V1}")
+        assert "PELLIER_RUNTIME_PLATFORM_VERSION" in doctor.REDEPLOY_ON_V1
+        assert "scripts/deploy/deploy_all.sh" in doctor.REDEPLOY_ON_V1
+
+    def test_a_runtime_that_is_not_ready_is_not_ready(self):
+        checks, _ = self._checks({self.SHOPPER: self._body("pellier_orchestrator", "UPDATING"),
+                                  self.STAFF: self._body("pellier_operator")})
+        assert not checks[0].passed
+        assert checks[0].detail == ("Facilitator: AgentCore Runtime pellier_orchestrator: "
+                                    "status UPDATING, not READY")
+
+    def test_a_missing_platform_version_is_never_taken_for_v1(self):
+        checks, _ = self._checks({self.SHOPPER: self._body("pellier_orchestrator", platform=None),
+                                  self.STAFF: self._body("pellier_operator")})
+        assert not checks[0].passed
+        assert checks[0].detail == ("Facilitator: AgentCore Runtime pellier_orchestrator: could "
+                                    "not read the platform version (the response has no "
+                                    "platformVersion)")
+
+    def test_a_failed_read_is_not_ready_and_named_by_the_runtime(self):
+        checks, _ = self._checks({self.SHOPPER: self._body("pellier_orchestrator"),
+                                  self.STAFF: RuntimeError("AccessDeniedException")})
+        assert not checks[1].passed
+        assert checks[1].detail == ("Facilitator: AgentCore Runtime pellier_operator: could not "
+                                    "read the platform version (RuntimeError: "
+                                    "AccessDeniedException)")
+
+    def test_a_box_without_a_runtime_arn_is_not_ready_and_reads_nothing_for_it(self):
+        checks, reads = self._checks({self.SHOPPER: self._body("pellier_orchestrator")},
+                                     env={"AGENTCORE_RUNTIME_ENDPOINT": self.SHOPPER})
+        assert reads == [self.SHOPPER]
+        assert not checks[1].passed
+        assert checks[1].detail == ("Facilitator: AgentCore Runtime pellier_operator: could not "
+                                    "read the platform version "
+                                    "(AGENTCORE_OPERATOR_RUNTIME_ENDPOINT is not set)")
+
+    def test_the_pin_is_the_renderers(self):
+        source = (REPO / "scripts" / "deploy" / "render_agentcore_project.py").read_text()
+        pinned = re.search(r'^PINNED_RUNTIME_PLATFORM = "(V\d)"$', source, re.MULTILINE)
+        assert pinned, "render_agentcore_project.py names PINNED_RUNTIME_PLATFORM"
+        assert doctor.PINNED_RUNTIME_PLATFORM == pinned.group(1) == "V1"
+
+    def test_the_raw_read_keeps_the_field_an_older_botocore_drops(self):
+        boto3 = pytest.importorskip("boto3")
+        from botocore.awsrequest import AWSResponse
+
+        class Raw:
+            def __init__(self, data: bytes) -> None:
+                self._data = data
+
+            def stream(self, **_: Any):
+                yield self._data
+
+        body = (b'{"agentRuntimeName": "pellier_operator", "agentRuntimeId": "pellier_operator-b2",'
+                b' "status": "READY", "platformVersion": "V1"}')
+        client = boto3.client("bedrock-agentcore-control", region_name="us-east-1",
+                              aws_access_key_id="testing", aws_secret_access_key="testing")
+        sent = []
+
+        def answer(request: Any, **_: Any) -> AWSResponse:
+            sent.append(request.url)
+            return AWSResponse(request.url, 200, {"Content-Type": "application/json"}, Raw(body))
+
+        client.meta.events.register("before-send.bedrock-agentcore-control.GetAgentRuntime",
+                                    answer)
+        raw = doctor.read_runtime_raw(self.STAFF, client=client)
+        assert raw["platformVersion"] == "V1" and raw["status"] == "READY"
+        assert sent and sent[0].endswith("/runtimes/pellier_operator-b2/")
+
+    def test_the_flag_prints_one_tab_separated_line_per_runtime(self, monkeypatch, capsys):
+        monkeypatch.setattr(doctor, "read_runtime_raw", lambda arn: (
+            self._body("pellier_orchestrator") if arn == self.SHOPPER
+            else self._body("pellier_operator", platform="V2")))
+        for key, value in self.ENV.items():
+            monkeypatch.setenv(key, value)
+        assert doctor.main(["--runtimes", "--env", "/nonexistent/.env"]) == 1
+        lines = capsys.readouterr().out.splitlines()
+        assert lines[0] == "ok\tAgentCore Runtime pellier_orchestrator: READY on platform V1"
+        assert lines[1].startswith("warn\tFacilitator: AgentCore Runtime pellier_operator: "
+                                   "platform V2, not the pinned V1. Fix: ")
+
+    def test_only_the_facilitator_readiness_check_runs_it(self):
+        call = re.compile(r"workshop_doctor\.py[\"' ,]+--runtimes")
+
+        def calls_it(path: Path) -> bool:
+            return any(call.search(line) for line in path.read_text(errors="ignore").splitlines()
+                       if not line.lstrip().startswith("#"))
+
+        callers = sorted(
+            str(path.relative_to(REPO)) for path in (REPO / "scripts").rglob("*")
+            if path.is_file() and path.suffix in {".sh", ".py"}
+            and path.name != "workshop_doctor.py" and calls_it(path)
+        )
+        assert callers == ["scripts/workshop-start.sh"], (
+            "the V1 check belongs to the facilitator's readiness record only: never a gate that "
+            "fails the stack, a deploy or a lab command")

@@ -40,12 +40,19 @@ cap. Lab 3's Memory finding needs them, so their absence is a facilitator issue
 named before the event; the doctor never seeds them and never waits for
 extraction.
 
+``--runtimes`` reads each AgentCore Runtime's status and platform version once,
+one tab-separated ``ok`` or ``warn`` line per Runtime, for the facilitator's
+readiness record only. Every Runtime stays on V1 until AWS retires it, and
+readiness must confirm it: a Runtime off V1, or one whose version cannot be
+read, makes the box not ready.
+
 Usage::
 
     uv run scripts/workshop_doctor.py --lab 1
     uv run scripts/workshop_doctor.py --lab 3 --phase prerequisites
     uv run scripts/workshop_doctor.py --environment
     uv run scripts/workshop_doctor.py --memory
+    uv run scripts/workshop_doctor.py --runtimes
 """
 
 from __future__ import annotations
@@ -82,6 +89,22 @@ AGENT_REGION = "Stock agent - definition"
 CEDAR_POLICY = "policies/credit_limit.cedar"
 CEDAR_STARTER = "workshop/starters/credit_limit.cedar"
 POLICY_FILES = (CEDAR_POLICY,)
+
+# Every AgentCore Runtime stays on platform V1 until AWS retires it (owner, 2026-11-11).
+# render_agentcore_project.py deploys PINNED_RUNTIME_PLATFORM; a test holds the two in step.
+PINNED_RUNTIME_PLATFORM = "V1"
+# Each Runtime the box records, by its .env key and the name bootstrap deploys it under.
+RUNTIMES = (
+    ("AGENTCORE_RUNTIME_ENDPOINT", "pellier_orchestrator"),
+    ("AGENTCORE_OPERATOR_RUNTIME_ENDPOINT", "pellier_operator"),
+)
+# A runtime reaches V2 here only through PELLIER_RUNTIME_PLATFORM_VERSION=V2, which writes
+# V2 into the deployed template; deploying without it writes V1, and CloudFormation moves
+# the runtime back in place (event 31, 2026-11-04).
+REDEPLOY_ON_V1 = ("before the session starts, remove PELLIER_RUNTIME_PLATFORM_VERSION from "
+                  ".env, then run bash scripts/deploy/deploy_all.sh from a new terminal. "
+                  "CloudFormation moves the runtime back to V1 in place.")
+RUNTIME_READ_TIMEOUT_SECONDS = 10
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
 # The grant the Stock agent held on Marco's latest turn it answered, as its
@@ -652,6 +675,70 @@ def memory_ready(read: Callable[[], List[Dict[str, str]]],
     return Check(name, True, f"{name} holds {count} preference {noun} for Lab 3")
 
 
+def read_runtime_raw(arn: str, client: Any = None) -> Dict[str, Any]:
+    """``GetAgentRuntime`` as the service sent it.
+
+    The raw body is read because a botocore that predates the field drops
+    ``platformVersion`` while parsing; 1.43.51, the backend's lock, is one.
+    """
+    import json
+
+    if client is None:
+        import boto3
+        from botocore.config import Config
+
+        client = boto3.client(
+            "bedrock-agentcore-control", region_name=arn.split(":")[3],
+            config=Config(connect_timeout=5, read_timeout=RUNTIME_READ_TIMEOUT_SECONDS,
+                          retries={"max_attempts": 2}))
+    captured: Dict[str, bytes] = {}
+
+    def keep(response_dict: Dict[str, Any], **_: Any) -> None:
+        captured["body"] = response_dict.get("body") or b""
+
+    client.meta.events.register("before-parse.bedrock-agentcore-control.GetAgentRuntime", keep)
+    client.get_agent_runtime(agentRuntimeId=arn.rsplit("/", 1)[-1])
+    return json.loads(captured.get("body") or b"{}")
+
+
+def runtime_platform_check(name: str, raw: Mapping[str, Any]) -> Check:
+    """One Runtime's line: READY on the pinned platform, or what stops the box being ready."""
+    label = f"AgentCore Runtime {raw.get('agentRuntimeName') or name}"
+    status = raw.get("status") or "unknown"
+    if status != "READY":
+        return Check(label, False, f"Facilitator: {label}: status {status}, not READY")
+    platform = raw.get("platformVersion")
+    if platform is None:
+        return Check(label, False, f"Facilitator: {label}: could not read the platform version "
+                                   "(the response has no platformVersion)")
+    if platform != PINNED_RUNTIME_PLATFORM:
+        return Check(label, False, f"Facilitator: {label}: platform {platform}, not the pinned "
+                                   f"{PINNED_RUNTIME_PLATFORM}. Fix: {REDEPLOY_ON_V1}")
+    return Check(label, True, f"{label}: READY on platform {PINNED_RUNTIME_PLATFORM}")
+
+
+def runtime_platform_checks(env: Mapping[str, str],
+                            read: Callable[[str], Mapping[str, Any]]) -> List[Check]:
+    """Each Runtime the box records, read once; readiness must confirm V1 on every one."""
+    checks: List[Check] = []
+    for key, name in RUNTIMES:
+        label = f"AgentCore Runtime {name}"
+        arn = (env.get(key) or "").strip()
+        if not arn:
+            checks.append(Check(label, False, f"Facilitator: {label}: could not read the "
+                                              f"platform version ({key} is not set)"))
+            continue
+        try:
+            raw = read(arn)
+        except Exception as exc:  # noqa: BLE001 - reported with its type, never raised
+            checks.append(Check(label, False, f"Facilitator: {label}: could not read the "
+                                              f"platform version ({type(exc).__name__}: "
+                                              f"{str(exc)[:160]})"))
+            continue
+        checks.append(runtime_platform_check(name, raw))
+    return checks
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Check one lab's prerequisites.")
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4))
@@ -663,6 +750,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--memory", action="store_true",
         help="read Theo's AgentCore Memory preference records once, and nothing else",
     )
+    parser.add_argument(
+        "--runtimes", action="store_true",
+        help="read each AgentCore Runtime's status and platform version, and nothing else",
+    )
     parser.add_argument("--env", default=str(DEFAULT_ENV), help="backend .env path")
     parser.add_argument(
         "--run-env", default=str(DEFAULT_RUN_ENV), help="service run.env the unit sources"
@@ -672,12 +763,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="prerequisites checks authored code/config; proof also requires recorded outcomes",
     )
     args = parser.parse_args(argv)
-    if args.lab is None and not (args.environment or args.memory):
-        parser.error("name a lab with --lab, or pass --environment or --memory")
+    if args.lab is None and not (args.environment or args.memory or args.runtimes):
+        parser.error("name a lab with --lab, or pass --environment, --memory or --runtimes")
     if args.memory:
         memory = memory_ready(read_theo_preferences)
         print(memory.detail)
         return 0 if memory.passed else 1
+    if args.runtimes:
+        env = {**workshop_check.parse_dotenv(pathlib.Path(args.env)), **os.environ}
+        runtimes = runtime_platform_checks(env, read_runtime_raw)
+        for check in runtimes:
+            print(f"{'ok' if check.passed else 'warn'}\t{check.detail}")
+        return 0 if all(check.passed for check in runtimes) else 1
 
     env_path = pathlib.Path(args.env)
     if args.environment:

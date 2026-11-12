@@ -111,10 +111,15 @@ def _clean(text: str) -> List[str]:
 
 def run_checks(run: Callable[..., Any] = subprocess.run, cap: int = DEFAULT_CAP_SECONDS,
                repo: Path = REPO) -> Tuple[List[str], Optional[int]]:
-    """workshop-start.sh's lines and exit status; ``None`` when it ran past ``cap``."""
+    """workshop-start.sh's lines and exit status; ``None`` when it ran past ``cap``.
+
+    ``PELLIER_READINESS_RECORD=1`` adds the checks only the facilitator's record runs, such
+    as each AgentCore Runtime's platform version.
+    """
     argv = ["bash", str(repo / "scripts" / "workshop-start.sh")]
+    env = {**os.environ, "PELLIER_READINESS_RECORD": "1"}
     try:
-        completed = run(argv, capture_output=True, text=True, timeout=cap, check=False)
+        completed = run(argv, capture_output=True, text=True, timeout=cap, check=False, env=env)
     except subprocess.TimeoutExpired as exc:
         partial = exc.output if isinstance(exc.output, str) else (exc.output or b"").decode()
         return _clean(partial), None

@@ -62,10 +62,12 @@ _CDK_STACK_TAGS_WITH_PROJECT = _CDK_STACK_TAGS.replace(
 
 # The AgentCore Runtime platform version every runtime in the project is created
 # with. From 2026-11-12 AWS creates a runtime that names no version on V2. Pellier
-# stays on V1 until V2 is tested on an event and meets the bar; a V2 test event sets
-# PELLIER_RUNTIME_PLATFORM_VERSION=V2 in pellier/backend/.env, which every deploy reads.
+# stays on V1 until AWS retires it; PELLIER_RUNTIME_PLATFORM_VERSION=V2 in
+# pellier/backend/.env, which every deploy reads, is kept for that day's test event.
 # The pinned CLI has no setting for it, so an Aspect in the reviewed scaffold writes
 # it into each AWS::BedrockAgentCore::Runtime the CDK app synthesizes.
+# workshop_doctor.py --runtimes confirms it in the readiness record.
+PINNED_RUNTIME_PLATFORM = "V1"
 RUNTIME_PLATFORM_VERSIONS = ("V1", "V2")
 _CDK_LIB_IMPORT = "import { App, type Environment } from 'aws-cdk-lib';"
 _CDK_LIB_IMPORT_WITH_ASPECTS = (
@@ -94,7 +96,8 @@ _CDK_PLATFORM_PIN_PATTERN = re.compile(
 
 def runtime_platform_version() -> str:
     """The AgentCore Runtime platform version to deploy: V1 unless V2 is under test."""
-    value = os.environ.get("PELLIER_RUNTIME_PLATFORM_VERSION", "").strip().upper() or "V1"
+    value = (os.environ.get("PELLIER_RUNTIME_PLATFORM_VERSION", "").strip().upper()
+             or PINNED_RUNTIME_PLATFORM)
     if value not in RUNTIME_PLATFORM_VERSIONS:
         raise SystemExit(
             f"PELLIER_RUNTIME_PLATFORM_VERSION must be V1 or V2, not {value!r}"

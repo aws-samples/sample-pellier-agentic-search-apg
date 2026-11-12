@@ -17,10 +17,15 @@
 #      puts managed execution in front of the room during orientation rather
 #      than fifty minutes in. This step never fails the start: a box without a
 #      token helper or a deployed Runtime is still a box that can start Lab 1.
-#   5. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
+#   5. In the readiness record only, read each AgentCore Runtime's status and
+#      platform version once (workshop_doctor.py --runtimes). Every Runtime
+#      stays on V1 until AWS retires it, and readiness must confirm it: a
+#      Runtime that is not READY on V1, or one that cannot be read, is a
+#      facilitator warning.
+#   6. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
 #      --memory, capped at 10 s). Lab 3 needs them; their absence is a facilitator
 #      issue, printed as a warning. Nothing is seeded and nothing waits.
-#   6. Check that Code Editor carries bootstrap's start-up patch. Without it about
+#   7. Check that Code Editor carries bootstrap's start-up patch. Without it about
 #      one first load in four shows an empty Explorer and no terminal. Code Editor
 #      is not version-pinned, so a newer build can leave it unpatched: a
 #      facilitator warning, so readiness reports it.
@@ -116,14 +121,42 @@ if [ -x "$RUNTIME_HELLO" ]; then
   fi
 fi
 
-# --- 5. Theo's remembered preferences, which Lab 3's Memory finding reads ------
+# --- 5. every AgentCore Runtime on the pinned platform, V1 -------------------
+# Only the readiness record runs this (event_readiness.py sets
+# PELLIER_READINESS_RECORD=1): its fix is a redeploy, which is never a
+# participant's step. workshop_doctor.py --runtimes prints one "ok<TAB>line" or
+# "warn<TAB>line" per Runtime on stdout. Readiness must confirm V1, so a check
+# that prints no such line is a facilitator warning, named by its last stderr
+# line. A warning on stderr beside good lines changes nothing.
+if [ "${PELLIER_READINESS_RECORD:-}" = "1" ]; then
+  runtime_err="$(mktemp)"
+  runtime_lines="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --runtimes 2>"$runtime_err")"
+  runtimes_seen=0
+  TAB="$(printf '\t')"
+  while IFS="$TAB" read -r runtime_kind runtime_detail; do
+    case "$runtime_kind" in
+      ok) pass "$runtime_detail"; runtimes_seen=$((runtimes_seen + 1)) ;;
+      warn) warn "$runtime_detail"; runtimes_seen=$((runtimes_seen + 1)) ;;
+    esac
+  done <<EOF
+$runtime_lines
+EOF
+  if [ "$runtimes_seen" -eq 0 ]; then
+    runtime_why="$(tail -n 1 "$runtime_err")"
+    runtime_why="${runtime_why:-it printed nothing}"
+    warn "Facilitator: AgentCore Runtime platform check did not finish: $runtime_why"
+  fi
+  rm -f "$runtime_err"
+fi
+
+# --- 6. Theo's remembered preferences, which Lab 3's Memory finding reads ------
 if memory="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --memory 2>&1)"; then
   pass "$memory"
 else
   warn "$memory"
 fi
 
-# --- 6. Code Editor's start-up patch (scripts/patch_code_editor_workspace_race.py) --
+# --- 7. Code Editor's start-up patch (scripts/patch_code_editor_workspace_race.py) --
 check_code_editor_patch() {
   local bundle="dist/out/vs/code/browser/workbench/workbench.js"
   local patcher="$SCRIPT_DIR/patch_code_editor_workspace_race.py"
