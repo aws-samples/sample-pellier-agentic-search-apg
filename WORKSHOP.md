@@ -128,12 +128,10 @@ shows that extraction, and the proof uses the seeded record.
 
 Anna wants a housewarming gift under $100, in stock, with no candles.
 
-- **See it fail:** `workshop/lab-1-words.sql` shows what her sentence finds by
-  words alone, because the vector search as shipped ranks nothing by meaning.
-- **Task 1A:** first run the supplied `workshop/lab-1-meaning.sql`, which lists
-  eight products in name order with their distance from the Stoneware Mugs' own
-  embedding, the kind of vector the check searches with. Then rank the eligible products by meaning in the `Vector search -
-  order by meaning` region of `pellier/backend/services/store_tools.py`: order
+- **See it fail:** `uv run scripts/lab_run.py send --lab 1 --task 1A` sends Anna's
+  first sentence. Every vector rank is empty because the vector search finds nothing.
+- **Task 1A:** apply the fix that ranks eligible products by meaning in the
+  `Vector search - order by meaning` region of `pellier/backend/services/store_tools.py`: order
   by cosine distance to the query embedding and report similarity as 1 minus
   it. `uv run scripts/lab1_check.py --task 1A` prints `Lab 1A check passed`.
 - **Task 1B:** after `uv run scripts/lab_run.py send --lab 1`,
@@ -142,6 +140,9 @@ Anna wants a housewarming gift under $100, in stock, with no candles.
   preference, never the budget, the stock rule or the exclusions. The check
   prints `Lab 1B check passed`.
 - **Lesson:** similarity decides the order; SQL decides what is eligible.
+- **Go deeper (optional):** `workshop/lab-1-words.sql` ranks her words with full-text search.
+  `workshop/lab-1-meaning.sql` lists eight products in name order with their
+  distance from the Stoneware Mugs' own embedding.
 - **Managed path:** the Gateway's store tools Lambda is packaged at
   provisioning from the finished copies of
   `pellier/backend/services/store_tools.py` and

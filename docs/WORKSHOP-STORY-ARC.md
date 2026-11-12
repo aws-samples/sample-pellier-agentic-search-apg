@@ -39,7 +39,7 @@ starter fails the way See it fail shows and the solution does not.
 
 | Lab | See it fail, in the terminal | The fix |
 |---|---|---|
-| 1 | `workshop/lab-1-words.sql` shows what Anna's sentence finds by words alone, because the starter's vector search ranks nothing by meaning; after her request is sent, `lab1_retry.py` shows the retry dropped her requirements | 1A: read the distances in `workshop/lab-1-meaning.sql`, then rank the eligible products by meaning. 1B: the fallback keeps her requirements |
+| 1 | `lab_run.py send --lab 1 --task 1A` sends Anna's first sentence and shows no vector ranks; after her full request is sent, `lab1_retry.py` shows the retry dropped her requirements | 1A: apply the fix that ranks eligible products by meaning. 1B: the fallback keeps her requirements |
 | 2 | After Marco's requests, `lab2_check.py --task 2A` shows the answering Stock agent held only catalog tools, so its `check_stock` call never ran; once it does, the cape reads 0 in stock and `workshop/lab-2-check-stock.sql` shows the aggregate's NULL sum | 2A: connect `check_stock` to the Stock agent, alone. 2B: `pellier.check_stock` keeps "not carried" apart from sold out |
 | 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway and the starter Support agent without the reads Theo's household request needs; `workshop/lab-3-row-ownership.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: assemble the Support agent: publish `get_tickets`, ask for `get_orders` and `get_tickets`, and bind every tool that takes a `customer_id`. 3B: deploy, write the ownership rule, then challenge it |
 | 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the credit-writer role raise an approved credit directly | 4A: read the $100 per-credit limit in Cedar, then apply it. 4B: the credit-writer role writes only through the credit function |
@@ -62,9 +62,12 @@ task letter.
 | 4A | `policies/credit_limit.cedar`, the final `unless` block | `uv run scripts/lab4_check.py --task 4A` | `Lab 4A check passed` |
 | 4B | `workshop/lab-4-credit-writer.sql`, `Credit writer - privileges` (its SQL file prints `Lab 4B privileges check passed`) | `uv run scripts/lab4_check.py --task 4B` | `Lab 4B check passed` |
 
-Lab 1's Go deeper keeps the RRF fusion file (`workshop/lab-1-fusion.sql`, region
-`PostgreSQL RRF - fusion expression`, `Lab 1 fusion check passed`); it is not a
-task. Lab 4's "What you proved" runs the supplied `workshop/lab-4-absence.sql`
+Lab 1's optional Go deeper ranks Anna's words with full-text search in
+`workshop/lab-1-words.sql` and measures meaning distances in `workshop/lab-1-meaning.sql`.
+It also keeps the RRF fusion file (`workshop/lab-1-fusion.sql`, region
+`PostgreSQL RRF - fusion expression`, `Lab 1 fusion check passed`). These are not
+additional tasks.
+Lab 4's "What you proved" runs the supplied `workshop/lab-4-absence.sql`
 (`Lab 4 absence check passed`). After Lab 3's token the supplied `workshop/lab-3-agent-workload.sql`
 reads the agent's workload from `pg_stat_statements` role by role (`Lab 3 workload check
 passed`). The Wrap-up runs the supplied `scripts/follow_credit.py`, which follows Jessica's

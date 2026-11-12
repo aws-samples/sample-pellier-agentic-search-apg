@@ -73,9 +73,9 @@ The `labs/` names are links to the application's own files. The participant buil
 3B and 4B in the marked region. 1A, 2A, 3A and 4A they apply by command after seeing the change
 (`uv run scripts/lab_run.py solution --lab N --task NX`); explain the change, do not write it
 for them. Task 3B writes the row-ownership predicate while the deploy runs, then challenges it.
-The supplied SQL file for Lab 1's meaning distances (`workshop/lab-1-meaning.sql`, run before
-Task 1A), Lab 3's live row-level security check (`scripts/lab3_row_ownership_check.py`), the
-supplied SQL file for Lab 3's agent workload (`workshop/lab-3-agent-workload.sql`), Lab 4's
+The supplied SQL file for Lab 1's meaning distances (`workshop/lab-1-meaning.sql`, in Lab 1's
+optional Go deeper), Lab 3's live row-level security check (`scripts/lab3_row_ownership_check.py`),
+the supplied SQL file for Lab 3's agent workload (`workshop/lab-3-agent-workload.sql`), Lab 4's
 keyed absence check (`workshop/lab-4-absence.sql`), Task 4B's check
 (`scripts/lab4_check.py --task 4B`), the Wrap-up's end-to-end check
 (`scripts/follow_credit.py`) and its reconstruction (`workshop/wrap-up-reconstruct.sql`) are

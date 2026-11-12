@@ -135,10 +135,11 @@ before any extra Ask Pellier requests or the coach.
   a VPC, a database and a CloudFront distribution. A role with restricted rights will fail
   partway and roll back.
 - **No other Pellier deployment in that account and Region.** AgentCore keeps Cedar policy
-  names unique per account and Region, across policy engines, and the host creates Pellier's
-  six policies by name, so a second deployment in the same account and Region fails at the
-  first policy whatever else is renamed. The check below lists any deployment the account
-  already holds; remove it first, or deploy in the other Region. The `--deployment-suffix`
+  names unique per account and Region, across policy engines. The host creates Pellier's
+  shopper, staff and credit-limit policies by name, so a second deployment in the same
+  account and Region fails at the first policy whatever else is renamed. The check below
+  lists any deployment the account already holds; remove it first, or deploy in the other
+  Region. The `--deployment-suffix`
   option only keeps stack, function and AgentCore resource names apart from leftovers of an
   earlier deployment whose policies are gone.
 - **The account's X-Ray Transaction Search groups, if they exist.** The host sends AgentCore
