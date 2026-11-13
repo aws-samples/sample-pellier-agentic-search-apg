@@ -706,7 +706,18 @@ def test_resends_wait_longer_each_time(
     monkeypatch.setattr(lab_run, "TURN_RETRY_SECONDS", 0.01)
     pauses: list[float] = []
     real_sleep = time.sleep
-    monkeypatch.setattr(lab_run.time, "sleep", lambda s: (pauses.append(s), real_sleep(0))[1])
+    client = threading.current_thread()
+
+    def sleep(seconds: float) -> None:
+        # lab_run.time is the global time module, so the fake server's thread sleeps through
+        # this patch too (between streamed events); only the client's resend waits count here.
+        if threading.current_thread() is client:
+            pauses.append(seconds)
+            real_sleep(0)
+        else:
+            real_sleep(seconds)
+
+    monkeypatch.setattr(lab_run.time, "sleep", sleep)
     fake.chat_failures = [503, 503]
     assert _run(fake, 2) == 0
     assert pauses[:2] == pytest.approx([0.01, 0.04])

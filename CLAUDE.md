@@ -308,7 +308,10 @@ repository root unless a command changes directory.
 # sets PELLIER_REQUIRE_POSTGRES=1 so they fail there instead of skipping.
 cd pellier/backend
 python -m pytest -q
-pipx run --spec pip-audit==2.10.1 pip-audit --disable-pip --require-hashes -r requirements.lock
+# GHSA-mf5v-w3w3-f6cg is a temporary exception, reviewed by 2026-11-20; its reason and exits
+# sit beside the audit step in .github/workflows/quality.yml.
+pipx run --spec pip-audit==2.10.1 pip-audit --disable-pip --require-hashes -r requirements.lock \
+  --ignore-vuln GHSA-mf5v-w3w3-f6cg
 
 # Frontend
 cd pellier/frontend

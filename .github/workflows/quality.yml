@@ -48,18 +48,37 @@ jobs:
 
       # The box installs requirements.lock, and every AgentCore deploy builds the Runtime
       # from uv.lock (UV_CONSTRAINT), so a known vulnerability in either reaches an event.
+      #
+      # Temporary exception, GHSA-mf5v-w3w3-f6cg (CVE-2026-126360, published 2026-11-13):
+      # opentelemetry-api <= 1.45.1 parses an oversized trace context that contains a newline
+      # in quadratic time; 1.45.2 fixes it. Only this advisory is ignored; any other fails.
+      # - Runtime (uv.lock): ADOT 0.22.0, the newest release, pins opentelemetry-api==1.45.1
+      #   and its SDK pins the same API, so the fix needs a distro release. Exit: an ADOT
+      #   release that allows >= 1.45.2; relock, validate, and drop the ignore.
+      # - Backend (requirements.lock): not tied to ADOT. Exit: a coherent OpenTelemetry
+      #   1.45.2 upgrade of the backend lock, as its own change.
+      # Exposure as inspected: the box runs plain Uvicorn with no inbound OpenTelemetry HTTP
+      # instrumentation; both Runtimes use the HTTP protocol with JWT authorization; the app
+      # builds each Runtime request's body and headers itself and forwards no browser trace
+      # context; the Runtime is an MCP client of the Gateway and exposes no MCP server.
+      # Residual risk: an authenticated caller's trace context, including one carried in MCP
+      # JSON metadata, which has not been tested against a deployed Runtime.
+      # Review before the next tester event and no later than 2026-11-20. Reassess at once if
+      # inbound trace extraction or an MCP server is added.
       - name: Audit the locked Python dependencies
         working-directory: pellier/backend
         run: |
           python -m pip install pip-audit==2.10.1
-          pip-audit --disable-pip --require-hashes -r requirements.lock
+          pip-audit --disable-pip --require-hashes -r requirements.lock \
+            --ignore-vuln GHSA-mf5v-w3w3-f6cg
           python - > "$RUNNER_TEMP/runtime-lock.txt" <<'PY'
           import tomllib
           for package in tomllib.load(open("uv.lock", "rb"))["package"]:
               if "virtual" not in package.get("source", {}):
                   print(f"{package['name']}=={package['version']}")
           PY
-          pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/runtime-lock.txt"
+          pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/runtime-lock.txt" \
+            --ignore-vuln GHSA-mf5v-w3w3-f6cg
 
       - name: Validate shell scripts
         run: find scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
