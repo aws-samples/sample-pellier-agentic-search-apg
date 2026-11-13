@@ -1,8 +1,7 @@
-# After re:Invent: live turns write Memory under the wrong actor for recall
+# Known limitation: live turns write Memory under the wrong actor for recall
 
-Status: open, deferred until after the DAT416 event. No product change before
-then; Lab 3 proves memory with Theo's seeded record, and the participant's own
-words are a Go deeper tab.
+Status: open. Lab 3 proves memory with Theo's seeded record, and the participant's
+own words are a Go deeper tab.
 
 ## What happens today
 

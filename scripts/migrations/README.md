@@ -1,6 +1,6 @@
 # Pellier database
 
-Two SQL files build the whole `pellier` schema on an empty database.
+Two SQL files and the catalog loader build the whole `pellier` schema on an empty database.
 
 1. **`001_schema.sql`** creates the `vector` and `pg_trgm` extensions, the
    `pellier` schema and its ten tables: `product_catalog`,

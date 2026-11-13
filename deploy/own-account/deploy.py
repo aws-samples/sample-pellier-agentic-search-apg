@@ -20,7 +20,7 @@ commit must be fetchable from the repository's origin. ``--dry-run`` makes the r
 calls that describe your account and prints every write it would make, making none.
 
 ``teardown`` removes what the stack does not own: the AgentCore CDK stack the box created,
-the two Lambda functions and their roles, the log deliveries, and the log groups; it first
+the three Lambda functions and their roles, the log deliveries, and the log groups; it first
 runs the repository's observability teardown on the box over SSM, because the receipt that
 restores the account-wide X-Ray settings lives only there, and it stops before deleting
 anything when that step cannot run. Then it deletes the workshop stack and, with

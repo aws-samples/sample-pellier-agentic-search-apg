@@ -3,8 +3,8 @@
 **Marco.** He needs stock and dispatch facts he can rely on. As shipped, the Stock agent
 holds only catalog tools, so its call to `check_stock` is refused and no answer reads a
 warehouse row; and once it holds `check_stock`, the database function behind it calls a
-piece Pellier does not carry 0 in stock. Keep the Workshop Studio guide open beside this
-file.
+piece Pellier does not carry 0 in stock. At an event, keep the Workshop Studio guide open beside this file. Outside one,
+[deploy your own copy](../../docs/run-in-your-own-account.md) first.
 
 ## Run it in the terminal
 

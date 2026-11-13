@@ -11,24 +11,23 @@ Shayon Sanyal <shayons@amazon.com>
 Conceived, designed, built, and curated by Shayon Sanyal as the reference
 implementation behind the governed agentic AI search workshop of the same name.
 
-Attribution & reuse (required)
-------------------------------
-This project is released under the MIT License (NOT MIT-0). Attribution is a
-condition of reuse, not a courtesy. If you copy, fork, vendor, adapt, or
-otherwise build on any substantial portion of this software, you must:
+Attribution
+-----------
+This project is released under the MIT License, not MIT-0. For Pellier's own
+code, the license's one condition is that copies and substantial portions of
+the software keep the copyright notice and the permission notice: retain the
+LICENSE file, or reproduce its text, in your distribution. If you keep the
+GitHub mark described under Third-party asset, keep its notice too.
 
-  1. Retain this NOTICE file and the LICENSE file (or reproduce their text)
-     in your distribution.
-  2. Keep the copyright and permission notice intact in copies or substantial
-     portions of the software.
-  3. Credit the original author, Shayon Sanyal, and cite the source repository:
-     https://github.com/aws-samples/sample-pellier-agentic-search-apg
+We also ask that you keep this NOTICE file with your copy, and credit the
+original author, Shayon Sanyal, and the source repository whenever you copy,
+fork, adapt or build on this work, including in talks, blog posts, derived
+workshops and internal forks:
 
-The same expectation applies to non-code reuse (talks, blog posts, derived
-workshops, and internal forks): carry the credit with the work.
+  https://github.com/aws-samples/sample-pellier-agentic-search-apg
 
-Canonical attribution line (copy this)
----------------------------------------
+Suggested attribution line
+--------------------------
   "Based on Pellier - Governed Agentic AI Search by Shayon Sanyal
    (https://github.com/aws-samples/sample-pellier-agentic-search-apg),
    © 2026 Amazon Web Services, MIT License."

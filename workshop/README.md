@@ -3,7 +3,9 @@
 For the participant entry point, open [Pellier.code-workspace](../Pellier.code-workspace). The numbered `labs/` groups link to these same files.
 
 Workshop Studio holds the instructions and recovery answers for the four labs; this
-directory is the source map for the **governed** track.
+directory is the source map for the **governed** track. After the event,
+[deploy your own copy](../docs/run-in-your-own-account.md), then use the table below: each
+task's file, the command that applies a supplied change, and the check that proves it.
 
 Every task runs the same way: it fails in the terminal, you fix the marked region, one check
 proves the fix with one pass line, and then you look at it in the app. Every check prints what
@@ -93,7 +95,7 @@ eligibility.
 
 ## Keep a useful continuation checkpoint
 
-Before the sandbox closes, save the evidence export with
+At an event, before the sandbox closes, save the evidence export with
 `uv run scripts/workshop_evidence.py --save <file>` and download the file. It
 names the last passing check, the first failed one, and what to look at next. Keep the public source link and save or print the Studio
 guides if you need them offline. Do not archive `.env`, tokens, credential files,

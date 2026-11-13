@@ -159,9 +159,9 @@ describe('Footer — disclaimer and licence', () => {
   })
 
   it('does not claim MIT-0, which the repository NOTICE rules out', () => {
-    // NOTICE: "released under the MIT License (NOT MIT-0). Attribution is a
-    // condition of reuse, not a courtesy." A footer claiming MIT-0 would
-    // misstate the licence and drop a required credit.
+    // NOTICE: "released under the MIT License, not MIT-0." A footer claiming
+    // MIT-0 would misstate the licence and drop the copyright and permission
+    // notice that MIT requires copies to keep.
     renderFooter()
     const text = screen.getByTestId('footer').textContent ?? ''
     expect(text).not.toContain('MIT-0')

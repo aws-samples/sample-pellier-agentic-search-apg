@@ -29,6 +29,8 @@ The application combines the Strands Agents SDK, Amazon Bedrock models, and Amaz
 
 This is an educational sample with synthetic business data. **The checked-in lab files deliberately contain the faults participants repair.** To reuse a completed pattern, start with [the reference solutions](solutions/README.md) and review [Security and responsible use](#security-and-responsible-use).
 
+After the workshop, you can [run Pellier in your own account](docs/run-in-your-own-account.md), redo the four labs from [the lab map](workshop/README.md), and [take home the review skill](#take-it-home).
+
 ## The four labs
 
 Each lab follows one customer and tests a promise Pellier makes to that customer. In **Task A**, you apply a supplied change and inspect it. In **Task B**, you build a fix in a marked region. Terminal checks examine the relevant code, database records or deployed services. Labs 1 and 2 run the agents in process. Lab 3 carries the changes into AgentCore, and Lab 4 governs the credit workflow.
@@ -113,7 +115,7 @@ RDS for PostgreSQL requires adapting the deployment and database transport to a 
 
 ### In the workshop
 
-At an AWS event, Workshop Studio provides a temporary AWS account and a prepared environment with Aurora PostgreSQL, Amazon Cognito, AgentCore resources and a browser-based Code Editor. Participants update the managed deployment in Lab 3. Follow the event's lab guide for the exact steps and checks. [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, with links to the task files and reference solutions.
+At an AWS event, Workshop Studio provides a temporary AWS account and a prepared environment with Aurora PostgreSQL, Amazon Cognito, AgentCore resources and a browser-based Code Editor. Participants update the managed deployment in Lab 3. Follow the event's lab guide for the exact steps and checks. Afterwards, [workshop/README.md](workshop/README.md) and each lab's README under [labs/](labs/) list every task's file, commands and checks. [Pellier.code-workspace](Pellier.code-workspace) opens one folder per lab, with links to the task files and reference solutions.
 
 ### Locally
 
@@ -171,6 +173,8 @@ The own-account guide records the following example estimates from a test event 
 | Deployment, a two-hour session and teardown | about $2.55, before extra requests or the coach |
 
 Actual costs depend on Region, capacity, usage, session duration and pricing agreements. The recorded Aurora cluster remained active during idle hours, so its estimate includes that capacity. Additional requests and optional Claude Code coaching add usage. Local execution still incurs Bedrock charges and any costs of the database or host you provide. See [What you get and what it costs](docs/run-in-your-own-account.md#1-what-you-get-and-what-it-costs) for the measurements, assumptions, pricing links and cost controls.
+
+When you finish, `uv run deploy/own-account/deploy.py teardown --region <region> --delete-bucket --schedule-kms-key-deletion 7` removes the stack and the resources created outside it. Without the two flags, the bucket and the KMS key stay. [Tear down](docs/run-in-your-own-account.md#6-tear-down) lists what can remain.
 
 ## Take it home
 

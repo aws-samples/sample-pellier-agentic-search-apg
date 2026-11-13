@@ -13,3 +13,10 @@ not validated.
 `Stack ready in` line, the readiness check and the four labs' pass lines run on the host, the
 `teardown` command's `Stack deleted in` line and its **Left in place** list, and the
 `describe-stacks`, `list-functions` and `list-buckets` results after it.
+
+## Cost proof
+
+`cost-proof-<date>-<region>.md` records the usage behind the cost section of
+[Run Pellier in your own account](../run-in-your-own-account.md#1-what-you-get-and-what-it-costs):
+the CloudWatch metrics of one scripted pass through the labs, Aurora's capacity over the day,
+the template's billed resources, and the list prices read that day.

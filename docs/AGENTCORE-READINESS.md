@@ -181,76 +181,29 @@ runs the same search and stock code as the in-process agents.
 ## Fresh-event acceptance
 
 Local tests check contracts, starter boundaries, recovery parity and receipt
-validation. They do not prove AWS delivery or timing. Publish the source,
-update the Workshop Studio pins, sync assets, then build and verify the
-Studio package before creating a test event.
+validation. They do not prove AWS delivery or timing. A release is accepted only
+on a new account:
 
-In that event, require CloudFormation and bootstrap completion, the health
-gate and a valid provisioning receipt. Rehearse all eight tasks with the
-participant identities, Lab 3's deploy and Lab 4's deploy, one Operator
-investigation and the cleanup. Record source SHA, Studio build, account,
-Region, cold provisioning time and each lab's time. A previous account's pass
-does not establish this event's readiness.
+- CloudFormation and bootstrap complete, the health gate passes and the
+  provisioning receipt is valid.
+- All eight tasks pass with the participant identities, including Lab 3's and
+  Lab 4's deploys, and the cleanup completes.
+- Nadia investigates Jessica's case through the staff Runtime. The pending
+  proposal, its returned orders and both agents' trace spans are correct, and a
+  stopped and retried stream reconciles the pending review from Aurora.
+- Theo's token, and Nadia's token with another staff subject, are rejected at
+  the staff Runtime and at the Gateway target. Each Gateway denial is correlated
+  with the service DENY and the absence of a Lambda execution, and paired with a
+  successful Nadia call on the same build; the staff audit lookup uses
+  `args->>'turn_id'`, not the audit session ID.
+- Jessica's approved credit, executed after sequential retries, concurrent
+  duplicates and an interrupted response, leaves exactly one credit and its
+  audit evidence in Aurora. Over-limit and changed-after-approval attempts are
+  denied, with request-specific absence checks.
+- Both Runtime log groups and traces arrive without token or model content.
+- The optional DuckDB example verifies the Aurora server certificate and
+  connects with the inventory-only login.
 
-The separate staff Runtime needs a fresh-event rehearsal before release. Its
-deployment inspection calls a real case tool and requires one audit row matching
-the turn, actor, customer, Runtime fingerprint and staff Lambda fingerprint.
-That probe does not run the model graph or approve a credit. Complete these
-additional checks on the exact published build:
-
-- Sign in as Nadia and investigate Jessica through the staff Runtime. Verify the
-  graph's pending proposal, its exact returned orders and both agents' trace
-  spans. Stop a stream and retry; reconcile the pending review from Aurora.
-- Use Theo's token against the staff Runtime and Gateway target, and try Nadia's
-  token with another staff subject. Require rejection at each boundary. For a
-  Gateway denial, correlate the service DENY and Lambda execution evidence to
-  that request; the staff audit lookup uses `args->>'turn_id'`, not the audit
-  session ID. Pair the denial with a successful Nadia call on the same build.
-- Approve Jessica's exact proposal in the app and select Execute. Confirm one
-  intended credit and its audit evidence in Aurora after sequential retries,
-  concurrent duplicates and an interrupted response. Repeat the over-limit and
-  changed-after-approval denials with request-specific absence checks.
-- Confirm both Runtime log groups and traces arrive without token or model
-  content exposure, measure Lab 3 deployment and the full Lab 4, then run the
-  optional DuckDB example and cleanup. Its direct connection must verify the
-  Aurora server certificate and use the inventory-only login.
-
-The timing records below predate the separate staff Runtime and the optional
-DuckDB example; they cannot establish either addition's delivery time.
-
-Proved at test event 6 (2026-10-19, source e853c80f, Studio cb247a0, a new
-account in us-east-1):
-
-- Transaction Search activated beside the Lambda and AgentCore deploys: ACTIVE
-  after 361 s, inside the managed stage. Bootstrap reached E2E_PROVED, and the
-  managed receipt records the activation, its resource policy and both trace
-  log groups (`aws/spans`, `/aws/application-signals/data`) under the event's
-  KMS key with 30-day retention.
-- The managed stage took 9 minutes (APP_READY 12:43:44 to MANAGED_READY
-  12:52:48 UTC), against 34 minutes on 2026-10-18. E2E_PROVED came 38 minutes
-  after the stack started.
-- `/var/lib/pellier/memory-deep-dive.json` reached `ready` 500 s after the
-  check started. `uv run scripts/event_readiness.py` on the box first crashed
-  with an AccessDenied traceback: it took the box for a laptop, because
-  Workshop Studio hosts have no `/etc/pellier`. With that fixed, it prints
-  `i  Memory deep dive (optional appendix): every strategy holds a record`.
-
-Since proved on later fresh events (the newest dated record is under `docs/evidence/`):
-
-- The Studio template's `WorkshopReadyGate`, in the first Studio build pinned
-  after this commit, takes the bootstrap signal instead of the editor instance:
-  `BrowserVpcOrigin` starts within a minute of the instance launching, the
-  distribution and the Cognito callback registration finish while bootstrap
-  runs, and the nested and root stacks complete within about a minute of the
-  signal. CodeEditorURL and Hosted UI sign-in work. Event 6 on 2026-10-19 took
-  51 minutes to CREATE_COMPLETE, 12 of them CloudFront after `E2E_PROVED`;
-  expect about 39.
-- Shopper sign-in names the step and cause of a failure (`network_error:csrf`,
-  `http_403:csrf`, ...) in the browser console, retries a dropped CSRF request
-  once, and shows its own sentence when the edge limits requests. On event 6 a
-  sign-in failed once with no request reaching the backend; the new code is
-  what would name it.
-- The Studio WAF rule allows 1,000 `/api` requests per IP in 5 minutes and
-  answers a block with 429 `{"detail":"requests_limited"}`. One participant
-  makes about 140 in a heavy 5 minutes; the capture tooling crossed the old
-  limit of 300.
+Record the source commit, Region, provisioning time and each lab's time. A
+previous account's pass does not establish a new one's readiness. Dated records
+are under [docs/evidence](evidence/README.md).

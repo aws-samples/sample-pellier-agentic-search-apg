@@ -45,7 +45,7 @@
       "worry": "Can each shopper access only their own records?",
       "minutes": 25,
       "need": "Theo wants his taste remembered and help with his own chipped bowl.",
-      "spot": "In the terminal, uv run scripts/lab_run.py send --lab 3 --task 3A sends Theo's ticket question to the starter on AgentCore, which cannot read his tickets, and uv run scripts/lab3_check.py --task 3A shows, before any deploy, get_tickets withheld from the Gateway and the starter Support agent, which answers a returns question, without the reads Theo's household request needs, and workshop/lab-3-row-ownership.sql shows the starter's false predicate hiding Theo's own rows from him.",
+      "spot": "In the terminal, uv run scripts/lab3_check.py --task 3A shows, before any deploy, get_tickets withheld from the Gateway and the starter Support agent, which answers a returns question, without the reads Theo's household request needs, and workshop/lab-3-row-ownership.sql shows the starter's false predicate hiding Theo's own rows from him.",
       "a": "Bind each tool call to the signed-in customer",
       "b": "Deploy to AgentCore and protect rows with row-level security",
       "todo": "Task 3A: assemble the Support agent: publish get_tickets (scripts/deploy/gateway_tool_schemas.py), add get_orders and get_tickets to its Gateway tools and bind every tool that takes a customer_id (services/agentcore_gateway.py). Task 3B: deploy with --mode participant; during the deploy, write the row-ownership predicate in workshop/lab-3-row-ownership.sql; then send Theo's requests and prove the executed build, his memory and the boundary.",

@@ -2,7 +2,8 @@
 
 **Anna.** She asks for a housewarming gift in one sentence, with a budget, a stock rule and
 no candles. As shipped, the search matches her words and ranks nothing by meaning, and its
-retry drops her requirements. Keep the Workshop Studio guide open beside this file.
+retry drops her requirements. At an event, keep the Workshop Studio guide open beside this file. Outside one,
+[deploy your own copy](../../docs/run-in-your-own-account.md) first.
 
 ## Run it in the terminal
 

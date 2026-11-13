@@ -65,6 +65,14 @@ editing.
 - Preserve visible focus states and semantic headings.
 - Do not encode status by color alone.
 
+## Dependency overrides
+
+`package.json` `overrides` pins `minimatch` 11.0.8 under
+`@typescript-eslint/typescript-estree`, a lint-time dependency, for GHSA-g3hv-75wg-m249: no
+10.x release fixes it, and typescript-estree 8.72.2 still asks for `^10.2.2`. Remove the
+override once typescript-estree requires `^11.0.1`, and run lint, type-check, the tests and the
+build after either change.
+
 ## Frontend validation
 
 From `pellier/frontend`:

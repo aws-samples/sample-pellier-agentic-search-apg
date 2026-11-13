@@ -2,8 +2,8 @@
 
 **Jessica, with Nadia.** Jessica sent two items back and has no credit yet. Nadia must
 approve the credit, Cedar must cap it at $100, and the role that writes it must be able to
-write it only through the credit function. Keep the Workshop Studio guide open beside this
-file.
+write it only through the credit function. At an event, keep the Workshop Studio guide open beside this file. Outside one,
+[deploy your own copy](../../docs/run-in-your-own-account.md) first.
 
 ## Run it in the terminal
 

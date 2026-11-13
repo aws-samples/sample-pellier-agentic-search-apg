@@ -38,10 +38,10 @@ starter fails the way See it fail shows and the solution does not.
 
 | Lab | See it fail, in the terminal | The fix |
 |---|---|---|
-| 1 | `lab_run.py send --lab 1 --task 1A` sends Anna's first sentence and shows no vector ranks; after her full request is sent, `lab1_retry.py` shows the retry dropped her requirements | 1A: apply the fix that ranks eligible products by meaning. 1B: the fallback keeps her requirements |
+| 1 | `lab_run.py send --lab 1 --task 1A` sends Anna's first sentence and shows no vector ranks; after her full request is sent, `lab1_check.py --task 1B` shows the retry dropped her requirements | 1A: apply the fix that ranks eligible products by meaning. 1B: the fallback keeps her requirements |
 | 2 | After Marco's requests, `lab2_check.py --task 2A` shows the answering Stock agent held only catalog tools, so its `check_stock` call never ran; once it does, the cape reads 0 in stock and `workshop/lab-2-check-stock.sql` shows the aggregate's NULL sum | 2A: connect `check_stock` to the Stock agent, alone. 2B: `pellier.check_stock` keeps "not carried" apart from sold out |
 | 3 | `lab3_check.py --task 3A` shows `get_tickets` withheld from the Gateway and the starter Support agent without the reads Theo's household request needs; `workshop/lab-3-row-ownership.sql` shows the starter's `false` predicate hiding Theo's own rows | 3A: assemble the Support agent: publish `get_tickets`, ask for `get_orders` and `get_tickets`, and bind every tool that takes a `customer_id`. 3B: deploy, write the ownership rule, then challenge it |
-| 4 | `lab4_policy.py` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the credit-writer role raise an approved credit directly | 4A: read the $100 per-credit limit in Cedar, then apply it. 4B: the credit-writer role writes only through the credit function |
+| 4 | `lab4_check.py --task 4A` shows the starter forbid denying Nadia's approved credits; `workshop/lab-4-credit-writer.sql` shows the starter's grants letting the credit-writer role raise an approved credit directly | 4A: read the $100 per-credit limit in Cedar, then apply it. 4B: the credit-writer role writes only through the credit function |
 
 ## Nine marked regions, one check per task
 

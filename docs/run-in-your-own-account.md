@@ -9,9 +9,10 @@ event path; the templates and the bootstrap are the ones the event uses.
 
 One CloudFormation stack, `pellier-governed`, with three nested stacks: a VPC, an Aurora
 PostgreSQL cluster, and a Code Editor host that builds Pellier, loads the catalog and runs
-the labs' checks. The host sits in a private subnet behind CloudFront. Lab 3 then creates the
-AgentCore Runtime, Gateway, Memory and Policy from the host, outside the stack, which is why the
-teardown in section 6 has two parts.
+the labs' checks. The host sits in a private subnet behind CloudFront. During setup, it creates
+AgentCore Runtime, Gateway, Memory and Policy outside the stack. Labs 1 and 2 run locally;
+Lab 3 deploys your changes and switches the app to AgentCore. Teardown removes both sets of
+resources, as section 6 explains.
 
 Everything below bills by the hour or by use while it exists. The prices on this page are list
 prices in us-east-1 on 6 November 2026, before tax and Free Tier credits. Your cost depends on
@@ -26,7 +27,7 @@ Region, usage and agreements. Check the linked pricing pages or the
 | CloudFront and WAF | one distribution with a VPC origin; a web ACL in us-east-1 only | [CloudFront](https://aws.amazon.com/cloudfront/pricing/), [WAF](https://aws.amazon.com/waf/pricing/) |
 | Secrets Manager, Cognito, KMS | seven secrets (three database logins, Code Editor, the CloudFront origin credential, the Cognito app client and the demo accounts), a user pool with a hosted domain, one customer-managed key for AgentCore logs | [Secrets Manager](https://aws.amazon.com/secrets-manager/pricing/), [Cognito](https://aws.amazon.com/cognito/pricing/), [KMS](https://aws.amazon.com/kms/pricing/) |
 | CloudWatch and Lambda | log groups, X-Ray transaction search, the custom-resource and tool Lambdas | [CloudWatch](https://aws.amazon.com/cloudwatch/pricing/), [Lambda](https://aws.amazon.com/lambda/pricing/) |
-| AgentCore (from Lab 3) | Runtime, Gateway, Memory and Policy | [AgentCore](https://aws.amazon.com/bedrock/agentcore/pricing/) |
+| AgentCore (created during setup, used by the app from Lab 3) | Runtime, Gateway, Memory and Policy | [AgentCore](https://aws.amazon.com/bedrock/agentcore/pricing/) |
 | Bedrock model calls | Claude Opus 5.5, Claude Sonnet 5.5, Cohere Embed v4, Cohere Rerank 3.5 | [Bedrock](https://aws.amazon.com/bedrock/pricing/) |
 | S3 | the private bucket holding the four templates | [S3](https://aws.amazon.com/s3/pricing/) |
 
@@ -76,7 +77,9 @@ minutes, then the Wrap-up check. It installed each task's change and sent each
 lab's required requests once. That was Anna's two requests, Marco's two, Theo's three and
 Jessica's one, then Nadia's investigation and credit. This is the least a pass uses. A person
 retries and sends more requests, at about 5 cents each on average. The figures on this page leave
-out the Claude Code coach, which calls Bedrock in the same account when you use it.
+out the Claude Code coach, which calls Bedrock in the same account when you use it. The
+[cost record](evidence/cost-proof-2026-11-06-us-east-1.md) holds every metric and price behind
+this section.
 
 | What ran | Usage | Cost |
 |---|---|---|
@@ -235,7 +238,9 @@ uv run deploy/own-account/deploy.py status --region us-east-1
 
 `CodeEditorURL` opens Code Editor, `PellierURL` opens the store, and `OperatorUsername` and
 `OperatorPassword` sign Nadia in to the Operator for Lab 4. Then follow the guide from
-Getting started; every step is the same from there.
+Getting started; every step is the same from there. Without the guide,
+[workshop/README.md](../workshop/README.md) and each lab's README under `labs/` list every
+task's file, commands and checks.
 
 ## 6. Tear down
 
@@ -274,6 +279,11 @@ It ends with a **Left in place** list. What can remain, and how to remove it:
   script prints its ARN; schedule its deletion in the KMS console once the account-wide log
   groups no longer use it.
 - **Bedrock model subscriptions** stay with the account; they bill nothing while unused.
+
+To confirm nothing else is left, list the Region's CloudFormation stacks, Lambda functions,
+AgentCore runtimes and policy engines, log groups and S3 buckets. Apart from the items above,
+none should be named for Pellier. The newest record under [evidence](evidence/README.md)
+shows this check after a real teardown.
 
 ## 7. Adapt it to your own data
 

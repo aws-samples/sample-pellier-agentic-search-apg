@@ -123,7 +123,7 @@ backend environment.
    the Policy engine into the CLI project. AgentCore role ARNs are intentionally
    omitted so CLI/CDK creates the managed service roles. The renderer also sets
    the Runtime's platform version to `V1` in the CLI's CDK scaffold: the CLI has
-   no setting for it, and from 12 November 2026 AWS creates a runtime that names
+   no setting for it, and since 12 November 2026 AWS creates a runtime that names
    none on V2. Setting `PELLIER_RUNTIME_PLATFORM_VERSION=V2` in
    `pellier/backend/.env` deploys V2 instead, for testing it. The workshop terminal
    loads `.env` when it opens, so deploy from a new terminal after changing it;
@@ -153,7 +153,7 @@ value, `30` in the workshop template).
 | `gateway_client.py`               | Cognito tokens and the shared policy-denial classifier |
 | `cognito_customer_claim.py`       | Pre-token trigger that stamps the customer and staff claims |
 | `common/dataapi.py`               | RDS Data API runner and Bedrock embed/rerank for the Lambda |
-| `deploy_lambda.py`                | Lambda deployment script (adapted from DAT403) |
+| `deploy_lambda.py`                | Lambda deployment script |
 | `gateway_tool_schemas.py`         | One-target catalog and participant publication boundary   |
 | `render_agentcore_project.py`     | Writes the declarative AgentCore CLI project   |
 | `seed_agentcore_memory.py`        | Proves all-four extraction, then seeds source conversations  |

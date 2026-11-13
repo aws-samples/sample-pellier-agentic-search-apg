@@ -115,7 +115,8 @@ def _no_aws_network(monkeypatch):
 
     def _refuse_aws_urlopen(url, *args, **kwargs):
         target = getattr(url, "full_url", url)
-        if "amazonaws.com" in str(target):
+        host = urllib.parse.urlsplit(str(target)).hostname or ""
+        if host.endswith((".amazonaws.com", ".amazonaws.com.cn")):
             raise TestReachedAws(f"test reached AWS through urllib: {target}")
         return real_urlopen(url, *args, **kwargs)
 

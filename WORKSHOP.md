@@ -36,12 +36,12 @@ Times are elapsed minutes from the start of the session.
 | Workshop minutes | Activity | Duration |
 |---|---|---|
 | 0-20 | Opening talk, then Getting started (about 3 minutes; early arrivals may do it before) | 20 minutes |
-| 20-35 | Lab 1: Build and measure PostgreSQL hybrid retrieval | 15 minutes |
-| 35-50 | Lab 2: Build a PostgreSQL-grounded agent | 15 minutes |
-| 50-55 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |
-| 55-80 | Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore | 25 minutes |
-| 80-110 | Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges | 30 minutes |
-| 110-120 | Wrap-up: reconstruct one credit, discuss the evidence, take home the review skill | 10 minutes |
+| 20-40 | Lab 1: Build and measure PostgreSQL hybrid retrieval | 20 minutes |
+| 40-60 | Lab 2: Build a PostgreSQL-grounded agent | 20 minutes |
+| 60-65 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |
+| 65-90 | Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore | 25 minutes |
+| 90-115 | Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges | 25 minutes |
+| 115-120 | Wrap-up: reconstruct one credit, discuss the evidence, take home the review skill | 5 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
 Lab 4's deploys are inside their budgets, and each of those labs runs its
@@ -97,8 +97,10 @@ the participant edit regions.
   same Router and agents get their tools through AgentCore Gateway and Cedar
   decides each call before the Lambda runs.
 - **The Operator's investigation.** A two-node Strands graph, Investigator then
-  Advisor, runs in process. It reads the case, proposes one store credit and
-  stops. Nothing is written until Nadia approves and executes it.
+  Advisor, runs in process until Lab 3 moves Pellier onto AgentCore. From then
+  on it runs on its own staff Runtime, so Nadia's investigation in Lab 4 runs
+  there. It reads the case and records a credit proposal. No credit is written
+  until Nadia approves the proposal and selects Execute.
 
 ## Aurora and AgentCore Memory
 
@@ -248,7 +250,7 @@ credit, and the system must prove what moved.
   decides what the credit-writer role can touch. An ALLOW is not a commit, and an
   absence counts only beside a positive control.
 
-## Summary
+## Wrap-up
 
 The last required command, `uv run scripts/follow_credit.py`, follows Jessica's credit
 through four records: her agent's ADOT span and AgentCore's Identity and Policy spans in

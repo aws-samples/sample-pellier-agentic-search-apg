@@ -3,8 +3,8 @@
 **Theo.** He wants his taste remembered and help with his own chipped bowl, and must never
 see another customer's account. As shipped, the Gateway on AgentCore withholds
 `get_tickets`, the Support agent asks only for `get_return_policy` and `ask_a_person`, and
-the row-ownership predicate is `false`. Keep the Workshop Studio guide open beside this
-file.
+the row-ownership predicate is `false`. At an event, keep the Workshop Studio guide open beside this file. Outside one,
+[deploy your own copy](../../docs/run-in-your-own-account.md) first.
 
 ## Run it in the terminal
 
@@ -18,7 +18,7 @@ pass first; the deploy below then moves Pellier from local agents onto AgentCore
 
 Order: the 3A check (fails), the 3A apply, the 3A check (passes), the deploy, the 3B file,
 `uv run scripts/lab_run.py send --lab 3`, then the 3B check. Nothing is sent before the deploy,
-because `send --lab 3` needs the AgentCore path the deploy creates.
+because `send --lab 3` needs the AgentCore path the deploy switches Pellier onto.
 
 The deploy carries your 3A files to Runtime and Gateway. When it reports ready it moves Pellier
 onto AgentCore itself and ends `Pellier is now using AgentCore. Continue with Theo's requests.`

@@ -33,7 +33,10 @@ SKILL_PROPER_NOUNS = {
     "Voice And Curation Rules", "Voice And Proof Rules", "Voice And Handling Rules",
     "Tool Discipline", "Pellier",
 }
-_PRODUCT_LIKE = re.compile(r"\b(?:[A-Z][A-Za-z'&-]+(?:[ -][A-Z][A-Za-z'&-]+)+)\b")
+# A hyphen before a capital always separates two words, and any other hyphen stays inside its
+# word, so each phrase has one parse and the scan cannot backtrack exponentially.
+_PRODUCT_LIKE = re.compile(
+    r"\b(?:[A-Z](?:[A-Za-z'&]|-(?![A-Z]))+(?:[ -][A-Z](?:[A-Za-z'&]|-(?![A-Z]))+)+)\b")
 _DOLLAR = re.compile(r"\$\s?\d")
 
 

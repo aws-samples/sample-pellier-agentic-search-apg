@@ -70,7 +70,7 @@ policy needs missing-input and boundary tests as well as an allowed case:
 ```cedar
 forbid(
   principal is AgentCore::OAuthUser,
-  action == AgentCore::Action::"store-tools___give_store_credit",
+  action == AgentCore::Action::"pellier-store-tools___give_store_credit",
   resource == AgentCore::Gateway::"<gateway arn>"
 )
 unless {

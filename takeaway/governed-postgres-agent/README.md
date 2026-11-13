@@ -32,7 +32,9 @@ It should also say what remains untested. Compare it with the
 
 ## Install
 
-For Claude Code, from the directory containing the extracted folder:
+The skill is the `takeaway/governed-postgres-agent` folder in this repository, or the
+folder you extracted from the workshop's download. For Claude Code, from the directory
+that contains it:
 
 ```bash
 mkdir -p ~/.claude/skills
@@ -41,7 +43,9 @@ cp -r governed-postgres-agent ~/.claude/skills/
 
 Use `.claude/skills/` in a repository for a project-only installation.
 Other compatible agents use their own skills directories. The instructions
-are plain Markdown. You can also read them without installing anything.
+are plain Markdown. You can also read them without installing anything. In an assistant
+without slash commands, begin the prompt with "Follow the instructions in SKILL.md and
+review" instead of `/governed-postgres-agent review`.
 
 To try the review on Pellier, replace the prompt's tool and path with
 `give_store_credit in pellier/backend/services/store_tools.py` and select
