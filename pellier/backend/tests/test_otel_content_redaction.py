@@ -255,12 +255,12 @@ def test_strands_tracer_keeps_content_when_disabled(monkeypatch):
 # instrumentation, carried gen_ai.tool.call.arguments and
 # gen_ai.tool.call.result in clear text. The Strands token above never
 # reaches that instrumentation, and it has no content switch of its own
-# (0.19.0 to 0.21.0 set both attributes unconditionally).
+# (0.19.0 to 0.22.0 set both attributes unconditionally).
 
 ADOT_MCP_WRAPPERS = "amazon.opentelemetry.distro.instrumentation.mcp._wrappers"
 # aws-opentelemetry-distro versions whose MCP wrapper was read and found to
 # convert both tool attributes through to_tool_attribute_value.
-ADOT_VERSIONS_CHECKED = {"0.19.0", "0.20.0", "0.21.0"}
+ADOT_VERSIONS_CHECKED = {"0.19.0", "0.20.0", "0.21.0", "0.22.0"}
 
 
 def _install_fake_adot(monkeypatch, **attributes):
@@ -329,7 +329,7 @@ def test_the_runtime_lock_pins_an_adot_whose_mcp_spans_are_covered():
 # facts and Theo's remembered preferences in clear text.
 
 BACKEND = pathlib.Path(__file__).resolve().parents[1]
-BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED = {"0.65b0"}
+BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED = {"0.65b0", "0.66b1"}
 
 
 def test_botocore_message_content_is_withheld_after_adot_turns_it_on(monkeypatch):
@@ -338,7 +338,7 @@ def test_botocore_message_content_is_withheld_after_adot_turns_it_on(monkeypatch
         withhold_botocore_message_content,
     )
 
-    # aws-opentelemetry-distro 0.19.0 sets this default before the entrypoint runs.
+    # aws-opentelemetry-distro (0.19.0 to 0.22.0) sets this default before the entrypoint runs.
     monkeypatch.setenv(BOTOCORE_CAPTURE_ENV, "true")
     withhold_botocore_message_content()
     import os

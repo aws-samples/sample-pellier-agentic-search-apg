@@ -123,7 +123,7 @@ def apply_model_content_redaction(*, enabled: bool) -> str:
 # The botocore Bedrock instrumentation emits each Converse request and response as
 # GenAI log events, which the Runtime exports to its log group. It includes the
 # message text only when this variable is "true", reading it on every call, and
-# aws-opentelemetry-distro 0.19.0 sets it to "true" by default whenever agent
+# aws-opentelemetry-distro (0.19.0 to 0.22.0) sets it to "true" by default whenever agent
 # observability is on (aws_opentelemetry_distro.py: os.environ.setdefault). On the
 # 2026-11-09 test event both Runtime log groups held prompts and completions in
 # clear: the Advisor's case facts and Theo's remembered preferences.
@@ -143,7 +143,7 @@ def withhold_botocore_message_content() -> None:
 
 # ADOT's MCP client instrumentation (aws-opentelemetry-distro, Runtime bundle
 # only) records gen_ai.tool.call.arguments and gen_ai.tool.call.result on every
-# `mcp tools/call` span, and versions 0.19.0 to 0.21.0 have no switch for it:
+# `mcp tools/call` span, and versions 0.19.0 to 0.22.0 have no switch for it:
 # the Strands token above never reaches that code. Both values pass through the
 # wrapper module's own `to_tool_attribute_value` name, so replacing that name
 # withholds both while the span and the traceparent it injects into the MCP
