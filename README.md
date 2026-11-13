@@ -31,13 +31,13 @@ This is an educational sample with synthetic business data. **The checked-in lab
 
 ## The four labs
 
-Each lab follows one customer and answers one question a store's leadership would ask. In **Task A**, you apply a supplied change and inspect it. In **Task B**, you build a fix in a marked region. Terminal checks examine the relevant code, database records or deployed services. Labs 1 and 2 run the agents in process. Lab 3 carries the changes into AgentCore, and Lab 4 governs the credit workflow.
+Each lab follows one customer and tests a promise Pellier makes to that customer. In **Task A**, you apply a supplied change and inspect it. In **Task B**, you build a fix in a marked region. Terminal checks examine the relevant code, database records or deployed services. Labs 1 and 2 run the agents in process. Lab 3 carries the changes into AgentCore, and Lab 4 governs the credit workflow.
 
-| Lab | Leadership question | Apply (A) and build (B) | What proves it |
+| Lab | What you'll prove | Apply (A) and build (B) | What proves it |
 |---|---|---|---|
 | 1. Retrieve, Anna | "Can search match intent and keep every shopper requirement?" | A: the vector search that ranks her eligible products by meaning. B: a search fallback that keeps her budget, stock and exclusions | A product searched with its own embedding comes back first, and every product returned meets her requirements in Aurora |
 | 2. Ground, Marco | "Can every stock answer be backed by a warehouse record?" | A: connect `check_stock` to the Stock agent, alone. B: the stock check's SQL, so a piece Pellier does not carry is never reported as sold out | The agent's counts match the warehouse rows in Aurora |
-| 3. Deploy, Theo | "Can each shopper access only their own records on AgentCore?" | A: publish `get_tickets` on AgentCore Gateway and bind it to the signed-in caller. B: the row-ownership predicate, written while the agent deploys to AgentCore Runtime | His tickets come back and another customer's never do, a new session recalls his taste from AgentCore Memory, and the audit rows name the build that ran |
+| 3. Deploy, Theo | "Can each shopper access only their own records?" | A: publish `get_tickets` on AgentCore Gateway and bind it to the signed-in caller. B: the row-ownership predicate, written while the agent deploys to AgentCore Runtime | His tickets come back and another customer's never do, a new session recalls his taste from AgentCore Memory, and the audit rows name the build that ran |
 | 4. Govern, Jessica with Nadia (staff) | "Can an approved credit stay within its limit and be paid only once?" | A: a Cedar rule that caps a staff store credit at $100. B: the credit-writer role's privileges, so it writes only through the credit function | A retry leaves exactly one intended credit. A $100.01 attempt has a Gateway denial and no matching execution or credit row. Direct writes by the credit-writer role fail. |
 
 ## Architecture

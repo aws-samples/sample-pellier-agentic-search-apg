@@ -1,8 +1,7 @@
 # Pellier: the four-lab workshop contract
 
 Pellier is a retail store building an agentic system for product discovery and
-customer support. Four customers each bring one leadership question, and each lab
-answers one: the participant sees the starter fail it in the terminal, applies a supplied change or builds
+customer support. Each lab tests a promise Pellier makes to one of four customers: the participant sees the starter fail it in the terminal, applies a supplied change or builds
 the marked region, proves the fix with one command, and only then looks at it in
 the app.
 
@@ -12,11 +11,11 @@ The source contract is `workshop/story-arc.json`. Workshop Studio owns the full
 lab guides. In `story-arc.json`, `title` is the lab name and `storyTitle` the
 persona-led scenario; keep the technical titles as the headings.
 
-| Lab | Customer | Leadership question |
+| Lab | Customer | What you'll prove |
 |---|---|---|
 | 1. Build and measure PostgreSQL hybrid retrieval | Anna | "Can search match intent and keep every shopper requirement?" |
 | 2. Build a PostgreSQL-grounded agent | Marco | "Can every stock answer be backed by a warehouse record?" |
-| 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records on AgentCore?" |
+| 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records?" |
 | 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica and Nadia | "Can an approved credit stay within its limit and be paid only once?" |
 
 ## Every task: fail in the terminal, fix the region, prove it, then look

@@ -12,14 +12,14 @@ plan. The schedule is a target until a timed fresh-account rehearsal confirms it
 ## The outcome
 
 Participants make a retail assistant answer from data, act under the right
-identity, and prove what happened. Four customers each bring one question a
-store's leadership would ask, and each lab answers one:
+identity, and prove what happened. Each lab tests a promise Pellier makes to one of
+four customers:
 
-| Lab | Customer | Leadership question |
+| Lab | Customer | What you'll prove |
 |---|---|---|
 | 1. Build and measure PostgreSQL hybrid retrieval | Anna | "Can search match intent and keep every shopper requirement?" |
 | 2. Build a PostgreSQL-grounded agent | Marco | "Can every stock answer be backed by a warehouse record?" |
-| 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records on AgentCore?" |
+| 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records?" |
 | 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia (staff) | "Can an approved credit stay within its limit and be paid only once?" |
 
 Every task runs the same way: it fails in the terminal, the participant fixes
