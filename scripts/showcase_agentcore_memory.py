@@ -67,7 +67,7 @@ def provisioned_finding(seeded: dict, memory_id: str):
     import workshop_check as check
 
     expected = ("the conversation provisioning recorded for this customer, and at least one "
-                "user-preference record AgentCore extracted from it")
+                "user-preference record in that customer's namespace")
     events, records = seeded["events"], seeded["records"]
     evidence = [f"AgentCore Memory {memory_id}, actor {seeded['actor']}, "
                 f"session {seeded['session']}"]

@@ -25,6 +25,7 @@ async def verify(
     expected: list[str],
     *,
     timeout: int = 30,
+    customer_id: str | None = None,
     memory_factory: Callable[[], Any] | None = None,
 ) -> dict[str, Any]:
     """Poll managed Memory until every expected fragment is read."""
@@ -36,7 +37,7 @@ async def verify(
     deadline = time.monotonic() + timeout
     history: list[dict[str, Any]] = []
     while True:
-        history = await memory.get_session_history(namespace)
+        history = await memory.get_session_history(namespace, customer_id=customer_id)
         joined = "\n".join(str(turn.get("content", "")) for turn in history)
         if all(fragment in joined for fragment in expected):
             return {
@@ -57,6 +58,7 @@ async def verify(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--namespace", required=True)
+    parser.add_argument("--customer-id", help="Mapped customer actor for a signed-in shopper conversation")
     parser.add_argument("--expect", action="append", default=[])
     parser.add_argument("--timeout", type=int, default=30)
     args = parser.parse_args()
@@ -65,6 +67,7 @@ def main() -> int:
             verify(
                 args.namespace,
                 args.expect,
+                customer_id=args.customer_id,
                 timeout=max(1, args.timeout),
             )
         )

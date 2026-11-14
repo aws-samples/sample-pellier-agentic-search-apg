@@ -20,6 +20,7 @@ from services.intent_router import classify_intent
 from services.product_envelope import ProductExtractor, select_products_for_reply
 from services.model_fallback import FallbackBedrockModel, answered_with
 from services.specialist_models import agent_name, build_intent_signal, model_for_intent
+from services.turn_identity import TurnIdentity
 from services.turn_steps import (
     STATUS_UNDERSTANDING,
     STATUS_WRITING,
@@ -165,28 +166,23 @@ async def _append_pellier_stm_turn(
     session_id: Optional[str],
     user_message: str,
     assistant_message: str,
-    user: Optional[Dict[str, Any]] = None,
+    *,
+    identity: Optional[TurnIdentity] = None,
 ) -> None:
-    """Persist a Pellier dispatcher turn to AgentCore Memory (STM).
-
-    Keeps ``GET /api/agent/session/{id}`` aligned with Marco pills on
-    ``/api/chat/stream`` so the Builder's STM lab sees continuity without
-    routing the storefront through ``/api/agent/chat``.
-    """
+    """Save a Storefront turn for this conversation and the verified shopper's preferences."""
     if not session_id:
         return
     try:
         from services.agentcore_identity import AgentCoreIdentityService
         from services.agentcore_memory import AgentCoreMemory
 
-        sub = user.get("sub") if user and isinstance(user, dict) else None
-        namespace = AgentCoreIdentityService.build_namespace(sub, session_id)
-        memory = AgentCoreMemory()
-        await memory.append_session_turn(
-            namespace, {"role": "user", "content": user_message}
-        )
-        await memory.append_session_turn(
-            namespace, {"role": "assistant", "content": assistant_message}
+        subject = identity.principal_sub if identity else None
+        namespace = AgentCoreIdentityService.build_namespace(subject, session_id)
+        customer_id = identity.memory_actor() if identity else None
+        await AgentCoreMemory().append_session_turns(
+            namespace,
+            [{"role": "user", "content": user_message}, {"role": "assistant", "content": assistant_message}],
+            customer_id=customer_id,
         )
     except Exception as exc:
         logger.debug("STM append skipped: %s", exc)
@@ -2404,7 +2400,7 @@ class EnhancedChatService:
         # reports it in the memory receipt).
         if persist_memory and session_id and parsed.get("text"):
             await _append_pellier_stm_turn(
-                session_id, message, parsed["text"], user=user
+                session_id, message, parsed["text"], identity=turn_identity
             )
 
         # Complete event with full response payload

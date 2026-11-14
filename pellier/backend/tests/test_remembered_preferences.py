@@ -58,7 +58,7 @@ class _TheoMemory:
         self.strict = strict
         self.strict_flags.append(strict)
 
-    async def get_session_history(self, namespace: str) -> list:
+    async def get_session_history(self, namespace: str, *, customer_id: str | None = None) -> list:
         return []
 
     async def get_semantic_memories(self, customer_id: str) -> List[Dict[str, str]]:
@@ -66,7 +66,7 @@ class _TheoMemory:
         self.read_strict.append(self.strict)
         return [dict(THEO_RECORD)] if customer_id == "CUST-THEO" else []
 
-    async def append_session_turns(self, namespace: str, turns: list) -> None:
+    async def append_session_turns(self, namespace: str, turns: list, *, customer_id: str | None = None) -> None:
         return None
 
     async def append_session_turn(self, namespace: str, turn: dict) -> None:
@@ -210,7 +210,7 @@ def test_a_failed_preference_read_continues_the_turn_and_says_so(managed_theo,
 def test_a_failed_history_read_still_ends_the_managed_turn(managed_theo, monkeypatch) -> None:
     """The conversation itself is not optional: an answer without it can act on the
     wrong thread, so that read still fails closed."""
-    async def _history_fails(self: Any, namespace: str) -> list:
+    async def _history_fails(self: Any, namespace: str, *, customer_id: str | None = None) -> list:
         raise memory_module.ManagedMemoryError("AgentCore session history read failed")
 
     monkeypatch.setattr(_TheoMemory, "get_session_history", _history_fails)

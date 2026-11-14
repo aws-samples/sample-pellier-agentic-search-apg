@@ -236,20 +236,12 @@ class TurnIdentity:
     persona_is_simulated: bool = False
     principal_username: Optional[str] = None
 
-    def memory_actor(self) -> str:
-        """Return the actor id AgentCore Memory should namespace under.
+    def memory_actor(self) -> Optional[str]:
+        """The verified shopper whose preferences can carry into a later chat.
 
-        Prefers the verified principal. A demo persona never overrides a
-        real identity: doing so would let a UI dropdown read another
-        attendee's durable records. Falls back to the persona only when
-        there is no verified principal at all — which is the demo case,
-        and is reported as ``persona_is_simulated``.
+        Sessions without a verified customer keep their own conversation history.
         """
-        if self.principal_sub:
-            return self.principal_sub
-        if self.demo_persona_id:
-            return f"persona-{self.demo_persona_id}"
-        return "anonymous"
+        return self.shopper_customer_id if self.authenticated and self.principal_sub else None
 
     def authorization_principal(self) -> Optional[str]:
         """Return the only identity a policy check may use.

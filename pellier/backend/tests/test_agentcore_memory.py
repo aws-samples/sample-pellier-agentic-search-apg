@@ -530,7 +530,7 @@ def test_get_semantic_memories_returns_empty_without_sdk(memory) -> None:
 def test_get_semantic_memories_keeps_each_record_id_beside_its_preference() -> None:
     """SDK path: each record's ``content.text`` JSON SHALL be parsed and its
     ``preference`` kept with the record's id; the read SHALL use
-    ``namespace_prefix='/pellier/preferences/{customer}/'`` + ``max_results``."""
+    ``namespace='/pellier/preferences/{customer}/'`` + ``max_results``."""
     import json
 
     captured: dict = {}
@@ -538,7 +538,7 @@ def test_get_semantic_memories_keeps_each_record_id_beside_its_preference() -> N
     class _FakeManager:
         def list_long_term_memory_records(self, **kwargs):
             captured.update(kwargs)
-            assert "namespace" not in kwargs, "use namespace_prefix, not namespace"
+            assert "namespace_prefix" not in kwargs
             assert "maxResults" not in kwargs, "use max_results, not maxResults"
             return [
                 _SemRecord(json.dumps({
@@ -562,7 +562,7 @@ def test_get_semantic_memories_keeps_each_record_id_beside_its_preference() -> N
         {"record_id": "mem-linen", "preference": "Prefers lightweight linen in warm neutrals"},
         {"record_id": "mem-fibers", "preference": "Favors natural fibers over synthetics"},
     ]
-    assert captured["namespace_prefix"] == "/pellier/preferences/CUST-MARCO/"
+    assert captured["namespace"] == "/pellier/preferences/CUST-MARCO/"
     assert captured["max_results"] == 20
 
 
@@ -714,3 +714,27 @@ def test_process_local_session_store_is_bounded(monkeypatch: pytest.MonkeyPatch)
     assert mem._SESSION_STORE.setdefault("session-2", []) == [{"turn": 2}]
     mem._SESSION_STORE.setdefault("session-5", []).append({"turn": 5})
     assert "session-2" in store and "session-3" not in store
+
+
+def test_session_history_preserves_message_order_in_paired_and_older_single_events(memory, monkeypatch):
+    from types import SimpleNamespace
+
+    def event(*messages):
+        return {"payload": [{"conversational": {"role": role, "content": {"text": text}}}
+                            for role, text in messages]}
+
+    events = [event(("USER", "new question"), ("ASSISTANT", "new answer")),
+              event(("ASSISTANT", "old answer")), event(("USER", "old question"))]
+
+    class Session:
+        def list_events(self, *, include_payload, max_results):
+            assert include_payload and max_results == 100
+            return events
+
+        def get_last_k_turns(self, *, k):
+            return [[entry["conversational"] for entry in item["payload"]] for item in events]
+
+    manager = SimpleNamespace(create_memory_session=lambda **kwargs: Session())
+    monkeypatch.setattr(memory, "_get_sdk_manager", lambda: manager)
+    assert [t["content"] for t in _run(memory.get_session_history("anon-gifts"))] == [
+        "old question", "old answer", "new question", "new answer"]

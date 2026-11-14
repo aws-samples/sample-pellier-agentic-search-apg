@@ -129,7 +129,7 @@ POLICY_MODE_REQUIREMENTS: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
 MEMORY_RUNTIME_REQUIREMENTS: Tuple[Tuple[str, str, Tuple[str, ...]], ...] = (
     ("DeleteEvent", "input", ("memoryId", "actorId", "sessionId", "eventId")),
     ("DeleteMemoryRecord", "input", ("memoryId", "memoryRecordId")),
-    ("ListMemoryRecords", "input", ("memoryId", "namespace")),
+    ("ListMemoryRecords", "input", ("memoryId", "namespace", "namespacePath")),
     ("ListActors", "input", ("memoryId",)),
 )
 

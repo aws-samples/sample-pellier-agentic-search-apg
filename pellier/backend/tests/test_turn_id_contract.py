@@ -246,7 +246,8 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
         def __init__(self, *, strict: bool = False) -> None:
             assert strict is True
 
-        async def get_session_history(self, namespace: str) -> list[dict[str, Any]]:
+        async def get_session_history(self, namespace: str, *, customer_id: str | None = None) -> list[dict[str, Any]]:
+            assert customer_id == "CUST-MARCO"
             assert namespace == "user-principal-managed-session-sess-managed"
             return []
 
@@ -255,8 +256,9 @@ def test_managed_storefront_turn_invokes_runtime_not_local_chat(
             return []
 
         async def append_session_turns(
-            self, namespace: str, turns: list[dict[str, Any]]
+            self, namespace: str, turns: list[dict[str, Any]], *, customer_id: str | None = None
         ) -> None:
+            assert customer_id == "CUST-MARCO"
             self.writes.append((namespace, turns))
 
     class _LocalChatMustNotRun:
@@ -346,14 +348,14 @@ def test_managed_storefront_memory_write_failure_does_not_recast_action(
         def __init__(self, *, strict: bool = False) -> None:
             assert strict is True
 
-        async def get_session_history(self, _namespace: str) -> list[dict[str, Any]]:
+        async def get_session_history(self, _namespace: str, *, customer_id: str | None = None) -> list[dict[str, Any]]:
             return []
 
         async def get_semantic_memories(self, _customer_id: str) -> list[dict[str, str]]:
             return []
 
         async def append_session_turns(
-            self, _namespace: str, _turns: list[dict[str, Any]]
+            self, _namespace: str, _turns: list[dict[str, Any]], *, customer_id: str | None = None
         ) -> None:
             raise ManagedMemoryError("write failed")
 
@@ -431,14 +433,14 @@ def test_unexpected_managed_memory_write_failure_preserves_completed_action(
         def __init__(self, *, strict: bool = False) -> None:
             assert strict is True
 
-        async def get_session_history(self, _namespace: str) -> list[dict[str, Any]]:
+        async def get_session_history(self, _namespace: str, *, customer_id: str | None = None) -> list[dict[str, Any]]:
             return []
 
         async def get_semantic_memories(self, _customer_id: str) -> list[dict[str, str]]:
             return []
 
         async def append_session_turns(
-            self, _namespace: str, _turns: list[dict[str, Any]]
+            self, _namespace: str, _turns: list[dict[str, Any]], *, customer_id: str | None = None
         ) -> None:
             raise RuntimeError("unexpected SDK failure")
 

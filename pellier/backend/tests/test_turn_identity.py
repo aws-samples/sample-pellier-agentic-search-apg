@@ -28,7 +28,7 @@ from services.turn_identity import (
 # ---------------------------------------------------------------------------
 # The verified principal always wins
 # ---------------------------------------------------------------------------
-def test_verified_principal_is_the_memory_actor_not_the_persona() -> None:
+def test_verified_customer_mapping_selects_the_preference_actor() -> None:
     """The regression guard for B7.
 
     A persona selection must not redirect memory to another actor's
@@ -39,7 +39,7 @@ def test_verified_principal_is_the_memory_actor_not_the_persona() -> None:
         requested_customer_id="CUST-ANNA",
     )
 
-    assert identity.memory_actor() == "cognito-sub-real"
+    assert identity.memory_actor() == "CUST-MARCO"
     assert identity.principal_sub == "cognito-sub-real"
 
 
@@ -49,6 +49,7 @@ def test_only_the_verified_sub_is_an_authorization_principal() -> None:
     )
 
     assert identity.authorization_principal() == "cognito-sub-real"
+    assert identity.memory_actor() is None
 
 
 def test_anonymous_turn_has_no_authorization_principal() -> None:
@@ -75,17 +76,17 @@ def test_authenticated_turn_is_not_simulated() -> None:
     assert identity.persona_is_simulated is False
 
 
-def test_persona_namespace_is_prefixed_so_it_cannot_collide_with_a_sub() -> None:
-    """A persona actor id must be structurally distinct from a real sub."""
+def test_anonymous_persona_has_no_customer_memory_actor() -> None:
+    """A persona selection alone cannot select a customer preference namespace."""
     identity = resolve_turn_identity(requested_customer_id="CUST-MARCO")
 
-    assert identity.memory_actor() == "persona-CUST-MARCO"
+    assert identity.memory_actor() is None
 
 
-def test_fully_anonymous_turn_falls_back_to_anonymous() -> None:
+def test_fully_anonymous_turn_has_no_customer_actor() -> None:
     identity = resolve_turn_identity()
 
-    assert identity.memory_actor() == "anonymous"
+    assert identity.memory_actor() is None
     assert identity.demo_persona_id is None
 
 
@@ -105,7 +106,7 @@ def test_identity_serializes_all_three_fields_distinctly() -> None:
     assert payload["principalSub"] == "sub-1"
     assert payload["shopperCustomerId"] == "CUST-MARCO"
     assert payload["demoPersonaId"] == "CUST-ANNA"
-    assert payload["memoryActor"] == "sub-1"
+    assert payload["memoryActor"] == payload["shopperCustomerId"]
     assert payload["authenticated"] is True
 
 
@@ -209,7 +210,7 @@ def test_chat_uses_one_identity_service_namespace_for_shopper_stm() -> None:
 
 
 def test_default_identity_is_anonymous() -> None:
-    assert TurnIdentity().memory_actor() == "anonymous"
+    assert TurnIdentity().memory_actor() is None
     assert TurnIdentity().authorization_principal() is None
 
 

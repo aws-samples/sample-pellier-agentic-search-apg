@@ -626,7 +626,7 @@ def test_managed_memory_read_failure_stops_before_runtime(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _Memory:
-        async def get_session_history(self, _namespace):
+        async def get_session_history(self, _namespace, *, customer_id: str | None = None):
             raise ManagedMemoryError("read failed")
 
     async def _unexpected_runtime(**_kwargs):
@@ -667,10 +667,10 @@ def test_unexpected_memory_read_failure_is_receipted_as_failed(
     turns as a successful read.
     """
     class _Memory:
-        async def get_session_history(self, _namespace):
+        async def get_session_history(self, _namespace, *, customer_id: str | None = None):
             raise RuntimeError("transport interrupted")
 
-        async def append_session_turns(self, _namespace, _turns):
+        async def append_session_turns(self, _namespace, _turns, *, customer_id: str | None = None):
             from services.agentcore_memory import BACKEND_AGENTCORE
 
             return BACKEND_AGENTCORE
@@ -724,10 +724,10 @@ def test_managed_memory_write_failure_preserves_completed_action(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class _Memory:
-        async def get_session_history(self, _namespace):
+        async def get_session_history(self, _namespace, *, customer_id: str | None = None):
             return []
 
-        async def append_session_turns(self, _namespace, _turns):
+        async def append_session_turns(self, _namespace, _turns, *, customer_id: str | None = None):
             raise ManagedMemoryError("write failed")
 
     async def _runtime(**_kwargs):
@@ -888,10 +888,10 @@ def test_process_local_memory_write_is_not_receipted_as_managed(
     from services.agentcore_memory import BACKEND_PROCESS_LOCAL
 
     class _Memory:
-        async def get_session_history(self, _namespace):
+        async def get_session_history(self, _namespace, *, customer_id: str | None = None):
             return []
 
-        async def append_session_turns(self, _namespace, _turns):
+        async def append_session_turns(self, _namespace, _turns, *, customer_id: str | None = None):
             return BACKEND_PROCESS_LOCAL
 
     async def _runtime(**_kwargs):

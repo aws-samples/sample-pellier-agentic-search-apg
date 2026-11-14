@@ -24,8 +24,9 @@ class _Memory:
     def __init__(self, turns):
         self.turns = turns
 
-    async def get_session_history(self, namespace):
+    async def get_session_history(self, namespace, *, customer_id=None):
         assert namespace == "user-marco-session-proof"
+        assert customer_id in (None, "CUST-MARCO")
         return self.turns
 
 
@@ -35,6 +36,7 @@ def test_verify_reports_independent_managed_read() -> None:
             "user-marco-session-proof",
             ["Goa", "linen"],
             timeout=1,
+            customer_id="CUST-MARCO",
             memory_factory=lambda: _Memory(
                 [{"role": "user", "content": "Remember Goa and linen."}]
             ),

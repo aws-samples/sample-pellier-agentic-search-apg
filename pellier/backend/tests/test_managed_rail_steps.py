@@ -138,13 +138,13 @@ def managed_app(monkeypatch: pytest.MonkeyPatch):
         def __init__(self, *, strict: bool = False) -> None:
             pass
 
-        async def get_session_history(self, namespace: str) -> list:
+        async def get_session_history(self, namespace: str, *, customer_id: str | None = None) -> list:
             return []
 
         async def get_semantic_memories(self, customer_id: str) -> list:
             return []
 
-        async def append_session_turns(self, namespace: str, turns: list) -> None:
+        async def append_session_turns(self, namespace: str, turns: list, *, customer_id: str | None = None) -> None:
             return None
 
     class _LocalChatMustNotRun:

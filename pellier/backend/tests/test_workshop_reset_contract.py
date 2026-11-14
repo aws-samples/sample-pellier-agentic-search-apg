@@ -185,12 +185,6 @@ def test_the_reset_parses_a_dotenv_rather_than_sourcing_it() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_the_memory_cleanup_preserves_the_seeded_persona_actors() -> None:
-    """`seed-sample-preferences.sh` posts their bundles, so a fresh box has them too."""
-    body = MEMORY_RESET.read_text()
-    assert 'PRESERVE_ACTORS = frozenset({"CUST-MARCO", "CUST-ANNA", "CUST-THEO"})' in body
-
-
 def test_the_memory_cleanup_never_touches_the_resource() -> None:
     body = MEMORY_RESET.read_text()
     for control_plane in ("delete_memory(", "create_memory(", "update_memory("):

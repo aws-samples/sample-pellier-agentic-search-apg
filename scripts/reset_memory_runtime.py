@@ -35,10 +35,10 @@ WHAT THIS SCRIPT DOES NOT DO
 
   * It never deletes or reconfigures the Memory RESOURCE. No control-plane write.
   * It never touches an actor outside the Pellier memory id it is given.
-  * It preserves the seeded persona actors. `seed-sample-preferences.sh` signs in as
-    marco, anna and theo and posts their preference bundles, so `CUST-MARCO`,
-    `CUST-ANNA` and `CUST-THEO` hold canonical baseline records that a fresh box also
-    has. Deleting them would make the reset cluster emptier than a fresh one.
+  * A customer with only the setup conversation keeps that baseline. A customer
+    with live turns is cleaned and reseeded because extracted records can combine
+    preferences from more than one session. An interrupted reset can restore a
+    missing setup conversation on its next run.
 
 Dry run by default. Nothing is deleted without ``--apply``.
 
@@ -63,12 +63,14 @@ import os
 import pathlib
 import sys
 import time
+import uuid
 from typing import Any, Dict, List
 
-# Actors whose memory is canonical seeded baseline, not engineering residue. Written as
-# a frozen set rather than a prefix rule: a prefix rule would silently start preserving
-# a future `CUST-` actor nobody seeded.
-PRESERVE_ACTORS = frozenset({"CUST-MARCO", "CUST-ANNA", "CUST-THEO"})
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "deploy"))
+from seed_agentcore_memory import (
+    PREFERENCE_WAIT_SECONDS, SEED_SESSION, SEED_TURNS, seed_conversation_matches, write_seed_events,
+)
+
 
 PREFERENCE_NAMESPACE = "/pellier/preferences/{actor}/"
 MEMORY_NAMESPACE_PREFIXES = (
@@ -163,31 +165,40 @@ def survey(client: Any, memory_id: str) -> List[Dict[str, Any]]:
     ):
         actor = str(summary["actorId"])
         sessions: List[Dict[str, Any]] = []
+        seed_matches = False
         for session in _paginate(
             client.list_sessions, "sessionSummaries",
             memoryId=memory_id, actorId=actor, maxResults=100,
         ):
+            is_seed = actor in SEED_TURNS and session["sessionId"] == SEED_SESSION
             events = _paginate(
                 client.list_events, "events",
                 memoryId=memory_id, actorId=actor,
-                sessionId=session["sessionId"], maxResults=100,
+                sessionId=session["sessionId"], maxResults=100, includePayloads=is_seed,
             )
+            if is_seed:
+                seed_matches = seed_conversation_matches(actor, events)
             sessions.append({
                 "sessionId": session["sessionId"],
                 "eventIds": [e["eventId"] for e in events],
             })
+        # Remove the seed events first on a mixed actor. If cleanup is interrupted,
+        # a partial seed will still be recognized as needing repair on the next run.
+        sessions.sort(key=lambda item: item["sessionId"] != SEED_SESSION)
+        active_sessions = {item["sessionId"] for item in sessions if item["eventIds"]}
+        baseline_only = seed_matches and active_sessions == {SEED_SESSION}
         records_by_id: Dict[str, Dict[str, Any]] = {}
         for prefix in MEMORY_NAMESPACE_PREFIXES:
             for record in _paginate(
                 client.list_memory_records, "memoryRecordSummaries",
-                memoryId=memory_id, namespace=prefix.format(actor=actor),
+                memoryId=memory_id, namespacePath=prefix.format(actor=actor),
                 maxResults=100,
             ):
                 records_by_id[record["memoryRecordId"]] = record
         records = list(records_by_id.values())
         actors.append({
             "actorId": actor,
-            "preserve": actor in PRESERVE_ACTORS,
+            "preserve": baseline_only,
             "sessions": sessions,
             "eventCount": sum(len(s["eventIds"]) for s in sessions),
             "records": [
@@ -346,6 +357,31 @@ def _report_residue(
     return leftovers
 
 
+def restore_baseline(client: Any, memory_id: str, rebuild: list[str]) -> None:
+    """Restore setup for rebuilt actors. A clean baseline keeps provisioning's timing."""
+    if not rebuild:
+        return
+    write_seed_events(client, memory_id, rebuild, generation=f"-{uuid.uuid4().hex}")
+    pending = set(rebuild)
+    deadline = time.monotonic() + PREFERENCE_WAIT_SECONDS
+    while pending:
+        for actor in sorted(pending):
+            events = _paginate(client.list_events, "events", memoryId=memory_id, actorId=actor,
+                               sessionId=SEED_SESSION, includePayloads=True)
+            if not seed_conversation_matches(actor, events):
+                continue
+            path = PREFERENCE_NAMESPACE.format(actor=actor)
+            records = _paginate(client.list_memory_records, "memoryRecordSummaries",
+                                memoryId=memory_id, namespace=path)
+            if any(r.get("memoryRecordId") and path in r.get("namespaces", []) for r in records):
+                pending.remove(actor)
+        if pending:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise RuntimeError(f"Setup preferences have not returned for {', '.join(sorted(pending))}")
+            time.sleep(min(10, remaining))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true",
@@ -389,6 +425,14 @@ def main() -> int:
     leftovers = _report_residue(
         client, memory_id, timeout_seconds=0 if counts["failures"] else 180, known=deleted,
     ) if args.apply else []
+
+    if args.apply and not counts["failures"] and not leftovers:
+        rebuild = sorted(set(SEED_TURNS) - {entry["actorId"] for entry in kept})
+        try:
+            restore_baseline(client, memory_id, rebuild)
+        except Exception as exc:
+            counts["failures"] += 1
+            print(f"Could not restore the setup conversations: {exc}", file=sys.stderr)
 
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(

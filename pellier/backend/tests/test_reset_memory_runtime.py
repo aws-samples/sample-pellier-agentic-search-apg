@@ -58,7 +58,7 @@ class FakeMemoryClient:
         self.events: Dict[str, Dict[str, List[str]]] = {
             "operator-sub": {"s1": ["e1", "e2", "e3"], "s2": ["e4"], "s3": ["e5"]},
             "engineer-sub": {"s9": ["e9"]},
-            "CUST-MARCO": {"m1": ["me1"]},
+            "CUST-MARCO": {"prefseed": ["me1", "me2"]},
         }
         # actor -> [record ids]
         self.records: Dict[str, List[str]] = {
@@ -88,11 +88,17 @@ class FakeMemoryClient:
     def list_events(self, **kwargs: Any) -> Dict[str, Any]:
         self.list_calls.append({"op": "list_events", **kwargs})
         ids = self.events.get(kwargs["actorId"], {}).get(kwargs["sessionId"], [])
-        return _pages([{"eventId": e} for e in ids], "events", self.PAGE, kwargs.get("nextToken"))
+        rows = [{"eventId": e} for e in ids]
+        if kwargs.get("includePayloads") and kwargs["sessionId"] == "prefseed":
+            from seed_agentcore_memory import SEED_TURNS, seed_payload
+            fixtures = {f"me{i}": seed_payload(*pair) for i, pair in enumerate(SEED_TURNS["CUST-MARCO"], 1)}
+            for row in rows:
+                row["payload"] = fixtures.get(row["eventId"], [])
+        return _pages(rows, "events", self.PAGE, kwargs.get("nextToken"))
 
     def list_memory_records(self, **kwargs: Any) -> Dict[str, Any]:
         self.list_calls.append({"op": "list_memory_records", **kwargs})
-        actor = kwargs["namespace"].split("/")[3]
+        actor = kwargs["namespacePath"].split("/")[3]
         rows = [{"memoryRecordId": r, "content": {"text": r}} for r in self.records.get(actor, [])]
         return _pages(rows, "memoryRecordSummaries", self.PAGE, kwargs.get("nextToken"))
 
@@ -151,7 +157,7 @@ def test_survey_and_cleanup_cover_every_page_of_every_list() -> None:
     assert sorted(client.deleted_events) == ["e1", "e2", "e3", "e4", "e5", "e9"]
     assert sorted(client.deleted_records) == ["r1", "r2", "r3"]
     # The seeded persona actor is untouched.
-    assert client.events["CUST-MARCO"] == {"m1": ["me1"]}
+    assert client.events["CUST-MARCO"] == {"prefseed": ["me1", "me2"]}
     assert client.records["CUST-MARCO"] == ["mr1"]
     assert module.residue(module.survey(client, "mem-1")) == []
 
@@ -160,6 +166,7 @@ def _run_main(module, monkeypatch: pytest.MonkeyPatch, client: FakeMemoryClient)
     _virtual_clock(module, monkeypatch)
     monkeypatch.setattr(module, "_env", lambda: {"AGENTCORE_MEMORY_ID": "mem-1"})
     monkeypatch.setattr(module, "_client", lambda _region: client)
+    monkeypatch.setattr(module, "restore_baseline", lambda *_: None)
     monkeypatch.setattr(sys, "argv", ["reset_memory_runtime.py", "--apply"])
     return module.main()
 
@@ -333,7 +340,7 @@ def test_survey_covers_facts_summaries_episodes_and_preferences() -> None:
     class AllStrategiesClient(FakeMemoryClient):
         def list_memory_records(self, **kwargs):
             self.list_calls.append({"op": "list_memory_records", **kwargs})
-            prefix, actor = kwargs["namespace"].split("/")[2:4]
+            prefix, actor = kwargs["namespacePath"].split("/")[2:4]
             return {"memoryRecordSummaries": [{"memoryRecordId": f"{actor}-{prefix}", "content": {"text": prefix}}]}
 
     client = AllStrategiesClient()
@@ -342,3 +349,58 @@ def test_survey_covers_facts_summaries_episodes_and_preferences() -> None:
     assert {r["text"] for r in owned["records"]} == {"preferences", "facts", "summaries", "episodes"}
     assert next(a for a in actors if a["actorId"] == "CUST-MARCO")["preserve"] is True
     assert not client.deleted_events and not client.deleted_records
+
+
+def test_customer_preferences_and_conversations_from_a_run_are_removed_together():
+    module = _load_module()
+    client = FakeMemoryClient()
+    client.events["CUST-MARCO"]["user-marco-session-live"] = ["live-event"]
+    client.records["CUST-MARCO"].append("live-preference")
+    actors = module.survey(client, "mem-1")
+    counts = module.apply_cleanup(client, "mem-1", actors, apply=True)
+    assert counts["failures"] == 0
+    assert "live-event" in client.deleted_events and "live-preference" in client.deleted_records
+
+
+def test_reset_restores_missing_seed_turns_and_requires_their_preference_records(monkeypatch):
+    module = _load_module()
+    _virtual_clock(module, monkeypatch)
+    pairs = module.SEED_TURNS["CUST-THEO"]
+    writes = []
+    monkeypatch.setattr(module, "write_seed_events", lambda *args, generation: writes.append((args, generation)))
+
+    class Client:
+        record = True
+
+        def list_events(self, **params):
+            assert (params["actorId"], params["sessionId"]) == ("CUST-THEO", "prefseed")
+            return {"events": [{"payload": [{"conversational": {"role": role, "content": {"text": text}}}
+                for role, text in zip(("USER", "ASSISTANT"), pair)]} for pair in pairs]}
+
+        def list_memory_records(self, **params):
+            return {"memoryRecordSummaries": [{"memoryRecordId": "baseline",
+                    "namespaces": [params["namespace"]]}] if self.record else []}
+
+    client = Client()
+    module.restore_baseline(client, "mem", ["CUST-THEO"])
+    assert len(writes) == 1 and writes[0][0] == (client, "mem", ["CUST-THEO"]) and writes[0][1]
+    client.record = False
+    with pytest.raises(RuntimeError, match="CUST-THEO"):
+        module.restore_baseline(client, "mem", ["CUST-THEO"])
+    assert len(writes) == 2
+
+
+def test_clean_seed_is_preserved_without_waiting_for_new_extraction(monkeypatch):
+    module = _load_module()
+    class NoCalls:
+        def __getattr__(self, key):
+            raise AssertionError(f"Clean setup unexpectedly called {key}")
+    module.restore_baseline(NoCalls(), "mem", [])
+
+
+def test_an_incomplete_or_wrong_seed_cannot_be_preserved():
+    module = _load_module()
+    client = FakeMemoryClient()
+    client.events["CUST-MARCO"]["prefseed"] = ["wrong-1", "wrong-2"]
+    marco = next(a for a in module.survey(client, "mem") if a["actorId"] == "CUST-MARCO")
+    assert not marco["preserve"]

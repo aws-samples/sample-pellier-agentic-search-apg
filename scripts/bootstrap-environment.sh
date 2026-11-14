@@ -682,7 +682,7 @@ log "Installing VS Code extensions..."
 install_extension() {
     local EXT_ID=$1
     local EXT_NAME=$2
-    local installed_extensions
+    local installed_extensions installed_version
     
     log "Installing extension: $EXT_NAME ($EXT_ID)..."
     
@@ -692,9 +692,10 @@ install_extension() {
         # The installer can return success even when a registry lookup fails.
         # Verify this exact extension, including on reentry, instead of matching
         # an earlier extension's success message in a shared log.
-        if installed_extensions="$(sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --list-extensions 2>/dev/null)" &&
-            printf '%s\n' "$installed_extensions" | grep -Fxiq -- "$EXT_ID"; then
-            log "  ✅ $EXT_NAME"
+        if installed_extensions="$(sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --list-extensions --show-versions 2>/dev/null)" &&
+            installed_version="$(awk -F@ -v id="$EXT_ID" 'tolower($1) == tolower(id) && NF == 2 && $2 != "" {print; exit}' <<< "$installed_extensions")" &&
+            [ -n "$installed_version" ]; then
+            log "  ✅ $EXT_NAME ($installed_version)"
             return 0
         fi
     fi

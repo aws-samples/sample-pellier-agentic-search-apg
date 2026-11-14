@@ -158,6 +158,27 @@ def _scoped_read_tool(catalog: List[str]) -> Optional[str]:
     return None
 
 
+def _owner_orders_returned(result: Any, customer_id: str) -> bool:
+    """Accept the get_orders result in direct MCP content or the Lambda's content envelope."""
+    payload = result
+    for _ in range(2):
+        if not isinstance(payload, dict) or payload.get("isError"):
+            return False
+        blocks = payload.get("content")
+        if not isinstance(blocks, list) or len(blocks) != 1:
+            return False
+        block = blocks[0]
+        if not isinstance(block, dict) or block.get("type") != "text":
+            return False
+        try:
+            payload = json.loads(block["text"])
+        except (KeyError, TypeError, ValueError):
+            return False
+        if isinstance(payload, dict) and payload.get("status") == "success":
+            return payload.get("customer_id") == customer_id and isinstance(payload.get("orders"), list)
+    return False
+
+
 def _gateway_outcome(gateway_url: str, token: str, tool: str, args: Dict[str, Any]) -> Dict[str, Any]:
     """One call through ``gateway_policy_probe``, classified ``allow``, ``deny`` or ``error``.
 
@@ -172,7 +193,10 @@ def _gateway_outcome(gateway_url: str, token: str, tool: str, args: Dict[str, An
         call = anyio.run(_call_tool, gateway_url, token, tool, args)
     except Exception as exc:  # noqa: BLE001 - every failure shape is classified
         failure = exc
-    return classify_call(call, failure)
+    outcome = classify_call(call, failure)
+    if outcome["outcome"] == "allow" and not _owner_orders_returned(outcome["result"], args["customer_id"]):
+        return {"outcome": "error", "error_type": "InvalidOrdersResult"}
+    return outcome
 
 
 def gateway_probes(
@@ -185,14 +209,14 @@ def gateway_probes(
 
     owners = sorted(customers)
     if not owners:
-        return []
+        return [{"case": "owner", "outcome": "error", "passed": False, "expected": ["allow"]}]
     owner = owners[0]
     other = customers[owners[1]] if len(owners) > 1 else "CUST-NOBODY"
     tool = _scoped_read_tool(anyio.run(_gateway_catalog, gateway_url, tokens[owner]))
     if tool is None:
         return [{"case": "catalog", "outcome": "error", "detail": "no customer-scoped read on the Gateway"}]
     cases = [
-        ("owner", tokens[owner], {"customer_id": customers[owner]}, {"allow", "error"}),
+        ("owner", tokens[owner], {"customer_id": customers[owner]}, {"allow"}),
         ("mismatched", tokens[owner], {"customer_id": other}, {"deny"}),
     ]
     if unmapped_token:

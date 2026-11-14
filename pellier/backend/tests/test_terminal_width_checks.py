@@ -10,9 +10,11 @@ unbreakable word, that the words survive, and that a label's later lines stay un
 from __future__ import annotations
 
 import importlib
+import json
 import sys
 from pathlib import Path
 from typing import Any, List
+from unittest.mock import Mock
 
 import pytest
 
@@ -198,12 +200,28 @@ def test_duckdb_pass_line_is_green_only_at_a_terminal(
 def test_where_memory_lands_lines_fit(monkeypatch: pytest.MonkeyPatch, columns: int,
                                       capsys: pytest.CaptureFixture[str]) -> None:
     width = terminal(monkeypatch, columns)
-    monkeypatch.setattr(where_memory, "_connect", lambda: (object(), "mem-1", "sub-1"))
-    monkeypatch.setattr(where_memory, "extracting", lambda *_a: [("x", 120.0)])
-    monkeypatch.setattr(where_memory, "wait_for_extraction", lambda *_a: False)
-    monkeypatch.setattr(where_memory, "report", lambda *_a: ["CUST-THEO"])
-    where_memory.main()
-    assert_fits(capsys.readouterr().out, width)
+    session = "user-theo-session-" + "ab" * 16
+    record_id = "mem-" + "ef" * 16
+    message = "I'm drawn to deep indigo linen."
+    preference = "Prefers deep indigo linen for rooms with natural light and hand-thrown pottery."
+    client = Mock()
+    client.list_sessions.return_value = {"sessionSummaries": [{"sessionId": session}]}
+    client.list_events.return_value = {"events": [{
+        "eventId": TURN,
+        "payload": [{"conversational": {"role": "USER", "content": {"text": message}}}],
+    }]}
+    client.list_memory_records.return_value = {"memoryRecordSummaries": [{
+        "memoryRecordId": record_id, "namespaces": [where_memory.PREFERENCES],
+        "content": {"text": json.dumps({"preference": preference})},
+    }]}
+    monkeypatch.setattr(where_memory, "_connect", lambda: (client, "mem-1"))
+
+    assert where_memory.main([]) == 0
+    output = capsys.readouterr().out
+    assert_fits(output, width)
+    lines = " ".join(output.split())
+    assert f"Shopper message {TURN} in {session}: {message}" in lines
+    assert f"Preference record {record_id}: {preference}" in lines
 
 
 @TERMINALS

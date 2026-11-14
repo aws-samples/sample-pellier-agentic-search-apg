@@ -28,15 +28,17 @@ from services.turn_identity import TurnIdentity, authorized_customer_id_var, pri
 
 class _RecordingMemory:
     def __init__(self) -> None:
+        self.customers: List[str | None] = []
         self.rows: List[tuple[str, Dict[str, Any]]] = []
 
-    async def get_session_history(self, namespace: str) -> list:
+    async def get_session_history(self, namespace: str, *, customer_id: str | None = None) -> list:
         return []
 
     async def append_session_turn(self, namespace: str, turn: Dict[str, Any]) -> str:
-        return await self.append_session_turns(namespace, [turn])
+        return await self.append_session_turns(namespace, [turn], customer_id=None)
 
-    async def append_session_turns(self, namespace: str, turns: list) -> str:
+    async def append_session_turns(self, namespace: str, turns: list, *, customer_id: str | None = None) -> str:
+        self.customers.append(customer_id)
         self.rows.extend((namespace, dict(turn)) for turn in turns)
         return "process-local"
 
@@ -155,13 +157,14 @@ def test_a_local_turn_is_written_to_memory_once(
         seen.update(kwargs)
         if kwargs["persist_memory"]:
             await _append_pellier_stm_turn(
-                kwargs["session_id"], kwargs["message"], "one answer", user=kwargs.get("user"),
+                kwargs["session_id"], kwargs["message"], "one answer", identity=kwargs.get("turn_identity"),
             )
         yield {"type": "complete", "response": {"response": "one answer", "success": True}}
 
     service.chat_stream = completed_turn
     events = _stream("one question", memory)
 
+    assert memory.customers == ["CUST-THEO"]
     assert seen["persist_memory"] is False
     assert _event_types(events) == ["event: session", "event: memory", "event: chunk", "event: done"]
     assert [row for _namespace, row in memory.rows] == [
@@ -207,6 +210,7 @@ def test_chat_stream_honours_the_persist_memory_argument(
     asyncio.run(run(False))
     assert memory.rows == []
     asyncio.run(run(True))
+    assert memory.customers == [None]
     assert [row["role"] for _namespace, row in memory.rows] == ["user", "assistant"]
 
 

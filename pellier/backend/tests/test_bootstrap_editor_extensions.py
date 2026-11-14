@@ -16,11 +16,11 @@ CEDAR_RELEASES = "https://github.com/cedar-policy/vscode-cedar/releases/download
 @pytest.mark.parametrize(
     "installed,install_status,list_status,expected",
     [
-        ("ms-python.python", 0, 0, 1),  # another install's success is not ours
-        ("ms-pyright.pyright-extra", 0, 0, 1),  # exact ID, not a prefix
-        ("ms-pyright.pyright", 0, 1, 1),  # failed inventory is not proof
-        ("ms-pyright.pyright", 0, 0, 0),
-        ("MS-PYRIGHT.PYRIGHT", 1, 0, 0),  # already installed on reentry
+        ("ms-python.python@1.2.3", 0, 0, 1),  # another install's success is not ours
+        ("ms-pyright.pyright-extra@1.2.3", 0, 0, 1),  # exact ID, not a prefix
+        ("ms-pyright.pyright@1.2.3", 0, 1, 1),  # failed inventory is not proof
+        ("ms-pyright.pyright@1.2.3", 0, 0, 0),
+        ("MS-PYRIGHT.PYRIGHT@1.2.3", 1, 0, 0),  # already installed on reentry
     ],
 )
 def test_install_extension_checks_installed_inventory(
@@ -31,7 +31,7 @@ def test_install_extension_checks_installed_inventory(
         '#!/bin/bash\n'
         'case "$1" in\n'
         '  --install-extension) echo "successfully installed"; exit "$INSTALL_STATUS" ;;\n'
-        '  --list-extensions) printf "%s\\n" "$INSTALLED"; exit "$LIST_STATUS" ;;\n'
+        '  --list-extensions) [ "$2" = --show-versions ] || exit 2; printf "%s\\n" "$INSTALLED"; exit "$LIST_STATUS" ;;\n'
         '  *) exit 2 ;;\n'
         'esac\n'
     )
@@ -57,6 +57,8 @@ def test_install_extension_checks_installed_inventory(
     )
     assert result.returncode == expected, result.stderr
     assert ("✅ Pyright" in result.stdout) == (expected == 0)
+    if expected == 0:
+        assert installed in result.stdout
 
 
 def test_cedar_extension_is_one_exact_release_pinned_by_hash():

@@ -174,7 +174,7 @@ def world(monkeypatch: pytest.MonkeyPatch) -> Iterator[SimpleNamespace]:
             app.dependency_overrides.pop(dependency, None)
 
 
-async def _nothing(_key: str) -> None:
+async def _nothing(_key: str, *, customer_id: str | None = None) -> None:
     """A stand-in memory read: no history and no saved preferences."""
     return None
 

@@ -11,9 +11,8 @@ It prints seven findings, each with Expected, Observed and Evidence:
 
     build    the newest Gateway tool call in a shopper turn ran this checkout's
              build (``tool_audit.build_fingerprint`` beside the local digest)
-    memory   the managed rail's AgentCore Memory read for Theo returns the
-             user-preference record extracted from his provisioning
-             conversation, and prints its id
+    memory   a Runtime turn uses preference record IDs found in Theo's own
+             AgentCore Memory namespace, and the check prints those IDs
     tickets  every executed ``get_tickets`` call on the Gateway in Theo's turns
              read his own tickets, none read another customer's, and a forged
              call (the model asking for Jessica's tickets while Theo is signed
@@ -425,8 +424,7 @@ def tickets_finding(rows: Sequence[Dict[str, Any]]) -> check.Finding:
 # ---------------------------------------------------------------------------
 
 _MEMORY_TITLE = "the managed agent is given Theo's remembered taste"
-MEMORY_EXPECTED = ("the managed rail's AgentCore Memory read for CUST-THEO returns the "
-                   "user-preference record extracted from his provisioning conversation")
+MEMORY_EXPECTED = "the Runtime turn uses preference records from Theo's own AgentCore Memory"
 
 
 def _event_text(event: Dict[str, Any]) -> str:
@@ -446,26 +444,25 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
     ``remembered`` is ``AgentCoreMemory.get_semantic_memories`` with the strict
     client, the same read the storefront's managed rail makes at turn start.
     """
-    provisioned = {str(r.get("memoryRecordId")) for r in seeded.get("records") or []}
+    stored = {r["memoryRecordId"] for r in seeded.get("records") or [] if r.get("memoryRecordId")}
     ids = [item["record_id"] for item in remembered]
     evidence = [f"AgentCore Memory {memory_id}, namespace {seeded.get('namespace')}"]
     evidence += [f"source event {e.get('eventId')} (actor {seeded.get('actor')}, session "
                  f"{seeded.get('session')}): {_event_text(e)}" for e in seeded.get("events") or []]
     evidence += [f"record {item['record_id']}: {item['preference'][:90]}" for item in remembered]
     observed = (f"the managed rail's read returns {check.counted(len(ids), 'record')}; "
-                "provisioning's "
-                f"conversation produced {len(provisioned)}")
+                f"Theo's namespace holds {check.counted(len(stored), 'record')}")
     if not seeded.get("events"):
         return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
                              "Theo's provisioning conversation is missing", evidence,
                              "rerun scripts/deploy/seed_agentcore_memory.py.")
-    if not provisioned:
+    if not stored:
         return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED, observed,
                              evidence, "extraction runs after the conversation; run this "
                                        "again in a minute.")
     if not ids:
         return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED, observed,
-                             evidence, "the read and the provisioning record disagree; check "
+                             evidence, "the read returned none of Theo's records; check "
                                        "the namespace /pellier/preferences/CUST-THEO/.")
     if not used or not used.get("turn_id"):
         return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED,

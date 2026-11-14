@@ -475,9 +475,8 @@ fi
 # next participant someone else's client situation on their first turn.
 #
 # This used to be a separate manual command, which means it was a step someone had to
-# remember. It is part of the lifecycle now. `reset_memory_runtime.py` preserves the
-# three seeded persona actors, deletes per event and per record rather than per
-# namespace, and never touches the Memory RESOURCE.
+# remember. It is part of the lifecycle now. `reset_memory_runtime.py` preserves clean setup
+# conversations and restores them after clearing an actor that also held live turns.
 #
 # Skippable, because it needs AWS credentials and a data-only reset on a box without
 # them must still complete.
@@ -488,7 +487,7 @@ else
   "$PYTHON" "$REPO/scripts/reset_memory_runtime.py" --apply \
     >/tmp/pellier-governed-reset-memory.log 2>&1 || _memory_rc=$?
   if [[ "$_memory_rc" -eq 0 ]]; then
-    pass "AgentCore Memory runtime cleaned; seeded persona actors preserved"
+    pass "AgentCore Memory runtime cleaned; setup conversations preserved or restored"
     _memory_leg_settled=true
   elif [[ "$_memory_rc" -eq 3 ]]; then
     # `reset_memory_runtime.py` reserves exit 3 for "no AGENTCORE_MEMORY_ID": a box

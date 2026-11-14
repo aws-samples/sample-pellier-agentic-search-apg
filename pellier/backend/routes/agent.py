@@ -174,7 +174,7 @@ async def _stream_agent_response(
     # never leak a stack trace to the client (Req 3.1.5 style envelope).
     memory_read_failed = False
     try:
-        history = await memory.get_session_history(context.namespace)
+        history = await memory.get_session_history(context.namespace, customer_id=context.customer_id)
     except ManagedMemoryError as exc:
         logger.warning(
             "Managed Memory rejected session %s before invocation",
@@ -238,6 +238,7 @@ async def _stream_agent_response(
                 {"role": "user", "content": message},
                 {"role": "assistant", "content": response_text},
             ],
+            customer_id=context.customer_id,
         )
         memory_receipt["turns_persisted"] = 2
         memory_receipt["write_status"] = "succeeded"
@@ -410,7 +411,7 @@ async def get_session(
     # service may have picked a different one off the X-Session-Id
     # header, but the caller explicitly asked for this thread.
     namespace = AgentCoreIdentityService.build_namespace(context.user_id, session_id)
-    history = await memory.get_session_history(namespace)
+    history = await memory.get_session_history(namespace, customer_id=context.customer_id)
 
     return JSONResponse(
         status_code=200,

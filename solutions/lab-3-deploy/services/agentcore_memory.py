@@ -13,7 +13,7 @@ AgentCore Memory (Requirements 2.5.2, 4.3.2, 4.4.1, 6.2.1). Exposes a single
 ``AgentCoreMemory`` class with four async methods:
 
     append_session_turn(session_ns, turn)
-    get_session_history(session_ns)
+    get_session_history(session_ns, customer_id=verified_customer)
     get_user_preferences(user_id)
     set_user_preferences(user_id, prefs)
 
@@ -21,7 +21,8 @@ Key schemes (strict — never silently merged, per Requirement 4.3.3):
 
     user-{user_id}-session-{session_id}   authenticated sessions
     anon-{session_id}                     anonymous sessions
-    user:{user_id}:preferences            persistent prefs
+    /pellier/preferences/{customer_id}/   learned shopper preferences
+    user:{user_id}:preferences            explicit profile preferences
 
 Session namespaces use dashes (not colons) because AgentCore session
 IDs must match ``[a-zA-Z0-9][a-zA-Z0-9-_]*``. The preferences key has
@@ -80,8 +81,8 @@ def _store_key(actor_id: str, session_id: str) -> str:
     """The fallback-store key for an identity pair.
 
     When actor and session are the same string this is the historical shopper key,
-    so existing shopper entries keep working unchanged. When they differ — the
-    operator mapping — the pair is composed. Both the writer and the reader call
+    so existing shopper entries keep working unchanged. When they differ, the customer or
+    operator actor and the conversation form a pair. Both the writer and the reader call
     this, because a writer and reader that compose keys independently is exactly how
     the operator read came back empty while its write reported success.
     """
@@ -370,22 +371,8 @@ class AgentCoreMemory:
         ``BACKEND_PROCESS_LOCAL``. The caller needs that to avoid reporting a
         fallback dict as durable memory.
 
-        AgentCore scopes short-term events by actor plus session, and the two answer
-        different questions — the actor is the entity interacting with the agent, the
-        session is one conversation. Pellier has two surfaces that map them
-        differently, so the mapping belongs at the call site rather than being baked
-        in here:
-
-            shopper    actor_id = session_id = session_ns   (frozen, see below)
-            operator   actor_id = operator subject
-                       session_id = Concierge session id
-
-        `append_session_turns` remains the shopper wrapper and its semantics are
-        unchanged. Do not "simplify" the two into one: the shopper form deliberately
-        collapses actor and session so `anon-{sid}` and `user-{uid}-session-{sid}`
-        land in separate AgentCore actors, and the operator form deliberately does
-        not, so operator preference memory accrues to the operator rather than to
-        whichever client's record happened to be open.
+        A shopper and an operator each use their own actor and conversation.
+        The caller supplies both identifiers from the verified request.
         """
         if not turns:
             return BACKEND_PROCESS_LOCAL
@@ -413,60 +400,20 @@ class AgentCoreMemory:
                     actor_id, session_id, exc,
                 )
         # Fallback keyed by the pair, so the two surfaces never share a bucket.
-        _SESSION_STORE.setdefault(_store_key(actor_id, session_id), []).extend(turns)
+        _SESSION_STORE.setdefault(_store_key(actor_id, session_id), []).extend(dict(turn) for turn in turns)
         return BACKEND_PROCESS_LOCAL
 
     async def append_session_turns(
         self,
         session_ns: str,
         turns: List[Dict[str, Any]],
+        *,
+        customer_id: Optional[str] = None,
     ) -> str:
-        """Append one logical turn as a single AgentCore Memory event.
-
-        SHOPPER WRAPPER — semantics frozen. `actor_id == session_id == session_ns`
-        is intentional and load-bearing for shopper isolation.
-
-        Returns which store held the write, ``BACKEND_AGENTCORE`` or
-        ``BACKEND_PROCESS_LOCAL``, like ``append_memory_event``. A non-strict
-        SDK failure lands the turn in the process-local dict and returns
-        normally; without the backend a receipt would report that fallback
-        as managed persistence.
-        """
-        if not turns:
-            return BACKEND_PROCESS_LOCAL
-        mgr = self._get_sdk_manager()
-        if mgr is not None:
-            try:
-                # MemorySessionManager.create_memory_session expects
-                # actor_id + session_id. We treat the full namespace as
-                # actor_id so anon-{sid} and user-{uid}-session-{sid}
-                # land in separate AgentCore actors and Req 4.3.3 holds
-                # end-to-end.
-                session = await asyncio.to_thread(
-                    mgr.create_memory_session,
-                    actor_id=session_ns,
-                    session_id=session_ns,
-                )
-                await asyncio.to_thread(
-                    session.add_turns,
-                    messages=[self._to_conversational(turn) for turn in turns]
-                )
-                return BACKEND_AGENTCORE
-            except Exception as exc:  # pragma: no cover - SDK error path
-                if self._strict:
-                    raise ManagedMemoryError(
-                        "AgentCore session append failed"
-                    ) from exc
-                logger.warning(
-                    "AgentCore append_session_turns failed for %s: %s — "
-                    "falling back to in-memory store",
-                    session_ns,
-                    exc,
-                )
-        _SESSION_STORE.setdefault(session_ns, []).extend(
-            dict(turn) for turn in turns
+        """Save one shopper turn. A mapped customer shares preferences across their sessions."""
+        return await self.append_memory_event(
+            actor_id=customer_id or session_ns, session_id=session_ns, turns=turns
         )
-        return BACKEND_PROCESS_LOCAL
 
     async def get_memory_events(
         self, *, actor_id: str, session_id: str
@@ -478,33 +425,21 @@ class AgentCoreMemory:
         Memory was never reached" are different facts, and an evidence surface may not
         render them identically.
 
-        This exists because `get_session_history` is the SHOPPER reader and treats its
-        single argument as both actor and session. Reading an OPERATOR conversation
-        through it looked up actor=session_id when the write had used
-        actor=operator_subject, so every operator turn read back empty while its write
-        reported success — found live on the second Concierge turn, which should have
-        seen the first.
-
-        A generic writer needs a generic reader; a mismatched pair is worse than
-        either alone because it fails silently.
         """
         return await self._read_turns_with_backend(
             actor_id=actor_id, session_id=session_id
         )
 
-    async def get_session_history(self, session_ns: str) -> List[Dict[str, Any]]:
-        """Return all turns stored under ``session_ns`` in insertion order.
-
-        SHOPPER READER — semantics frozen: actor and session are both ``session_ns``.
-
-        A namespace with no writes returns ``[]``. Crucially, a
-        ``user-{uid}-session-{sid}`` namespace never reads from the
-        corresponding ``anon-{sid}`` namespace and vice versa — they
-        are different strings keying different entries (Req 4.3.3).
-        """
-        turns, _backend = await self._read_turns_with_backend(
-            actor_id=session_ns, session_id=session_ns
-        )
+    async def get_session_history(
+        self, session_ns: str, *, customer_id: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Read one conversation. Older releases wrote its events under the namespace itself."""
+        turns, _ = await self.get_memory_events(actor_id=customer_id or session_ns, session_id=session_ns)
+        if customer_id:
+            # Before customer-scoped extraction, the same verified subject and session
+            # owned these events. They precede all turns written with the new mapping.
+            previous, _ = await self.get_memory_events(actor_id=session_ns, session_id=session_ns)
+            return previous + turns
         return turns
 
     async def _read_turns_with_backend(
@@ -520,25 +455,14 @@ class AgentCoreMemory:
                     actor_id=actor_id,
                     session_id=session_id,
                 )
-                # get_last_k_turns with a generous k stands in for "all
-                # turns" — the workshop sessions are short (<20 turns).
-                # The SDK returns turn objects (uppercase roles, nested
-                # ``content.text``, datetime fields) that are NOT JSON
-                # serializable as-is — normalize to the plain
-                # ``{role, content, timestamp}`` shape the route returns
-                # and the frontend hydrates from. Without this the SDK
-                # path 500s at JSONResponse render time (the in-memory
-                # fallback below already returns plain dicts, which is
-                # why it only breaks on a provisioned account).
-                #
-                # ``get_last_k_turns`` returns most-recent-first; the route
-                # and the frontend expect a chronological timeline, so
-                # reverse after flattening. The in-memory fallback below
-                # already stores in insertion (chronological) order.
-                recent = await asyncio.to_thread(session.get_last_k_turns, k=100)
-                flat = self._normalize_sdk_turns(recent)
-                flat.reverse()
-                return flat, BACKEND_AGENTCORE
+                # AgentCore lists newest events first. Within an event the shopper's
+                # message precedes the answer, including when both were saved together.
+                events = await asyncio.to_thread(session.list_events, include_payload=True, max_results=100)
+                messages = [
+                    item["conversational"] for event in reversed(events)
+                    for item in event.get("payload", []) if "conversational" in item
+                ]
+                return self._normalize_sdk_turns(messages), BACKEND_AGENTCORE
             except Exception as exc:  # pragma: no cover - SDK error path
                 if self._strict:
                     raise ManagedMemoryError(
@@ -743,9 +667,8 @@ class AgentCoreMemory:
         ``customer_id`` must be the server-resolved customer of the verified
         caller, never a request value. Provisioning writes Theo's first
         conversation as actor ``CUST-THEO``, so the taste he stated there is
-        read here. Live turns write their events under the session namespace
-        as the actor, so what a live turn teaches does not collect under the
-        customer.
+        read here. Signed-in shopper turns use the same customer actor
+        and keep each conversation under its own session.
 
         This is deliberately NOT ``get_user_preferences``: that method returns
         the *typed onboarding* ``Preferences`` blob, on its own namespace.
@@ -767,10 +690,9 @@ class AgentCoreMemory:
         # the create-time template.
         namespace = f"/pellier/preferences/{customer_id}/"
         try:
-            # 1.6.3 param is ``namespace_prefix`` (NOT ``namespace``).
             records = await asyncio.to_thread(
                 mgr.list_long_term_memory_records,
-                namespace_prefix=namespace,
+                namespace=namespace,
                 max_results=20,
             )
         except Exception as exc:  # pragma: no cover - SDK error path
@@ -788,6 +710,8 @@ class AgentCoreMemory:
 
         remembered: List[Dict[str, str]] = []
         for record in records:
+            if record.get("namespaces") is not None and namespace not in record.get("namespaces"):
+                continue
             record_id = str(record.get("memoryRecordId") or "").strip()
             content = record.get("content", {})
             text = content.get("text") if isinstance(content, dict) else None

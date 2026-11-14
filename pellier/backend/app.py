@@ -957,9 +957,10 @@ async def chat_stream(
                     managed_session_id,
                 )
                 managed_memory = AgentCoreMemory(strict=True)
+                memory_actor = turn_identity.memory_actor()
                 try:
                     managed_history = await managed_memory.get_session_history(
-                        memory_namespace
+                        memory_namespace, customer_id=memory_actor
                     )
                 except ManagedMemoryError as exc:
                     error = classify_chat_error(exc.code)
@@ -1004,6 +1005,7 @@ async def chat_stream(
                                 "content": managed_result.response,
                             },
                         ],
+                        customer_id=memory_actor,
                     )
                     memory_receipt["turns_persisted"] = 2
                     memory_receipt["write_status"] = "succeeded"

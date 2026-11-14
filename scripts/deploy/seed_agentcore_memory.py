@@ -93,6 +93,61 @@ def _wait_for_memory(control: Any, memory_id: str, timeout: int = 300) -> dict[s
     raise RuntimeError(f"AgentCore Memory {memory_id} did not become ACTIVE")
 
 
+def seed_payload(user: str, assistant: str) -> list[dict[str, Any]]:
+    return [
+        {"conversational": {"content": {"text": text}, "role": role}}
+        for role, text in (("USER", user), ("ASSISTANT", assistant))
+    ]
+
+
+def seed_conversation_matches(actor: str, events: list[dict[str, Any]]) -> bool:
+    """Require exactly the setup messages. Two unrelated events cannot replace this baseline."""
+    actual = sorted(json.dumps(event.get("payload", []), sort_keys=True) for event in events)
+    expected = sorted(json.dumps(seed_payload(*pair), sort_keys=True) for pair in SEED_TURNS[actor])
+    return actual == expected
+
+
+def write_seed_events(data: Any, memory_id: str, actors: list[str], *, generation: str = "") -> tuple[int, int]:
+    """Create the missing setup turns. A full reset uses a new idempotency token after deletion."""
+    created = 0
+    duplicates = 0
+    for actor_id in actors:
+        pairs = SEED_TURNS[actor_id]
+        # The idempotency token is not a permanent seed ledger. Read the source
+        # events so another provision cannot append the same conversation again.
+        existing_payloads = {
+            json.dumps(event.get("payload", []), sort_keys=True)
+            for page in data.get_paginator("list_events").paginate(
+                memoryId=memory_id, actorId=actor_id, sessionId=SEED_SESSION,
+                includePayloads=True,
+            )
+            for event in page.get("events", [])
+        }
+        for index, (user_message, assistant_message) in enumerate(pairs):
+            payload = seed_payload(user_message, assistant_message)
+            if json.dumps(payload, sort_keys=True) in existing_payloads:
+                duplicates += 1
+                continue
+            try:
+                data.create_event(
+                    memoryId=memory_id,
+                    actorId=actor_id,
+                    sessionId=SEED_SESSION,
+                    eventTimestamp=datetime.now(timezone.utc),
+                    clientToken=f"pellier-prefseed-{actor_id}-{index}{generation}",
+                    payload=payload,
+                )
+                created += 1
+            except ClientError as exc:
+                code = exc.response.get("Error", {}).get("Code")
+                if code in {"ConflictException", "IdempotentParameterMismatch"}:
+                    duplicates += 1
+                    continue
+                raise
+
+    return created, duplicates
+
+
 def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
     control = boto3.client(
         "bedrock-agentcore-control",
@@ -106,43 +161,7 @@ def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
     )
     memory = _wait_for_memory(control, memory_id)
 
-    created = 0
-    duplicates = 0
-    for actor_id, pairs in SEED_TURNS.items():
-        # The idempotency token is not a permanent seed ledger. Read the source
-        # events so another provision cannot append the same conversation again.
-        existing_payloads = {
-            json.dumps(event.get("payload", []), sort_keys=True)
-            for page in data.get_paginator("list_events").paginate(
-                memoryId=memory_id, actorId=actor_id, sessionId=SEED_SESSION,
-                includePayloads=True,
-            )
-            for event in page.get("events", [])
-        }
-        for index, (user_message, assistant_message) in enumerate(pairs):
-            payload = [
-                {"conversational": {"content": {"text": text}, "role": role}}
-                for role, text in (("USER", user_message), ("ASSISTANT", assistant_message))
-            ]
-            if json.dumps(payload, sort_keys=True) in existing_payloads:
-                duplicates += 1
-                continue
-            try:
-                data.create_event(
-                    memoryId=memory_id,
-                    actorId=actor_id,
-                    sessionId=SEED_SESSION,
-                    eventTimestamp=datetime.now(timezone.utc),
-                    clientToken=f"pellier-prefseed-{actor_id}-{index}",
-                    payload=payload,
-                )
-                created += 1
-            except ClientError as exc:
-                code = exc.response.get("Error", {}).get("Code")
-                if code in {"ConflictException", "IdempotentParameterMismatch"}:
-                    duplicates += 1
-                    continue
-                raise
+    created, duplicates = write_seed_events(data, memory_id, list(SEED_TURNS))
 
     acceptance = verify_memory_readiness(control, data, memory_id, timeout=timeout)
     deadline = time.monotonic() + min(PREFERENCE_WAIT_SECONDS, timeout)
@@ -170,7 +189,7 @@ def seed(memory_id: str, region: str, *, timeout: int = 1200) -> dict[str, Any]:
 
 
 def seeded_memory(control: Any, data: Any, memory_id: str, actor: str) -> dict[str, Any]:
-    """One actor's provisioning conversation and the preferences extracted from it.
+    """One actor's provisioning events and current preference records.
 
     Returns the source events (actor ``actor``, session ``prefseed``) and the
     user-preference records in ``/pellier/preferences/{actor}/``, each listed
