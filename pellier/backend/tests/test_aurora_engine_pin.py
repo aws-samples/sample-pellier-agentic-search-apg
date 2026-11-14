@@ -42,3 +42,15 @@ def test_a_maintenance_window_cannot_change_the_engine():
     instances = re.findall(r"(?m)^    Type: AWS::RDS::DBInstance$", text)
     assert instances, "the database stack defines its cluster instance"
     assert text.count("AutoMinorVersionUpgrade: false") == len(instances)
+
+
+def test_the_cluster_names_its_storage_type():
+    """Aurora Standard, set explicitly: AWS picks the storage type when the template does not.
+
+    At this load I/O is about 13% of the Aurora bill, so I/O-Optimized would cost more
+    (docs/evidence/cost-proof-2026-11-06-us-east-1.md).
+    """
+    text = DATABASE.read_text()
+    clusters = re.findall(r"(?m)^    Type: AWS::RDS::DBCluster$", text)
+    assert len(clusters) == 1, "the database stack defines one cluster"
+    assert re.findall(r"(?m)^      StorageType: (\S+)$", text) == ["aurora"]

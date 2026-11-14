@@ -154,6 +154,10 @@ Resources:
       EnableHttpEndpoint: true
       BackupRetentionPeriod: 1
       StorageEncrypted: true
+      # Aurora Standard, named so the cluster does not take whatever AWS defaults to.
+      # At this load I/O is about 13% of the Aurora bill, so I/O-Optimized
+      # (aurora-iopt1) would cost more (docs/evidence/cost-proof-2026-11-06-us-east-1.md).
+      StorageType: aurora
       # CloudWatch Database Insights, Advanced mode: per-query load, execution
       # plans and lock analysis, alongside the agents' spans in CloudWatch.
       # Advanced mode requires Performance Insights with 465-day retention.
