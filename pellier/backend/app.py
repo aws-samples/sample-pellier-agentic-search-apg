@@ -916,7 +916,8 @@ async def chat_stream(
                     return
 
                 from services import evidence_spans
-                from services.intent_router import classify_intent
+                from services.chat import route_finding
+                from services.intent_router import classify_intent, routing_reason
                 from services.specialist_models import AGENT_NAMES, build_intent_signal
 
                 # The Router still runs here on the managed rail, so the turn gets the
@@ -1057,7 +1058,14 @@ async def chat_stream(
                 route_step = managed_steps.route(
                     agent=managed_agent or "Router",
                     intent=managed_result.intent,
-                    finding=f"Sent to the {managed_agent}" if managed_agent else "Routed",
+                    finding=(
+                        route_finding(
+                            managed_agent,
+                            routing_reason(request.message, managed_result.intent),
+                        )
+                        if managed_agent
+                        else "Routed"
+                    ),
                     model_id=managed_result.model,
                     skills=managed_result.skills,
                     skill_mode="fixed",

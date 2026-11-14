@@ -11,7 +11,7 @@ const ROUTE: TurnStep = {
   id: 'route',
   label: 'Understanding your request',
   status: 'done',
-  finding: 'Sent to the Catalog agent',
+  finding: 'Sent to the Catalog agent: gift',
   tags: ['Router', 'Skills'],
   builder: {
     tool: null,
@@ -204,7 +204,7 @@ describe('StepList', () => {
     await user.click(earlier)
     expect(earlier).toHaveTextContent(HIDE_EARLIER)
     expect(earlier).toHaveAttribute('aria-expanded', 'true')
-    expect(rows()).toEqual(['Sent to the Catalog agent', ...searches.map(step => step.finding)])
+    expect(rows()).toEqual(['Sent to the Catalog agent: gift', ...searches.map(step => step.finding)])
     // Every step keeps its own evidence: six receipts, one each.
     const receipts = screen.getAllByTestId('turn-evidence').slice(1).map(line => factRows(line).Receipt)
     expect(receipts).toEqual(['601', '602', '603', '604', '605', '606'])

@@ -1499,7 +1499,7 @@ RANKING = {"available": True, "filters": {"kept": 64, "of": 100}, "rows": [
     {"name": "Stoneware Mugs, Set of 2", "fts_rank": 20, "vec_rank": 3, "rrf_score": 0.0284},
 ]}
 ROUTE = {"type": "step", "id": "route", "label": "Understanding your request", "status": "done",
-         "finding": "Sent to the Catalog agent", "builder": {}}
+         "finding": "Sent to the Catalog agent: gift", "builder": {}}
 STEPS = [
     ROUTE,
     {"type": "step", "id": "step-1", "label": "Searching the catalog in Aurora", "status": "running",
@@ -1527,7 +1527,7 @@ def test_send_prints_each_turns_trace_as_it_streams(
     lines = out.splitlines()
 
     assert [line for line in lines if "Router" in line] == [
-        "          1 Router  Sent to the Catalog agent"]
+        "          1 Router  Sent to the Catalog agent: gift"]
     done = lines.index("          2 done    Searching the catalog in Aurora (731 ms): 5 found from 64 that "
                        "fit under $100 and in stock, candles")
     assert lines[done + 1] == "                    left out"

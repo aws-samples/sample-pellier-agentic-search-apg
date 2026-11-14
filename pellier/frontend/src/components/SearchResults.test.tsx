@@ -80,11 +80,11 @@ function respond(body: unknown) {
 const ANNA_QUESTION = 'A housewarming gift, in stock, under $100, no candles.'
 const ROUTE_CATALOG = {
   type: 'step', id: 'route', label: 'Understanding your request', status: 'done',
-  finding: 'Sent to the Catalog agent', tags: ['Router'],
+  finding: 'Sent to the Catalog agent: gift', tags: ['Router'],
   builder: { tool: null, intent: 'catalog', agent: 'Catalog agent' },
 }
-const ROUTE_SUPPORT = { ...ROUTE_CATALOG, finding: 'Sent to the Support agent', builder: { tool: null, intent: 'support', agent: 'Support agent' } }
-const ROUTE_STOCK = { ...ROUTE_CATALOG, finding: 'Sent to the Stock agent', builder: { tool: null, intent: 'stock', agent: 'Stock agent' } }
+const ROUTE_SUPPORT = { ...ROUTE_CATALOG, finding: 'Sent to the Support agent: chipped, ticket', builder: { tool: null, intent: 'support', agent: 'Support agent' } }
+const ROUTE_STOCK = { ...ROUTE_CATALOG, finding: 'Sent to the Stock agent: how many, warehouse', builder: { tool: null, intent: 'stock', agent: 'Stock agent' } }
 const SEARCH_RUNNING = {
   type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running',
   tags: ['Aurora'], builder: { tool: 'search_products' },

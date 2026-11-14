@@ -243,7 +243,7 @@ export const ANNA_TURN_EVENTS: object[] = [
   { type: 'intent_signal', intent: 'catalog', agent: 'Catalog agent', classifier: 'deterministic', model_family: 'opus', model_id: 'global.anthropic.claude-opus-5-5' },
   { type: 'status', label: 'Understanding your request' },
   {
-    type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent',
+    type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent: gift',
     tags: ['Router', 'Memory', 'Skills'],
     builder: { ...ROUTE_BUILDER, stop_reason: null },
   },
@@ -262,7 +262,7 @@ export const ANNA_TURN_EVENTS: object[] = [
   ...PRODUCTS.map((product, index) => ({ type: 'product', product, index, total: PRODUCTS.length })),
   // The Router step again, with how the turn ended, as `chat.py` sends it.
   {
-    type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent',
+    type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent: gift',
     tags: ['Router', 'Memory', 'Skills'],
     builder: { ...ROUTE_BUILDER, stop_reason: 'end_turn' },
   },

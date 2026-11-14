@@ -14,7 +14,7 @@ import type { AgentChatMessage } from '../hooks/useAgentChat'
 const ANNA = { authenticated: true, customerId: 'CUST-ANNA', signInMethod: 'workshop' as const }
 
 const ROUTE: TurnStep = {
-  id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent', tags: ['Router'],
+  id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent: gift', tags: ['Router'],
 }
 
 function answer(over: Partial<AgentChatMessage> = {}): AgentChatMessage {

@@ -16,7 +16,7 @@ from pellier_copy import CREDIT_REQUEST_PENDING, MODEL_FALLBACK_NOTE
 from services import active_requirements, evidence_spans, store_tools, tool_evidence
 from services.chat_error_taxonomy import classify_chat_error
 from services.data_source import database_source_label
-from services.intent_router import classify_intent
+from services.intent_router import classify_intent, routing_reason
 from services.product_envelope import ProductExtractor, select_products_for_reply
 from services.model_fallback import FallbackBedrockModel, answered_with
 from services.specialist_models import agent_name, build_intent_signal, model_for_intent
@@ -311,11 +311,24 @@ def _agent_grant(intent: str, agent: Any) -> Dict[str, Any]:
     return grant_receipt(agent.tool_names, rule)
 
 
-def _route_finding(agent: str, triage_bucket: Optional[str] = None) -> str:
-    """The Router step's one line; the agent's name appears here, once."""
+def route_finding(agent: str, reason: Optional[str] = None) -> str:
+    """The Router step's one line, shared by both rails: the agent, then the words that chose it."""
+    from services.intent_router import DEFAULT_REASON
+
+    if not reason:
+        return f"Sent to the {agent}"
+    if reason == DEFAULT_REASON:
+        return f"Sent to the {agent} (default)"
+    return f"Sent to the {agent}: {reason}"
+
+
+def _route_finding(
+    agent: str, triage_bucket: Optional[str] = None, reason: Optional[str] = None,
+) -> str:
+    """The Router step's line on the in-process rail."""
     if triage_bucket:
         return "Answered by the Router, no agent needed"
-    return f"Sent to the {agent}"
+    return route_finding(agent, reason)
 
 
 def _agent_stop_reason(result: Any) -> Optional[str]:
@@ -1777,7 +1790,8 @@ class EnhancedChatService:
         route_facts: Dict[str, Any] = {
             "agent": specialist_name,
             "intent": intent,
-            "finding": _route_finding(specialist_name),
+            "finding": _route_finding(
+                specialist_name, reason=routing_reason(message, intent)),
             "model_id": model_for_intent(intent)[0],
             "skills": skill_receipt(intent, skill_mode),
             "skill_mode": skill_mode,

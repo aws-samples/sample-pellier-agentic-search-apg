@@ -360,7 +360,7 @@ describe('useAgentChat — the step contract', () => {
 
     act(() => {
       capturedOnUpdate!({ type: 'status', label: 'Understanding your request' })
-      capturedOnUpdate!({ type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent', tags: ['Router'] })
+      capturedOnUpdate!({ type: 'step', id: 'route', label: 'Understanding your request', status: 'done', finding: 'Sent to the Catalog agent: gift', tags: ['Router'] })
       capturedOnUpdate!({ type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'running', tags: ['Aurora'] })
       capturedOnUpdate!({ type: 'step', id: 'step-1', label: 'Searching the catalog in Aurora', status: 'done', finding: '4 under $100', tags: ['Aurora'], builder: { tool: 'search_products' } })
       capturedOnUpdate!({ type: 'status', label: 'Writing your answer' })
@@ -370,7 +370,7 @@ describe('useAgentChat — the step contract', () => {
       const last = result.current.messages.at(-1)
       expect(last?.status).toEqual({ label: 'Writing your answer', state: 'working' })
       expect(last?.steps?.map(step => [step.id, step.status, step.finding])).toEqual([
-        ['route', 'done', 'Sent to the Catalog agent'],
+        ['route', 'done', 'Sent to the Catalog agent: gift'],
         ['step-1', 'done', '4 under $100'],
       ])
     })

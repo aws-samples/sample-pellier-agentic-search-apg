@@ -210,6 +210,18 @@ def test_a_managed_turn_opens_one_routing_span_for_its_turn(
     assert opened[0]["rail"] == "gateway-mcp"
 
 
+def test_the_managed_router_step_names_the_words_that_matched(managed_app: TestClient) -> None:
+    """The managed rail's Router line is the in-process rail's line for the same request."""
+    body = managed_app.post(
+        "/api/chat/stream",
+        json={"message": "any news on my chipped bowl?", "conversation_history": [],
+              "session_id": "sess-theo"},
+    ).text
+    route = [event for event in _events(body)
+             if event.get("type") == "step" and event.get("id") == "route"][0]
+    assert route["finding"] == "Sent to the Support agent: chipped"
+
+
 def test_the_managed_rail_ignores_the_skill_mode_field_and_says_so(managed_app: TestClient) -> None:
     body = managed_app.post(
         "/api/chat/stream",
