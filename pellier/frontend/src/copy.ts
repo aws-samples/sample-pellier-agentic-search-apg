@@ -256,6 +256,11 @@ export const ASK_PANEL = {
   SIGNED_IN_AS: "Signed in as",
   /** Opens the other three shoppers beside the signed-in one. */
   SWITCH: "Switch shopper",
+  /** A fresh conversation as the same shopper, quoted by the Lab 3 guide. */
+  NEW_CONVERSATION: "New conversation",
+  newConversationStarted: (name: string): string =>
+    `New conversation. You are still signed in as ${name}.`,
+  NEW_CONVERSATION_FAILED: "Pellier couldn't start a new conversation. This one is still open.",
   /** Signed out, docked beside the page: the home bar is to the left. */
   EMPTY_DOCKED:
     "Search from the box on the left, or choose a shopper below to follow their story: finding, checking stock, remembering, then asking a person before money moves.", // copy-allow: search-as-verb

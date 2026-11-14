@@ -268,6 +268,7 @@ describe('the review record', () => {
     const checks = screen.getByTestId('operator-credit-checks')
     expect(within(checks).getByText('Not evaluated yet')).toBeInTheDocument()
     expect(within(checks).getByText('Nothing written')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-credit-request-path')).toHaveTextContent('Not run yet')
   })
 
   it('names the recorded approver for every staff reader, with her portrait', async () => {
@@ -343,7 +344,8 @@ describe('the review record', () => {
     expect(live).toContainElement(screen.getByTestId('operator-credit-recorded'))
     expect(screen.getByTestId('operator-credit-recorded')).not.toHaveAttribute('role')
     expect(screen.getByTestId('operator-review-retry')).toHaveTextContent('Replay with the same key')
-    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('gateway-mcp')
+    expect(screen.getByTestId('operator-review-request-path')).toHaveTextContent('AgentCore Gateway')
+    expect(screen.getByTestId('operator-credit-request-path')).toHaveTextContent('AgentCore Gateway')
     expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent(WRITE_KEY)
   })
 
@@ -362,21 +364,95 @@ describe('the review record', () => {
     expect(within(checks).getByText('Not written')).toBeInTheDocument()
     expect(checks).toHaveTextContent('No store_credits row and no tool_audit row for this key.')
     expect(checks).toHaveTextContent('The tool was never entered.')
-    expect(screen.getByTestId('operator-credit-denied')).toBeInTheDocument()
-    expect(screen.getByTestId('operator-credit-denied')).toHaveTextContent('No credit or audit row was found for this key.')
-    expect(screen.getByTestId('operator-review-execute')).toHaveTextContent('Execute again')
+    const denial = screen.getByTestId('operator-credit-denied')
+    expect(denial).toHaveTextContent(
+      'Your approval is saved. AgentCore Policy blocked this attempt before the tool ran. No credit was written. '
+      + 'Review the policy before you select Execute again.',
+    )
+    const again = screen.getByTestId('operator-review-execute')
+    expect(again).toHaveTextContent('Execute again')
+    // The explanation is read, and announced, before the retry it explains.
+    expect(denial.compareDocumentPosition(again) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByTestId('operator-credit-announce')).toContainElement(denial)
+    expect(screen.getByTestId('operator-credit-request-path')).toHaveTextContent('AgentCore Gateway')
   })
 
   it.each([null, { ...NOTHING_WRITTEN, readable: false }, RECORDED_ONCE])('does not infer database absence from a policy denial alone (%j)', async record => {
     api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, record))
     renderAt('/operator/reviews/41', <ReviewRecord />)
     const denial = await screen.findByTestId('operator-credit-denied')
-    expect(denial).toHaveTextContent('AgentCore Policy denied this attempt before the tool ran.')
-    expect(denial).not.toHaveTextContent('Nothing was written')
-    expect(denial).not.toHaveTextContent('No credit or audit row was found')
+    expect(denial).toHaveTextContent('Your approval is saved. AgentCore Policy blocked this attempt before the tool ran.')
+    expect(denial).not.toHaveTextContent('No credit was written')
     expect(denial).toHaveTextContent(record?.readable
       ? 'The recorded rows for this key are shown above.'
       : 'The database record could not be verified.')
+    // A credit on record leaves nothing to execute again.
+    if (record?.readable) expect(denial).not.toHaveTextContent('Execute again')
+    else expect(denial).toHaveTextContent('Review the policy before you select Execute again.')
+  })
+
+  it('reads zero credit rows as no credit written, even beside an earlier attempt\'s audit row', async () => {
+    api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, { ...NOTHING_WRITTEN, auditRows: 1, auditIds: [4050] }))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    expect(await screen.findByTestId('operator-credit-denied')).toHaveTextContent('No credit was written.')
+    const rows = screen.getByTestId('operator-review-rows')
+    expect(rows).toHaveTextContent('0 store_credits rows and 1 tool_audit row for this key, 0 of them applied')
+  })
+
+  it('names the approver for a staff reader who did not approve', async () => {
+    const reader = auth.user
+    auth.user = { sub: 'sub-other-staff', email: 'other@pellier.example.com', username: 'other' }
+    try {
+      api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, NOTHING_WRITTEN))
+      renderAt('/operator/reviews/41', <ReviewRecord />)
+      const denial = await screen.findByTestId('operator-credit-denied')
+      expect(denial).toHaveTextContent("Nadia's approval is saved.")
+      expect(denial).not.toHaveTextContent('Your approval')
+    } finally {
+      auth.user = reader
+    }
+  })
+
+  it('knows the approver by the verified subject, not the username', async () => {
+    const reader = auth.user
+    auth.user = { sub: 'sub-nadia', email: 'nadia@pellier.example.com' }
+    try {
+      api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, NOTHING_WRITTEN))
+      renderAt('/operator/reviews/41', <ReviewRecord />)
+      expect(await screen.findByTestId('operator-credit-denied')).toHaveTextContent('Your approval is saved.')
+    } finally {
+      auth.user = reader
+    }
+  })
+
+  it('claims no saved approval on the policy check\'s probe, which nobody approved', async () => {
+    api.fetchReview.mockResolvedValue({ ...detail(PROBE_REVIEW, NOTHING_WRITTEN), orders: [] })
+    renderAt('/operator/reviews/57', <ReviewRecord />)
+    const denial = await screen.findByTestId('operator-credit-denied')
+    expect(denial).toHaveTextContent('AgentCore Policy blocked this attempt before the tool ran. No credit was written.')
+    expect(denial).not.toHaveTextContent('approval is saved')
+    expect(denial).not.toHaveTextContent('Execute again')
+  })
+
+  it('groups the write key, execution turn and row counts in the receipt details', async () => {
+    api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, NOTHING_WRITTEN))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    const details = await screen.findByTestId('operator-review-receipt-details')
+    expect(details.tagName).toBe('DETAILS')
+    expect(details).not.toHaveAttribute('open')
+    expect(details).toHaveTextContent(WRITE_KEY)
+    expect(details).toHaveTextContent('turn-execution-1')
+    expect(screen.getByTestId('operator-review-rows')).toHaveTextContent('0 store_credits rows and 0 tool_audit rows for this key')
+    expect(details).toContainElement(screen.getByTestId('operator-review-rows'))
+  })
+
+  it.each([
+    ['an unreadable table', { ...NOTHING_WRITTEN, readable: false }, 'The tables could not be read, so no count is claimed.'],
+    ['a failed attempt beside the credit', RECORDED_AFTER_A_FAILED_ATTEMPT, '1 store_credits row and 2 tool_audit rows for this key, 1 of them applied'],
+  ])('counts the rows honestly for %s', async (_case, record, words) => {
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, record))
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    expect(await screen.findByTestId('operator-review-rows')).toHaveTextContent(words)
   })
 
   it('after a reload with no stored answer, says so and what the tables hold', async () => {
@@ -387,7 +463,9 @@ describe('the review record', () => {
     expect(checks).toHaveTextContent('No answer from the Gateway is stored for this attempt.')
     expect(within(checks).getByText('Not written')).toBeInTheDocument()
     expect(screen.queryByTestId('operator-credit-denied')).not.toBeInTheDocument()
-    expect(screen.getByTestId('operator-review-receipt')).toHaveTextContent('no row written')
+    expect(screen.getByTestId('operator-review-request-path')).toHaveTextContent('Not recorded')
+    expect(screen.getByTestId('operator-credit-request-path')).toHaveTextContent('Not recorded')
+    expect(screen.getByTestId('operator-review-receipt')).not.toHaveTextContent('no row written')
     expect(screen.queryByTestId('operator-review-last-attempt')).not.toBeInTheDocument()
   })
 
@@ -403,6 +481,11 @@ describe('the review record', () => {
     expect(attempt).toHaveTextContent('Last attempt')
     expect(attempt).toHaveTextContent('The Gateway answered: denied')
     expect(attempt).toHaveTextContent('(stored)')
+    // The request's own path, stored with the attempt, though no audit row names one.
+    expect(DENIED_ON_RELOAD.execution?.rail).toBeNull()
+    expect(screen.getByTestId('operator-review-request-path')).toHaveTextContent('AgentCore Gateway')
+    expect(screen.getByTestId('operator-credit-request-path')).toHaveTextContent('AgentCore Gateway')
+    expect(screen.getByTestId('operator-proposed-credit')).not.toHaveTextContent('no row written')
   })
 
   it('after a reload, names a refusal as the desk, never as the Gateway', async () => {
@@ -426,6 +509,7 @@ describe('the review record', () => {
     expect(attempt).toHaveTextContent('Refused by the desk: missing AGENTCORE_GATEWAY_URL')
     expect(attempt).not.toHaveTextContent('Gateway answered')
     expect(screen.getByTestId('operator-credit-checks')).not.toHaveTextContent('Gateway answered')
+    expect(screen.getByTestId('operator-review-request-path')).toHaveTextContent('Not sent: the desk refused it')
   })
 
   it('surfaces a governed refusal with what is missing', async () => {
@@ -724,6 +808,24 @@ describe('the execution actions and their outcomes', () => {
     expect(checks.compareDocumentPosition(replayed) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(replayed.compareDocumentPosition(screen.getByTestId('operator-review-retry')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.queryByTestId('operator-credit-recorded')).not.toBeInTheDocument()
+    expect(replayed).toHaveTextContent('Still 1 store_credits row and 1 tool_audit row for this key.')
+  })
+
+  it('counts an earlier failed attempt\'s audit row apart from the applied one on a replay', async () => {
+    api.fetchReview.mockResolvedValue(detail(EXECUTED_REVIEW, RECORDED_AFTER_A_FAILED_ATTEMPT))
+    api.executeReview.mockResolvedValueOnce({
+      reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-3', idempotencyKey: WRITE_KEY,
+      actorPrincipal: 'sub-nadia', assurance: EXECUTED_REVIEW.assurance,
+      notes: {}, tool: 'give_store_credit', result: { status: 'success', credit_id: 12, idempotent_replay: true },
+      record: RECORDED_AFTER_A_FAILED_ATTEMPT,
+    })
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-retry'))
+    const replayed = await screen.findByTestId('operator-credit-replayed')
+    expect(replayed).toHaveTextContent('This run found credit #12 already recorded for this key and wrote nothing.')
+    expect(replayed).toHaveTextContent(
+      'Still 1 store_credits row and 1 applied tool_audit row for this key, with 2 tool_audit rows in all, counting earlier attempts.',
+    )
   })
 
   it('says waiting for approval when no staff member is signed in', async () => {

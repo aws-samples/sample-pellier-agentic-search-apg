@@ -19,7 +19,9 @@ import { CheckCircle2, CircleX, LoaderCircle } from 'lucide-react'
 import React from 'react'
 import { StatusTag, type TagTone } from '../../components/turn'
 import { useOptionalAuth } from '../../contexts/AuthContext'
-import type { ExecutionRecord, OperatorReview } from '../../services/operator'
+import type {
+  ExecutionRecord, OperatorExecutionResult, OperatorExecutionState, OperatorReview,
+} from '../../services/operator'
 import type { ReviewController } from '../hooks/useReview'
 import { WAITING_TAG } from '../vocabulary'
 import ClientAvatar from './ClientAvatar'
@@ -261,6 +263,73 @@ export const EXECUTE_AGAIN_LABEL = 'Execute again'
 export const REPLAY_LABEL = 'Replay with the same key'
 export const REPLAYED_TAG = 'Replayed, no new row'
 
+const REQUEST_PATHS: Record<OperatorExecutionResult['rail'], string> = {
+  'gateway-mcp': 'AgentCore Gateway',
+  'in-process': 'In process, without the Gateway',
+  refused: 'Not sent: the desk refused it',
+}
+
+/**
+ * The path the last request took: this session's execute response, else the
+ * attempt stored on the review. Never the audit row's caller, which is absent
+ * whenever Cedar denied, because a denied call writes no row.
+ */
+export function requestPath(
+  execution: OperatorExecutionResult | null,
+  stored: OperatorExecutionState | null,
+): string {
+  const rail = execution?.rail ?? stored?.lastAttempt?.rail
+  if (rail) return REQUEST_PATHS[rail] ?? rail
+  return stored ? 'Not recorded' : 'Not run yet'
+}
+
+const rows = (count: number, table: string) => `${count} ${table} row${count === 1 ? '' : 's'}`
+
+/** What the two tables hold for the write key, as counted. Unread is never zero. */
+export function rowCountLine(record: ExecutionRecord | null): string {
+  if (!record) return 'The tables were not read, so no count is claimed.'
+  if (!record.readable) return 'The tables could not be read, so no count is claimed.'
+  const counted = `${rows(record.creditRows, 'store_credits')} and ${rows(record.auditRows, 'tool_audit')} for this key`
+  return record.auditRows > record.appliedAuditRows
+    ? `${counted}, ${record.appliedAuditRows} of them applied`
+    : counted
+}
+
+/** A replay's counts, from the response: earlier failed attempts keep audit rows of their own. */
+function replayCountLine(record: ExecutionRecord): string {
+  const credits = rows(record.creditRows, 'store_credits')
+  if (record.auditRows === record.appliedAuditRows) {
+    return `Still ${credits} and ${rows(record.auditRows, 'tool_audit')} for this key.`
+  }
+  const applied = `${record.appliedAuditRows} applied tool_audit row${record.appliedAuditRows === 1 ? '' : 's'}`
+  return `Still ${credits} and ${applied} for this key, with ${rows(record.auditRows, 'tool_audit')} in all, counting earlier attempts.`
+}
+
+interface DenialFacts {
+  review: OperatorReview
+  record: ExecutionRecord | null
+  /** The signed-in reader is the person who approved. */
+  readerApproved: boolean
+  decider: string
+  /** Execute again is on offer: approved, and no credit on record. */
+  retryOffered: boolean
+}
+
+/** What a Cedar DENY left: the approval, the refusal, the tables, and when to retry. */
+function denialLine({ review, record, readerApproved, decider, retryOffered }: DenialFacts): string {
+  const lines: string[] = []
+  if (review.humanState === 'confirmed' && !review.policyCheckProbe) {
+    if (readerApproved) lines.push('Your approval is saved.')
+    else lines.push(review.decidedByName ? `${decider}'s approval is saved.` : 'The approval is saved.')
+  }
+  lines.push('AgentCore Policy blocked this attempt before the tool ran.')
+  if (!record?.readable) lines.push('The database record could not be verified.')
+  else if (record.creditRows === 0) lines.push('No credit was written.')
+  else lines.push('The recorded rows for this key are shown above.')
+  if (retryOffered) lines.push(`Review the policy before you select ${EXECUTE_AGAIN_LABEL}.`)
+  return lines.join(' ')
+}
+
 interface Props {
   controller: ReviewController
   /** The items the credit covers, when the record has them to show. */
@@ -314,6 +383,9 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
   const named = items ?? review.recommendation.items ?? []
   const deciderPortrait = !review.policyCheckProbe && (review.decidedByName || '').toLowerCase() === STAFF_PORTRAIT
     ? STAFF_PORTRAIT : null
+  // The verified subjects, not display names, say whether this reader approved.
+  const readerApproved = Boolean(signedIn?.sub && review.decidedBy && signedIn.sub === review.decidedBy)
+  const denied = attempted && axes.policy === 'DENY'
 
   return (
     <section ref={cardRef} tabIndex={-1} className="op-credit" data-state={review.humanState} data-testid="operator-proposed-credit">
@@ -352,7 +424,16 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
           <p className="op-note op-note-good op-note-replay" data-testid="operator-credit-replayed">
             <CheckCircle2 size={16} aria-hidden />
             <StatusTag tone="good">{REPLAYED_TAG}</StatusTag>
-            <span>This run found credit #{record?.creditIds[0]} already recorded for this key and wrote nothing.</span>
+            <span>
+              This run found credit #{record?.creditIds[0]} already recorded for this key and wrote nothing.{' '}
+              {record ? replayCountLine(record) : null}
+            </span>
+          </p>
+        ) : null}
+        {denied ? (
+          <p className="op-note op-note-blocked" data-testid="operator-credit-denied">
+            <CircleX size={14} aria-hidden />
+            {denialLine({ review, record, readerApproved, decider, retryOffered: approved && !executed })}
           </p>
         ) : null}
 
@@ -396,26 +477,15 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
       {approved && !attempted ? (
         <p className="op-note">A person approved these terms. Executing asks whether the system may carry them out.</p>
       ) : null}
-      {attempted && axes.policy === 'DENY' ? (
-        <p className="op-note op-note-blocked" data-testid="operator-credit-denied">
-          <CircleX size={14} aria-hidden />
-          AgentCore Policy denied this attempt before the tool ran.{' '}
-          {!record?.readable
-            ? 'The database record could not be verified.'
-            : record.creditRows === 0 && record.auditRows === 0
-              ? 'No credit or audit row was found for this key.'
-              : 'The recorded rows for this key are shown above.'}
-        </p>
-      ) : null}
       {!compact ? (
         <dl className="op-key">
           <div>
             <dt>Write key</dt>
             <dd><CopyValue value={writeKey} noun="write key" /></dd>
           </div>
-          <div>
-            <dt>Rail</dt>
-            <dd>{execution?.rail ?? (review.execution ? review.execution.rail ?? 'no row written' : 'not yet run')}</dd>
+          <div data-testid="operator-credit-request-path">
+            <dt>Request path</dt>
+            <dd>{requestPath(execution, review.execution)}</dd>
           </div>
         </dl>
       ) : null}

@@ -463,7 +463,7 @@ export function useAgentChat(
   // Active persona (if any): scopes backend profile reads to the right
   // customer_id. Read from context so persona switches take effect on the
   // next turn without remounting the chat surface.
-  const { persona } = usePersona()
+  const { persona, conversation } = usePersona()
 
   // Keep a ref of the latest messages so sendMessage can read history
   // without re-creating the callback on every message update.
@@ -493,9 +493,12 @@ export function useAgentChat(
     }
   }, [])
 
-  // A turn belongs to the shopper who asked it: choosing another shopper ends
-  // it, so its stream cannot patch the new shopper's panel or block their send.
-  const personaKey = persona?.id ?? null
+  // A turn belongs to the shopper and the conversation that asked it: choosing
+  // another shopper or starting a new conversation ends it, so its stream cannot
+  // patch the new conversation's panel or block its send.
+  const personaKey = persona ? `${persona.id}#${conversation ?? 0}` : null
+  const conversationRef = useRef(conversation ?? 0)
+  conversationRef.current = conversation ?? 0
   const seenPersonaKey = useRef(personaKey)
   const turnLocalIdRef = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -523,8 +526,11 @@ export function useAgentChat(
     let delayMs = 1000
     const replayed = new Set<string>()
     const started = new Set<string>()
-    // Turns this watch has put on screen: a replay of one of them rebuilds its bubble only.
-    const rendered = new Set<string>()
+    // Turns this watch has put on screen, and the conversation each arrived in: a
+    // replay of one rebuilds its bubble only, and one from an earlier conversation
+    // stays with that conversation, its events with it.
+    const rendered = new Map<string, number>()
+    const leftBehind = new Set<string>()
     const updateRelayed = (
       turnId: string,
       patch: (msg: AgentChatMessage) => AgentChatMessage | null,
@@ -547,6 +553,12 @@ export function useAgentChat(
       delayMs = 1000
       const turnId = typeof frame.turn_id === 'string' ? frame.turn_id : ''
       if (!turnId) return
+      const shownIn = rendered.get(turnId)
+      if (frame.type === 'relay_turn' && frame.replay === true
+        && shownIn !== undefined && shownIn !== conversationRef.current) {
+        leftBehind.add(turnId)
+      }
+      if (leftBehind.has(turnId)) return
       if (frame.type === 'relay_turn') {
         const query = typeof frame.message === 'string' ? frame.message : ''
         const at = typeof frame.started_at === 'string' ? new Date(frame.started_at) : new Date()
@@ -575,8 +587,8 @@ export function useAgentChat(
             fresh,
           ]
         })
-        const firstSight = !rendered.has(turnId)
-        rendered.add(turnId)
+        const firstSight = shownIn === undefined
+        rendered.set(turnId, conversationRef.current)
         if (frame.replay === true) replayed.add(turnId)
         else replayed.delete(turnId)
         // The results page follows a live turn, and a replayed one this panel has never

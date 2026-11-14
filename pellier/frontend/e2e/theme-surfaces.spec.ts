@@ -31,7 +31,19 @@ async function loadLazyImages(page: Page) {
     await page.evaluate((top) => window.scrollTo(0, top), y)
     await page.waitForTimeout(150)
   }
-  await page.waitForFunction(() => Array.from(document.images).every((img) => img.complete))
+  // A lazy image loads only near the viewport, so one rendered after the scroll
+  // pass (a results grid that answers late on a busy runner) never would.
+  // Switching it to eager resumes its load.
+  const loaded = await page.waitForFunction(() => {
+    const images = Array.from(document.images)
+    for (const img of images) if (img.loading === 'lazy') img.loading = 'eager'
+    return images.every((img) => img.complete)
+  }, undefined, { timeout: 30_000 }).then(() => true, () => false)
+  if (!loaded) {
+    const pending = await page.evaluate(() =>
+      Array.from(document.images).filter((img) => !img.complete).map((img) => img.currentSrc || img.src))
+    throw new Error(`Images still loading after 30 s: ${pending.join(', ')}`)
+  }
   await page.evaluate(() => window.scrollTo(0, 0))
 }
 

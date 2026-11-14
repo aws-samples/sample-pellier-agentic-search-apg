@@ -6,6 +6,7 @@
  * Decline, then Execute once approved. Everything factual is hydrated by the
  * API from the table that owns it.
  */
+import { ChevronRight } from 'lucide-react'
 import React from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { StatusTag } from '../../components/turn'
@@ -13,7 +14,9 @@ import ClientAvatar from '../components/ClientAvatar'
 import CopyValue from '../components/CopyValue'
 import OperatorSignInAction from '../components/OperatorSignInAction'
 import OperatorState, { describeOperatorError } from '../components/OperatorState'
-import ProposedCreditCard, { POLICY_CHECK_PROBE_LINE } from '../components/ProposedCreditCard'
+import ProposedCreditCard, {
+  POLICY_CHECK_PROBE_LINE, requestPath, rowCountLine,
+} from '../components/ProposedCreditCard'
 import type { OperatorReview } from '../../services/operator'
 import { useReview } from '../hooks/useReview'
 import { shortDate } from './ClientBook'
@@ -30,7 +33,7 @@ const ReviewRecordPage: React.FC = () => {
   const { reviewId } = useParams<{ reviewId: string }>()
   const numericId = Number(reviewId)
   const controller = useReview(Number.isFinite(numericId) ? numericId : null)
-  const { detail, error, reload } = controller
+  const { detail, error, reload, execution } = controller
 
   if ((error && !detail) || (reviewId && !Number.isFinite(numericId))) {
     const code = error ?? 'review_not_found'
@@ -123,9 +126,10 @@ const ReviewRecordPage: React.FC = () => {
               <h2 id="op-review-receipt-title" className="op-h2">What ran</h2>
             </div>
             <dl className="op-key">
-              <div><dt>Rail</dt><dd>{review.execution.rail ?? 'no row written'}</dd></div>
-              <div><dt>Execution turn</dt><dd>{review.execution.executionTurnId}</dd></div>
-              <div><dt>Write key</dt><dd><CopyValue value={review.execution.idempotencyKey} noun="write key" /></dd></div>
+              <div data-testid="operator-review-request-path">
+                <dt>Request path</dt>
+                <dd>{requestPath(execution, review.execution)}</dd>
+              </div>
               {review.execution.lastAttempt ? (
                 <div data-testid="operator-review-last-attempt">
                   <dt>Last attempt</dt>
@@ -134,10 +138,24 @@ const ReviewRecordPage: React.FC = () => {
                   </dd>
                 </div>
               ) : null}
-              {review.execution.lastAttempt?.policyDigest ? (
-                <div><dt>Policy set</dt><dd>{review.execution.lastAttempt.policyDigest.slice(0, 19)}</dd></div>
-              ) : null}
             </dl>
+            <details className="tn-raw" data-testid="operator-review-receipt-details">
+              <summary>
+                <ChevronRight size={12} strokeWidth={2} className="tn-chev" aria-hidden="true" />
+                Request and database details
+              </summary>
+              <dl className="op-key">
+                <div><dt>Write key</dt><dd><CopyValue value={review.execution.idempotencyKey} noun="write key" /></dd></div>
+                <div><dt>Execution turn</dt><dd>{review.execution.executionTurnId}</dd></div>
+                <div data-testid="operator-review-rows">
+                  <dt>Database rows</dt>
+                  <dd>{rowCountLine(execution?.record ?? detail.record)}</dd>
+                </div>
+                {review.execution.lastAttempt?.policyDigest ? (
+                  <div><dt>Policy set</dt><dd>{review.execution.lastAttempt.policyDigest.slice(0, 19)}</dd></div>
+                ) : null}
+              </dl>
+            </details>
           </section>
         ) : null}
       </article>

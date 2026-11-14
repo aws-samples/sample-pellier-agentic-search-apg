@@ -201,8 +201,10 @@
   background: var(--dl-paper-2);
   object-fit: cover;
 }
-/* Quiet, at the end of the row: back to the neutral store. */
-.cd-who-signout {
+/* Quiet, at the end of the row: back to the neutral store. A new conversation
+   as the same shopper is the same quiet control, in the header. */
+.cd-who-signout,
+.cd-new-conversation {
   min-height: 40px;
   padding: 0 2px;
   border: 0;
@@ -214,8 +216,13 @@
   white-space: nowrap;
   cursor: pointer;
 }
-.cd-who-signout:hover {
+.cd-who-signout:hover,
+.cd-new-conversation:hover:not(:disabled) {
   color: var(--dl-ink);
+}
+.cd-new-conversation:disabled {
+  color: var(--dl-muted);
+  cursor: default;
 }
 
 /* Signed out: the four shoppers as cards under the one-line explainer. */

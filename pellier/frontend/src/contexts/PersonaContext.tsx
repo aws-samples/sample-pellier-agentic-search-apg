@@ -101,12 +101,37 @@ interface PersonaContextType {
    * dismissal timer fires, so stale markers don't re-trigger on
    * remount. */
   clearTransition: () => void
+  /**
+   * Start a fresh conversation as the same signed-in shopper: a new server
+   * session, the saved thread dropped, the sign-in kept. Resolves false, with
+   * the current conversation untouched, when no new session could be had.
+   */
+  startNewConversation: () => Promise<boolean>
+  /** Bumped by each new conversation, so the chat drops the old thread and its turn. */
+  conversation: number
+  /** The last new-conversation request failed; the old conversation is still open. */
+  newConversationFailed: boolean
 }
 
 const PersonaContext = createContext<PersonaContextType | undefined>(undefined)
 
 const PERSONA_STORAGE_KEY = 'pellier-persona'
 const SESSION_KEY = 'pellier-session-id'
+/** CartContext stamps the bag with the session it belongs to. */
+const CART_SESSION_KEY = 'pellier-cart-session'
+
+/**
+ * Drop every saved conversation thread. The retired-modal keys go too, so a
+ * participant moving between source revisions cannot inherit a stale thread;
+ * ChatDrawer uses its own persist key.
+ */
+function clearSavedThreads(): void {
+  localStorage.removeItem('pellier-storefront-chat')
+  localStorage.removeItem('pellier-observatory-chat')
+  localStorage.removeItem('pellier-concierge-storefront')
+  localStorage.removeItem('pellier-concierge-observatory')
+  localStorage.removeItem('pellier-drawer-storefront')
+}
 
 function clearPersonaStorage(): void {
   try {
@@ -115,11 +140,7 @@ function clearPersonaStorage(): void {
     // ignore
   }
   localStorage.removeItem(SESSION_KEY)
-  localStorage.removeItem('pellier-storefront-chat')
-  localStorage.removeItem('pellier-observatory-chat')
-  localStorage.removeItem('pellier-concierge-storefront')
-  localStorage.removeItem('pellier-concierge-observatory')
-  localStorage.removeItem('pellier-drawer-storefront')
+  clearSavedThreads()
 }
 
 /** Drop pre-3.2 localStorage persona so shared boxes don't reopen as Marco. */
@@ -136,6 +157,10 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   const [switching, setSwitching] = useState(false)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [lastTransition, setLastTransition] = useState<PersonaTransition | null>(null)
+  const [conversation, setConversation] = useState(0)
+  const personaRef = useRef(persona)
+  personaRef.current = persona
+  const [newConversationFailed, setNewConversationFailed] = useState(false)
   // The mount-time rehydrate answers for the session it started with. A chip click
   // or a sign-out supersedes it, so its late answer must never be applied.
   const rehydrate = useRef<AbortController | null>(null)
@@ -229,18 +254,10 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
 
       // Store the new session_id so chat picks it up
       localStorage.setItem(SESSION_KEY, data.session_id)
-
-      // Clear any existing chat persistence
-      localStorage.removeItem('pellier-storefront-chat')
-      localStorage.removeItem('pellier-observatory-chat')
-      // Clear retired-modal keys too so a participant moving between source
-      // revisions cannot inherit a stale workshop-only thread.
-      localStorage.removeItem('pellier-concierge-storefront')
-      localStorage.removeItem('pellier-concierge-observatory')
-      // ChatDrawer uses its own persist key.
-      localStorage.removeItem('pellier-drawer-storefront')
+      clearSavedThreads()
 
       rehydrate.current?.abort()
+      setNewConversationFailed(false)
       setPersona(data.persona)
       setLastTransition({
         id: Date.now(),
@@ -280,6 +297,45 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
 
   const clearTransition = useCallback(() => setLastTransition(null), [])
 
+  // The same endpoint a shopper switch uses issues a fresh session for the same
+  // shopper. The sign-in cookie is not touched, so the shopper stays signed in.
+  const startNewConversation = useCallback(async (): Promise<boolean> => {
+    const current = persona
+    if (!current) return false
+    const startedFrom = localStorage.getItem(SESSION_KEY)
+    setNewConversationFailed(false)
+    try {
+      const res = await apiFetch('/api/persona/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ persona_id: current.id, current_session_id: startedFrom }),
+      })
+      if (!res.ok) throw new Error(`New conversation failed: ${res.status}`)
+      const data = (await res.json()) as { session_id?: unknown; persona?: { id?: unknown } | null }
+      if (typeof data.session_id !== 'string' || !data.session_id || data.persona?.id !== current.id) {
+        throw new Error(`New conversation answered for another session: ${String(data.persona?.id)}`)
+      }
+      // A sign-out or another shopper landed while this was in flight: theirs stands.
+      const superseded = () => localStorage.getItem(SESSION_KEY) !== startedFrom
+        || personaRef.current?.id !== current.id
+      if (superseded()) return false
+      localStorage.setItem(SESSION_KEY, data.session_id)
+      if (startedFrom && localStorage.getItem(CART_SESSION_KEY) === startedFrom) {
+        localStorage.setItem(CART_SESSION_KEY, data.session_id)
+      }
+      clearSavedThreads()
+      rehydrate.current?.abort()
+      setConversation(count => count + 1)
+      return true
+    } catch (err) {
+      console.error('New conversation failed:', err)
+      if (localStorage.getItem(SESSION_KEY) === startedFrom && personaRef.current?.id === current.id) {
+        setNewConversationFailed(true)
+      }
+      return false
+    }
+  }, [persona])
+
   return (
     <PersonaContext.Provider
       value={{
@@ -291,6 +347,9 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         switchError,
         lastTransition,
         clearTransition,
+        startNewConversation,
+        conversation,
+        newConversationFailed,
       }}
     >
       {children}

@@ -19,7 +19,8 @@ import {
   useBuilderView,
   useSkillMode,
 } from './preferences'
-import { upsertStep, type TurnStep } from './turnTypes'
+import StepFacts from './StepFacts'
+import { upsertStep, type StepBuilder, type TurnStep } from './turnTypes'
 
 describe('StatusTag', () => {
   it('maps the three roles to tones and keeps the word on the tag', () => {
@@ -191,6 +192,46 @@ describe('evidenceLine', () => {
     expect(evidenceLine(failed)).toBe(
       'intent catalog; Remembered: AgentCore Memory read failed (managed_memory_unavailable); none given',
     )
+  })
+
+  it('says how many saved preferences the agent received, with the record ids one disclosure away', () => {
+    const route = (remembered: StepBuilder['remembered']): TurnStep => ({
+      id: 'route', label: 'Understanding your request', status: 'done', tags: ['Router', 'Memory'],
+      builder: { tool: null, intent: 'catalog', remembered },
+    })
+    const prefs = (records: string[], error?: string) => (
+      { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records, ...(error ? { error } : {}) })
+    const memory = (step: TurnStep) => evidenceFacts(step).find(fact => fact.label === 'Memory')?.parts
+    expect(memory(route(prefs(['mem-theo-indigo'])))).toEqual([
+      { kind: 'text', text: 'The agent received one saved preference.' },
+      { kind: 'ids', summary: 'Record IDs', ids: ['mem-theo-indigo'], noun: 'memory record id' },
+    ])
+    expect(memory(route(prefs(['mem-a', 'mem-b'])))).toEqual([
+      { kind: 'text', text: 'The agent received 2 saved preferences.' },
+      { kind: 'ids', summary: 'Record IDs', ids: ['mem-a', 'mem-b'], noun: 'memory record id' },
+    ])
+    // Read and empty, read and failed, and not read at all are three different facts.
+    expect(memory(route(prefs([])))).toEqual([
+      { kind: 'text', text: 'AgentCore Memory held no saved preference, so the agent received none.' },
+    ])
+    expect(memory(route(prefs([], 'managed_memory_unavailable')))).toEqual([
+      { kind: 'text', text: 'The AgentCore Memory read failed (managed_memory_unavailable), so the agent received no saved preference.' },
+    ])
+    expect(memory(route(null))).toBeUndefined()
+  })
+
+  it('keeps the Memory record ids folded under the count, each with its copy control', () => {
+    render(<StepFacts step={{
+      id: 'route', label: 'Understanding your request', status: 'done', tags: ['Router', 'Memory'],
+      builder: { tool: null, intent: 'catalog', remembered: { source: 'agentcore-memory', strategy: 'USER_PREFERENCE', records: ['mem-theo-indigo'] } },
+    }} />)
+    const records = screen.getByTestId('turn-memory-records')
+    expect(records.tagName).toBe('DETAILS')
+    expect(records).not.toHaveAttribute('open')
+    expect(records.querySelector('summary')).toHaveTextContent('Record IDs')
+    expect(records).toHaveTextContent('mem-theo-indigo')
+    expect(screen.getByRole('button', { name: /copy memory record id/i })).toBeInTheDocument()
+    expect(screen.getByTestId('turn-evidence')).toHaveTextContent('The agent received one saved preference.')
   })
 
   it('names the tools the running Stock agent may call beside its prompt rule', () => {

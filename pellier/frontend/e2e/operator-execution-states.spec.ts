@@ -19,7 +19,7 @@ const SHOTS = process.env.OPERATOR_SHOTS ?? 'test-results/operator-states'
 
 const NOTHING_WRITTEN = {
   idempotencyKey: WRITE_KEY, creditRows: 0, creditIds: [], amountCents: null, auditRows: 0, auditIds: [],
-  auditCaller: null, readable: true,
+  appliedAuditRows: 0, appliedAuditIds: [], auditCaller: null, readable: true,
 }
 
 const DENIED_NOTE = 'The Gateway answered: denied, 2026-10-04 15:03 UTC. AgentCore Policy denied it before the tool ran (forbid policies naming this action just before the call: credit_limit_forbid). tool_audit and store_credits show what ran and what was paid.'
@@ -139,8 +139,22 @@ for (const theme of ['light', 'dark'] as const) {
       await page.getByTestId('operator-review-execute').click()
       await expect(page.getByTestId('operator-credit-denied')).toBeVisible()
       await expect(page.getByTestId('operator-review-execute')).toHaveText('Execute again')
+      const denial = page.getByTestId('operator-credit-denied')
+      await expect(denial).toContainText('Your approval is saved. AgentCore Policy blocked this attempt before the tool ran.')
+      await expect(denial).toContainText('No credit was written.')
+      await expect(page.getByTestId('operator-review-request-path')).toContainText('AgentCore Gateway')
       await page.waitForTimeout(400)
       await page.screenshot({ path: shot('3-execute-deny'), fullPage: true })
+
+      // A reload keeps the saved approval, the request's own path and the counts.
+      await page.reload()
+      await expect(page.getByText('Approved by Nadia')).toBeVisible()
+      await expect(page.getByTestId('operator-credit-denied')).toContainText('Your approval is saved.')
+      await expect(page.getByTestId('operator-credit-request-path')).toContainText('AgentCore Gateway')
+      await expect(page.getByTestId('operator-review-request-path')).toContainText('AgentCore Gateway')
+      await page.getByTestId('operator-review-receipt-details').locator('summary').click()
+      await expect(page.getByTestId('operator-review-rows')).toContainText('0 store_credits rows and 0 tool_audit rows for this key')
+      await expect(page.getByTestId('operator-review-execute')).toHaveText('Execute again')
 
       await page.getByTestId('operator-review-execute').click()
       await expect(page.getByTestId('operator-credit-recorded')).toContainText('Credit #12 recorded')
@@ -150,8 +164,28 @@ for (const theme of ['light', 'dark'] as const) {
       await expect(page.getByTestId('operator-review-retry')).toHaveText('Replay with the same key')
       await page.getByTestId('operator-review-retry').click()
       await expect(page.getByTestId('operator-credit-replayed')).toContainText('Replayed, no new row')
+      await expect(page.getByTestId('operator-credit-replayed')).toContainText('credit #12 already recorded')
+      await expect(page.getByTestId('operator-credit-replayed')).toContainText('Still 1 store_credits row and 1 tool_audit row for this key.')
       await page.waitForTimeout(400)
       await page.screenshot({ path: shot('5-replay'), fullPage: true })
     })
   }
 }
+
+test('a denial beside tables that could not be read claims no count', async ({ page }) => {
+  const unreadable = { ...NOTHING_WRITTEN, readable: false }
+  const desk: Desk = { review: DENIED_REVIEW, record: unreadable, investigated: true, executions: 1 }
+  await stubDesk(page, desk)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/operator/reviews/41')
+  const denial = page.getByTestId('operator-credit-denied')
+  await expect(denial).toContainText('Your approval is saved. AgentCore Policy blocked this attempt before the tool ran.')
+  await expect(denial).toContainText('The database record could not be verified.')
+  await expect(denial).not.toContainText('No credit was written')
+  await expect(denial).toContainText('Review the policy before you select Execute again.')
+  await page.getByTestId('operator-review-receipt-details').locator('summary').click()
+  await expect(page.getByTestId('operator-review-rows')).toContainText('The tables could not be read, so no count is claimed.')
+  // The explanation and the retry fit the phone width without a sideways scroll.
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  expect(overflow).toBeLessThanOrEqual(0)
+})

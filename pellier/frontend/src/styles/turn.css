@@ -238,6 +238,16 @@
 .tn-raw[open] .tn-chev {
   transform: rotate(90deg);
 }
+/* Ids folded under a fact's sentence take their own line, and wrap between chips. */
+.tn-fact-more {
+  flex-basis: 100%;
+}
+.tn-fact-more-ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin-top: 4px;
+}
 .tn-raw-text {
   display: block;
   margin-top: 4px;

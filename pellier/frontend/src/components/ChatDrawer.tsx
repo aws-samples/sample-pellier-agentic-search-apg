@@ -63,7 +63,7 @@ import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
 import { SkillModeToggle, useBuilderView } from './turn'
 import { useStoreResults } from '../contexts/StoreResultsContext'
-import { useSignedInShopper } from '../hooks/useShopperSignIn'
+import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
 import { ASK_PANEL, HERO_CONCIERGE } from '../copy'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
@@ -101,8 +101,10 @@ export default function ChatDrawer() {
   } = useUI()
   const { guardrailsEnabled } = useLayout()
   const { addToCart, cartOpen } = useCart()
-  const { persona, switching } = usePersona()
+  const { persona, switching, conversation, newConversationFailed, startNewConversation } = usePersona()
   const signedInAs = useSignedInShopper()
+  const startingConversation = useRef(false)
+  const [newConversationNote, setNewConversationNote] = useState<string | null>(null)
   const docked = useDocksBesideStore()
 
   const isOpen = activeModal === 'drawer' && !cartOpen
@@ -196,6 +198,37 @@ export default function ChatDrawer() {
       setShowLatest(false)
     }
   }, [persona?.id, clearChat, initialMessages, setInputValue])
+
+  // A new conversation as the same shopper lands as a new server session: the
+  // thread and draft go, the sign-in stays, and the composer takes focus.
+  const seenConversation = useRef(conversation)
+  useEffect(() => {
+    if (seenConversation.current === conversation) return
+    seenConversation.current = conversation
+    clearChat(initialMessages)
+    setInputValue('')
+    followLatestRef.current = true
+    setShowLatest(false)
+    setNewConversationNote(signedInAs ? ASK_PANEL.newConversationStarted(shopperName(signedInAs)) : null)
+    // The button that asked goes with the old thread, so focus inside the panel
+    // moves to the composer. Focus elsewhere on the page stays where it is.
+    const focused = document.activeElement
+    const panel = inputRef.current?.closest('aside')
+    if (!focused || focused === document.body || panel?.contains(focused)) {
+      inputRef.current?.focus({ preventScroll: true })
+    }
+  }, [conversation, clearChat, initialMessages, setInputValue, signedInAs])
+
+  // A ref, not a disabled button: disabling the focused button would drop focus.
+  const newConversation = useCallback(async (): Promise<boolean> => {
+    if (startingConversation.current) return false
+    startingConversation.current = true
+    try {
+      return await startNewConversation()
+    } finally {
+      startingConversation.current = false
+    }
+  }, [startNewConversation])
 
   // Turn count (user messages only)
   const turnCount = messages.filter(m => m.role === 'user').length
@@ -314,6 +347,10 @@ export default function ChatDrawer() {
 
   const hasUserMessages = messages.some(m => m.role === 'user')
   const keycap = isMac ? '⌘K' : 'Ctrl+K'
+  // The note answers the click; the shopper's next message makes it old news.
+  useEffect(() => {
+    if (hasUserMessages) setNewConversationNote(null)
+  }, [hasUserMessages])
 
   useLayoutEffect(() => {
     const input = inputRef.current
@@ -347,7 +384,23 @@ export default function ChatDrawer() {
               {signedInAs ? null : (
                 <p className="cd-head-meta" data-testid="ask-panel-subtitle">{ASK_PANEL.PICK}</p>
               )}
+              {signedInAs && newConversationNote ? (
+                <p className="cd-head-meta" role="status" data-testid="ask-new-conversation-note">
+                  {newConversationNote}
+                </p>
+              ) : null}
             </div>
+            {signedInAs && hasUserMessages ? (
+              <button
+                type="button"
+                className="cd-new-conversation"
+                data-testid="ask-new-conversation"
+                disabled={switching}
+                onClick={() => void newConversation()}
+              >
+                {ASK_PANEL.NEW_CONVERSATION}
+              </button>
+            ) : null}
             <button
               type="button"
               className="cd-close"
@@ -359,6 +412,11 @@ export default function ChatDrawer() {
           </div>
 
           {signedInAs || hasUserMessages ? <ShopperBar /> : null}
+          {signedInAs && newConversationFailed ? (
+            <p className="cd-who-alert" role="alert" data-testid="ask-new-conversation-failed">
+              {ASK_PANEL.NEW_CONVERSATION_FAILED}
+            </p>
+          ) : null}
 
           {/* Who the server verified and which rail served the last turn;
               the Builder view's skills switch sits with them. */}
@@ -488,7 +546,16 @@ export default function ChatDrawer() {
           <button
             type="button"
             className="cd-continue-clear"
-            onClick={() => clearChat(initialMessages)}
+            // Signed in, the thread lives in the server session too, and a reload
+            // would restore it: clearing starts a new conversation instead.
+            onClick={() => {
+              if (!signedInAs) {
+                clearChat(initialMessages)
+                return
+              }
+              // A failure leaves this conversation and says so inside the panel.
+              void newConversation().then(started => { if (!started) openModal('drawer') })
+            }}
             aria-label="Clear chat"
             title="Clear chat"
           >

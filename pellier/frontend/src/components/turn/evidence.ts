@@ -118,11 +118,15 @@ export function evidenceLine(step: TurnStep): string {
   return parts.join('; ')
 }
 
-/** One piece of a fact's value: plain words, a code chip, or an id chip with a copy control. */
+/**
+ * One piece of a fact's value: plain words, a code chip, an id chip with a copy
+ * control, or id chips folded under a summary until the reader opens them.
+ */
 export type FactPart =
   | { kind: 'text'; text: string }
   | { kind: 'code'; text: string }
   | { kind: 'id'; text: string; noun: string }
+  | { kind: 'ids'; summary: string; ids: string[]; noun: string }
 
 /** One labelled row of a step's Builder evidence. */
 export interface EvidenceFact {
@@ -140,21 +144,29 @@ function routerMemoryFacts(builder: StepBuilder): EvidenceFact[] {
   if (builder.memory) {
     facts.push({ label: 'Customer record', parts: [text(customerRecordSentence(builder.memory))] })
   }
+  // Null means Memory was not read for this turn (signed out, or no Memory): no row.
   const remembered = builder.remembered
   if (!remembered) return facts
-  if (remembered.error) {
-    facts.push({ label: 'Memory', parts: [text(`AgentCore Memory read failed (${remembered.error}); none given`)] })
-  } else if (remembered.records.length > 0) {
-    const noun = remembered.records.length === 1 ? 'record' : 'records'
+  const { error, records } = remembered
+  if (error) {
+    facts.push({
+      label: 'Memory',
+      parts: [text(`The AgentCore Memory read failed (${error}), so the agent received no saved preference.`)],
+    })
+  } else if (records.length > 0) {
+    const one = records.length === 1
     facts.push({
       label: 'Memory',
       parts: [
-        text(`AgentCore Memory ${noun}, user preference`),
-        ...remembered.records.map(record => id(record, 'memory record id')),
+        text(one ? 'The agent received one saved preference.' : `The agent received ${records.length} saved preferences.`),
+        { kind: 'ids', summary: 'Record IDs', ids: records, noun: 'memory record id' },
       ],
     })
   } else {
-    facts.push({ label: 'Memory', parts: [text('No AgentCore Memory record (user preference)')] })
+    facts.push({
+      label: 'Memory',
+      parts: [text('AgentCore Memory held no saved preference, so the agent received none.')],
+    })
   }
   return facts
 }

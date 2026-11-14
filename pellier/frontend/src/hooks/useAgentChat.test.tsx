@@ -14,7 +14,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { PersonaProvider } from '../contexts/PersonaContext'
+import { PersonaProvider, usePersona } from '../contexts/PersonaContext'
 import { answerPicks, useAgentChat, type AgentChatMessage } from './useAgentChat'
 
 // --- Chat service mock ---------------------------------------------------
@@ -247,6 +247,31 @@ describe('useAgentChat — unmount mid-stream', () => {
 
     expect(abortSpy).toHaveBeenCalled()
     abortSpy.mockRestore()
+  })
+
+  it('ends the old conversation\'s turn when the shopper starts a new conversation', async () => {
+    const theo = {
+      id: 'theo', edit: 'theo', display_name: 'Theo', role_tag: "Theo's edit", avatar_color: '#5a4535',
+      avatar_initial: 'T', customer_id: 'CUST-THEO', hero_image: '', hero_alt: 'Theo', hero_subheadline: '',
+      stats: { visits: 1, orders: 1, last_seen_days: 1 },
+    }
+    const sessions = [`persona-theo-${'a'.repeat(32)}`, `persona-theo-${'b'.repeat(32)}`]
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(
+      JSON.stringify({ session_id: sessions.shift(), persona: theo }), { status: 200 },
+    )))
+    try {
+      const { result } = renderHook(() => ({ chat: useAgentChat(), shopper: usePersona() }), { wrapper })
+      await act(async () => { await result.current.shopper.switchPersona('theo') })
+      act(() => { void result.current.chat.sendMessage("I'm drawn to deep indigo linen.") })
+      await waitFor(() => expect(capturedOnUpdate).not.toBeNull())
+      const lateFromTheOldSession = capturedOnUpdate!
+      await act(async () => { expect(await result.current.shopper.startNewConversation()).toBe(true) })
+      expect(result.current.chat.isLoading).toBe(false)
+      act(() => lateFromTheOldSession({ type: 'content', content: 'A late reply from the old session.' }))
+      expect(result.current.chat.messages.map(message => message.content).join(' ')).not.toContain('late reply')
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 
   it('ignores a step event that arrives after unmount', async () => {

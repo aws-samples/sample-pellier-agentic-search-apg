@@ -21,10 +21,25 @@ const LONG_ID = 16
 const LONG_CODE = 24
 
 const needsFullWidth = (parts: FactPart[]) => parts.some(part =>
-  (part.kind === 'id' && part.text.length > LONG_ID) || (part.kind === 'code' && part.text.length > LONG_CODE))
+  (part.kind === 'id' && part.text.length > LONG_ID)
+  || (part.kind === 'ids' && part.ids.some(value => value.length > LONG_ID))
+  || (part.kind === 'code' && part.text.length > LONG_CODE))
 
 function Part({ part }: { part: FactPart }) {
   if (part.kind === 'id') return <CopyId value={part.text} noun={part.noun} />
+  if (part.kind === 'ids') {
+    return (
+      <details className="tn-raw tn-fact-more" data-testid="turn-memory-records">
+        <summary>
+          <ChevronRight size={12} strokeWidth={2} className="tn-chev" aria-hidden="true" />
+          {part.summary}
+        </summary>
+        <span className="tn-fact-more-ids">
+          {part.ids.map(value => <CopyId key={value} value={value} noun={part.noun} />)}
+        </span>
+      </details>
+    )
+  }
   if (part.kind === 'code') return <code className="tn-chip tn-chip-code">{part.text}</code>
   return <span className="tn-fact-text">{part.text}</span>
 }

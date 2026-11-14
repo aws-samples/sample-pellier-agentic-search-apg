@@ -104,7 +104,7 @@ export const EXECUTED_REVIEW = {
 
 export const RECORDED_ONCE = {
   idempotencyKey: WRITE_KEY, creditRows: 1, creditIds: [12], amountCents: 10000, auditRows: 1, auditIds: [4051],
-  auditCaller: 'gateway', readable: true,
+  appliedAuditRows: 1, appliedAuditIds: [4051], auditCaller: 'gateway', readable: true,
 }
 
 export function detail(review: Record<string, unknown>, record: Record<string, unknown> | null = null) {

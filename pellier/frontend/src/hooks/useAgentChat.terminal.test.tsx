@@ -19,8 +19,9 @@ type Frame = Record<string, unknown>
 
 const watches: Array<{ onFrame: (frame: Frame) => void; signal: AbortSignal; fail: (e: Error) => void }> = []
 let persona: { id: string; customer_id?: string } | null = { id: 'anna', customer_id: 'CUST-ANNA' }
+let conversation = 0
 
-vi.mock('../contexts/PersonaContext', () => ({ usePersona: () => ({ persona }) }))
+vi.mock('../contexts/PersonaContext', () => ({ usePersona: () => ({ persona, conversation }) }))
 vi.mock('../services/chat', () => ({
   checkBackendHealth: vi.fn().mockResolvedValue(true),
   normalizeChatError: vi.fn((error: unknown) => error),
@@ -77,6 +78,7 @@ describe('turns sent from the terminal', () => {
   beforeEach(() => {
     watches.length = 0
     persona = { id: 'anna', customer_id: 'CUST-ANNA' }
+    conversation = 0
     localStorage.clear()
   })
   afterEach(() => {
@@ -244,6 +246,28 @@ describe('turns sent from the terminal', () => {
     deliver(frames().slice(5))
     expect(reported.filter(event => event.type === 'start')).toHaveLength(1)
     expect(reported.at(-1)).toEqual({ type: 'end', outcome: 'complete' })
+  })
+
+  it('leaves a terminal turn with its conversation when a reconnect replays it into a new one', async () => {
+    const reported: TurnEvent[] = []
+    const { result, rerender } = renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames())
+    expect(terminal(result.current.messages)).toHaveLength(2)
+    // A new conversation as the same shopper: the panel drops the thread; the watch stays open.
+    const watch = live()[0]
+    conversation = 1
+    rerender()
+    act(() => result.current.clearChat([]))
+    expect(watch.signal.aborted).toBe(false)
+    reported.length = 0
+    // A backend restart: the reconnected watch replays the recent turns.
+    deliver(frames(true))
+    expect(terminal(result.current.messages)).toHaveLength(0)
+    expect(reported).toEqual([])
   })
 
   it('does not report a finished live turn again when a reconnect replays it', async () => {
