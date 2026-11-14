@@ -20,12 +20,18 @@ import logging
 from typing import Any, AsyncGenerator, Callable, Optional
 
 from botocore.exceptions import ClientError
+from strands.models import CacheConfig
 from strands.models.bedrock import BedrockModel
 from strands.types.exceptions import ModelThrottledException
 
 from services.specialist_models import specialist_model
 
 logger = logging.getLogger(__name__)
+
+# Bedrock prompt caching for every agent model. Strands' "auto" strategy puts one cache point at
+# the end of the last user message, so the tools, the system prompt and the turn so far are read
+# from the cache on each later model call in a turn. It acts only on Claude model IDs.
+PROMPT_CACHE = CacheConfig(strategy="auto")
 
 # Bedrock's codes for "cannot serve this model right now", in both casings it uses.
 UNAVAILABLE_CODES = frozenset({
@@ -48,6 +54,7 @@ class FallbackBedrockModel(BedrockModel):
     """A Bedrock model that moves to a second model when Bedrock cannot serve the first."""
 
     def __init__(self, *, fallback_model_id: str, fallback_max_tokens: int, **config: Any) -> None:
+        config.setdefault("cache_config", PROMPT_CACHE)
         super().__init__(**config)
         self.fallback_model_id = fallback_model_id
         self.fallback_max_tokens = fallback_max_tokens
@@ -139,7 +146,7 @@ def specialist_bedrock_model(model_id: str, max_tokens: int) -> BedrockModel:
     """The Bedrock model for a specialist: the Sonnet profile is the fallback for any other."""
     fallback_id, fallback_max = specialist_model("sonnet")
     if not fallback_id or fallback_id == model_id:
-        return BedrockModel(model_id=model_id, max_tokens=max_tokens)
+        return BedrockModel(model_id=model_id, max_tokens=max_tokens, cache_config=PROMPT_CACHE)
     return FallbackBedrockModel(model_id=model_id, max_tokens=max_tokens,
                                 fallback_model_id=fallback_id, fallback_max_tokens=fallback_max)
 

@@ -1050,10 +1050,14 @@ def _build_graph(case: _Case, model_id: str, hooks: Dict[str, "_NodeHooks"]) -> 
     from strands.models import BedrockModel
     from strands.multiagent import GraphBuilder
 
+    from services.model_fallback import PROMPT_CACHE
+
     investigator = Agent(
         name=INVESTIGATOR_NODE,
         description="Reads one client's orders, tickets and the return policy, and states the case.",
-        model=BedrockModel(model_id=model_id, max_tokens=_INVESTIGATOR_MAX_TOKENS),
+        model=BedrockModel(
+            model_id=model_id, max_tokens=_INVESTIGATOR_MAX_TOKENS, cache_config=PROMPT_CACHE
+        ),
         system_prompt=_INVESTIGATOR_PROMPT,
         tools=_investigator_tools(case),
         hooks=[hooks[INVESTIGATOR_NODE]],
@@ -1062,7 +1066,9 @@ def _build_graph(case: _Case, model_id: str, hooks: Dict[str, "_NodeHooks"]) -> 
     advisor = Agent(
         name=ADVISOR_NODE,
         description="Proposes one store credit for a person to approve.",
-        model=BedrockModel(model_id=model_id, max_tokens=_ADVISOR_MAX_TOKENS),
+        model=BedrockModel(
+            model_id=model_id, max_tokens=_ADVISOR_MAX_TOKENS, cache_config=PROMPT_CACHE
+        ),
         system_prompt=_ADVISOR_PROMPT,
         tools=_advisor_tools(case),
         hooks=[hooks[ADVISOR_NODE]],

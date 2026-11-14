@@ -11,6 +11,7 @@ from strands.models import BedrockModel
 from config import settings
 from pellier_copy import STOCK_OUTPUT_RULES
 from services import agent_tools
+from services.model_fallback import PROMPT_CACHE
 # Named so the Lab 2A grant may list the tool by its bare name as well.
 from services.agent_tools import check_stock  # noqa: F401
 from skills import (
@@ -95,6 +96,7 @@ def build_stock_agent(*, skill_mode: str = SKILL_MODE_FIXED) -> Agent:
         model=BedrockModel(
             model_id=_STOCK_MODEL_ID,
             max_tokens=_STOCK_MAX_TOKENS,
+            cache_config=PROMPT_CACHE,
         ),
         system_prompt=inject_persona_preamble(prompt),
         tools=_STOCK_TOOLS,
