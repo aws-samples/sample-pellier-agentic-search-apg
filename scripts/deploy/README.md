@@ -22,9 +22,11 @@ Memory, authenticate test users, and verify the deployed path.
 
 2. **AgentCore Memory**: short-term conversation events with 30-day expiry,
    plus `USER_PREFERENCE`, `SEMANTIC`, `SUMMARIZATION` and `EPISODIC` strategies.
-   Bootstrap writes an isolated conversation, then requires extracted records
-   to pass list, get-by-ID and retrieval checks in all four namespaces. Missing
-   records, incomplete episodes, namespace drift or timeout fail readiness.
+   Bootstrap writes an isolated conversation and requires all four strategies
+   configured and ACTIVE; the user-preference records (`REQUIRED_STRATEGIES`)
+   must pass list, get-by-ID and retrieval checks before readiness, and
+   `check_memory_deep_dive.py` confirms the other strategies after handout.
+   Missing records, namespace drift or timeout fail readiness.
    The check does not write long-term records or reuse participant evidence.
 
 3. **AgentCore Gateway**: an MCP Gateway that registers both Lambda targets with:
@@ -156,7 +158,7 @@ value, `30` in the workshop template).
 | `deploy_lambda.py`                | Lambda deployment script |
 | `gateway_tool_schemas.py`         | One-target catalog and participant publication boundary   |
 | `render_agentcore_project.py`     | Writes the declarative AgentCore CLI project   |
-| `seed_agentcore_memory.py`        | Proves all-four extraction, then seeds source conversations  |
+| `seed_agentcore_memory.py`        | Seeds source conversations, then proves preference extraction |
 | `verify_memory_readiness.py`    | Isolated real extraction, record-ID and namespace proof |
 | `../../pellier/backend/agentcore_runtime.py` | **Deployed** BYO Runtime entrypoint; JWT + Gateway required |
 | `../../pellier/backend/pyproject.toml` | CodeZip dependencies for the BYO agent         |

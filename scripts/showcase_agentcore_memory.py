@@ -9,14 +9,17 @@ No long-term records are seeded. `learn` writes a visible, scripted conversation
 
 `provisioned` is Lab 3's memory check. It needs no sign-in: it reads the
 conversation provisioning wrote for the persona (session `prefseed`) and the
-user-preference records AgentCore extracted from it, and prints Expected,
+user-preference records in the persona's namespace (the one AgentCore extracted
+from that conversation, and any extracted since from live turns), and prints Expected,
 Observed and Evidence with the source event ids beside the record ids:
 
     uv run scripts/showcase_agentcore_memory.py provisioned --persona theo
 
 `strategies` is the appendix's deep dive into all four strategies. It reads, and never
-writes, every record AgentCore made from that one conversation: preferences,
-facts, the session summary, the episode and its reflection. Each strategy says
+writes, the records AgentCore made for the persona: preferences, facts, the
+session summary, the episode and its reflection. Live turns add to the
+preferences, facts and reflections, which belong to the customer; the summary and
+the episode stay with the provisioning conversation. Each strategy says
 whether its records follow the customer into new conversations and whether a
 Pellier turn reads them. `--versus` runs the same reads for a second shopper:
 

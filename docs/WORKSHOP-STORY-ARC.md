@@ -105,8 +105,8 @@ workshop and takes no teaching time in the Wrap-up.
   a control. The deployed build is read from `tool_audit.build_fingerprint`
   beside this checkout's digest. Theo's own token, naming Jessica's customer
   directly at the Gateway, is denied by `get_tickets_owner_only`. Memory is
-  context: Theo's provisioning conversation and the preference record
-  extracted from it, never permission. One ownership expression serves USING
+  context: Theo's provisioning conversation, the preference record
+  extracted from it and any his live turns add, never permission. One ownership expression serves USING
   and WITH CHECK on `orders` and `support_tickets`: Theo's own rows are
   visible, Jessica's return 0, a ticket written in her name fails with 42501,
   and every customer sees exactly their own rows; only then does the SQL file

@@ -89,9 +89,10 @@ def _store_key(actor_id: str, session_id: str) -> str:
     return actor_id if actor_id == session_id else f"{actor_id}|{session_id}"
 
 
-# Process-local fallback store. Keyed by the raw namespace string so
-# ``anon-{sid}`` and ``user-{uid}-session-{sid}`` are physically
-# disjoint entries — Req 4.3.3 holds by construction.
+# Process-local fallback store. Keyed by ``_store_key(actor, session)``: the
+# conversation namespace alone for an anonymous or unmapped caller, and
+# ``<customer id>|<namespace>`` for a mapped shopper, so two conversations never
+# share an entry — Req 4.3.3 holds by construction.
 # Which store served a call. A process-local dict is NOT persistence — it dies with
 # the worker — so a caller that reports "remembered" without distinguishing the two is
 # claiming durability it does not have. Found live: uvicorn launched outside the venv
@@ -481,13 +482,15 @@ class AgentCoreMemory:
 
     @staticmethod
     def _normalize_sdk_turns(raw: Any) -> List[Dict[str, Any]]:
-        """Flatten ``get_last_k_turns`` output into JSON-safe turn dicts.
+        """Flatten session messages into JSON-safe turn dicts.
 
-        The SDK groups messages into turns, so the return is a list of
-        turns where each turn is itself a list of message dicts shaped
-        like ``{"role": "USER", "content": {"text": "..."}}`` (roles are
+        ``get_session_history`` passes the conversational payloads of
+        ``list_events``, oldest first: message dicts shaped like
+        ``{"role": "USER", "content": {"text": "..."}}`` (roles are
         uppercase; ``content`` may be a nested dict or a bare string;
-        timestamps arrive as ``datetime``). This collapses that into the
+        timestamps arrive as ``datetime``). A list of turns, each a list of
+        messages (the SDK's ``get_last_k_turns`` shape), is flattened too.
+        This collapses either into the
         flat ``{"role": "user"|"assistant", "content": <str>,
         "timestamp": <str>}`` list the route serializes and Pellier
         chat hydrates from.
@@ -523,8 +526,8 @@ class AgentCoreMemory:
 
         turns: List[Dict[str, Any]] = []
         for turn in (raw or []):
-            # A turn is normally a list of messages; tolerate a bare
-            # message (dict or SDK object) in case the shape ever changes.
+            # list_events gives bare messages (dict or SDK object); a list of
+            # messages, the SDK's turn grouping, is taken as well.
             messages = turn if isinstance(turn, (list, tuple)) else [turn]
             for msg in messages:
                 # Accept dict OR SDK object; only skip genuinely empty slots.
@@ -556,8 +559,9 @@ class AgentCoreMemory:
         mgr = self._get_sdk_manager()
         if mgr is not None:
             try:
-                # SDK param is `namespace_prefix` (NOT `namespace`); returns a
-                # List[MemoryRecord] whose `content` is {"text": "<json>"}.
+                # A prefix match on this user's key (`namespace_prefix`);
+                # `get_semantic_memories` below asks for one exact namespace.
+                # Returns a List[MemoryRecord] whose `content` is {"text": "<json>"}.
                 # Long-term records are created by Pellier's USER_PREFERENCE
                 # strategy. Typed onboarding and extracted semantic preferences
                 # remain separate contracts and namespaces.

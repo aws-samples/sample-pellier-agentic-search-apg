@@ -197,7 +197,7 @@ def test_strict_memory_never_falls_back_after_sdk_write_failure(
 #
 # The in-memory fallback above already returns plain ``{role, content}``
 # dicts, so the route serialized fine in dev. On a provisioned account the
-# SDK path runs instead, and ``get_last_k_turns`` returns grouped turns of
+# SDK path runs instead, and ``list_events`` returns payloads of
 # uppercase-role messages with nested ``content.text`` and ``datetime``
 # fields — NOT JSON serializable, so ``JSONResponse`` 500'd at render time.
 # These tests pin the normalizer that closes that gap.
@@ -332,7 +332,7 @@ def test_memory_status_accepts_active_control_plane_resource(
 
 
 def test_normalize_sdk_turns_flattens_eventmessage_objects() -> None:
-    """On a provisioned account ``get_last_k_turns`` returns SDK
+    """On a provisioned account the SDK session read returns SDK
     ``EventMessage`` objects, NOT plain dicts. They are dict-LIKE (they
     expose ``.role``/``.content`` and even a ``.get`` method) but
     ``isinstance(msg, dict)`` is False — so a dict-only reader silently
@@ -480,7 +480,7 @@ def test_get_user_preferences_sdk_path_uses_correct_signature() -> None:
         def list_long_term_memory_records(self, **kwargs):
             captured.update(kwargs)
             # Reject the wrong kwargs so a regression to them is loud.
-            assert "namespace" not in kwargs, "wrong SDK kwarg 'namespace' (use namespace_prefix)"
+            assert "namespace" not in kwargs, "this read is a prefix match: namespace_prefix, not namespace"
             assert "memoryId" not in kwargs, "wrong SDK kwarg 'memoryId'"
             assert "maxResults" not in kwargs, "wrong SDK kwarg 'maxResults' (use max_results)"
             return [_FakeRecord({"vibe": ["minimal"], "colors": ["warm"]})]

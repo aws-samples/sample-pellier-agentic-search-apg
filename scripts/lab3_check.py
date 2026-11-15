@@ -442,7 +442,8 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
 
     ``seeded`` is ``seed_agentcore_memory.seeded_memory`` for CUST-THEO;
     ``remembered`` is ``AgentCoreMemory.get_semantic_memories`` with the strict
-    client, the same read the storefront's managed rail makes at turn start.
+    client: the records in Theo's preference namespace, the one the Runtime reads
+    at turn start (``services/runtime_memory.py``).
     """
     stored = {r["memoryRecordId"] for r in seeded.get("records") or [] if r.get("memoryRecordId")}
     ids = [item["record_id"] for item in remembered]

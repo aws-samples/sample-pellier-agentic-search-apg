@@ -117,12 +117,11 @@ the participant edit regions.
 A remembered preference can guide a pick. It cannot establish a price, stock,
 order ownership or permission to act. Provisioning records Theo's first
 conversation, and AgentCore Memory extracts his preference from it. In Lab 3,
-`scripts/lab3_check.py` reads that record the way the managed rail does and
-prints its id; afterwards the Builder view of Theo's new-session turn names the
-same record (`Remembered: AgentCore Memory record <id> (user preference)`). A
-preference a participant states in a live turn is extracted under a session actor
-that no shopper read looks at, so the agent never recalls it; the Go deeper tab
-shows that extraction, and the proof uses the seeded record.
+`scripts/lab3_check.py` names the preference record IDs a deployed turn used and
+checks them against Theo's Memory; the Builder view of a later Theo turn lists the
+same IDs under Record IDs. A preference a participant states in a live turn is
+written under Theo's customer ID too, so once AgentCore has extracted it, a later
+conversation can recall it; the Go deeper tab shows that.
 
 ## The four labs
 
@@ -280,10 +279,10 @@ for the rehearsal record, outside participant teaching time. Test the recovery p
 a lab exceeds its budget, cut required work or change the schedule
 explicitly, and keep the failed measurement.
 
-Give every dry run its own fresh provision. Do not reuse a box after a
-maintainer reset: `scripts/reset-governed-workshop.sh` rebuilds the database,
-restores the task files and Lab 4's Cedar rule as shipped, but it does
-not undo Lab 3's deploy. The Gateway still publishes `get_tickets` with its
-owner-only permit, and the Runtime still runs the last participant's build, so
-Lab 3's See it fail no longer fails and its build check compares the restored
-code, as shipped, with that build.
+Give every dry run its own fresh provision, so it starts from exactly what a
+participant gets. A maintainer reset (`scripts/reset-governed-workshop.sh`)
+rebuilds the database, restores the task files and Lab 4's Cedar rule as shipped,
+and redeploys the managed project from the restored starters, which retires Lab
+3's tool and its owner-only permit. `PELLIER_RESET_SKIP_AGENTCORE=1` skips the
+AgentCore steps: the deployed project and Lab 4's deployed policy stay as the
+participant left them.
