@@ -162,11 +162,12 @@ def test_survey_and_cleanup_cover_every_page_of_every_list() -> None:
     assert module.residue(module.survey(client, "mem-1")) == []
 
 
-def _run_main(module, monkeypatch: pytest.MonkeyPatch, client: FakeMemoryClient) -> int:
+def _run_main(module, monkeypatch: pytest.MonkeyPatch, client: FakeMemoryClient,
+              restore=None) -> int:
     _virtual_clock(module, monkeypatch)
     monkeypatch.setattr(module, "_env", lambda: {"AGENTCORE_MEMORY_ID": "mem-1"})
     monkeypatch.setattr(module, "_client", lambda _region: client)
-    monkeypatch.setattr(module, "restore_baseline", lambda *_: None)
+    monkeypatch.setattr(module, "restore_baseline", restore or (lambda *_: None))
     monkeypatch.setattr(sys, "argv", ["reset_memory_runtime.py", "--apply"])
     return module.main()
 
@@ -191,6 +192,34 @@ def test_successful_deletes_wait_for_visibility_without_repeating_writes(monkeyp
     assert sorted(client.deleted_records) == ["r1", "r2", "r3"]
     assert sorted(client.deleted_events) == ["e1", "e2", "e3", "e4", "e5", "e9"]
     assert client.records["CUST-MARCO"] == ["mr1"]
+
+
+def test_main_restores_every_seeded_shopper_it_removed_and_none_it_kept(monkeypatch):
+    module = _load_module()
+    client = FakeMemoryClient()
+    before = module.survey(client, "mem-1")
+    observations = iter([before, before, [], []])
+    monkeypatch.setattr(module, "survey", lambda *_: next(observations))
+    calls = []
+
+    assert _run_main(module, monkeypatch, client,
+                     restore=lambda *args: calls.append(args)) == 0
+    # CUST-MARCO kept his setup conversation, so only the other seeded shoppers are rebuilt.
+    assert calls == [(client, "mem-1", sorted(set(module.SEED_TURNS) - {"CUST-MARCO"}))]
+
+
+def test_main_fails_the_reset_when_the_setup_conversations_do_not_come_back(monkeypatch, capsys):
+    module = _load_module()
+    client = FakeMemoryClient()
+    before = module.survey(client, "mem-1")
+    observations = iter([before, before, [], []])
+    monkeypatch.setattr(module, "survey", lambda *_: next(observations))
+
+    def never_returns(*_):
+        raise RuntimeError("Setup preferences have not returned for CUST-THEO")
+
+    assert _run_main(module, monkeypatch, client, restore=never_returns) == 1
+    assert "Could not restore the setup conversations" in capsys.readouterr().err
 
 
 def test_late_visible_record_restarts_clean_survey_count(monkeypatch):
