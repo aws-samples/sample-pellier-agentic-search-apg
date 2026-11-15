@@ -29,6 +29,11 @@ export interface ReviewController {
   busy: ReviewBusy
   /** The last execution response of THIS session; the durable record is in `detail`. */
   execution: OperatorExecutionResult | null
+  /**
+   * Execute responses received in this session. The server reuses one execution turn
+   * id for every retry of a review, so this is what tells one attempt from the next.
+   */
+  attempts: number
   decisionError: string | null
   decisionErrorMissing: readonly string[]
   approve: () => Promise<void>
@@ -42,6 +47,7 @@ export function useReview(reviewId: number | null): ReviewController {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<ReviewBusy>(null)
   const [execution, setExecution] = useState<OperatorExecutionResult | null>(null)
+  const [attempts, setAttempts] = useState(0)
   const [decisionError, setDecisionError] = useState<string | null>(null)
   const [decisionErrorMissing, setDecisionErrorMissing] = useState<readonly string[]>([])
   const active = useRef(true)
@@ -112,10 +118,16 @@ export function useReview(reviewId: number | null): ReviewController {
   const execute = useCallback(
     () => run('executing', async () => {
       const outcome = await executeReview(detail!.review.reviewId, detail!.review.actionHash)
-      if (active.current) setExecution(outcome)
+      if (active.current) {
+        setExecution(outcome)
+        setAttempts(count => count + 1)
+      }
     }),
     [detail, run],
   )
 
-  return { detail, error, busy, execution, decisionError, decisionErrorMissing, approve, decline, execute, reload }
+  return {
+    detail, error, busy, execution, attempts, decisionError, decisionErrorMissing,
+    approve, decline, execute, reload,
+  }
 }

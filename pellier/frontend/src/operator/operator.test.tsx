@@ -377,6 +377,28 @@ describe('the review record', () => {
     expect(screen.getByTestId('operator-credit-request-path')).toHaveTextContent('AgentCore Gateway')
   })
 
+  it('puts a second Cedar denial in a new line, so the live region announces it', async () => {
+    api.fetchReview.mockResolvedValueOnce(detail(APPROVED_REVIEW)).mockResolvedValue(detail(UNWRITTEN_REVIEW, NOTHING_WRITTEN))
+    api.executeReview.mockResolvedValueOnce({
+      reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
+      actorPrincipal: 'sub-nadia', assurance: { human: 'CONFIRMED', policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' },
+      notes: { policy: 'Cedar denied the action; the tool was never entered.' }, tool: 'give_store_credit',
+      result: { status: 'policy_denied' }, record: NOTHING_WRITTEN,
+    }).mockResolvedValueOnce({
+      // The server assigns one execution turn per review and reuses it on every retry.
+      reviewId: 41, rail: 'gateway-mcp', executionTurnId: 'turn-execution-1', idempotencyKey: WRITE_KEY,
+      actorPrincipal: 'sub-nadia', assurance: { human: 'CONFIRMED', policy: 'DENY', aurora: 'NOT_REACHED', evidence: 'POLICY_PROOF' },
+      notes: { policy: 'Cedar denied the action; the tool was never entered.' }, tool: 'give_store_credit',
+      result: { status: 'policy_denied' }, record: NOTHING_WRITTEN,
+    })
+    renderAt('/operator/reviews/41', <ReviewRecord />)
+    fireEvent.click(await screen.findByTestId('operator-review-execute'))
+    const first = await screen.findByTestId('operator-credit-denied')
+    fireEvent.click(screen.getByTestId('operator-review-execute'))
+    await waitFor(() => expect(api.executeReview).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByTestId('operator-credit-denied')).not.toBe(first))
+  })
+
   it.each([null, { ...NOTHING_WRITTEN, readable: false }, RECORDED_ONCE])('does not infer database absence from a policy denial alone (%j)', async record => {
     api.fetchReview.mockResolvedValue(detail(DENIED_ON_RELOAD, record))
     renderAt('/operator/reviews/41', <ReviewRecord />)
@@ -535,7 +557,7 @@ describe('after a decision', () => {
 
   it('pulls focus to the card once after a decision, not on every later refresh', () => {
     const controller = (busy: 'approving' | null, review = APPROVED_REVIEW) => ({
-      detail: detail(review), error: null, busy, execution: null, decisionError: null,
+      detail: detail(review), error: null, busy, execution: null, attempts: 0, decisionError: null,
       decisionErrorMissing: [], approve: vi.fn(), decline: vi.fn(), execute: vi.fn(), reload: vi.fn(),
     })
     const { rerender } = render(<MemoryRouter><ProposedCreditCard controller={controller('approving')} /></MemoryRouter>)

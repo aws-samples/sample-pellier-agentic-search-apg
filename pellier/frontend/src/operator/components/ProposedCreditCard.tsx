@@ -339,7 +339,7 @@ interface Props {
 }
 
 const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = false }) => {
-  const { detail, busy, execution, decisionError, decisionErrorMissing, approve, decline, execute } = controller
+  const { detail, busy, execution, attempts, decisionError, decisionErrorMissing, approve, decline, execute } = controller
   const auth = useOptionalAuth()
   const signedIn = auth?.isAuthenticated ? auth.user : null
   const approver = signedIn ? presentIdentity(signedIn.username || signedIn.givenName || signedIn.email) : null
@@ -431,7 +431,8 @@ const ProposedCreditCard: React.FC<Props> = ({ controller, items, compact = fals
           </p>
         ) : null}
         {denied ? (
-          <p className="op-note op-note-blocked" data-testid="operator-credit-denied">
+          // One line per attempt: a second denial is a new node, so the region announces it.
+          <p key={attempts} className="op-note op-note-blocked" data-testid="operator-credit-denied">
             <CircleX size={14} aria-hidden />
             {denialLine({ review, record, readerApproved, decider, retryOffered: approved && !executed })}
           </p>
