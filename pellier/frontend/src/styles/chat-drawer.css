@@ -266,6 +266,12 @@
   font-size: 13.5px;
   line-height: 1.45;
 }
+/* The new-conversation failure sits under the shopper row, inset like it. */
+.cd-conversation-alert {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--dl-line);
+}
 
 /* ---- Body ---- */
 .cd-body {

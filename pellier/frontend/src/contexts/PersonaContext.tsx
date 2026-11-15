@@ -21,6 +21,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { clearShownTurns } from '../hooks/terminalTurns'
 
 export interface PersonaSnapshot {
   id: string
@@ -111,6 +112,8 @@ interface PersonaContextType {
   conversation: number
   /** The last new-conversation request failed; the old conversation is still open. */
   newConversationFailed: boolean
+  /** The shopper carried on in the open conversation, so the failure is old news. */
+  clearNewConversationFailed: () => void
 }
 
 const PersonaContext = createContext<PersonaContextType | undefined>(undefined)
@@ -140,6 +143,7 @@ function clearPersonaStorage(): void {
     // ignore
   }
   localStorage.removeItem(SESSION_KEY)
+  clearShownTurns()
   clearSavedThreads()
 }
 
@@ -296,6 +300,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
   }, [clearPersona, persona])
 
   const clearTransition = useCallback(() => setLastTransition(null), [])
+  const clearNewConversationFailed = useCallback(() => setNewConversationFailed(false), [])
 
   // The same endpoint a shopper switch uses issues a fresh session for the same
   // shopper. The sign-in cookie is not touched, so the shopper stays signed in.
@@ -350,6 +355,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
         startNewConversation,
         conversation,
         newConversationFailed,
+        clearNewConversationFailed,
       }}
     >
       {children}

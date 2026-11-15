@@ -1,7 +1,8 @@
 /**
  * Turns sent from the terminal (`lab_run.py send`) arrive in Ask Pellier through
  * `/api/chat/watch` and render as typed turns do: the same event handling, a
- * "terminal" source, never kept in the browser, and a watch that reconnects.
+ * "terminal" source, never kept in the browser (only their ids, each with its
+ * conversation), and a watch that reconnects.
  */
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
@@ -74,12 +75,20 @@ function terminal(messages: AgentChatMessage[]) {
   return messages.filter(message => message.source === 'terminal')
 }
 
+// What PersonaContext does when a new conversation lands: a new server session, and
+// the next conversation count.
+function landNewConversation(session = 'session-2') {
+  localStorage.setItem('pellier-session-id', session)
+  conversation += 1
+}
+
 describe('turns sent from the terminal', () => {
   beforeEach(() => {
     watches.length = 0
     persona = { id: 'anna', customer_id: 'CUST-ANNA' }
     conversation = 0
     localStorage.clear()
+    localStorage.setItem('pellier-session-id', 'session-1')
   })
   afterEach(() => {
     vi.useRealTimers()
@@ -259,7 +268,7 @@ describe('turns sent from the terminal', () => {
     expect(terminal(result.current.messages)).toHaveLength(2)
     // A new conversation as the same shopper: the panel drops the thread; the watch stays open.
     const watch = live()[0]
-    conversation = 1
+    landNewConversation()
     rerender()
     act(() => result.current.clearChat([]))
     expect(watch.signal.aborted).toBe(false)
@@ -268,6 +277,105 @@ describe('turns sent from the terminal', () => {
     deliver(frames(true))
     expect(terminal(result.current.messages)).toHaveLength(0)
     expect(reported).toEqual([])
+  })
+
+  it.each([
+    ['the Operator round trip remounts the panel', false],
+    ['a reload starts the conversation count over', true],
+  ])('keeps a terminal turn with its conversation when %s', async (_how, reload) => {
+    const reported: TurnEvent[] = []
+    const first = renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames())
+    landNewConversation()
+    first.rerender()
+    act(() => first.result.current.clearChat([]))
+    first.unmount()
+    if (reload) conversation = 0
+    reported.length = 0
+    const second = renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(live()).toHaveLength(1))
+    // The new watch replays the shopper's recent terminal turns.
+    deliver(frames(true))
+    expect(terminal(second.result.current.messages)).toHaveLength(0)
+    expect(reported).toEqual([])
+  })
+
+  it('keeps a terminal turn with its conversation when the new one lands while the panel is closed', async () => {
+    const reported: TurnEvent[] = []
+    const first = renderHook(() => useAgentChat({ watchTerminal: true }), { wrapper })
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames())
+    // The shopper asked for a new conversation, then opened the Operator before it landed.
+    first.unmount()
+    landNewConversation()
+    const second = renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames(true))
+    expect(terminal(second.result.current.messages)).toHaveLength(0)
+    expect(reported).toEqual([])
+  })
+
+  it('still shows a reloaded conversation its terminal turn and the page its results', async () => {
+    const first = renderHook(() => useAgentChat({ watchTerminal: true }), { wrapper })
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames())
+    first.unmount()
+    const reported: TurnEvent[] = []
+    const second = renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames(true))
+    expect(terminal(second.result.current.messages)).toHaveLength(2)
+    expect(reported[0]).toEqual({ type: 'start', query: QUESTION })
+  })
+
+  it('ends a live terminal turn for the page when a new conversation starts mid-turn', async () => {
+    const reported: TurnEvent[] = []
+    const { result, rerender } = renderHook(
+      () => useAgentChat({ watchTerminal: true, onTurn: event => reported.push(event) }),
+      { wrapper },
+    )
+    await waitFor(() => expect(live()).toHaveLength(1))
+    const all = frames()
+    deliver(all.slice(0, 3))
+    reported.length = 0
+    landNewConversation()
+    rerender()
+    act(() => result.current.clearChat([]))
+    expect(reported).toEqual([{ type: 'end', outcome: 'stopped' }])
+    reported.length = 0
+    deliver(all.slice(3))
+    expect(terminal(result.current.messages)).toHaveLength(0)
+    expect(reported).toEqual([])
+  })
+
+  it('shows a new shopper their own terminal turns after another shopper left some behind', async () => {
+    const { rerender, result } = renderHook(() => useAgentChat({ watchTerminal: true }), { wrapper })
+    await waitFor(() => expect(live()).toHaveLength(1))
+    deliver(frames())
+    landNewConversation()
+    rerender()
+    act(() => result.current.clearChat([]))
+    persona = { id: 'theo', customer_id: 'CUST-THEO' }
+    localStorage.setItem('pellier-session-id', 'session-theo')
+    conversation = 0
+    rerender()
+    await waitFor(() => expect(live()).toHaveLength(1))
+    act(() => result.current.clearChat([]))
+    deliver(frames(true))
+    expect(terminal(result.current.messages)).toHaveLength(2)
   })
 
   it('does not report a finished live turn again when a reconnect replays it', async () => {

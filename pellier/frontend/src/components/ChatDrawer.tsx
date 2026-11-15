@@ -101,9 +101,13 @@ export default function ChatDrawer() {
   } = useUI()
   const { guardrailsEnabled } = useLayout()
   const { addToCart, cartOpen } = useCart()
-  const { persona, switching, conversation, newConversationFailed, startNewConversation } = usePersona()
+  const {
+    persona, switching, conversation, newConversationFailed, startNewConversation,
+    clearNewConversationFailed,
+  } = usePersona()
   const signedInAs = useSignedInShopper()
   const startingConversation = useRef(false)
+  const [startingNew, setStartingNew] = useState(false)
   const [newConversationNote, setNewConversationNote] = useState<string | null>(null)
   const docked = useDocksBesideStore()
 
@@ -154,8 +158,8 @@ export default function ChatDrawer() {
     inputValue,
     setInputValue,
     isLoading,
-    sendMessage,
-    retryMessage,
+    sendMessage: sendTurn,
+    retryMessage: retryTurn,
     stopTurn,
     clearChat,
   } = useAgentChat({
@@ -166,6 +170,23 @@ export default function ChatDrawer() {
     onTurn: storeResults?.onTurn,
     watchTerminal: true,
   })
+  // A message sent while a new conversation is being started would go out under the
+  // old session and then be cleared with it, so sends and retries are refused until the
+  // new one lands; a home-bar question is kept and asked after (see below). A send in the
+  // open conversation makes a failed new-conversation request old news.
+  const carryOn = useCallback(() => {
+    if (startingConversation.current) return false
+    if (newConversationFailed) clearNewConversationFailed()
+    return true
+  }, [newConversationFailed, clearNewConversationFailed])
+  const sendMessage = useCallback(
+    (customText?: string): Promise<void> => (carryOn() ? sendTurn(customText) : Promise.resolve()),
+    [carryOn, sendTurn],
+  )
+  const retryMessage = useCallback(
+    (text: string): Promise<void> => (carryOn() ? retryTurn(text) : Promise.resolve()),
+    [carryOn, retryTurn],
+  )
 
   // The header's Ask Pellier dot pulses only while a turn runs.
   useEffect(() => {
@@ -183,7 +204,10 @@ export default function ChatDrawer() {
   const prevPersonaId = useRef(persona?.id ?? null)
   const choseShopperRef = useRef(false)
   useEffect(() => {
-    if (switching) choseShopperRef.current = true
+    if (!switching) return
+    choseShopperRef.current = true
+    // Another shopper is signing in: the note about this one is already stale.
+    setNewConversationNote(null)
   }, [switching])
   useEffect(() => {
     const currentId = persona?.id ?? null
@@ -191,6 +215,7 @@ export default function ChatDrawer() {
       const restored = prevPersonaId.current === null && !choseShopperRef.current
       prevPersonaId.current = currentId
       choseShopperRef.current = false
+      setNewConversationNote(null)
       if (restored) return
       clearChat(initialMessages)
       setInputValue('')
@@ -223,15 +248,18 @@ export default function ChatDrawer() {
   const newConversation = useCallback(async (): Promise<boolean> => {
     if (startingConversation.current) return false
     startingConversation.current = true
+    setStartingNew(true)
     try {
       return await startNewConversation()
     } finally {
       startingConversation.current = false
+      setStartingNew(false)
     }
   }, [startNewConversation])
 
   // Turn count (user messages only)
   const turnCount = messages.filter(m => m.role === 'user').length
+  const showNewConversationFailed = Boolean(signedInAs && newConversationFailed)
 
   // While docked, the page leaves the panel its column. On a phone the panel
   // is the last thing in the document, so opening it scrolls it into view.
@@ -278,12 +306,14 @@ export default function ChatDrawer() {
       if (activeModal !== 'drawer') consumePendingQuery()
       return
     }
-    if (!pendingConciergeQuery || switching) return
+    // A question from the home bar waits for a shopper switch or a new conversation to
+    // land, so it is asked in the conversation that follows.
+    if (!pendingConciergeQuery || switching || startingNew) return
     const seeded = consumePendingQuery()
     if (seeded) {
       void sendMessage(seeded)
     }
-  }, [isOpen, activeModal, pendingConciergeQuery, switching, consumePendingQuery, sendMessage])
+  }, [isOpen, activeModal, pendingConciergeQuery, switching, startingNew, consumePendingQuery, sendMessage])
 
   // Follow the reply until the shopper scrolls back. A new question resumes
   // following; streamed chunks never pull someone away from earlier text.
@@ -384,7 +414,8 @@ export default function ChatDrawer() {
               {signedInAs ? null : (
                 <p className="cd-head-meta" data-testid="ask-panel-subtitle">{ASK_PANEL.PICK}</p>
               )}
-              {signedInAs && newConversationNote ? (
+              {/* Mounted while signed in, so the note is announced when it arrives. */}
+              {signedInAs ? (
                 <p className="cd-head-meta" role="status" data-testid="ask-new-conversation-note">
                   {newConversationNote}
                 </p>
@@ -412,8 +443,8 @@ export default function ChatDrawer() {
           </div>
 
           {signedInAs || hasUserMessages ? <ShopperBar /> : null}
-          {signedInAs && newConversationFailed ? (
-            <p className="cd-who-alert" role="alert" data-testid="ask-new-conversation-failed">
+          {showNewConversationFailed ? (
+            <p className="cd-who-alert cd-conversation-alert" role="alert" data-testid="ask-new-conversation-failed">
               {ASK_PANEL.NEW_CONVERSATION_FAILED}
             </p>
           ) : null}

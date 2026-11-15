@@ -1,11 +1,12 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({
   openModal: vi.fn(),
   closeModal: vi.fn(),
   dismissDrawer: vi.fn(),
-  consumePendingQuery: vi.fn(() => null),
+  consumePendingQuery: vi.fn((): string | null => null),
+  pendingConciergeQuery: null as string | null,
   setInputValue: vi.fn(),
   clearChat: vi.fn(),
   sendMessage: vi.fn(),
@@ -24,7 +25,9 @@ const shopper = vi.hoisted(() => ({
   conversation: 0,
   newConversationFailed: false,
   startNewConversation: vi.fn(async () => true),
+  clearNewConversationFailed: vi.fn(),
 }))
+const body = vi.hoisted(() => ({ props: null as null | { retryMessage: (text: string) => Promise<void> } }))
 vi.mock('../contexts/PersonaContext', () => ({
   usePersona: () => ({
     persona: shopper.persona,
@@ -34,6 +37,7 @@ vi.mock('../contexts/PersonaContext', () => ({
     conversation: shopper.conversation,
     newConversationFailed: shopper.newConversationFailed,
     startNewConversation: shopper.startNewConversation,
+    clearNewConversationFailed: shopper.clearNewConversationFailed,
   }),
 }))
 vi.mock('../contexts/UIContext', async importOriginal => ({
@@ -45,6 +49,7 @@ vi.mock('../contexts/UIContext', async importOriginal => ({
     dismissDrawer: state.dismissDrawer,
     drawerOpenedByShopper: () => false,
     consumePendingQuery: state.consumePendingQuery,
+    pendingConciergeQuery: state.pendingConciergeQuery,
     setTurnRunning: vi.fn(),
   }),
 }))
@@ -70,7 +75,12 @@ vi.mock('../hooks/useShopperSignIn', async importOriginal => ({
   ...await importOriginal<typeof import('../hooks/useShopperSignIn')>(),
   useSignedInShopper: () => state.signedInAs,
 }))
-vi.mock('./PellierChatBody', () => ({ default: () => null }))
+vi.mock('./PellierChatBody', () => ({
+  default: (props: { retryMessage: (text: string) => Promise<void> }) => {
+    body.props = props
+    return null
+  },
+}))
 vi.mock('./PellierWelcome', () => ({ default: () => null }))
 vi.mock('./StatusLines', () => ({ default: () => <dl data-testid="status-lines" /> }))
 
@@ -151,6 +161,8 @@ describe('A new conversation as the same shopper', () => {
     state.activeModal = 'drawer'
     state.messages = SAID
     state.isLoading = false
+    state.pendingConciergeQuery = null
+    state.consumePendingQuery.mockImplementation(() => null)
   })
 
   it('offers New conversation once the signed-in shopper has said something', () => {
@@ -219,6 +231,79 @@ describe('A new conversation as the same shopper', () => {
     expect(button).not.toBeDisabled()
     expect(button).toHaveFocus()
     expect(shopper.startNewConversation).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops the new-conversation note when another shopper takes over', () => {
+    const { rerender } = render(<ChatDrawer />)
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    state.messages = SAID.slice(0, 1)
+    shopper.conversation = 1
+    rerender(<ChatDrawer />)
+    expect(screen.getByTestId('ask-new-conversation-note')).toHaveTextContent('still signed in as Theo')
+    shopper.switching = true
+    rerender(<ChatDrawer />)
+    shopper.persona = { id: 'marco', display_name: 'Marco Delgado' }
+    state.signedInAs = 'marco'
+    shopper.switching = false
+    rerender(<ChatDrawer />)
+    expect(screen.queryByText(/still signed in as Theo/)).toBeNull()
+  })
+
+  it('keeps the new-conversation status region in place before it has anything to say', () => {
+    render(<ChatDrawer />)
+    const note = screen.getByTestId('ask-new-conversation-note')
+    expect(note).toHaveAttribute('role', 'status')
+    expect(note).toBeEmptyDOMElement()
+  })
+
+  it('refuses a send while the new conversation is being started', () => {
+    shopper.startNewConversation.mockImplementation(() => new Promise<boolean>(() => {}))
+    render(<ChatDrawer />)
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message Pellier' }), { key: 'Enter' })
+    expect(state.sendMessage).not.toHaveBeenCalled()
+  })
+
+  it('tells Pellier the failure is old news once the shopper sends in this conversation', () => {
+    shopper.newConversationFailed = true
+    render(<ChatDrawer />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message Pellier' }), { key: 'Enter' })
+    expect(state.sendMessage).toHaveBeenCalledTimes(1)
+    expect(shopper.clearNewConversationFailed).toHaveBeenCalledTimes(1)
+  })
+
+  it('drops the new-conversation note as soon as a shopper switch starts', () => {
+    const { rerender } = render(<ChatDrawer />)
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    state.messages = SAID.slice(0, 1)
+    shopper.conversation = 1
+    rerender(<ChatDrawer />)
+    expect(screen.getByTestId('ask-new-conversation-note')).toHaveTextContent('still signed in as Theo')
+    shopper.switching = true
+    rerender(<ChatDrawer />)
+    expect(screen.queryByText(/still signed in as Theo/)).toBeNull()
+  })
+
+  it('refuses a retry while the new conversation is being started', () => {
+    shopper.startNewConversation.mockImplementation(() => new Promise<boolean>(() => {}))
+    render(<ChatDrawer />)
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    void body.props?.retryMessage('A linen throw')
+    expect(state.retryMessage).not.toHaveBeenCalled()
+  })
+
+  it('keeps a home-bar question until the new conversation has landed, then asks it', async () => {
+    let land: (ok: boolean) => void = () => {}
+    shopper.startNewConversation.mockImplementation(() => new Promise<boolean>(resolve => { land = resolve }))
+    const { rerender } = render(<ChatDrawer />)
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }))
+    state.pendingConciergeQuery = 'A linen throw for slow evenings'
+    state.consumePendingQuery.mockImplementation(() => 'A linen throw for slow evenings')
+    rerender(<ChatDrawer />)
+    expect(state.consumePendingQuery).not.toHaveBeenCalled()
+    await act(async () => land(true))
+    await vi.waitFor(() => expect(state.sendMessage).toHaveBeenCalledWith('A linen throw for slow evenings'))
   })
 
   it('still clears a signed-out visitor\'s chat in place', () => {

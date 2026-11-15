@@ -111,6 +111,24 @@ describe('startNewConversation', () => {
     return hook
   }
 
+  it('forgets which terminal turns this shopper has seen when they sign out', async () => {
+    const hook = await signedInAsTheo()
+    localStorage.setItem('pellier-terminal-shown', JSON.stringify({ shopper: 'theo', turns: { t1: FIRST } }))
+    act(() => { hook.result.current.signOut() })
+    expect(localStorage.getItem('pellier-terminal-shown')).toBeNull()
+  })
+
+  it('lets the shopper put a failed new-conversation request behind them', async () => {
+    const hook = await signedInAsTheo()
+    apiFetch.mockRejectedValueOnce(new Error('offline'))
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await act(async () => { await hook.result.current.startNewConversation() })
+    quiet.mockRestore()
+    expect(hook.result.current.newConversationFailed).toBe(true)
+    act(() => { hook.result.current.clearNewConversationFailed() })
+    expect(hook.result.current.newConversationFailed).toBe(false)
+  })
+
   it('keeps the shopper signed in, takes a fresh server session and drops the saved thread', async () => {
     const { result } = await signedInAsTheo()
     const signIn = result.current.lastTransition

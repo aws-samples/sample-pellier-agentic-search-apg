@@ -23,6 +23,7 @@ import {
 } from '../services/chat'
 import type { WorkshopMode } from '../contexts/LayoutContext'
 import { usePersona } from '../contexts/PersonaContext'
+import { currentSession, readShownTurns, saveShownTurns } from './terminalTurns'
 import { readSkillMode } from '../components/turn/preferences'
 import { productsNamedInAnswer } from '../utils/answerCards'
 import { upsertStep, type TurnPrincipal, type TurnStatus, type TurnStep } from '../components/turn/turnTypes'
@@ -497,8 +498,6 @@ export function useAgentChat(
   // another shopper or starting a new conversation ends it, so its stream cannot
   // patch the new conversation's panel or block its send.
   const personaKey = persona ? `${persona.id}#${conversation ?? 0}` : null
-  const conversationRef = useRef(conversation ?? 0)
-  conversationRef.current = conversation ?? 0
   const seenPersonaKey = useRef(personaKey)
   const turnLocalIdRef = useRef<string | undefined>(undefined)
   useEffect(() => {
@@ -519,18 +518,36 @@ export function useAgentChat(
   // a dropped stream (a backend restart) reconnects with backoff and replays
   // the recent turns, which reset and re-render rather than double.
   const watchedShopper = watchTerminal && persona && persona.id !== 'fresh' ? persona.id : null
+  // The ids of the terminal turns shown to this shopper, each with the conversation
+  // (session) it was shown in, kept in the browser (hooks/terminalTurns.ts), never the
+  // turns themselves; and the ones whose start the
+  // page has seen and not yet the end.
+  const shownTerminalRef = useRef(new Map<string, string>())
+  const startedTerminalRef = useRef(new Set<string>())
+  // A turn from an earlier conversation stays there with all its frames, and one still
+  // running ends for the page, as a typed turn does when its conversation ends.
+  const leaveBehind = useCallback((turnId: string) => {
+    if (startedTerminalRef.current.delete(turnId)) report({ type: 'end', outcome: 'stopped' })
+  }, [report])
+  useEffect(() => {
+    if (!watchedShopper) return
+    const now = currentSession()
+    for (const [turnId, shownIn] of shownTerminalRef.current) {
+      if (shownIn !== now) leaveBehind(turnId)
+    }
+  }, [conversation, watchedShopper, leaveBehind])
   useEffect(() => {
     if (!watchedShopper) return
     const controller = new AbortController()
     let stopped = false
     let delayMs = 1000
     const replayed = new Set<string>()
-    const started = new Set<string>()
-    // Turns this watch has put on screen, and the conversation each arrived in: a
-    // replay of one rebuilds its bubble only, and one from an earlier conversation
-    // stays with that conversation, its events with it.
-    const rendered = new Map<string, number>()
-    const leftBehind = new Set<string>()
+    // Turns this watch has put on screen: a replay of one rebuilds its bubble only.
+    const seenHere = new Set<string>()
+    shownTerminalRef.current = readShownTurns(watchedShopper)
+    startedTerminalRef.current = new Set()
+    const shown = shownTerminalRef.current
+    const started = startedTerminalRef.current
     const updateRelayed = (
       turnId: string,
       patch: (msg: AgentChatMessage) => AgentChatMessage | null,
@@ -553,12 +570,11 @@ export function useAgentChat(
       delayMs = 1000
       const turnId = typeof frame.turn_id === 'string' ? frame.turn_id : ''
       if (!turnId) return
-      const shownIn = rendered.get(turnId)
-      if (frame.type === 'relay_turn' && frame.replay === true
-        && shownIn !== undefined && shownIn !== conversationRef.current) {
-        leftBehind.add(turnId)
+      const shownIn = shown.get(turnId)
+      if (shownIn !== undefined && shownIn !== currentSession()) {
+        leaveBehind(turnId)
+        return
       }
-      if (leftBehind.has(turnId)) return
       if (frame.type === 'relay_turn') {
         const query = typeof frame.message === 'string' ? frame.message : ''
         const at = typeof frame.started_at === 'string' ? new Date(frame.started_at) : new Date()
@@ -587,8 +603,12 @@ export function useAgentChat(
             fresh,
           ]
         })
-        const firstSight = shownIn === undefined
-        rendered.set(turnId, conversationRef.current)
+        const firstSight = !seenHere.has(turnId)
+        seenHere.add(turnId)
+        if (shownIn === undefined) {
+          shown.set(turnId, currentSession())
+          saveShownTurns(watchedShopper, shown)
+        }
         if (frame.replay === true) replayed.add(turnId)
         else replayed.delete(turnId)
         // The results page follows a live turn, and a replayed one this panel has never
@@ -648,7 +668,7 @@ export function useAgentChat(
       stopped = true
       controller.abort()
     }
-  }, [watchedShopper, report])
+  }, [watchedShopper, report, leaveBehind])
 
   // Debounced persistence
   useEffect(() => {
