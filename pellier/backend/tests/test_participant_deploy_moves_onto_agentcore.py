@@ -161,3 +161,77 @@ def test_a_failed_move_marks_its_step_failed(
     captured = capsys.readouterr()
     assert "Moving Pellier onto AgentCore: failed" in captured.out
     assert "Done in" not in captured.out
+
+
+def _lab3_start_message(persona: str) -> str:
+    import re
+
+    source = (REPO_ROOT / "scripts" / "lab3-start.sh").read_text(encoding="utf-8")
+    line = next(row for row in source.splitlines() if re.match(rf"\s*{re.escape(persona)}\)", row))
+    match = re.search(r'MESSAGE="([^"]*)"', line)
+    assert match, line
+    return match.group(1)
+
+
+def test_the_moves_theo_turn_states_no_taste_memory_could_merge() -> None:
+    """Event of 2026-11-17: the move's Theo turn said "Hand-thrown ceramics for a slower morning
+    routine". Since live turns write to Memory, extraction merged it into his seeded preference
+    about a minute later and replaced that record, so a Task 3B turn sent in that minute used a
+    record that was gone by the check. The move asks a question with no taste in it.
+    """
+    import re
+    import sys
+
+    sys.path.insert(0, str(REPO_ROOT / "scripts" / "deploy"))
+    sys.path.insert(0, str(REPO_ROOT / "pellier" / "backend"))
+    from seed_agentcore_memory import SEED_TURNS
+    from services.intent_router import route_query
+
+    message = _lab3_start_message("*")
+    assert route_query(message).intent == "support"
+    seeded = " ".join(" ".join(turn) for turn in SEED_TURNS["CUST-THEO"]).lower()
+    taste = {word for word in re.findall(r"[a-z]+", seeded) if len(word) > 4}
+    assert not taste & set(re.findall(r"[a-z]+", message.lower())), message
+
+
+def test_a_participant_deploy_opens_with_its_steps_not_the_setup_stage(monkeypatch) -> None:
+    """Owner, 2026-11-17: the participant deploy's first line read "Managed AgentCore stage:
+    managed resource provisioning", jargon above "Deploying your changes to AgentCore". Setup
+    logs keep the stage name; a participant's deploy starts with its numbered steps."""
+    monkeypatch.setitem(provisioner._PARTICIPANT_VIEW, "on", True)
+    assert provisioner._stage_line("managed resource provisioning") is None
+    monkeypatch.setitem(provisioner._PARTICIPANT_VIEW, "on", False)
+    assert provisioner._stage_line("managed resource provisioning") == (
+        "Managed AgentCore stage: managed resource provisioning")
+
+
+def test_the_gateway_line_says_which_published_tools_a_shopper_does_not_see() -> None:
+    """Owner, 2026-11-17: "The Gateway publishes 8 tools to a signed-in caller" came right after
+    Task 3A's "9 of 9 tools published". The line names the staff-only tool the shopper cannot see."""
+    published = frozenset({"search_products", "get_tickets", "give_store_credit"})
+    visible = ["search_products", "get_tickets"]
+    assert provisioner._shopper_tools_line(visible, published) == (
+        "A shopper sees 2 of 3 Gateway tools; give_store_credit is staff-only")
+    before_3a = frozenset({"search_products", "give_store_credit"})
+    assert provisioner._shopper_tools_line(["search_products"], before_3a) == (
+        "A shopper sees 1 of 2 Gateway tools; give_store_credit is staff-only")
+    assert provisioner._shopper_tools_line(["a", "b"], frozenset({"a", "b"})) == (
+        "A shopper sees 2 of 2 Gateway tools")
+
+
+@pytest.mark.parametrize("already", [False, True])
+def test_the_closing_line_is_green_on_a_terminal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    already: bool,
+) -> None:
+    """Owner, 2026-11-17: the line that says Pellier now runs on AgentCore is a success and
+    reads green like a passed check; off a terminal it stays plain text."""
+    run_env = tmp_path / "run.env"
+    if already:
+        run_env.write_text("USE_AGENTCORE_RUNTIME=true\n")
+    monkeypatch.setattr(provisioner.workshop_check, "colour_enabled", lambda stream=None: True)
+    assert provisioner.move_onto_agentcore(_repo(tmp_path), run=Runs(), run_env=run_env) == 0
+    line = (provisioner.ALREADY_ON_AGENTCORE if already else provisioner.MOVED_ONTO_AGENTCORE)
+    out = capsys.readouterr().out
+    assert provisioner.workshop_check.paint(line, provisioner.workshop_check.PASSED) in out
+    assert "\033[" in provisioner.workshop_check.paint(line, provisioner.workshop_check.PASSED)

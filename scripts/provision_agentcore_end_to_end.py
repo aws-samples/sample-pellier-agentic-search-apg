@@ -52,6 +52,7 @@ from gateway_tool_schemas import (  # noqa: E402
     TOOL_SCHEMAS,
     discoverable_tools_for_claims,
     schema_for,
+    workshop_published_tools,
 )
 from runtime_log_delivery import ensure_runtime_log_delivery  # noqa: E402
 from gateway_tool_schemas import OPERATOR_SCHEMA  # noqa: E402
@@ -223,6 +224,27 @@ def _redacted(cmd: Sequence[str]) -> list[str]:
 
 _PARTICIPANT_VIEW = {"on": False}
 _ELIDED_ARG = 20
+
+
+def _shopper_tools_line(visible: Sequence[str], published: frozenset[str]) -> str:
+    """How many published tools a signed-in shopper's listing holds, and which ones it leaves out.
+
+    Discovery is filtered by policy, so the listing is shorter than the published set by the
+    staff-only tools. Saying which ones keeps the count from contradicting Task 3A's "9 of 9".
+    """
+    line = f"A shopper sees {len(visible)} of {len(published)} Gateway tools"
+    hidden = sorted(published - set(visible))
+    if not hidden:
+        return line
+    verb = "is" if len(hidden) == 1 else "are"
+    if set(hidden) <= STAFF_ONLY_GATEWAY_TOOLS:
+        return f"{line}; {' and '.join(hidden)} {verb} staff-only"
+    return f"{line}; not listed: {', '.join(hidden)}"
+
+
+def _stage_line(name: str) -> str | None:
+    """The provisioning stage for setup logs. A participant's deploy shows numbered steps instead."""
+    return None if _PARTICIPANT_VIEW["on"] else f"Managed AgentCore stage: {name}"
 
 
 def _fitted_to_terminal() -> bool:
@@ -3163,7 +3185,7 @@ def move_onto_agentcore(
     progress = progress or Progress()
     if _rail_is_managed(repo, run_env):
         progress.finish()
-        print(ALREADY_ON_AGENTCORE, flush=True)
+        print(workshop_check.paint(ALREADY_ON_AGENTCORE, workshop_check.PASSED), flush=True)
         return 0
     progress.begin("Moving Pellier onto AgentCore", typical=STEP_SECONDS["move"],
                    done="Moved Pellier onto AgentCore", animate=False)
@@ -3178,7 +3200,7 @@ def move_onto_agentcore(
         )
         return completed.returncode
     progress.finish()
-    print(MOVED_ONTO_AGENTCORE, flush=True)
+    print(workshop_check.paint(MOVED_ONTO_AGENTCORE, workshop_check.PASSED), flush=True)
     if not os.environ.get("PELLIER_NO_NEXT"):
         print(NEXT_AFTER_MOVE, flush=True)
     return 0
@@ -3343,7 +3365,7 @@ def _participant_update(
         "prefixed_names"
     ]
     checkpoint()
-    progress.end(f"The Gateway publishes {live_gateway['count']} tools to a signed-in caller")
+    progress.end(_shopper_tools_line(live_gateway["canonical_names"], workshop_published_tools()))
 
     progress.begin("Proving your build answers on AgentCore Runtime",
                    typical=STEP_SECONDS["smoke"],
@@ -3567,7 +3589,9 @@ def _provision(
     def stage(name: str) -> None:
         result["stage"] = name
         checkpoint()
-        print(f"Managed AgentCore stage: {name}", flush=True)
+        line = _stage_line(name)
+        if line:
+            print(line, flush=True)
 
     def apply_trace_log_group(group: dict[str, Any]) -> None:
         trace_log_groups = result["observability"].setdefault(
