@@ -132,12 +132,12 @@ workshop and takes no teaching time in the Wrap-up.
   the privileges. The live check confirms the function carries the file's
   statements, then tests the role in process and through the Gateway Lambda's
   Data API. The absence check is provided: 0 and 0 for the denied key, then 1 credit and
-  1 audit row for the allowed key, so a search that always returns zero cannot pass.
+  1 audit row that applied the allowed key. The retry returns the same credit.
 
 ## Timing
 
-The schedule is 20 minutes for the opening talk and Getting started, then 20 and 20
-minutes for Labs 1 and 2, 5 for the catch-up before Lab 3, 25 and 25 for Labs 3 and 4, and
+The schedule is 20 minutes for the opening talk and Getting started, then 20 and 15
+minutes for Labs 1 and 2, 5 for the catch-up before Lab 3, 25 and 30 for Labs 3 and 4, and
 5 for the Wrap-up: all 120 minutes of the slot, with no time held for recovery. These are
 targets until a timed fresh-account rehearsal confirms them. Lab 3's and Lab 4's deploy waits are inside their budgets, and
 each of those labs runs its SQL task during its wait.

@@ -250,8 +250,8 @@ deployed build fingerprint includes that edit. Do not move the task to an
 unpackaged file or infer deployed completion from source inspection.
 
 The schedule is 120 minutes. The opening block takes 20: the talk, then Getting started (about 3
-minutes; early arrivals may do it before). Then Lab 1 takes 20, Lab 2 20, Before Lab 3 (the one
-scheduled catch-up, then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 25 and the
+minutes; early arrivals may do it before). Then Lab 1 takes 20, Lab 2 15, Before Lab 3 (the one
+scheduled catch-up, then the move from local agents to AgentCore) 5, Lab 3 25, Lab 4 30 and the
 Wrap-up 5. Reading, deployment waits, and explanation share those allocations. These are targets
 pending a timed fresh-account rehearsal.
 
