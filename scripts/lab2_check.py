@@ -574,9 +574,8 @@ def with_resend_hint(live: check.Finding, recorded: check.Finding) -> check.Find
     """
     if live.state != check.PASSED or recorded.state == check.PASSED:
         return live
-    hint = ("Marco's recorded turns were answered before your function was live. Send his "
-            f"requests again ({SEND}) to see the cape answered as not carried; the evidence "
-            "export reads those turns.")
+    hint = ("Marco's recorded turns were answered before your function was live. To see the cape "
+            f"answered as not carried, send his requests again: {SEND}")
     return replace(live, evidence=[*live.evidence, hint])
 
 

@@ -168,6 +168,20 @@ def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(re
     assert "restart" not in finding.evidence[-1].lower()
 
 
+def test_the_resend_line_wraps_without_stranding_words(monkeypatch) -> None:
+    """Event of 2026-11-17: at 100 columns the box kept the command whole by moving it to its
+    own line, which left "requests again" alone on the line above. Every wrapped line of the
+    hint now carries a phrase, and the command sits whole on one line."""
+    monkeypatch.setenv("COLUMNS", "100")
+    finding = check.with_resend_hint(_finding("PASSED"), _finding("NOT YET PASSED"))
+    box = workshop_check.render(finding)
+    evidence = [line.split("│")[2].strip() for line in box.splitlines()
+                if line.startswith("│") and line.count("│") >= 3]
+    hint = evidence[evidence.index("row") + 1:]
+    assert "uv run scripts/lab_run.py send --lab 2" in hint
+    assert all(len(line.split()) >= 5 for line in hint), hint
+
+
 def test_the_2b_table_fits_a_laptop_terminal_and_keeps_its_columns() -> None:
     """The event's rows ran to about 150 columns and wrapped at 133; each now fits the
     renderer's width, and a case that differs repeats with what the catalog expects."""
