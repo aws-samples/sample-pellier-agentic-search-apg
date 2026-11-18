@@ -56,6 +56,17 @@ RUN_ENV_FILE="${PELLIER_RUN_ENV:-/etc/pellier/run.env}"
 PYTHON="${REPO}/pellier/backend/.venv/bin/python"
 "$PYTHON" -c 'import psycopg, boto3' >/dev/null 2>&1 || PYTHON="python3"
 
+# The long steps write to logs, so a bar keeps the terminal moving while they run. A box whose
+# library is missing still resets, just without the bar.
+# shellcheck source=lib/progress.sh
+if [[ -f "$(dirname "${BASH_SOURCE[0]}")/lib/progress.sh" ]]; then
+  . "$(dirname "${BASH_SOURCE[0]}")/lib/progress.sh"
+else
+  pellier_progress_wait_for() { wait "$1"; }
+  pellier_progress_draw() { :; }
+  pellier_progress_clear() { :; }
+fi
+
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
 pass() { printf "  ${GREEN}[PASS]${NC} %s\n" "$1"; }
 fail() { printf "  ${RED}[FAIL]${NC} %s\n" "$1"; }
@@ -248,13 +259,18 @@ _restart_services_and_wait() {
     return 1
   fi
 
+  local started
+  started="$(date +%s)"
   for ((attempt = 1; attempt <= 30; attempt++)); do
     if _backend_listening; then
+      pellier_progress_clear
       pass "Application readiness endpoint responds on :${BACKEND_PORT}"
       return 0
     fi
+    pellier_progress_draw "Waiting for Pellier to restart" 15 "$started"
     sleep 2
   done
+  pellier_progress_clear
   fail "Application did not become ready on :${BACKEND_PORT} after restart."
   return 1
 }
@@ -404,6 +420,7 @@ _load_restore_functions() {
 
 
 echo "Pellier governed reset - $(date '+%H:%M:%S')"
+echo "This takes about 9 minutes. Pellier's tab shows 502 Bad Gateway until the last line reads READY."
 echo "------------------------------------------------------------"
 
 _assert_no_running_deploy
@@ -431,10 +448,11 @@ fi
 # Aurora: drop the pellier schema, then the schema, the catalog and the seed, exactly as
 # a fresh database is built. scripts/setup/database-reset.sh owns that sequence; the
 # fresh-setup test harness runs the same script against PostgreSQL 18 with pgvector.
-if ! env DB_HOST="${DB_HOST:-localhost}" DB_PORT="${DB_PORT:-5432}" \
-    DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="${DB_PASSWORD:-}" \
-    PYTHON="$PYTHON" REPO="$REPO" bash "$REPO/scripts/setup/database-reset.sh" \
-    >/tmp/pellier-governed-reset-db.log 2>&1; then
+env DB_HOST="${DB_HOST:-localhost}" DB_PORT="${DB_PORT:-5432}" \
+  DB_NAME="$DB_NAME" DB_USER="$DB_USER" DB_PASSWORD="${DB_PASSWORD:-}" \
+  PYTHON="$PYTHON" REPO="$REPO" bash "$REPO/scripts/setup/database-reset.sh" \
+  >/tmp/pellier-governed-reset-db.log 2>&1 &
+if ! pellier_progress_wait_for "$!" "Rebuilding Pellier's database" 60; then
   fail "Database reset failed; see /tmp/pellier-governed-reset-db.log"
   exit 1
 fi
@@ -485,7 +503,9 @@ if [[ "${PELLIER_RESET_SKIP_MEMORY:-0}" == "1" ]]; then
 else
   _memory_rc=0
   "$PYTHON" "$REPO/scripts/reset_memory_runtime.py" --apply \
-    >/tmp/pellier-governed-reset-memory.log 2>&1 || _memory_rc=$?
+    >/tmp/pellier-governed-reset-memory.log 2>&1 &
+  pellier_progress_wait_for "$!" "Clearing AgentCore Memory" 160 \
+    || _memory_rc=$?
   if [[ "$_memory_rc" -eq 0 ]]; then
     pass "AgentCore Memory runtime cleaned; setup conversations preserved or restored"
     _memory_leg_settled=true

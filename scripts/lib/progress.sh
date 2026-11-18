@@ -42,10 +42,23 @@ pellier_progress_on_terminal() {
   [ -t 1 ] && [ "${TERM:-}" != "dumb" ]
 }
 
+# A line cut to one column short of the terminal's width (columns, 0 when unknown). A line that
+# reached the last column would wrap, and the carriage return could not get back to its start.
+pellier_progress_fit() {
+  local line="$1" cols="$2"
+  if [ "$cols" -gt 1 ] && [ "${#line}" -ge "$cols" ]; then
+    line="${line:0:$(( cols - 1 ))}"
+  fi
+  printf '%s' "$line"
+}
+
 # Redraw the bar in place: label, typical seconds, the wait's start in epoch seconds.
 pellier_progress_draw() {
   pellier_progress_on_terminal || return 0
-  printf '\r\033[K%s' "$(pellier_progress_line "$1" "$2" $(( $(date +%s) - $3 )))"
+  local cols
+  cols="$(tput cols 2>/dev/null || echo 0)"
+  printf '\r\033[K%s' "$(pellier_progress_fit \
+    "$(pellier_progress_line "$1" "$2" $(( $(date +%s) - $3 )))" "$cols")"
 }
 
 pellier_progress_clear() {
@@ -53,14 +66,31 @@ pellier_progress_clear() {
   printf '\r\033[K'
 }
 
+# Stop a process and everything it started, children first.
+pellier_progress_kill_tree() {
+  local child
+  for child in $(pgrep -P "$1" 2>/dev/null); do
+    pellier_progress_kill_tree "$child"
+  done
+  kill "$1" 2>/dev/null || true
+}
+
 # Wait for a background process under a bar: pid, label, typical seconds. Returns its status.
+# A script without job control starts background jobs with SIGINT ignored, so Ctrl-C here
+# stops the waited process and what it started (a step may be a subshell around the real
+# work) rather than leaving them running. While it waits, the caller's own INT and TERM traps
+# are set aside and restored after; the step's status, 143 after Ctrl-C, says what happened.
 pellier_progress_wait_for() {
-  local pid="$1" label="$2" typical="$3" started
+  local pid="$1" label="$2" typical="$3" started prior
   started="$(date +%s)"
+  prior="$(trap -p INT TERM)"
+  trap 'pellier_progress_kill_tree "$pid"' INT TERM
   while kill -0 "$pid" 2>/dev/null; do
     pellier_progress_draw "$label" "$typical" "$started"
     sleep 0.5
   done
   pellier_progress_clear
+  trap - INT TERM
+  eval "$prior"
   wait "$pid"
 }

@@ -156,10 +156,13 @@ def test_reset_restores_the_starter_policy_through_cli() -> None:
     assert "workshop/starters/credit_limit.cedar" in source
     assert "_agentcore validate --json" in source
     assert "_agentcore deploy --yes --json" in source
-    # A failed CLI call prints [FAIL] and exits, rather than set -e ending silently.
-    for command in ("validate --json", "deploy --yes --json"):
-        guarded = f"_agentcore {command} >>/tmp/pellier-governed-reset-policy.log || {{\n      fail "
-        assert guarded in source, command
+    # A failed CLI call prints [FAIL] and exits, rather than set -e ending silently. The deploy
+    # runs under the progress bar, whose wait returns the deploy's status to the same guard.
+    validate = "_agentcore validate --json >>/tmp/pellier-governed-reset-policy.log || {\n      fail "
+    assert validate in source
+    deploy = ("_agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log 2>&1 &\n"
+              '    pellier_progress_wait_for "$!" "Restoring the Lab 4 policy" 90 || {\n      fail ')
+    assert deploy in source
     assert "policy_name=credit_limit" in source
     assert "policyEngineConfiguration.mode" in source
     assert "ENFORCE" in source

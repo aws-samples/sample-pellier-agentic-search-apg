@@ -14,6 +14,16 @@
 
 PELLIER_RESET_FAILED_STEP=""
 
+# The redeploys below take minutes and write only to logs; the bar keeps the terminal moving.
+if ! declare -F pellier_progress_wait_for >/dev/null; then
+  # shellcheck source=progress.sh
+  if [[ -f "$(dirname "${BASH_SOURCE[0]}")/progress.sh" ]]; then
+    . "$(dirname "${BASH_SOURCE[0]}")/progress.sh"
+  else
+    pellier_progress_wait_for() { wait "$1"; }
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # Execution rail
 # ---------------------------------------------------------------------------
@@ -136,7 +146,8 @@ pellier_restore_lab3_agentcore() {
   (cd "$REPO" && "$PYTHON" "$REPO/scripts/provision_agentcore_end_to_end.py" \
       --repo-path "$REPO" --mode participant --reset-to-starters \
       --output-json "$receipt") \
-    >/tmp/pellier-governed-reset-starter-deploy.log 2>&1 || rc=$?
+    >/tmp/pellier-governed-reset-starter-deploy.log 2>&1 &
+  pellier_progress_wait_for "$!" "Redeploying AgentCore from the starter code" 255 || rc=$?
   if [[ "$rc" -ne 0 ]]; then
     fail "Could not redeploy the managed project from the starters (see /tmp/pellier-governed-reset-starter-deploy.log)"
     PELLIER_RESET_FAILED_STEP="starter-deploy"
@@ -176,7 +187,8 @@ PY
       PELLIER_RESET_FAILED_STEP="policy-validate"
       return 1
     }
-    _agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log || {
+    _agentcore deploy --yes --json >>/tmp/pellier-governed-reset-policy.log 2>&1 &
+    pellier_progress_wait_for "$!" "Restoring the Lab 4 policy" 90 || {
       fail "Lab 4 starter policy did not deploy; see /tmp/pellier-governed-reset-policy.log"
       PELLIER_RESET_FAILED_STEP="policy-deploy"
       return 1
