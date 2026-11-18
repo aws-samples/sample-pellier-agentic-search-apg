@@ -209,10 +209,16 @@ jobs:
           # repository and the CLI write; no participant or shopper input reaches them.
           # Drop them when a pinned AgentCore CLI vends an aws-cdk-lib that bundles
           # brace-expansion 5.0.12 or newer, then relock.
+          # GHSA-fc5q-39xc-vjpf (high, published 2026-10-19, failing here from 2026-11-17) is
+          # picomatch <= 4.0.7, a ReDoS through repeated extglobs. The lock holds picomatch
+          # 2.3.2 only as a dev dependency of the scaffold's jest (jest-util, micromatch,
+          # anymatch), which matches test file patterns the CLI writes; the deploy never runs
+          # jest. GitHub lists no patched release yet. Drop it when picomatch publishes a fix
+          # that jest's ^2 range accepts, then relock.
           npm audit --json | python3 ../npm_audit_gate.py \
             --ignore GHSA-3jxr-9vmj-r5cp --ignore GHSA-mh99-v99m-4gvg \
             --ignore GHSA-rgw5-rvv9-x895 --ignore GHSA-qhr7-859c-m2p7 \
-            --ignore GHSA-6j4f-fj2g-mc7p
+            --ignore GHSA-6j4f-fj2g-mc7p --ignore GHSA-fc5q-39xc-vjpf
 
   browser:
     name: Browser tests against a stand-in API
