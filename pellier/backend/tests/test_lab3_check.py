@@ -179,6 +179,49 @@ class TestTheMemory:
         foreign = [{"record_id": "mem-other", "preference": "Not from provisioning"}]
         assert lab3.judge_memory("mem-1", SEEDED, foreign, USED).state == check.FAILED
 
+    def test_a_record_memory_replaced_after_the_turn_asks_for_a_new_turn(self) -> None:
+        """Event of 2026-11-17: extraction merged the seeded record into a new one after the turn.
+
+        The turn used the seeded record and one other; the read a minute later returned only the
+        other, and AgentCore Memory no longer had the seeded one. The turn did read Theo's own
+        Memory, so this is unfinished, not a failure: a new turn reads the new record.
+        """
+        used = {"turn_id": "turn-280232a3", "record_ids": ["mem-8a2223f9", "mem-81862eda"]}
+        read = [{"record_id": "mem-81862eda", "preference": "Prefers one quiet, tactile piece"}]
+        finding = lab3.judge_memory("mem-1", SEEDED, read, used, superseded=["mem-8a2223f9"])
+        assert finding.state == check.NOT_YET
+        assert lab3.SEND in finding.next_step
+        evidence = "\n".join(finding.evidence)
+        assert "turn-280232a3 used records mem-8a2223f9, mem-81862eda" in evidence
+        assert "mem-8a2223f9 is no longer in AgentCore Memory" in evidence
+
+    def test_a_used_record_that_still_exists_outside_the_read_contradicts(self) -> None:
+        """A record Memory still holds but Theo's read does not return is not his."""
+        used = {"turn_id": "turn-theo-current", "record_ids": ["mem-theo-1", "mem-other"]}
+        finding = lab3.judge_memory("mem-1", SEEDED, REMEMBERED, used, superseded=[])
+        assert finding.state == check.FAILED
+        assert "turn-theo-current used records mem-theo-1, mem-other" in "\n".join(finding.evidence)
+
+    def test_only_a_record_memory_no_longer_holds_counts_as_replaced(self) -> None:
+        class _NotFound(Exception):
+            pass
+
+        class _Data:
+            exceptions = type("E", (), {"ResourceNotFoundException": _NotFound})
+            asked: list = []
+
+            def get_memory_record(self, *, memoryId: str, memoryRecordId: str) -> dict:
+                self.asked.append(memoryRecordId)
+                if memoryRecordId == "mem-gone":
+                    raise _NotFound()
+                return {"memoryRecord": {"memoryRecordId": memoryRecordId}}
+
+        data = _Data()
+        used = {"turn_id": "turn-1", "record_ids": ["mem-theo-1", "mem-gone", "mem-held"]}
+        assert lab3.superseded_records(data, "mem-1", used, REMEMBERED) == ["mem-gone"]
+        assert data.asked == ["mem-gone", "mem-held"], "a record in Theo's read is not looked up"
+        assert lab3.superseded_records(data, "mem-1", None, REMEMBERED) == []
+
     def test_memory_that_cannot_be_read_is_unchecked(self) -> None:
         def _no_memory() -> dict:
             raise RuntimeError("AGENTCORE_MEMORY_ID is not configured")
@@ -342,3 +385,20 @@ class TestTask3AToken:
         assert closing[:2] == ["Lab 3A check passed", ""]
         assert closing[2].startswith("Next: Task 3B.")
         assert closing[3].startswith("      uv run scripts/provision_agentcore_end_to_end.py ")
+
+
+def _3b(state: str) -> check.Finding:
+    return check.Finding("3B", "title", state, "expected", "observed", ["row"], "next")
+
+
+def test_an_unfinished_3b_ends_in_orange_not_a_red_failure() -> None:
+    """Owner, 2026-11-17: a run whose only open boxes are NOT YET PASSED (Memory replaced a record
+    after the turn, or no turn sent yet) ends like Lab 4A's, not finished, never failed."""
+    unfinished = lab3.closing_3b([_3b(check.PASSED), _3b(check.NOT_YET)])
+    assert "Lab 3B check not finished" in unfinished and "failed" not in unfinished
+    assert check.paint("x", check.NOT_YET).replace("x", "") in unfinished, "painted orange"
+    failed = lab3.closing_3b([_3b(check.NOT_YET), _3b(check.FAILED)])
+    assert "Lab 3B check failed" in failed
+    unchecked = lab3.closing_3b([_3b(check.PASSED), _3b(check.COULD_NOT_CHECK)])
+    assert "Lab 3B check failed" in unchecked, "a part it could not read is not merely unfinished"
+    assert "Lab 3B check passed" in lab3.closing_3b([_3b(check.PASSED), _3b(check.PASSED)])

@@ -83,11 +83,14 @@ fi
 
 # One ordinary turn per persona. Anna's is her Lab 1 request from
 # data/scenarios.json, not the canonical query the eval harness measures.
+# Theo's turn states no taste: live turns write to his Memory, and a stated
+# preference would be merged into his seeded record, replacing the record a
+# Task 3B turn reads just before the check looks for it.
 case "$PERSONA" in
   marco)   CUSTOMER_ID="CUST-MARCO";   MESSAGE="What linen do you have for 10 days in Goa?" ;;
   anna)    CUSTOMER_ID="CUST-ANNA";    MESSAGE="A housewarming gift for a friend who loves slow mornings. In stock, under \$100, and no candles." ;;
   jessica) CUSTOMER_ID="CUST-JESSICA"; MESSAGE="Which of my recent orders are still open?" ;;
-  *)       CUSTOMER_ID="CUST-THEO";    MESSAGE="Hand-thrown ceramics for a slower morning routine" ;;
+  *)       CUSTOMER_ID="CUST-THEO";    MESSAGE="What is your return policy?" ;;
 esac
 
 # The mode an env file must end up with after a rewrite. bootstrap-labs.sh

@@ -437,13 +437,16 @@ def _event_text(event: Dict[str, Any]) -> str:
 
 def judge_memory(memory_id: str, seeded: Dict[str, Any],
                  remembered: Sequence[Dict[str, str]],
-                 used: Optional[Dict[str, Any]] = None) -> check.Finding:
+                 used: Optional[Dict[str, Any]] = None,
+                 superseded: Sequence[str] = ()) -> check.Finding:
     """What the managed rail reads for Theo, beside what provisioning recorded.
 
     ``seeded`` is ``seed_agentcore_memory.seeded_memory`` for CUST-THEO;
     ``remembered`` is ``AgentCoreMemory.get_semantic_memories`` with the strict
     client: the records in Theo's preference namespace, the one the Runtime reads
-    at turn start (``services/runtime_memory.py``).
+    at turn start (``services/runtime_memory.py``). ``superseded`` names the records
+    the turn used that AgentCore Memory no longer holds: extraction can merge a live
+    turn into a preference and replace its record after the turn read it.
     """
     stored = {r["memoryRecordId"] for r in seeded.get("records") or [] if r.get("memoryRecordId")}
     ids = [item["record_id"] for item in remembered]
@@ -470,12 +473,21 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
                              "no current Runtime turn records the preferences it used", evidence, SEND)
     used_ids = used.get("record_ids")
     if (not isinstance(used_ids, list) or not used_ids
-            or not all(isinstance(value, str) for value in used_ids)
-            or not set(used_ids) <= set(ids)):
+            or not all(isinstance(value, str) for value in used_ids)):
+        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
+                             "the Runtime turn records no usable preference record IDs",
+                             evidence, SEND)
+    evidence.append(f"Runtime turn {used['turn_id']} used records {', '.join(used_ids)}")
+    missing = [record for record in used_ids if record not in ids]
+    if missing and all(record in superseded for record in missing):
+        evidence += [f"{record} is no longer in AgentCore Memory" for record in missing]
+        return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED,
+                             "Memory replaced a record this turn used after the turn ran",
+                             evidence, f"send Theo's requests again, then run this check: {SEND}")
+    if missing:
         return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
                              "the Runtime turn's records are absent from Theo's Memory read",
                              evidence, SEND)
-    evidence.append(f"Runtime turn {used['turn_id']} used records {', '.join(used_ids)}")
     return check.Finding("3B", _MEMORY_TITLE, check.PASSED, MEMORY_EXPECTED, observed, evidence)
 
 
@@ -526,8 +538,28 @@ def read_memory() -> Dict[str, Any]:
     )
     strict = AgentCoreMemory(memory_id=memory_id, region=region, strict=True)
     remembered = asyncio.run(strict.get_semantic_memories(THEO))
-    return {"memory_id": memory_id, "seeded": seeded, "remembered": remembered,
-            "used": read_memory_turn()}
+    used = read_memory_turn()
+    data = boto3.client("bedrock-agentcore", region_name=region, config=AWS_CONFIG)
+    return {"memory_id": memory_id, "seeded": seeded, "remembered": remembered, "used": used,
+            "superseded": superseded_records(data, memory_id, used, remembered)}
+
+
+def superseded_records(data: Any, memory_id: str, used: Optional[Dict[str, Any]],
+                       remembered: Sequence[Dict[str, str]]) -> List[str]:
+    """The records the turn used that AgentCore Memory no longer holds at all.
+
+    A record missing from Theo's read but still held is not his, and is not returned here.
+    """
+    read = {item["record_id"] for item in remembered}
+    gone: List[str] = []
+    for record in (used or {}).get("record_ids") or []:
+        if not isinstance(record, str) or record in read:
+            continue
+        try:
+            data.get_memory_record(memoryId=memory_id, memoryRecordId=record)
+        except data.exceptions.ResourceNotFoundException:
+            gone.append(record)
+    return gone
 
 
 def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Finding:
@@ -539,7 +571,8 @@ def memory_finding(read: Callable[[], Dict[str, Any]] = read_memory) -> check.Fi
                              "AgentCore Memory could not be read here",
                              [f"{type(exc).__name__}: {str(exc)[:160]}"],
                              "run this on the workshop box, where Memory is provisioned.")
-    return judge_memory(found["memory_id"], found["seeded"], found["remembered"], found.get("used"))
+    return judge_memory(found["memory_id"], found["seeded"], found["remembered"], found.get("used"),
+                        found.get("superseded", ()))
 
 
 # ---------------------------------------------------------------------------
@@ -696,6 +729,22 @@ def main_3a() -> int:
     return 0 if passed else 1
 
 
+NOT_FINISHED_3B = ("Lab 3B check not finished: read the Next line in the box marked "
+                   "NOT YET PASSED")
+
+
+def closing_3b(findings: Sequence[check.Finding]) -> str:
+    """Passed, failed, or not finished: only NOT YET PASSED boxes open ends in orange, as 4A does.
+
+    A Memory record replaced after the turn, or no Runtime turn sent yet, is unfinished work with a
+    Next line, not a fault in what the participant built.
+    """
+    open_states = {finding.state for finding in findings if finding.state != check.PASSED}
+    if open_states == {check.NOT_YET}:
+        return check.paint(NOT_FINISHED_3B, check.NOT_YET)
+    return check.closing("Lab 3B check", not open_states, "3B")
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
@@ -716,7 +765,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     for finding in findings:
         print(check.render(finding))
     passed = all(finding.state == check.PASSED for finding in findings)
-    print(check.closing("Lab 3B check", passed, "3B"))
+    print(closing_3b(findings))
     return 0 if passed else 1
 
 
