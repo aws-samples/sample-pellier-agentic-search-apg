@@ -365,6 +365,9 @@ http {
     default_type application/octet-stream;
     sendfile on;
     keepalive_timeout 65;
+    # A shopper session and Nadia's staff session in one browser send about 8.3 KB of
+    # cookies, over the default 8 KB line: nginx then answers every page with 400.
+    large_client_header_buffers 4 32k;
     access_log /var/log/nginx/access.log;
     include /etc/nginx/conf.d/code-editor.conf;
 }
@@ -596,7 +599,8 @@ cat > "$REPO_VSCODE/settings.json" << 'WORKSPACE_SETTINGS'
     "task.allowAutomaticTasks": "on",
     "task.problemMatchers.neverPrompt": true,
     "explorer.autoReveal": true,
-    "explorer.expandSingleFolderWorkspaces": true
+    "explorer.expandSingleFolderWorkspaces": true,
+    "editor.stickyScroll.enabled": false
 }
 WORKSPACE_SETTINGS
 chown -R "$CODE_EDITOR_USER:$CODE_EDITOR_USER" "$REPO_VSCODE"
@@ -811,6 +815,7 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
         }
     },
     "editor.fontSize": 16,
+    "editor.stickyScroll.enabled": false,
     "terminal.integrated.fontSize": 18,
     "window.zoomLevel": 1,
     "explorer.compactFolders": false,

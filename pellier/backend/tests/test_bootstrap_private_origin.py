@@ -80,3 +80,23 @@ def test_private_origin_configuration_fails_before_host_mutation(private, token,
         text=True,
     )
     assert result.returncode == expected
+
+
+# Measured on the event box of 2026-11-17: Theo's shopper session (access, ID and refresh
+# tokens) and Nadia's staff session in one browser send a Cookie header of 8,287 bytes. nginx's
+# default buffer for one header line is 8 KB, so Lab 4's Operator sign-in answered every
+# request with "400 Request Header Or Cookie Too Large".
+BOTH_SESSIONS_COOKIE_BYTES = 8287
+
+
+def test_nginx_accepts_a_shopper_and_a_staff_session_in_one_browser(tmp_path):
+    import re
+
+    _render(tmp_path, True)
+    main = (tmp_path / "nginx/nginx.conf").read_text()
+    http = main.split("http {", 1)[1]
+    found = re.search(r"large_client_header_buffers\s+(\d+)\s+(\d+)k;", http)
+    assert found, "nginx.conf must size large_client_header_buffers in its http block"
+    count, kilobytes = int(found.group(1)), int(found.group(2))
+    assert kilobytes * 1024 >= 2 * BOTH_SESSIONS_COOKIE_BYTES, "room for both sessions, twice over"
+    assert count >= 4

@@ -277,3 +277,12 @@ def test_source_control_ui_stays_hidden(environment: str) -> None:
     """Defence in depth beside the .git removal, not a substitute for it."""
     user_block = _user_settings_block(environment)
     assert user_block.get("git.enabled") is False
+
+
+def test_sticky_scroll_is_off_so_a_laptop_sees_the_marked_region() -> None:
+    """Event of 2026-11-17: on a 1440 x 900 laptop the editor shows about 15 lines, and sticky
+    scroll pinned up to four of them over Task 2B's region. Both settings files turn it off."""
+    text = (REPO / "scripts" / "bootstrap-environment.sh").read_text(encoding="utf-8")
+    blocks = _settings_blocks(text)
+    assert len(blocks) >= 2
+    assert all(block.get("editor.stickyScroll.enabled") is False for block in blocks)
