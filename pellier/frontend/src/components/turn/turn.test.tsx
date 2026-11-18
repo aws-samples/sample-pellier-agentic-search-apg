@@ -234,7 +234,7 @@ describe('evidenceLine', () => {
     expect(screen.getByTestId('turn-evidence')).toHaveTextContent('The agent received one saved preference.')
   })
 
-  it('names the tools the running Stock agent may call beside its prompt rule', () => {
+  it('names the running Stock agent tool list beside its prompt rule', () => {
     const route = (tools: string[]) => ({
       id: 'route', label: 'Understanding your request', status: 'done' as const, tags: ['Router'],
       builder: {
@@ -244,14 +244,14 @@ describe('evidenceLine', () => {
     })
     expect(evidenceLine(route(['search_products', 'browse_department', 'compare_products', 'check_stock']))).toBe(
       'intent stock; model global.anthropic.claude-sonnet-5-5; '
-      + 'Stock agent may call: search_products, browse_department, compare_products, check_stock; '
+      + 'Stock agent tool list: search_products, browse_department, compare_products, check_stock; '
       + 'prompt rule: "Every stock answer starts from check_stock"',
     )
     expect(evidenceLine(route(['check_stock']))).toContain(
-      'Stock agent may call: check_stock; prompt rule: "Every stock answer starts from check_stock"',
+      'Stock agent tool list: check_stock; prompt rule: "Every stock answer starts from check_stock"',
     )
     const catalog = { ...route([]), builder: { tool: null, agent: 'Catalog agent', grant: { tools: ['search_products'], rule: null } } }
-    expect(evidenceLine(catalog)).toBe('Catalog agent may call: search_products')
+    expect(evidenceLine(catalog)).toBe('Catalog agent tool list: search_products')
   })
 })
 

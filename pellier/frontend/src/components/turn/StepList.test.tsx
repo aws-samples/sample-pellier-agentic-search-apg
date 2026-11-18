@@ -259,9 +259,9 @@ describe('StepList evidence rows', () => {
     render(<StepList steps={[GRANTED]} live={false} builderView />)
     const evidence = screen.getByTestId('turn-evidence')
     const row = (label: string) => within(evidence).getByText(label).closest('.tn-fact') as HTMLElement
-    const chips = Array.from(row('May call').querySelectorAll('.tn-chip-code')).map(chip => chip.textContent)
+    const chips = Array.from(row('Tool list').querySelectorAll('.tn-chip-code')).map(chip => chip.textContent)
     expect(chips).toEqual(['search_products', 'check_stock'])
-    expect(row('May call')).toHaveTextContent('Catalog agent:')
+    expect(row('Tool list')).toHaveTextContent('Catalog agent:')
     expect(row('Prompt rule')).toHaveTextContent('"Every stock answer starts from check_stock"')
     expect(within(row('Memory')).getByText('mem-923e37b1-4c2a').tagName).toBe('CODE')
   })
@@ -271,7 +271,7 @@ describe('StepList evidence rows', () => {
     const raw = screen.getByTestId('turn-evidence-raw')
     expect(raw).not.toHaveAttribute('open')
     expect(within(raw).getByText(SHOW_RAW_STEP)).toBeInTheDocument()
-    expect(raw).toHaveTextContent('intent catalog; model global.anthropic.claude-opus-5-5; Catalog agent may call:')
+    expect(raw).toHaveTextContent('intent catalog; model global.anthropic.claude-opus-5-5; Catalog agent tool list:')
     expect(raw).toHaveTextContent('Remembered: AgentCore Memory record mem-923e37b1-4c2a (user preference)')
   })
 

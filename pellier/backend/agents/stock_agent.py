@@ -21,7 +21,7 @@ from services.persona_context import inject_persona_preamble
 
 
 # The prompt's one rule for where a stock answer comes from. The Builder view
-# prints it beside the tools the running agent may call (Lab 2A).
+# prints it beside the running agent's tool list (Lab 2A).
 STOCK_PROMPT_RULE = "Every stock answer starts from check_stock"
 
 _STOCK_SYSTEM_PROMPT = (
@@ -67,7 +67,7 @@ _STOCK_MODEL_ID = settings.BEDROCK_REPORTING_MODEL
 # Provided: token ceiling.
 _STOCK_MAX_TOKENS = settings.AGENT_MAX_TOKENS_SONNET
 
-# The tools the Stock agent may call.
+# The Stock agent's tool list.
 _STOCK_TOOLS = [
     agent_tools.search_products,
     agent_tools.browse_department,

@@ -65,13 +65,13 @@ function skillLoadedWords(loaded: string): string {
 }
 
 /**
- * "Stock agent may call: check_stock; prompt rule: "Every stock answer starts
+ * "Stock agent tool list: check_stock; prompt rule: "Every stock answer starts
  * from check_stock"": the tools the running agent was built with, beside the
  * prompt's rule that keeps it on the right one.
  */
 export function grantSentence(agent: string | undefined, grant: { tools: string[]; rule?: string | null }): string {
   const tools = grant.tools.length ? grant.tools.join(', ') : 'no store tools'
-  const head = `${agent || 'The agent'} may call: ${tools}`
+  const head = `${agent || 'The agent'} tool list: ${tools}`
   return grant.rule ? `${head}; prompt rule: "${grant.rule}"` : head
 }
 
@@ -178,7 +178,7 @@ function routerFacts(builder: StepBuilder): EvidenceFact[] {
   if (builder.grant) {
     const { tools, rule } = builder.grant
     const who = text(`${builder.agent || 'The agent'}:`)
-    facts.push({ label: 'May call', parts: [who, ...(tools.length ? codes(tools) : [text('no store tools')])] })
+    facts.push({ label: 'Tool list', parts: [who, ...(tools.length ? codes(tools) : [text('no store tools')])] })
     if (rule) facts.push({ label: 'Prompt rule', parts: [text(`"${rule}"`)] })
   }
   facts.push(...routerMemoryFacts(builder))

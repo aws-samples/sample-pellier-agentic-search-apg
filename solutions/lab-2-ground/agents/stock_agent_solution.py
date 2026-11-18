@@ -21,7 +21,7 @@ from services.persona_context import inject_persona_preamble
 
 
 # The prompt's one rule for where a stock answer comes from. The Builder view
-# prints it beside the tools the running agent may call (Lab 2A).
+# prints it beside the running agent's tool list (Lab 2A).
 STOCK_PROMPT_RULE = "Every stock answer starts from check_stock"
 
 _STOCK_SYSTEM_PROMPT = (
