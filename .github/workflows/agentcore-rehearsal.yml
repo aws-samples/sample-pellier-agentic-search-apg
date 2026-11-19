@@ -30,6 +30,8 @@ jobs:
       AWS_ROLE_ARN: ${{ secrets.AGENTCORE_REHEARSAL_AWS_ROLE_ARN }}
       DB_CLUSTER_ARN: ${{ secrets.AGENTCORE_REHEARSAL_DB_CLUSTER_ARN }}
       DB_SECRET_ARN: ${{ secrets.AGENTCORE_REHEARSAL_DB_SECRET_ARN }}
+      STORE_TOOLS_SECRET_ARN: ${{ secrets.AGENTCORE_REHEARSAL_STORE_TOOLS_SECRET_ARN }}
+      OPERATOR_TOOLS_SECRET_ARN: ${{ secrets.AGENTCORE_REHEARSAL_OPERATOR_TOOLS_SECRET_ARN }}
       COGNITO_POOL: ${{ secrets.AGENTCORE_REHEARSAL_COGNITO_POOL }}
       COGNITO_CLIENT: ${{ secrets.AGENTCORE_REHEARSAL_COGNITO_CLIENT }}
       COGNITO_TEST_CREDENTIALS_SECRET_ARN: ${{ secrets.AGENTCORE_REHEARSAL_TEST_CREDENTIALS_SECRET_ARN }}
@@ -39,6 +41,7 @@ jobs:
       AGENTCORE_RUNTIME_LOG_KMS_KEY_ARN: ${{ secrets.AGENTCORE_REHEARSAL_RUNTIME_LOG_KMS_KEY_ARN }}
       AGENTCORE_RUNTIME_LOG_RETENTION_DAYS: "30"
       AGENTCORE_MANAGED_OUTPUT_JSON: /tmp/pellier-agentcore-managed.json
+      AGENTCORE_REHEARSAL_SUMMARY_JSON: /tmp/pellier-agentcore-rehearsal-summary.json
 
     steps:
       - name: Checkout
@@ -53,6 +56,8 @@ jobs:
             AWS_ROLE_ARN \
             DB_CLUSTER_ARN \
             DB_SECRET_ARN \
+            STORE_TOOLS_SECRET_ARN \
+            OPERATOR_TOOLS_SECRET_ARN \
             COGNITO_POOL \
             COGNITO_CLIENT \
             COGNITO_TEST_CREDENTIALS_SECRET_ARN \
@@ -94,10 +99,20 @@ jobs:
             --repo-path "$GITHUB_WORKSPACE" \
             --output-json "$AGENTCORE_MANAGED_OUTPUT_JSON"
 
-      - name: Upload managed readiness receipt
+      # The managed receipt names the account, the Gateway URL and ARNs, and artifacts of a
+      # public repository are downloadable by signed-in users, so it stays on the runner.
+      - name: Summarize outcomes without identifiers
+        if: always()
+        run: |
+          python scripts/rehearsal_summary.py \
+            --receipt "$AGENTCORE_MANAGED_OUTPUT_JSON" \
+            --revision "$GITHUB_SHA" \
+            --output "$AGENTCORE_REHEARSAL_SUMMARY_JSON"
+
+      - name: Upload rehearsal summary
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: agentcore-managed-readiness-receipt
-          path: /tmp/pellier-agentcore-managed.json
+          name: agentcore-rehearsal-summary
+          path: /tmp/pellier-agentcore-rehearsal-summary.json
           if-no-files-found: warn
