@@ -225,8 +225,7 @@ function recordedCheck(record: ExecutionRecord | null, attempted: boolean, polic
     return {
       key: 'recorded', label: 'Recorded', tone: 'pending', tag: 'Receipt missing',
       detail: {
-        verdict: `Credit #${record.creditIds[0]} is in store_credits; no tool_audit row records the call that wrote it.`,
-        note: 'The receipt commits on its own, and its write failed after the credit. The credit stands.',
+        verdict: `Credit #${record.creditIds[0]} is in Aurora. We couldn't find a matching execution receipt for this key.`,
       },
     }
   }

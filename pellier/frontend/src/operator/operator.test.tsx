@@ -308,7 +308,9 @@ describe('the review record', () => {
     renderAt('/operator/reviews/41', <ReviewRecord />)
     const checks = await screen.findByTestId('operator-credit-checks')
     expect(within(checks).getByText('Receipt missing')).toBeInTheDocument()
-    expect(checks).toHaveTextContent('Credit #12 is in store_credits; no tool_audit row records the call that wrote it.')
+    expect(checks).toHaveTextContent("Credit #12 is in Aurora. We couldn't find a matching execution receipt for this key.")
+    // The UI knows only that no receipt matched, not when or why a write failed.
+    expect(checks).not.toHaveTextContent('commits on its own')
     expect(within(checks).queryByText('Not written')).toBeNull()
   })
 
