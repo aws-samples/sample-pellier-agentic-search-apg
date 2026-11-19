@@ -104,6 +104,42 @@ describe('two choosers racing', () => {
   })
 })
 
+describe('a session that cannot be confirmed', () => {
+  it('reports the session as unavailable when /api/auth/me names no one', async () => {
+    const { result } = mountBrowser()
+    browser.meSays.shopper = null
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let chosen: Promise<boolean> = Promise.resolve(true)
+    act(() => { chosen = result.current.panel.choose('theo') })
+    await act(async () => {
+      ;(await browser.nth(0)).release()
+      expect(await chosen).toBe(false)
+    })
+    expect(result.current.persona.persona).toBeNull()
+    await waitFor(() => expect(result.current.panel.error).toBe('auth_unavailable'))
+    warn.mockRestore()
+  })
+})
+
+describe('signing out while a sign-in is pending', () => {
+  it('abandons the sign-in, so its late response cannot sign the shopper back in', async () => {
+    const reload = vi.fn()
+    vi.stubGlobal('location', { ...window.location, reload, assign: vi.fn() })
+    const { result } = mountBrowser()
+    let chosen: Promise<boolean> = Promise.resolve(true)
+    act(() => { chosen = result.current.panel.choose('theo') })
+    const theo = await browser.nth(0)
+    await act(async () => {
+      result.current.panel.signOut()
+      theo.release()
+      expect(await chosen).toBe(false)
+    })
+    expect(browser.jar.shopper).toBeNull()
+    expect(result.current.persona.persona).toBeNull()
+    expect(result.current.persona.switching).toBe(false)
+  })
+})
+
 describe('the expired-session sign in again shares the coordinator', () => {
   it('is superseded by a shopper chosen while it is pending, and its late response changes nothing', async () => {
     const { result } = mountBrowser()

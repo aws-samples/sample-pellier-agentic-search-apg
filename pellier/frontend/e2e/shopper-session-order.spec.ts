@@ -36,6 +36,8 @@ interface Server {
   holdTheo: Promise<void> | null
   /** Called when Theo's held sign-in reaches the server. */
   theoHeld: () => void
+  /** Called once the stand-in has answered Theo's held sign-in, to a page that may have gone. */
+  theoAnswered: () => void
   /** The next workshop sign-in is refused. */
   refuseNext: boolean
 }
@@ -71,6 +73,7 @@ async function workshopSignIn(route: Route, server: Server) {
     200,
     { 'set-cookie': `${COOKIE}=${username}; Path=/; SameSite=Lax` },
   ))
+  if (username === 'theo') server.theoAnswered()
 }
 
 function chatStream(shopper: string | null) {
@@ -91,6 +94,7 @@ async function serve(page: Page): Promise<Server> {
     turns: 0,
     holdTheo: null,
     theoHeld: () => {},
+    theoAnswered: () => {},
     refuseNext: false,
   }
   await page.route('**/assets/personas/**', route => route.fulfill({ status: 200, contentType: 'image/png', body: Buffer.alloc(0) }))
@@ -161,6 +165,7 @@ test('Theo’s slow sign in again cannot take the session from Anna, who was cho
   let release = () => {}
   server.holdTheo = new Promise<void>(resolve => { release = resolve })
   const reachedServer = new Promise<void>(resolve => { server.theoHeld = resolve })
+  const answered = new Promise<void>(resolve => { server.theoAnswered = resolve })
 
   await drawer.getByRole('button', { name: 'Sign in again' }).click()
   await reachedServer
@@ -171,10 +176,10 @@ test('Theo’s slow sign in again cannot take the session from Anna, who was cho
 
   // Theo's response is released after Anna is signed in.
   release()
-  await page.waitForTimeout(300)
-  await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Anna')
-  expect(await meSays(page)).toBe('anna')
+  await answered
   expect((await context.cookies()).find(cookie => cookie.name === COOKIE)?.value).toBe('anna')
+  expect(await meSays(page)).toBe('anna')
+  await expect(page.getByTestId('ask-signed-in-name')).toHaveText('Anna')
   // Nothing was sent again for Theo.
   expect(server.turns).toBe(1)
 })

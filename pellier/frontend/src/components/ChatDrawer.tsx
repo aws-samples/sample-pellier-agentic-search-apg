@@ -87,6 +87,10 @@ const RETURNING_GREETING =
 // Platform detection for keyboard hint
 // ---------------------------------------------------------------------------
 
+/** Where Sign in again stands, and for which failed request. */
+interface ReauthProgress { query: string | null, status: 'idle' | 'pending' | 'failed' }
+const IDLE: ReauthProgress = { query: null, status: 'idle' }
+
 function detectMac(): boolean {
   if (typeof navigator === 'undefined') return false
   const uaData = (navigator as unknown as {
@@ -200,34 +204,35 @@ export default function ChatDrawer() {
   // and nothing is resent. While a reply or a shopper switch runs, the button waits.
   const refreshShopperSession = useShopperSessionRefresh()
   const signingInAgain = useRef(false)
-  const [reauth, setReauth] = useState<'idle' | 'pending' | 'failed'>('idle')
+  const [reauth, setReauth] = useState<ReauthProgress>(IDLE)
   const currentShopper = useRef(persona?.id)
   currentShopper.current = persona?.id
-  const reauthBlocked = isLoading || switching
+  const blockedBy = isLoading ? 'reply' : switching ? 'switch' : null
   const signInAgain = useCallback(async (query: string) => {
     const id = persona?.id ?? ''
     if (!isWorkshopShopper(id)) {
       openModal('auth')
       return
     }
-    if (signingInAgain.current || reauthBlocked) return
+    if (signingInAgain.current || blockedBy) return
     signingInAgain.current = true
-    setReauth('pending')
+    setReauth({ query, status: 'pending' })
     try {
       const outcome = await refreshShopperSession(id)
-      setReauth(outcome === 'failed' ? 'failed' : 'idle')
+      setReauth(outcome === 'failed' ? { query, status: 'failed' } : IDLE)
       if (outcome === 'signed_in' && currentShopper.current === id) await retryMessage(query)
     } finally {
       signingInAgain.current = false
     }
-  }, [persona, openModal, refreshShopperSession, retryMessage, reauthBlocked])
+  }, [persona, openModal, refreshShopperSession, retryMessage, blockedBy])
   useEffect(() => {
-    setReauth('idle')
+    setReauth(IDLE)
   }, [persona?.id])
   const reauthState: ReauthState = {
-    pending: reauth === 'pending',
-    failed: reauth === 'failed',
-    blocked: reauthBlocked,
+    query: reauth.query,
+    pending: reauth.status === 'pending',
+    failed: reauth.status === 'failed',
+    blockedBy,
   }
 
   // The header's Ask Pellier dot pulses only while a turn runs.

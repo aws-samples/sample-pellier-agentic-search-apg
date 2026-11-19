@@ -46,6 +46,7 @@ async function run(
     await workshopSignIn(shopper, attempt.controller.signal)
     const verified = await Promise.race([readSession(), superseded])
     if (latest !== attempt) throw new SupersededError('A newer sign-in replaced this one')
+    if (verified === null) throw new PasswordAuthError('auth_unavailable')
     if (verified !== shopper) throw new PasswordAuthError('session_mismatch')
   } catch (reason) {
     if (reason instanceof SupersededError || attempt.controller.signal.aborted) {
@@ -74,4 +75,10 @@ export function signInShopper(
   })
   inFlight = settled
   return result
+}
+
+/** Abandon the sign-in in flight, if any, so a late response cannot undo a sign-out. */
+export function cancelShopperSignIn(): void {
+  latest?.controller.abort()
+  latest = null
 }

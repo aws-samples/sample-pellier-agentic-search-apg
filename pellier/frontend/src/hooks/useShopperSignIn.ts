@@ -27,7 +27,7 @@ import {
   WORKSHOP_SHOPPERS,
   type WorkshopShopper,
 } from '../services/passwordAuth'
-import { SupersededError, signInShopper } from '../services/shopperSession'
+import { SupersededError, cancelShopperSignIn, signInShopper } from '../services/shopperSession'
 
 /** The four customers, in the order the chooser shows them. */
 export const SHOPPER_ORDER: readonly WorkshopShopper[] = ['anna', 'marco', 'theo', 'jessica']
@@ -98,6 +98,7 @@ export function useShopperSignIn(): ShopperSignIn {
   }, [auth, switchPersona])
 
   const signOut = useCallback(() => {
+    cancelShopperSignIn()
     clearShopper()
     auth?.logout()
   }, [auth, clearShopper])

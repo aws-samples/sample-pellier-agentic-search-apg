@@ -15,12 +15,14 @@ import '../styles/chat-outcomes.css'
 
 /** Where an expired-session "Sign in again" stands, so the card can show it. */
 export interface ReauthState {
+  /** The request being sent again once the shopper is signed in. */
+  query: string | null
   /** The shopper is being signed in again. */
   pending: boolean
   /** The last attempt did not complete. */
   failed: boolean
-  /** A reply or a shopper switch is running, so signing in again waits. */
-  blocked: boolean
+  /** What makes signing in again wait: a running reply or a shopper switch. */
+  blockedBy: 'reply' | 'switch' | null
 }
 
 interface ChatFailureCardProps {
@@ -48,6 +50,9 @@ export default function ChatFailureCard({
 }: ChatFailureCardProps) {
   const copy = CHAT_FAILURES[failure.code]
   const FailureIcon = failureIcon(failure.code)
+  const mine = reauth?.query === failure.query
+  const pending = Boolean(mine && reauth?.pending)
+  const failed = Boolean(mine && reauth?.failed)
 
   return (
     <div
@@ -71,21 +76,21 @@ export default function ChatFailureCard({
             Reference <code>{failure.referenceId}</code>
           </p>
         )}
-        {failure.code === 'authentication_required' && reauth && !reauth.pending && (
-          reauth.failed
+        {failure.code === 'authentication_required' && !pending && (
+          failed
             ? <p className="chat-failure__note" role="status">{CHAT_FAILURES.SIGN_IN_AGAIN_FAILED}</p>
-            : reauth.blocked && <p className="chat-failure__note">{CHAT_FAILURES.SIGN_IN_AGAIN_WAIT}</p>
+            : reauth?.blockedBy === 'reply' && <p className="chat-failure__note">{CHAT_FAILURES.SIGN_IN_AGAIN_WAIT}</p>
         )}
         <div className="chat-failure__actions">
           {failure.code === 'authentication_required' ? (
             <button
               type="button"
-              disabled={reauth?.pending || reauth?.blocked}
-              aria-busy={reauth?.pending || undefined}
+              disabled={pending || Boolean(reauth?.blockedBy)}
+              aria-busy={pending || undefined}
               onClick={() => onAuthenticate(failure.query)}
             >
               <LogIn size={14} aria-hidden="true" />
-              {reauth?.pending ? CHAT_FAILURES.SIGNING_IN_AGAIN : CHAT_FAILURES.SIGN_IN_AGAIN}
+              {pending ? CHAT_FAILURES.SIGNING_IN_AGAIN : CHAT_FAILURES.SIGN_IN_AGAIN}
             </button>
           ) : failure.retryable ? (
             <button type="button" onClick={() => onRetry(failure.query)}>

@@ -131,7 +131,7 @@
   color: var(--dl-ink-2);
 }
 
-.chat-failure__actions button:hover {
+.chat-failure__actions button:hover:not(:disabled) {
   border-color: var(--dl-ink-2);
   background: var(--dl-ink-2);
   color: var(--dl-on-ink);
