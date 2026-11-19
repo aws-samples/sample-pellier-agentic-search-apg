@@ -126,6 +126,11 @@ KMS_KEY_LOGICAL_ID = "AgentCoreRuntimeLogKey"
 SECRET_OUTPUTS = ("OperatorPassword",)
 KMS_WINDOW = (7, 30)
 SUFFIX_RE = re.compile(r"^[a-z][a-z0-9]{0,11}$")
+POLICY_COLLISION_ADVICE = (
+    "AgentCore keeps Cedar policy names unique per account and Region, so a Region holds one "
+    "Pellier deployment. Remove that deployment first, or deploy in the other Region with its "
+    "own --deployment-suffix, because IAM role names are account-wide"
+)
 # The Cedar policies the box creates. AgentCore keeps policy names unique per account and
 # Region, across policy engines, so a second Pellier deployment collides on them whatever its
 # suffix; the test pins these to scripts/deploy/render_agentcore_project.py.
@@ -279,23 +284,87 @@ def collision_prefixes(names: Names) -> tuple[str, str]:
     return (f"{project}_", f"{project}-")
 
 
+def list_all(
+    runner: Runner, label: str, call: Callable[..., Any], key: str, **kwargs: Any
+) -> list[dict[str, Any]]:
+    """Every item of an AgentCore listing, following nextToken to the last page."""
+    items: list[dict[str, Any]] = []
+    token: str | None = None
+    while True:
+        page_kwargs = {**kwargs, "nextToken": token} if token else kwargs
+        page = runner.read(label, call, **page_kwargs)
+        items.extend(page.get(key, []))
+        token = page.get("nextToken")
+        if not token:
+            return items
+
+
 def policy_name_holders(runner: Runner) -> list[str]:
     """Policy engines in the Region that already hold one of Pellier's policy names."""
     control = runner.clients.agentcore_control
     holders: list[str] = []
-    for engine in runner.read("list policy engines", control.list_policy_engines).get(
-        "policyEngines", []
+    for engine in list_all(
+        runner, "list policy engines", control.list_policy_engines, "policyEngines"
     ):
         engine_id = str(engine.get("policyEngineId") or "")
         if not engine_id:
             continue
-        policies = runner.read(
-            f"list policies of {engine_id}", control.list_policies, policyEngineId=engine_id
-        ).get("policies", [])
+        policies = list_all(
+            runner,
+            f"list policies of {engine_id}",
+            control.list_policies,
+            "policies",
+            policyEngineId=engine_id,
+        )
         taken = sorted({str(p.get("name")) for p in policies} & set(POLICY_NAMES))
         if taken:
             holders.append(f"policy engine {engine_id} holds {', '.join(taken)}")
     return holders
+
+
+def role_holders(runner: Runner, names: Names, own_workshop_id: str | None = None) -> list[str]:
+    """IAM roles under this deployment's names that another deployment (or a leftover) holds.
+
+    Role names are account-wide, so a deployment in another Region with the same suffix finds
+    the first one's roles, and the Lambda deployer would reuse them and replace their policies.
+    A role is this deployment's only when its PellierWorkshopId tag is its own id.
+    """
+    holders: list[str] = []
+    for role_name in names.roles:
+        role = role_if_present(runner, role_name)
+        if role is None:
+            continue
+        tagged = tags_of(role).get(WORKSHOP_ID_TAG)
+        if own_workshop_id and tagged == own_workshop_id:
+            continue
+        detail = f"tagged {WORKSHOP_ID_TAG}={tagged}" if tagged else "not tagged by Pellier"
+        holders.append(f"IAM role {role_name} ({detail})")
+    return holders
+
+
+def role_collision_message(holders: list[str]) -> str:
+    """What to do about roles another deployment holds; one line, shared by check and deploy."""
+    return (
+        f"IAM role names are account-wide, not per Region, and these already exist: "
+        f"{'; '.join(holders)}. They belong to another Pellier deployment or to leftovers of "
+        "one, and deploying under these names would reuse the roles and replace their "
+        "policies, which can break that deployment. Pass --deployment-suffix <letters or "
+        "digits>, for example --deployment-suffix west, to give this deployment its own role "
+        "names, and pass the same value on every later command"
+    )
+
+
+def role_if_present(runner: Runner, role_name: str) -> dict[str, Any] | None:
+    """The IAM role with its tags, or None when it does not exist."""
+    try:
+        response = runner.read(
+            f"get role {role_name}", runner.clients.iam.get_role, RoleName=role_name
+        )
+    except Exception as exc:  # noqa: BLE001 - absence only
+        if is_missing(exc):
+            return None
+        raise
+    return response.get("Role") or None
 
 
 def existing_deployment(runner: Runner, names: Names) -> list[str]:
@@ -311,7 +380,7 @@ def existing_deployment(runner: Runner, names: Names) -> list[str]:
         ("memory", control.list_memories, "memories", "id"),
         ("runtime", control.list_agent_runtimes, "agentRuntimes", "agentRuntimeId"),
     ):
-        for item in runner.read(f"list {label}s", call).get(key, []):
+        for item in list_all(runner, f"list {label}s", call, key):
             ident = str(item.get(field_name) or "")
             if ident.lower().startswith(prefixes):
                 found.append(f"{label} {ident}")
@@ -1028,11 +1097,11 @@ def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
     for item in holders:
         runner.out(f"already in this Region: {item}")
     if holders:
-        runner.out(
-            "AgentCore keeps Cedar policy names unique per account and Region, so Pellier "
-            "deploys once per account and Region; remove that deployment first, or use the "
-            "other Region"
-        )
+        runner.out(POLICY_COLLISION_ADVICE)
+    own_stack = describe_stack(runner, args.stack_name)
+    roles = role_holders(runner, names, workshop_id_of(own_stack) if own_stack else None)
+    if roles:
+        runner.out(role_collision_message(roles))
     for service, code, label in QUOTAS:
         try:
             quota = runner.read(
@@ -1073,7 +1142,8 @@ def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
         "a listing is not access: prove invoke access with "
         "`uv run --with boto3 scripts/check_model_access.py` before deploying"
     )
-    return 1 if missing or problems else 0
+    collision = bool(existing or holders or roles)
+    return 1 if missing or problems or collision else 0
 
 
 def cmd_publish(
@@ -1127,9 +1197,11 @@ def cmd_deploy(
     if holders:
         raise OwnAccountError(
             "AgentCore keeps Cedar policy names unique per account and Region, and this Region "
-            f"already has them: {'; '.join(holders)}. Pellier deploys once per account and "
-            "Region; remove that deployment first, or deploy in the other Region"
+            f"already has them: {'; '.join(holders)}. {POLICY_COLLISION_ADVICE}"
         )
+    roles = role_holders(runner, Names(args.deployment_suffix))
+    if roles:
+        raise OwnAccountError(role_collision_message(roles))
     problems = capacity_problems(runner)
     if problems:
         raise OwnAccountError("the stack would exceed a quota: " + "; ".join(problems))
@@ -1356,7 +1428,51 @@ def delete_deliveries(runner: Runner, resource_ids: list[str]) -> None:
                 )
 
 
-def delete_lambdas(runner: Runner, names: Names) -> None:
+@dataclass
+class RolePlan:
+    """Which of the deployment's IAM roles teardown may delete, decided before any write."""
+
+    delete: dict[str, dict[str, tuple[str, ...]]] = field(default_factory=dict)
+    conflicts: list[str] = field(default_factory=list)
+    left: list[str] = field(default_factory=list)
+
+
+def plan_role_deletion(runner: Runner, names: Names, workshop_id: str | None) -> RolePlan:
+    """Sort the roles under these names into delete, refuse and leave.
+
+    Role names are account-wide, so a name match proves nothing. A role is deleted only when
+    its PellierWorkshopId tag is this deployment's id. A tag naming another deployment stops
+    the teardown. A role with no tag, or with no known id to compare, is left in place.
+    """
+    plan = RolePlan()
+    for role_name, policies in names.roles.items():
+        role = role_if_present(runner, role_name)
+        if role is None:
+            continue
+        tagged = tags_of(role).get(WORKSHOP_ID_TAG)
+        if workshop_id and tagged == workshop_id:
+            plan.delete[role_name] = policies
+        elif workshop_id and tagged:
+            plan.conflicts.append(
+                f"IAM role {role_name} is tagged {WORKSHOP_ID_TAG}={tagged}, so it belongs to "
+                f"another deployment, not {workshop_id}"
+            )
+        elif tagged:
+            plan.left.append(
+                f"IAM role {role_name} stays: the stack is gone, so its id is unknown and "
+                "the role cannot be tied to this deployment; delete it yourself if it is yours"
+            )
+        else:
+            plan.left.append(
+                f"IAM role {role_name} stays: it is not tagged {WORKSHOP_ID_TAG}, so it "
+                "cannot be tied to this deployment; delete it yourself if it is yours"
+            )
+    return plan
+
+
+def delete_lambdas(
+    runner: Runner, names: Names, roles: dict[str, dict[str, tuple[str, ...]]]
+) -> None:
     lambda_, iam, logs = runner.clients.lambda_, runner.clients.iam, runner.clients.logs
     for function in names.functions:
         runner.write(
@@ -1369,7 +1485,7 @@ def delete_lambdas(runner: Runner, names: Names) -> None:
             ignore_missing(logs.delete_log_group),
             logGroupName=f"/aws/lambda/{function}",
         )
-    for role, policies in names.roles.items():
+    for role, policies in roles.items():
         for inline in policies["inline"]:
             runner.write(
                 f"delete inline policy {inline} from {role}",
@@ -1460,6 +1576,9 @@ def cmd_teardown(
     problem = found.stack_problem or found.agentcore_problem
     if problem:
         raise OwnAccountError(f"nothing changed: {problem}")
+    role_plan = plan_role_deletion(runner, names, found.workshop_id)
+    if role_plan.conflicts:
+        raise OwnAccountError(f"nothing deleted: {'; '.join(role_plan.conflicts)}")
     if not found.stack_exists and not args.force:
         raise OwnAccountError(
             f"no stack {args.stack_name} in {args.region}; check --stack-name, or pass --force "
@@ -1500,7 +1619,8 @@ def cmd_teardown(
         delete_stack_and_wait(runner, found.agentcore_stack, sleep, now)
     else:
         left.append(f"no stack {names.agentcore_stack}: the box never provisioned AgentCore")
-    delete_lambdas(runner, names)
+    delete_lambdas(runner, names, role_plan.delete)
+    left.extend(role_plan.left)
     groups = []
     if found.runtime_id:
         groups.append(f"/aws/bedrock-agentcore/runtimes/{found.runtime_id}-DEFAULT")

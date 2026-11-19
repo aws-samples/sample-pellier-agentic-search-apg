@@ -424,7 +424,7 @@ def test_deploy_creates_the_service_linked_role_and_waits_for_the_endpoint() -> 
 
     code, lines = _run(mod, ["deploy", "--region", "us-west-2"], clients, probe=probe)
     assert code == 0, lines
-    assert clients.iam.names() == ["create_service_linked_role"]
+    assert [n for n in clients.iam.names() if n != "get_role"] == ["create_service_linked_role"]
     assert "service-linked role for rds.amazonaws.com exists" in lines
     bucket = f"pellier-own-account-{ACCOUNT}-us-west-2"
     assert seen == [f"https://{bucket}.s3.us-west-2.amazonaws.com/pellier/pellier-vpc.yml"] * 3
@@ -721,7 +721,7 @@ def test_check_reports_an_existing_pellier_deployment() -> None:
         service_quotas=_Fake({"get_service_quota": {"Quota": {"Value": 8.0}}}),
     )
     code, lines = _run(mod, ["check", "--region", "us-east-1"], clients)
-    assert code == 0
+    assert code == 1
     assert "already in this account: gateway pellier-gateway-gwg" in lines
     assert not any("PellierCap1006cMemory" in line for line in lines)
     assert any("pass --deployment-suffix" in line for line in lines)
