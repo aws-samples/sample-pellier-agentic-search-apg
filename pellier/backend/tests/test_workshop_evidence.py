@@ -203,6 +203,7 @@ class TestLabsThreeAndFour:
         monkeypatch.setattr(rls, "collect", lambda *args: [_finding("3B", PASSED)])
         lab3 = importlib.import_module("lab3_check")
         monkeypatch.setattr(lab3, "local_tools_fingerprint", lambda: TOOLS_BUILD)
+        monkeypatch.setattr(lab3, "deploy_search_plan", lambda: None)
 
     def test_the_executed_build_and_reads_decide_3b(self) -> None:
         rows = {"build": self.BUILD_ROW, "tickets": [self.THEO_READ]}

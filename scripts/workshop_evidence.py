@@ -209,7 +209,8 @@ def task_3b(rows: Optional[Dict[str, Any]], local_build: str,
     else:
         owned = (ownership or lab3_row_ownership_check.collect)()
     return _combine("3B", title, expected, [
-        lab3_check.judge_build(rows.get("build"), local_build),
+        lab3_check.judge_build(rows.get("build"), local_build,
+                               search_plan=lab3_check.deploy_search_plan()),
         (memory or lab3_check.memory_finding)(),
         lab3_check.judge_tickets(rows.get("tickets") or []),
         *owned,

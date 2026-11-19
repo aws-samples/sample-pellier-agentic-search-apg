@@ -43,6 +43,7 @@ the model seldom asks for another customer, so the probe makes it every time.
 
 from __future__ import annotations
 
+import os
 import pathlib
 import json
 import sys
@@ -292,6 +293,7 @@ def source_catalog() -> tuple:
 # ---------------------------------------------------------------------------
 
 _BUILD_TITLE = "your build answered on the managed path"
+PLANS = ("yours", "supplied")
 BUILD_EXPECTED = ("the newest Gateway tool call in a shopper turn carries this checkout's "
                   "build fingerprint")
 
@@ -308,24 +310,95 @@ def local_fingerprint() -> str:
         return ""
 
 
-def local_tools_fingerprint() -> str:
-    """Expected Lambda sources, including the participant's carried-forward search plan."""
+def _tools_fingerprint(search_plan: Optional[pathlib.Path]) -> str:
+    """The Lambda sources' digest, with ``search_plan`` in place of the supplied search plan."""
     try:
         if str(DEPLOY) not in sys.path:
             sys.path.insert(0, str(DEPLOY))
         from deploy_lambda import package_files
         from common.fingerprint import compute_fingerprint
 
-        files = package_files(str(DEPLOY / "pellier_store_tools.py"), "pellier_store_tools.lambda_handler")
-        files["services/search_plan.py"] = BACKEND / "services/search_plan.py"
+        files = package_files(str(DEPLOY / "pellier_store_tools.py"),
+                              "pellier_store_tools.lambda_handler")
+        if search_plan is not None:
+            files["services/search_plan.py"] = search_plan
         return compute_fingerprint(files)
     except (OSError, KeyError):
         return ""
 
 
+def local_tools_fingerprint() -> str:
+    """Expected Lambda sources when the deploy carries the participant's own search plan."""
+    return _tools_fingerprint(BACKEND / "services/search_plan.py")
+
+
+def supplied_tools_fingerprint() -> str:
+    """Expected Lambda sources when the deploy keeps the supplied search plan."""
+    return _tools_fingerprint(None)
+
+
+def deploy_search_plan() -> Optional[Dict[str, Any]]:
+    """The deploy's search plan choice (``lab1_search``) from its participant receipt.
+
+    The same receipt lab3-start.sh reads: the one under /tmp, else the copy kept under the
+    state directory. None when there is no receipt, it is unreadable, or it predates the
+    field (a reset records none), so the caller accepts either legitimate choice.
+    """
+    state = pathlib.Path(os.environ.get("PELLIER_STATE_DIR", "/var/lib/pellier"))
+    tmp = os.environ.get("AGENTCORE_PARTICIPANT_OUTPUT_JSON",
+                         "/tmp/pellier-agentcore-participant.json")
+    for path in (pathlib.Path(tmp), state / "participant-receipt.json"):
+        if not path.is_file():
+            continue
+        try:
+            chosen = json.loads(path.read_text(encoding="utf-8")).get("lab1_search")
+        except (OSError, ValueError, AttributeError):
+            return None
+        return chosen if isinstance(chosen, dict) and chosen.get("runs") in PLANS else None
+    return None
+
+
+def _why_supplied(search_plan: Optional[Dict[str, Any]]) -> str:
+    """Why the deploy kept the supplied search plan, from what the receipt recorded."""
+    failing = list((search_plan or {}).get("failing_checks") or [])
+    if failing:
+        return "Lab 1 check " + " and ".join(failing) + " did not pass at that deploy"
+    if (search_plan or {}).get("edited_outside_region"):
+        return "search_plan.py differs from the supplied file outside its marked region"
+    return "the deploy keeps it unless both Lab 1 checks pass and only the marked region changed"
+
+
+def _expected_tools(search_plan: Optional[Dict[str, Any]]) -> List[tuple]:
+    """The tools digests a correct deploy can have stamped, as (search plan, digest) pairs.
+
+    The receipt names the plan that shipped; without it either choice is legitimate. Each
+    digest is computed here from this checkout, never read from the receipt.
+    """
+    runs = (search_plan or {}).get("runs")
+    runs = runs if runs in PLANS else None
+    pairs = []
+    if runs in (None, "yours"):
+        pairs.append(("yours", local_tools_fingerprint()))
+    if runs in (None, "supplied"):
+        pairs.append(("supplied", supplied_tools_fingerprint()))
+    return pairs
+
+
+def _build_finding(state: str, observed: str, evidence: List[str],
+                   next_step: str = "") -> check.Finding:
+    return check.Finding("3B", _BUILD_TITLE, state, BUILD_EXPECTED, observed, evidence, next_step)
+
+
 def judge_build(row: Optional[Dict[str, Any]], local: str,
-                tools_local: Optional[str] = None) -> check.Finding:
-    """The deployed build beside this checkout's, from one tool_audit row."""
+                tools_local: Optional[str] = None,
+                search_plan: Optional[Dict[str, Any]] = None) -> check.Finding:
+    """The deployed build beside this checkout's, from one tool_audit row.
+
+    ``tools_local`` pins one expected tools digest. Otherwise the Lambda must carry the search
+    plan the deploy chose (``search_plan``, its receipt's ``lab1_search``): the participant's
+    own when both Lab 1 checks pass, the supplied one when not. Both are legitimate, and a
+    receipt without the choice accepts either.
+    """
     if not row:
         return check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
                              "no Gateway tool call in a shopper turn yet", [],
@@ -333,7 +406,10 @@ def judge_build(row: Optional[Dict[str, Any]], local: str,
                              + check.since_note(3, SEND))
     deployed = str(row.get("deployed_fingerprint") or "").strip()
     tools_deployed = str(row.get("deployed_tools_fingerprint") or "").strip()
-    tools_local = local_tools_fingerprint() if tools_local is None else tools_local
+    expected = [("", tools_local)] if tools_local is not None else _expected_tools(search_plan)
+    matched = next((pair for pair in expected if tools_deployed and pair[1] == tools_deployed),
+                   None)
+    tools_local = (matched or expected[0])[1]
     evidence = [
         f"pellier.tool_audit audit {row.get('audit_id')}: {row.get('tool')} in turn "
         f"{row.get('turn_id')}",
@@ -343,17 +419,28 @@ def judge_build(row: Optional[Dict[str, Any]], local: str,
         f"checkout tools   {tools_local or 'unreadable'}",
     ]
     if not deployed or not local or not tools_deployed or not tools_local:
-        return check.Finding("3B", _BUILD_TITLE, check.COULD_NOT_CHECK, BUILD_EXPECTED,
-                             "a build could not be compared", evidence,
-                             "deploy with --mode participant, then send Theo's requests "
-                             f"again in a new conversation: {SEND}.")
-    if deployed == local and tools_deployed == tools_local:
-        return check.Finding("3B", _BUILD_TITLE, check.PASSED, BUILD_EXPECTED,
-                             "the two builds match", evidence)
-    return check.Finding("3B", _BUILD_TITLE, check.FAILED, BUILD_EXPECTED,
-                         "another build answered", evidence,
-                         "deploy your Task 3A change with --mode participant, then send "
-                         f"Theo's requests again in a new conversation: {SEND}.")
+        return _build_finding(check.COULD_NOT_CHECK, "a build could not be compared", evidence,
+                              "deploy with --mode participant, then send Theo's requests "
+                              f"again in a new conversation: {SEND}.")
+    return _judge_compared(deployed == local, matched, search_plan, evidence)
+
+
+def _judge_compared(runtime_matches: bool, matched: Optional[tuple],
+                    search_plan: Optional[Dict[str, Any]], evidence: List[str]) -> check.Finding:
+    """Passed, valid fallback, or stale, once both builds were read."""
+    if not runtime_matches or not matched:
+        if runtime_matches:
+            evidence.append("the Gateway's tools Lambda carries sources this checkout does "
+                            "not build: a stale deploy, not a choice of Lab 1 search")
+        return _build_finding(check.FAILED, "another build answered", evidence,
+                              "deploy your Task 3A change with --mode participant, then send "
+                              f"Theo's requests again in a new conversation: {SEND}.")
+    if matched[0] == "supplied":
+        evidence.append("search plan      the supplied Lab 1 search plan shipped: "
+                        + _why_supplied(search_plan))
+        return _build_finding(check.PASSED, "the two builds match, with the supplied Lab 1 "
+                              "search plan", evidence)
+    return _build_finding(check.PASSED, "the two builds match", evidence)
 
 
 _TICKETS_TITLE = "every executed ticket read was Theo's own"
@@ -691,7 +778,8 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
     else:
         try:
             rows = read_rows(cfg)
-            rows_findings = [judge_build(rows["build"], local_fingerprint()),
+            rows_findings = [judge_build(rows["build"], local_fingerprint(),
+                                         search_plan=deploy_search_plan()),
                              tickets_finding(rows["tickets"])]
         except Exception as exc:  # noqa: BLE001 - the reason is the finding
             reason = [f"{type(exc).__name__}: {str(exc)[:160]}"]

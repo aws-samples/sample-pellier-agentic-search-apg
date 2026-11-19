@@ -67,7 +67,8 @@ def test_an_older_receipt_accepts_the_supplied_search_plan_as_well_as_the_partic
 
 @pytest.mark.parametrize("receipt", [None, {}, {"runs": "elsewhere"}])
 def test_a_receipt_without_a_usable_choice_is_an_older_receipt(receipt) -> None:
-    assert lab3.judge_build(_row(SUPPLIED_DIGEST), RUNTIME, search_plan=receipt).state == check.PASSED
+    finding = lab3.judge_build(_row(SUPPLIED_DIGEST), RUNTIME, search_plan=receipt)
+    assert finding.state == check.PASSED
 
 
 def test_a_valid_fallback_passes_and_says_which_search_plan_shipped_and_why() -> None:
