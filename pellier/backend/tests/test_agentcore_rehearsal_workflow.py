@@ -104,6 +104,15 @@ RECEIPT = {
 SHA = "6d2d2265" + "a" * 32
 
 
+def test_the_job_log_masks_the_account_id_before_anything_prints_an_arn() -> None:
+    """A public repository's job log is public; ARNs the provisioner derives carry the account."""
+    steps = _steps()
+    names = [step.get("name") for step in steps]
+    configure = next(step for step in steps if "configure-aws-credentials" in step.get("uses", ""))
+    assert configure.get("with", {}).get("mask-aws-account-id") is True, configure
+    assert names.index(configure["name"]) < names.index("Provision and prove the managed path")
+
+
 def test_the_summary_keeps_only_the_revision_status_and_check_outcomes() -> None:
     out = summary.summarize(RECEIPT, SHA)
     assert out == {
