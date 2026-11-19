@@ -18,8 +18,10 @@ tool would fail with "Database service not initialized" (box-verified
 2026-06-12 — the smoke's only symptom was the LLM apologizing about a
 "temporary database issue"). The caller's Cognito access token reaches this
 handler because provisioning allowlists the ``Authorization`` header on the
-runtime (``requestHeaderAllowlist`` patch), so identity passes through:
-shopper → Runtime → Gateway → Cedar → MCP Lambda, one JWT end to end.
+runtime (``requestHeaderAllowlist`` patch), so the same JWT goes from the
+shopper to the Runtime and on to the Gateway, where Cedar checks each call.
+The MCP Lambda never receives the token: it gets the arguments Cedar admitted
+and the Gateway's request metadata.
 
 Deploy (bootstrap / instructor):
     uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD"

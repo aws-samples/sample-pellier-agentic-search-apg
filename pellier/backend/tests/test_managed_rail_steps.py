@@ -414,7 +414,7 @@ def test_a_managed_search_fills_the_grid_from_its_receipt(
     results = search["results"]
     # The cited row first, then the pool by rerank score, then RRF order.
     assert results["product_ids"] == ["65", "22", "31"]
-    assert [tag["label"] for tag in results["limits"]] == ["Under $100", "In stock"]
+    assert [tag["label"] for tag in results["limits"]] == ["$100 or less", "In stock"]
     assert results["filters"] is None and "no filter counts" in results["note"]
     assert results["count"] == 3
     assert search["builder"]["ranking"]["receipt_id"] == 51

@@ -382,7 +382,7 @@ def test_browse_department_applies_the_active_limits(follow_up_turn) -> None:
     assert evidence["requirements"] == {"carried": ["budget", "stock", "exclusions"]}
     assert evidence["results"]["product_ids"] == ["31"]
     assert [(tag["label"], tag["origin"]) for tag in evidence["results"]["limits"]] == [
-        ("Under $100", "carried"), ("In stock", "carried"), ("No candles", "carried"),
+        ("$100 or less", "carried"), ("In stock", "carried"), ("No candles", "carried"),
     ]
     assert len(readings) == 1
 
