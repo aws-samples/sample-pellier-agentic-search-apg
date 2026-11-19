@@ -61,8 +61,22 @@ def test_a_fresh_deploy_switches_onto_agentcore_and_says_so(
                         "      uv run scripts/lab_run.py send --lab 3"]
 
 
+VERIFY = ["bash", "{repo}/scripts/lab3-start.sh", "--verify-only", "theo"]
+SWITCH = ["bash", "{repo}/scripts/lab3-start.sh", "theo"]
+
+
+def _scripted(repo: Path, *, verify: int, switch: int = 0) -> Runs:
+    """A runner that answers the verification and the full switch with their own statuses."""
+    class Scripted(Runs):
+        def __call__(self, argv: List[str], **kwargs: Any) -> Any:
+            self.returncode = verify if "--verify-only" in argv else switch
+            return super().__call__(argv, **kwargs)
+
+    return Scripted()
+
+
 @pytest.mark.parametrize("where", ["env", "run_env"])
-def test_a_repeated_deploy_leaves_the_rail_and_the_service_alone(
+def test_a_set_flag_that_the_running_app_proves_leaves_the_rail_and_the_service_alone(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], where: str,
 ) -> None:
     run_env = tmp_path / "run.env"
@@ -73,8 +87,58 @@ def test_a_repeated_deploy_leaves_the_rail_and_the_service_alone(
         run_env.write_text('USE_AGENTCORE_RUNTIME="true"\n')
     runs = Runs()
     assert provisioner.move_onto_agentcore(repo, run=runs, run_env=run_env) == 0
-    assert runs.commands == []
+    assert runs.commands == [[part.format(repo=repo) for part in VERIFY]]
     assert capsys.readouterr().out.splitlines()[-1] == "Pellier is already using AgentCore."
+
+
+def test_a_set_flag_alone_never_prints_the_already_line_and_the_full_switch_recovers(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """lab3-start.sh writes the flag before its restart and its turn, so a switch that failed
+    there leaves it set. The next deploy must prove the running app, and when it cannot, run
+    the whole switch and say it moved Pellier."""
+    repo = _repo(tmp_path, "USE_AGENTCORE_RUNTIME=true")
+    runs = _scripted(repo, verify=1)
+    assert provisioner.move_onto_agentcore(repo, run=runs, run_env=tmp_path / "absent") == 0
+    assert runs.commands == [[part.format(repo=repo) for part in VERIFY],
+                             [part.format(repo=repo) for part in SWITCH]]
+    out = capsys.readouterr().out
+    assert "already using AgentCore" not in out
+    assert out.splitlines()[-4:] == [
+        "Pellier is now using AgentCore. Continue with Theo's requests.", "",
+        "Next: when your ownership tests have passed, send Theo's three requests.",
+        "      uv run scripts/lab_run.py send --lab 3"]
+
+
+def test_a_set_flag_with_a_switch_that_fails_again_claims_nothing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path, "USE_AGENTCORE_RUNTIME=true")
+    runs = _scripted(repo, verify=1, switch=1)
+    assert provisioner.move_onto_agentcore(repo, run=runs, run_env=tmp_path / "absent") == 1
+    captured = capsys.readouterr()
+    assert "using AgentCore" not in captured.out
+    assert "bash scripts/lab3-start.sh theo" in captured.err
+
+
+def test_a_first_deploy_never_runs_the_verification(tmp_path: Path) -> None:
+    repo, runs = _repo(tmp_path), Runs()
+    provisioner.move_onto_agentcore(repo, run=runs, run_env=tmp_path / "absent")
+    assert runs.commands == [[part.format(repo=repo) for part in SWITCH]]
+
+
+def test_the_proof_is_the_deploys_last_counted_step(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+) -> None:
+    repo = _repo(tmp_path, "USE_AGENTCORE_RUNTIME=true")
+    progress = provisioner.Progress()
+    progress.expect(1)
+    assert provisioner.move_onto_agentcore(
+        repo, run=Runs(), run_env=tmp_path / "absent", progress=progress) == 0
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "  - 1/1  Checking that Pellier runs on AgentCore (usually about 0:45)"
+    assert out[1].endswith("1/1  Checked that Pellier runs on AgentCore")
+    assert out[-1] == "Pellier is already using AgentCore."
 
 
 def test_the_service_setting_wins_over_the_repository_file(tmp_path: Path) -> None:
