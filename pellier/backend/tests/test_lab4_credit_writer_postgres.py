@@ -296,3 +296,18 @@ def test_a_role_granted_by_the_statements_is_theirs_to_fix(  # noqa: F811
     hint = _next_step(_run(fresh_db, variant).stdout)
     assert "which single privilege" in hint and "before your statements ran" not in hint
     assert fresh_db.psql("SELECT count(*) FROM pg_roles WHERE rolname = 'lab4_mine'") == "0"
+
+
+def test_a_column_grant_stays_listed_beside_a_public_table_grant(  # noqa: F811
+        fresh_db, tmp_path) -> None:
+    """PUBLIC's table-wide UPDATE must not hide the writer's own UPDATE on one column."""
+    variant = _solution_with(
+        "GRANT UPDATE (amount_cents) ON pellier.store_credits TO pellier_credit_writer;", tmp_path)
+    fresh_db.psql("GRANT UPDATE ON pellier.store_credits TO PUBLIC")
+    try:
+        done = _run(fresh_db, variant)
+        assert done.returncode != 0
+        observed = _probes(done.stdout)[ACCESS_PROBE][1]
+        assert "UPDATE (amount_cents)" in observed and "UPDATE via PUBLIC" in observed, observed
+    finally:
+        fresh_db.psql("REVOKE UPDATE ON pellier.store_credits FROM PUBLIC")

@@ -96,7 +96,8 @@ WITH holders (oid, label) AS (
     SELECT relname, attnum, attname, priv, array_agg(label ORDER BY label) AS labels
       FROM hits h
      WHERE attnum = 0 OR NOT EXISTS (SELECT 1 FROM hits t WHERE t.relid = h.relid
-                                      AND t.attnum = 0 AND t.priv = h.priv)
+                                      AND t.attnum = 0 AND t.priv = h.priv
+                                      AND t.label = h.label)
      GROUP BY relid, relname, attnum, attname, priv
 ), items AS (
     SELECT relname, attnum > 0 AS by_column, priv,
