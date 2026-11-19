@@ -105,9 +105,11 @@ SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM credits) THEN 'not tested'
 WITH access AS (
     SELECT c.relname,
            has_table_privilege('review_writer', c.oid,
-               'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') AS table_access
+               'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+           OR has_any_column_privilege('review_writer', c.oid,
+               'SELECT,INSERT,UPDATE,REFERENCES') AS table_access
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE n.nspname = 'review_example' AND c.relkind = 'r'
+    WHERE n.nspname = 'review_example' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
 ), fn AS (
     SELECT p.* FROM pg_proc p
     WHERE p.oid = 'review_example.apply_credit(text,text,integer,text)'::regprocedure
@@ -124,7 +126,7 @@ SELECT CASE WHEN p.prosecdef
     (SELECT count(*) FROM access WHERE table_access) AS tables_with_effective_access
 FROM fn p;
 -- end
--- Fixture: passed | 0. PUBLIC or inherited table access changes this to failed.
+-- Fixture: passed | 0. PUBLIC, inherited or column-level access changes this to failed.
 -- Review additional callable functions and role-switch paths separately.
 
 -- query: committed_write

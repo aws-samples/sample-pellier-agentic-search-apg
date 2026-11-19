@@ -166,6 +166,12 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
                              "Lab 4B privileges sha256 ")
     assert fresh_db.psql("SELECT count(*) FROM information_schema.role_table_grants "
                          "WHERE grantee = 'pellier_credit_writer'") == "0"
+    assert fresh_db.psql(
+        "SELECT count(*) FROM pg_class c WHERE c.relnamespace = 'pellier'::regnamespace "
+        "AND c.relkind IN ('r', 'p', 'v', 'm', 'f') AND (has_table_privilege("
+        "'pellier_credit_writer', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') "
+        "OR has_any_column_privilege('pellier_credit_writer', c.oid, "
+        "'SELECT,INSERT,UPDATE,REFERENCES'))") == "0"
     # Its REVOKE names the credit-writer role alone, so pgAudit still audits the credits table.
     assert fresh_db.psql("SELECT string_agg(privilege_type, ' ' ORDER BY privilege_type) "
                          "FROM information_schema.role_table_grants "
@@ -197,7 +203,8 @@ def _only_access_differs(cluster: Any, path: Path) -> List[str]:
     return probes[ACCESS_PROBE][1].splitlines()
 
 
-def test_a_column_grant_in_the_region_fails_the_access_probe(fresh_db, tmp_path) -> None:  # noqa: F811
+def test_a_column_grant_in_the_region_fails_the_access_probe(  # noqa: F811
+        fresh_db, tmp_path) -> None:
     variant = _solution_with(
         "GRANT SELECT (cognito_username) ON pellier.customers TO pellier_credit_writer;", tmp_path)
     before = _state(fresh_db)
@@ -227,7 +234,8 @@ def test_a_public_column_grant_is_named_with_its_column(fresh_db) -> None:  # no
         fresh_db.psql("REVOKE SELECT (name) ON pellier.customers FROM PUBLIC")
 
 
-@pytest.mark.parametrize("membership", ["WITH INHERIT TRUE, SET FALSE", "WITH INHERIT FALSE, SET TRUE"])
+@pytest.mark.parametrize("membership", ["WITH INHERIT TRUE, SET FALSE",
+                                        "WITH INHERIT FALSE, SET TRUE"])
 def test_access_through_role_membership_is_named_and_left_in_place(  # noqa: F811
         fresh_db, membership) -> None:
     """A role the writer inherits from, or can SET ROLE to, reaches the data the same way."""
@@ -235,17 +243,17 @@ def test_access_through_role_membership_is_named_and_left_in_place(  # noqa: F81
                   f"GRANT lab4_reach TO pellier_credit_writer {membership}")
     try:
         assert _only_access_differs(fresh_db, SOLUTION) == ["orders SELECT via role lab4_reach"]
-        assert fresh_db.psql("SELECT pg_has_role('pellier_credit_writer', 'lab4_reach', "
-                             f"'{'USAGE' if 'INHERIT TRUE' in membership else 'SET'}')") == "t"
+        assert fresh_db.psql("SELECT count(*) FROM pg_auth_members WHERE member = "
+                             "'pellier_credit_writer'::regrole") == "1"
     finally:
         fresh_db.psql("DROP OWNED BY lab4_reach; DROP ROLE lab4_reach")
 
 
 def test_a_view_over_pellier_data_counts_as_a_protected_relation(fresh_db) -> None:  # noqa: F811
     fresh_db.psql("CREATE VIEW pellier.lab4_names AS SELECT id, name FROM pellier.customers; "
-                  "GRANT SELECT ON pellier.lab4_names TO pellier_credit_writer")
+                  "GRANT SELECT ON pellier.lab4_names TO PUBLIC")
     try:
-        assert _only_access_differs(fresh_db, SOLUTION) == ["lab4_names SELECT"]
+        assert _only_access_differs(fresh_db, SOLUTION) == ["lab4_names SELECT via PUBLIC"]
     finally:
         fresh_db.psql("DROP VIEW pellier.lab4_names")
 

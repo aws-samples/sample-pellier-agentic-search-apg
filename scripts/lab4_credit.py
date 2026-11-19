@@ -61,10 +61,59 @@ SELECT coalesce(obj_description(p.oid, 'pg_proc'), '') AS stamp,
                                            THEN 'yes' ELSE 'no' END, ', ' ORDER BY ord)
           FROM unnest(ARRAY['{ROLE}', 'pellier_agent', 'public']) WITH ORDINALITY AS t (r, ord))
          AS execute,
-       (SELECT count(*) FROM information_schema.role_table_grants
-         WHERE grantee = '{ROLE}') AS table_grants,
        (SELECT count(*) FROM pg_policies WHERE '{ROLE}' = ANY (roles)) AS policies
   FROM pg_proc p WHERE p.oid = '{FUNCTION}'::regprocedure
+"""
+# What the role reaches in every relation of the pellier schema, one line per relation: its
+# own table and column grants, PUBLIC's, and those of every role it inherits from or can SET ROLE
+# to, each with its source. The worksheet's last test runs the same statement.
+ACCESS_SQL = f"""
+WITH holders (oid, label) AS (
+    SELECT '{ROLE}'::regrole::oid, 'direct grant'
+    UNION ALL SELECT 0, 'PUBLIC'
+    UNION ALL SELECT oid, 'role ' || rolname FROM pg_roles
+     WHERE rolname <> '{ROLE}'
+       AND (pg_has_role('{ROLE}', oid, 'USAGE')
+            OR pg_has_role('{ROLE}', oid, 'SET'))
+), targets AS (
+    SELECT c.oid AS relid, c.relname, 0 AS attnum, '' AS attname, p.priv,
+           coalesce(c.relacl, acldefault('r', c.relowner)) AS acl
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      CROSS JOIN unnest(ARRAY['DELETE', 'INSERT', 'MAINTAIN', 'REFERENCES', 'SELECT', 'TRIGGER',
+                              'TRUNCATE', 'UPDATE']) AS p (priv)
+     WHERE n.nspname = 'pellier' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+    UNION ALL
+    SELECT c.oid, c.relname, a.attnum, a.attname, p.priv, a.attacl
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+      CROSS JOIN unnest(ARRAY['INSERT', 'REFERENCES', 'SELECT', 'UPDATE']) AS p (priv)
+     WHERE n.nspname = 'pellier' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+), hits AS (
+    SELECT t.*, h.label FROM targets t CROSS JOIN holders h
+     WHERE EXISTS (SELECT 1 FROM aclexplode(t.acl) a
+                    WHERE a.grantee = h.oid AND a.privilege_type = t.priv)
+        OR (h.oid > 0 AND h.label <> 'direct grant'
+            AND NOT EXISTS (SELECT 1 FROM aclexplode(t.acl) a
+                             WHERE a.grantee = 0 AND a.privilege_type = t.priv)
+            AND CASE WHEN t.attnum = 0 THEN has_table_privilege(h.oid, t.relid, t.priv)
+                     ELSE has_column_privilege(h.oid, t.relid, t.attnum::smallint, t.priv) END)
+), reach AS (
+    SELECT relname, attnum, attname, priv, array_agg(label ORDER BY label) AS labels
+      FROM hits h
+     WHERE attnum = 0 OR NOT EXISTS (SELECT 1 FROM hits t WHERE t.relid = h.relid
+                                      AND t.attnum = 0 AND t.priv = h.priv)
+     GROUP BY relid, relname, attnum, attname, priv
+), items AS (
+    SELECT relname, attnum > 0 AS by_column, priv,
+           CASE WHEN labels = ARRAY['direct grant'] THEN ''
+                ELSE ' via ' || array_to_string(labels, ' and ') END AS via,
+           string_agg(attname, ', ' ORDER BY attnum) FILTER (WHERE attnum > 0) AS columns
+      FROM reach GROUP BY relname, attnum > 0, priv, labels
+)
+SELECT coalesce(string_agg(relname || ' ' || list, E'\\n' ORDER BY relname), '') AS access
+  FROM (SELECT relname, string_agg(priv || coalesce(' (' || columns || ')', '') || via, ', '
+                                    ORDER BY by_column, priv, columns) AS list
+          FROM items GROUP BY relname) per_table
 """
 
 # What each path asks, as the credit-writer role. The first two are what the role is
@@ -136,6 +185,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
                              f"write the role's privileges in the file, then run "
                              f"{RUN_WORKSHEET}.")
     short = stamp[len(STAMP_PREFIX):][:12]
+    access = [line for line in str(live.get("access") or "").splitlines() if line]
     deployed = str(live.get("stamp") or "")
     evidence = [
         "give_store_credit: " + (f"sha256 {deployed[len(STAMP_PREFIX):][:12]}..."
@@ -143,7 +193,8 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
         f"labs/04-govern/4B-credit-writer.sql: sha256 {short}...",
         f"function rights: {live.get('rights')}",
         f"EXECUTE: {live.get('execute')}",
-        f"{ROLE}: {live.get('table_grants')} table grants, {live.get('policies')} row policies",
+        f"{ROLE} reaches: {'; '.join(access) or 'no table or column privileges'}",
+        f"{ROLE}: {live.get('policies')} row policies",
     ]
     if deployed != stamp:
         observed = ("the live function still carries the privileges the database shipped with"
@@ -156,8 +207,7 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
     drift = [line for line, ok in (
         (f"function rights are {live.get('rights')}", live.get("rights") == LIVE_RIGHTS),
         (f"EXECUTE is {live.get('execute')}", live.get("execute") == LIVE_EXECUTE),
-        (f"the role holds {live.get('table_grants')} table grants",
-         int(live.get("table_grants") or 0) == 0),
+        (f"the role can still reach {'; '.join(access)}", not access),
         (f"{live.get('policies')} row policies name the role", int(live.get("policies") or 0) == 0),
     ) if not ok]
     if drift:
@@ -169,12 +219,16 @@ def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any])
 
 
 def deployed_state(connect: Callable[[], Any]) -> Dict[str, Any]:
-    """The function's comment and rights, and what the role holds, from the catalog."""
+    """The function's comment and rights, and what the role reaches, from the catalog."""
     with connect() as conn, conn.cursor() as cur:
         cur.execute(DEPLOYED_SQL)
         names = [column.name for column in cur.description]
         row = cur.fetchone()
-    return row if isinstance(row, dict) else dict(zip(names, row))
+        state = row if isinstance(row, dict) else dict(zip(names, row))
+        cur.execute(ACCESS_SQL)
+        reached = cur.fetchone()
+    state["access"] = reached["access"] if isinstance(reached, dict) else reached[0]
+    return state
 
 
 def deployed_finding(connect: Callable[[], Any],

@@ -204,7 +204,8 @@ class TakeawaySQLTests(unittest.TestCase):
         self.conn.execute("GRANT UPDATE (amount_cents) ON review_example.credits TO review_support")
         self.conn.execute("GRANT review_support TO review_writer")
         try:
-            self.assertEqual(self.query("privileges"), "failed|1")
+            # review_support already holds table privileges on tickets: two relations.
+            self.assertEqual(self.query("privileges"), "failed|2")
         finally:
             self.conn.execute("REVOKE review_support FROM review_writer")
             self.conn.execute("REVOKE UPDATE (amount_cents) ON review_example.credits "

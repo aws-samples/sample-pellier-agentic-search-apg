@@ -117,7 +117,8 @@ async def test_a_table_privilege_on_credits_is_caught_on_the_path(deployed: Any)
     "GRANT SELECT ON pellier.customers TO PUBLIC",
     "GRANT SELECT (name) ON pellier.customers TO PUBLIC",
 ])
-def test_access_left_after_a_passing_run_is_named_with_its_source(deployed: Any, grant: str) -> None:
+def test_access_left_after_a_passing_run_is_named_with_its_source(
+        deployed: Any, grant: str) -> None:
     """A column grant, a PUBLIC grant or an inherited one made after the run is drift."""
     undo = grant.replace("GRANT", "REVOKE", 1).replace(" TO ", " FROM ", 1)
 
@@ -139,8 +140,10 @@ def test_access_left_after_a_passing_run_is_named_with_its_source(deployed: Any,
     assert clean.state == "PASSED", clean
 
 
-@pytest.mark.parametrize("membership", ["WITH INHERIT TRUE, SET FALSE", "WITH INHERIT FALSE, SET TRUE"])
-def test_access_through_a_role_the_writer_belongs_to_is_drift(deployed: Any, membership: str) -> None:
+@pytest.mark.parametrize("membership", ["WITH INHERIT TRUE, SET FALSE",
+                                        "WITH INHERIT FALSE, SET TRUE"])
+def test_access_through_a_role_the_writer_belongs_to_is_drift(
+        deployed: Any, membership: str) -> None:
     def connect() -> Any:
         return psycopg.connect(**{**_conninfo(deployed), "row_factory": dict_row})
 
