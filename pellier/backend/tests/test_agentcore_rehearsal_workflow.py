@@ -94,7 +94,8 @@ RECEIPT = {
         "targets_attached": False,
         "gateway_tool_count": 9,
         "gateway_tool_names": ["get_tickets"],
-        "gateway_control_plane": {"gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/g-1"},
+        "gateway_control_plane": {
+            "gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/g-1"},
         "runtime_invoke_smoke": {"endpoint": "https://rt.example.com"},
         "arn:aws:iam::123456789012:role/odd_key": True,
         "Account 123456789012": True,

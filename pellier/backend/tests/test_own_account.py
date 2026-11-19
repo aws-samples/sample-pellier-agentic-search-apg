@@ -752,7 +752,8 @@ def _resource(kind: str, logical: str, physical: str) -> dict[str, str]:
     return {"ResourceType": kind, "LogicalResourceId": logical, "PhysicalResourceId": physical}
 
 
-STACK_ID = "arn:aws:cloudformation:us-east-1:123456789012:stack/pellier-governed/abcd1234-5678-4abc-8def-0123"
+STACK_ID = ("arn:aws:cloudformation:us-east-1:123456789012:stack/pellier-governed/"
+            "abcd1234-5678-4abc-8def-0123")
 WORKSHOP_ID = "pabcd1234"
 OWN_TAGS = [
     {"Key": "Project", "Value": "pellier"},

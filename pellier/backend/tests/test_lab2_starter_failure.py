@@ -503,7 +503,7 @@ def test_the_recorded_2b_line_waits_for_a_not_carried_question(conn, monkeypatch
 
 
 def _cape_turn(conn: Any, turn: str) -> None:
-    """Task 2B's question, sent after 2A: a Stock-agent turn about a piece Pellier does not carry."""
+    """Task 2B's question, sent after 2A: a Stock turn about a piece Pellier does not carry."""
     _own_audit(conn, turn, "check_stock", {"product_query": "Velvet Opera Cape"},
                _ask(conn, lab_variants.SOLUTION, "Velvet Opera Cape"))
 
