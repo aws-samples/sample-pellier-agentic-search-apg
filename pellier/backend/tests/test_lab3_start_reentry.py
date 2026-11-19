@@ -96,6 +96,8 @@ def test_a_flag_that_the_running_app_does_not_honour_fails_the_verification(
     assert "reported rail 'in-process' not gateway-mcp" in done.stdout
     assert "running the switch again" in done.stdout
     assert "Already written" not in done.stdout + done.stderr
+    # The proof fails on a clean line; it never trips set -u on the switch-only rail_target.
+    assert "unbound variable" not in done.stderr, done.stderr
     assert box["run_env"].read_text() == before
     assert not [call for call in _calls(box) if call.startswith("systemctl")]
 

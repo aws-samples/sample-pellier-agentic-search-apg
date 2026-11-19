@@ -200,6 +200,8 @@ _upsert_env() {
 # what puts it back, rather than leaving a half-configured storefront unnamed.
 _revert_hint() {
   fail "$1"
+  # A verification writes no setting, so there is nothing to revert.
+  $VERIFY_ONLY && return 0
   info "Already written to $rail_target: USE_AGENTCORE_RUNTIME=true."
   info "That setting survives this failure, so the storefront keeps asking for"
   info "the managed rail on every restart."
