@@ -1217,6 +1217,46 @@ def test_teardown_writes_nothing_when_the_agentcore_stack_is_not_this_deployment
         assert _writes(clients) == [], _writes(clients)
 
 
+PROJECT_ONLY = [{"Key": "Project", "Value": "pellier"}]
+ANOTHER_AGENTCORE = [*PROJECT_ONLY, {"Key": "PellierWorkshopId", "Value": "pffffffff"}]
+
+
+@pytest.mark.parametrize("extra", [[], ["--force"]], ids=["plain", "forced"])
+def test_teardown_refuses_an_agentcore_stack_that_names_no_deployment(extra: list[str]) -> None:
+    """Project=pellier alone does not show which deployment made the stack."""
+    mod = _load()
+    clients = _teardown_clients(mod, agentcore_tags=PROJECT_ONLY)
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1", *extra], clients)
+    assert code == 2 and "AgentCore-pellier-default" in lines[-1], lines
+    assert "PellierWorkshopId" in lines[-1], lines[-1]
+    assert _writes(clients) == [], _writes(clients)
+
+
+@pytest.mark.parametrize("agentcore_tags", [ANOTHER_AGENTCORE, PROJECT_ONLY],
+                         ids=["another deployment", "no deployment id"])
+def test_a_resumed_teardown_judges_the_agentcore_stack_by_the_recorded_deployment(
+    agentcore_tags: list[dict[str, str]],
+) -> None:
+    """With the root stack gone, the teardown record supplies the id the stack must carry."""
+    mod = _load()
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], _teardown_clients(mod))
+    argv = _recovery_argv(lines)
+    gone = _teardown_clients(mod, stack=False, agentcore_tags=agentcore_tags)
+    code, lines = _run(mod, argv, gone)
+    assert code == 2 and "AgentCore-pellier-default" in lines[-1], lines
+    assert _writes(gone) == [], _writes(gone)
+
+
+def test_a_resumed_teardown_still_deletes_this_deployments_agentcore_stack() -> None:
+    mod = _load()
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], _teardown_clients(mod))
+    argv = _recovery_argv(lines)
+    gone = _teardown_clients(mod, stack=False)
+    code, lines = _run(mod, argv, gone)
+    assert code == 0, lines
+    assert "AgentCore-pellier-default" in gone.cloudformation.args("delete_stack", "StackName")
+
+
 # ------------------------------------------------- a second deployment's IAM roles
 
 
