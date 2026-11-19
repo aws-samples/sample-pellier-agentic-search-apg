@@ -364,7 +364,7 @@ def _why_supplied(search_plan: Optional[Dict[str, Any]]) -> str:
     if failing:
         return "Lab 1 check " + " and ".join(failing) + " did not pass at that deploy"
     if (search_plan or {}).get("edited_outside_region"):
-        return "search_plan.py differs from the supplied file outside its marked region"
+        return "search_plan.py differs from the provided file outside its marked region"
     return "the deploy keeps it unless both Lab 1 checks pass and only the marked region changed"
 
 
@@ -436,9 +436,9 @@ def _judge_compared(runtime_matches: bool, matched: Optional[tuple],
                               "deploy your Task 3A change with --mode participant, then send "
                               f"Theo's requests again in a new conversation: {SEND}.")
     if matched[0] == "supplied":
-        evidence.append("search plan      the supplied Lab 1 search plan shipped: "
+        evidence.append("search plan      the provided Lab 1 search plan shipped: "
                         + _why_supplied(search_plan))
-        return _build_finding(check.PASSED, "the two builds match, with the supplied Lab 1 "
+        return _build_finding(check.PASSED, "the two builds match, with the provided Lab 1 "
                               "search plan", evidence)
     return _build_finding(check.PASSED, "the two builds match", evidence)
 

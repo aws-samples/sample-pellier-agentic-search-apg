@@ -74,8 +74,8 @@ def test_a_receipt_without_a_usable_choice_is_an_older_receipt(receipt) -> None:
 def test_a_valid_fallback_passes_and_says_which_search_plan_shipped_and_why() -> None:
     finding = lab3.judge_build(_row(SUPPLIED_DIGEST), RUNTIME, search_plan=SUPPLIED_RECEIPT)
     assert finding.state == check.PASSED
-    assert "supplied Lab 1 search plan" in finding.observed
-    assert any("the supplied Lab 1 search plan shipped: Lab 1 check 1B did not pass" in line
+    assert "provided Lab 1 search plan" in finding.observed
+    assert any("the provided Lab 1 search plan shipped: Lab 1 check 1B did not pass" in line
                for line in finding.evidence)
     assert f"checkout tools   {SUPPLIED_DIGEST}" in finding.evidence
 
@@ -91,7 +91,7 @@ def test_the_participants_own_plan_passes_when_the_receipt_says_it_shipped() -> 
     finding = lab3.judge_build(_row(YOURS_DIGEST), RUNTIME, search_plan=YOURS_RECEIPT)
     assert finding.state == check.PASSED
     assert finding.observed == "the two builds match"
-    assert not any("supplied Lab 1 search plan shipped" in line for line in finding.evidence)
+    assert not any("provided Lab 1 search plan shipped" in line for line in finding.evidence)
 
 
 @pytest.mark.parametrize("receipt, deployed", [(YOURS_RECEIPT, SUPPLIED_DIGEST),
