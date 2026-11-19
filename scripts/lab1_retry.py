@@ -42,7 +42,7 @@ SEND = "uv run scripts/lab_run.py send --lab 1 --task 1B"
 # The guide's request, the one Anna's first suggestion sends: three requirements the
 # first search cannot fill, so the fallback has to run.
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "
-                "In stock, under $100, and no candles.")
+                "In stock, $100 or less, and no candles.")
 TITLE = "Anna's requirements survive the retry"
 EXPECTED = (
     "the retry ran and the search that answered kept every requirement the shopper "

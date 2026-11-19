@@ -473,7 +473,7 @@ export const STORYBOARD_TEASERS: StoryboardTeaser[] = [
     volume: "No. 01",
     theme: "Anna",
     title: "On gifting as a practiced art.",
-    excerpt: "A gift under $100, in stock, with no candles.",
+    excerpt: "A gift for $100 or less, in stock, with no candles.",
     link: "Read Anna's note \u203a",
     noteId: "field-note-anna",
     imageUrl: "/products/story-edit.png",

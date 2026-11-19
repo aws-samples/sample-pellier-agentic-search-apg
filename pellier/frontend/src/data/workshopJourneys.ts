@@ -33,7 +33,7 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
     prompts: [
       'What linen do you have for 10 days in Goa?',
       'What would go with the Hadley Linen Shirt?',
-      'How many Hadley Linen Shirts are available at the Brooklyn warehouse, and how fast does it ship?',
+      'How many units of the Hadley Linen Shirt are available at the Brooklyn warehouse, and how fast does it ship?',
     ],
   },
   anna: {
@@ -44,8 +44,8 @@ export const WORKSHOP_JOURNEYS: Record<WorkshopAnchorId, WorkshopJourney> = {
     surface: 'storefront',
     prompts: [
       'A housewarming gift for a friend who loves slow mornings.',
-      'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.',
-      'A gift with a watch, under $100, in stock, no candles.',
+      'A housewarming gift for a friend who loves slow mornings. In stock, $100 or less, and no candles.',
+      'A gift with a watch, $100 or less, in stock, no candles.',
     ],
   },
   theo: {

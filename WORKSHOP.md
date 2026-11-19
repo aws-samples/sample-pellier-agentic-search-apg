@@ -127,7 +127,7 @@ conversation can recall it; the Go deeper tab shows that.
 
 ### Lab 1: Build and measure PostgreSQL hybrid retrieval
 
-Anna wants a housewarming gift under $100, in stock, with no candles.
+Anna wants a housewarming gift for $100 or less, in stock, with no candles.
 
 - **See it fail:** `uv run scripts/lab_run.py send --lab 1 --task 1A` sends Anna's
   first sentence. Every vector rank is empty because the vector search finds nothing.

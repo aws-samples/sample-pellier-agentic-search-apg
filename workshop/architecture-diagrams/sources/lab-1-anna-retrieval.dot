@@ -39,7 +39,7 @@ digraph Lab1AnnaRetrieval {
   ];
 
   anna [
-    label="01 · ANNA IN STOREFRONT\nMorning ritual · under $100 · in stock",
+    label="01 · ANNA IN STOREFRONT\nMorning ritual · $100 or less · in stock",
     fillcolor="#1f1410",
     fontcolor="#fbf8f2"
   ];

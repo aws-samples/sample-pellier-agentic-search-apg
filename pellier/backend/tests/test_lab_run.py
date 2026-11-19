@@ -602,7 +602,7 @@ def test_lab_2_tasks_send_the_brooklyn_count_then_the_cape(fake: FakeBackend) ->
     assert _run(fake, 2, None, "--task", "2A") == 0
     assert _run(fake, 2, None, "--task", "2B") == 0
     hadley, cape = _turns(fake)
-    assert "Hadley Linen Shirts" in hadley["body"]["message"]
+    assert "units of the Hadley Linen Shirt are" in hadley["body"]["message"]
     assert cape["body"]["message"] == "Is the Velvet Opera Cape in stock?"
 
 

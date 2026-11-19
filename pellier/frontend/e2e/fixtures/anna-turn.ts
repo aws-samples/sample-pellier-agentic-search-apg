@@ -52,7 +52,7 @@ export const ANNA = {
 }
 
 export const ANNA_QUESTION =
-  'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.'
+  'A housewarming gift for a friend who loves slow mornings. In stock, $100 or less, and no candles.'
 
 // The three cards the answer names, in the shape `chat.py` emits: catalog
 // fields from `_format_products`, stock from `_attach_stock`.
@@ -68,7 +68,7 @@ const ANSWER =
   'If they like to host, the Linen Napkins, Set of 4 at $44 arrive gift-boxed and ready to give. ' +
   'All three are in stock and under $100.'
 
-const FINDING = '5 found from 64 that fit under $100 and in stock, candles left out'
+const FINDING = '5 found from 64 that fit $100 or less and in stock, candles left out'
 
 export const RRF_K = 60
 export const RERANK_POOL = 15
@@ -206,14 +206,14 @@ const RESULTS = {
   product_ids: ANNA_RESULT_IDS,
   count: ANNA_RESULT_IDS.length,
   limits: [
-    { kind: 'budget', label: 'Under $100', origin: 'stated' },
+    { kind: 'budget', label: '$100 or less', origin: 'stated' },
     { kind: 'stock', label: 'In stock', origin: 'stated' },
     { kind: 'exclusions', value: 'candle', label: 'No candles', origin: 'stated' },
   ],
   filters: RANKING.filters,
 }
 
-const REQUIREMENTS = { applied: ['under $100', 'in stock', 'no candles'], carried: [] }
+const REQUIREMENTS = { applied: ['$100 or less', 'in stock', 'no candles'], carried: [] }
 
 const SKILLS = [
   { name: 'gifts', display_name: 'The Gift Table', path: 'skills/gifts/SKILL.md', loaded: 'fixed' },

@@ -39,7 +39,7 @@ NEXT_STEP = ("apply Task 1A (uv run scripts/lab_run.py solution --lab 1 --task 1
 SELF_PROBES = ("Stoneware Mugs, Set of 2", "Hadley Linen Shirt", "Sunday Morning Candle")
 LIMITS_PROBE = "Sunday Morning Candle"
 ANNA_REQUEST = ("A housewarming gift for a friend who loves slow mornings. "
-                "In stock, under $100, and no candles.")
+                "In stock, $100 or less, and no candles.")
 ANNA_LIMITS = {"price_max_usd": 100, "in_stock_only": True, "exclusions": ["candle"]}
 
 _EMBEDDING = ('SELECT "productId" AS product_id, embedding::text AS embedding '

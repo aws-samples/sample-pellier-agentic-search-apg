@@ -89,12 +89,12 @@ def test_every_shoppers_required_prompts_are_their_lab_prompts() -> None:
     assert required == {
         "anna": [
             "A housewarming gift for a friend who loves slow mornings.",
-            "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
+            "A housewarming gift for a friend who loves slow mornings. In stock, $100 or less, "
             "and no candles.",
         ],
         "marco": [
             "Is the Velvet Opera Cape in stock?",
-            "How many Hadley Linen Shirts are available at the Brooklyn warehouse, "
+            "How many units of the Hadley Linen Shirt are available at the Brooklyn warehouse, "
             "and how fast does it ship?",
         ],
         "theo": [

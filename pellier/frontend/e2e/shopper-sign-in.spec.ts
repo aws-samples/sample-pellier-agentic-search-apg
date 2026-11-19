@@ -162,7 +162,7 @@ test('choosing a shopper in the panel signs in, switching changes the principal,
 
 test('while a chosen shopper signs in, the panel takes no request that the switch would discard', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  const request = 'A housewarming gift for a friend who loves slow mornings. In stock, under $100, and no candles.'
+  const request = 'A housewarming gift for a friend who loves slow mornings. In stock, $100 or less, and no candles.'
   let releaseSwitch = () => {}
   const switchGate = new Promise<void>(resolve => { releaseSwitch = resolve })
   await serve(page, { switchGate, starters: [request] })

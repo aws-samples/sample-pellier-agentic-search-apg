@@ -23,12 +23,12 @@ FRONTEND_PUBLIC = Path(__file__).resolve().parents[2] / "frontend" / "public"
 LAB_PROMPTS = {
     "anna": [
         "A housewarming gift for a friend who loves slow mornings.",
-        "A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
+        "A housewarming gift for a friend who loves slow mornings. In stock, $100 or less, "
         "and no candles.",
     ],
     "marco": [
         "Is the Velvet Opera Cape in stock?",
-        "How many Hadley Linen Shirts are available at the Brooklyn warehouse, "
+        "How many units of the Hadley Linen Shirt are available at the Brooklyn warehouse, "
         "and how fast does it ship?",
     ],
     "theo": [

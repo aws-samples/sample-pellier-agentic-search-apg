@@ -260,8 +260,8 @@ def test_a_budget_compares_as_a_normalized_number_in_every_shopper_message() -> 
 
 def test_a_ceiling_a_cent_under_a_written_budget_was_said() -> None:
     # "under $100" applied as at most $99.99 is the same limit, not a new one.
-    assert not _never_said("budget", 99.99, message="In stock, under $100, and no candles.")
-    assert _never_said("budget", 99.0, message="In stock, under $100, and no candles.")
+    assert not _never_said("budget", 99.99, message="In stock, $100 or less, and no candles.")
+    assert _never_said("budget", 99.0, message="In stock, $100 or less, and no candles.")
 
 
 def test_an_excluded_value_compares_as_a_word_singular_or_plural() -> None:

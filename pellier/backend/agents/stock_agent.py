@@ -32,7 +32,7 @@ _STOCK_SYSTEM_PROMPT = (
     + STOCK_PROMPT_RULE
     + ", called with the product "
     "name the customer used as product_query. Examples:\n"
-    "  Customer: 'How many Hadley Linen Shirts are available at the Brooklyn "
+    "  Customer: 'How many units of the Hadley Linen Shirt are available at the Brooklyn "
     "warehouse, and how fast does it ship?'\n"
     "  -> check_stock(product_query='Hadley Linen Shirt')\n"
     "    One call answers both halves: the warehouse rows carry the quantity "
