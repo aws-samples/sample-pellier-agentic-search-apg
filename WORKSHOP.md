@@ -22,9 +22,10 @@ four customers:
 | 3. Deploy agents and bind the caller with Amazon Bedrock AgentCore | Theo | "Can each shopper access only their own records?" |
 | 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia (staff) | "Can an approved credit stay within its limit and be paid only once?" |
 
-Every task runs the same way: it fails in the terminal, the participant fixes
-the marked region, one command proves the fix, and then they look at it in the
-app. Each check prints what was expected, what was observed and the evidence
+Every task runs the same way: it fails in the terminal, the participant applies
+the provided change (Tasks A) or writes the fix in the marked region, or installs
+the provided one (Tasks B), one command proves the fix, and then they look at it in
+the app. Each check prints what was expected, what was observed and the evidence
 (the row, the decision, the key), and ends with one pass line. Nothing a check
 depends on happens in the app, except Lab 4's decisions: Nadia's approval and
 the Operator's three buttons, whose proof comes back to the terminal.
@@ -37,10 +38,10 @@ Times are elapsed minutes from the start of the session.
 |---|---|---|
 | 0-20 | Opening talk, then Getting started (about 3 minutes; early arrivals may do it before) | 20 minutes |
 | 20-40 | Lab 1: Build and measure PostgreSQL hybrid retrieval | 20 minutes |
-| 40-60 | Lab 2: Build a PostgreSQL-grounded agent | 20 minutes |
-| 60-65 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |
-| 65-90 | Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore | 25 minutes |
-| 90-115 | Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges | 25 minutes |
+| 40-55 | Lab 2: Build a PostgreSQL-grounded agent | 15 minutes |
+| 55-60 | Before Lab 3: the one scheduled catch-up, then the move from local agents to AgentCore | 5 minutes |
+| 60-85 | Lab 3: Deploy agents and bind the caller with Amazon Bedrock AgentCore | 25 minutes |
+| 85-115 | Lab 4: Govern agent actions with Cedar policies and PostgreSQL privileges | 30 minutes |
 | 115-120 | Wrap-up: reconstruct one credit, discuss the evidence, take home the review skill | 5 minutes |
 
 Reading, deployment waits and checks share each lab's time. Lab 3's and
