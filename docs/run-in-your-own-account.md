@@ -270,11 +270,22 @@ It ends with a **Left in place** list. What can remain, and how to remove it:
   does.
 - **The readiness log group** `/aws/pellier/readiness`, which every Pellier deployment in the
   Region shares. Delete it in the CloudWatch console if this was the only one.
-- **Account-wide X-Ray settings**, if you passed `--force`: the trace segment destination and
-  the indexing rule the provisioner changed, and the CloudWatch Logs resource policy
-  `TransactionSearchXRayAccess`. In the X-Ray console, under **Settings**, set Transaction
-  Search back to the values you had, and delete the policy with
-  `aws logs delete-resource-policy --policy-name TransactionSearchXRayAccess`.
+- **Account-wide X-Ray settings**, if you passed `--force`. The provisioner records what the
+  account held before Pellier changed it in the receipt on the host,
+  `/var/lib/pellier/managed-receipt.json`, under `observability.transaction_search.cleanup`.
+  The teardown restores those settings from the receipt. The receipt goes when the host goes,
+  so read it before you pass `--force`, or start the host and rerun the teardown without
+  `--force`. By hand, set the trace segment destination back to `previous_destination` when
+  `destination_changed` is true, and set the Default indexing rule back to the sampling
+  percentage in `previous_indexing_rule`. Both are in the X-Ray console under **Settings**. The
+  CloudWatch Logs resource policy `TransactionSearchXRayAccess` also depends on the receipt.
+  Only when `resource_policy_created` is true did Pellier create it, and then you delete it with
+  `aws logs delete-resource-policy --policy-name TransactionSearchXRayAccess`. When
+  `previous_resource_policy_document` is recorded instead, the policy existed before Pellier,
+  so put that document back with
+  `aws logs put-resource-policy --policy-name TransactionSearchXRayAccess --policy-document file://previous-policy.json`.
+  With no receipt, leave the policy and the other settings alone, because they may predate
+  Pellier and other tools may rely on them.
 - **The KMS key**, if you did not pass `--schedule-kms-key-deletion` or passed `--force`: the
   script prints its ARN; schedule its deletion in the KMS console once the account-wide log
   groups no longer use it.
