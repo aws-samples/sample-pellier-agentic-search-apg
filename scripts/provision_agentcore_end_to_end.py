@@ -203,13 +203,14 @@ STEP_SECONDS = {
 def participant_typical(steps: int | None) -> float:
     """How long a participant deploy of this many steps usually takes, for a follower's bar.
 
-    Four steps when nothing new is published and Pellier is already on AgentCore (Lab 4); a
-    fifth publishes the policies for newly published tools; a sixth moves Pellier onto
-    AgentCore (Lab 3). Unknown counts as the longest.
+    Five steps when nothing new is published: the four checks and deploys, then the step that
+    moves Pellier onto AgentCore (Lab 3) or proves that it already runs there (Lab 4 and
+    repeats), which makes one turn either way. A sixth publishes the policies for newly
+    published tools. Unknown counts as the longest.
     """
     four = (STEP_SECONDS["check"] + STEP_SECONDS["deploy"] + STEP_SECONDS["gateway"]
             + STEP_SECONDS["smoke"])
-    longer = {5: STEP_SECONDS["deploy"], 6: STEP_SECONDS["deploy"] + STEP_SECONDS["move"]}
+    longer = {5: STEP_SECONDS["move"], 6: STEP_SECONDS["deploy"] + STEP_SECONDS["move"]}
     return float(four + longer.get(steps or 6, 0))
 
 
@@ -3175,21 +3176,34 @@ def move_onto_agentcore(
     run_env: Path = RUN_ENV_FILE,
     progress: Progress | None = None,
 ) -> int:
-    """Switch the storefront onto AgentCore unless it already is; return the exit status.
+    """Switch the storefront onto AgentCore unless it already runs there; return the status.
 
     The switch is the deploy's last step. lab3-start.sh prints its own lines and draws
     its own bars, so this step prints a start line instead of redrawing one. Its lines
     pass through the deploy's output into the deploy log, so a window following the
     deploy sees them, and the reason when the switch fails.
+
+    USE_AGENTCORE_RUNTIME=true alone never earns ALREADY_ON_AGENTCORE: lab3-start.sh writes
+    it before the restart and the turn that prove the switch, so a restart or a turn that
+    failed leaves it set. When it is set, ``lab3-start.sh --verify-only`` makes one signed-in
+    turn against the running application, and only a turn answered on the managed rail
+    prints the line. Any other result runs the full switch, which restarts and proves it.
     """
     progress = progress or Progress()
-    if _rail_is_managed(repo, run_env):
-        progress.finish()
-        print(workshop_check.paint(ALREADY_ON_AGENTCORE, workshop_check.PASSED), flush=True)
-        return 0
-    progress.begin("Moving Pellier onto AgentCore", typical=STEP_SECONDS["move"],
-                   done="Moved Pellier onto AgentCore", animate=False)
-    completed = run(["bash", str(repo / "scripts" / "lab3-start.sh"), "theo"], cwd=str(repo))
+    managed = _rail_is_managed(repo, run_env)
+    start = ["bash", str(repo / "scripts" / "lab3-start.sh")]
+    if managed:
+        progress.begin("Checking that Pellier runs on AgentCore", typical=STEP_SECONDS["move"],
+                       done="Checked that Pellier runs on AgentCore", animate=False)
+        if run([*start, "--verify-only", "theo"], cwd=str(repo)).returncode == 0:
+            progress.finish()
+            print(workshop_check.paint(ALREADY_ON_AGENTCORE, workshop_check.PASSED), flush=True)
+            return 0
+        progress.amend("Moved Pellier onto AgentCore")
+    else:
+        progress.begin("Moving Pellier onto AgentCore", typical=STEP_SECONDS["move"],
+                       done="Moved Pellier onto AgentCore", animate=False)
+    completed = run([*start, "theo"], cwd=str(repo))
     if completed.returncode != 0:
         progress.fail()
         print(
@@ -3274,8 +3288,9 @@ def _participant_update(
     progress = progress or Progress()
     progress.begin("Checking your files and the deployed project", typical=STEP_SECONDS["check"],
                    done="Checked your files and the deployed project")
-    # Gateway and Runtime checks follow the deploys; a fresh Lab 3 then moves onto AgentCore.
-    moving = not reset_to_starters and not _rail_is_managed(repo)
+    # Gateway and Runtime checks follow the deploys; then the step that moves onto AgentCore, or
+    # proves that Pellier already runs there.
+    moving = not reset_to_starters
     lambda_arns = _existing_lambda_arns(region=region, identity=identity)
     result["lambdas"] = {
         surface: {"function_arn": arn} for surface, arn in lambda_arns.items()

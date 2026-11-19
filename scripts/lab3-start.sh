@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lab3-start.sh [persona] -- move the storefront onto the managed rail, proved
+# lab3-start.sh [--verify-only] [persona] -- move the storefront onto the managed rail, proved
 # =============================================================================
 # Labs 1 and 2 run the in-process rail so the participant proves their own
 # Stock agent and hybrid retrieval. Lab 3 switches the storefront to the
@@ -21,12 +21,25 @@
 #      /api/chat/stream, and require the complete event's rail to read
 #      gateway-mcp. Anything else exits 1 and prints the rail decision.
 #
+# --verify-only runs steps 1, 2 and 5 against the application that is running, and
+# changes nothing: no setting is written and nothing restarts. It prints nothing on
+# success and one line on failure. The participant deploy uses it before it says
+# Pellier is already using AgentCore, because USE_AGENTCORE_RUNTIME=true alone
+# proves only that a switch was started: step 3 writes it before the restart and
+# the turn that steps 4 and 5 make. A failure sends the deploy to the full switch.
+#
 # bash 3.2 syntax only.
 # =============================================================================
 set -uo pipefail
 
 # Prefer workshop aliases without changing the operating system interpreter.
 export PATH="/opt/pellier/bin:$PATH"
+
+VERIFY_ONLY=false
+if [ "${1:-}" = "--verify-only" ]; then
+  VERIFY_ONLY=true
+  shift
+fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-$(cd "$SCRIPT_DIR/.." && pwd)}"
@@ -48,10 +61,23 @@ TOKEN_HELPER="${PELLIER_TOKEN_HELPER:-$HOME/pellier-token.sh}"
 PERSONA="${1:-theo}"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
-pass() { printf "  ${GREEN}+ OK${NC}    %s\n" "$1"; }
-fail() { printf "  ${RED}x FAIL${NC}  %s\n" "$1" >&2; }
-warn() { printf "  ${YEL}- WARN${NC}  %s\n" "$1"; }
-info() { printf "  %s\n" "$1"; }
+VERIFY_FAILURE=""
+pass() { $VERIFY_ONLY || printf "  ${GREEN}+ OK${NC}    %s\n" "$1"; }
+fail() {
+  if $VERIFY_ONLY; then VERIFY_FAILURE="$1"; else printf "  ${RED}x FAIL${NC}  %s\n" "$1" >&2; fi
+}
+warn() { $VERIFY_ONLY || printf "  ${YEL}- WARN${NC}  %s\n" "$1"; }
+info() { $VERIFY_ONLY || printf "  %s\n" "$1"; }
+# A verification that fails says why in one line. The full switch that follows prints the
+# detail, so the participant reads the reason and then the recovery.
+_verify_report() {
+  local status=$?
+  if $VERIFY_ONLY && [ "$status" -ne 0 ]; then
+    printf "  Pellier did not answer on AgentCore (%s); running the switch again.\n" \
+      "${VERIFY_FAILURE:-no reason recorded}"
+  fi
+}
+trap _verify_report EXIT
 
 DOTENV_HELPER="${SCRIPT_DIR}/lib/dotenv.sh"
 if [ ! -r "$DOTENV_HELPER" ]; then
@@ -211,8 +237,10 @@ _wait_healthy() {
   return 1
 }
 
-echo "Pellier Lab 3 start: managed rail"
-echo "------------------------------------------------------------"
+if ! $VERIFY_ONLY; then
+  echo "Pellier Lab 3 start: managed rail"
+  echo "------------------------------------------------------------"
+fi
 
 # --- 1. both managed resources, or refuse ------------------------------------
 refused=false
@@ -253,36 +281,46 @@ else
   exit 1
 fi
 
-# --- 3. select the managed rail -----------------------------------------------
-# resolve_rail() reads USE_AGENTCORE_RUNTIME and AGENTCORE_RUNTIME_ENDPOINT and
-# nothing else. Step 1 verified the endpoint and the Gateway URL, so this one
-# setting is the whole switch.
-rail_target="$(_rail_target "$RUN_ENV_FILE" "$ENV_FILE" "${PELLIER_RUN_ENV:-}")"
-if ! _upsert_env "$rail_target" "USE_AGENTCORE_RUNTIME" "true"; then
-  if [ "$rail_target" = "$ENV_FILE" ]; then
-    fail "Could not write the rail switch to $rail_target"
+if $VERIFY_ONLY; then
+  # The running application is the evidence, so the flag in a file is not read and the
+  # service is not restarted. An application that is down or still on the in-process rail
+  # fails the turn in step 5.
+  if ! curl -fs --max-time 5 "$HEALTH_URL" 2>/dev/null | grep -q '"status".*"healthy"'; then
+    fail "$HEALTH_URL is not healthy"
     exit 1
   fi
-  warn "Could not write $RUN_ENV_FILE; writing the rail switch to $ENV_FILE instead"
-  rail_target="$ENV_FILE"
-  if ! _upsert_env "$rail_target" "USE_AGENTCORE_RUNTIME" "true"; then
-    fail "Could not write the rail switch to $rail_target"
-    exit 1
-  fi
-fi
-pass "USE_AGENTCORE_RUNTIME=true in $rail_target (Runtime ARN already present)"
-
-# --- 4. restart and wait -------------------------------------------------------
-_restart_service &
-if ! pellier_progress_wait_for "$!" "Restarting Pellier" 15; then
-  _revert_hint "'systemctl restart pellier' failed; run 'start-backend' and retry"
-  exit 1
-fi
-if _wait_healthy 90; then
-  pass "pellier service healthy on the managed rail configuration"
 else
-  _revert_hint "$HEALTH_URL not healthy 90s after restart; check: journalctl -u pellier"
-  exit 1
+  # --- 3. select the managed rail -----------------------------------------------
+  # resolve_rail() reads USE_AGENTCORE_RUNTIME and AGENTCORE_RUNTIME_ENDPOINT and
+  # nothing else. Step 1 verified the endpoint and the Gateway URL, so this one
+  # setting is the whole switch.
+  rail_target="$(_rail_target "$RUN_ENV_FILE" "$ENV_FILE" "${PELLIER_RUN_ENV:-}")"
+  if ! _upsert_env "$rail_target" "USE_AGENTCORE_RUNTIME" "true"; then
+    if [ "$rail_target" = "$ENV_FILE" ]; then
+      fail "Could not write the rail switch to $rail_target"
+      exit 1
+    fi
+    warn "Could not write $RUN_ENV_FILE; writing the rail switch to $ENV_FILE instead"
+    rail_target="$ENV_FILE"
+    if ! _upsert_env "$rail_target" "USE_AGENTCORE_RUNTIME" "true"; then
+      fail "Could not write the rail switch to $rail_target"
+      exit 1
+    fi
+  fi
+  pass "USE_AGENTCORE_RUNTIME=true in $rail_target (Runtime ARN already present)"
+
+  # --- 4. restart and wait -------------------------------------------------------
+  _restart_service &
+  if ! pellier_progress_wait_for "$!" "Restarting Pellier" 15; then
+    _revert_hint "'systemctl restart pellier' failed; run 'start-backend' and retry"
+    exit 1
+  fi
+  if _wait_healthy 90; then
+    pass "pellier service healthy on the managed rail configuration"
+  else
+    _revert_hint "$HEALTH_URL not healthy 90s after restart; check: journalctl -u pellier"
+    exit 1
+  fi
 fi
 
 # --- 5. one authenticated turn, and the rail it reports -----------------------
@@ -349,6 +387,6 @@ else
   exit 1
 fi
 
-echo "------------------------------------------------------------"
+$VERIFY_ONLY || echo "------------------------------------------------------------"
 info "Lab 3 may proceed. Theo's requests now travel Runtime -> Gateway -> Aurora."
 exit 0
