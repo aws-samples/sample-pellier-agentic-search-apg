@@ -288,6 +288,80 @@ def test_the_2a_check_fails_a_count_the_warehouse_rows_do_not_hold(conn) -> None
     assert "does not match the catalog" in finding.observed
 
 
+MARCO_PIECE = "Hadley Linen Shirt"
+NO_COMPARISON = "no check_stock call compared Brooklyn's count and ship window"
+
+
+def _assert_asks_for_the_brooklyn_question_again(finding: Any) -> None:
+    assert finding.state == "NOT YET PASSED", finding
+    assert NO_COMPARISON in finding.observed
+    assert MARCO_PIECE in finding.observed
+    assert lab2.SEND_2A in finding.next_step
+    assert finding.next_step.count("uv run") == 1
+
+
+@pytest.mark.parametrize("query", [
+    "Hadley Linen Shirts",   # the plural names no catalog product
+    "Linen shirt",           # names several products
+    "",                      # names nothing
+])
+def test_2a_is_not_yet_when_the_only_call_names_no_single_piece(conn, query) -> None:
+    """A query the catalog cannot resolve to one piece compares nothing, so it cannot pass."""
+    answer = _ask(conn, lab_variants.SOLUTION, query)
+    _audit(conn, "turn-unjudged", "check_stock", {"product_query": query}, answer)
+    _assert_asks_for_the_brooklyn_question_again(lab2.judge_2a(conn))
+
+
+def test_2a_is_not_yet_when_the_only_judged_call_is_another_piece(conn) -> None:
+    """A matching comparison for the Quilted Silk Vest does not stand in for Marco's shirt."""
+    vest = _ask(conn, lab_variants.SOLUTION, "Quilted Silk Vest")
+    _audit(conn, "turn-vest", "check_stock", {"product_query": "Quilted Silk Vest"}, vest)
+    finding = lab2.judge_2a(conn)
+    _assert_asks_for_the_brooklyn_question_again(finding)
+    assert any("Quilted Silk Vest" in line for line in finding.evidence)
+
+
+def test_2a_fails_a_shirt_answer_that_names_no_brooklyn_row(conn) -> None:
+    """Marco's question is about Brooklyn, so an answer without its row does not match."""
+    answer = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
+    answer["warehouses"] = [row for row in answer["warehouses"]
+                            if row["warehouse_code"] != "BK-01"]
+    _audit(conn, "turn-no-brooklyn", "check_stock", {"product_query": MARCO_PIECE}, answer)
+    assert lab2.judge_2a(conn).state == "FAILED"
+
+
+def test_2a_a_shirt_turn_with_an_unjudged_call_beside_it_passes(conn) -> None:
+    several = _ask(conn, lab_variants.SOLUTION, "Linen shirt")
+    shirt = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
+    _audit(conn, "turn-both", "check_stock", {"product_query": "Linen shirt"}, several)
+    _audit(conn, "turn-both", "check_stock", {"product_query": MARCO_PIECE}, shirt)
+    finding = lab2.judge_2a(conn)
+    assert finding.state == "PASSED", finding
+    assert "Brooklyn" in finding.observed and MARCO_PIECE in finding.observed
+
+
+def test_2a_a_shirt_mismatch_stays_failed_beside_a_matching_other_piece(conn) -> None:
+    vest = _ask(conn, lab_variants.SOLUTION, "Quilted Silk Vest")
+    shirt = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
+    shirt["warehouses"][0]["quantity"] += 4
+    _audit(conn, "turn-shirt-wrong", "check_stock", {"product_query": "Quilted Silk Vest"}, vest)
+    _audit(conn, "turn-shirt-wrong", "check_stock", {"product_query": MARCO_PIECE}, shirt)
+    finding = lab2.judge_2a(conn)
+    assert finding.state == "FAILED", finding
+
+
+def test_the_singular_name_resolves_to_one_piece_and_the_plural_to_none(conn) -> None:
+    """Marco's question names the catalog's own singular name, which names exactly one piece."""
+    singular = lab2.catalog_answer(conn, MARCO_PIECE)
+    assert [row["product_id"] for row in singular["matches"]] == ["2"]
+    assert {row["warehouse_code"] for row in singular["stock"]} >= {"BK-01"}
+    envelope = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
+    assert envelope["status"] == "success" and str(envelope["product"]["productId"]) == "2"
+    plural = lab2.catalog_answer(conn, "Hadley Linen Shirts")
+    assert plural["matches"] == []
+    assert _ask(conn, lab_variants.SOLUTION, "Hadley Linen Shirts")["status"] == "not_found"
+
+
 def test_no_stock_agent_turn_is_not_yet(conn, monkeypatch) -> None:
     monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", "persona-nobody-")
     finding = lab2.judge_2a(conn)
