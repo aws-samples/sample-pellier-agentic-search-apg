@@ -781,6 +781,7 @@ def _teardown_clients(
     suffix_parameter: bool = True,
     existing_key: bool = False,
     agentcore_tags: list[dict[str, str]] | None = None,
+    role_tags: list[dict[str, str]] | None = None,
 ) -> Any:
     polls = {"count": 0}
     deleted: list[str] = []
@@ -880,8 +881,11 @@ def _teardown_clients(
         }
     )
     control = _Fake({"get_gateway": {"roleArn": "arn:aws:iam::1:role/gw-role"}})
+    held_tags = AGENTCORE_TAGS if role_tags is None else role_tags
+    iam = _Fake({"get_role": lambda kw: {"Role": {"RoleName": kw["RoleName"], "Tags": held_tags}}})
     return _clients(
         mod,
+        iam=iam,
         cloudformation=cloudformation,
         ec2=ec2,
         ssm=ssm,
@@ -1192,3 +1196,161 @@ def test_teardown_writes_nothing_when_the_agentcore_stack_is_not_this_deployment
         assert code == 2, lines
         assert "AgentCore-pellier-default" in lines[-1], lines[-1]
         assert _writes(clients) == [], _writes(clients)
+
+
+# ------------------------------------------------- a second deployment's IAM roles
+
+
+def _role_answers(held: dict[str, list[dict[str, str]]]) -> Any:
+    """An IAM fake holding the named roles with the given tags; any other role is absent."""
+
+    def get_role(kw: dict[str, Any]) -> dict[str, Any]:
+        if kw["RoleName"] not in held:
+            raise _ClientError("NoSuchEntity")
+        return {"Role": {"RoleName": kw["RoleName"], "Tags": held[kw["RoleName"]]}}
+
+    return _Fake({"get_role": get_role})
+
+
+FIRST_STORE_ROLE = "pellier-store-tools-server-role"
+OTHER_DEPLOYMENT = [{"Key": "PellierWorkshopId", "Value": "pffffffff"}]
+
+
+@pytest.mark.parametrize("tags", [OTHER_DEPLOYMENT, []], ids=["tagged", "untagged"])
+def test_deploy_refuses_iam_roles_another_deployment_already_uses(
+    tags: list[dict[str, str]],
+) -> None:
+    """Role names are account-wide, so the first deployment's roles stop a second Region."""
+    mod = _load()
+    clients = _fresh(mod, iam=_role_answers({FIRST_STORE_ROLE: tags}))
+    code, lines = _run(mod, ["deploy", "--region", "us-west-2"], clients)
+    assert code == 2, lines
+    assert FIRST_STORE_ROLE in lines[-1] and "account-wide" in lines[-1]
+    assert "--deployment-suffix" in lines[-1]
+    assert _writes(clients) == []
+    clients = _fresh(mod, iam=_role_answers({FIRST_STORE_ROLE: tags}))
+    argv = ["deploy", "--region", "us-west-2", "--deployment-suffix", "west"]
+    code, lines = _run(mod, argv, clients)
+    assert code == 0, lines
+    assert "pellier-west-store-tools-server-role" in clients.iam.args("get_role", "RoleName")
+
+
+def test_check_fails_for_iam_roles_another_deployment_already_uses() -> None:
+    mod = _load()
+    models = {"modelSummaries": [{"modelId": m} for m in mod.MODEL_IDS]}
+    clients = _fresh(
+        mod,
+        iam=_role_answers({FIRST_STORE_ROLE: OTHER_DEPLOYMENT}),
+        bedrock=_Fake({"list_foundation_models": models}),
+    )
+    code, lines = _run(mod, ["check", "--region", "us-west-2"], clients)
+    assert code == 1, lines
+    assert any(FIRST_STORE_ROLE in line and "account-wide" in line for line in lines)
+
+
+def _paged(first: dict[str, Any], second: dict[str, Any]) -> Any:
+    def answer(kw: dict[str, Any]) -> dict[str, Any]:
+        return second if kw.get("nextToken") == "page-2" else {**first, "nextToken": "page-2"}
+
+    return answer
+
+
+@pytest.mark.parametrize(
+    ("operation", "items", "message"),
+    [
+        ("list_gateways", {"items": [{"gatewayId": "pellier-gateway-late"}]}, "gateway pellier-"),
+        ("list_memories", {"memories": [{"id": "pellier_mem-late"}]}, "memory pellier_mem-late"),
+        (
+            "list_agent_runtimes",
+            {"agentRuntimes": [{"agentRuntimeId": "pellier_rt-late"}]},
+            "runtime pellier_rt-late",
+        ),
+        (
+            "list_policy_engines",
+            {"policyEngines": [{"policyEngineId": "pellier_engine-late"}]},
+            "policy engine pellier_engine-late",
+        ),
+    ],
+)
+def test_deploy_follows_every_page_of_the_agentcore_listings(
+    operation: str, items: dict[str, Any], message: str
+) -> None:
+    mod = _load()
+    answers = {
+        "list_policy_engines": {},
+        "list_policies": {},
+        "list_gateways": {},
+        "list_memories": {},
+        "list_agent_runtimes": {},
+    }
+    answers[operation] = _paged({}, items)
+    clients = _fresh(mod, agentcore_control=_Fake(answers))
+    code, lines = _run(mod, ["deploy", "--region", "us-east-1"], clients)
+    assert code == 2, lines
+    assert message in lines[-1], lines[-1]
+    assert clients.s3.calls == []
+
+
+def test_deploy_follows_every_page_of_a_policy_engines_policies() -> None:
+    mod = _load()
+    engines = {"policyEngines": [{"policyEngineId": "engine-1"}]}
+    late = {"policies": [{"name": "credit_limit"}]}
+    control = _Fake(
+        {
+            "list_policy_engines": engines,
+            "list_policies": _paged({"policies": [{"name": "unrelated"}]}, late),
+            "list_gateways": {},
+            "list_memories": {},
+            "list_agent_runtimes": {},
+        }
+    )
+    clients = _fresh(mod, agentcore_control=control)
+    argv = ["deploy", "--region", "us-east-1", "--deployment-suffix", "own1"]
+    code, lines = _run(mod, argv, clients)
+    assert code == 2 and "holds credit_limit" in lines[-1], lines
+
+
+def test_check_fails_for_an_agentcore_collision_and_a_clean_account_passes() -> None:
+    mod = _load()
+    models = {"modelSummaries": [{"modelId": m} for m in mod.MODEL_IDS]}
+    gateways = _paged({}, {"items": [{"gatewayId": "pellier-gateway-late"}]})
+    control = _Fake(
+        {
+            "list_policy_engines": {},
+            "list_policies": {},
+            "list_gateways": gateways,
+            "list_memories": {},
+            "list_agent_runtimes": {},
+        }
+    )
+    bedrock = _Fake({"list_foundation_models": models})
+    clients = _fresh(mod, agentcore_control=control, bedrock=bedrock)
+    code, lines = _run(mod, ["check", "--region", "us-east-1"], clients)
+    assert code == 1 and "already in this account: gateway pellier-gateway-late" in lines
+    clients = _fresh(mod, bedrock=_Fake({"list_foundation_models": models}))
+    code, lines = _run(mod, ["check", "--region", "us-east-1"], clients)
+    assert code == 0, lines
+
+
+def test_teardown_deletes_only_roles_tagged_with_its_own_workshop_id() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod, role_tags=OTHER_DEPLOYMENT)
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
+    assert code == 2 and "pellier-store-tools-server-role" in lines[-1], lines
+    assert "pffffffff" in lines[-1] and "nothing deleted" in lines[-1]
+    assert _writes(clients) == []
+    clients = _teardown_clients(mod, role_tags=[])
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
+    assert code == 0, lines
+    assert clients.iam.args("delete_role", "RoleName") == []
+    left = "\n".join(lines[lines.index("Left in place:") :])
+    assert "pellier-store-tools-server-role" in left and "not tagged" in left
+
+
+def test_a_forced_teardown_without_a_stack_cannot_prove_the_roles_and_leaves_them() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod, stack=False)
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1", "--force"], clients)
+    assert code == 0, lines
+    assert clients.iam.args("delete_role", "RoleName") == []
+    assert "pellier-store-tools-server-role" in "\n".join(lines[lines.index("Left in place:") :])
