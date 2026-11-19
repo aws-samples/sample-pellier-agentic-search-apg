@@ -64,3 +64,17 @@ def test_every_stated_length_is_the_schedule_total() -> None:
                 line = text.count("\n", 0, match.start()) + 1
                 wrong.append(f"{name}:{line}: {match.group(0)!r}")
     assert not wrong, f"lengths that are not the {total}-minute schedule: {wrong}"
+
+
+TABLE_ROW = re.compile(r"^\| (\d+)-(\d+) \| .*? \| (\d+) minutes \|$", re.M)
+
+
+def test_the_facilitator_table_matches_the_schedule() -> None:
+    """WORKSHOP.md's table kept Lab 2 at 20 minutes and Lab 4 at 25 after the schedule moved
+    five of Marco's minutes to Jessica (e528bccd)."""
+    _, blocks = _schedule()
+    rows = [tuple(int(n) for n in row) for row in
+            TABLE_ROW.findall((REPO / "WORKSHOP.md").read_text(encoding="utf-8"))]
+    assert [length for _, _, length in rows] == blocks, rows
+    assert all(end - start == length for start, end, length in rows), rows
+    assert all(rows[i][1] == rows[i + 1][0] for i in range(len(rows) - 1)), rows
