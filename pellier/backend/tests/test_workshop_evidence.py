@@ -356,21 +356,21 @@ def test_lab_one_and_two_lines_read_the_real_schema(
                     jsonb_build_object('22', 1.0/61, '28', 1.0/62 + 1.0/61), '["22", "28"]',
                     '{"requested": {"hard_constraints": {"price_max_usd": 100,
                       "in_stock_only": true, "categories": []}, "exclusions": ["candle"]}}')""")
+        # The participant's order: Task 2A's turn about Marco's shirt, shaped by the real
+        # check_stock path, then Task 2B's cape turn. 2A must still grade the shirt turn.
+        import lab2_check
+        hadley = lab2_check.live_tool(conn, {})(product_query="Hadley Linen Shirt")
+        conn.execute(
+            "INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms) "
+            "VALUES ('persona-marco-export', 'check_stock', 'agent', %s::jsonb, %s::jsonb, 9)",
+            ('{"product_query": "Hadley Linen Shirt", "turn_id": "turn-export-2a", '
+             '"agent": "stock", "grant": ["check_stock"]}', hadley))
         conn.execute("""
             INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)
             VALUES ('persona-marco-export', 'check_stock', 'agent',
                     '{"product_query": "Velvet Opera Cape", "turn_id": "turn-export",
                       "agent": "stock", "grant": ["check_stock"]}',
                     '{"status": "not_found"}', 9)""")
-        # Marco's Brooklyn count in the same turn, shaped by the real check_stock path: Task 2A
-        # needs one judged comparison for the Hadley Linen Shirt with Brooklyn among its rows.
-        import lab2_check
-        hadley = lab2_check.live_tool(conn, {})(product_query="Hadley Linen Shirt")
-        conn.execute(
-            "INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms) "
-            "VALUES ('persona-marco-export', 'check_stock', 'agent', %s::jsonb, %s::jsonb, 9)",
-            ('{"product_query": "Hadley Linen Shirt", "turn_id": "turn-export", '
-             '"agent": "stock", "grant": ["check_stock"]}', hadley))
 
     findings = {
         "1A": evidence.task_1a(cfg, check.connect),

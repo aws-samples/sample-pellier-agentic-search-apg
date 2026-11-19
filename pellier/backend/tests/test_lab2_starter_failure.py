@@ -296,15 +296,15 @@ OWN_SESSION = "persona-marcoown-"
 
 
 @pytest.fixture
-def own_audit_rows(monkeypatch) -> None:
-    """Judge a session of this test's own: tool_audit is append-only, and later tests read
-    the latest rows of the shared persona-marco- sessions."""
-    monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", OWN_SESSION)
+def own_audit_rows(monkeypatch, request) -> None:
+    """Judge a session of this test's own: tool_audit is append-only, and 2A looks back to
+    Marco's newest shirt turn, so each test needs a prefix no other test has written."""
+    monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", f"{OWN_SESSION}{request.node.name}-")
 
 
 def _own_audit(conn: Any, turn: str, tool: str, args: Dict[str, Any],
                result: Dict[str, Any]) -> None:
-    _audit(conn, turn, tool, args, result, session=OWN_SESSION)
+    _audit(conn, turn, tool, args, result, session=lab2.MARCO_SESSION_PREFIX)
 
 
 def _assert_asks_for_the_brooklyn_question_again(finding: Any) -> None:
@@ -500,3 +500,39 @@ def test_the_recorded_2b_line_waits_for_a_not_carried_question(conn, monkeypatch
     finding = lab2.judge_recorded_2b(conn)
     assert finding.state == "NOT YET PASSED"
     assert "uv run scripts/lab_run.py send --lab 2" in finding.next_step
+
+
+def _cape_turn(conn: Any, turn: str) -> None:
+    """Task 2B's question, sent after 2A: a Stock-agent turn about a piece Pellier does not carry."""
+    _own_audit(conn, turn, "check_stock", {"product_query": "Velvet Opera Cape"},
+               _ask(conn, lab_variants.SOLUTION, "Velvet Opera Cape"))
+
+
+def test_2a_keeps_marcos_shirt_turn_when_his_cape_question_comes_after(  # noqa: F811
+        conn, own_audit_rows) -> None:
+    """Participant order: the 2A shirt turn, then the 2B cape turn. 2A still grades the shirt."""
+    _own_audit(conn, "turn-own-2a-shirt", "check_stock", {"product_query": MARCO_PIECE},
+               _ask(conn, lab_variants.SOLUTION, MARCO_PIECE))
+    _cape_turn(conn, "turn-own-2b-cape")
+    finding = lab2.judge_2a(conn)
+    assert finding.state == "PASSED", finding
+    assert "turn-own-2a-shirt" in " ".join(finding.evidence)
+
+
+def test_2a_grades_the_newest_shirt_turn_not_an_older_passing_one(  # noqa: F811
+        conn, own_audit_rows) -> None:
+    good = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
+    _own_audit(conn, "turn-own-shirt-good", "check_stock", {"product_query": MARCO_PIECE}, good)
+    wrong = json.loads(json.dumps(good))
+    for row in wrong.get("warehouses") or []:
+        row["available"] = int(row.get("available") or 0) + 7
+        row["quantity"] = int(row.get("quantity") or 0) + 7
+    _own_audit(conn, "turn-own-shirt-wrong", "check_stock", {"product_query": MARCO_PIECE}, wrong)
+    _cape_turn(conn, "turn-own-cape-after")
+    assert lab2.judge_2a(conn).state == "FAILED"
+
+
+def test_2a_without_any_shirt_turn_still_asks_for_the_brooklyn_question(  # noqa: F811
+        conn, own_audit_rows) -> None:
+    _cape_turn(conn, "turn-own-cape-only")
+    _assert_asks_for_the_brooklyn_question_again(lab2.judge_2a(conn))
