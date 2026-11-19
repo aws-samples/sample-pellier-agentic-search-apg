@@ -5,7 +5,10 @@ from __future__ import annotations
 import ast
 import importlib.util
 import re
+import shlex
+import shutil
 import sys
+import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -24,12 +27,27 @@ KMS_ARN = "arn:aws:kms:us-east-1:1:key/k"
 TRACE: list[tuple[str, str]] = []
 
 
+STATE_DIRS: list[Path] = []
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _remove_state_dirs() -> Any:
+    yield
+    for directory in STATE_DIRS:
+        shutil.rmtree(directory, ignore_errors=True)
+    STATE_DIRS.clear()
+
+
 def _load() -> Any:
     spec = importlib.util.spec_from_file_location("own_account_deploy", SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module  # dataclasses resolve annotations through sys.modules
     spec.loader.exec_module(module)
+    # Each test gets its own teardown state directory, never the repository's .local.
+    state_dir = Path(tempfile.mkdtemp(prefix="own-account-state-"))
+    STATE_DIRS.append(state_dir)
+    module.DEFAULT_STATE_DIR = state_dir
     return module
 
 
@@ -1354,3 +1372,87 @@ def test_a_forced_teardown_without_a_stack_cannot_prove_the_roles_and_leaves_the
     assert code == 0, lines
     assert clients.iam.args("delete_role", "RoleName") == []
     assert "pellier-store-tools-server-role" in "\n".join(lines[lines.index("Left in place:") :])
+
+
+# ------------------------------------------------------- finishing a partial teardown
+
+
+def _recovery_argv(lines: list[str]) -> list[str]:
+    """The arguments of the command a teardown prints for finishing what it kept."""
+    printed = [line for line in lines if "deploy.py teardown" in line]
+    assert printed, lines
+    tokens = shlex.split(printed[-1].split("deploy.py", 1)[1])
+    return tokens
+
+
+def test_the_printed_recovery_finishes_a_teardown_after_the_stack_is_gone() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod)
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
+    assert code == 0, lines
+    assert "pellier-governed" in clients.cloudformation.args("delete_stack", "StackName")
+    assert clients.kms.calls == [] and "delete_bucket" not in clients.s3.names()
+    argv = _recovery_argv(lines)
+    assert "--schedule-kms-key-deletion" in argv and "--delete-bucket" in argv
+    assert "--force" not in argv
+    gone = _teardown_clients(mod, stack=False, agentcore=False)
+    code, lines = _run(mod, argv, gone)
+    assert code == 0, lines
+    assert gone.kms.args("schedule_key_deletion", "KeyId") == [KMS_ARN]
+    assert gone.s3.names()[-2:] == ["delete_objects", "delete_bucket"]
+    code, lines = _run(mod, argv, _teardown_clients(mod, stack=False, agentcore=False))
+    assert code == 2 and "no stack pellier-governed" in lines[-1], lines
+
+
+def test_the_recovery_never_deletes_a_key_the_caller_supplied() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod, existing_key=True)
+    argv = ["teardown", "--region", "us-east-1", "--schedule-kms-key-deletion", "7"]
+    code, lines = _run(mod, argv, clients)
+    assert code == 0, lines
+    assert clients.kms.calls == []
+    assert "--schedule-kms-key-deletion" not in " ".join(_recovery_argv(lines))
+    gone = _teardown_clients(mod, stack=False, agentcore=False, existing_key=True)
+    code, lines = _run(mod, [*argv, "--delete-bucket"], gone)
+    assert code == 0, lines
+    assert gone.kms.calls == []
+    assert "supplied to the stack" in "\n".join(lines)
+
+
+def test_the_recovery_keeps_a_key_the_account_wide_log_groups_may_still_use() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod, box_exit=1, box_output="boom\n")
+    argv = ["teardown", "--region", "us-east-1", "--force", "--schedule-kms-key-deletion", "7"]
+    code, lines = _run(mod, argv, clients)
+    assert code == 0, lines
+    gone = _teardown_clients(mod, stack=False, agentcore=False)
+    retry = ["teardown", "--region", "us-east-1", "--schedule-kms-key-deletion", "7"]
+    code, lines = _run(mod, retry, gone)
+    assert code == 0, lines
+    assert gone.kms.calls == []
+    assert "account-wide log groups may still use it" in "\n".join(lines)
+
+
+def test_a_dry_run_saves_nothing_and_a_finished_teardown_removes_its_record() -> None:
+    mod = _load()
+    state_dir = mod.DEFAULT_STATE_DIR
+    args = ["teardown", "--region", "us-east-1", "--delete-bucket"]
+    code, _ = _run(mod, [*args, "--dry-run"], _teardown_clients(mod))
+    assert code == 0 and list(state_dir.iterdir()) == []
+    code, lines = _run(mod, [*args, "--schedule-kms-key-deletion", "7"], _teardown_clients(mod))
+    assert code == 0, lines
+    assert list(state_dir.iterdir()) == []
+
+
+def test_a_record_for_another_region_or_suffix_is_not_used() -> None:
+    mod = _load()
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], _teardown_clients(mod))
+    assert code == 0, lines
+    other_region = _teardown_clients(mod, stack=False, agentcore=False)
+    code, lines = _run(mod, ["teardown", "--region", "us-west-2"], other_region)
+    assert code == 2 and "no stack pellier-governed in us-west-2" in lines[-1], lines
+    wrong_suffix = _teardown_clients(mod, stack=False, agentcore=False)
+    argv = ["teardown", "--region", "us-east-1", "--deployment-suffix", "rc"]
+    code, lines = _run(mod, argv, wrong_suffix)
+    assert code == 2 and "deployment suffix" in lines[-1], lines
+    assert _writes(wrong_suffix) == []
