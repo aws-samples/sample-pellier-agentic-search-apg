@@ -269,7 +269,8 @@ def test_a_follow_up_search_says_which_limits_it_kept_from_earlier(service, monk
     )
     done = [step for step in _of(events, "step") if step["builder"]["tool"] == "search_products"][-1]
     assert done["finding"] == (
-        "2 found from 64 that fit. Kept your limits from earlier: $100 or less, in stock, no candles"
+        "2 found from 64 that fit. Kept your limits from earlier: $100 or less, in stock, "
+        "no candles"
     )
     assert done["builder"]["requirements"]["carried"] == ["$100 or less", "in stock", "no candles"]
 

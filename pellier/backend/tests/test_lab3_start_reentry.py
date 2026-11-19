@@ -9,14 +9,13 @@ runner. No AWS and no systemd are touched.
 """
 from __future__ import annotations
 
-import importlib.util
 import os
 import shutil
 import stat
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, List
+from typing import Any
 
 import pytest
 

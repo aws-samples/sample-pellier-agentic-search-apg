@@ -12,7 +12,6 @@ stamp, never the probe credit.
 
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List
@@ -169,7 +168,8 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
     assert fresh_db.psql(
         "SELECT count(*) FROM pg_class c WHERE c.relnamespace = 'pellier'::regnamespace "
         "AND c.relkind IN ('r', 'p', 'v', 'm', 'f') AND (has_table_privilege("
-        "'pellier_credit_writer', c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') "
+        "'pellier_credit_writer', c.oid, "
+        "'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER') "
         "OR has_any_column_privilege('pellier_credit_writer', c.oid, "
         "'SELECT,INSERT,UPDATE,REFERENCES'))") == "0"
     # Its REVOKE names the credit-writer role alone, so pgAudit still audits the credits table.
@@ -287,7 +287,8 @@ def test_access_from_outside_the_statements_is_sent_to_a_facilitator(  # noqa: F
         fresh_db.psql("REVOKE SELECT ON pellier.customers FROM PUBLIC")
 
 
-def test_a_role_granted_by_the_statements_is_theirs_to_fix(fresh_db, tmp_path) -> None:  # noqa: F811
+def test_a_role_granted_by_the_statements_is_theirs_to_fix(  # noqa: F811
+        fresh_db, tmp_path) -> None:
     variant = _solution_with(
         "CREATE ROLE lab4_mine NOLOGIN; GRANT SELECT ON pellier.orders TO lab4_mine; "
         "GRANT lab4_mine TO pellier_credit_writer;", tmp_path)

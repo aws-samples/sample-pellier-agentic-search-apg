@@ -46,7 +46,8 @@ ARC = {
         "warehouse_code": "BK-01",
         "warehouse_city": "Brooklyn, NY",
         "tool": "check_stock",
-        "question": "How many units of the Hadley Linen Shirt are available at the Brooklyn warehouse, and how fast does it ship?",
+        "question": ("How many units of the Hadley Linen Shirt are available at the Brooklyn "
+                     "warehouse, and how fast does it ship?"),
     },
     "anna": {
         "persona_id": "anna",

@@ -87,7 +87,8 @@ def test_search_finding_names_the_limits_kept_from_earlier() -> None:
     parsed = _search(3, price=100, stock=True, exclusions=("candle",))
     carried = ("budget", "stock", "exclusions")
     assert finding_for("search_products", parsed, kept=23, carried=carried) == (
-        "3 found from 23 that fit. Kept your limits from earlier: $100 or less, in stock, no candles"
+        "3 found from 23 that fit. Kept your limits from earlier: $100 or less, in stock, "
+        "no candles"
     )
     # A new budget this turn, the rest carried.
     assert finding_for("search_products", _search(2, price=80, stock=True, exclusions=("candle",)),
@@ -377,11 +378,13 @@ def test_finished_step_carries_the_builder_payload_and_no_raw_result() -> None:
     }
     done = steps.finished("search_products", result, duration_ms=184, audit_id=9031, evidence=evidence)
     assert done["status"] == "done"
-    assert done["finding"] == "2 found from 64 that fit. Kept your limits from earlier: $100 or less"
+    assert done["finding"] == (
+        "2 found from 64 that fit. Kept your limits from earlier: $100 or less")
     assert done["builder"]["audit_id"] == 9031
     assert done["builder"]["receipt_id"] == 412
     assert done["builder"]["ranking"]["available"] is True
-    assert done["builder"]["requirements"] == {"applied": ["$100 or less"], "carried": ["$100 or less"]}
+    assert done["builder"]["requirements"] == {
+        "applied": ["$100 or less"], "carried": ["$100 or less"]}
     assert done["builder"]["tool"] == "search_products"
     shopper_view = {key: value for key, value in done.items() if key != "builder"}
     assert "search_products" not in json.dumps(shopper_view)
