@@ -21,6 +21,8 @@ CEDAR_RELEASES = "https://github.com/cedar-policy/vscode-cedar/releases/download
         ("ms-pyright.pyright@1.2.3", 0, 1, 1),  # failed inventory is not proof
         ("ms-pyright.pyright@1.2.3", 0, 0, 0),
         ("MS-PYRIGHT.PYRIGHT@1.2.3", 1, 0, 0),  # already installed on reentry
+        ("ms-pyright.pyright@1.2.4", 0, 0, 1),  # another version is not the pinned one
+        ("ms-pyright.pyright@1.2.4\nms-pyright.pyright@1.2.3", 0, 0, 0),
     ],
 )
 def test_install_extension_checks_installed_inventory(
@@ -30,7 +32,8 @@ def test_install_extension_checks_installed_inventory(
     editor.write_text(
         '#!/bin/bash\n'
         'case "$1" in\n'
-        '  --install-extension) echo "successfully installed"; exit "$INSTALL_STATUS" ;;\n'
+        '  --install-extension) printf "%s\\n" "$2" > "$ASKED"; echo "successfully installed"; '
+        'exit "$INSTALL_STATUS" ;;\n'
         '  --list-extensions) [ "$2" = --show-versions ] || exit 2; printf "%s\\n" "$INSTALLED"; exit "$LIST_STATUS" ;;\n'
         '  *) exit 2 ;;\n'
         'esac\n'
@@ -45,20 +48,23 @@ def test_install_extension_checks_installed_inventory(
         'log() { printf "%s\\n" "$1"; }\n'
         'warn() { printf "%s\\n" "$1"; }\n'
         'install_extension() {' + function + '\n'
-        'install_extension ms-pyright.pyright Pyright\n'
+        'install_extension ms-pyright.pyright Pyright 1.2.3\n'
     )
     result = subprocess.run(
         ["bash", "-c", script], capture_output=True, text=True,
         env={
             **os.environ, "CODE_EDITOR_CMD": str(editor),
             "CODE_EDITOR_USER": "participant", "INSTALLED": installed,
+            "ASKED": str(tmp_path / "asked"),
             "INSTALL_STATUS": str(install_status), "LIST_STATUS": str(list_status),
         },
     )
     assert result.returncode == expected, result.stderr
     assert ("✅ Pyright" in result.stdout) == (expected == 0)
+    # The editor is asked for the pinned release, never whatever the registry has newest.
+    assert (tmp_path / "asked").read_text().strip() == "ms-pyright.pyright@1.2.3"
     if expected == 0:
-        assert installed in result.stdout
+        assert "ms-pyright.pyright@1.2.3" in result.stdout.lower()
 
 
 def test_cedar_extension_is_one_exact_release_pinned_by_hash():
@@ -144,3 +150,23 @@ def test_cedar_extension_is_cosmetic_and_never_stops_setup(
     assert ("--install-extension" in log) == (curl_status == 0 and pinned_hash != "0" * 64)
     assert "Cedar step failed" not in result.stdout
     assert not any((tmp_path / "tmp").iterdir())
+
+
+# The versions the 2026-11-18 event installed and walked (its bootstrap-environment.log),
+# Python's debugger included: Python pulls it in, so it is pinned and installed first.
+EVENT_PINS = {
+    "ms-python.debugpy": "2026.6.0",
+    "ms-python.python": "2026.4.0",
+    "ms-pyright.pyright": "1.1.402",
+    "dbaeumer.vscode-eslint": "3.0.34",
+    "esbenp.prettier-vscode": "12.4.0",
+    "bradlc.vscode-tailwindcss": "0.16.0",
+}
+
+
+def test_every_registry_extension_installs_one_exact_release():
+    calls = re.findall(r'^install_extension (\S+) "[^"]+" ?(\S*)$', SOURCE.read_text(),
+                       re.MULTILINE)
+    assert dict(calls) == EVENT_PINS
+    order = [extension for extension, _ in calls]
+    assert order.index("ms-python.debugpy") < order.index("ms-python.python")

@@ -686,25 +686,26 @@ log "Installing VS Code extensions..."
 install_extension() {
     local EXT_ID=$1
     local EXT_NAME=$2
+    local EXT_VERSION=$3
     local installed_extensions installed_version
     
-    log "Installing extension: $EXT_NAME ($EXT_ID)..."
+    log "Installing extension: $EXT_NAME ($EXT_ID@$EXT_VERSION)..."
     
     if [ -f "$CODE_EDITOR_CMD" ]; then
-        sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --install-extension "$EXT_ID" --force 2>&1 || true
+        sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --install-extension "$EXT_ID@$EXT_VERSION" --force 2>&1 || true
 
         # The installer can return success even when a registry lookup fails.
-        # Verify this exact extension, including on reentry, instead of matching
-        # an earlier extension's success message in a shared log.
+        # Verify this exact extension at this exact version, including on reentry,
+        # instead of matching an earlier extension's success message in a shared log.
         if installed_extensions="$(sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" --list-extensions --show-versions 2>/dev/null)" &&
-            installed_version="$(awk -F@ -v id="$EXT_ID" 'tolower($1) == tolower(id) && NF == 2 && $2 != "" {print; exit}' <<< "$installed_extensions")" &&
+            installed_version="$(awk -F@ -v id="$EXT_ID" -v version="$EXT_VERSION" 'tolower($1) == tolower(id) && NF == 2 && $2 == version {print; exit}' <<< "$installed_extensions")" &&
             [ -n "$installed_version" ]; then
             log "  ✅ $EXT_NAME ($installed_version)"
             return 0
         fi
     fi
     
-    warn "  ⚠️  $EXT_NAME is not installed; cannot mark editor setup complete"
+    warn "  ⚠️  $EXT_NAME $EXT_VERSION is not installed; cannot mark editor setup complete"
     return 1
 }
 
@@ -717,13 +718,17 @@ install_extension() {
 # to pellier-token.sh / the storefront, never the Toolkit UI). Leaving it
 # uninstalled removes the pop-ups at the source; the amazonQ.*/aws.suppressPrompts
 # settings below are kept as defense-in-depth in case it's ever re-enabled.
-install_extension "ms-python.python" "Python"
+# Each extension is one exact release: the versions the 2026-11-18 event installed and
+# walked. Python's debugger comes first: Python depends on it, and an extension already
+# present is not fetched again, so the registry's newest debugger never rides in with it.
+install_extension ms-python.debugpy "Python Debugger" 2026.6.0
+install_extension ms-python.python "Python" 2026.4.0
 # Pylance is not distributed by Open VSX, the Code Editor's registry.
 # Pyright supplies Python language support in this editor distribution.
-install_extension "ms-pyright.pyright" "Pyright"
-install_extension "dbaeumer.vscode-eslint" "ESLint"
-install_extension "esbenp.prettier-vscode" "Prettier"
-install_extension "bradlc.vscode-tailwindcss" "Tailwind CSS"
+install_extension ms-pyright.pyright "Pyright" 1.1.402
+install_extension dbaeumer.vscode-eslint "ESLint" 3.0.34
+install_extension esbenp.prettier-vscode "Prettier" 12.4.0
+install_extension bradlc.vscode-tailwindcss "Tailwind CSS" 0.16.0
 
 # Task 4A's policy is a .cedar file. The Cedar project's extension gives it the Cedar icon in
 # the Explorer and Cedar syntax colours; without it the file opens as Plain Text. Open VSX, the
