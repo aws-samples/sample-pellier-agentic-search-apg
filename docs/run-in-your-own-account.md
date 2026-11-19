@@ -270,11 +270,12 @@ The stack does not own everything the host created, so one command removes it al
 order. It first checks that it may write at all. It acts only on a stack that carries the tags
 the deploy put on it, `Project=pellier` and `PellierOwnAccount=true`, and that has a
 `DeploymentSuffix` parameter, so an unrelated stack with the same name is never touched, with
-or without `--force`. It refuses an AgentCore stack that lacks the `Project=pellier` tag or
-carries another deployment's `PellierWorkshopId`. It deletes an IAM role only when its
+or without `--force`. It refuses an AgentCore stack unless it carries `Project=pellier` and
+this deployment's `PellierWorkshopId`. It deletes an IAM role only when its
 `PellierWorkshopId` tag is this deployment's, and it refuses when the tag names another
-deployment. A role with no tag, or one it cannot match because the stack is already gone,
-stays and is listed. It then runs the repository's observability teardown on the host
+deployment. A role with no tag, with a tag that names no deployment (such as `dat416`), or
+one it cannot match because neither the stack nor a teardown record gives this deployment's
+id, stays and is listed. It then runs the repository's observability teardown on the host
 over SSM, which restores the account-wide X-Ray settings and log policies from the
 provisioning receipt. That receipt lives only on the host, so if the host is stopped, the
 receipt is gone or that step fails, the command stops before deleting anything and says what to
