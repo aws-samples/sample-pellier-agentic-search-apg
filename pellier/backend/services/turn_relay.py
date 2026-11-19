@@ -7,12 +7,13 @@ copies every event into the relay under the verified Cognito ``sub``;
 :func:`watch_stream`: the recent turns first, then each new one live.
 
 The backend runs as one uvicorn worker, so one process holds every turn and every
-watcher. A restart empties the relay; each lab sends its requests after its
-restart, so the labs' turns survive. Each shopper keeps their last three turns,
-one lab's requests, so a re-run replaces the run before it; each stays three hours,
-longer than the 120-minute session, so a lab's turns can still be watched at the
-Wrap-up. Nothing here can change or delay a turn: a relay failure is logged and the
-turn's own stream continues untouched.
+watcher. A restart empties the relay. Each lab sends its requests after its own
+restart, so its turns are there for that lab's look in Ask Pellier; a later restart,
+such as the one Task 2A's or 3A's supplied change makes, clears them. Each shopper
+keeps their last three turns, one lab's requests, so a re-run replaces the run before
+it; each stays three hours, longer than the 120-minute session. Nothing here can
+change or delay a turn: a relay failure is logged and the turn's own stream continues
+untouched.
 """
 from __future__ import annotations
 
