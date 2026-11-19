@@ -1311,6 +1311,7 @@ class Discovered:
     stack_problem: str | None = None
     workshop_id: str | None = None
     agentcore_problem: str | None = None
+    agentcore_tags: dict[str, str] = field(default_factory=dict)
     instance_id: str | None = None
     instance_state: str = "absent"
     agentcore_stack: str | None = None
@@ -1374,7 +1375,12 @@ def agentcore_ownership_problem(
             "did not create it"
         )
     tagged = tags.get(WORKSHOP_ID_TAG)
-    if workshop_id and tagged and tagged != workshop_id:
+    if workshop_id and not tagged:
+        return (
+            f"stack {stack_name} has no {WORKSHOP_ID_TAG} tag, so it cannot be shown to be "
+            f"deployment {workshop_id}'s; remove it yourself if it is yours, then rerun"
+        )
+    if workshop_id and tagged != workshop_id:
         return f"stack {stack_name} belongs to deployment {tagged}, not {workshop_id}"
     return None
 
@@ -1404,6 +1410,7 @@ def discover(runner: Runner, stack_name: str, names: Names) -> Discovered:
         found.agentcore_stack = names.agentcore_stack
         agentcore = describe_stack(runner, names.agentcore_stack) or {}
         found.agentcore_stack_created = agentcore.get("CreationTime")
+        found.agentcore_tags = tags_of(agentcore)
         found.agentcore_problem = agentcore_ownership_problem(
             names.agentcore_stack, agentcore, found.workshop_id
         )
@@ -1647,6 +1654,12 @@ def adopt_state(args: argparse.Namespace, found: Discovered, state: dict[str, An
     found.workshop_id = state["workshop_id"]
     found.kms_key_arn = state["kms_key_arn"]
     found.kms_key_is_ours = bool(state["kms_key_is_ours"])
+    if found.agentcore_stack:
+        found.agentcore_problem = agentcore_ownership_problem(
+            found.agentcore_stack,
+            {"Tags": [{"Key": k, "Value": v} for k, v in found.agentcore_tags.items()]},
+            found.workshop_id,
+        )
 
 
 def recovery_command(args: argparse.Namespace, kms_pending: bool, bucket_pending: bool) -> str:
@@ -1763,11 +1776,11 @@ def cmd_teardown(
     names = Names(args.deployment_suffix)
     found = discover(runner, args.stack_name, names)
     saved = None if found.stack_exists else load_state(args)
+    if saved is not None:
+        adopt_state(args, found, saved)
     problem = found.stack_problem or found.agentcore_problem
     if problem:
         raise OwnAccountError(f"nothing changed: {problem}")
-    if saved is not None:
-        adopt_state(args, found, saved)
     role_plan = plan_role_deletion(runner, names, found.workshop_id)
     if role_plan.conflicts:
         raise OwnAccountError(f"nothing deleted: {'; '.join(role_plan.conflicts)}")
