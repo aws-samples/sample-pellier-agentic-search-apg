@@ -94,3 +94,58 @@ def test_the_readme_cost_summary_quotes_the_page() -> None:
     assert HEADINGS[0] == "## 1. What you get and what it costs", "the summary's link anchor moved"
     if "5 cents a request" in summary:
         assert "5 cents a request" in page, "README's per-request average is not on the page"
+
+
+OBSERVABILITY = REPO_ROOT / "scripts" / "teardown_agentcore_observability.py"
+
+
+def _bullet(heading: str) -> str:
+    """The list item of section 6 that starts with this bold heading."""
+    match = re.search(rf"(?ms)^- \*\*{re.escape(heading)}.*?(?=^- \*\*|^To confirm)", _page())
+    assert match, f"section 6 lost its {heading!r} item"
+    return " ".join(match.group(0).split())
+
+
+def test_the_manual_xray_fallback_follows_the_receipt_not_a_blanket_delete() -> None:
+    """The account-wide policy may predate Pellier, so it is deleted only when Pellier made it."""
+    item = _bullet("Account-wide X-Ray settings")
+    script = OBSERVABILITY.read_text(encoding="utf-8")
+    for field in ("resource_policy_created", "previous_resource_policy_document"):
+        assert field in script, f"{field} is no longer a receipt field the teardown reads"
+        assert field in item, f"the fallback does not say what {field} decides"
+    assert "managed-receipt.json" in item
+    assert "put-resource-policy" in item and "delete-resource-policy" in item
+    assert item.index("resource_policy_created") < item.index("delete-resource-policy")
+    assert "no receipt" in item.lower() and "leave" in item.lower()
+    assert "Search back to the values you had" not in item
+
+
+def _commands() -> list[str]:
+    return re.findall(r"```bash\n(.*?)```", _page(), re.S)
+
+
+def test_the_reader_clones_before_running_any_repository_script() -> None:
+    text = _page()
+    clone = text.index("git clone")
+    for script in ("deploy/own-account/deploy.py check", "scripts/check_model_access.py"):
+        assert clone < text.index(script), f"{script} is run before the clone"
+    assert "cd sample-pellier-agentic-search-apg" in _commands()[0]
+    assert "git checkout governed" not in text
+
+
+def test_a_studio_visitor_checks_out_the_commit_the_link_names() -> None:
+    text = " ".join(_page().split())
+    assert any(block.startswith("git checkout ") for block in _commands())
+    assert "link that brought you here" in text and "commit" in text
+    assert "newest commit on `governed`" in text
+
+
+def test_one_region_is_chosen_once_and_every_command_uses_it() -> None:
+    text = _page()
+    blocks = _commands()
+    export = next(i for i, block in enumerate(blocks) if block.startswith("export AWS_REGION="))
+    assert text.index("export AWS_REGION=") < text.index("deploy/own-account/deploy.py check")
+    for block in blocks[export + 1 :]:
+        if "check_model_access" in block or "own-account/deploy.py" in block:
+            assert '--region "$AWS_REGION"' in block, block
+            assert "us-east-1" not in block and "us-west-2" not in block, block

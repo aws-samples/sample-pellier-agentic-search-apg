@@ -138,3 +138,36 @@ def test_a_rejected_model_never_sets_ready(monkeypatch, tmp_path):
         module.main()
     assert failure.value.code == 1
     assert env_path.read_text() == "BEDROCK_MODEL_ACCESS_READY=false\n"
+
+
+def _run_main(module, monkeypatch, argv):
+    regions = []
+
+    def client(_service, region_name=None, **_kwargs):
+        regions.append(region_name)
+        return object()
+
+    monkeypatch.setattr(module.boto3, "client", client)
+    monkeypatch.setattr(module, "_invoke_one", lambda *_args: ("ok", ""))
+    monkeypatch.setattr(module, "_rerank_one", lambda *_args: ("ok", ""))
+    monkeypatch.setattr(sys, "argv", ["check", *argv])
+    module.main()
+    return regions
+
+
+def test_the_region_flag_wins_over_the_environment(monkeypatch, capsys):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    module = _load("scripts/check_model_access.py", monkeypatch)
+    regions = _run_main(module, monkeypatch, ["--region", "us-west-2"])
+    assert regions == ["us-west-2", "us-west-2"]
+    assert "Checking Bedrock model access in us-west-2" in capsys.readouterr().out
+
+
+def test_a_missing_region_is_announced_not_silently_defaulted(monkeypatch, capsys):
+    monkeypatch.delenv("AWS_DEFAULT_REGION", raising=False)
+    monkeypatch.delenv("AWS_REGION", raising=False)
+    module = _load("scripts/check_model_access.py", monkeypatch)
+    regions = _run_main(module, monkeypatch, [])
+    assert regions == ["us-east-1", "us-east-1"]
+    out = capsys.readouterr().out
+    assert "No Region was given" in out and "--region" in out
