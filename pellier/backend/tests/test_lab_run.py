@@ -1905,8 +1905,12 @@ def test_a_lab_on_agentcore_never_restarts_the_local_app(
 def test_shopper_only_is_refused_outside_send_lab_4(argv, capsys, monkeypatch) -> None:
     """finish --lab 4 would approve and execute Jessica's credit; the flag must not be ignored."""
     called = []
-    monkeypatch.setattr(lab_run, "finish", lambda *a, **k: called.append("finish") or 0)
-    monkeypatch.setattr(lab_run, "send", lambda *a, **k: called.append("send") or 0)
+    # Stub every action: on a regression the guard would let these run against the real files.
+    for name in ("finish", "send", "install_solution", "install_task", "show_diff",
+                 "fast_track", "restart_backend"):
+        monkeypatch.setattr(lab_run, name, lambda *a, _n=name, **k: called.append(_n) or 0)
+    monkeypatch.setattr(lab_run.lab_reset, "reset_lab",
+                        lambda *a, **k: called.append("reset_lab") or 0)
     with pytest.raises(SystemExit):
         lab_run.main(argv)
     assert "--shopper-only goes with send --lab 4" in capsys.readouterr().err
