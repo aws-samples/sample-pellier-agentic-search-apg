@@ -78,6 +78,9 @@ jobs:
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+          # The job log of a public repository is public, and the ARNs the provisioner
+          # derives carry the account ID.
+          mask-aws-account-id: true
 
       - name: Set up Python
         uses: actions/setup-python@v7
