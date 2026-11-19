@@ -13,7 +13,7 @@ const state = vi.hoisted(() => ({
   loading: false,
   unavailable: false,
   persona: null as null | { id: string },
-  refresh: vi.fn(() => Promise.resolve()),
+  refresh: vi.fn(() => Promise.resolve(state.cookie || null)),
   logout: vi.fn(),
   // The context runs a shopper's sign-in first, then opens the edit.
   openEdit: vi.fn(),
@@ -24,7 +24,12 @@ const state = vi.hoisted(() => ({
   }),
   clearPersona: vi.fn(),
   clearShopper: vi.fn(),
-  workshopSignIn: vi.fn(() => Promise.resolve({ status: 'signed_in' })),
+  // The shopper the last sign-in set the session for, which `/api/auth/me` then reports.
+  cookie: '' as string,
+  workshopSignIn: vi.fn((id: string) => {
+    state.cookie = id
+    return Promise.resolve({ status: 'signed_in' })
+  }),
 }))
 
 vi.mock('../contexts/AuthContext', () => ({

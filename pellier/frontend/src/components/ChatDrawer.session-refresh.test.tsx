@@ -9,8 +9,10 @@ const state = vi.hoisted(() => ({
   openModal: vi.fn(),
   switchPersona: vi.fn(),
   retryMessage: vi.fn(() => Promise.resolve()),
-  refresh: vi.fn(() => Promise.resolve()),
-  workshopSignIn: vi.fn((): Promise<unknown> => Promise.resolve({ ok: true })),
+  // The shopper the last sign-in set the session for, which `/api/auth/me` then reports.
+  cookie: '' as string,
+  refresh: vi.fn(() => Promise.resolve(state.cookie || null)),
+  workshopSignIn: vi.fn((id: string): Promise<unknown> => { state.cookie = id; return Promise.resolve({ ok: true }) }),
 }))
 
 vi.mock('../contexts/PersonaContext', () => ({
@@ -76,6 +78,7 @@ describe('Sign in again after a demo shopper’s session expires', () => {
     // The thread follows its latest reply; jsdom has no Element.scrollTo.
     Element.prototype.scrollTo = vi.fn() as unknown as Element['scrollTo']
     state.persona = { id: 'theo', display_name: 'Theo', avatar_initial: 'T', avatar_color: '#333' }
+    state.cookie = 'theo'
     state.workshopSignIn.mockImplementation(() => Promise.resolve({ ok: true }))
   })
 

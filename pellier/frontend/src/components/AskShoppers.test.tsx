@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const state = vi.hoisted(() => ({
   username: '' as string,
   persona: null as null | { id: string },
-  refresh: vi.fn(() => Promise.resolve()),
+  refresh: vi.fn(() => Promise.resolve(state.cookie || null)),
   logout: vi.fn(),
   // The context runs a shopper's sign-in first, then opens the edit.
   openEdit: vi.fn(),
@@ -21,7 +21,12 @@ const state = vi.hoisted(() => ({
     return true
   }),
   clearShopper: vi.fn(),
-  workshopSignIn: vi.fn(() => Promise.resolve({ status: 'signed_in' })),
+  // The shopper the last sign-in set the session for, which `/api/auth/me` then reports.
+  cookie: '' as string,
+  workshopSignIn: vi.fn((id: string) => {
+    state.cookie = id
+    return Promise.resolve({ status: 'signed_in' })
+  }),
 }))
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -54,7 +59,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   state.username = ''
   state.persona = null
-  state.refresh = vi.fn(() => Promise.resolve())
+  state.refresh = vi.fn(() => Promise.resolve(state.cookie || null))
 })
 
 describe('Choosing a shopper in the Ask Pellier panel', () => {
@@ -166,10 +171,11 @@ describe('Choosing a shopper in the Ask Pellier panel', () => {
   it('moves focus to Switch shopper when a card choice replaces the cards with the bar', async () => {
     function Panel() {
       const [, rerender] = useReducer((n: number) => n + 1, 0)
-      state.refresh = vi.fn(() => { rerender(); return Promise.resolve() })
+      state.refresh = vi.fn(() => { rerender(); return Promise.resolve(state.cookie || null) })
       return state.username ? <ShopperBar /> : <ShopperCards />
     }
     state.workshopSignIn.mockImplementationOnce(() => {
+      state.cookie = 'marco'
       state.username = 'marco'
       return Promise.resolve({ status: 'signed_in' })
     })
