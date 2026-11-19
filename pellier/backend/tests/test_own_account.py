@@ -734,6 +734,18 @@ def _resource(kind: str, logical: str, physical: str) -> dict[str, str]:
     return {"ResourceType": kind, "LogicalResourceId": logical, "PhysicalResourceId": physical}
 
 
+STACK_ID = "arn:aws:cloudformation:us-east-1:1:stack/pellier-governed/abcd1234-5678-4abc-8def-0123"
+WORKSHOP_ID = "pabcd1234"
+OWN_TAGS = [
+    {"Key": "Project", "Value": "pellier"},
+    {"Key": "PellierOwnAccount", "Value": "true"},
+]
+AGENTCORE_TAGS = [
+    {"Key": "Project", "Value": "pellier"},
+    {"Key": "PellierWorkshopId", "Value": WORKSHOP_ID},
+]
+
+
 AGENTCORE_RESOURCES = {
     "StackResources": [
         _resource("AWS::IAM::Role", "McpGatewayTargetRole", "target-role"),
@@ -765,19 +777,25 @@ def _teardown_clients(
     suffix: str = "",
     agentcore_older: bool = False,
     outputs: bool = True,
+    tags: list[dict[str, str]] | None = None,
+    suffix_parameter: bool = True,
+    existing_key: bool = False,
 ) -> Any:
     polls = {"count": 0}
     deleted: list[str] = []
+    key_parameter = KMS_ARN if existing_key else ""
+    parameters = [{"ParameterKey": "ExistingRuntimeLogKmsKeyArn", "ParameterValue": key_parameter}]
+    if suffix_parameter:
+        parameters.append({"ParameterKey": "DeploymentSuffix", "ParameterValue": suffix})
     deleting = {
         "Stacks": [
             {
+                "StackId": STACK_ID,
                 "StackStatus": "DELETE_IN_PROGRESS",
                 "CreationTime": "2026-10-30T03:10:49",
                 "Outputs": OUTPUTS if outputs else [],
-                "Parameters": [
-                    {"ParameterKey": "ExistingRuntimeLogKmsKeyArn", "ParameterValue": ""},
-                    {"ParameterKey": "DeploymentSuffix", "ParameterValue": suffix},
-                ],
+                "Parameters": parameters,
+                "Tags": OWN_TAGS if tags is None else tags,
             }
         ]
     }
@@ -789,7 +807,15 @@ def _teardown_clients(
             if not agentcore or kw["StackName"] in deleted:
                 raise _missing_stack(kw["StackName"])
             created = "2026-07-06T05:50:04" if agentcore_older else "2026-10-30T03:38:29"
-            return {"Stacks": [{"StackStatus": "UPDATE_COMPLETE", "CreationTime": created}]}
+            return {
+                "Stacks": [
+                    {
+                        "StackStatus": "UPDATE_COMPLETE",
+                        "CreationTime": created,
+                        "Tags": AGENTCORE_TAGS,
+                    }
+                ]
+            }
         polls["count"] += 1
         if polls["count"] > 4:
             raise _missing_stack(kw["StackName"])
@@ -1064,3 +1090,77 @@ def test_kms_window_is_enforced_before_anything_runs() -> None:
             mod.parse_args(
                 ["teardown", "--region", "us-east-1", "--schedule-kms-key-deletion", value]
             )
+
+
+# ------------------------------------------------------------ teardown ownership
+
+READS = ("describe", "get", "list", "head")
+ALL_CLIENTS = (
+    "sts",
+    "iam",
+    "s3",
+    "cloudformation",
+    "ssm",
+    "ec2",
+    "lambda_",
+    "logs",
+    "kms",
+    "bedrock",
+    "service_quotas",
+    "agentcore_control",
+)
+
+
+def _writes(clients: Any) -> list[tuple[str, str]]:
+    """Every call, on any client, that is not a read."""
+    return [
+        (label, name)
+        for label, name in TRACE
+        if label in ALL_CLIENTS and not name.startswith(READS)
+    ]
+
+
+def test_teardown_proceeds_for_a_stack_carrying_pelliers_ownership_tags() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod)
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
+    assert code == 0, lines
+    assert "pellier-governed" in clients.cloudformation.args("delete_stack", "StackName")
+
+
+@pytest.mark.parametrize("force", [False, True])
+@pytest.mark.parametrize(
+    "case",
+    [
+        "no tags",
+        "other project",
+        "project tag only",
+        "own-account tag only",
+        "tags but no suffix parameter",
+    ],
+)
+def test_teardown_writes_nothing_to_a_stack_that_is_not_a_pellier_deployment(
+    case: str, force: bool
+) -> None:
+    """An unrelated stack with the same name, and the same empty suffix, is never touched."""
+    mod = _load()
+    tags = {
+        "no tags": [],
+        "other project": [
+            {"Key": "Project", "Value": "billing"},
+            {"Key": "PellierOwnAccount", "Value": "true"},
+        ],
+        "project tag only": [{"Key": "Project", "Value": "pellier"}],
+        "own-account tag only": [{"Key": "PellierOwnAccount", "Value": "true"}],
+        "tags but no suffix parameter": OWN_TAGS,
+    }[case]
+    has_suffix = case != "tags but no suffix parameter"
+    clients = _teardown_clients(mod, tags=tags, suffix_parameter=has_suffix)
+    argv = ["teardown", "--region", "us-east-1", "--delete-bucket"]
+    argv += ["--schedule-kms-key-deletion", "7"]
+    if force:
+        argv.append("--force")
+    code, lines = _run(mod, argv, clients)
+    assert code == 2, (case, lines)
+    assert "not a Pellier own-account deployment" in lines[-1], lines[-1]
+    assert _writes(clients) == [], (case, _writes(clients))
