@@ -149,3 +149,20 @@ def test_one_region_is_chosen_once_and_every_command_uses_it() -> None:
         if "check_model_access" in block or "own-account/deploy.py" in block:
             assert '--region "$AWS_REGION"' in block, block
             assert "us-east-1" not in block and "us-west-2" not in block, block
+
+
+def test_the_other_region_needs_its_own_suffix_because_role_names_are_account_wide() -> None:
+    text = " ".join(_page().split())
+    bullet = text.split("- **No other Pellier deployment", 1)[1].split("- **The account's", 1)[0]
+    assert "IAM role names are account-wide" in bullet
+    assert bullet.count("--deployment-suffix") >= 2
+    assert "or deploy in the other Region. The" not in bullet
+
+
+def test_the_teardown_section_states_its_ownership_checks_and_how_to_finish() -> None:
+    text = " ".join(_page().split())
+    section = text.split("## 6. Tear down", 1)[1].split("## 7.", 1)[0]
+    assert "Project=pellier" in section and "PellierOwnAccount=true" in section
+    assert "PellierWorkshopId" in section
+    assert ".local/own-account" in section and "to finish:" in section
+    assert "supplied to the stack" in section or "you supplied" in section
