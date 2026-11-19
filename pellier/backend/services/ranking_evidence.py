@@ -28,7 +28,7 @@ import json
 from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from services.store_tools import RESULT_IDS_MAX, VISIBLE_CATALOG_SQL
-from services.turn_steps import plural
+from services.turn_steps import budget_phrase, plural
 
 TOP_ROWS = 8
 RRF_K_DEFAULT = 60
@@ -381,11 +381,6 @@ ORIGIN_CARRIED = "carried"
 ORIGIN_AGENT = "agent"
 
 
-def _money(dollars: Any) -> str:
-    amount = float(dollars)
-    return f"${amount:g}" if amount == int(amount) else f"${amount:.2f}"
-
-
 def same_ceiling(stated: float, applied: float) -> bool:
     """Whether ``applied`` is the shopper's ``stated`` ceiling: equal, or one cent under it.
 
@@ -436,8 +431,9 @@ def result_limits(
             budget_origin: Optional[str] = ORIGIN_AGENT
         else:
             budget_origin = origin("budget" in kinds)
-        shown = shopper if hers else price
-        tags.append({"kind": "budget", "label": f"Under {_money(shown)}", "origin": budget_origin})
+        phrase = budget_phrase(price)
+        tags.append({"kind": "budget", "label": phrase[0].upper() + phrase[1:],
+                     "origin": budget_origin})
     if hard.get("in_stock_only"):
         tags.append({"kind": "stock", "label": "In stock", "origin": origin("stock" in kinds)})
     kept_values = {str(value).lower() for value in carried_exclusions}

@@ -198,10 +198,10 @@ def test_status_and_steps_come_from_real_events_in_order(service, monkeypatch) -
 
     running, done = steps[1], steps[2]
     assert running["label"] == "Searching the catalog in Aurora" and running["tags"] == ["Aurora"]
-    assert done["finding"] == "2 found under $100 and in stock, candles left out"
+    assert done["finding"] == "2 found $100 or less and in stock, candles left out"
     assert done["builder"]["ranking"] == RANKING
     assert done["builder"]["requirements"] == {
-        "applied": ["under $100", "in stock", "no candles"], "carried": [],
+        "applied": ["$100 or less", "in stock", "no candles"], "carried": [],
     }
     assert done["builder"]["receipt_id"] == 412
     assert done["builder"]["audit_id"] is None
@@ -269,9 +269,9 @@ def test_a_follow_up_search_says_which_limits_it_kept_from_earlier(service, monk
     )
     done = [step for step in _of(events, "step") if step["builder"]["tool"] == "search_products"][-1]
     assert done["finding"] == (
-        "2 found from 64 that fit. Kept your limits from earlier: under $100, in stock, no candles"
+        "2 found from 64 that fit. Kept your limits from earlier: $100 or less, in stock, no candles"
     )
-    assert done["builder"]["requirements"]["carried"] == ["under $100", "in stock", "no candles"]
+    assert done["builder"]["requirements"]["carried"] == ["$100 or less", "in stock", "no candles"]
 
 
 class ParallelAgent(ScriptedAgent):

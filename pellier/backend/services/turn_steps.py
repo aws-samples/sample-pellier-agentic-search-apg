@@ -293,6 +293,18 @@ def _money(dollars: Any) -> str:
     return f"${amount:g}" if amount == int(amount) else f"${amount:.2f}"
 
 
+def budget_phrase(price: Any) -> str:
+    """A price ceiling in words that say exactly which prices it admits.
+
+    Prices are whole cents, so a ceiling of $99.99 admits the same items as
+    "under $100", and a ceiling of $100 also admits an item at exactly $100.
+    """
+    cents = round(float(price) * 100)
+    if cents % 100 == 99:
+        return f"under {_money((cents + 1) / 100)}"
+    return f"{_money(cents / 100)} or less"
+
+
 def limit_phrases(plan: Optional[Dict[str, Any]]) -> Dict[str, str]:
     """Each hard limit a plan applied, by kind, as the shopper would say it."""
     plan = plan or {}
@@ -300,7 +312,7 @@ def limit_phrases(plan: Optional[Dict[str, Any]]) -> Dict[str, str]:
     phrases: Dict[str, str] = {}
     price = hard.get("price_max_usd")
     if price is not None:
-        phrases["budget"] = f"under {_money(price)}"
+        phrases["budget"] = budget_phrase(price)
     if hard.get("in_stock_only"):
         phrases["stock"] = "in stock"
     exclusions = [plural(value) for value in (plan.get("exclusions") or []) if value]

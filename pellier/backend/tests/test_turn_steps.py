@@ -69,33 +69,33 @@ def _search(count: int, *, price=None, stock=False, exclusions=()) -> dict:
 def test_search_finding_says_what_the_number_is() -> None:
     parsed = _search(3, price=100, stock=True, exclusions=("candle",))
     assert finding_for("search_products", parsed, kept=23) == (
-        "3 found from 23 that fit under $100 and in stock, candles left out"
+        "3 found from 23 that fit $100 or less and in stock, candles left out"
     )
     # Without the filter counts (the managed rail) the found count still says so.
     assert finding_for("search_products", parsed) == (
-        "3 found under $100 and in stock, candles left out"
+        "3 found $100 or less and in stock, candles left out"
     )
 
 
 def test_search_finding_without_limits_and_when_empty() -> None:
     assert finding_for("search_products", _search(4)) == "4 found"
     assert finding_for("search_products", _search(4), kept=64) == "4 found from 64 that fit"
-    assert finding_for("search_products", _search(0, price=50)) == "Nothing matched under $50"
+    assert finding_for("search_products", _search(0, price=50)) == "Nothing matched $50 or less"
 
 
 def test_search_finding_names_the_limits_kept_from_earlier() -> None:
     parsed = _search(3, price=100, stock=True, exclusions=("candle",))
     carried = ("budget", "stock", "exclusions")
     assert finding_for("search_products", parsed, kept=23, carried=carried) == (
-        "3 found from 23 that fit. Kept your limits from earlier: under $100, in stock, no candles"
+        "3 found from 23 that fit. Kept your limits from earlier: $100 or less, in stock, no candles"
     )
     # A new budget this turn, the rest carried.
     assert finding_for("search_products", _search(2, price=80, stock=True, exclusions=("candle",)),
                        kept=12, carried=("stock", "exclusions")) == (
-        "2 found from 12 that fit under $80. Kept your limits from earlier: in stock, no candles"
+        "2 found from 12 that fit $80 or less. Kept your limits from earlier: in stock, no candles"
     )
     assert finding_for("search_products", _search(0, price=100), carried=("budget",)) == (
-        "Nothing matched. Kept your limits from earlier: under $100"
+        "Nothing matched. Kept your limits from earlier: $100 or less"
     )
 
 
@@ -108,10 +108,10 @@ def test_browse_finding_carries_the_limits_too() -> None:
         },
     }
     assert finding_for("browse_department", parsed, carried=("budget", "stock", "exclusions")) == (
-        "4 in Home, by rating. Kept your limits from earlier: under $100, in stock, no candles"
+        "4 in Home, by rating. Kept your limits from earlier: $100 or less, in stock, no candles"
     )
     assert finding_for("browse_department", parsed) == (
-        "4 in Home, by rating, under $100 and in stock, candles left out"
+        "4 in Home, by rating, $100 or less and in stock, candles left out"
     )
 
 
@@ -121,8 +121,8 @@ def test_requirement_phrases_list_what_applied_and_what_was_kept() -> None:
         "exclusions": ["candle", "wool"],
     }
     assert turn_steps.requirement_phrases(plan, ["budget", "exclusions"]) == {
-        "applied": ["under $100", "in stock", "no candles or wool", "Home only"],
-        "carried": ["under $100", "no candles or wool"],
+        "applied": ["$100 or less", "in stock", "no candles or wool", "Home only"],
+        "carried": ["$100 or less", "no candles or wool"],
     }
     assert turn_steps.requirement_phrases({"hard_constraints": {}, "exclusions": []}) is None
 
@@ -377,11 +377,11 @@ def test_finished_step_carries_the_builder_payload_and_no_raw_result() -> None:
     }
     done = steps.finished("search_products", result, duration_ms=184, audit_id=9031, evidence=evidence)
     assert done["status"] == "done"
-    assert done["finding"] == "2 found from 64 that fit. Kept your limits from earlier: under $100"
+    assert done["finding"] == "2 found from 64 that fit. Kept your limits from earlier: $100 or less"
     assert done["builder"]["audit_id"] == 9031
     assert done["builder"]["receipt_id"] == 412
     assert done["builder"]["ranking"]["available"] is True
-    assert done["builder"]["requirements"] == {"applied": ["under $100"], "carried": ["under $100"]}
+    assert done["builder"]["requirements"] == {"applied": ["$100 or less"], "carried": ["$100 or less"]}
     assert done["builder"]["tool"] == "search_products"
     shopper_view = {key: value for key, value in done.items() if key != "builder"}
     assert "search_products" not in json.dumps(shopper_view)
@@ -485,3 +485,20 @@ def test_managed_step_maps_identity_fields_from_the_runtime_event() -> None:
         "authorized_customer": "CUST-THEO",
     }
     assert step["builder"]["rail"] == "gateway-mcp"
+
+
+@pytest.mark.parametrize(("ceiling", "phrase"), [
+    (100.0, "$100 or less"),
+    (99.99, "under $100"),
+    (49.5, "$49.50 or less"),
+    (150, "$150 or less"),
+    (0.99, "under $1"),
+])
+def test_a_budget_reads_exactly_what_the_ceiling_admits(ceiling, phrase) -> None:
+    """Prices are whole cents: at most $99.99 is under $100, and $100 admits $100.00."""
+    assert turn_steps.budget_phrase(ceiling) == phrase
+
+
+def test_a_search_at_a_100_ceiling_says_it_includes_100() -> None:
+    finding = finding_for("search_products", _search(5, price=100.0, stock=True), kept=64)
+    assert "$100 or less" in finding and "under $100" not in finding

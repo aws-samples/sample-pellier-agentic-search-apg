@@ -131,7 +131,7 @@ def test_the_results_carry_limits_and_the_filter_counts(db: _FakeDB) -> None:
     assert results["filters"]["kept"] == 64 and results["filters"]["of"] == 100
     assert results["filters"]["excluded"] == [{"value": "candle", "count": 4, "noun": "candles"}]
     assert [(tag["label"], tag["origin"]) for tag in results["limits"]] == [
-        ("Under $100", "stated"), ("In stock", "stated"), ("No candles", "stated"),
+        ("$100 or less", "stated"), ("In stock", "stated"), ("No candles", "stated"),
     ]
     assert "tool" not in results, "the shopper's view of a step names no tool"
 
@@ -221,7 +221,7 @@ def test_carried_limits_say_so_one_excluded_value_at_a_time() -> None:
         PLAN, carried=["budget", "stock", "exclusions"], carried_exclusions=["candle"], shopper_price=100.0,
     )
     assert [(tag["label"], tag["origin"]) for tag in tags] == [
-        ("Under $100", "carried"),
+        ("$100 or less", "carried"),
         ("In stock", "carried"),
         ("No candles", "carried"),
         ("No watches", "stated"),
@@ -233,7 +233,7 @@ def test_a_ceiling_the_shopper_never_stated_is_the_agents() -> None:
     tags = result_limits(
         {"hard_constraints": {"price_max_usd": 50.0}}, carried=[], shopper_price=None,
     )
-    assert tags == [{"kind": "budget", "label": "Under $50", "origin": "agent"}]
+    assert tags == [{"kind": "budget", "label": "$50 or less", "origin": "agent"}]
     tags = result_limits(
         {"hard_constraints": {"price_max_usd": 50.0}}, carried=["budget"], shopper_price=100.0,
     )
@@ -249,7 +249,7 @@ def test_a_ceiling_a_cent_under_the_shoppers_is_her_own_limit() -> None:
     tags = result_limits(
         {"hard_constraints": {"price_max_usd": 99.0}}, carried=[], shopper_price=100.0,
     )
-    assert tags[0] == {"kind": "budget", "label": "Under $99", "origin": "agent"}
+    assert tags[0] == {"kind": "budget", "label": "$99 or less", "origin": "agent"}
 
 
 def test_a_rail_with_no_record_places_no_limit() -> None:
@@ -295,7 +295,7 @@ def test_a_budget_the_shopper_wrote_is_never_added_by_pellier(
         reading={"price_max_usd": kept},
         max_price=ceiling,
     )
-    assert tag["label"] == f"Under ${ceiling:g}"
+    assert tag["label"] == f"${ceiling:g} or less"
     assert tag["origin"] is None
 
 
@@ -309,7 +309,7 @@ def test_a_model_ceiling_wider_than_the_shoppers_does_not_reach_sql(
         reading={"price_max_usd": 100.0},
         max_price=250.0,
     )
-    assert (tag["label"], tag["origin"]) == ("Under $100", "stated")
+    assert (tag["label"], tag["origin"]) == ("$100 or less", "stated")
 
 
 @pytest.mark.parametrize(("message", "history"), [
@@ -325,7 +325,7 @@ def test_only_a_limit_stated_in_this_message_can_widen_the_shoppers_ceiling(
         monkeypatch, message=message, history=history,
         reading={"price_max_usd": 100.0}, max_price=250.0,
     )
-    assert tag["label"] == "Under $100"
+    assert tag["label"] == "$100 or less"
 
 
 def test_a_budget_from_an_earlier_message_does_not_widen_this_ones(
@@ -339,7 +339,7 @@ def test_a_budget_from_an_earlier_message_does_not_widen_this_ones(
         reading={"price_max_usd": 150.0},
         max_price=300.0,
     )
-    assert (tag["label"], tag["origin"]) == ("Under $150", "stated")
+    assert (tag["label"], tag["origin"]) == ("$150 or less", "stated")
 
 
 def test_anna_under_100_applied_as_99_99_is_not_added_by_pellier(
@@ -367,7 +367,7 @@ def test_a_ceiling_the_shopper_never_wrote_is_added_by_pellier(
         reading={"price_max_usd": None},
         max_price=100.0,
     )
-    assert (tag["label"], tag["origin"]) == ("Under $100", "agent")
+    assert (tag["label"], tag["origin"]) == ("$100 or less", "agent")
 
 
 def test_a_budget_in_words_cannot_be_placed_so_it_carries_no_mark(
@@ -394,7 +394,7 @@ def test_a_carried_budget_keeps_from_earlier(
         max_price=ceiling,
         remembered={"price_max_usd": 100.0, "in_stock_only": True},
     )
-    assert (tag["label"], tag["origin"]) == ("Under $100", "carried")
+    assert (tag["label"], tag["origin"]) == ("$100 or less", "carried")
 
 
 def test_carried_exclusions_name_only_the_values_kept_from_earlier(monkeypatch) -> None:
@@ -461,7 +461,19 @@ def test_results_from_a_receipt_keep_its_order_and_say_what_it_lacks() -> None:
     }
     results = results_from_receipt(receipt)
     assert results["product_ids"] == ["2", "3", "1", "4"] and results["count"] == 4
-    assert [tag["label"] for tag in results["limits"]] == ["Under $100", "In stock", "No candles"]
+    assert [tag["label"] for tag in results["limits"]] == ["$100 or less", "In stock", "No candles"]
     assert {tag["origin"] for tag in results["limits"]} == {None}
     assert results["filters"] is None and results["note"] == RECEIPT_RESULTS_NOTE
     assert results["rail"] == "gateway-mcp"
+
+
+def test_a_budget_tag_names_whether_the_ceiling_admits_it() -> None:
+    """A $100 ceiling shows a $100.00 item, so its tag cannot say "Under $100"."""
+    tags = result_limits(
+        {"hard_constraints": {"price_max_usd": 100.0}}, carried=[], shopper_price=100.0,
+    )
+    assert tags == [{"kind": "budget", "label": "$100 or less", "origin": "stated"}]
+    tags = result_limits(
+        {"hard_constraints": {"price_max_usd": 99.99}}, carried=[], shopper_price=100.0,
+    )
+    assert tags == [{"kind": "budget", "label": "Under $100", "origin": "stated"}]
