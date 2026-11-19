@@ -54,10 +54,14 @@ def create_iam_role(role_name, trust_policy, policy_document, tags=None):
   except iam_client.exceptions.EntityAlreadyExistsException:
       response = iam_client.get_role(RoleName=role_name)
       logger.info(f"IAM role {role_name} already exists, using existing role: {response['Role']['Arn']}")
-      if tags:
+      # Add only missing tags: PellierWorkshopId records the deployment that created the role,
+      # and a rerun without WORKSHOP_ID would otherwise overwrite it with the fallback.
+      held = {tag["Key"] for tag in response["Role"].get("Tags") or []}
+      missing = {key: value for key, value in (tags or {}).items() if key not in held}
+      if missing:
         iam_client.tag_role(
           RoleName=role_name,
-          Tags=[{"Key": key, "Value": value} for key, value in tags.items()],
+          Tags=[{"Key": key, "Value": value} for key, value in missing.items()],
         )
 
       # Attach inline policy
