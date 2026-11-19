@@ -170,3 +170,90 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
     assert fresh_db.psql("SELECT string_agg(privilege_type, ' ' ORDER BY privilege_type) "
                          "FROM information_schema.role_table_grants "
                          "WHERE grantee = 'rds_pgaudit'") == "INSERT UPDATE"
+
+
+ACCESS_PROBE = "The role's privileges and row policies on Pellier's tables"
+REGION_END = "      TO pellier_credit_writer;\n$privileges$ AS privileges"
+
+
+def _solution_with(extra_region_sql: str, tmp_path: Path) -> Path:
+    """The supplied solution with ``extra_region_sql`` added inside its marked region."""
+    text = SOLUTION.read_text(encoding="utf-8")
+    assert text.count(REGION_END) == 1
+    variant = tmp_path / "lab-4-credit-writer.sql"
+    variant.write_text(text.replace(
+        REGION_END, REGION_END.replace("\n$privileges$", f"\n  {extra_region_sql}\n$privileges$")),
+        encoding="utf-8")
+    return variant
+
+
+def _only_access_differs(cluster: Any, path: Path) -> List[str]:
+    done = _run(cluster, path)
+    assert done.returncode != 0, "the worksheet certified a writer that can still read data"
+    assert "Lab 4B privileges check failed" in done.stdout
+    probes = _probes(done.stdout)
+    differs = [name for name, row in probes.items() if row[-1] == "does not match"]
+    assert differs == [ACCESS_PROBE], probes
+    return probes[ACCESS_PROBE][1].splitlines()
+
+
+def test_a_column_grant_in_the_region_fails_the_access_probe(fresh_db, tmp_path) -> None:  # noqa: F811
+    variant = _solution_with(
+        "GRANT SELECT (cognito_username) ON pellier.customers TO pellier_credit_writer;", tmp_path)
+    before = _state(fresh_db)
+    observed = _only_access_differs(fresh_db, variant)
+    assert observed == ["customers SELECT (cognito_username)"]
+    assert _state(fresh_db) == before
+
+
+def test_a_public_grant_made_outside_the_region_is_named_and_left_in_place(  # noqa: F811
+        fresh_db) -> None:
+    fresh_db.psql("GRANT SELECT ON pellier.customers TO PUBLIC")
+    try:
+        observed = _only_access_differs(fresh_db, SOLUTION)
+        assert observed == ["customers SELECT via PUBLIC"]
+        assert fresh_db.psql(
+            "SELECT has_table_privilege('pellier_credit_writer', 'pellier.customers', 'SELECT')"
+        ) == "t"
+    finally:
+        fresh_db.psql("REVOKE SELECT ON pellier.customers FROM PUBLIC")
+
+
+def test_a_public_column_grant_is_named_with_its_column(fresh_db) -> None:  # noqa: F811
+    fresh_db.psql("GRANT SELECT (name) ON pellier.customers TO PUBLIC")
+    try:
+        assert _only_access_differs(fresh_db, SOLUTION) == ["customers SELECT (name) via PUBLIC"]
+    finally:
+        fresh_db.psql("REVOKE SELECT (name) ON pellier.customers FROM PUBLIC")
+
+
+@pytest.mark.parametrize("membership", ["WITH INHERIT TRUE, SET FALSE", "WITH INHERIT FALSE, SET TRUE"])
+def test_access_through_role_membership_is_named_and_left_in_place(  # noqa: F811
+        fresh_db, membership) -> None:
+    """A role the writer inherits from, or can SET ROLE to, reaches the data the same way."""
+    fresh_db.psql("CREATE ROLE lab4_reach NOLOGIN; GRANT SELECT ON pellier.orders TO lab4_reach; "
+                  f"GRANT lab4_reach TO pellier_credit_writer {membership}")
+    try:
+        assert _only_access_differs(fresh_db, SOLUTION) == ["orders SELECT via role lab4_reach"]
+        assert fresh_db.psql("SELECT pg_has_role('pellier_credit_writer', 'lab4_reach', "
+                             f"'{'USAGE' if 'INHERIT TRUE' in membership else 'SET'}')") == "t"
+    finally:
+        fresh_db.psql("DROP OWNED BY lab4_reach; DROP ROLE lab4_reach")
+
+
+def test_a_view_over_pellier_data_counts_as_a_protected_relation(fresh_db) -> None:  # noqa: F811
+    fresh_db.psql("CREATE VIEW pellier.lab4_names AS SELECT id, name FROM pellier.customers; "
+                  "GRANT SELECT ON pellier.lab4_names TO pellier_credit_writer")
+    try:
+        assert _only_access_differs(fresh_db, SOLUTION) == ["lab4_names SELECT"]
+    finally:
+        fresh_db.psql("DROP VIEW pellier.lab4_names")
+
+
+def test_the_opening_revoke_clears_the_writers_own_column_grants(fresh_db) -> None:  # noqa: F811
+    """A column grant the owner made earlier is the writer's own, so a clean slate removes it."""
+    fresh_db.psql("GRANT SELECT (name) ON pellier.customers TO pellier_credit_writer")
+    done = _run(fresh_db, SOLUTION)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert fresh_db.psql("SELECT has_any_column_privilege('pellier_credit_writer', "
+                         "'pellier.customers', 'SELECT')") == "f"

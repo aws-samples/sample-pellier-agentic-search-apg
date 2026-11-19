@@ -186,6 +186,31 @@ class TakeawaySQLTests(unittest.TestCase):
         finally:
             self.conn.execute("REVOKE review_support FROM review_writer")
 
+    def test_privilege_query_detects_column_access_direct_public_and_inherited(self):
+        grants = (
+            ("GRANT SELECT (reason) ON review_example.credits TO review_writer",
+             "REVOKE SELECT (reason) ON review_example.credits FROM review_writer"),
+            ("GRANT SELECT (reason) ON review_example.credits TO PUBLIC",
+             "REVOKE SELECT (reason) ON review_example.credits FROM PUBLIC"),
+        )
+        for grant, revoke in grants:
+            with self.subTest(grant=grant):
+                self.conn.execute(grant)
+                try:
+                    self.assertEqual(self.query("privileges"), "failed|1")
+                finally:
+                    self.conn.execute(revoke)
+                self.assertEqual(self.query("privileges"), "passed|0")
+        self.conn.execute("GRANT UPDATE (amount_cents) ON review_example.credits TO review_support")
+        self.conn.execute("GRANT review_support TO review_writer")
+        try:
+            self.assertEqual(self.query("privileges"), "failed|1")
+        finally:
+            self.conn.execute("REVOKE review_support FROM review_writer")
+            self.conn.execute("REVOKE UPDATE (amount_cents) ON review_example.credits "
+                              "FROM review_support")
+        self.assertEqual(self.query("privileges"), "passed|0")
+
     def test_approval_proof_detects_missing_field_and_changed_reason(self):
         self.call()
         self.conn.execute("UPDATE review_example.approvals SET args = args - 'amount_cents' WHERE id = 1")

@@ -27,7 +27,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 credit_check = importlib.import_module("lab4_credit")
 SOLUTION = REPO / "solutions" / "lab-4-govern" / "sql" / "lab-4-credit-writer-solution.sql"
 CLEAN = {"rights": credit_check.LIVE_RIGHTS, "execute": credit_check.LIVE_EXECUTE,
-         "table_grants": 0, "policies": 0}
+         "access": "", "policies": 0}
 
 
 def test_the_stamp_is_the_sha256_of_the_statements_psql_hashes() -> None:
@@ -42,8 +42,9 @@ def test_the_stamp_is_the_sha256_of_the_statements_psql_hashes() -> None:
      "the live function still carries the privileges the database shipped with"),
     (False, {**CLEAN, "stamp": credit_check.STAMP_PREFIX + "0" * 64}, "NOT YET PASSED",
      "the live function carries different statements from the ones in your file"),
-    (False, {**CLEAN, "table_grants": 3, "stamp": "MATCH"}, "FAILED",
-     "the live state changed after your run: the role holds 3 table grants"),
+    (False, {**CLEAN, "access": "customers SELECT via PUBLIC", "stamp": "MATCH"}, "FAILED",
+     "the live state changed after your run: the role can still reach customers SELECT via "
+     "PUBLIC"),
     (False, {**CLEAN, "stamp": "MATCH"}, "PASSED", "the live function carries your statements"),
 ])
 def test_the_deployed_verdict(is_starter: bool, live: dict, state: str, observed: str) -> None:
@@ -109,3 +110,48 @@ async def test_a_table_privilege_on_credits_is_caught_on_the_path(deployed: Any)
     assert observed[credit_check.UPDATE] == "00000"
     assert finding.state == "FAILED"
     assert "raise a credit's amount directly" in finding.observed
+
+
+@pytest.mark.parametrize("grant", [
+    "GRANT SELECT (cognito_username) ON pellier.customers TO pellier_credit_writer",
+    "GRANT SELECT ON pellier.customers TO PUBLIC",
+    "GRANT SELECT (name) ON pellier.customers TO PUBLIC",
+])
+def test_access_left_after_a_passing_run_is_named_with_its_source(deployed: Any, grant: str) -> None:
+    """A column grant, a PUBLIC grant or an inherited one made after the run is drift."""
+    undo = grant.replace("GRANT", "REVOKE", 1).replace(" TO ", " FROM ", 1)
+
+    def connect() -> Any:
+        return psycopg.connect(**{**_conninfo(deployed), "row_factory": dict_row})
+
+    with psycopg.connect(**_conninfo(deployed)) as conn:
+        conn.execute(grant)
+        try:
+            finding = credit_check.deployed_finding(connect, worksheet=SOLUTION)
+        finally:
+            conn.execute(undo)
+    assert finding.state == "FAILED", finding
+    assert "the live state changed after your run" in finding.observed
+    detail = grant.split(" ON pellier.customers")[0].replace("GRANT ", "")
+    assert f"customers {detail}" in finding.observed, finding.observed
+    assert ("via PUBLIC" in finding.observed) == ("PUBLIC" in grant)
+    clean = credit_check.deployed_finding(connect, worksheet=SOLUTION)
+    assert clean.state == "PASSED", clean
+
+
+@pytest.mark.parametrize("membership", ["WITH INHERIT TRUE, SET FALSE", "WITH INHERIT FALSE, SET TRUE"])
+def test_access_through_a_role_the_writer_belongs_to_is_drift(deployed: Any, membership: str) -> None:
+    def connect() -> Any:
+        return psycopg.connect(**{**_conninfo(deployed), "row_factory": dict_row})
+
+    with psycopg.connect(**_conninfo(deployed)) as conn:
+        conn.execute("CREATE ROLE lab4_member NOLOGIN")
+        conn.execute("GRANT SELECT ON pellier.orders TO lab4_member")
+        conn.execute(f"GRANT lab4_member TO pellier_credit_writer {membership}")
+        try:
+            finding = credit_check.deployed_finding(connect, worksheet=SOLUTION)
+        finally:
+            conn.execute("DROP OWNED BY lab4_member")
+            conn.execute("DROP ROLE lab4_member")
+    assert finding.state == "FAILED", finding
+    assert "orders SELECT via role lab4_member" in finding.observed
