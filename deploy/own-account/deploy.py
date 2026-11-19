@@ -245,6 +245,21 @@ def ignore_missing(call: Callable[..., Any]) -> Callable[..., Any]:
     return wrapped
 
 
+def ignore_pending_deletion(call: Callable[..., Any]) -> Callable[..., Any]:
+    """Treat a KMS key AWS already holds for deletion as scheduled: a recovery rerun may meet it."""
+
+    def wrapped(**kwargs: Any) -> Any:
+        try:
+            return call(**kwargs)
+        except Exception as exc:  # noqa: BLE001 - only a key already pending deletion is tolerated
+            if (error_code(exc) == "KMSInvalidStateException"
+                    and "pending deletion" in str(exc).lower()):
+                return None
+            raise
+
+    return wrapped
+
+
 # --------------------------------------------------------------------------- names
 
 
@@ -1731,7 +1746,7 @@ def finish_kms_key(
     else:
         runner.write(
             f"schedule deletion of {key} in {args.schedule_kms_key_deletion} days",
-            runner.clients.kms.schedule_key_deletion,
+            ignore_pending_deletion(runner.clients.kms.schedule_key_deletion),
             KeyId=key,
             PendingWindowInDays=args.schedule_kms_key_deletion,
         )
