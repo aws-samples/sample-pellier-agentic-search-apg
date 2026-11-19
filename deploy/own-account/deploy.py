@@ -1366,13 +1366,12 @@ def stack_ownership_problem(stack_name: str, stack: dict[str, Any]) -> str | Non
 
 
 def agentcore_ownership_problem(
-    stack_name: str, stack: dict[str, Any], workshop_id: str | None
+    stack_name: str, tags: dict[str, str], workshop_id: str | None
 ) -> str | None:
-    """Why the AgentCore CDK stack is not this deployment's, or None.
+    """Why the AgentCore CDK stack, judged by its tags, is not this deployment's, or None.
 
     The provisioner tags it Project=pellier and PellierWorkshopId=<the root stack's id>.
     """
-    tags = tags_of(stack)
     if tags.get(PROJECT_TAG[0]) != PROJECT_TAG[1]:
         return (
             f"stack {stack_name} lacks the tag {PROJECT_TAG[0]}={PROJECT_TAG[1]}, so Pellier "
@@ -1416,7 +1415,7 @@ def discover(runner: Runner, stack_name: str, names: Names) -> Discovered:
         found.agentcore_stack_created = agentcore.get("CreationTime")
         found.agentcore_tags = tags_of(agentcore)
         found.agentcore_problem = agentcore_ownership_problem(
-            names.agentcore_stack, agentcore, found.workshop_id
+            names.agentcore_stack, found.agentcore_tags, found.workshop_id
         )
     except Exception as exc:  # noqa: BLE001
         if not is_missing(exc):
@@ -1500,8 +1499,8 @@ def plan_role_deletion(runner: Runner, names: Names, workshop_id: str | None) ->
         elif tagged and not DEPLOYMENT_ID.fullmatch(tagged):
             plan.left.append(
                 f"IAM role {role_name} stays: it is tagged {WORKSHOP_ID_TAG}={tagged}, which "
-                "names no deployment (a Lambda deployer run without WORKSHOP_ID writes it), so "
-                "it cannot be tied to this deployment; delete it yourself if it is yours"
+                "is not a deployment id, so it cannot be tied to this deployment; delete it "
+                "yourself if it is yours"
             )
         elif workshop_id and tagged:
             plan.conflicts.append(
@@ -1667,9 +1666,7 @@ def adopt_state(args: argparse.Namespace, found: Discovered, state: dict[str, An
     found.kms_key_is_ours = bool(state["kms_key_is_ours"])
     if found.agentcore_stack:
         found.agentcore_problem = agentcore_ownership_problem(
-            found.agentcore_stack,
-            {"Tags": [{"Key": k, "Value": v} for k, v in found.agentcore_tags.items()]},
-            found.workshop_id,
+            found.agentcore_stack, found.agentcore_tags, found.workshop_id
         )
 
 

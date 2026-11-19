@@ -1408,8 +1408,9 @@ def test_teardown_deletes_only_roles_tagged_with_its_own_workshop_id() -> None:
 
 @pytest.mark.parametrize("value", ["dat416", "unknown"])
 def test_teardown_leaves_a_role_whose_tag_is_not_a_deployment_id(value: str) -> None:
-    """`dat416` is the Lambda deployer's fallback, not a deployment: a rerun without
-    WORKSHOP_ID wrote it on a real role on 2026-10-06. It names no deployment to protect."""
+    """Neither value is a deployment id, so neither names a deployment to protect. Both were
+    read on real roles on 2026-11-19: `dat416`, the Lambda deployer's fallback, which a rerun
+    without WORKSHOP_ID wrote over a correct id, and `unknown`, on an older Pellier role."""
     mod = _load()
     clients = _teardown_clients(mod, role_tags=[{"Key": "PellierWorkshopId", "Value": value}])
     code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
