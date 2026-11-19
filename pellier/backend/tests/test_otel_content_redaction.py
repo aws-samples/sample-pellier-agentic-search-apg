@@ -255,12 +255,12 @@ def test_strands_tracer_keeps_content_when_disabled(monkeypatch):
 # instrumentation, carried gen_ai.tool.call.arguments and
 # gen_ai.tool.call.result in clear text. The Strands token above never
 # reaches that instrumentation, and it has no content switch of its own
-# (0.19.0 to 0.22.0 set both attributes unconditionally).
+# (0.19.0 to 0.23.0 set both attributes unconditionally).
 
 ADOT_MCP_WRAPPERS = "amazon.opentelemetry.distro.instrumentation.mcp._wrappers"
 # aws-opentelemetry-distro versions whose MCP wrapper was read and found to
 # convert both tool attributes through to_tool_attribute_value.
-ADOT_VERSIONS_CHECKED = {"0.19.0", "0.20.0", "0.21.0", "0.22.0"}
+ADOT_VERSIONS_CHECKED = {"0.19.0", "0.20.0", "0.21.0", "0.22.0", "0.23.0"}
 
 
 def _install_fake_adot(monkeypatch, **attributes):
