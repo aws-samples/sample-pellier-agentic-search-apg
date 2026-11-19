@@ -137,13 +137,18 @@ before any extra Ask Pellier requests or the coach.
 - **An AWS account where you hold administrator rights.** The deploy creates IAM roles,
   a VPC, a database and a CloudFront distribution. A role with restricted rights will fail
   partway and roll back.
-- **No other Pellier deployment in that account and Region.** AgentCore keeps Cedar policy
-  names unique per account and Region, across policy engines. The host creates Pellier's
-  shopper, staff and credit-limit policies by name, so a second deployment in the same
-  account and Region fails at the first policy whatever else is renamed. The check below
-  lists any deployment the account already holds; remove it first, or deploy in the other
-  Region. The `--deployment-suffix`
-  option only keeps stack, function and AgentCore resource names apart from leftovers of an
+- **No other Pellier deployment in that account and Region, and no IAM role it holds.**
+  AgentCore keeps Cedar policy names unique per account and Region, across policy engines.
+  The host creates Pellier's shopper, staff and credit-limit policies by name, so a second
+  deployment in the same account and Region fails at the first policy whatever else is renamed.
+  A second deployment in the other Region avoids that, but IAM role names are account-wide, and
+  the tool Lambdas' roles are named from the deployment suffix. Without its own
+  `--deployment-suffix`, the second deployment would reuse the first one's roles and replace
+  their policies. Give it a suffix such as `--deployment-suffix west`, and pass the same suffix
+  to every command of that deployment, the teardown included. The check below lists any
+  deployment, AgentCore resource or IAM role the account already holds under these names, and
+  the deploy refuses to start when it finds one. Remove the first deployment, or deploy in the
+  other Region with its own suffix. The suffix also keeps names apart from leftovers of an
   earlier deployment whose policies are gone.
 - **The account's X-Ray Transaction Search groups, if they exist.** The host sends AgentCore
   traces to the account-wide log groups `aws/spans` and `/aws/application-signals/data`,
@@ -262,18 +267,32 @@ task's file, commands and checks.
 ## 6. Tear down
 
 The stack does not own everything the host created, so one command removes it all, in this
-order. It first runs the repository's observability teardown on the host over SSM, which
-restores the account-wide X-Ray settings and log policies from the provisioning receipt; that
-receipt lives only on the host, so if the host is stopped, the receipt is gone or that step
-fails, the command stops before deleting anything and says what to fix (`--force` deletes
-anyway and lists what you must restore by hand). It then deletes the log deliveries, the
-inline policy on the Gateway role and the `AgentCore-pellier-default` stack the AgentCore CLI
-created; the three Lambda functions, their roles and their log groups; the AgentCore log groups;
-and the workshop stack, which it waits for. With the two flags below it also schedules the
-retained KMS key for deletion, only when the host restored the account-wide settings, and
-empties and deletes the bucket, only if this script created it. It refuses a stack name it
-cannot find, a deployment suffix that does not match the stack, and an AgentCore stack that
-is older than the workshop stack, so a typo cannot delete another deployment's resources. Add `--dry-run` to see the plan first.
+order. It first checks that it may write at all. It acts only on a stack that carries the tags
+the deploy put on it, `Project=pellier` and `PellierOwnAccount=true`, and that has a
+`DeploymentSuffix` parameter, so an unrelated stack with the same name is never touched, with
+or without `--force`. It refuses an AgentCore stack that lacks the `Project=pellier` tag or
+carries another deployment's `PellierWorkshopId`. It deletes an IAM role only when its
+`PellierWorkshopId` tag is this deployment's, and it refuses when the tag names another
+deployment. A role with no tag, or one it cannot match because the stack is already gone,
+stays and is listed. It then runs the repository's observability teardown on the host
+over SSM, which restores the account-wide X-Ray settings and log policies from the
+provisioning receipt. That receipt lives only on the host, so if the host is stopped, the
+receipt is gone or that step fails, the command stops before deleting anything and says what to
+fix (`--force` deletes anyway and lists what you must restore by hand). It then deletes the log
+deliveries, the inline policy on the Gateway role and the `AgentCore-pellier-default` stack the
+AgentCore CLI created, the three Lambda functions, their roles and their log groups, the
+AgentCore log groups, and the workshop stack, which it waits for. With the two flags below it
+also schedules the retained KMS key for deletion, only when the host restored the account-wide
+settings, and empties and deletes the bucket, only if this script created it. A key you
+supplied to the stack is never scheduled for deletion. It also refuses a stack name it cannot
+find, a deployment suffix that does not match the stack, and an AgentCore stack that is older
+than the workshop stack. Add `--dry-run` to see the plan first.
+
+Before it deletes the stack, the command records the KMS key and the other identifiers the
+stack holds under `.local/own-account/` in your clone. If a run keeps the key or the bucket, the
+**Left in place** list ends with a line that starts `to finish:` and gives the exact command that
+removes them. That command works after the stack is gone, because it reads the record and needs
+no `--force`.
 
 ```bash
 uv run deploy/own-account/deploy.py teardown --region "$AWS_REGION" --delete-bucket --schedule-kms-key-deletion 7
@@ -303,9 +322,12 @@ It ends with a **Left in place** list. What can remain, and how to remove it:
   `aws logs put-resource-policy --policy-name TransactionSearchXRayAccess --policy-document file://previous-policy.json`.
   With no receipt, leave the policy and the other settings alone, because they may predate
   Pellier and other tools may rely on them.
-- **The KMS key**, if you did not pass `--schedule-kms-key-deletion` or passed `--force`: the
-  script prints its ARN; schedule its deletion in the KMS console once the account-wide log
-  groups no longer use it.
+- **The KMS key**, if you did not pass `--schedule-kms-key-deletion`. Run the `to finish:`
+  command from the list. If you passed `--force` and the host could not restore the account-wide
+  settings, the key stays, because the account-wide log groups may still use it. Schedule its
+  deletion in the KMS console once they no longer do. A key you supplied to the stack stays too.
+- **IAM roles the script could not tie to this deployment.** It lists each one. Delete a listed
+  role yourself only after you have confirmed that it is yours.
 - **Bedrock model subscriptions** stay with the account; they bill nothing while unused.
 
 To confirm nothing else is left, list the Region's CloudFormation stacks, Lambda functions,
