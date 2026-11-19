@@ -1405,6 +1405,30 @@ def test_the_printed_recovery_finishes_a_teardown_after_the_stack_is_gone() -> N
     assert code == 2 and "no stack pellier-governed" in lines[-1], lines
 
 
+def test_the_recovery_finishes_when_the_key_is_already_pending_deletion() -> None:
+    """A rerun can meet a key AWS already holds for deletion; that is the outcome it wanted."""
+    mod = _load()
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], _teardown_clients(mod))
+    argv = _recovery_argv(lines)
+    gone = _teardown_clients(mod, stack=False, agentcore=False)
+    gone.kms.errors["schedule_key_deletion"] = _ClientError(
+        "KMSInvalidStateException", f"{KMS_ARN} is pending deletion.")
+    code, lines = _run(mod, argv, gone)
+    assert code == 0, lines
+    assert gone.s3.names()[-2:] == ["delete_objects", "delete_bucket"]
+
+
+def test_the_recovery_still_fails_on_another_kms_state_error() -> None:
+    mod = _load()
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], _teardown_clients(mod))
+    argv = _recovery_argv(lines)
+    gone = _teardown_clients(mod, stack=False, agentcore=False)
+    gone.kms.errors["schedule_key_deletion"] = _ClientError(
+        "KMSInvalidStateException", f"{KMS_ARN} is disabled.")
+    code, lines = _run(mod, argv, gone)
+    assert code == 1 and "disabled" in "\n".join(lines), lines
+
+
 def test_the_recovery_never_deletes_a_key_the_caller_supplied() -> None:
     mod = _load()
     clients = _teardown_clients(mod, existing_key=True)
