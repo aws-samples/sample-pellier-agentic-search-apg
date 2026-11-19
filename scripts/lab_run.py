@@ -1463,6 +1463,12 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
             parser.error(f"{args.action} takes no options")
     elif args.lab is None:
         parser.error(f"--lab is required for {args.action}")
+    # Only send honors these. A finish --lab 4 that ignored --shopper-only would approve and
+    # execute Jessica's credit, Nadia's decision.
+    if args.shopper_only and (args.action != "send" or args.lab != 4):
+        parser.error("--shopper-only goes with send --lab 4 only")
+    if args.quiet and args.action != "send":
+        parser.error(f"--quiet goes with send, not {args.action}")
     if args.task:
         if args.action not in ("solution", "send"):
             parser.error(f"--task goes with solution or send, not {args.action}")
