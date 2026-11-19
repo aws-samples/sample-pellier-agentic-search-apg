@@ -1893,3 +1893,28 @@ def test_a_lab_on_agentcore_never_restarts_the_local_app(
     fake.rail = lab_run.MANAGED
     assert _run(fake, 3) == 0
     assert restarts == []
+
+
+@pytest.mark.parametrize("argv", [
+    ["finish", "--lab", "4", "--shopper-only"],
+    ["solution", "--lab", "4", "--shopper-only"],
+    ["reset", "--lab", "4", "--shopper-only"],
+    ["diff", "--lab", "4", "--shopper-only"],
+    ["send", "--lab", "3", "--shopper-only"],
+])
+def test_shopper_only_is_refused_outside_send_lab_4(argv, capsys, monkeypatch) -> None:
+    """finish --lab 4 would approve and execute Jessica's credit; the flag must not be ignored."""
+    called = []
+    monkeypatch.setattr(lab_run, "finish", lambda *a, **k: called.append("finish") or 0)
+    monkeypatch.setattr(lab_run, "send", lambda *a, **k: called.append("send") or 0)
+    with pytest.raises(SystemExit):
+        lab_run.main(argv)
+    assert "--shopper-only goes with send --lab 4" in capsys.readouterr().err
+    assert called == []
+
+
+@pytest.mark.parametrize("action", ["finish", "solution", "reset", "diff"])
+def test_quiet_is_refused_outside_send(action, capsys) -> None:
+    with pytest.raises(SystemExit):
+        lab_run.main([action, "--lab", "2", "--quiet"])
+    assert "--quiet goes with send" in capsys.readouterr().err
