@@ -1406,6 +1406,20 @@ def test_teardown_deletes_only_roles_tagged_with_its_own_workshop_id() -> None:
     assert "pellier-store-tools-server-role" in left and "not tagged" in left
 
 
+@pytest.mark.parametrize("value", ["dat416", "unknown"])
+def test_teardown_leaves_a_role_whose_tag_is_not_a_deployment_id(value: str) -> None:
+    """`dat416` is the Lambda deployer's fallback, not a deployment: a rerun without
+    WORKSHOP_ID wrote it on a real role on 2026-10-06. It names no deployment to protect."""
+    mod = _load()
+    clients = _teardown_clients(mod, role_tags=[{"Key": "PellierWorkshopId", "Value": value}])
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
+    assert code == 0, lines
+    assert clients.iam.args("delete_role", "RoleName") == []
+    left = "\n".join(lines[lines.index("Left in place:") :])
+    assert "pellier-store-tools-server-role" in left and value in left
+    assert "pellier-governed" in clients.cloudformation.args("delete_stack", "StackName")
+
+
 def test_a_forced_teardown_without_a_stack_cannot_prove_the_roles_and_leaves_them() -> None:
     mod = _load()
     clients = _teardown_clients(mod, stack=False)
