@@ -298,3 +298,104 @@ def test_the_identified_calls_agent_span_naming_another_turn_fails():
     followed = follow_credit.follow(_story(), records, NOW)
     assert followed.state == check.FAILED
     assert "names a different turn" in followed.observed
+
+
+# The end-to-end check holds the exact Gateway request ids, so later activity in the hour
+# cannot push the calls it identified out of a newest-N window.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+trace_tests = importlib.import_module("test_trace_agentcore_calls")
+
+
+def _busy_logs(identified: Dict[str, str], tool: str, later: int = 25) -> Any:
+    """Spans for the identified call, then ``later`` newer calls to the same tool."""
+    spans = trace_tests._call(identified["request"], 1_000, tool, trace_tests.NADIA_SUB,
+                              "ALLOW", ["p-1"], parent="mcp-span")
+    for n in range(later):
+        spans += trace_tests._call(f"req-later-{n}", 5_000 + n * 10, tool,
+                                   trace_tests.NADIA_SUB, "ALLOW", ["p-1"])
+    return trace_tests._Logs(spans)
+
+
+def test_the_identified_call_is_found_by_its_request_id_beyond_the_newest_window() -> None:
+    logs = _busy_logs({"request": "req-ask"}, "ask_a_person")
+    newest = trace_tests.trace.fetch_calls(logs, "ask_a_person", 60, trace_tests.trace.CALL_LIMIT)
+    assert "req-ask" not in [c["request_id"] for c in newest]
+    found = trace_tests.trace.fetch_calls_by_request(logs, "ask_a_person", ["req-ask"], 60)
+    assert [c["request_id"] for c in found] == ["req-ask"]
+    assert logs.patterns[-1] == '?"req-ask"'
+
+
+def test_a_request_id_that_is_not_in_cloudwatch_finds_nothing_and_none_means_no_read() -> None:
+    logs = _busy_logs({"request": "req-ask"}, "ask_a_person", later=2)
+    assert trace_tests.trace.fetch_calls_by_request(logs, "ask_a_person", ["req-gone"], 60) == []
+    before = len(logs.patterns)
+    assert trace_tests.trace.fetch_calls_by_request(logs, "ask_a_person", [None, ""], 60) == []
+    assert len(logs.patterns) == before
+
+
+def test_read_records_looks_up_both_identified_calls_however_busy_the_hour_was(
+        monkeypatch: Any) -> None:
+    import boto3
+
+    handoff = trace_tests._call("req-ask", 1_000, "ask_a_person", trace_tests.NADIA_SUB,
+                                "ALLOW", ["p-1"], parent="mcp-span")
+    paid = trace_tests._call("req-paid", 2_000, "give_store_credit", trace_tests.NADIA_SUB,
+                             "ALLOW", ["p-2"])
+    later: List[Dict[str, Any]] = []
+    for n in range(25):
+        later += trace_tests._call(f"req-ask-{n}", 5_000 + n * 10, "ask_a_person",
+                                   trace_tests.NADIA_SUB, "ALLOW", ["p-1"])
+        later += trace_tests._call(f"req-pay-{n}", 5_000 + n * 10, "give_store_credit",
+                                   trace_tests.NADIA_SUB, "ALLOW", ["p-2"])
+    logs = trace_tests._Logs(handoff + paid + later)
+    monkeypatch.setattr(boto3, "client", lambda *a, **k: logs)
+    monkeypatch.setattr(follow_credit.trace, "read_aurora", lambda _logs, _minutes: ([], None))
+    monkeypatch.setattr(follow_credit.trace, "subject_names", lambda *_a: {})
+    story = _story(requested_at=datetime.now(timezone.utc))
+
+    records = follow_credit.read_records(story)
+
+    assert [c["request_id"] for c in records.handoffs] == ["req-ask"]
+    assert [c["request_id"] for c in records.credits] == ["req-paid"]
+    assert follow_credit.handoff_call(records.handoffs, "req-ask") is not None
+    assert follow_credit.paid_call(records.credits, [INSERT], KEY, "req-paid")[1] is not None
+
+
+def test_help_prints_usage_and_exits_before_settings_or_any_service(
+        monkeypatch: Any, capsys: Any) -> None:
+    import boto3
+    import gateway_client
+
+    def touched(*_a: Any, **_k: Any) -> None:
+        raise AssertionError("--help must not load settings or contact a service")
+
+    monkeypatch.setattr(gateway_client, "_load_env", touched)
+    monkeypatch.setattr(boto3, "client", touched)
+    monkeypatch.setattr(follow_credit, "collect", touched)
+    for flag in ("--help", "-h"):
+        monkeypatch.setattr(sys, "argv", ["follow_credit.py", flag])
+        try:
+            follow_credit.main()
+        except SystemExit as stop:
+            assert stop.code == 0
+        else:
+            raise AssertionError("--help must exit")
+        assert "usage: follow_credit.py" in capsys.readouterr().out
+
+
+def test_an_unknown_flag_prints_usage_and_exits_2_before_settings(
+        monkeypatch: Any, capsys: Any) -> None:
+    import gateway_client
+
+    def touched(*_a: Any, **_k: Any) -> None:
+        raise AssertionError("a bad flag must not load settings")
+
+    monkeypatch.setattr(gateway_client, "_load_env", touched)
+    monkeypatch.setattr(sys, "argv", ["follow_credit.py", "--nope"])
+    try:
+        follow_credit.main()
+    except SystemExit as stop:
+        assert stop.code == 2
+    else:
+        raise AssertionError("an unknown flag must exit")
+    assert "usage: follow_credit.py" in capsys.readouterr().err

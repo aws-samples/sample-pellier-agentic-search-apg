@@ -267,6 +267,18 @@ def fetch_calls(logs: Any, tool: str, minutes: int, limit: int,
     return calls_from_spans(spans, tool)
 
 
+def fetch_calls_by_request(logs: Any, tool: str, request_ids: Iterable[Optional[str]],
+                           minutes: int) -> List[Dict[str, Any]]:
+    """The calls to ``tool`` with exactly these Gateway request ids, however many calls came
+    after them. Ids that are empty are skipped, and no ids reads nothing."""
+    wanted = sorted({r for r in request_ids if r})
+    if not wanted:
+        return []
+    start_ms = int((time.time() - minutes * 60) * 1000)
+    spans = _filter(logs, start_ms, " ".join(f'?"{r}"' for r in wanted))
+    return calls_from_spans(spans, tool)
+
+
 def runtime_spans(logs: Any, group: Optional[str], calls: List[Dict[str, Any]],
                   minutes: int) -> Dict[str, Optional[List[Dict[str, Any]]]]:
     """The Runtime's spans for each call it made, by trace id.

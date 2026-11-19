@@ -25,6 +25,7 @@ the statement. Until both have arrived the script says it could not check yet.
 
 from __future__ import annotations
 
+import argparse
 import math
 import sys
 import time
@@ -423,7 +424,8 @@ def read_records(story: Dict[str, Any]) -> Records:
 
     minutes = math.ceil((time.time() - story["requested_at"].timestamp() + LEAD_S) / 60)
     logs = boto3.client("logs", region_name=settings.aws_region_resolved)
-    handoffs = trace.fetch_calls(logs, HANDOFF_TOOL, minutes, trace.CALL_LIMIT)
+    handoffs = trace.fetch_calls_by_request(
+        logs, HANDOFF_TOOL, [story.get("handoff_gateway_request_id")], minutes)
     try:
         group: Optional[str] = runtime_log_group(settings.AGENTCORE_RUNTIME_ENDPOINT or "")
     except ValueError:
@@ -432,7 +434,8 @@ def read_records(story: Dict[str, Any]) -> Records:
     return Records(
         handoffs=handoffs,
         runtime=trace.runtime_spans(logs, group, handoffs, minutes),
-        credits=trace.fetch_calls(logs, CREDIT_TOOL, minutes, trace.CALL_LIMIT),
+        credits=trace.fetch_calls_by_request(
+            logs, CREDIT_TOOL, [story.get("credit_gateway_request_id")], minutes),
         writes=writes, unavailable=unavailable,
         names=trace.subject_names(
             boto3.client("cognito-idp", region_name=settings.cognito_region_resolved),
@@ -456,7 +459,11 @@ def collect(now: float) -> Followed:
         return Followed(check.COULD_NOT_CHECK, observed=f"CloudWatch could not be read ({why})")
 
 
-def main() -> int:
+def main(argv: Optional[List[str]] = None) -> int:
+    """Print usage for ``--help`` or a flag the script does not have before it reads anything."""
+    argparse.ArgumentParser(
+        prog="follow_credit.py", description=__doc__.split("\n\n")[0]
+    ).parse_args(sys.argv[1:] if argv is None else argv)
     from gateway_client import _load_env
 
     _load_env()
