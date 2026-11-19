@@ -44,6 +44,17 @@ SELECT format('DROP POLICY %I ON %I.%I', policyname, schemaname, tablename)
   FROM pg_policies WHERE 'pellier_credit_writer' = ANY (roles)
 \gexec
 
+-- Your build: what pellier_credit_writer may do.
+-- === WORKSHOP - Credit writer - privileges: START ===
+SELECT $privileges$
+  ALTER FUNCTION pellier.give_store_credit(text, text, integer, text, text)
+      SECURITY DEFINER SET search_path = pg_catalog, pg_temp;
+  GRANT EXECUTE ON FUNCTION pellier.give_store_credit(text, text, integer, text, text)
+      TO pellier_credit_writer;
+$privileges$ AS privileges
+\gset
+-- === WORKSHOP - Credit writer - privileges: END ===
+
 -- lab_4_reach: what the role can reach in each relation of the pellier schema, including
 -- what it holds through PUBLIC and through the roles it inherits from or can SET ROLE to,
 -- and where each privilege comes from. A privilege on a column is listed with its columns.
@@ -107,17 +118,6 @@ SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS table
            AND schemaname = 'pellier') p;
 -- Read before your statements run: anything the role reaches now comes from outside them.
 SELECT tables AS reach, tables <> 'none' AS outside FROM lab_4_reach \gset before_
-
--- Your build: what pellier_credit_writer may do.
--- === WORKSHOP - Credit writer - privileges: START ===
-SELECT $privileges$
-  ALTER FUNCTION pellier.give_store_credit(text, text, integer, text, text)
-      SECURITY DEFINER SET search_path = pg_catalog, pg_temp;
-  GRANT EXECUTE ON FUNCTION pellier.give_store_credit(text, text, integer, text, text)
-      TO pellier_credit_writer;
-$privileges$ AS privileges
-\gset
--- === WORKSHOP - Credit writer - privileges: END ===
 
 SELECT :'privileges' \gexec
 
