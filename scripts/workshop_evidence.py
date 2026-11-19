@@ -138,7 +138,7 @@ def task_1b(cfg: Config, connect: Connect) -> check.Finding:
 
 
 def task_2a(cfg: Config, connect: Connect) -> check.Finding:
-    """Lab 2A from Marco's latest Stock-agent turn, with the grant that agent held."""
+    """Lab 2A from Marco's latest Stock-agent turn about his shirt, with the grant it held."""
     import lab2_check as lab2
 
     title = "the Stock agent holds check_stock alone"

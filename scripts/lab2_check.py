@@ -115,6 +115,17 @@ SELECT args->>'turn_id' AS turn_id
  ORDER BY audit_id DESC
  LIMIT 1
 """
+# Marco's newest Stock-agent turn about his shirt: any of its calls names it. Task 2B's cape
+# question comes after 2A in the participant's order, so the newest turn alone is not the 2A one.
+_LATEST_SHIRT_TURN = f"""
+SELECT args->>'turn_id' AS turn_id
+  FROM pellier.tool_audit
+ WHERE session_id LIKE %(session)s AND args->>'agent' = %(agent)s
+   AND created_at >= {check.SINCE_SQL}
+   AND args::text ILIKE %(piece)s
+ ORDER BY audit_id DESC
+ LIMIT 1
+"""
 _TURN_ROWS = """
 SELECT audit_id, tool, args, result, created_at
   FROM pellier.tool_audit
@@ -249,17 +260,33 @@ def _as_dict(value: Any) -> Dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
-    """Every audit row of Marco's latest turn the Stock agent answered, in call order."""
+def _stock_turn(conn: Any, sql: str, **params: Any) -> List[Dict[str, Any]]:
+    """Every audit row of the Stock-agent turn ``sql`` selects, in call order."""
     pattern = MARCO_SESSION_PREFIX + "%"
     with conn.cursor() as cur:
-        cur.execute(_LATEST_STOCK_TURN, {"session": pattern, "agent": STOCK_AGENT_NAME,
-                                         "since": check.reset_point(2)})
+        cur.execute(sql, {"session": pattern, "agent": STOCK_AGENT_NAME,
+                          "since": check.reset_point(2), **params})
         latest = cur.fetchone()
         if not latest or not latest.get("turn_id"):
             return []
         cur.execute(_TURN_ROWS, {"session": pattern, "turn": latest["turn_id"]})
         return [dict(row) for row in cur.fetchall()]
+
+
+def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
+    """Every audit row of Marco's latest turn the Stock agent answered, in call order."""
+    return _stock_turn(conn, _LATEST_STOCK_TURN)
+
+
+def task_2a_turn(conn: Any) -> List[Dict[str, Any]]:
+    """Marco's newest Stock-agent turn about his shirt, else his newest Stock-agent turn.
+
+    In the participant's order Task 2B's cape question follows the 2A question, so grading
+    the newest turn alone would regrade 2A on the cape. A newer shirt turn always wins, so a
+    later failed 2A attempt is still the one graded.
+    """
+    piece = "%" + MARCO_PIECE_NAME.split()[0] + "%"
+    return _stock_turn(conn, _LATEST_SHIRT_TURN, piece=piece) or latest_stock_turn(conn)
 
 
 def recorded_grant(rows: Sequence[Dict[str, Any]]) -> Optional[List[str]]:
@@ -371,7 +398,7 @@ def stale_2a(created: Any, when: Optional[check.Timeline]) -> Optional[Tuple[str
 def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     """Marco's latest Stock-agent turn: its recorded grant, its calls and its counts."""
     title = "the Stock agent holds check_stock alone"
-    rows = latest_stock_turn(conn)
+    rows = task_2a_turn(conn)
     if not rows:
         return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A,
                              "no tool call by Marco's Stock agent recorded yet",
