@@ -303,9 +303,9 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \echo '         ' :credits_rows
   \if :before_outside
     \echo 'Next      the role reached a Pellier table before your statements ran, through'
-    \echo '          PUBLIC or a role it belongs to: ' :before_reach
-    \echo '          Your file did not grant it and cannot remove it. Raise your hand so'
-    \echo '          a facilitator can check the database.'
+    \echo '          PUBLIC or a role it belongs to, as the last test above shows. Your file'
+    \echo '          did not grant it and cannot remove it. Raise your hand so a facilitator'
+    \echo '          can check the database.'
   \elif :lab_4_tables_differ
     \echo 'Next      which single privilege does a credit path need? In the rows that do not'
     \echo '          match, 23514 is the trigger refusing a row your role was allowed to'

@@ -281,7 +281,8 @@ def test_access_from_outside_the_statements_is_sent_to_a_facilitator(  # noqa: F
         done = _run(fresh_db, SOLUTION)
         assert done.returncode != 0
         hint = _next_step(done.stdout)
-        assert "before your statements ran" in hint and "customers SELECT via PUBLIC" in hint
+        assert "before your statements ran" in hint and "as the last test above shows" in hint
+        assert _probes(done.stdout)[ACCESS_PROBE][1] == "customers SELECT via PUBLIC"
         assert "facilitator" in hint and "which single privilege" not in hint
     finally:
         fresh_db.psql("REVOKE SELECT ON pellier.customers FROM PUBLIC")
