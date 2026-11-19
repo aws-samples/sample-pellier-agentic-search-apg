@@ -780,6 +780,7 @@ def _teardown_clients(
     tags: list[dict[str, str]] | None = None,
     suffix_parameter: bool = True,
     existing_key: bool = False,
+    agentcore_tags: list[dict[str, str]] | None = None,
 ) -> Any:
     polls = {"count": 0}
     deleted: list[str] = []
@@ -812,7 +813,7 @@ def _teardown_clients(
                     {
                         "StackStatus": "UPDATE_COMPLETE",
                         "CreationTime": created,
-                        "Tags": AGENTCORE_TAGS,
+                        "Tags": AGENTCORE_TAGS if agentcore_tags is None else agentcore_tags,
                     }
                 ]
             }
@@ -1164,3 +1165,30 @@ def test_teardown_writes_nothing_to_a_stack_that_is_not_a_pellier_deployment(
     assert code == 2, (case, lines)
     assert "not a Pellier own-account deployment" in lines[-1], lines[-1]
     assert _writes(clients) == [], (case, _writes(clients))
+
+
+@pytest.mark.parametrize(
+    "agentcore_tags",
+    [
+        [],
+        [{"Key": "Project", "Value": "billing"}],
+        [
+            {"Key": "Project", "Value": "pellier"},
+            {"Key": "PellierWorkshopId", "Value": "pffffffff"},
+        ],
+    ],
+    ids=["untagged", "another project", "another deployment"],
+)
+def test_teardown_writes_nothing_when_the_agentcore_stack_is_not_this_deployments(
+    agentcore_tags: list[dict[str, str]],
+) -> None:
+    mod = _load()
+    runs = [(True, []), (True, ["--force"]), (False, ["--force"])]
+    for with_stack, extra in runs:
+        if not with_stack and agentcore_tags[1:]:
+            continue  # a tag naming another deployment is compared with the stack's own id
+        clients = _teardown_clients(mod, agentcore_tags=agentcore_tags, stack=with_stack)
+        code, lines = _run(mod, ["teardown", "--region", "us-east-1", *extra], clients)
+        assert code == 2, lines
+        assert "AgentCore-pellier-default" in lines[-1], lines[-1]
+        assert _writes(clients) == [], _writes(clients)
