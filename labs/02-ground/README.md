@@ -20,10 +20,11 @@ agent actually held from its audit row, so it needs Marco's requests sent again 
 change. The 2B file changes the live `pellier.check_stock` only when its four probes
 match, and the 2B check runs that live function, so it needs no restart.
 
-After `Lab 2B check passed`, open **PellierURL**, choose **Marco** in **Ask Pellier** with **Builder
-view** on, and send his requests again. Both are there, marked **Sent from the terminal**:
-the cape now reads **Not a piece Pellier carries**, and the Hadley one shows the Stock agent,
-one `check_stock` call and the Brooklyn warehouse row.
+After `Lab 2B check passed`, send the cape question again from the terminal:
+`uv run scripts/lab_run.py send --lab 2 --task 2B`. Then open **PellierURL**, choose **Marco**
+in **Ask Pellier** with **Builder view** on, and find the requests marked **Sent from the
+terminal**. The cape now reads **Not a piece Pellier carries**, and the Hadley one shows the
+Stock agent, one `check_stock` call and the Brooklyn warehouse row.
 
 ## The files
 
@@ -32,7 +33,9 @@ synchronize. Edit only the marked region.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 2** (or run `uv run scripts/lab_run.py reset --lab 2`). It puts this lab back the way it was at the start and leaves the other labs alone.
+In Code Editor choose **Terminal > Run Task > Reset Lab 2** (or run `uv run scripts/lab_run.py reset --lab 2`). It puts this lab back the way it was at the start. It also switches Pellier back to the
+local agents, so if you had finished Lab 3, run its deploy again ([Lab 3](../03-deploy/README.md))
+to move Pellier back onto AgentCore.
 
 ## If you need a solution
 

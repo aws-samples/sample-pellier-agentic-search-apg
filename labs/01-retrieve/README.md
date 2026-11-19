@@ -28,7 +28,9 @@ the fused scores Anna's search recorded and changes nothing the app runs.
 
 ## Start this lab over
 
-In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `uv run scripts/lab_run.py reset --lab 1`). It puts this lab back the way it was at the start and leaves the other labs alone.
+In Code Editor choose **Terminal > Run Task > Reset Lab 1** (or run `uv run scripts/lab_run.py reset --lab 1`). It puts this lab back the way it was at the start. It also switches Pellier back to the
+local agents, so if you had finished Lab 3, run its deploy again ([Lab 3](../03-deploy/README.md))
+to move Pellier back onto AgentCore.
 
 ## If you need a solution
 
