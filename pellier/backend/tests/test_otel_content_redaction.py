@@ -329,7 +329,7 @@ def test_the_runtime_lock_pins_an_adot_whose_mcp_spans_are_covered():
 # facts and Theo's remembered preferences in clear text.
 
 BACKEND = pathlib.Path(__file__).resolve().parents[1]
-BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED = {"0.65b0", "0.66b1"}
+BOTOCORE_INSTRUMENTATION_VERSIONS_CHECKED = {"0.65b0", "0.66b1", "0.66b2"}
 
 
 def test_botocore_message_content_is_withheld_after_adot_turns_it_on(monkeypatch):
@@ -338,7 +338,7 @@ def test_botocore_message_content_is_withheld_after_adot_turns_it_on(monkeypatch
         withhold_botocore_message_content,
     )
 
-    # aws-opentelemetry-distro (0.19.0 to 0.22.0) sets this default before the entrypoint runs.
+    # aws-opentelemetry-distro (0.19.0 to 0.23.0) sets this default before the entrypoint runs.
     monkeypatch.setenv(BOTOCORE_CAPTURE_ENV, "true")
     withhold_botocore_message_content()
     import os
