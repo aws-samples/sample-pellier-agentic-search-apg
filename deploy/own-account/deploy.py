@@ -23,8 +23,11 @@ calls that describe your account and prints every write it would make, making no
 the three Lambda functions and their roles, the log deliveries, and the log groups; it first
 runs the repository's observability teardown on the box over SSM, because the receipt that
 restores the account-wide X-Ray settings lives only there, and it stops before deleting
-anything when that step cannot run. Then it deletes the workshop stack and, with
-``--delete-bucket``, the bucket the deploy created. ``docs/run-in-your-own-account.md`` is
+anything when that step cannot run. It writes only to a stack that carries Pellier's tags, and
+it records the KMS key and the other identifiers the stack holds under ``.local/own-account/``
+before deleting the stack, so the command it prints for finishing a partial run still works
+once the stack is gone. Then it deletes the workshop stack and, with ``--delete-bucket``, the
+bucket the deploy created. ``docs/run-in-your-own-account.md`` is
 the guide.
 """
 
@@ -34,6 +37,7 @@ import argparse
 import hashlib
 import json
 import re
+import shlex
 import subprocess
 import sys
 import time
@@ -47,6 +51,9 @@ SUPPORTED_REGIONS = ("us-east-1", "us-west-2")
 HERE = Path(__file__).resolve().parent
 REPO_ROOT = HERE.parents[1]
 TEMPLATE_DIR = HERE / "templates"
+# Teardown saves what it needs after the stack is gone here; .local/ is untracked.
+DEFAULT_STATE_DIR = REPO_ROOT / ".local" / "own-account"
+STATE_FIELDS = ("deployment_suffix", "workshop_id", "kms_key_arn", "kms_key_is_ours", "restored")
 ROOT_TEMPLATE = "pellier-governed.yml"
 NESTED_TEMPLATES = ("pellier-vpc.yml", "pellier-database.yml", "pellier-code-editor.yml")
 TEMPLATE_FILES = (ROOT_TEMPLATE, *NESTED_TEMPLATES)
@@ -1564,22 +1571,82 @@ def box_cleanup(
     return True, ""
 
 
-def cmd_teardown(
-    args: argparse.Namespace,
-    runner: Runner,
-    sleep: Callable[[float], None],
-    now: Callable[[], float],
-) -> int:
-    """Delete what the box created, then the stack, then on request the key and the bucket."""
-    names = Names(args.deployment_suffix)
-    found = discover(runner, args.stack_name, names)
-    problem = found.stack_problem or found.agentcore_problem
-    if problem:
-        raise OwnAccountError(f"nothing changed: {problem}")
-    role_plan = plan_role_deletion(runner, names, found.workshop_id)
-    if role_plan.conflicts:
-        raise OwnAccountError(f"nothing deleted: {'; '.join(role_plan.conflicts)}")
-    if not found.stack_exists and not args.force:
+def state_file(args: argparse.Namespace) -> Path:
+    """Where teardown keeps what it must remember once the stack is gone."""
+    directory = Path(args.state_dir) if args.state_dir else DEFAULT_STATE_DIR
+    return directory / f"teardown-{args.stack_name}-{args.region}.json"
+
+
+def load_state(args: argparse.Namespace) -> dict[str, Any] | None:
+    """The record an earlier teardown left for this stack and Region, or None."""
+    path = state_file(args)
+    if not path.is_file():
+        return None
+    try:
+        state = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(state, dict) or any(key not in state for key in STATE_FIELDS):
+            raise ValueError("a required field is missing")
+    except (OSError, ValueError) as exc:
+        raise OwnAccountError(
+            f"cannot read the teardown record {path}: {exc}; delete the file, then rerun with "
+            "--force to remove leftovers by name"
+        ) from exc
+    return state
+
+
+def save_state(args: argparse.Namespace, found: Discovered, restored: bool) -> None:
+    """Record the identifiers a rerun needs, before the stack that holds them is deleted."""
+    path = state_file(args)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    state = {
+        "stack_name": args.stack_name,
+        "region": args.region,
+        "deployment_suffix": args.deployment_suffix,
+        "workshop_id": found.workshop_id,
+        "kms_key_arn": found.kms_key_arn,
+        "kms_key_is_ours": found.kms_key_is_ours,
+        "restored": restored,
+    }
+    path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+
+
+def adopt_state(args: argparse.Namespace, found: Discovered, state: dict[str, Any]) -> None:
+    """Fill what the missing stack would have said from the earlier teardown's record."""
+    if state["deployment_suffix"] != args.deployment_suffix:
+        raise OwnAccountError(
+            f"the teardown record {state_file(args)} was made for deployment suffix "
+            f"{state['deployment_suffix']!r}; pass --deployment-suffix "
+            f"{state['deployment_suffix']!r}"
+        )
+    found.workshop_id = state["workshop_id"]
+    found.kms_key_arn = state["kms_key_arn"]
+    found.kms_key_is_ours = bool(state["kms_key_is_ours"])
+
+
+def recovery_command(args: argparse.Namespace, kms_pending: bool, bucket_pending: bool) -> str:
+    """The exact command that finishes what this run kept; it works once the stack is gone."""
+    parts = ["uv", "run", "deploy/own-account/deploy.py", "teardown", "--region", args.region]
+    for flag, value, default in (
+        ("--profile", args.profile, None),
+        ("--stack-name", args.stack_name, DEFAULT_STACK_NAME),
+        ("--deployment-suffix", args.deployment_suffix, ""),
+        ("--bucket", args.bucket, None),
+        ("--state-dir", args.state_dir, None),
+    ):
+        if value != default:
+            parts += [flag, str(value)]
+    if kms_pending:
+        parts += ["--schedule-kms-key-deletion", str(KMS_WINDOW[0])]
+    if bucket_pending:
+        parts.append("--delete-bucket")
+    return shlex.join(parts)
+
+
+def refuse_unsafe_teardown(
+    args: argparse.Namespace, found: Discovered, names: Names, resumed: bool
+) -> None:
+    """The refusals that apply before anything is written."""
+    if not found.stack_exists and not (args.force or resumed):
         raise OwnAccountError(
             f"no stack {args.stack_name} in {args.region}; check --stack-name, or pass --force "
             f"to remove leftovers by name ({names.agentcore_stack}, the Lambda functions, the "
@@ -1601,26 +1668,27 @@ def cmd_teardown(
             f"{args.stack_name}, so this deployment did not create it; it belongs to an earlier "
             "Pellier deployment in this account. Remove it yourself if it is yours, then rerun"
         )
-    left: list[str] = []
-    restored, reason = box_cleanup(args, runner, found, sleep, now)
-    if not restored:
-        if not args.force:
-            raise OwnAccountError(f"nothing deleted: {reason}")
-        left.append(f"account-wide X-Ray settings and log policies may not be restored: {reason}")
-    if found.agentcore_stack:
-        delete_deliveries(runner, found.resource_ids)
-        if found.gateway_role:
-            runner.write(
-                f"delete inline policy {GATEWAY_INLINE_POLICY} from {found.gateway_role}",
-                ignore_missing(runner.clients.iam.delete_role_policy),
-                RoleName=found.gateway_role,
-                PolicyName=GATEWAY_INLINE_POLICY,
-            )
-        delete_stack_and_wait(runner, found.agentcore_stack, sleep, now)
-    else:
-        left.append(f"no stack {names.agentcore_stack}: the box never provisioned AgentCore")
-    delete_lambdas(runner, names, role_plan.delete)
-    left.extend(role_plan.left)
+
+
+def delete_agentcore(
+    runner: Runner,
+    found: Discovered,
+    sleep: Callable[[float], None],
+    now: Callable[[], float],
+) -> None:
+    """Delete the deliveries, the Gateway role's inline policy and the AgentCore CDK stack."""
+    delete_deliveries(runner, found.resource_ids)
+    if found.gateway_role:
+        runner.write(
+            f"delete inline policy {GATEWAY_INLINE_POLICY} from {found.gateway_role}",
+            ignore_missing(runner.clients.iam.delete_role_policy),
+            RoleName=found.gateway_role,
+            PolicyName=GATEWAY_INLINE_POLICY,
+        )
+    delete_stack_and_wait(runner, found.agentcore_stack or "", sleep, now)
+
+
+def delete_agentcore_log_groups(runner: Runner, found: Discovered) -> None:
     groups = []
     if found.runtime_id:
         groups.append(f"/aws/bedrock-agentcore/runtimes/{found.runtime_id}-DEFAULT")
@@ -1633,30 +1701,75 @@ def cmd_teardown(
             ignore_missing(runner.clients.logs.delete_log_group),
             logGroupName=group,
         )
+
+
+def finish_kms_key(
+    args: argparse.Namespace, runner: Runner, found: Discovered, restored: bool, left: list[str]
+) -> bool:
+    """Schedule the retained key's deletion when that is safe; returns True when a rerun could."""
+    key = found.kms_key_arn
+    if not key:
+        return False
+    if not found.kms_key_is_ours:
+        left.append(f"KMS key {key} was supplied to the stack, not created by it")
+    elif not restored:
+        left.append(f"KMS key {key} stays: the account-wide log groups may still use it")
+    elif not args.schedule_kms_key_deletion:
+        left.append(f"the retained KMS key {key} stays until the command below schedules it")
+        return True
+    else:
+        runner.write(
+            f"schedule deletion of {key} in {args.schedule_kms_key_deletion} days",
+            runner.clients.kms.schedule_key_deletion,
+            KeyId=key,
+            PendingWindowInDays=args.schedule_kms_key_deletion,
+        )
+    return False
+
+
+def cmd_teardown(
+    args: argparse.Namespace,
+    runner: Runner,
+    sleep: Callable[[float], None],
+    now: Callable[[], float],
+) -> int:
+    """Delete what the box created, then the stack, then on request the key and the bucket."""
+    names = Names(args.deployment_suffix)
+    found = discover(runner, args.stack_name, names)
+    saved = None if found.stack_exists else load_state(args)
+    problem = found.stack_problem or found.agentcore_problem
+    if problem:
+        raise OwnAccountError(f"nothing changed: {problem}")
+    if saved is not None:
+        adopt_state(args, found, saved)
+    role_plan = plan_role_deletion(runner, names, found.workshop_id)
+    if role_plan.conflicts:
+        raise OwnAccountError(f"nothing deleted: {'; '.join(role_plan.conflicts)}")
+    refuse_unsafe_teardown(args, found, names, saved is not None)
+    left: list[str] = []
+    if saved is not None:
+        restored = bool(saved["restored"])
+        runner.out(f"the stack is gone; finishing the teardown recorded in {state_file(args)}")
+    else:
+        restored, reason = box_cleanup(args, runner, found, sleep, now)
+    if saved is None and not restored:
+        if not args.force:
+            raise OwnAccountError(f"nothing deleted: {reason}")
+        left.append(f"account-wide X-Ray settings and log policies may not be restored: {reason}")
+    if not runner.dry_run:
+        save_state(args, found, restored)
+    if found.agentcore_stack:
+        delete_agentcore(runner, found, sleep, now)
+    elif saved is None:
+        left.append(f"no stack {names.agentcore_stack}: the box never provisioned AgentCore")
+    delete_lambdas(runner, names, role_plan.delete)
+    left.extend(role_plan.left)
+    delete_agentcore_log_groups(runner, found)
     if found.stack_exists:
         elapsed = delete_stack_and_wait(runner, args.stack_name, sleep, now)
         if not runner.dry_run:
             runner.out(f"Stack deleted in {format_elapsed(elapsed)}")
-    if found.kms_key_arn:
-        if not args.schedule_kms_key_deletion:
-            left.append(
-                f"the retained KMS key {found.kms_key_arn} stays; rerun with "
-                "--schedule-kms-key-deletion 7, or schedule it in the console"
-            )
-        elif not found.kms_key_is_ours:
-            left.append(f"KMS key {found.kms_key_arn} was supplied to the stack, not created by it")
-        elif not restored:
-            left.append(
-                f"KMS key {found.kms_key_arn} stays: the account-wide log groups may still use it"
-            )
-        else:
-            runner.write(
-                f"schedule deletion of {found.kms_key_arn} in "
-                f"{args.schedule_kms_key_deletion} days",
-                runner.clients.kms.schedule_key_deletion,
-                KeyId=found.kms_key_arn,
-                PendingWindowInDays=args.schedule_kms_key_deletion,
-            )
+    kms_pending = finish_kms_key(args, runner, found, restored, left)
     left.append(
         f"log group {READINESS_LOG_GROUP} stays: every Pellier deployment in this Region shares it"
     )
@@ -1668,7 +1781,12 @@ def cmd_teardown(
     if args.delete_bucket:
         empty_and_delete_bucket(runner, bucket)
     else:
-        left.append(f"bucket {bucket} stays; rerun with --delete-bucket to remove it")
+        left.append(f"bucket {bucket} stays until the command below removes it")
+    pending = kms_pending or not args.delete_bucket
+    if pending:
+        left.append(f"to finish: {recovery_command(args, kms_pending, not args.delete_bucket)}")
+    if not (pending or runner.dry_run):
+        state_file(args).unlink(missing_ok=True)
     runner.out("Left in place:")
     for line in left:
         runner.out(f"  {line}")
@@ -1745,6 +1863,12 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         "teardown", parents=[common], help="delete what the box created, then the stack"
     )
     teardown.add_argument("--delete-bucket", action="store_true")
+    teardown.add_argument(
+        "--state-dir",
+        default=None,
+        help="where teardown records what a rerun needs once the stack is gone; "
+        "defaults to .local/own-account in the repository",
+    )
     teardown.add_argument(
         "--schedule-kms-key-deletion",
         type=kms_days,
