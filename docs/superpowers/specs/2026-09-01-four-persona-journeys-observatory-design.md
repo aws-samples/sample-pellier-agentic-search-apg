@@ -1,5 +1,9 @@
 # Pellier Governed: Four Persona Journeys and Observatory Design
 
+> **Historical design record.** This document describes the plan at the date above, not the current
+> workshop. For the four labs as they ship, see [the story arc](../../WORKSHOP-STORY-ARC.md) and
+> [workshop/story-arc.json](../../../workshop/story-arc.json).
+
 Date: 2026-09-01
 Status: Approved design, implementation in progress
 Source branch: `governed`

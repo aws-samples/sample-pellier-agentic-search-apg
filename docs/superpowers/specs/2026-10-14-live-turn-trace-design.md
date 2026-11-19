@@ -1,5 +1,9 @@
 # Live turn traces for terminal-sent turns
 
+> **Historical design record.** This document describes the plan at the date above, not the current
+> workshop. For the four labs as they ship, see [the story arc](../../WORKSHOP-STORY-ARC.md) and
+> [workshop/story-arc.json](../../../workshop/story-arc.json).
+
 Status: approved by the owner on 2026-10-14. Ships before re:Invent only if it passes a new
 Workshop Studio test event; until then it lives on `feat/live-turn-trace` and `governed` stays
 at `46b45b3d`.
