@@ -44,6 +44,70 @@ SELECT format('DROP POLICY %I ON %I.%I', policyname, schemaname, tablename)
   FROM pg_policies WHERE 'pellier_credit_writer' = ANY (roles)
 \gexec
 
+-- lab_4_reach: what the role can reach in each relation of the pellier schema, including
+-- what it holds through PUBLIC and through the roles it inherits from or can SET ROLE to,
+-- and where each privilege comes from. A privilege on a column is listed with its columns.
+-- A direct table grant shows as the bare privilege. One line per relation and per policy,
+-- so the result fits a laptop-size terminal.
+CREATE TEMP VIEW lab_4_reach AS
+WITH holders (oid, label) AS (
+    SELECT oid, 'direct grant' FROM pg_roles WHERE rolname = 'pellier_credit_writer'
+    UNION ALL SELECT 0, 'PUBLIC'
+    UNION ALL SELECT oid, 'role ' || rolname FROM pg_roles
+     WHERE rolname <> 'pellier_credit_writer'
+       AND (pg_has_role('pellier_credit_writer', oid, 'USAGE')
+            OR pg_has_role('pellier_credit_writer', oid, 'SET'))
+), targets AS (
+    SELECT c.oid AS relid, c.relname, 0 AS attnum, '' AS attname, p.priv,
+           coalesce(c.relacl, acldefault('r', c.relowner)) AS acl
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      CROSS JOIN unnest(ARRAY['DELETE', 'INSERT', 'MAINTAIN', 'REFERENCES', 'SELECT', 'TRIGGER',
+                              'TRUNCATE', 'UPDATE']) AS p (priv)
+     WHERE n.nspname = 'pellier' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+    UNION ALL
+    SELECT c.oid, c.relname, a.attnum, a.attname, p.priv, a.attacl
+      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
+      CROSS JOIN unnest(ARRAY['INSERT', 'REFERENCES', 'SELECT', 'UPDATE']) AS p (priv)
+     WHERE n.nspname = 'pellier' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
+), hits AS (
+    SELECT t.*, h.label FROM targets t CROSS JOIN holders h
+     WHERE EXISTS (SELECT 1 FROM aclexplode(t.acl) a
+                    WHERE a.grantee = h.oid AND a.privilege_type = t.priv)
+        OR (h.oid > 0 AND h.label <> 'direct grant'
+            AND NOT EXISTS (SELECT 1 FROM aclexplode(t.acl) a
+                             WHERE a.grantee = 0 AND a.privilege_type = t.priv)
+            AND CASE WHEN t.attnum = 0 THEN has_table_privilege(h.oid, t.relid, t.priv)
+                     ELSE has_column_privilege(h.oid, t.relid, t.attnum::smallint, t.priv) END)
+), reach AS (
+    SELECT relname, attnum, attname, priv, array_agg(label ORDER BY label) AS labels
+      FROM hits h
+     WHERE attnum = 0 OR NOT EXISTS (SELECT 1 FROM hits t WHERE t.relid = h.relid
+                                      AND t.attnum = 0 AND t.priv = h.priv)
+     GROUP BY relid, relname, attnum, attname, priv
+), items AS (
+    SELECT relname, attnum > 0 AS by_column, priv,
+           CASE WHEN labels = ARRAY['direct grant'] THEN ''
+                ELSE ' via ' || array_to_string(labels, ' and ') END AS via,
+           string_agg(attname, ', ' ORDER BY attnum) FILTER (WHERE attnum > 0) AS columns
+      FROM reach GROUP BY relname, attnum > 0, priv, labels
+)
+SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS tables
+  FROM (SELECT string_agg(relname || ' ' || list, E'\n' ORDER BY relname) AS grants
+          FROM (SELECT relname,
+                       string_agg(priv || coalesce(' (' || columns || ')', '') || via, ', '
+                                  ORDER BY by_column, priv, columns) AS list
+                  FROM items GROUP BY relname) per_table) g,
+       (SELECT string_agg(format('policy %s on %s USING (%s): %s', policyname, tablename, qual,
+                                 CASE WHEN qual = 'true' THEN 'every customer''s rows'
+                                      ELSE 'the rows it names' END), E'\n' ORDER BY policyname)
+                 AS policies
+          FROM pg_policies
+         WHERE 'pellier_credit_writer' = ANY (roles)
+           AND schemaname = 'pellier') p;
+-- Read before your statements run: anything the role reaches now comes from outside them.
+SELECT tables AS reach, tables <> 'none' AS outside FROM lab_4_reach \gset before_
+
 -- Your build: what pellier_credit_writer may do.
 -- === WORKSHOP - Credit writer - privileges: START ===
 SELECT $privileges$
@@ -153,65 +217,7 @@ SELECT string_agg(r || ' ' || CASE WHEN has_function_privilege(r,
                  THEN 'yes' ELSE 'no' END, ', ' ORDER BY ord) AS execute
   FROM unnest(ARRAY['pellier_credit_writer', 'pellier_agent', 'public']) WITH ORDINALITY AS t (r, ord)
 \gset fn_
--- What the role can reach in each relation of the pellier schema, including what it holds through
--- PUBLIC and through the roles it inherits from or can SET ROLE to, and where each privilege comes
--- from. A privilege on a column is listed with its columns. A direct table grant shows as the
--- bare privilege. One line per relation and per policy, so the result fits a laptop-size terminal.
-WITH holders (oid, label) AS (
-    SELECT 'pellier_credit_writer'::regrole::oid, 'direct grant'
-    UNION ALL SELECT 0, 'PUBLIC'
-    UNION ALL SELECT oid, 'role ' || rolname FROM pg_roles
-     WHERE rolname <> 'pellier_credit_writer'
-       AND (pg_has_role('pellier_credit_writer', oid, 'USAGE')
-            OR pg_has_role('pellier_credit_writer', oid, 'SET'))
-), targets AS (
-    SELECT c.oid AS relid, c.relname, 0 AS attnum, '' AS attname, p.priv,
-           coalesce(c.relacl, acldefault('r', c.relowner)) AS acl
-      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      CROSS JOIN unnest(ARRAY['DELETE', 'INSERT', 'MAINTAIN', 'REFERENCES', 'SELECT', 'TRIGGER',
-                              'TRUNCATE', 'UPDATE']) AS p (priv)
-     WHERE n.nspname = 'pellier' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-    UNION ALL
-    SELECT c.oid, c.relname, a.attnum, a.attname, p.priv, a.attacl
-      FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-      JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum > 0 AND NOT a.attisdropped
-      CROSS JOIN unnest(ARRAY['INSERT', 'REFERENCES', 'SELECT', 'UPDATE']) AS p (priv)
-     WHERE n.nspname = 'pellier' AND c.relkind IN ('r', 'p', 'v', 'm', 'f')
-), hits AS (
-    SELECT t.*, h.label FROM targets t CROSS JOIN holders h
-     WHERE EXISTS (SELECT 1 FROM aclexplode(t.acl) a
-                    WHERE a.grantee = h.oid AND a.privilege_type = t.priv)
-        OR (h.oid > 0 AND h.label <> 'direct grant'
-            AND NOT EXISTS (SELECT 1 FROM aclexplode(t.acl) a
-                             WHERE a.grantee = 0 AND a.privilege_type = t.priv)
-            AND CASE WHEN t.attnum = 0 THEN has_table_privilege(h.oid, t.relid, t.priv)
-                     ELSE has_column_privilege(h.oid, t.relid, t.attnum::smallint, t.priv) END)
-), reach AS (
-    SELECT relname, attnum, attname, priv, array_agg(label ORDER BY label) AS labels
-      FROM hits h
-     WHERE attnum = 0 OR NOT EXISTS (SELECT 1 FROM hits t WHERE t.relid = h.relid
-                                      AND t.attnum = 0 AND t.priv = h.priv)
-     GROUP BY relid, relname, attnum, attname, priv
-), items AS (
-    SELECT relname, attnum > 0 AS by_column, priv,
-           CASE WHEN labels = ARRAY['direct grant'] THEN ''
-                ELSE ' via ' || array_to_string(labels, ' and ') END AS via,
-           string_agg(attname, ', ' ORDER BY attnum) FILTER (WHERE attnum > 0) AS columns
-      FROM reach GROUP BY relname, attnum > 0, priv, labels
-)
-SELECT coalesce(nullif(concat_ws(E'\n', grants, policies), ''), 'none') AS tables
-  FROM (SELECT string_agg(relname || ' ' || list, E'\n' ORDER BY relname) AS grants
-          FROM (SELECT relname,
-                       string_agg(priv || coalesce(' (' || columns || ')', '') || via, ', '
-                                  ORDER BY by_column, priv, columns) AS list
-                  FROM items GROUP BY relname) per_table) g,
-       (SELECT string_agg(format('policy %s on %s USING (%s): %s', policyname, tablename, qual,
-                                 CASE WHEN qual = 'true' THEN 'every customer''s rows'
-                                      ELSE 'the rows it names' END), E'\n' ORDER BY policyname)
-                 AS policies
-          FROM pg_policies
-         WHERE 'pellier_credit_writer' = ANY (roles)
-           AND schemaname = 'pellier') p
+SELECT tables FROM lab_4_reach
 \gset writer_
 
 -- Undo the test case and its credit; your statements stay in the transaction.
@@ -294,7 +300,12 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Your change was undone.'
   \echo '          The live state is unchanged.'
   \echo '         ' :credits_rows
-  \if :lab_4_tables_differ
+  \if :before_outside
+    \echo 'Next      the role reached a Pellier table before your statements ran, through'
+    \echo '          PUBLIC or a role it belongs to: ' :before_reach
+    \echo '          Your file did not grant it and cannot remove it. Raise your hand so'
+    \echo '          a facilitator can check the database.'
+  \elif :lab_4_tables_differ
     \echo 'Next      which single privilege does a credit path need? In the rows that do not'
     \echo '          match, 23514 is the trigger refusing a row your role was allowed to'
     \echo '          insert: a rule the owner can switch off, not a privilege the role lacks.'

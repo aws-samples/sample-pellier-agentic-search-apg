@@ -265,3 +265,33 @@ def test_the_opening_revoke_clears_the_writers_own_column_grants(fresh_db) -> No
     assert done.returncode == 0, done.stdout + done.stderr
     assert fresh_db.psql("SELECT has_any_column_privilege('pellier_credit_writer', "
                          "'pellier.customers', 'SELECT')") == "f"
+
+
+def _next_step(stdout: str) -> str:
+    """The failed run's Next lines, joined, up to the failure line."""
+    return " ".join(stdout.split("Next      ", 1)[1].split("Lab 4B privileges check failed")[0]
+                    .split())
+
+
+def test_access_from_outside_the_statements_is_sent_to_a_facilitator(  # noqa: F811
+        fresh_db) -> None:
+    """A PUBLIC grant is not the participant's to fix, so the next step must not say it is."""
+    fresh_db.psql("GRANT SELECT ON pellier.customers TO PUBLIC")
+    try:
+        done = _run(fresh_db, SOLUTION)
+        assert done.returncode != 0
+        hint = _next_step(done.stdout)
+        assert "before your statements ran" in hint and "customers SELECT via PUBLIC" in hint
+        assert "facilitator" in hint and "which single privilege" not in hint
+    finally:
+        fresh_db.psql("REVOKE SELECT ON pellier.customers FROM PUBLIC")
+
+
+def test_a_role_granted_by_the_statements_is_theirs_to_fix(fresh_db, tmp_path) -> None:  # noqa: F811
+    variant = _solution_with(
+        "CREATE ROLE lab4_mine NOLOGIN; GRANT SELECT ON pellier.orders TO lab4_mine; "
+        "GRANT lab4_mine TO pellier_credit_writer;", tmp_path)
+    assert _only_access_differs(fresh_db, variant) == ["orders SELECT via role lab4_mine"]
+    hint = _next_step(_run(fresh_db, variant).stdout)
+    assert "which single privilege" in hint and "before your statements ran" not in hint
+    assert fresh_db.psql("SELECT count(*) FROM pg_roles WHERE rolname = 'lab4_mine'") == "0"
