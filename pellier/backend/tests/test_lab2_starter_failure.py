@@ -292,6 +292,21 @@ MARCO_PIECE = "Hadley Linen Shirt"
 NO_COMPARISON = "no check_stock call compared Brooklyn's count and ship window"
 
 
+OWN_SESSION = "persona-marcoown-"
+
+
+@pytest.fixture
+def own_audit_rows(monkeypatch) -> None:
+    """Judge a session of this test's own: tool_audit is append-only, and later tests read
+    the latest rows of the shared persona-marco- sessions."""
+    monkeypatch.setattr(lab2, "MARCO_SESSION_PREFIX", OWN_SESSION)
+
+
+def _own_audit(conn: Any, turn: str, tool: str, args: Dict[str, Any],
+               result: Dict[str, Any]) -> None:
+    _audit(conn, turn, tool, args, result, session=OWN_SESSION)
+
+
 def _assert_asks_for_the_brooklyn_question_again(finding: Any) -> None:
     assert finding.state == "NOT YET PASSED", finding
     assert NO_COMPARISON in finding.observed
@@ -305,47 +320,52 @@ def _assert_asks_for_the_brooklyn_question_again(finding: Any) -> None:
     "Linen shirt",           # names several products
     "",                      # names nothing
 ])
-def test_2a_is_not_yet_when_the_only_call_names_no_single_piece(conn, query) -> None:
+def test_2a_is_not_yet_when_the_only_call_names_no_single_piece(
+    conn, own_audit_rows, query,
+) -> None:
     """A query the catalog cannot resolve to one piece compares nothing, so it cannot pass."""
     answer = _ask(conn, lab_variants.SOLUTION, query)
-    _audit(conn, "turn-unjudged", "check_stock", {"product_query": query}, answer)
+    _own_audit(conn, "turn-unjudged", "check_stock", {"product_query": query}, answer)
     _assert_asks_for_the_brooklyn_question_again(lab2.judge_2a(conn))
 
 
-def test_2a_is_not_yet_when_the_only_judged_call_is_another_piece(conn) -> None:
+def test_2a_is_not_yet_when_the_only_judged_call_is_another_piece(conn, own_audit_rows) -> None:
     """A matching comparison for the Quilted Silk Vest does not stand in for Marco's shirt."""
     vest = _ask(conn, lab_variants.SOLUTION, "Quilted Silk Vest")
-    _audit(conn, "turn-vest", "check_stock", {"product_query": "Quilted Silk Vest"}, vest)
+    _own_audit(conn, "turn-vest", "check_stock", {"product_query": "Quilted Silk Vest"}, vest)
     finding = lab2.judge_2a(conn)
     _assert_asks_for_the_brooklyn_question_again(finding)
     assert any("Quilted Silk Vest" in line for line in finding.evidence)
 
 
-def test_2a_fails_a_shirt_answer_that_names_no_brooklyn_row(conn) -> None:
+def test_2a_fails_a_shirt_answer_that_names_no_brooklyn_row(conn, own_audit_rows) -> None:
     """Marco's question is about Brooklyn, so an answer without its row does not match."""
     answer = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
     answer["warehouses"] = [row for row in answer["warehouses"]
                             if row["warehouse_code"] != "BK-01"]
-    _audit(conn, "turn-no-brooklyn", "check_stock", {"product_query": MARCO_PIECE}, answer)
+    _own_audit(conn, "turn-no-brooklyn", "check_stock", {"product_query": MARCO_PIECE}, answer)
     assert lab2.judge_2a(conn).state == "FAILED"
 
 
-def test_2a_a_shirt_turn_with_an_unjudged_call_beside_it_passes(conn) -> None:
+def test_2a_a_shirt_turn_with_an_unjudged_call_beside_it_passes(conn, own_audit_rows) -> None:
     several = _ask(conn, lab_variants.SOLUTION, "Linen shirt")
     shirt = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
-    _audit(conn, "turn-both", "check_stock", {"product_query": "Linen shirt"}, several)
-    _audit(conn, "turn-both", "check_stock", {"product_query": MARCO_PIECE}, shirt)
+    _own_audit(conn, "turn-both", "check_stock", {"product_query": "Linen shirt"}, several)
+    _own_audit(conn, "turn-both", "check_stock", {"product_query": MARCO_PIECE}, shirt)
     finding = lab2.judge_2a(conn)
     assert finding.state == "PASSED", finding
     assert "Brooklyn" in finding.observed and MARCO_PIECE in finding.observed
 
 
-def test_2a_a_shirt_mismatch_stays_failed_beside_a_matching_other_piece(conn) -> None:
+def test_2a_a_shirt_mismatch_stays_failed_beside_a_matching_other_piece(
+    conn, own_audit_rows,
+) -> None:
     vest = _ask(conn, lab_variants.SOLUTION, "Quilted Silk Vest")
     shirt = _ask(conn, lab_variants.SOLUTION, MARCO_PIECE)
     shirt["warehouses"][0]["quantity"] += 4
-    _audit(conn, "turn-shirt-wrong", "check_stock", {"product_query": "Quilted Silk Vest"}, vest)
-    _audit(conn, "turn-shirt-wrong", "check_stock", {"product_query": MARCO_PIECE}, shirt)
+    _own_audit(conn, "turn-shirt-wrong", "check_stock",
+               {"product_query": "Quilted Silk Vest"}, vest)
+    _own_audit(conn, "turn-shirt-wrong", "check_stock", {"product_query": MARCO_PIECE}, shirt)
     finding = lab2.judge_2a(conn)
     assert finding.state == "FAILED", finding
 

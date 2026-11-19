@@ -9,8 +9,9 @@ the tool and the store tools that running agent held (``args->>'agent'``,
 actually had, never the source: a saved definition counts once Marco's requests
 have run on it. As shipped, the Stock agent holds only the catalog tools, so its
 call to ``check_stock`` is refused and does not run. Once connected, that agent
-may hold only ``check_stock``, the turn may call nothing else, and the count it
-was given for every piece Pellier carries must equal the warehouse rows. What it
+may hold only ``check_stock``, the turn may call nothing else, at least one call must
+be about the Hadley Linen Shirt and match its Brooklyn row, and every count and ship
+window it was given for a piece Pellier carries must equal the warehouse rows. What it
 was told about a piece Pellier does not carry is Task 2B's to judge.
 
 Task 2B judges ``pellier.check_stock``, the database function both rails call,
@@ -63,6 +64,10 @@ STOCK_AGENT_NAME = "stock"
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 SEND = "uv run scripts/lab_run.py send --lab 2"
 SEND_2A = "uv run scripts/lab_run.py send --lab 2 --task 2A"
+# Marco's Task 2A question is about this catalog piece at this warehouse. The piece is
+# named the way the catalog names it, the same name Task 2B's in-stock case uses.
+MARCO_PIECE_NAME = "Hadley Linen Shirt"
+BROOKLYN = "BK-01"
 STOCK_AGENT_FILE = BACKEND / "agents" / "stock_agent.py"
 WORKSHEET = REPO / "workshop" / "lab-2-check-stock.sql"
 WORKSHEET_STARTER = REPO / "workshop" / "starters" / "lab-2-check-stock.sql"
@@ -287,11 +292,12 @@ def _call_problems(rows: Sequence[Dict[str, Any]]) -> List[str]:
     return problems
 
 
-def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[Optional[bool], str]:
+def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[Optional[bool], str, str]:
     """Whether one recorded check_stock answer about a carried piece matches its rows.
 
-    Returns ``(None, line)`` for a query that names no piece or several: what the
-    function says about those is Task 2B's to judge, not the grant's.
+    Returns ``(ok, line, product_id)``. ``ok`` is None and ``product_id`` empty for a
+    query that names no piece or several: what the function says about those is Task
+    2B's to judge, not the grant's.
     """
     args, result = _as_dict(row.get("args")), _as_dict(row.get("result"))
     query = str(args.get("product_query") or "")
@@ -300,7 +306,7 @@ def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[Optional[bool], st
     said = describe_envelope(result)
     if len(catalog["matches"]) != 1:
         return None, (f"audit {row['audit_id']}: check_stock(\"{query}\") said {said}; the "
-                      f"catalog matches {len(catalog['matches'])}, which Task 2B judges")
+                      f"catalog matches {len(catalog['matches'])}, which Task 2B judges"), ""
     product = catalog["matches"][0]
     real = _counts(catalog.get("stock") or [])
     told_windows = _windows(result.get("warehouses") or [])
@@ -312,19 +318,29 @@ def _judge_stock_row(conn: Any, row: Dict[str, Any]) -> Tuple[Optional[bool], st
                 f"{_counts_text(told) if told else str(result.get('total_units')) + ' units'}; "
                 f"warehouse_inventory for {product['product_id']}: {_counts_text(real)}; ship "
                 f"windows in business days, given {_windows_text(told_windows) or 'none'}, "
-                f"recorded {_windows_text(real_windows) or 'none'}")
+                f"recorded {_windows_text(real_windows) or 'none'}"), str(product["product_id"])
 
 
-def _count_problems(conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[str]) -> List[str]:
+def _count_problems(
+    conn: Any, rows: Sequence[Dict[str, Any]], evidence: List[str],
+) -> Tuple[List[str], bool]:
+    """(problems, compared): ``compared`` is True when a call about Marco's piece matched
+    the Brooklyn row's count and ship window, among the rows it was judged against."""
     problems: List[str] = []
+    compared = False
+    marco = catalog_answer(conn, MARCO_PIECE_NAME)
+    marco_id = str(marco["matches"][0]["product_id"]) if len(marco["matches"]) == 1 else None
+    brooklyn = BROOKLYN in _counts(marco.get("stock") or [])
     for row in rows:
         if row["tool"] != "check_stock":
             continue
-        ok, line = _judge_stock_row(conn, row)
+        ok, line, product_id = _judge_stock_row(conn, row)
         evidence.append(line)
         if ok is False:
             problems.append(f"audit {row['audit_id']} does not match the catalog")
-    return problems
+        elif ok and marco_id is not None and product_id == marco_id and brooklyn:
+            compared = True
+    return problems, compared
 
 
 def stale_2a(created: Any, when: Optional[check.Timeline]) -> Optional[Tuple[str, str]]:
@@ -380,7 +396,7 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     if state is not None:
         return check.Finding("2A", title, state, EXPECTED_2A, observed, evidence, _NEXT_2A_GRANT)
     problems = _call_problems(rows)
-    counts = _count_problems(conn, rows, evidence)
+    counts, compared = _count_problems(conn, rows, evidence)
     if problems:
         return check.Finding("2A", title, check.FAILED, EXPECTED_2A,
                              "; ".join(problems + counts), evidence, _NEXT_2A_GRANT)
@@ -390,10 +406,16 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
                              "warehouse_inventory does not hold for a piece Pellier carries: "
                              "rerun this check after "
                              f"sending Marco's requests again ({SEND}).")
+    if not compared:
+        return check.Finding(
+            "2A", title, check.NOT_YET, EXPECTED_2A,
+            "no check_stock call compared Brooklyn's count and ship window for the "
+            f"{MARCO_PIECE_NAME}: each one named no single piece or another piece",
+            evidence, f"send Marco's Brooklyn question again ({SEND_2A}), then rerun this check.")
     calls = sum(1 for row in rows if row["tool"] == "check_stock")
-    observed = (f"held check_stock alone; {check.counted(calls, 'check_stock call')}, every "
-                "count and ship "
-                "window for a piece Pellier carries matches")
+    observed = (f"held check_stock alone; {check.counted(calls, 'check_stock call')}; the "
+                f"{MARCO_PIECE_NAME}'s Brooklyn count and ship window match "
+                "warehouse_inventory")
     return check.Finding("2A", title, check.PASSED, EXPECTED_2A, observed, evidence)
 
 
