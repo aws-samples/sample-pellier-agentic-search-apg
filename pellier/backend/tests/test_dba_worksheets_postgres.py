@@ -75,6 +75,21 @@ def statements_db() -> Iterator[Cluster]:
         tmp.cleanup()
 
 
+@pytest.fixture(scope="module")
+def handoff_db() -> Iterator[Cluster]:
+    """A cluster of its own, because a credit's review cannot be decided twice."""
+    tmp = tempfile.TemporaryDirectory(prefix="pellier-handoff-")
+    try:
+        cluster = start_cluster(Path(tmp.name))
+        try:
+            run_setup(cluster)
+            yield cluster
+        finally:
+            cluster.stop()
+    finally:
+        tmp.cleanup()
+
+
 def _agent_reads(cluster: Cluster, persona: str, customer: str) -> None:
     """get_orders and get_tickets as the tools run them: the role, the bound name, the SQL."""
     with _connect(cluster) as conn, conn.transaction():
@@ -237,17 +252,17 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
 
 
 def test_the_wrap_up_check_picks_the_handoff_row_that_opened_her_request(
-        fresh_db: Cluster) -> None:  # noqa: F811
+        handoff_db: Cluster) -> None:
     """A turn can hold two ask_a_person rows; only the one naming her request is hers."""
     scripts = str(REPO / "scripts")
     if scripts not in sys.path:
         sys.path.insert(0, scripts)
     follow_credit = importlib.import_module("follow_credit")
-    chain = _jessica_chain(fresh_db, handoff_row=False)
+    chain = _jessica_chain(handoff_db, handoff_row=False)
     insert = ("INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, "
               "latency_ms) VALUES (%s, 'ask_a_person', 'gateway', %s::jsonb, %s::jsonb, 40) "
               "RETURNING audit_id")
-    with _connect(fresh_db) as conn:
+    with _connect(handoff_db) as conn:
         run = _run(conn)
         decoy = run(insert, (chain["asked"], json.dumps({"gateway_request_id": "req-decoy"}),
                              json.dumps({"request_id": chain["request"] + 1000})))[0]

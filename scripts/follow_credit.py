@@ -10,9 +10,11 @@ No single record tells the whole story, so this joins four of them:
                     the credit
     pgAudit         the PostgreSQL log: the INSERT that reached pellier.store_credits
 
-Two values join them. Jessica's turn ID is on her agent's span, on the ask_a_person audit row
-and on her request. The review's key is on Nadia's give_store_credit audit row, on the pgAudit
-line and on the credit. The script starts from Jessica's newest credit in Aurora, reads
+Three values join them. Jessica's turn ID is on her agent's span, on the ask_a_person audit row
+and on her request. The Gateway request id on that audit row is the id of the Gateway call
+that opened her request, so the check follows that one call and no other call in her turn.
+The review's key is on Nadia's give_store_credit audit row, on the pgAudit line and on the
+credit. The script starts from Jessica's newest credit in Aurora, reads
 CloudWatch from just before her request, and never writes:
 
     uv run scripts/follow_credit.py
@@ -44,9 +46,13 @@ LEAD_S = 120
 TITLE = "Jessica's store credit, end to end: CloudWatch spans, Aurora rows and pgAudit"
 HEADER = ("When (UTC)", "Step", "What the record says", "Recorded in")
 FINISH_LAB_4 = "uv run scripts/lab_run.py finish --lab 4"
+CONTRADICTION = ("Aurora and the Gateway's record of her handoff disagree. Raise your hand so a "
+                 "facilitator can check it.")
 
 # The same joins as workshop/wrap-up-reconstruct.sql: from her newest credit back to the
-# review that keyed it and the request from her chat that the review answered.
+# review that keyed it and the request from her chat that the review answered. The handoff
+# row is the one whose result names that request, so a second ask_a_person row in her turn
+# cannot stand in for it.
 STORY_SQL = """
 WITH credit AS (
     SELECT * FROM pellier.store_credits WHERE customer_id = %(customer)s
@@ -67,7 +73,12 @@ SELECT c.credit_id, c.amount_cents, c.idempotency_key, c.created_at AS credited_
        q.id AS request_id, q.source_turn_id AS turn_id, q.requested_at,
        (SELECT t.audit_id FROM pellier.tool_audit t
          WHERE t.tool = 'ask_a_person' AND t.session_id = q.source_turn_id
+           AND t.result->>'request_id' = q.id::text
          ORDER BY t.audit_id LIMIT 1) AS handoff_audit_id,
+       (SELECT t.args->>'gateway_request_id' FROM pellier.tool_audit t
+         WHERE t.tool = 'ask_a_person' AND t.session_id = q.source_turn_id
+           AND t.result->>'request_id' = q.id::text
+         ORDER BY t.audit_id LIMIT 1) AS handoff_gateway_request_id,
        (SELECT t.audit_id FROM pellier.tool_audit t
          WHERE t.tool = 'give_store_credit' AND t.args->>'idempotency_key' = r.write_key
            AND t.result->>'status' = 'success'
@@ -90,7 +101,7 @@ AURORA_LINKS = (
     ("review_id", "her credit names no give_store_credit review"),
     ("request_id", "no request from her chat was answered by that review"),
     ("turn_id", "her request records no turn"),
-    ("handoff_audit_id", "no ask_a_person audit row carries her request's turn"),
+    ("handoff_audit_id", "no ask_a_person audit row in her turn opened her request"),
     ("credit_audit_id", "no give_store_credit audit row applied the review's key"),
 )
 
@@ -128,14 +139,10 @@ def agent_span(runtime: Optional[List[Dict[str, Any]]]) -> Optional[Dict[str, An
                  if str(span.get("name", "")).startswith("invoke_agent ")), None)
 
 
-def handoff_from_turn(calls: List[Dict[str, Any]], runtime: Dict[str, Any],
-                      turn_id: str) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
-    """The ask_a_person call whose agent span carries ``turn_id``, newest first, with that span."""
-    for call in reversed(calls):
-        span = agent_span(runtime.get(call["trace_id"]))
-        if span is not None and trace._attrs(span).get("turn.id") == turn_id:
-            return call, span
-    return None, None
+def handoff_call(calls: List[Dict[str, Any]], request_id: str) -> Optional[Dict[str, Any]]:
+    """The ask_a_person call with this Gateway request id, never the newest one in her turn."""
+    matches = [call for call in calls if call.get("request_id") == request_id]
+    return matches[0] if matches else None
 
 
 def paid_call(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
@@ -279,9 +286,74 @@ def _credit_half(story: Dict[str, Any], records: Records, rows: List[List[str]],
     return Followed(check.PASSED, rows + credit_rows(story, paid, inserts[0], records.names),
                     joins=[
         f"Turn  {story['turn_id']} joins the agent's span, the audit row and her request.",
+        f"Call  {story['handoff_gateway_request_id']} joins that audit row to the Gateway's "
+        "span for the call.",
         f"Key   {story['write_key']} joins the audit row, the pgAudit line and the credit.",
         "Paid once: pgAudit logged one INSERT with this key, and Aurora holds one credit with it.",
     ])
+
+
+def _later(story: Dict[str, Any], observed: str, state: str = check.COULD_NOT_CHECK,
+           next_step: str = "") -> Followed:
+    """A verdict on her handoff, with only the Aurora rows that stand on their own."""
+    return Followed(state, decision_rows(story), observed=observed, next_step=(
+        next_step or "spans reach CloudWatch about ten seconds after a call; run this again "
+                     "shortly."))
+
+
+def _caller_problem(story: Dict[str, Any], call: Dict[str, Any],
+                    names: Dict[str, str]) -> Optional[Followed]:
+    """FAILED when someone other than Jessica made the call; waiting when that is unknown."""
+    subject = call.get("subject")
+    if not subject or "jessica" not in names.values():
+        return _later(story, "the Gateway's record of her handoff does not say who made it")
+    if names.get(subject) != "jessica":
+        who = names.get(subject) or f"sub {subject[:8]}..."
+        return _later(story, f"the handoff call that opened her request was made by {who}, "
+                             "not by Jessica", check.FAILED, CONTRADICTION)
+    return None
+
+
+def _handoff_problem(story: Dict[str, Any], call: Dict[str, Any],
+                     records: Records) -> Optional[Followed]:
+    """Why the identified call cannot complete the proof, or ``None`` when it can."""
+    if call.get("decision") == "DENY":
+        return _later(story, "the Gateway DENIED the handoff call that Aurora recorded as "
+                             "run", check.FAILED, CONTRADICTION)
+    problem = _caller_problem(story, call, records.names)
+    if problem:
+        return problem
+    if call.get("decision") != "ALLOW" or call.get("lambda_ms") is None:
+        return _later(story, "CloudWatch does not yet hold the policy decision and the "
+                             "Lambda's run for her handoff call")
+    spans = records.runtime.get(call["trace_id"])
+    if spans is None:
+        return _later(story, "the Runtime's log group could not be read")
+    span = agent_span(spans)
+    if span is None:
+        return _later(story, f"no agent span for her handoff {HANDOFF_TOOL} call is in "
+                             "CloudWatch")
+    if trace._attrs(span).get("turn.id") != story["turn_id"]:
+        return _later(story, "the agent span of the handoff call that opened her request "
+                             "names a different turn", check.FAILED, CONTRADICTION)
+    return None
+
+
+def _handoff_gap(story: Dict[str, Any], records: Records) -> Tuple[
+        Optional[Followed], Optional[Dict[str, Any]]]:
+    """Find the one call that opened her request, then require it to be hers and to have run."""
+    request_id = story.get("handoff_gateway_request_id")
+    if not request_id:
+        return Followed(check.COULD_NOT_CHECK, decision_rows(story), observed=(
+            "her handoff's audit row predates the Gateway request id, so the call that "
+            "opened her request cannot be identified"),
+            next_step="make a new handoff, for example finish Lab 4 again "
+                      f"({FINISH_LAB_4}), then run this again."), None
+    call = handoff_call(records.handoffs, request_id)
+    if call is None:
+        return _later(story, f"the {HANDOFF_TOOL} call with Gateway request id {request_id} "
+                             "is not in CloudWatch"), None
+    return _handoff_problem(story, call, records), call
 
 
 def follow(story: Optional[Dict[str, Any]], records: Records, now: float) -> Followed:
@@ -299,23 +371,21 @@ def follow(story: Optional[Dict[str, Any]], records: Records, now: float) -> Fol
     if gap:
         return gap
     assert story is not None
-    call, span = handoff_from_turn(records.handoffs, records.runtime, story["turn_id"])
-    if call is None or span is None:
-        unreadable = any(records.runtime.get(c["trace_id"]) is None
-                         for c in records.handoffs if c["trace_id"])
-        return Followed(check.COULD_NOT_CHECK, decision_rows(story), next_step=(
-            "spans reach CloudWatch about ten seconds after a call; run this again shortly."),
-            observed=("the Runtime's log group could not be read" if unreadable else
-                      f"no {HANDOFF_TOOL} call in CloudWatch carries her turn's agent span"))
+    gap, call = _handoff_gap(story, records)
+    if gap:
+        return gap
+    assert call is not None
+    span = agent_span(records.runtime[call["trace_id"]])
+    assert span is not None
     rows = handoff_rows(story, call, span, records.names) + decision_rows(story)
     return _credit_half(story, records, rows, now)
 
 
 def _join_line(join: str) -> str:
-    """A join sentence wrapped under its label: ``Turn``, ``Key`` or ``Paid once:``."""
+    """A join sentence wrapped under its label: ``Turn``, ``Call``, ``Key`` or ``Paid once:``."""
     label, _, rest = join.partition(" ")
-    if label in ("Turn", "Key"):
-        return check.wrapped("Turn  " if label == "Turn" else "Key   ", rest.lstrip())
+    if label in ("Turn", "Call", "Key"):
+        return check.wrapped(f"{label:<6}", rest.lstrip())
     return check.wrapped("", join)
 
 

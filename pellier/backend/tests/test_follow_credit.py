@@ -120,7 +120,7 @@ def test_no_credit_yet_is_not_yet_and_reads_nothing_else() -> None:
 def test_a_missing_aurora_link_fails_and_names_the_link() -> None:
     followed = follow_credit.follow(_story(handoff_audit_id=None), _records(), NOW)
     assert followed.state == check.FAILED
-    assert followed.observed == "no ask_a_person audit row carries her request's turn"
+    assert followed.observed == "no ask_a_person audit row in her turn opened her request"
     keyed = follow_credit.follow(_story(credits_with_key=2), _records(), NOW)
     assert keyed.state == check.FAILED and "the review's key is on 2 credits" in keyed.observed
 
@@ -128,8 +128,8 @@ def test_a_missing_aurora_link_fails_and_names_the_link() -> None:
 def test_an_agent_span_from_another_turn_is_not_hers() -> None:
     other = dict(AGENT_SPAN, attributes=dict(AGENT_SPAN["attributes"], **{"turn.id": "turn-x"}))
     followed = follow_credit.follow(_story(), _records(runtime={"trace-req-ask": [other]}), NOW)
-    assert followed.state == check.COULD_NOT_CHECK
-    assert followed.observed == "no ask_a_person call in CloudWatch carries her turn's agent span"
+    assert followed.state == check.FAILED
+    assert "names a different turn" in followed.observed
     assert [row[1] for row in followed.rows] == ["Review", "Approval"]
 
 
