@@ -3,7 +3,10 @@
 Check Bedrock model access for Pellier's application and managed Runtime.
 
 Usage:
-    uv run scripts/check_model_access.py
+    uv run scripts/check_model_access.py [--region us-west-2]
+
+The Region is --region, else AWS_DEFAULT_REGION, else AWS_REGION. With none of them set the
+check runs in us-east-1 and says so.
 
 Verifies invoke access by sending a minimal request to each model.
 Prints a clear pass/fail for each.
@@ -285,13 +288,21 @@ def _upsert_env(env_path: str, key: str, value: str) -> None:
 
 
 def main():
+    global REGION
     import argparse
     parser = argparse.ArgumentParser()
+    parser.add_argument("--region", default=None,
+                        help="Region to check; defaults to AWS_DEFAULT_REGION or AWS_REGION")
     # When set, persist every resolved model used by the app, Runtime, and
     # managed Runtime so later bootstrap stages cannot fall back to a denied ID.
     parser.add_argument("--write-env", default=None,
                         help="Path to .env to update with resolved model IDs")
     args = parser.parse_args()
+
+    if args.region:
+        REGION = args.region
+    elif not (os.environ.get("AWS_DEFAULT_REGION") or os.environ.get("AWS_REGION")):
+        print(f"No Region was given (pass --region or set AWS_REGION), so this checks {REGION}.\n")
 
     if args.write_env:
         # Clear a stale success marker before making any live calls.

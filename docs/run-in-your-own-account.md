@@ -172,20 +172,46 @@ before any extra Ask Pellier requests or the coach.
 - **On your machine:** `git`, `uv` (it installs boto3 for the scripts), and AWS credentials
   for that account in the usual places (`AWS_PROFILE` or the default profile).
 
-**Step 1.** Run the account check. It changes nothing: it names the account and Region,
-lists any Pellier deployment the account already holds, reports whether the RDS
-service-linked role exists, reads the two quotas and lists which of the four models the
-Region offers.
+**Step 1.** Clone the repository. Every command on this page runs from its root, and the
+scripts they use are in it.
 
 ```bash
-uv run deploy/own-account/deploy.py check --region us-east-1
+git clone https://github.com/aws-samples/sample-pellier-agentic-search-apg.git && cd sample-pellier-agentic-search-apg
 ```
 
-**Step 2.** Prove invoke access, which a listing does not. This sends one minimal request
-to each model and prints a pass or fail per model.
+**Step 2.** Check out the commit you are deploying. Arriving from the workshop guide, the link
+that brought you here names the event's commit in its path, the 40 characters after `/blob/`.
+Check out that commit, so you deploy what the event ran. Arriving from GitHub, skip this step
+and stay on the newest commit on `governed`, which a fresh clone already has. The host fetches
+the commit you deploy from GitHub, so it must exist there.
 
 ```bash
-uv run --with boto3 scripts/check_model_access.py
+git checkout <commit-from-the-link>
+```
+
+**Step 3.** Choose the Region once, `us-east-1` or `us-west-2`, and keep it in an environment
+variable. The model check, the deploy, the status command and the teardown below all read it,
+so none of them can name a different Region from the others.
+
+```bash
+export AWS_REGION=us-east-1
+```
+
+**Step 4.** Run the account check. It changes nothing. It names the account and Region, lists
+any Pellier deployment, AgentCore resource or IAM role the account already holds under these
+names, reports whether the RDS service-linked role exists, reads the quotas and lists which of
+the four models the Region offers. It exits with an error when the deploy would refuse, for
+example because of a name collision, a quota or a model the Region does not list.
+
+```bash
+uv run deploy/own-account/deploy.py check --region "$AWS_REGION"
+```
+
+**Step 5.** Prove invoke access, which a listing does not. This sends one minimal request
+to each model in that Region and prints a pass or fail per model.
+
+```bash
+uv run --with boto3 scripts/check_model_access.py --region "$AWS_REGION"
 ```
 
 ## 3. Prepare the data
@@ -195,16 +221,7 @@ under `data/`, and the host builds the database from them.
 
 ## 4. Deploy
 
-**Step 1.** Clone the repository and check out the release commit. Arriving from the
-workshop guide, the link that brought you here names the commit in its path; from GitHub,
-use the newest commit on `governed`. The host fetches the same commit, so it must exist on
-GitHub.
-
-```bash
-git clone https://github.com/aws-samples/sample-pellier-agentic-search-apg.git && cd sample-pellier-agentic-search-apg && git checkout governed
-```
-
-**Step 2.** Deploy. The script creates the service-linked role if it is missing, creates a
+**Step 1.** Deploy. The script creates the service-linked role if it is missing, creates a
 private bucket named `pellier-own-account-<account>-<region>` in the Region (Block Public
 Access on, SSE-S3, TLS only, tagged as this script's), uploads the four templates under
 `pellier/`, waits until the Region's S3 endpoint serves the new bucket, creates the stack with
@@ -215,7 +232,7 @@ Outputs. Add `--dry-run` first: it still reads your account to build the plan, p
 write it would make, and makes none.
 
 ```bash
-uv run deploy/own-account/deploy.py deploy --region us-east-1
+uv run deploy/own-account/deploy.py deploy --region "$AWS_REGION"
 ```
 
 The stack is not complete until the host has built Pellier, loaded the catalog, provisioned
@@ -233,7 +250,7 @@ command, which masks the staff password and the editor token unless you add
 `--show-secrets`:
 
 ```bash
-uv run deploy/own-account/deploy.py status --region us-east-1
+uv run deploy/own-account/deploy.py status --region "$AWS_REGION"
 ```
 
 `CodeEditorURL` opens Code Editor, `PellierURL` opens the store, and `OperatorUsername` and
@@ -259,7 +276,7 @@ cannot find, a deployment suffix that does not match the stack, and an AgentCore
 is older than the workshop stack, so a typo cannot delete another deployment's resources. Add `--dry-run` to see the plan first.
 
 ```bash
-uv run deploy/own-account/deploy.py teardown --region us-east-1 --delete-bucket --schedule-kms-key-deletion 7
+uv run deploy/own-account/deploy.py teardown --region "$AWS_REGION" --delete-bucket --schedule-kms-key-deletion 7
 ```
 
 It ends with a **Left in place** list. What can remain, and how to remove it:

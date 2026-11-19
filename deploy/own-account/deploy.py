@@ -1147,7 +1147,8 @@ def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
         runner.out(f"model {model}: {state}")
     runner.out(
         "a listing is not access: prove invoke access with "
-        "`uv run --with boto3 scripts/check_model_access.py` before deploying"
+        f"`uv run --with boto3 scripts/check_model_access.py --region {args.region}` "
+        "before deploying"
     )
     collision = bool(existing or holders or roles)
     return 1 if missing or problems or collision else 0
