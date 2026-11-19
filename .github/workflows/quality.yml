@@ -259,6 +259,7 @@ jobs:
         run: >-
           npx playwright test --workers=2
           e2e/shopper-sign-in.spec.ts
+          e2e/shopper-session-order.spec.ts
           e2e/first-visit-tour.spec.ts
           e2e/two-sessions.spec.ts
           e2e/live-turn-trace.spec.ts
