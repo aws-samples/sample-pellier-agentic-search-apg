@@ -59,7 +59,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(REPO / "pellier" / "backend"), str(REPO / "scripts")]
 
-ANNA = ("A housewarming gift for a friend who loves slow mornings. In stock, $100 or less, "
+ANNA = ("A housewarming gift for a friend who loves slow mornings. In stock, under $100, "
         "and no candles.")
 ANNA_LIMITS = {"price_max_usd": 100, "in_stock_only": True, "exclusions": ["candle"]}
 # The tail has no images. The search keeps only rows with an imgUrl, so the tail carries a
