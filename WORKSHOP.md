@@ -23,9 +23,8 @@ four customers:
 | 4. Govern agent actions with Cedar policies and PostgreSQL privileges | Jessica, with Nadia (staff) | "Can an approved credit stay within its limit and be paid only once?" |
 
 Every task runs the same way: it fails in the terminal, the participant applies
-the provided change (Tasks A) or writes the fix in the marked region, or installs
-the provided one (Tasks B), one command proves the fix, and then they look at it in
-the app. Each check prints what was expected, what was observed and the evidence
+the supplied change (Tasks A) or builds the fix in the marked region (Tasks B), one
+command proves the fix, and then they look at it in the app. Each check prints what was expected, what was observed and the evidence
 (the row, the decision, the key), and ends with one pass line. Nothing a check
 depends on happens in the app, except Lab 4's decisions: Nadia's approval and
 the Operator's three buttons, whose proof comes back to the terminal.
