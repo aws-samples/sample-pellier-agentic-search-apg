@@ -299,10 +299,15 @@ def main():
                         help="Path to .env to update with resolved model IDs")
     args = parser.parse_args()
 
+    default_region = os.environ.get("AWS_DEFAULT_REGION")
+    region_env = os.environ.get("AWS_REGION")
     if args.region:
         REGION = args.region
-    elif not (os.environ.get("AWS_DEFAULT_REGION") or os.environ.get("AWS_REGION")):
+    elif not (default_region or region_env):
         print(f"No Region was given (pass --region or set AWS_REGION), so this checks {REGION}.\n")
+    elif default_region and region_env and default_region != region_env:
+        print(f"AWS_DEFAULT_REGION ({default_region}) and AWS_REGION ({region_env}) differ; "
+              f"this checks {REGION}. Pass --region to choose.\n")
 
     if args.write_env:
         # Clear a stale success marker before making any live calls.
