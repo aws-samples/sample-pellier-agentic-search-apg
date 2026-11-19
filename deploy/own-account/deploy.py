@@ -1205,6 +1205,7 @@ class Discovered:
     stack_suffix: str = ""
     stack_problem: str | None = None
     workshop_id: str | None = None
+    agentcore_problem: str | None = None
     instance_id: str | None = None
     instance_state: str = "absent"
     agentcore_stack: str | None = None
@@ -1254,6 +1255,25 @@ def stack_ownership_problem(stack_name: str, stack: dict[str, Any]) -> str | Non
     return None
 
 
+def agentcore_ownership_problem(
+    stack_name: str, stack: dict[str, Any], workshop_id: str | None
+) -> str | None:
+    """Why the AgentCore CDK stack is not this deployment's, or None.
+
+    The provisioner tags it Project=pellier and PellierWorkshopId=<the root stack's id>.
+    """
+    tags = tags_of(stack)
+    if tags.get(PROJECT_TAG[0]) != PROJECT_TAG[1]:
+        return (
+            f"stack {stack_name} lacks the tag {PROJECT_TAG[0]}={PROJECT_TAG[1]}, so Pellier "
+            "did not create it"
+        )
+    tagged = tags.get(WORKSHOP_ID_TAG)
+    if workshop_id and tagged and tagged != workshop_id:
+        return f"stack {stack_name} belongs to deployment {tagged}, not {workshop_id}"
+    return None
+
+
 def discover(runner: Runner, stack_name: str, names: Names) -> Discovered:
     """Find everything the teardown will delete, before it deletes anything."""
     found = Discovered()
@@ -1279,6 +1299,9 @@ def discover(runner: Runner, stack_name: str, names: Names) -> Discovered:
         found.agentcore_stack = names.agentcore_stack
         agentcore = describe_stack(runner, names.agentcore_stack) or {}
         found.agentcore_stack_created = agentcore.get("CreationTime")
+        found.agentcore_problem = agentcore_ownership_problem(
+            names.agentcore_stack, agentcore, found.workshop_id
+        )
     except Exception as exc:  # noqa: BLE001
         if not is_missing(exc):
             raise
@@ -1434,8 +1457,9 @@ def cmd_teardown(
     """Delete what the box created, then the stack, then on request the key and the bucket."""
     names = Names(args.deployment_suffix)
     found = discover(runner, args.stack_name, names)
-    if found.stack_problem:
-        raise OwnAccountError(f"nothing changed: {found.stack_problem}")
+    problem = found.stack_problem or found.agentcore_problem
+    if problem:
+        raise OwnAccountError(f"nothing changed: {problem}")
     if not found.stack_exists and not args.force:
         raise OwnAccountError(
             f"no stack {args.stack_name} in {args.region}; check --stack-name, or pass --force "
