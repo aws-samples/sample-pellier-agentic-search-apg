@@ -19,7 +19,7 @@ import type { PersonaSnapshot } from '../contexts/PersonaContext'
 import type { CartItemOrigin } from '../contexts/CartContext'
 import ProductArtifactCard from './ProductArtifactCard'
 import StylistHandoffCard from './StylistHandoffCard'
-import ChatFailureCard from './ChatFailureCard'
+import ChatFailureCard, { type ReauthState } from './ChatFailureCard'
 import { useTourChapter } from './tourChapters'
 import {
   LayerTag,
@@ -54,6 +54,7 @@ interface PellierChatBodyProps {
   retryMessage: (text: string) => Promise<void>
   onEditRequest: (text: string) => void
   onAuthenticate: (query: string) => void
+  reauth?: ReauthState
   addToCart: (item: {
     productId: number
     name: string
@@ -136,6 +137,7 @@ export default function PellierChatBody({
   retryMessage,
   onEditRequest,
   onAuthenticate,
+  reauth,
   addToCart,
   persona,
   builderView = false,
@@ -175,6 +177,7 @@ export default function PellierChatBody({
                 onRetry={(text) => void retryMessage(text)}
                 onEditRequest={onEditRequest}
                 onAuthenticate={onAuthenticate}
+                reauth={reauth}
               />
             )}
           </motion.div>
@@ -222,6 +225,7 @@ interface AgentMessageProps {
   onRetry: (text: string) => void
   onEditRequest: (text: string) => void
   onAuthenticate: (query: string) => void
+  reauth?: ReauthState
   isLastAssistantMessage: boolean
   /** The question this answer replies to, used to find the next scripted turn. */
   precedingUserQuery: string | undefined
@@ -235,6 +239,7 @@ function AgentMessage({
   onRetry,
   onEditRequest,
   onAuthenticate,
+  reauth,
   isLastAssistantMessage,
   precedingUserQuery,
 }: AgentMessageProps) {
@@ -335,6 +340,7 @@ function AgentMessage({
           onRetry={onRetry}
           onEditRequest={onEditRequest}
           onAuthenticate={onAuthenticate}
+          reauth={reauth}
         />
       )}
 

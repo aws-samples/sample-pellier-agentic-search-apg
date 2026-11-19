@@ -91,6 +91,17 @@
   color: var(--dl-ink-2);
 }
 
+.chat-failure .chat-failure__note {
+  margin-top: 8px;
+  color: var(--dl-ink-2);
+  font-size: 13px;
+}
+
+.chat-failure__actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .chat-failure__actions {
   display: flex;
   flex-wrap: wrap;

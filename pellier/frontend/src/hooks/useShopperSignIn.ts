@@ -5,7 +5,9 @@
  * `choose`, which does three things in order: the workshop sign-in (a real
  * Cognito sign-in on the server, for the four demo shoppers only; choosing
  * another shopper revokes the previous one's session there), a fresh read
- * of the verified session, and then the shopper's storefront edit. The edit
+ * of the verified session that must name the chosen shopper, and then the
+ * shopper's storefront edit. Every sign-in goes through the one coordinator
+ * in `services/shopperSession.ts`, so the latest choice owns the session. The edit
  * follows the sign-in and never the other way round: Pellier trusts the
  * signed token, not the choice.
  *
@@ -23,9 +25,9 @@ import { usePersona } from '../contexts/PersonaContext'
 import {
   PasswordAuthError,
   WORKSHOP_SHOPPERS,
-  workshopSignIn,
   type WorkshopShopper,
 } from '../services/passwordAuth'
+import { SupersededError, signInShopper } from '../services/shopperSession'
 
 /** The four customers, in the order the chooser shows them. */
 export const SHOPPER_ORDER: readonly WorkshopShopper[] = ['anna', 'marco', 'theo', 'jessica']
@@ -64,39 +66,36 @@ export function useSignedInShopper(): WorkshopShopper | null {
   return isWorkshopShopper(username) ? username : null
 }
 
+/** Whether the server's `/api/auth/me` can be asked about this session at all. */
+function sessionReader(auth: ReturnType<typeof useOptionalAuth>): () => Promise<string | null> {
+  return () => (auth ? auth.refresh() : Promise.resolve(null))
+}
+
 export function useShopperSignIn(): ShopperSignIn {
   const auth = useOptionalAuth()
   const signedInAs = useSignedInShopper()
   const { switchPersona, signOut: clearShopper } = usePersona()
   const [busy, setBusy] = useState<WorkshopShopper | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const controller = useRef<AbortController | null>(null)
-
-  useEffect(() => () => controller.current?.abort(), [])
+  const latestChoice = useRef(0)
 
   const choose = useCallback(async (id: WorkshopShopper) => {
-    if (busy) return false
-    controller.current?.abort()
-    const abort = new AbortController()
-    controller.current = abort
+    const mine = ++latestChoice.current
     setBusy(id)
     setError(null)
     try {
-      return await switchPersona(id, async () => {
-        await workshopSignIn(id, abort.signal)
-        await auth?.refresh()
-      })
+      return await switchPersona(id, () => signInShopper(id, sessionReader(auth)))
     } catch (reason) {
-      if (abort.signal.aborted) return false
+      if (reason instanceof SupersededError) return false
       const code = reason instanceof PasswordAuthError ? reason.message : 'auth_unavailable'
       // The code is for the builder; the page shows a plain sentence.
       console.warn('Shopper sign-in did not complete:', code)
       setError(code)
       return false
     } finally {
-      if (!abort.signal.aborted) setBusy(null)
+      if (latestChoice.current === mine) setBusy(null)
     }
-  }, [auth, busy, switchPersona])
+  }, [auth, switchPersona])
 
   const signOut = useCallback(() => {
     clearShopper()
@@ -106,22 +105,26 @@ export function useShopperSignIn(): ShopperSignIn {
   return { choose, signOut, busy, error, signedInAs }
 }
 
+/** How a sign in again ended: the session is the shopper's, replaced, or not signed in. */
+export type SessionRefreshOutcome = 'signed_in' | 'superseded' | 'failed'
+
 /**
  * Sign the same demo shopper in again once their token has expired. Unlike `choose`, it
  * leaves the shopper and the conversation as they are, so the request that failed can be
- * sent again. Resolves `true` when the shopper session is signed in again.
+ * sent again. It shares the chooser's coordinator, so a shopper chosen meanwhile
+ * supersedes it. Resolves `signed_in` only when `/api/auth/me` reports that shopper.
  */
-export function useShopperSessionRefresh(): (id: WorkshopShopper) => Promise<boolean> {
+export function useShopperSessionRefresh(): (id: WorkshopShopper) => Promise<SessionRefreshOutcome> {
   const auth = useOptionalAuth()
   return useCallback(async (id: WorkshopShopper) => {
     try {
-      await workshopSignIn(id, new AbortController().signal)
-      await auth?.refresh()
-      return true
+      await signInShopper(id, sessionReader(auth))
+      return 'signed_in'
     } catch (reason) {
+      if (reason instanceof SupersededError) return 'superseded'
       const code = reason instanceof PasswordAuthError ? reason.message : 'auth_unavailable'
       console.warn('Shopper sign-in did not complete:', code)
-      return false
+      return 'failed'
     }
   }, [auth])
 }

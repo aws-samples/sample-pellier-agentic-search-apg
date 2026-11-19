@@ -13,11 +13,22 @@ import type { ChatErrorCode } from '../services/chat'
 import { CHAT_FAILURES } from '../copy'
 import '../styles/chat-outcomes.css'
 
+/** Where an expired-session "Sign in again" stands, so the card can show it. */
+export interface ReauthState {
+  /** The shopper is being signed in again. */
+  pending: boolean
+  /** The last attempt did not complete. */
+  failed: boolean
+  /** A reply or a shopper switch is running, so signing in again waits. */
+  blocked: boolean
+}
+
 interface ChatFailureCardProps {
   failure: ChatFailure
   onRetry: (query: string) => void
   onEditRequest: (query: string) => void
   onAuthenticate: (query: string) => void
+  reauth?: ReauthState
 }
 
 function failureIcon(code: ChatErrorCode) {
@@ -33,6 +44,7 @@ export default function ChatFailureCard({
   onRetry,
   onEditRequest,
   onAuthenticate,
+  reauth,
 }: ChatFailureCardProps) {
   const copy = CHAT_FAILURES[failure.code]
   const FailureIcon = failureIcon(failure.code)
@@ -59,11 +71,21 @@ export default function ChatFailureCard({
             Reference <code>{failure.referenceId}</code>
           </p>
         )}
+        {failure.code === 'authentication_required' && reauth && !reauth.pending && (
+          reauth.failed
+            ? <p className="chat-failure__note" role="status">{CHAT_FAILURES.SIGN_IN_AGAIN_FAILED}</p>
+            : reauth.blocked && <p className="chat-failure__note">{CHAT_FAILURES.SIGN_IN_AGAIN_WAIT}</p>
+        )}
         <div className="chat-failure__actions">
           {failure.code === 'authentication_required' ? (
-            <button type="button" onClick={() => onAuthenticate(failure.query)}>
+            <button
+              type="button"
+              disabled={reauth?.pending || reauth?.blocked}
+              aria-busy={reauth?.pending || undefined}
+              onClick={() => onAuthenticate(failure.query)}
+            >
               <LogIn size={14} aria-hidden="true" />
-              {CHAT_FAILURES.SIGN_IN_AGAIN}
+              {reauth?.pending ? CHAT_FAILURES.SIGNING_IN_AGAIN : CHAT_FAILURES.SIGN_IN_AGAIN}
             </button>
           ) : failure.retryable ? (
             <button type="button" onClick={() => onRetry(failure.query)}>

@@ -39,7 +39,7 @@ const json = (body: unknown, status = 200) =>
 function personaFor(id: string) {
   const name = id.charAt(0).toUpperCase() + id.slice(1)
   return {
-    id, edit: id, display_name: name, role_tag: `${name}'s edit`, avatar_color: '#333',
+    id, edit: id, display_name: name, role_tag: `${name}'s edit`, avatar_color: 'brown',
     avatar_initial: name[0], customer_id: `CUST-${id.toUpperCase()}`, hero_image: '', hero_alt: name,
     hero_subheadline: '', stats: { visits: 1, orders: 1, last_seen_days: 1 },
   }

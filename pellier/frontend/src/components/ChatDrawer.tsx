@@ -57,6 +57,7 @@ import {
   type AgentChatMessage,
 } from '../hooks/useAgentChat'
 import PellierChatBody from './PellierChatBody'
+import type { ReauthState } from './ChatFailureCard'
 import { ShopperBar, ShopperCards } from './AskShoppers'
 import { PellierMark } from './Wordmark'
 import PellierWelcome from './PellierWelcome'
@@ -194,27 +195,40 @@ export default function ChatDrawer() {
   )
 
   // A demo shopper whose token expired has no password to type: sign the same shopper in
-  // again and send the failed request again. Any other session gets the sign-in page.
-  // One sign-in at a time; a shopper chosen while it runs owns the panel, so nothing is resent.
+  // again and send the failed request again, once. Any other session gets the sign-in page.
+  // It shares the chooser's sign-in coordinator, so a shopper chosen meanwhile supersedes it
+  // and nothing is resent. While a reply or a shopper switch runs, the button waits.
   const refreshShopperSession = useShopperSessionRefresh()
   const signingInAgain = useRef(false)
+  const [reauth, setReauth] = useState<'idle' | 'pending' | 'failed'>('idle')
   const currentShopper = useRef(persona?.id)
   currentShopper.current = persona?.id
+  const reauthBlocked = isLoading || switching
   const signInAgain = useCallback(async (query: string) => {
     const id = persona?.id ?? ''
     if (!isWorkshopShopper(id)) {
       openModal('auth')
       return
     }
-    if (signingInAgain.current) return
+    if (signingInAgain.current || reauthBlocked) return
     signingInAgain.current = true
+    setReauth('pending')
     try {
-      const signedIn = await refreshShopperSession(id)
-      if (signedIn && currentShopper.current === id) await retryMessage(query)
+      const outcome = await refreshShopperSession(id)
+      setReauth(outcome === 'failed' ? 'failed' : 'idle')
+      if (outcome === 'signed_in' && currentShopper.current === id) await retryMessage(query)
     } finally {
       signingInAgain.current = false
     }
-  }, [persona, openModal, refreshShopperSession, retryMessage])
+  }, [persona, openModal, refreshShopperSession, retryMessage, reauthBlocked])
+  useEffect(() => {
+    setReauth('idle')
+  }, [persona?.id])
+  const reauthState: ReauthState = {
+    pending: reauth === 'pending',
+    failed: reauth === 'failed',
+    blocked: reauthBlocked,
+  }
 
   // The header's Ask Pellier dot pulses only while a turn runs.
   useEffect(() => {
@@ -517,6 +531,7 @@ export default function ChatDrawer() {
                   window.requestAnimationFrame(() => inputRef.current?.focus())
                 }}
                 onAuthenticate={query => void signInAgain(query)}
+                reauth={reauthState}
                 addToCart={addToCart}
                 persona={persona}
                 builderView={builderView}

@@ -81,9 +81,11 @@ interface AuthContextType {
   prefsVersion: number
   /**
    * Re-read /api/auth/me and /api/user/preferences. Called by the app
-   * shell after a sign-in callback and on first mount.
+   * shell after a sign-in callback and on first mount. Resolves the
+   * lowercased username /api/auth/me reported, or null when it named no one
+   * or a newer read replaced this one.
    */
-  refresh: () => Promise<void>
+  refresh: () => Promise<string | null>
   /**
    * POST /api/user/preferences. On success, updates local state and
    * advances `prefsVersion` so the product grid remounts and re-parallaxes.
@@ -186,7 +188,7 @@ export function AuthProvider({
    * httpOnly cookies via `credentials: 'include'`. A 401 on `/api/auth/me`
    * means this surface is unauthenticated and we clear any stale state.
    */
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<string | null> => {
     const generation = ++refreshGeneration.current
     const isCurrent = () => generation === refreshGeneration.current
     const mePath = `/api/auth/me?surface=${surface}`
@@ -195,14 +197,14 @@ export function AuthProvider({
         method: 'GET',
         credentials: 'include',
       })
-      if (!isCurrent()) return
+      if (!isCurrent()) return null
       if (meRes.status === 401 && await refreshAuthTokens(surface)) {
         meRes = await authFetch(mePath, {
           method: 'GET',
           credentials: 'include',
         })
       }
-      if (!isCurrent()) return
+      if (!isCurrent()) return null
       if (meRes.status === 401) {
         verifiedSubject.current = null
         ++identityGeneration.current
@@ -220,18 +222,18 @@ export function AuthProvider({
             window.location.assign(`${asset('/signin')}?returnTo=${encodeURIComponent(returnTo)}`)
           }
         }
-        return
+        return null
       }
       if (!meRes.ok) {
         setAuthUnavailable(true)
-        return
+        return null
       }
       const me = (await meRes.json()) as MeResponse
-      if (!isCurrent()) return
+      if (!isCurrent()) return null
       const subject = me.userId ?? me.user_id
       if (!subject) {
         setAuthUnavailable(true)
-        return
+        return null
       }
       if (verifiedSubject.current !== subject) {
         verifiedSubject.current = subject
@@ -245,6 +247,7 @@ export function AuthProvider({
       if (typeof window !== 'undefined') {
         localStorage.setItem(markerKey, '1')
       }
+      const verified = (me.username ?? '').toLowerCase() || null
       setUser({
         sub: subject,
         email: me.email,
@@ -256,7 +259,7 @@ export function AuthProvider({
       // Preferences belong to the shopper; staff have none to read.
       if (surface !== 'shopper') {
         setPreferencesUnavailable(false)
-        return
+        return verified
       }
       // Fetch preferences only once we know we have a verified user.
       try {
@@ -264,22 +267,24 @@ export function AuthProvider({
           method: 'GET',
           credentials: 'include',
         })
-        if (!isCurrent()) return
+        if (!isCurrent()) return verified
         if (!prefsRes.ok) {
           setPreferencesUnavailable(true)
-          return
+          return verified
         }
         const body = (await prefsRes.json()) as PreferencesResponse
-        if (!isCurrent()) return
+        if (!isCurrent()) return verified
         setPreferences(body.preferences ?? null)
         setPreferencesUnavailable(false)
       } catch {
         if (isCurrent()) setPreferencesUnavailable(true)
       }
+      return verified
     } catch {
       // Keep the last verified profile while displaying the outage. Every
       // protected API still verifies the cookie; this grants no authority.
       if (isCurrent()) setAuthUnavailable(true)
+      return null
     }
   }, [markerKey, surface])
 

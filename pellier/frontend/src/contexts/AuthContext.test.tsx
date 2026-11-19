@@ -212,7 +212,7 @@ describe('AuthContext hydration', () => {
     await waitFor(() => expect(result.current.loading).toBe(false))
     let resolveOld!: (value: Response) => void
     fetchMock.mockImplementationOnce(() => new Promise(resolve => { resolveOld = resolve }))
-    let older!: Promise<void>
+    let older!: Promise<string | null>
     act(() => { older = result.current.refresh() })
     fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-2', email: 'second@example.com' }))
     await act(async () => result.current.refresh())
@@ -240,7 +240,7 @@ describe('AuthContext hydration', () => {
     let resolvePreferences!: (response: Response) => void
     fetchMock.mockResolvedValueOnce(okJson({ userId: 'user-2', email: 'second@example.com' }))
       .mockImplementationOnce(() => new Promise(resolve => { resolvePreferences = resolve }))
-    let refresh!: Promise<void>
+    let refresh!: Promise<string | null>
     act(() => { refresh = result.current.refresh() })
     await waitFor(() => expect(result.current.user?.sub).toBe('user-2'))
     expect(result.current.preferences).toBeNull()

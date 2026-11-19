@@ -230,7 +230,12 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
     }
   }, [persona])
 
+  // The latest switch owns the panel. An earlier one that is still signing in, or still
+  // opening its edit, finishes without applying anything or touching `switching`.
+  const switchGeneration = useRef(0)
   const switchPersona = useCallback(async (personaId: string, signIn?: () => Promise<void>) => {
+    const generation = ++switchGeneration.current
+    const isLatest = () => generation === switchGeneration.current
     setSwitching(true)
     setSwitchError(null)
     // Signing in names the new shopper in the panel before the persona lands, and
@@ -240,7 +245,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       try {
         await signIn()
       } catch (reason) {
-        setSwitching(false)
+        if (isLatest()) setSwitching(false)
         throw reason
       }
     }
@@ -255,6 +260,7 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       })
       if (!res.ok) throw new Error(`Switch failed: ${res.status}`)
       const data = await res.json()
+      if (!isLatest()) return false
 
       // Store the new session_id so chat picks it up
       localStorage.setItem(SESSION_KEY, data.session_id)
@@ -270,11 +276,12 @@ export function PersonaProvider({ children }: { children: ReactNode }) {
       })
       return true
     } catch (err) {
+      if (!isLatest()) return false
       console.error('Persona switch failed:', err)
       setSwitchError('We couldn’t open that profile. Your current selection is unchanged. Please try again.')
       return false
     } finally {
-      setSwitching(false)
+      if (isLatest()) setSwitching(false)
     }
   }, [])
 

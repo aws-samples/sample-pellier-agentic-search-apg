@@ -698,6 +698,9 @@ export const CHAT_FAILURES = {
   TRY_AGAIN: "Try again",
   EDIT_REQUEST: "Edit request",
   SIGN_IN_AGAIN: "Sign in again",
+  SIGNING_IN_AGAIN: "Signing in again",
+  SIGN_IN_AGAIN_WAIT: "Sign in again once the current reply finishes.",
+  SIGN_IN_AGAIN_FAILED: "Pellier could not sign you in again. Try again in a moment.",
 } as const;
 
 export const CHAT_TRUST = {
