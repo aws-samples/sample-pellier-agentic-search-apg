@@ -829,6 +829,10 @@ def tags_of(resource: dict[str, Any]) -> dict[str, str]:
     return {str(tag.get("Key")): str(tag.get("Value")) for tag in resource.get("Tags") or []}
 
 
+# A deployment id as the root template derives it from the stack id: p plus the UUID's head.
+DEPLOYMENT_ID = re.compile(r"p[0-9a-f]{8}")
+
+
 def workshop_id_of(stack: dict[str, Any]) -> str | None:
     """The WorkshopId the root template derives from the stack id: p plus the UUID's head."""
     match = re.search(r"/([0-9a-f]{8})-[0-9a-f-]+$", str(stack.get("StackId") or ""))
@@ -1482,7 +1486,8 @@ def plan_role_deletion(runner: Runner, names: Names, workshop_id: str | None) ->
 
     Role names are account-wide, so a name match proves nothing. A role is deleted only when
     its PellierWorkshopId tag is this deployment's id. A tag naming another deployment stops
-    the teardown. A role with no tag, or with no known id to compare, is left in place.
+    the teardown. A role with no tag, a tag that is not a deployment id, or no known id to
+    compare is left in place.
     """
     plan = RolePlan()
     for role_name, policies in names.roles.items():
@@ -1492,6 +1497,12 @@ def plan_role_deletion(runner: Runner, names: Names, workshop_id: str | None) ->
         tagged = tags_of(role).get(WORKSHOP_ID_TAG)
         if workshop_id and tagged == workshop_id:
             plan.delete[role_name] = policies
+        elif tagged and not DEPLOYMENT_ID.fullmatch(tagged):
+            plan.left.append(
+                f"IAM role {role_name} stays: it is tagged {WORKSHOP_ID_TAG}={tagged}, which "
+                "names no deployment (a Lambda deployer run without WORKSHOP_ID writes it), so "
+                "it cannot be tied to this deployment; delete it yourself if it is yours"
+            )
         elif workshop_id and tagged:
             plan.conflicts.append(
                 f"IAM role {role_name} is tagged {WORKSHOP_ID_TAG}={tagged}, so it belongs to "
