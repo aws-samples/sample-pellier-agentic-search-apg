@@ -1081,17 +1081,8 @@ def shared_trace_groups_needing_changes(runner: Runner) -> list[str]:
     return needing
 
 
-def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
-    """Account, Region, service-linked role, quotas and model listings; all read-only."""
-    identity = runner.read("get caller identity", runner.clients.sts.get_caller_identity)
-    runner.out(f"account {identity['Account']} as {identity['Arn']} in {args.region}")
-    if service_linked_role_exists(runner):
-        runner.out(f"service-linked role {RDS_SERVICE_LINKED_ROLE_NAME} exists")
-    else:
-        runner.out(
-            f"service-linked role {RDS_SERVICE_LINKED_ROLE_NAME} is missing; deploy creates it"
-        )
-    names = Names(args.deployment_suffix)
+def report_collisions(args: argparse.Namespace, runner: Runner, names: Names) -> bool:
+    """Print what the account already holds under these names; True when deploy would refuse."""
     existing = existing_deployment(runner, names)
     for item in existing:
         runner.out(f"already in this account: {item}")
@@ -1109,6 +1100,21 @@ def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
     roles = role_holders(runner, names, workshop_id_of(own_stack) if own_stack else None)
     if roles:
         runner.out(role_collision_message(roles))
+    return bool(existing or holders or roles)
+
+
+def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
+    """Account, Region, service-linked role, quotas and model listings; all read-only."""
+    identity = runner.read("get caller identity", runner.clients.sts.get_caller_identity)
+    runner.out(f"account {identity['Account']} as {identity['Arn']} in {args.region}")
+    if service_linked_role_exists(runner):
+        runner.out(f"service-linked role {RDS_SERVICE_LINKED_ROLE_NAME} exists")
+    else:
+        runner.out(
+            f"service-linked role {RDS_SERVICE_LINKED_ROLE_NAME} is missing; deploy creates it"
+        )
+    names = Names(args.deployment_suffix)
+    collision = report_collisions(args, runner, names)
     for service, code, label in QUOTAS:
         try:
             quota = runner.read(
@@ -1150,7 +1156,6 @@ def cmd_check(args: argparse.Namespace, runner: Runner) -> int:
         f"`uv run --with boto3 scripts/check_model_access.py --region {args.region}` "
         "before deploying"
     )
-    collision = bool(existing or holders or roles)
     return 1 if missing or problems or collision else 0
 
 
@@ -1175,6 +1180,26 @@ def cmd_publish(
     return bucket, prefix, url
 
 
+def refuse_name_collisions(runner: Runner, names: Names) -> None:
+    """Stop before any write when the account holds what this deployment would create."""
+    existing = existing_deployment(runner, names)
+    if existing:
+        raise OwnAccountError(
+            "this account already holds a Pellier deployment under the names the box would "
+            f"create or update ({', '.join(existing)}); pass --deployment-suffix <letters or "
+            "digits> so nothing collides, or remove it first"
+        )
+    holders = policy_name_holders(runner)
+    if holders:
+        raise OwnAccountError(
+            "AgentCore keeps Cedar policy names unique per account and Region, and this Region "
+            f"already has them: {'; '.join(holders)}. {POLICY_COLLISION_ADVICE}"
+        )
+    roles = role_holders(runner, names)
+    if roles:
+        raise OwnAccountError(role_collision_message(roles))
+
+
 def cmd_deploy(
     args: argparse.Namespace,
     runner: Runner,
@@ -1194,22 +1219,7 @@ def cmd_deploy(
             f"stack {args.stack_name} already exists ({existing['StackStatus']}); run status, "
             "or teardown first"
         )
-    existing = existing_deployment(runner, Names(args.deployment_suffix))
-    if existing:
-        raise OwnAccountError(
-            "this account already holds a Pellier deployment under the names the box would "
-            f"create or update ({', '.join(existing)}); pass --deployment-suffix <letters or "
-            "digits> so nothing collides, or remove it first"
-        )
-    holders = policy_name_holders(runner)
-    if holders:
-        raise OwnAccountError(
-            "AgentCore keeps Cedar policy names unique per account and Region, and this Region "
-            f"already has them: {'; '.join(holders)}. {POLICY_COLLISION_ADVICE}"
-        )
-    roles = role_holders(runner, Names(args.deployment_suffix))
-    if roles:
-        raise OwnAccountError(role_collision_message(roles))
+    refuse_name_collisions(runner, Names(args.deployment_suffix))
     problems = capacity_problems(runner)
     if problems:
         raise OwnAccountError("the stack would exceed a quota: " + "; ".join(problems))
