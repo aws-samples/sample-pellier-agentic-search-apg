@@ -343,9 +343,9 @@ def test_read_records_looks_up_both_identified_calls_however_busy_the_hour_was(
                              "ALLOW", ["p-2"])
     later: List[Dict[str, Any]] = []
     for n in range(25):
-        later += trace_tests._call(f"req-ask-{n}", 5_000 + n * 10, "ask_a_person",
+        later += trace_tests._call(f"later-a-{n}", 5_000 + n * 10, "ask_a_person",
                                    trace_tests.NADIA_SUB, "ALLOW", ["p-1"])
-        later += trace_tests._call(f"req-pay-{n}", 5_000 + n * 10, "give_store_credit",
+        later += trace_tests._call(f"later-p-{n}", 5_000 + n * 10, "give_store_credit",
                                    trace_tests.NADIA_SUB, "ALLOW", ["p-2"])
     logs = trace_tests._Logs(handoff + paid + later)
     monkeypatch.setattr(boto3, "client", lambda *a, **k: logs)
