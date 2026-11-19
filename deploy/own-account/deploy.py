@@ -66,6 +66,10 @@ DEFAULT_PREFIX = "pellier/"
 DEFAULT_INSTANCE_TYPE = "c6g.2xlarge"
 EVENT_NAME = "own-account"
 BUCKET_TAG = ("PellierOwnAccount", "true")
+PROJECT_TAG = ("Project", "pellier")
+# The tags create_stack puts on the root stack; teardown writes only to a stack that has both.
+STACK_OWNER_TAGS = (PROJECT_TAG, BUCKET_TAG)
+WORKSHOP_ID_TAG = "PellierWorkshopId"
 RDS_SERVICE_LINKED_ROLE = "rds.amazonaws.com"
 RDS_SERVICE_LINKED_ROLE_NAME = "AWSServiceRoleForRDS"
 GLOBAL_ENDPOINT_WAIT_SECONDS = 600
@@ -729,6 +733,17 @@ def outputs_of(stack: dict[str, Any]) -> dict[str, str]:
     return {item["OutputKey"]: item["OutputValue"] for item in stack.get("Outputs", [])}
 
 
+def tags_of(resource: dict[str, Any]) -> dict[str, str]:
+    """A CloudFormation or IAM resource's tags as a dict; empty when it has none."""
+    return {str(tag.get("Key")): str(tag.get("Value")) for tag in resource.get("Tags") or []}
+
+
+def workshop_id_of(stack: dict[str, Any]) -> str | None:
+    """The WorkshopId the root template derives from the stack id: p plus the UUID's head."""
+    match = re.search(r"/([0-9a-f]{8})-[0-9a-f-]+$", str(stack.get("StackId") or ""))
+    return f"p{match.group(1)}" if match else None
+
+
 def parameters_of(stack: dict[str, Any]) -> dict[str, str]:
     return {
         item["ParameterKey"]: item.get("ParameterValue", "") for item in stack.get("Parameters", [])
@@ -1146,10 +1161,7 @@ def cmd_deploy(
         TemplateURL=template_url,
         Capabilities=["CAPABILITY_IAM"],
         Parameters=[{"ParameterKey": k, "ParameterValue": v} for k, v in parameters.items()],
-        Tags=[
-            {"Key": "Project", "Value": "pellier"},
-            {"Key": BUCKET_TAG[0], "Value": BUCKET_TAG[1]},
-        ],
+        Tags=[{"Key": key, "Value": value} for key, value in STACK_OWNER_TAGS],
         OnFailure="ROLLBACK",
     )
     if runner.dry_run:
@@ -1191,6 +1203,8 @@ class Discovered:
 
     stack_exists: bool = False
     stack_suffix: str = ""
+    stack_problem: str | None = None
+    workshop_id: str | None = None
     instance_id: str | None = None
     instance_state: str = "absent"
     agentcore_stack: str | None = None
@@ -1219,6 +1233,27 @@ def gateway_role_name(runner: Runner, gateway_id: str) -> str | None:
     return role_arn.rsplit("/", 1)[-1] or None
 
 
+def stack_ownership_problem(stack_name: str, stack: dict[str, Any]) -> str | None:
+    """Why this stack is not a Pellier own-account deployment, or None when it is.
+
+    A stack without the DeploymentSuffix parameter would read as the empty suffix, which is
+    also the default suffix, so the parameter must be present and both tags must match.
+    """
+    tags = tags_of(stack)
+    missing = [f"{key}={value}" for key, value in STACK_OWNER_TAGS if tags.get(key) != value]
+    if missing:
+        return (
+            f"stack {stack_name} is not a Pellier own-account deployment: it lacks the tag "
+            f"{' and '.join(missing)} that deploy puts on its stack. Check --stack-name"
+        )
+    if "DeploymentSuffix" not in parameters_of(stack):
+        return (
+            f"stack {stack_name} is not a Pellier own-account deployment: it has no "
+            "DeploymentSuffix parameter. Check --stack-name"
+        )
+    return None
+
+
 def discover(runner: Runner, stack_name: str, names: Names) -> Discovered:
     """Find everything the teardown will delete, before it deletes anything."""
     found = Discovered()
@@ -1226,6 +1261,8 @@ def discover(runner: Runner, stack_name: str, names: Names) -> Discovered:
     if stack is not None:
         found.stack_exists = True
         found.stack_suffix = parameters_of(stack).get("DeploymentSuffix", "")
+        found.stack_problem = stack_ownership_problem(stack_name, stack)
+        found.workshop_id = workshop_id_of(stack)
         found.instance_id, found.instance_state = find_editor_instance(runner, stack_name)
         found.kms_key_arn = outputs_of(stack).get("AgentCoreRuntimeLogKmsKeyArn")
         found.kms_key_is_ours = not parameters_of(stack).get("ExistingRuntimeLogKmsKeyArn")
@@ -1397,6 +1434,8 @@ def cmd_teardown(
     """Delete what the box created, then the stack, then on request the key and the bucket."""
     names = Names(args.deployment_suffix)
     found = discover(runner, args.stack_name, names)
+    if found.stack_problem:
+        raise OwnAccountError(f"nothing changed: {found.stack_problem}")
     if not found.stack_exists and not args.force:
         raise OwnAccountError(
             f"no stack {args.stack_name} in {args.region}; check --stack-name, or pass --force "
