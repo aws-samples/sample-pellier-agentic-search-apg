@@ -171,3 +171,23 @@ def test_a_missing_region_is_announced_not_silently_defaulted(monkeypatch, capsy
     assert regions == ["us-east-1", "us-east-1"]
     out = capsys.readouterr().out
     assert "No Region was given" in out and "--region" in out
+
+
+def test_two_disagreeing_region_variables_are_named_not_silently_resolved(monkeypatch, capsys):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
+    monkeypatch.setenv("AWS_REGION", "us-west-2")
+    module = _load("scripts/check_model_access.py", monkeypatch)
+    regions = _run_main(module, monkeypatch, [])
+    assert regions == ["us-east-1", "us-east-1"]
+    out = capsys.readouterr().out
+    assert "AWS_DEFAULT_REGION (us-east-1)" in out and "AWS_REGION (us-west-2)" in out
+    assert "--region" in out
+
+
+def test_agreeing_region_variables_print_no_notice(monkeypatch, capsys):
+    monkeypatch.setenv("AWS_DEFAULT_REGION", "us-west-2")
+    monkeypatch.setenv("AWS_REGION", "us-west-2")
+    module = _load("scripts/check_model_access.py", monkeypatch)
+    _run_main(module, monkeypatch, [])
+    out = capsys.readouterr().out
+    assert "differ" not in out and "No Region was given" not in out
