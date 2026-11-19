@@ -1895,6 +1895,19 @@ def test_a_lab_on_agentcore_never_restarts_the_local_app(
     assert restarts == []
 
 
+@pytest.fixture
+def stubbed_actions(monkeypatch) -> List[str]:
+    """Every lab_run action as a stub: on a regression of the flag guards, the real ones would
+    install solutions or reset labs in this checkout."""
+    called: List[str] = []
+    for name in ("finish", "send", "install_solution", "install_task", "show_diff",
+                 "fast_track", "restart_backend"):
+        monkeypatch.setattr(lab_run, name, lambda *a, _n=name, **k: called.append(_n) or 0)
+    monkeypatch.setattr(lab_run.lab_reset, "reset_lab",
+                        lambda *a, **k: called.append("reset_lab") or 0)
+    return called
+
+
 @pytest.mark.parametrize("argv", [
     ["finish", "--lab", "4", "--shopper-only"],
     ["solution", "--lab", "4", "--shopper-only"],
@@ -1902,23 +1915,17 @@ def test_a_lab_on_agentcore_never_restarts_the_local_app(
     ["diff", "--lab", "4", "--shopper-only"],
     ["send", "--lab", "3", "--shopper-only"],
 ])
-def test_shopper_only_is_refused_outside_send_lab_4(argv, capsys, monkeypatch) -> None:
+def test_shopper_only_is_refused_outside_send_lab_4(argv, capsys, stubbed_actions) -> None:
     """finish --lab 4 would approve and execute Jessica's credit; the flag must not be ignored."""
-    called = []
-    # Stub every action: on a regression the guard would let these run against the real files.
-    for name in ("finish", "send", "install_solution", "install_task", "show_diff",
-                 "fast_track", "restart_backend"):
-        monkeypatch.setattr(lab_run, name, lambda *a, _n=name, **k: called.append(_n) or 0)
-    monkeypatch.setattr(lab_run.lab_reset, "reset_lab",
-                        lambda *a, **k: called.append("reset_lab") or 0)
     with pytest.raises(SystemExit):
         lab_run.main(argv)
     assert "--shopper-only goes with send --lab 4" in capsys.readouterr().err
-    assert called == []
+    assert stubbed_actions == []
 
 
 @pytest.mark.parametrize("action", ["finish", "solution", "reset", "diff"])
-def test_quiet_is_refused_outside_send(action, capsys) -> None:
+def test_quiet_is_refused_outside_send(action, capsys, stubbed_actions) -> None:
     with pytest.raises(SystemExit):
         lab_run.main([action, "--lab", "2", "--quiet"])
     assert "--quiet goes with send" in capsys.readouterr().err
+    assert stubbed_actions == []
