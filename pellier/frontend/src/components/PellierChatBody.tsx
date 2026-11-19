@@ -53,7 +53,7 @@ interface PellierChatBodyProps {
   sendMessage: (text?: string) => Promise<void>
   retryMessage: (text: string) => Promise<void>
   onEditRequest: (text: string) => void
-  onAuthenticate: () => void
+  onAuthenticate: (query: string) => void
   addToCart: (item: {
     productId: number
     name: string
@@ -221,7 +221,7 @@ interface AgentMessageProps {
   onFollowUp: (text: string) => void
   onRetry: (text: string) => void
   onEditRequest: (text: string) => void
-  onAuthenticate: () => void
+  onAuthenticate: (query: string) => void
   isLastAssistantMessage: boolean
   /** The question this answer replies to, used to find the next scripted turn. */
   precedingUserQuery: string | undefined

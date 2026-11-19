@@ -17,7 +17,7 @@ interface ChatFailureCardProps {
   failure: ChatFailure
   onRetry: (query: string) => void
   onEditRequest: (query: string) => void
-  onAuthenticate: () => void
+  onAuthenticate: (query: string) => void
 }
 
 function failureIcon(code: ChatErrorCode) {
@@ -61,7 +61,7 @@ export default function ChatFailureCard({
         )}
         <div className="chat-failure__actions">
           {failure.code === 'authentication_required' ? (
-            <button type="button" onClick={onAuthenticate}>
+            <button type="button" onClick={() => onAuthenticate(failure.query)}>
               <LogIn size={14} aria-hidden="true" />
               {CHAT_FAILURES.SIGN_IN_AGAIN}
             </button>

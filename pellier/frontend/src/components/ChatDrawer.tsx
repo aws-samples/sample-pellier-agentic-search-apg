@@ -63,7 +63,12 @@ import PellierWelcome from './PellierWelcome'
 import StatusLines from './StatusLines'
 import { SkillModeToggle, useBuilderView } from './turn'
 import { useStoreResults } from '../contexts/StoreResultsContext'
-import { shopperName, useSignedInShopper } from '../hooks/useShopperSignIn'
+import {
+  isWorkshopShopper,
+  shopperName,
+  useShopperSessionRefresh,
+  useSignedInShopper,
+} from '../hooks/useShopperSignIn'
 import { ASK_PANEL, HERO_CONCIERGE } from '../copy'
 import '../styles/chat-drawer.css'
 import '../styles/turn.css'
@@ -187,6 +192,29 @@ export default function ChatDrawer() {
     (text: string): Promise<void> => (carryOn() ? retryTurn(text) : Promise.resolve()),
     [carryOn, retryTurn],
   )
+
+  // A demo shopper whose token expired has no password to type: sign the same shopper in
+  // again and send the failed request again. Any other session gets the sign-in page.
+  // One sign-in at a time; a shopper chosen while it runs owns the panel, so nothing is resent.
+  const refreshShopperSession = useShopperSessionRefresh()
+  const signingInAgain = useRef(false)
+  const currentShopper = useRef(persona?.id)
+  currentShopper.current = persona?.id
+  const signInAgain = useCallback(async (query: string) => {
+    const id = persona?.id ?? ''
+    if (!isWorkshopShopper(id)) {
+      openModal('auth')
+      return
+    }
+    if (signingInAgain.current) return
+    signingInAgain.current = true
+    try {
+      const signedIn = await refreshShopperSession(id)
+      if (signedIn && currentShopper.current === id) await retryMessage(query)
+    } finally {
+      signingInAgain.current = false
+    }
+  }, [persona, openModal, refreshShopperSession, retryMessage])
 
   // The header's Ask Pellier dot pulses only while a turn runs.
   useEffect(() => {
@@ -488,7 +516,7 @@ export default function ChatDrawer() {
                   setInputValue(text)
                   window.requestAnimationFrame(() => inputRef.current?.focus())
                 }}
-                onAuthenticate={() => openModal('auth')}
+                onAuthenticate={query => void signInAgain(query)}
                 addToCart={addToCart}
                 persona={persona}
                 builderView={builderView}

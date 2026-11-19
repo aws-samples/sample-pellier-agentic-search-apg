@@ -107,6 +107,26 @@ export function useShopperSignIn(): ShopperSignIn {
 }
 
 /**
+ * Sign the same demo shopper in again once their token has expired. Unlike `choose`, it
+ * leaves the shopper and the conversation as they are, so the request that failed can be
+ * sent again. Resolves `true` when the shopper session is signed in again.
+ */
+export function useShopperSessionRefresh(): (id: WorkshopShopper) => Promise<boolean> {
+  const auth = useOptionalAuth()
+  return useCallback(async (id: WorkshopShopper) => {
+    try {
+      await workshopSignIn(id, new AbortController().signal)
+      await auth?.refresh()
+      return true
+    } catch (reason) {
+      const code = reason instanceof PasswordAuthError ? reason.message : 'auth_unavailable'
+      console.warn('Shopper sign-in did not complete:', code)
+      return false
+    }
+  }, [auth])
+}
+
+/**
  * Signed out is the neutral new-visitor store.
  *
  * A shopper's edit restored from an earlier visit, after the session ended

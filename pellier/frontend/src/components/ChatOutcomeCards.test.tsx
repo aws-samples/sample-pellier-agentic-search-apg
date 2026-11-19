@@ -56,6 +56,8 @@ describe('ChatFailureCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Sign in again' }))
     expect(onAuthenticate).toHaveBeenCalledOnce()
+    // The failed request travels with it, so it can be sent again after the sign-in.
+    expect(onAuthenticate).toHaveBeenCalledWith('show my order')
 
     rerender(
       <ChatFailureCard
