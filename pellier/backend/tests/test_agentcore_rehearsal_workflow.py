@@ -94,7 +94,7 @@ RECEIPT = {
         "targets_attached": False,
         "gateway_tool_count": 9,
         "gateway_tool_names": ["get_tickets"],
-        "gateway_control_plane": {"gateway_arn": "arn:aws:bedrock-agentcore:::gateway/g-1"},
+        "gateway_control_plane": {"gateway_arn": "arn:aws:bedrock-agentcore:us-east-1:123456789012:gateway/g-1"},
         "runtime_invoke_smoke": {"endpoint": "https://rt.example.com"},
         "arn:aws:iam::123456789012:role/odd_key": True,
         "Account 123456789012": True,
@@ -121,13 +121,13 @@ def test_no_account_id_arn_url_or_endpoint_survives_in_the_summary() -> None:
 
 
 def test_a_missing_or_malformed_receipt_summarizes_as_no_receipt() -> None:
-    for receipt in (None, {}, {"status": "arn:aws:x", "verification": "nope"}):
+    for receipt in (None, {}, {"status": "arn:aws:iam::123456789012:x", "verification": "nope"}):
         out = summary.summarize(receipt, SHA)
         assert out["status"] == "no_receipt" and out["checks"] == {}
 
 
 def test_a_revision_that_is_not_a_commit_sha_is_refused() -> None:
-    for bad in ("", "main", "arn:aws:iam::1:role/x", "6d2d226 5"):
+    for bad in ("", "main", "arn:aws:iam::123456789012:role/x", "6d2d226 5"):
         try:
             summary.summarize(RECEIPT, bad)
         except ValueError:
