@@ -57,7 +57,8 @@ def _story(**changes: Any) -> Dict[str, Any]:
              "write_key": KEY, "order_ids": [1041, 1042],
              "proposed_at": BASE + timedelta(minutes=2), "proposed_cents": 4000, "approver": "Nadia", "decided_at": BASE + timedelta(minutes=4),
              "request_id": 12, "turn_id": TURN, "requested_at": BASE + timedelta(seconds=1),
-             "handoff_audit_id": 812, "credit_audit_id": 820, "credits_with_key": 1,
+             "handoff_audit_id": 812, "handoff_gateway_request_id": "req-ask",
+             "credit_audit_id": 820, "credits_with_key": 1,
              "credit_gateway_request_id": "req-paid"}
     story.update(changes)
     return story
@@ -202,3 +203,98 @@ def test_an_overlapping_denial_cannot_become_the_paid_call():
 def test_a_correlated_allow_with_missing_target_span_is_incomplete():
     result = follow_credit.follow(_story(), _records(credits=[dict(PAID, lambda_ms=None)]), NOW)
     assert result.state == check.COULD_NOT_CHECK
+
+
+def _span_for(call: Dict[str, Any], turn: str = TURN) -> Dict[str, Any]:
+    attrs = dict(AGENT_SPAN["attributes"], **{"turn.id": turn})
+    return dict(AGENT_SPAN, traceId=call["trace_id"], attributes=attrs)
+
+
+def _two_calls(identified: Dict[str, Any], other: Dict[str, Any], **changes: Any) -> Any:
+    """Both calls made in her turn, both with her turn's agent span."""
+    runtime = {c["trace_id"]: [_span_for(c)] for c in (identified, other)}
+    return _records(handoffs=[identified, other], runtime=runtime, **changes)
+
+
+def _policy_row(followed: Any) -> str:
+    return next(row[2] for row in followed.rows if row[1] == "Policy")
+
+
+def test_a_newer_denied_call_in_her_turn_does_not_replace_the_call_that_opened_her_request():
+    newer = _call("req-newer", BASE + timedelta(seconds=30), "ask_a_person", NADIA_SUB, "DENY",
+                  ["baseline_permit_workshop_tools-q1"], parent="mcp-span", ran=False)
+    followed = follow_credit.follow(_story(), _two_calls(HANDOFF, newer), NOW)
+    assert followed.state == check.PASSED
+    assert _policy_row(followed) == "ALLOW, determined by baseline_permit_workshop_tools-q1"
+    assert followed.rows[1][2] == "The Gateway accepted jessica's Cognito access token"
+    assert any("req-ask" in line for line in followed.joins)
+
+
+def test_the_identified_call_being_denied_fails_even_when_another_call_was_allowed():
+    denied = _call("req-ask-denied", BASE, "ask_a_person", JESSICA_SUB, "DENY",
+                   ["baseline_permit_workshop_tools-q1"], parent="mcp-span", ran=False)
+    older = dict(HANDOFF, started_ns=HANDOFF["started_ns"] - 5 * NS)
+    records = _two_calls(denied, older)
+    followed = follow_credit.follow(_story(handoff_gateway_request_id="req-ask-denied"),
+                                    records, NOW)
+    assert followed.state == check.FAILED
+    assert "DENIED" in followed.observed
+    assert follow_credit.follow(_story(), records, NOW).state == check.PASSED
+
+
+def test_a_denied_handoff_with_no_target_run_and_no_caller_cannot_pass():
+    bare = dict(HANDOFF, decision="DENY", lambda_ms=None, subject=None, token_use=None,
+                identity_checked=False)
+    followed = follow_credit.follow(_story(), _records(handoffs=[bare]), NOW)
+    assert followed.state != check.PASSED
+    assert follow_credit.report(followed).endswith("End-to-end check failed")
+
+
+def test_a_handoff_with_no_target_span_or_no_policy_decision_waits_for_cloudwatch():
+    for changes in ({"lambda_ms": None}, {"decision": "none", "policies": []}):
+        call = dict(HANDOFF, **changes)
+        followed = follow_credit.follow(_story(), _records(handoffs=[call]), NOW)
+        assert followed.state == check.COULD_NOT_CHECK, changes
+        assert "about ten seconds" in followed.next_step
+
+
+def test_a_handoff_with_no_caller_evidence_waits_instead_of_passing():
+    for changes in ({"subject": None}, {"subject": "sub-nobody-known"}):
+        followed = follow_credit.follow(_story(), _records(handoffs=[dict(HANDOFF, **changes)],
+                                                           names={}), NOW)
+        assert followed.state == check.COULD_NOT_CHECK, changes
+
+
+def test_the_identified_call_not_in_cloudwatch_yet_waits_even_if_another_call_is_there():
+    other = dict(HANDOFF, request_id="req-other", trace_id="trace-req-other")
+    records = _two_calls(other, dict(other, request_id="req-third", trace_id="trace-req-third"))
+    followed = follow_credit.follow(_story(), records, NOW)
+    assert followed.state == check.COULD_NOT_CHECK
+    assert "req-ask" in followed.observed
+    assert "about ten seconds" in followed.next_step
+
+
+def test_a_missing_runtime_span_for_the_identified_call_waits():
+    followed = follow_credit.follow(_story(), _records(runtime={"trace-req-ask": []}), NOW)
+    assert followed.state == check.COULD_NOT_CHECK
+
+
+def test_a_handoff_record_from_before_the_gateway_request_id_cannot_be_identified():
+    followed = follow_credit.follow(_story(handoff_gateway_request_id=None), _records(), NOW)
+    assert followed.state == check.COULD_NOT_CHECK
+    assert "predates the Gateway request id" in followed.observed
+    assert "finish Lab 4" in followed.next_step
+
+
+def test_a_handoff_made_by_another_shopper_fails():
+    other = dict(HANDOFF, subject=NADIA_SUB)
+    followed = follow_credit.follow(_story(), _records(handoffs=[other]), NOW)
+    assert followed.state == check.FAILED
+    assert "made by nadia, not by Jessica" in followed.observed
+
+
+def test_the_identified_calls_agent_span_naming_another_turn_fails():
+    records = _records(runtime={"trace-req-ask": [_span_for(HANDOFF, "turn-x")]})
+    followed = follow_credit.follow(_story(), records, NOW)
+    assert followed.state == check.FAILED
+    assert "names a different turn" in followed.observed

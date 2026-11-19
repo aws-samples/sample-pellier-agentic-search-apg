@@ -10,9 +10,11 @@ is missing and passes once every link finds its row. Neither changes a table.
 
 from __future__ import annotations
 
+import importlib
 import json
 import re
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List
@@ -232,6 +234,29 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
     assert f"Key       {chain['key']}" in done.stdout
     assert max(len(line) for line in done.stdout.splitlines()) < 120
     assert _counts(fresh_db) == before
+
+
+def test_the_wrap_up_check_picks_the_handoff_row_that_opened_her_request(
+        fresh_db: Cluster) -> None:  # noqa: F811
+    """A turn can hold two ask_a_person rows; only the one naming her request is hers."""
+    scripts = str(REPO / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    follow_credit = importlib.import_module("follow_credit")
+    chain = _jessica_chain(fresh_db, handoff_row=False)
+    insert = ("INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, "
+              "latency_ms) VALUES (%s, 'ask_a_person', 'gateway', %s::jsonb, %s::jsonb, 40) "
+              "RETURNING audit_id")
+    with _connect(fresh_db) as conn:
+        run = _run(conn)
+        decoy = run(insert, (chain["asked"], json.dumps({"gateway_request_id": "req-decoy"}),
+                             json.dumps({"request_id": chain["request"] + 1000})))[0]
+        mine = run(insert, (chain["asked"], json.dumps({"gateway_request_id": "req-mine"}),
+                            json.dumps({"request_id": chain["request"]})))[0]
+        assert decoy["audit_id"] < mine["audit_id"]
+        story = run(follow_credit.STORY_SQL, {"customer": "CUST-JESSICA"})[0]
+    assert story["handoff_audit_id"] == mine["audit_id"]
+    assert story["handoff_gateway_request_id"] == "req-mine"
 
 
 def test_the_store_tools_login_reads_as_its_own_section(statements_db: Cluster) -> None:
