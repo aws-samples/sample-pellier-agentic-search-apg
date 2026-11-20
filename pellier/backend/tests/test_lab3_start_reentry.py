@@ -26,6 +26,11 @@ case "$*" in
   *"/api/health"*) [ "$FAKE_HEALTHY" = "yes" ] && echo '{"status": "healthy"}' || exit 22 ;;
   *"/api/chat/stream"*)
     echo "chat" >> "$FAKE_LOG"
+    for arg in "$@"; do
+      case "$arg" in
+        "Authorization: Bearer "*) echo "${arg#Authorization: Bearer }" >> "$FAKE_LOG.bearers" ;;
+      esac
+    done
     reply='{"type": "complete", "response": {"rail": "%s", "turn_id": "turn-1"}}'
     printf "data: $reply\\n" "$FAKE_RAIL"
     ;;
@@ -62,7 +67,7 @@ def box(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         "PELLIER_TOKEN": "token", "FAKE_LOG": str(log), "FAKE_HEALTHY": "yes",
         "FAKE_RAIL": "gateway-mcp", "AGENTCORE_MANAGED_OUTPUT_JSON": str(tmp_path / "managed.json"),
         "AGENTCORE_PARTICIPANT_OUTPUT_JSON": str(tmp_path / "absent.json"),
-        "TMPDIR": str(tmp_path),
+        "TMPDIR": str(tmp_path), "PELLIER_TOKEN_HELPER": str(tmp_path / "no-token-helper.sh"),
     }.items():
         monkeypatch.setenv(key, value)
     return {"script": scripts / "lab3-start.sh", "run_env": run_env, "log": log,
@@ -114,6 +119,47 @@ def test_a_receipt_that_is_missing_fails_the_verification(box, monkeypatch) -> N
     done = _run(box, "--verify-only", "theo")
     assert done.returncode == 1 and "receipt not found" in done.stdout
     assert _calls(box) == []
+
+
+def _bearers(box: dict[str, Any]) -> list[str]:
+    sent = Path(f"{box['log']}.bearers")
+    return sent.read_text().splitlines() if sent.exists() else []
+
+
+def test_a_token_left_in_the_shell_is_replaced_by_one_minted_for_the_persona(
+        box, tmp_path, monkeypatch) -> None:
+    """`source ~/pellier-token.sh theo` leaves $PELLIER_TOKEN in the participant's terminal.
+
+    An hour later it has expired. The script sent it, the turn ran unsigned and the script blamed
+    AgentCore: on the 2026-11-20 event box an 82-minute-old token failed `finish --lab 3` with
+    "reported rail 'none' not gateway-mcp". A token for another shopper fails the same way.
+    """
+    helper = tmp_path / "pellier-token.sh"
+    helper.write_text('export PELLIER_TOKEN="minted-for-$1"\n')
+    monkeypatch.setenv("PELLIER_TOKEN_HELPER", str(helper))
+    monkeypatch.setenv("PELLIER_TOKEN", "left-in-the-shell")
+    done = _run(box, "theo")
+    assert done.returncode == 0, done.stdout
+    assert _bearers(box) == ["minted-for-theo"]
+    assert "Cognito token minted for theo" in done.stdout
+
+
+def test_a_supplied_token_is_used_where_no_helper_exists(box) -> None:
+    done = _run(box, "theo")
+    assert done.returncode == 0
+    assert _bearers(box) == ["token"]
+    assert "minted" not in done.stdout and "using the PELLIER_TOKEN supplied" in done.stdout
+
+
+def test_a_helper_that_mints_nothing_stops_before_the_turn(box, tmp_path, monkeypatch) -> None:
+    helper = tmp_path / "pellier-token.sh"
+    helper.write_text('export PELLIER_TOKEN=""\n')
+    monkeypatch.setenv("PELLIER_TOKEN_HELPER", str(helper))
+    monkeypatch.setenv("PELLIER_TOKEN", "left-in-the-shell")
+    done = _run(box, "theo")
+    assert done.returncode == 1
+    assert "Could not mint a Cognito token for 'theo'" in done.stdout + done.stderr
+    assert _bearers(box) == []
 
 
 def test_the_full_switch_is_unchanged(box) -> None:

@@ -15,6 +15,7 @@ Two failure modes this file locks down:
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import shutil
 import subprocess
@@ -156,3 +157,72 @@ def test_an_unauthenticated_turn_is_not_a_managed_turn(
     result = json.loads(out.stdout)
     assert result["managed"] is False
     assert result["executedTools"] == []
+
+
+def _run_hello(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+               helper_body: str | None) -> tuple[subprocess.CompletedProcess, pathlib.Path]:
+    """Run the real script beside a stub identity helper and a fake npx that records the bearer.
+
+    The shell already holds PELLIER_TOKEN=left-in-the-shell. ``helper_body`` is the token
+    helper's text, or None for a box that has no helper.
+    """
+    scripts = tmp_path / "repo" / "scripts"
+    (scripts / "deploy").mkdir(parents=True)
+    shutil.copy(HELLO, scripts / "runtime_hello.sh")
+    (scripts / "deploy" / "resolve_agentcore_identity.py").write_text(
+        f"print({str(tmp_path)!r})\n", encoding="utf-8")
+    helper = tmp_path / "pellier-token.sh"
+    if helper_body is not None:
+        helper.write_text(helper_body, encoding="utf-8")
+    turn = json.dumps({"rail": "gateway-mcp", "response": "Linen shirts.", "specialist": "catalog"})
+    reply = json.dumps({"success": True, "response": turn})
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "npx").write_text(
+        "#!/usr/bin/env bash\n"
+        'while [ $# -gt 0 ]; do\n'
+        '  [ "$1" = "--bearer-token" ] && echo "$2" > "$FAKE_BEARER"; shift\n'
+        'done\n'
+        f"cat <<'JSON'\n{reply}\nJSON\n", encoding="utf-8")
+    (bin_dir / "npx").chmod(0o755)
+    for key, value in {
+        "PATH": f"{bin_dir}:{os.environ['PATH']}", "PELLIER_REPO": str(tmp_path / "repo"),
+        "PELLIER_TOKEN_HELPER": str(helper), "PELLIER_TOKEN": "left-in-the-shell",
+        "PELLIER_EVIDENCE_DIR": str(tmp_path / "evidence"), "FAKE_BEARER": str(tmp_path / "bearer"),
+    }.items():
+        monkeypatch.setenv(key, value)
+    done = subprocess.run(["bash", str(scripts / "runtime_hello.sh"), "--persona", "theo"],
+                          capture_output=True, text=True, timeout=60)
+    return done, tmp_path / "bearer"
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is not installed")
+def test_a_token_left_in_the_shell_is_replaced_by_one_minted_for_the_persona(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The script's own comment: a stale token reads as a Runtime fault. It mints its own."""
+    done, bearer = _run_hello(tmp_path, monkeypatch, 'export PELLIER_TOKEN="minted-for-$1"\n')
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert bearer.read_text().strip() == "minted-for-theo"
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is not installed")
+def test_a_supplied_token_is_used_where_no_helper_exists(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    done, bearer = _run_hello(tmp_path, monkeypatch, None)
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert bearer.read_text().strip() == "left-in-the-shell"
+
+
+@pytest.mark.parametrize("minted", ["", "None"])
+def test_a_helper_that_mints_nothing_skips_the_hello_instead_of_sending_it(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, minted: str,
+) -> None:
+    """A failed sign-in prints None through the AWS CLI's text output; neither is a token."""
+    if shutil.which("jq") is None:
+        pytest.skip("jq is not installed")
+    done, bearer = _run_hello(tmp_path, monkeypatch, f'export PELLIER_TOKEN="{minted}"\n')
+    assert done.returncode == 1
+    assert "Could not mint a token for 'theo'" in done.stdout + done.stderr
+    assert not bearer.exists()

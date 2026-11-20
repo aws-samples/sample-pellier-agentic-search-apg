@@ -16,8 +16,8 @@
 #      AGENTCORE_RUNTIME_ENDPOINT verified in step 1 are the only two the
 #      backend reads to select a rail (services/execution_rail.py::resolve_rail).
 #   4. Restart the pellier service and wait for /api/health.
-#   5. Mint a Cognito token for the persona (default theo, the Lab 3 anchor)
-#      unless PELLIER_TOKEN is already set, run one authenticated turn on
+#   5. Mint a Cognito token for the persona (default theo, the Lab 3 anchor);
+#      PELLIER_TOKEN is used only where no token helper exists. Run one authenticated turn on
 #      /api/chat/stream, and require the complete event's rail to read
 #      gateway-mcp. Anything else exits 1 and prints the rail decision.
 #
@@ -326,19 +326,24 @@ else
 fi
 
 # --- 5. one authenticated turn, and the rail it reports -----------------------
-if [ -z "${PELLIER_TOKEN:-}" ]; then
-  if [ ! -r "$TOKEN_HELPER" ]; then
-    _revert_hint "No PELLIER_TOKEN and no token helper at $TOKEN_HELPER; the managed rail needs a signed-in caller"
-    exit 1
-  fi
+# A token left in the participant's shell by `source ~/pellier-token.sh` expires after an hour
+# and may belong to another shopper. Either makes this turn run unsigned, which reads below as
+# an AgentCore fault, so mint one for this persona whenever the helper exists.
+token_line="Cognito token minted for $PERSONA"
+if [ -r "$TOKEN_HELPER" ]; then
   # shellcheck disable=SC1090
   . "$TOKEN_HELPER" "$PERSONA" >/dev/null 2>&1 || true
+elif [ -z "${PELLIER_TOKEN:-}" ]; then
+  _revert_hint "No PELLIER_TOKEN and no token helper at $TOKEN_HELPER; the managed rail needs a signed-in caller"
+  exit 1
+else
+  token_line="No token helper at $TOKEN_HELPER; using the PELLIER_TOKEN supplied"
 fi
 if [ -z "${PELLIER_TOKEN:-}" ] || [ "${PELLIER_TOKEN:-}" = "None" ]; then
   _revert_hint "Could not mint a Cognito token for '$PERSONA'; an unsigned turn cannot reach the Runtime authorizer"
   exit 1
 fi
-pass "Cognito token minted for $PERSONA"
+pass "$token_line"
 
 SESSION_ID="lab3-start-$(date +%s)"
 body="$(printf '{"message":"%s","session_id":"%s","customer_id":"%s"}' \

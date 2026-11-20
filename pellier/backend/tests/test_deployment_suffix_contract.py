@@ -109,7 +109,7 @@ Path({str(calls)!r}).write_text(json.dumps({{"cwd":os.getcwd(),"args":sys.argv[1
 print(json.dumps({{"success":True,"response":{{"rail":"gateway-mcp","response":"Recorded fixture response","tool_calls":[],"gateway_tools":[]}}}}))
 ''')
     npx.chmod(0o755)
-    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "PELLIER_REPO": str(tmp_path), "PELLIER_TOKEN": "fixture-token", "PELLIER_EVIDENCE_DIR": str(tmp_path / "evidence"), "AGENTCORE_RUNTIME_ENDPOINT": "arn:fixture:runtime"}
+    env = {**os.environ, "PATH": f"{bin_dir}:{os.environ['PATH']}", "PELLIER_REPO": str(tmp_path), "PELLIER_TOKEN": "fixture-token", "PELLIER_TOKEN_HELPER": str(tmp_path / "no-token-helper.sh"), "PELLIER_EVIDENCE_DIR": str(tmp_path / "evidence"), "AGENTCORE_RUNTIME_ENDPOINT": "arn:fixture:runtime"}
     env.pop(FLAG, None)
     command = ["bash", str(REPO / "scripts/runtime_hello.sh")]
     if override:

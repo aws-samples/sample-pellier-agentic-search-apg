@@ -85,16 +85,16 @@ fi
 
 # The token helper is written by bootstrap and mints a fresh Cognito token,
 # because they expire in about an hour and a stale one reads as a Runtime fault.
-if [ -z "${PELLIER_TOKEN:-}" ]; then
-  TOKEN_HELPER="${PELLIER_TOKEN_HELPER:-$HOME/pellier-token.sh}"
-  if [ ! -r "$TOKEN_HELPER" ]; then
-    warn "No token helper at $TOKEN_HELPER; skipping the Runtime hello"
-    exit 1
-  fi
+# One left in the shell is that stale token, so it is used only where no helper exists.
+TOKEN_HELPER="${PELLIER_TOKEN_HELPER:-$HOME/pellier-token.sh}"
+if [ -r "$TOKEN_HELPER" ]; then
   # shellcheck disable=SC1090
   . "$TOKEN_HELPER" "$PERSONA" >/dev/null 2>&1
+elif [ -z "${PELLIER_TOKEN:-}" ]; then
+  warn "No token helper at $TOKEN_HELPER; skipping the Runtime hello"
+  exit 1
 fi
-if [ -z "${PELLIER_TOKEN:-}" ]; then
+if [ -z "${PELLIER_TOKEN:-}" ] || [ "${PELLIER_TOKEN:-}" = "None" ]; then
   warn "Could not mint a token for '$PERSONA'; skipping the Runtime hello"
   exit 1
 fi
