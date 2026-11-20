@@ -64,6 +64,7 @@ STOCK_AGENT_NAME = "stock"
 STARTER_GRANT = ("search_products", "browse_department", "compare_products")
 SEND = "uv run scripts/lab_run.py send --lab 2"
 SEND_2A = "uv run scripts/lab_run.py send --lab 2 --task 2A"
+SEND_2B = "uv run scripts/lab_run.py send --lab 2 --task 2B"
 # Marco's Task 2A question is about this catalog piece at this warehouse. The piece is
 # named the way the catalog names it, the same name Task 2B's in-stock case uses.
 MARCO_PIECE_NAME = "Hadley Linen Shirt"
@@ -619,12 +620,21 @@ def with_resend_hint(live: check.Finding, recorded: check.Finding) -> check.Find
 
     The check runs the live function, so it passes the moment the SQL file
     commits. Marco's chat and the evidence export read his recorded turns, so they
-    show the change only once his requests are sent again.
+    show the change only once he asks again. A recorded case that differs is the cape,
+    answered before the commit: a file that fails its tests is rolled back, so the only
+    other function ever live is the shipped one, which differs on the not-carried case
+    alone. So only that question is sent again, the same command as the Next line a
+    passing check prints (workshop_check.closing). With no recorded turn at all, both of
+    his requests are.
     """
     if live.state != check.PASSED or recorded.state == check.PASSED:
         return live
-    hint = ("Marco's recorded turns were answered before your function was live. To see the cape "
-            f"answered as not carried, send his requests again: {SEND}")
+    if recorded.state == check.FAILED:
+        hint = ("Marco's cape question was answered before your function was live. To see the "
+                f"cape answered as not carried, send that question again: {SEND_2B}")
+    else:
+        hint = ("Marco's recorded turns were answered before your function was live. To see the "
+                f"cape answered as not carried, send his requests again: {SEND}")
     return replace(live, evidence=[*live.evidence, hint])
 
 

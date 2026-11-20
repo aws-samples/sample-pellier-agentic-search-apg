@@ -154,31 +154,45 @@ def _finding(state: str) -> object:
     return check.check.Finding("2B", "title", state, "expected", "observed", ["row"])
 
 
-@pytest.mark.parametrize("recorded", ["NOT YET PASSED", "FAILED"])
-def test_a_pass_the_recorded_turns_do_not_show_asks_for_marcos_requests_again(recorded) -> None:
+SEND_BOTH = "uv run scripts/lab_run.py send --lab 2"
+SEND_CAPE = "uv run scripts/lab_run.py send --lab 2 --task 2B"
+
+
+def test_a_pass_over_an_older_cape_turn_asks_for_the_cape_question_again() -> None:
     """The check runs the live function; Marco's chat and the export read his turns.
 
-    A committed function is live at once, so the hint asks for his requests again and
-    never for a restart.
+    A committed function is live at once, so the hint never asks for a restart. A recorded
+    case that differs is the cape, answered before the commit, so the hint names the same
+    command as the check's Next line and the guide: the cape question alone.
     """
-    finding = check.with_resend_hint(_finding("PASSED"), _finding(recorded))
+    finding = check.with_resend_hint(_finding("PASSED"), _finding("FAILED"))
     assert finding.state == "PASSED"
     assert finding.evidence[0] == "row"
-    assert "uv run scripts/lab_run.py send --lab 2" in finding.evidence[-1]
+    assert finding.evidence[-1].endswith(SEND_CAPE)
+    assert "cape" in finding.evidence[-1]
     assert "restart" not in finding.evidence[-1].lower()
 
 
-def test_the_resend_line_wraps_without_stranding_words(monkeypatch) -> None:
+def test_a_pass_with_no_recorded_turn_asks_for_both_of_marcos_requests() -> None:
+    finding = check.with_resend_hint(_finding("PASSED"), _finding("NOT YET PASSED"))
+    assert finding.state == "PASSED"
+    assert finding.evidence[-1].endswith(SEND_BOTH)
+    assert "restart" not in finding.evidence[-1].lower()
+
+
+@pytest.mark.parametrize("recorded, command", [("FAILED", SEND_CAPE),
+                                               ("NOT YET PASSED", SEND_BOTH)])
+def test_the_resend_line_wraps_without_stranding_words(monkeypatch, recorded, command) -> None:
     """Event of 2026-11-17: at 100 columns the box kept the command whole by moving it to its
     own line, which left "requests again" alone on the line above. Every wrapped line of the
     hint now carries a phrase, and the command sits whole on one line."""
     monkeypatch.setenv("COLUMNS", "100")
-    finding = check.with_resend_hint(_finding("PASSED"), _finding("NOT YET PASSED"))
+    finding = check.with_resend_hint(_finding("PASSED"), _finding(recorded))
     box = workshop_check.render(finding)
     evidence = [line.split("│")[2].strip() for line in box.splitlines()
                 if line.startswith("│") and line.count("│") >= 3]
     hint = evidence[evidence.index("row") + 1:]
-    assert "uv run scripts/lab_run.py send --lab 2" in hint
+    assert command in hint
     assert all(len(line.split()) >= 5 for line in hint), hint
 
 
