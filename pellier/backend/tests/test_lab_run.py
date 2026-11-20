@@ -1442,6 +1442,62 @@ def test_a_local_lab_will_not_start_while_a_deploy_moves_pellier_onto_agentcore(
         assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"
 
 
+def _env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, on_agentcore: bool) -> None:
+    env = tmp_path / ".env"
+    env.write_text(f"DB_HOST=x\nUSE_AGENTCORE_RUNTIME={str(on_agentcore).lower()}\n",
+                   encoding="utf-8")
+    monkeypatch.setattr(lab_run, "ENV_FILE", env)
+
+
+ON_AGENTCORE = "(?s)runs in process, but Pellier is set to run on AgentCore.*Nothing was changed"
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("lab", [1, 2])
+def test_a_local_lab_will_not_start_once_pellier_runs_on_agentcore(
+    lab: int, fake: FakeBackend, recovery_repo: Path, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """After Lab 3's deploy, finish installed the answers, ran the SQL file and restarted the
+    backend, and only then refused at its send step. It refuses before it changes anything."""
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    commands = Commands()
+    with pytest.raises(lab_run.LabRunError, match=ON_AGENTCORE):
+        lab_run.finish(lab, lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                       run=commands, repo=recovery_repo)
+    assert commands.ran == [] and _turns(fake) == []
+    for task in lab_run.TASKS:
+        assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"
+
+
+@pytest.mark.usefixtures("box")
+def test_the_fast_track_will_not_start_once_pellier_runs_on_agentcore(
+    fake: FakeBackend, recovery_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    commands = Commands()
+    with pytest.raises(lab_run.LabRunError, match=ON_AGENTCORE):
+        lab_run.fast_track(lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                           run=commands, repo=recovery_repo)
+    assert commands.ran == [] and _turns(fake) == []
+    assert "steps, usually about" not in capsys.readouterr().out
+    for task in lab_run.TASKS:
+        assert (recovery_repo / f"work/{task}.py").read_text() == f"participant {task}\n"
+
+
+@pytest.mark.usefixtures("box")
+def test_lab_3_still_starts_its_catch_up_from_the_local_agents(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Lab 3's catch-up begins on the local agents and deploys: only a local lab is refused."""
+    _env_file(tmp_path, monkeypatch, on_agentcore=False)
+    repo = _scratch_repo(tmp_path)
+    commands = Commands(failing="--mode participant")
+    assert _finish(fake, 3, repo, commands) == 1
+    assert commands.ran[-1] == DEPLOY_RUN.format(repo=repo)
+
+
 @pytest.mark.parametrize("arguments,expected", [
     (["fast-track"], [1, 2]), (["finish", "--lab", "1"], [1]),
     (["finish", "--lab", "2"], [2]),

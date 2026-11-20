@@ -1401,6 +1401,13 @@ def _refuse_while_deploying(lab: int, repo: pathlib.Path) -> None:
             f"{busy} Wait for it to finish, then run this again. Nothing was changed."))
 
 
+def _refuse_on_agentcore(lab: int) -> None:
+    """A local lab's catch-up installed its answers and restarted the backend before its send
+    step found Pellier on AgentCore. Refuse before anything changes instead."""
+    if LAB_RAIL[lab] == IN_PROCESS and _configured_rail() == MANAGED:
+        raise LabRunError(_rail_problem(lab, MANAGED, {}, before=True) + "\nNothing was changed.")
+
+
 def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
            run: Callable[..., Any] = relayed, repo: pathlib.Path = REPO,
            progress: Optional[Progress] = None) -> None:
@@ -1410,6 +1417,7 @@ def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_to
     them as part of a longer run, such as the fast track.
     """
     _refuse_while_deploying(lab, repo)
+    _refuse_on_agentcore(lab)
     steps = finish_steps(Finish(lab, backend, token_for, run, repo))
     own = progress is None
     progress = progress or _numbered(f"Lab {lab} step", steps)
@@ -1423,6 +1431,7 @@ def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
                run: Callable[..., Any] = relayed, repo: pathlib.Path = REPO) -> None:
     """Finish the two local labs in order; a failure prevents any later lab from starting."""
     _refuse_while_deploying(1, repo)
+    _refuse_on_agentcore(1)
     plans = [finish_steps(Finish(lab, backend, token_for, run, repo)) for lab in (1, 2)]
     progress = _numbered("Fast track step", [step for plan in plans for step in plan])
     for lab in (1, 2):
