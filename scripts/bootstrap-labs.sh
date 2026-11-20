@@ -951,6 +951,12 @@ export AWS_REGION=${AWS_REGION:-us-east-1}
 # disabling all non-essential phone-home (auto-updater + telemetry + error
 # reporting + feedback) — the right posture for a root-managed workshop box.
 export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+# Started in a VS Code terminal, the CLI installs its editor extension from the
+# gallery at whatever version is newest that day (2.1.329 beside the 2.1.316
+# CLI on the 2026-11-20 event). Code Editor's extensions are pinned by exact
+# version, and the guide uses Claude Code in the terminal only, so keep the
+# set as bootstrap installed it.
+export CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1
 
 # Ensure uv is in PATH (required for MCP)
 export PATH="/opt/pellier/bin:$HOME/.local/bin:$PATH"

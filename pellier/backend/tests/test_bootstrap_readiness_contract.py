@@ -94,6 +94,21 @@ def test_claude_code_pins_global_sonnet_5_profile() -> None:
     assert "CLAUDE_CODE_MODEL" not in source
 
 
+def test_claude_code_leaves_the_pinned_editor_extensions_alone() -> None:
+    """A first run in the Code Editor terminal adds no extension to the pinned set.
+
+    Claude Code installs its editor extension from the gallery when it starts in a VS Code
+    terminal: the 2026-11-20 event box got anthropic.claude-code 2.1.329 beside the pinned
+    2.1.316 CLI. Bootstrap pins every extension by exact version, so the participant's shell
+    turns that install off.
+    """
+    source = BOOTSTRAP.read_text(encoding="utf-8")
+    opening = "printf '%s\\n' \"$BASHRC_BEGIN\"\ncat << 'EOF'\n"
+    start = source.index(opening) + len(opening)
+    participant_shell = source[start:source.index("\nEOF\n", start)].splitlines()
+    assert "export CLAUDE_CODE_IDE_SKIP_AUTO_INSTALL=1" in participant_shell
+
+
 def test_bootstrap_and_preflight_pin_only_claude_5_profiles() -> None:
     """Every Claude model the workshop provisions is a global Claude 5 profile."""
     for path in (BOOTSTRAP, REPO / "scripts" / "check_model_access.py"):
