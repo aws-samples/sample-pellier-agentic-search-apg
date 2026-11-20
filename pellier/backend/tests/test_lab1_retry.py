@@ -43,15 +43,33 @@ def _judge(receipt: Dict[str, Any], broken: Optional[List[str]] = None):
 def test_kept_limits_after_the_fallback_prove_it() -> None:
     finding = _judge(_receipt())
     assert finding.state == "PASSED"
-    assert finding.observed == "all 2 keep under $100, in stock, no candles after the retry"
-    assert "the shopper asked: under $100, in stock, no candles" in finding.evidence
+    assert finding.observed == "all 2 keep $100 or less, in stock, no candles after the retry"
+    assert "the shopper asked: $100 or less, in stock, no candles" in finding.evidence
+
+
+@pytest.mark.parametrize("price", [100, 100.0, 99.99, 99.5, 49.99, 250, 1, 0.99])
+def test_a_price_ceiling_is_worded_as_ask_pellier_words_it(price: float) -> None:
+    """The check and the app say which prices a ceiling admits in the same words.
+
+    Check scripts read rows without importing the backend, so the rule is written twice.
+    """
+    from services.turn_steps import budget_phrase
+
+    assert lab1.budget_words(price) == budget_phrase(price)
+
+
+def test_a_ceiling_of_whole_dollars_admits_that_price() -> None:
+    limits = lab1.limits_of({"price_max_usd": 100, "in_stock_only": False, "categories": []}, [])
+    assert lab1.phrases(limits) == ["$100 or less"]
+    limits = lab1.limits_of({"price_max_usd": 99.99, "in_stock_only": False, "categories": []}, [])
+    assert lab1.phrases(limits) == ["under $100"]
 
 
 def test_a_dropped_limit_is_named_and_blames_the_fallback() -> None:
     lost = {"price_max_usd": None, "in_stock_only": False, "categories": []}
     finding = _judge(_receipt(kept=lost, exclusions=[]))
     assert finding.state == "FAILED"
-    assert finding.observed.endswith("dropped under $100, in stock, no candles")
+    assert finding.observed.endswith("dropped $100 or less, in stock, no candles")
     assert "_next_attempt" in finding.next_step
 
 

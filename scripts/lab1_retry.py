@@ -161,11 +161,30 @@ def kept_limits(receipt: Dict[str, Any]) -> Dict[str, Any]:
     return limits_of(receipt.get("hard_constraints"), receipt.get("exclusions"))
 
 
+def _money(dollars: float) -> str:
+    return f"${dollars:g}" if dollars == int(dollars) else f"${dollars:.2f}"
+
+
+def budget_words(price: Any) -> str:
+    """A price ceiling in words that say exactly which prices it admits.
+
+    The same rule as ``budget_phrase`` in pellier/backend/services/turn_steps.py, which
+    writes Ask Pellier's tag and the send output. Prices are whole cents, so a ceiling of
+    $99.99 reads "under $100" and a ceiling of $100, which also admits a $100.00 product,
+    reads "$100 or less". This check reads rows without importing the backend, so the rule
+    is written twice; tests/test_lab1_retry.py holds the two together.
+    """
+    cents = round(float(price) * 100)
+    if cents % 100 == 99:
+        return f"under {_money((cents + 1) / 100)}"
+    return f"{_money(cents / 100)} or less"
+
+
 def phrases(limits: Dict[str, Any]) -> List[str]:
-    """The requirements in the shopper's words: "under $100", "in stock", "no candles"."""
+    """The requirements in the shopper's words: "$100 or less", "in stock", "no candles"."""
     said = []
     if limits["price"] is not None:
-        said.append(f"under ${limits['price']:g}")
+        said.append(budget_words(limits["price"]))
     if limits["in_stock"]:
         said.append("in stock")
     said.extend(f"no {_plural(value)}" for value in limits["exclusions"])
@@ -179,7 +198,7 @@ def dropped(requested: Dict[str, Any], kept: Dict[str, Any]) -> List[str]:
     lost = []
     if requested["price"] is not None and (kept["price"] is None
                                            or kept["price"] > requested["price"]):
-        lost.append(f"under ${requested['price']:g}")
+        lost.append(budget_words(requested["price"]))
     if requested["in_stock"] and not kept["in_stock"]:
         lost.append("in stock")
     lost.extend(f"no {_plural(value)}" for value in requested["exclusions"]

@@ -113,8 +113,8 @@ def test_the_starter_fallback_returns_a_candle_and_drops_annas_limits(conn, monk
     finding, rows = lab1_retry.evaluate(conn)
     assert finding.state == "FAILED", finding
     assert "excluded candle" in finding.observed
-    assert "dropped under $100, in stock, no candles" in finding.observed
-    assert "the shopper asked: under $100, in stock, no candles" in finding.evidence
+    assert "dropped $100 or less, in stock, no candles" in finding.observed
+    assert "the shopper asked: $100 or less, in stock, no candles" in finding.evidence
     assert any(row[-1] != "ok" for row in rows)
 
 
@@ -128,7 +128,7 @@ def test_the_solution_fallback_keeps_annas_limits(conn, monkeypatch) -> None:
 
     finding, rows = lab1_retry.evaluate(conn)
     assert finding.state == "PASSED", finding
-    assert "keep under $100, in stock, no candles after the retry" in finding.observed
+    assert "keep $100 or less, in stock, no candles after the retry" in finding.observed
     assert rows and all(row[-1] == "ok" for row in rows)
 
 
