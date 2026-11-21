@@ -109,7 +109,9 @@ the task the participant names, never every file at once.
   files tasks in Code Editor (Terminal > Run Task), `uv run scripts/lab_run.py reset
   --lab N` and `bash scripts/reset-governed-workshop.sh`. The coach explains what a reset
   restores and does not run one. It does not run Git, install packages, deploy or approve
-  actions.
+  actions. Going back to the local agents after Lab 3's deploy is the participant's choice,
+  `uv run scripts/lab_run.py local`; a catch-up for Lab 1 or 2 stops and names it, and the
+  coach explains it and does not run it.
 - Verification is the task's check command in the terminal and its pass line
   (`Lab NX check passed`). Never send the participant to Ask Pellier, the Operator
   or the AgentCore console to verify; explain what the pass line establishes and

@@ -49,6 +49,7 @@ class FakeBackend:
     def __init__(self) -> None:
         self.rail = lab_run.IN_PROCESS
         self.health = "healthy"
+        self.health_fields: Dict[str, Any] = {}
         self.chat_error = ""
         # The next turns that fail before succeeding: an error event, or an HTTP status.
         self.chat_failures: List[Any] = []
@@ -70,7 +71,7 @@ class FakeBackend:
 
     def answer(self, path: str, body: Dict[str, Any]) -> Any:
         if path == "/api/health":
-            return {"status": self.health}
+            return {"status": self.health, **self.health_fields}
         if path == "/api/operator/reviews":
             return {"reviews": self.reviews}
         if path == "/api/persona/switch":
@@ -640,9 +641,9 @@ def test_an_in_process_lab_refuses_a_turn_that_ran_on_agentcore(
     assert _run(fake, 1) == 1
     err = capsys.readouterr().err
     assert "Lab 1 runs in process, but this turn ran on gateway-mcp" in err
-    assert "USE_AGENTCORE_RUNTIME=false" in err
-    # "Restart the backend" named no command; this is the one the guide uses.
-    assert "uv run scripts/lab_run.py restart" in err
+    # Going back is one command, never a hand edit of the setting.
+    assert "uv run scripts/lab_run.py local" in err
+    assert "USE_AGENTCORE_RUNTIME" not in err
 
 
 def test_a_managed_lab_refuses_an_in_process_turn(
@@ -1985,3 +1986,153 @@ def test_quiet_is_refused_outside_send(action, capsys, stubbed_actions) -> None:
         lab_run.main([action, "--lab", "2", "--quiet"])
     assert "--quiet goes with send" in capsys.readouterr().err
     assert stubbed_actions == []
+
+
+# ---------------------------------------------------------------------------
+# local: the participant's own choice to go back to the local agents
+# ---------------------------------------------------------------------------
+
+class _SwitchCommands:
+    """Records what `local` runs; the helper writes the setting as the real one does."""
+
+    def __init__(self, env: Path, writes: bool = True, helper_status: int = 0,
+                 helper_says: str = "  [PASS] Execution rail restored to in-process\n") -> None:
+        self.env, self.writes, self.helper_status = env, writes, helper_status
+        self.helper_says = helper_says
+        self.ran: List[str] = []
+
+    def __call__(self, argv: List[str], **kwargs: Any) -> Any:
+        self.ran.append(" ".join(argv))
+        status, said = 0, ""
+        if argv[-2:-1] and argv[-2].endswith("reset-agentcore-lab.sh"):
+            status, said = self.helper_status, self.helper_says
+            if self.writes and status == 0:
+                self.env.write_text("DB_HOST=x\nUSE_AGENTCORE_RUNTIME=false\n", encoding="utf-8")
+        return lab_run.subprocess.CompletedProcess(argv, status, stdout=said, stderr="")
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("on_agentcore", [True, False])
+def test_local_puts_pellier_on_the_local_agents_from_either_mode(
+    on_agentcore: bool, fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """One command writes the setting, restarts the backend and says where Pellier now runs."""
+    _env_file(tmp_path, monkeypatch, on_agentcore=on_agentcore)
+    fake.health_fields = {"use_agentcore_runtime": False}
+    commands = _SwitchCommands(tmp_path / ".env")
+    lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    helper = f"bash {tmp_path / 'scripts' / 'reset-agentcore-lab.sh'} 1"
+    assert commands.ran == [helper, "sudo -n systemctl restart pellier"]
+    assert [request["path"] for request in fake.requests] == ["/api/health"]
+    assert lab_run._configured_rail() == lab_run.IN_PROCESS
+    out = capsys.readouterr().out
+    assert "Pellier is running on the local agents" in out
+    assert "bash scripts/lab3-start.sh theo" in out  # the way back to AgentCore
+    # The helper's reset wording stays out of what the participant reads.
+    assert "rail" not in out and "USE_AGENTCORE_RUNTIME" not in out
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("health_fields", [
+    {"use_agentcore_runtime": True}, {}, {"use_agentcore_runtime": "false"},
+])
+def test_local_requires_the_restarted_backend_to_confirm_local_mode(
+    health_fields: Dict[str, Any], fake: FakeBackend, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    fake.health_fields = health_fields
+    commands = _SwitchCommands(tmp_path / ".env")
+    with pytest.raises(lab_run.LabRunError, match="did not confirm"):
+        lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    assert lab_run._configured_rail() == lab_run.IN_PROCESS
+    assert [request["path"] for request in fake.requests] == ["/api/health"]
+    assert "Pellier is running on the local agents" not in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("box")
+def test_local_does_not_claim_the_switch_when_the_setting_did_not_change(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    commands = _SwitchCommands(tmp_path / ".env", writes=False)
+    with pytest.raises(lab_run.LabRunError, match="still set to run on AgentCore"):
+        lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    assert "sudo -n systemctl restart pellier" not in commands.ran
+    assert "running on the local agents" not in capsys.readouterr().out
+
+
+@pytest.mark.usefixtures("box")
+def test_local_stops_when_the_setting_could_not_be_written(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    commands = _SwitchCommands(tmp_path / ".env", helper_status=1)
+    with pytest.raises(lab_run.LabRunError, match="(?s)not changed.*Nothing was restarted"):
+        lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    assert len(commands.ran) == 1
+
+
+@pytest.mark.usefixtures("box")
+def test_local_will_not_switch_while_a_deploy_is_moving_pellier_onto_agentcore(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    monkeypatch.setattr(lab_run.deploy_lock, "running_message",
+                        lambda repo: "A deploy is already running: a deploy of your changes.")
+    commands = _SwitchCommands(tmp_path / ".env")
+    with pytest.raises(lab_run.LabRunError,
+                       match="(?s)A deploy is already running.*Nothing was changed"):
+        lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    assert commands.ran == []
+
+
+@pytest.mark.usefixtures("box")
+def test_local_checks_the_lab_files_before_it_writes_the_setting(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A syntax error stops the restart. Found after the write, it would leave Pellier set to
+    the local agents and still answering from AgentCore."""
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    monkeypatch.setattr(lab_run, "python_edit_problem", lambda: "store_tools.py line 3: invalid")
+    commands = _SwitchCommands(tmp_path / ".env")
+    with pytest.raises(lab_run.LabRunError, match="(?s)line 3: invalid.*Nothing was changed"):
+        lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    assert commands.ran == [] and lab_run._configured_rail() == lab_run.MANAGED
+
+
+@pytest.mark.usefixtures("box")
+def test_local_says_so_when_no_settings_file_was_found(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    commands = _SwitchCommands(tmp_path / ".env", writes=False,
+                               helper_says="  [WARN] No env file found at /etc/x or /repo/.env\n")
+    with pytest.raises(lab_run.LabRunError, match="(?s)No settings file.*nothing was restarted"):
+        lab_run.switch_to_local(lab_run.Backend(fake.url), run=commands, repo=tmp_path)
+    assert len(commands.ran) == 1
+
+
+def test_local_takes_no_options(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit):
+        lab_run.main(["local", "--lab", "1"])
+    assert "local takes no options" in capsys.readouterr().err
+
+
+@pytest.mark.usefixtures("box")
+@pytest.mark.parametrize("lab", [1, 2])
+def test_the_refusal_on_agentcore_names_the_one_command_and_no_file_edit(
+    lab: int, fake: FakeBackend, recovery_repo: Path, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A catch-up on AgentCore still stops before it changes anything; going back is one command."""
+    _env_file(tmp_path, monkeypatch, on_agentcore=True)
+    commands = Commands()
+    with pytest.raises(lab_run.LabRunError) as refused:
+        lab_run.finish(lab, lab_run.Backend(fake.url), lambda user: f"token-{user}",
+                       run=commands, repo=recovery_repo)
+    text = str(refused.value)
+    assert "uv run scripts/lab_run.py local" in text and "Nothing was changed." in text
+    assert "USE_AGENTCORE_RUNTIME" not in text and ".env" not in text
+    assert commands.ran == [] and _turns(fake) == []

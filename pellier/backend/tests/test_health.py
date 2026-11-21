@@ -15,11 +15,13 @@ from services.database import DatabaseService
 @pytest.mark.parametrize("database_ok,bedrock_ok", [
     (True, True), (False, True), (True, False), (False, False),
 ])
+@pytest.mark.parametrize("use_agentcore_runtime", [False, True])
 def test_health_http_status_matches_dependency_result(
-    monkeypatch, database_ok, bedrock_ok,
+    monkeypatch, database_ok, bedrock_ok, use_agentcore_runtime,
 ):
     import app
 
+    monkeypatch.setattr(app.settings, "USE_AGENTCORE_RUNTIME", use_agentcore_runtime)
     db = SimpleNamespace(check_health=AsyncMock(
         side_effect=None if database_ok else RuntimeError("connection unavailable"),
     ))
@@ -42,6 +44,7 @@ def test_health_http_status_matches_dependency_result(
     assert result.status == ("healthy" if database_ok and bedrock_ok else "degraded")
     assert result.database == ("connected" if database_ok else "disconnected")
     assert result.bedrock == ("accessible" if bedrock_ok else "inaccessible")
+    assert result.model_dump()["use_agentcore_runtime"] is use_agentcore_runtime
     db.check_health.assert_awaited_once()
 
 

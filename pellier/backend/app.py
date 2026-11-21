@@ -513,6 +513,7 @@ async def health_check(response: Response):
         "bedrock": "unknown",
         "custom_tools": "available",
         "version": "1.0.0",
+        "use_agentcore_runtime": settings.USE_AGENTCORE_RUNTIME,
     }
 
     # Check database connection

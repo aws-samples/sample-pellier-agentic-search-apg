@@ -3141,10 +3141,7 @@ def _retire_policies(
 # the service and proves one managed turn; this only decides whether it is still needed.
 MOVED_ONTO_AGENTCORE = "Pellier is now using AgentCore. Continue with Theo's requests."
 ALREADY_ON_AGENTCORE = "Pellier is already using AgentCore."
-# After the move the next step is Theo's requests, once the ownership file of Task 3B has
-# passed. A later deploy (Lab 4's rule, or a repeat) ends on ALREADY_ON_AGENTCORE alone, because
-# what follows depends on the lab. A catch-up (lab_run.py finish) sends the requests itself and
-# sets PELLIER_NO_NEXT, as workshop_check.NO_NEXT_ENV names it.
+# A catch-up (lab_run.py finish) performs the next actions itself and sets PELLIER_NO_NEXT.
 NEXT_AFTER_MOVE = ("\nNext: when your ownership tests have passed, send Theo's three requests.\n"
                    "      uv run scripts/lab_run.py send --lab 3")
 RUN_ENV_FILE = Path(os.environ.get("PELLIER_RUN_ENV", "/etc/pellier/run.env"))
@@ -3172,6 +3169,7 @@ def _rail_is_managed(repo: Path, run_env: Path = RUN_ENV_FILE) -> bool:
 def move_onto_agentcore(
     repo: Path,
     *,
+    credit_rule_ready: bool = False,
     run: Callable[..., Any] = deploy_lock.run_logged,
     run_env: Path = RUN_ENV_FILE,
     progress: Progress | None = None,
@@ -3203,20 +3201,32 @@ def move_onto_agentcore(
     else:
         progress.begin("Moving Pellier onto AgentCore", typical=STEP_SECONDS["move"],
                        done="Moved Pellier onto AgentCore", animate=False)
-    completed = run([*start, "theo"], cwd=str(repo))
+    # Both labs use the same deploy command. The Cedar preflight identifies the Lab 4 rule
+    # even if a retry or a switch back to local agents changed the current rail.
+    if credit_rule_ready:
+        switch_args = ["--lab-4", "theo"]
+        moved_line = "Pellier is now using AgentCore."
+        next_line = ("\nNext: when Task 4B passes, open Jessica's approved review "
+                     "in Operator > Reviews.")
+    else:
+        switch_args = ["theo"]
+        moved_line = MOVED_ONTO_AGENTCORE
+        next_line = NEXT_AFTER_MOVE
+    completed = run([*start, *switch_args], cwd=str(repo))
     if completed.returncode != 0:
         progress.fail()
         print(
             _human("The deploy is ready, but Pellier did not move onto AgentCore; the lines "
-                   "above say why. Fix that, then run: bash scripts/lab3-start.sh theo"),
+                   "above say why. Fix that, then run: bash scripts/lab3-start.sh "
+                   f"{' '.join(switch_args)}"),
             file=sys.stderr,
             flush=True,
         )
         return completed.returncode
     progress.finish()
-    print(workshop_check.paint(MOVED_ONTO_AGENTCORE, workshop_check.PASSED), flush=True)
+    print(workshop_check.paint(moved_line, workshop_check.PASSED), flush=True)
     if not os.environ.get("PELLIER_NO_NEXT"):
-        print(NEXT_AFTER_MOVE, flush=True)
+        print(next_line, flush=True)
     return 0
 
 
@@ -3651,7 +3661,8 @@ def _provision(
         partition = str(caller.get("Arn", "arn:aws:")).split(":", 2)[1]
         local_schema = _verify_local_schema()
         result["verification"]["local_tool_schema"] = local_schema
-        result["verification"]["lab4_rule_check"] = _lab4_rule_gate(repo)
+        lab4_rule_check = _lab4_rule_gate(repo)
+        result["verification"]["lab4_rule_check"] = lab4_rule_check
 
         # A participant update creates no log group and activates no telemetry,
         # so the readiness that governs those resources is not its gate.
@@ -3674,7 +3685,10 @@ def _provision(
                     reset_to_starters=args.reset_to_starters,
                     progress=progress,
                 ),
-                lambda: move_onto_agentcore(repo, progress=progress),
+                lambda: move_onto_agentcore(
+                    repo, credit_rule_ready=lab4_rule_check == workshop_check.PASSED,
+                    progress=progress,
+                ),
                 reset_to_starters=args.reset_to_starters,
             )
 

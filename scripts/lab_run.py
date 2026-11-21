@@ -12,6 +12,12 @@ at the first failure. It takes no lab or task arguments:
 
     uv run scripts/lab_run.py fast-track
 
+``local`` puts Pellier back on the local agents after Lab 3's deploy, when a participant
+chooses to return to Lab 1 or 2. It writes the setting, restarts the backend and says where
+Pellier runs. A catch-up never does this on its own:
+
+    uv run scripts/lab_run.py local
+
 A task that opens with its own request sends just that one with ``--task``:
 
     uv run scripts/lab_run.py send --lab 1 --task 1A
@@ -113,6 +119,11 @@ BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000")
 IN_PROCESS, MANAGED = "in-process", "gateway-mcp"
 RAIL_NAMES = {IN_PROCESS: "in process", MANAGED: "on AgentCore Runtime and Gateway"}
 LAB_RAIL = {1: IN_PROCESS, 2: IN_PROCESS, 3: MANAGED, 4: MANAGED}
+# Going back to the local agents is the participant's own choice, one command; a local lab's
+# catch-up on AgentCore only names it. The helper is the one every reset runs.
+SWITCH_TO_LOCAL = "uv run scripts/lab_run.py local"
+BACK_TO_AGENTCORE = "bash scripts/lab3-start.sh theo"
+RAIL_HELPER = "scripts/reset-agentcore-lab.sh"
 
 # Each lab's conversations, in order: the shopper and the journey stages of the
 # required requests they send. Theo's ticket and household requests share one
@@ -456,7 +467,8 @@ def _keep(repo: pathlib.Path, alias: str, yours: bytes) -> str:
 
 
 def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run,
-                    reason: str = "restarting the backend so it serves the new code") -> None:
+                    reason: str = "restarting the backend so it serves the new code", *,
+                    confirm_local: bool = False) -> None:
     """Restart the Pellier service the way the guide does, then wait until it is healthy."""
     problem = python_edit_problem()
     if problem:
@@ -472,7 +484,51 @@ def restart_backend(backend: "Backend", run: Callable[..., Any] = subprocess.run
     if not restarted:
         raise LabRunError(f"{shlex.join(command)} failed. Restart the backend yourself "
                           "(sudo systemctl restart pellier), then run the next command.")
-    wait_until_healthy(backend)
+    wait_until_healthy(backend, confirm_local=confirm_local)
+
+
+def switch_to_local(backend: "Backend", run: Callable[..., Any] = subprocess.run,
+                    repo: pathlib.Path = REPO) -> None:
+    """Put Pellier back on the local agents: write the setting, restart, say where it runs.
+
+    Labs 1 and 2 run in process. After Lab 3's deploy the backend answers from AgentCore, so a
+    participant who goes back to them chooses this first. A running deploy ends by moving
+    Pellier onto AgentCore, so this waits for it instead of racing it. Everything that can stop
+    the restart is checked before the setting is written, so a refusal changes nothing.
+    """
+    busy = deploy_lock.running_message(repo)
+    if busy:
+        raise LabRunError(deploy_lock.wrapped(
+            f"{busy} Wait for it to finish, then run this again. Nothing was changed."))
+    problem = python_edit_problem()
+    if problem:
+        raise LabRunError(f"{problem}\nNothing was changed.")
+    before = _configured_rail()
+    wait("setting Pellier to the local agents")
+    # The helper is the one every reset runs. Its own lines are written for a reset, so they
+    # are kept for a failure and replaced by plain ones here.
+    wrote = run(["bash", str(repo / RAIL_HELPER), "1"], check=False, capture_output=True,
+                text=True)
+    said = "\n".join(part.strip() for part in (getattr(wrote, "stdout", None),
+                                               getattr(wrote, "stderr", None)) if part)
+    if wrote.returncode != 0:
+        detail = f"\nWhat the step printed, for a facilitator:\n{said}" if said else ""
+        raise LabRunError("The setting could not be written, so it was not changed. Nothing was "
+                          f"restarted, and Pellier runs as it did before this command.{detail}")
+    if "No env file found" in said:
+        raise LabRunError("No settings file was found for Pellier, so nothing was written and "
+                          "nothing was restarted. Keep this output and ask a facilitator.")
+    if _configured_rail() == MANAGED:
+        raise LabRunError("Pellier is still set to run on AgentCore after the setting was "
+                          "written. Nothing was restarted. Keep this output and ask a "
+                          "facilitator.")
+    restart_backend(backend, run, reason="restarting the backend on the local agents",
+                    confirm_local=True)
+    was = "It was already set to them. " if before == IN_PROCESS else ""
+    ok(f"Pellier is running on the local agents. {was}Labs 1 and 2 answer in process again; "
+       "each send prints ran in process.")
+    say("To move back to AgentCore afterwards, run:")
+    print(f"    {BACK_TO_AGENTCORE}", flush=True)
 
 
 # ---------------------------------------------------------------------------
@@ -601,18 +657,22 @@ class Backend:
             yield from sse_events(response)
 
 
-def wait_until_healthy(backend: Backend) -> None:
-    """Wait for /api/health to report healthy, as after a restart."""
+def wait_until_healthy(backend: Backend, *, confirm_local: bool = False) -> None:
+    """Wait for readiness. A switch to local must also see the setting the process loaded."""
     deadline = time.monotonic() + HEALTH_WAIT_SECONDS
     last = ""
     with waiting("Waiting for the backend to answer", typical=HEALTH_TYPICAL_SECONDS,
                  limit=HEALTH_WAIT_SECONDS):
         while True:
             try:
-                status = str(backend.get_json("/api/health").get("status") or "")
+                health = backend.get_json("/api/health")
+                status = str(health.get("status") or "")
             except LabRunError as exc:
                 status, last = "", str(exc)
             if status == "healthy":
+                if confirm_local and health.get("use_agentcore_runtime") is not False:
+                    raise LabRunError("The backend is healthy but did not confirm it is using "
+                                      "the local agents. Keep this output and ask a facilitator.")
                 break
             last = f"status {status!r}" if status else last
             if time.monotonic() >= deadline:
@@ -861,10 +921,10 @@ def _rail_problem(lab: int, served: str, response: Dict[str, Any], *, before: bo
     if wanted == IN_PROCESS:
         return (f"Lab {lab} runs in process, but {observed}.\n"
                 "Lab 3's deploy has moved Pellier onto AgentCore, so a turn would not run the\n"
-                "code you edited. To rerun it, set USE_AGENTCORE_RUNTIME=false in .env, then run:\n"
-                "  uv run scripts/lab_run.py restart\n"
-                "and rerun this command. To move back to AgentCore, run:\n"
-                "  bash scripts/lab3-start.sh theo")
+                "code you edited. To go back to the local agents, run:\n"
+                f"  {SWITCH_TO_LOCAL}\n"
+                "then rerun this command. To move back to AgentCore afterwards, run:\n"
+                f"  {BACK_TO_AGENTCORE}")
     return (f"Lab {lab} runs on AgentCore Runtime and Gateway, but {observed}.\n"
             "Lab 3's deploy moves Pellier onto AgentCore. Run:\n"
             f"  {DEPLOY}\n"
@@ -1444,7 +1504,7 @@ def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
 
 def _a_lab_file_is_missing(action: str, lab: Optional[int]) -> bool:
     """Name the first missing lab file instead of crashing on it; reset is what fixes it."""
-    if action in ("reset", "restart"):
+    if action in ("reset", "restart", "local"):
         return False
     labs = (1, 2) if action == "fast-track" else (lab,)
     needs_answers = action in ("solution", "diff", "finish", "fast-track")
@@ -1455,7 +1515,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
          token_for: Callable[[str], str] = mint_token) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n", 1)[0])
     parser.add_argument("action", choices=("solution", "send", "diff", "reset", "finish",
-                                           "fast-track", "restart"))
+                                           "fast-track", "restart", "local"))
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4),
                         help="required except for fast-track, which finishes Labs 1 and 2")
     parser.add_argument("--shopper-only", action="store_true",
@@ -1467,7 +1527,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
     args = parser.parse_args(argv)
     global _retry_deadline
     _retry_deadline = None
-    if args.action in ("fast-track", "restart"):
+    if args.action in ("fast-track", "restart", "local"):
         if args.lab is not None or args.task or args.shopper_only or args.quiet:
             parser.error(f"{args.action} takes no options")
     elif args.lab is None:
@@ -1494,6 +1554,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
         print("Fast track: finish Labs 1 and 2", flush=True)
     elif args.action == "restart":
         print("Restart the backend so it serves your edits", flush=True)
+    elif args.action == "local":
+        print("Switch Pellier back to the local agents", flush=True)
     else:
         print(f"Lab {args.lab}: {titles[args.action]}", flush=True)
     if _a_lab_file_is_missing(args.action, args.lab):
@@ -1503,6 +1565,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
             fast_track(Backend(base_url), token_for)
         elif args.action == "restart":
             restart_backend(Backend(base_url))
+        elif args.action == "local":
+            switch_to_local(Backend(base_url))
         elif args.action == "diff":
             show_diff(args.lab, color=sys.stdout.isatty() and "NO_COLOR" not in os.environ)
         elif args.action == "solution" and args.task:

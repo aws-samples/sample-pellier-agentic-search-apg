@@ -153,7 +153,7 @@ def test_cedar_extension_is_cosmetic_and_never_stops_setup(
 
 
 # The versions the 2026-11-18 event installed and walked (its bootstrap-environment.log),
-# Python's debugger included: Python pulls it in, so it is pinned and installed first.
+# Python's debugger included: Python pulls it in, so it is pinned too.
 EVENT_PINS = {
     "ms-python.debugpy": "2026.6.0",
     "ms-python.python": "2026.4.0",
@@ -170,3 +170,39 @@ def test_every_registry_extension_installs_one_exact_release():
     assert dict(calls) == EVENT_PINS
     order = [extension for extension, _ in calls]
     assert order.index("ms-python.debugpy") < order.index("ms-python.python")
+
+
+def test_python_and_its_debugger_install_in_one_call(tmp_path):
+    """Each depends on the other, so one call names both pins.
+
+    Installed one at a time, the first pulls the registry's newest release of the other, and
+    the second install leaves that release behind as an obsolete folder with an update badge
+    (the 2026-11-21 event). One call with both pins fetched neither on that event's box.
+    """
+    source = SOURCE.read_text()
+    assert "install_python_pair() {" in source, "bootstrap installs the pair one at a time"
+    function = source.split("install_python_pair() {", 1)[1].split("\n}\n", 1)[0]
+    editor = tmp_path / "code-editor-server"
+    editor.write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$ASKED"\n')
+    editor.chmod(0o755)
+    script = (
+        'set -euo pipefail\n'
+        'sudo() { shift 2; "$@"; }\n'
+        'log() { :; }\n'
+        'install_python_pair() {' + function + '\n}\n'
+        'install_python_pair\n'
+    )
+    result = subprocess.run(
+        ["bash", "-c", script], capture_output=True, text=True,
+        env={**os.environ, "CODE_EDITOR_CMD": str(editor), "CODE_EDITOR_USER": "participant",
+             "ASKED": str(tmp_path / "asked")},
+    )
+    assert result.returncode == 0, result.stderr
+    pins = [f"{name}@{EVENT_PINS[name]}" for name in ("ms-python.debugpy", "ms-python.python")]
+    assert (tmp_path / "asked").read_text().splitlines() == [
+        f"--install-extension {pins[0]} --install-extension {pins[1]} --force"
+    ]
+    # The pair goes in before either is installed and verified on its own.
+    assert source.index("\ninstall_python_pair\n") < source.index(
+        "\ninstall_extension ms-python.debugpy "
+    )

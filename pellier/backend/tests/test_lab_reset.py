@@ -553,6 +553,43 @@ def test_lab_three_reset_puts_the_rail_back_in_process_after_the_starters(
     assert "Execution rail restored to in-process" in result.stdout
 
 
+@pytest.mark.parametrize("starts_on_agentcore", [True, False])
+def test_the_local_command_runs_the_real_rail_helper_from_either_mode(
+        starts_on_agentcore: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str]) -> None:
+    """`lab_run.py local` with the script every reset runs, on a box's two setting files: both
+    read false afterwards, the backend restarts once, and only then does it say local."""
+    box = managed_box(tmp_path)
+    if not starts_on_agentcore:
+        for name in ("env", "run_env"):
+            box[name].write_text("USE_AGENTCORE_RUNTIME=false\n")
+    env = {**os.environ, "PELLIER_REPO": str(box["repo"]), "PELLIER_RUN_ENV": str(box["run_env"])}
+    restarts: List[List[str]] = []
+
+    def run(argv: List[str], **kwargs: Any) -> Any:
+        if argv[0] == "bash":
+            return subprocess.run(argv, env=env, **kwargs)
+        restarts.append(argv)
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr(lab_run, "ENV_FILE", box["env"])
+    monkeypatch.setattr(lab_run.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(lab_run.os, "geteuid", lambda: 1000)
+    backend = lab_run.Backend("http://127.0.0.1:9")
+    monkeypatch.setattr(backend, "get_json", lambda path: {
+        "status": "healthy", "use_agentcore_runtime": False,
+    })
+    monkeypatch.setattr(lab_run.deploy_lock, "running_message", lambda repo: "")
+    lab_run.switch_to_local(backend, run=run, repo=box["repo"])
+    for name in ("env", "run_env"):
+        assert box[name].read_text() == "USE_AGENTCORE_RUNTIME=false\n"
+    assert restarts == [["sudo", "-n", "systemctl", "restart", "pellier"]]
+    out = capsys.readouterr().out
+    assert "Pellier is running on the local agents" in out
+    assert ("It was already set to them" in out) == (not starts_on_agentcore)
+    assert "rail" not in out and "USE_AGENTCORE_RUNTIME" not in out
+
+
 def test_lab_four_reset_leaves_the_rail_on_agentcore() -> None:
     """Lab 4 starts on AgentCore, where Lab 3's deploy left it."""
     script = (REPO / "scripts" / "reset-agentcore-lab.sh").read_text()

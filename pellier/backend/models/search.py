@@ -82,6 +82,7 @@ class HealthResponse(BaseModel):
     bedrock: str
     custom_tools: str = "not_available"
     version: str
+    use_agentcore_runtime: bool = Field(description="Runtime setting loaded by this backend process")
 
 
 # The most cards Ask Pellier shows under one answer: the pieces it names, in

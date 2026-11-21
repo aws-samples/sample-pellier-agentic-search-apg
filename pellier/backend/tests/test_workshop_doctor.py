@@ -890,8 +890,11 @@ class TestLab3Start:
         source = (REPO / "scripts/lab3-start.sh").read_text(encoding="utf-8")
         marker = source.index("_revert_hint()")
         body = source[marker : source.index("\n}\n", marker)]
-        assert "USE_AGENTCORE_RUNTIME=false" in body
-        assert "systemctl restart pellier" in body
+        # What was written is named, and the way back is the one command, never a hand edit.
+        assert "USE_AGENTCORE_RUNTIME=true" in body
+        assert "uv run scripts/lab_run.py local" in body
+        assert "USE_AGENTCORE_RUNTIME=false" not in body
+        assert "systemctl restart pellier" not in body
 
 
 @pytest.mark.skipif(BASH is None or CURL is None, reason="bash and curl required")

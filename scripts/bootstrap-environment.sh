@@ -719,8 +719,18 @@ install_extension() {
 # uninstalled removes the pop-ups at the source; the amazonQ.*/aws.suppressPrompts
 # settings below are kept as defense-in-depth in case it's ever re-enabled.
 # Each extension is one exact release: the versions the 2026-11-18 event installed and
-# walked. Python's debugger comes first: Python depends on it, and an extension already
-# present is not fetched again, so the registry's newest debugger never rides in with it.
+# walked. Python and its debugger each depend on the other. Installed one at a time, the
+# first pulls the registry's newest release of the other, and the second install leaves
+# that release behind as an obsolete folder with an update badge (the 2026-11-21 event).
+# One call that names both pins fetches neither. The two lines after it verify each pin.
+install_python_pair() {
+    [ -f "$CODE_EDITOR_CMD" ] || return 0
+    log "Installing Python and its debugger in one call..."
+    sudo -u "$CODE_EDITOR_USER" "$CODE_EDITOR_CMD" \
+        --install-extension "ms-python.debugpy@2026.6.0" \
+        --install-extension "ms-python.python@2026.4.0" --force 2>&1 || true
+}
+install_python_pair
 install_extension ms-python.debugpy "Python Debugger" 2026.6.0
 install_extension ms-python.python "Python" 2026.4.0
 # Pylance is not distributed by Open VSX, the Code Editor's registry.

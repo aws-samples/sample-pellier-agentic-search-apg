@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# lab3-start.sh [--verify-only] [persona] -- move the storefront onto the managed rail, proved
+# lab3-start.sh [--verify-only | --lab-4] [persona] -- move the storefront onto the managed rail, proved
 # =============================================================================
 # Labs 1 and 2 run the in-process rail so the participant proves their own
 # Stock agent and hybrid retrieval. Lab 3 switches the storefront to the
@@ -27,6 +27,7 @@
 # Pellier is already using AgentCore, because USE_AGENTCORE_RUNTIME=true alone
 # proves only that a switch was started: step 3 writes it before the restart and
 # the turn that steps 4 and 5 make. A failure sends the deploy to the full switch.
+# --lab-4 performs the same full switch for a credit-rule deploy and prints that lab's context.
 #
 # bash 3.2 syntax only.
 # =============================================================================
@@ -36,10 +37,16 @@ set -uo pipefail
 export PATH="/opt/pellier/bin:$PATH"
 
 VERIFY_ONLY=false
-if [ "${1:-}" = "--verify-only" ]; then
-  VERIFY_ONLY=true
-  shift
-fi
+heading="Pellier Lab 3 start: managed rail"
+closing="Lab 3 may proceed. Theo's requests now travel Runtime -> Gateway -> Aurora."
+case "${1:-}" in
+  --verify-only) VERIFY_ONLY=true; shift ;;
+  --lab-4)
+    heading="Checking AgentCore for Lab 4"
+    closing="The check request ran on AgentCore Runtime and Gateway."
+    shift
+    ;;
+esac
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="${PELLIER_REPO:-$(cd "$SCRIPT_DIR/.." && pwd)}"
@@ -205,9 +212,8 @@ _revert_hint() {
   info "Already written to $rail_target: USE_AGENTCORE_RUNTIME=true."
   info "That setting survives this failure, so the storefront keeps asking for"
   info "the managed rail on every restart."
-  info "To put it back on the in-process rail, set in $rail_target:"
-  info "  USE_AGENTCORE_RUNTIME=false"
-  info "then run: sudo -n systemctl restart pellier"
+  info "To put it back on the local agents, run:"
+  info "  uv run scripts/lab_run.py local"
 }
 
 _restart_service() {
@@ -240,7 +246,7 @@ _wait_healthy() {
 }
 
 if ! $VERIFY_ONLY; then
-  echo "Pellier Lab 3 start: managed rail"
+  echo "$heading"
   echo "------------------------------------------------------------"
 fi
 
@@ -395,5 +401,5 @@ else
 fi
 
 $VERIFY_ONLY || echo "------------------------------------------------------------"
-info "Lab 3 may proceed. Theo's requests now travel Runtime -> Gateway -> Aurora."
+info "$closing"
 exit 0

@@ -121,6 +121,43 @@ def test_a_set_flag_with_a_switch_that_fails_again_claims_nothing(
     assert "bash scripts/lab3-start.sh theo" in captured.err
 
 
+@pytest.mark.parametrize("setting", ["false", "true"])
+def test_switch_with_the_credit_rule_points_back_to_jessicas_approved_review(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], setting: str,
+) -> None:
+    repo = _repo(tmp_path, f"USE_AGENTCORE_RUNTIME={setting}")
+    runs = _scripted(repo, verify=1)
+    assert provisioner.move_onto_agentcore(
+        repo, credit_rule_ready=True, run=runs, run_env=tmp_path / "absent") == 0
+    assert runs.commands[-1] == ["bash", str(repo / "scripts" / "lab3-start.sh"), "--lab-4", "theo"]
+    out = capsys.readouterr().out
+    assert "Theo" not in out and "send --lab 3" not in out
+    assert out.splitlines()[-3:] == [
+        "Pellier is now using AgentCore.", "",
+        "Next: when Task 4B passes, open Jessica's approved review in Operator > Reviews."]
+
+
+def test_a_lab_4_catch_up_suppresses_the_manual_next_step(tmp_path, monkeypatch, capsys) -> None:
+    repo = _repo(tmp_path, "USE_AGENTCORE_RUNTIME=true")
+    monkeypatch.setenv("PELLIER_NO_NEXT", "1")
+    assert provisioner.move_onto_agentcore(
+        repo, credit_rule_ready=True, run=_scripted(repo, verify=1),
+        run_env=tmp_path / "absent") == 0
+    out = capsys.readouterr().out
+    assert out.splitlines()[-1] == "Pellier is now using AgentCore."
+    assert "Next:" not in out
+
+
+def test_a_failed_lab_4_recovery_prints_the_same_lab_4_switch(tmp_path, capsys) -> None:
+    repo = _repo(tmp_path, "USE_AGENTCORE_RUNTIME=true")
+    assert provisioner.move_onto_agentcore(
+        repo, credit_rule_ready=True, run=_scripted(repo, verify=1, switch=1),
+        run_env=tmp_path / "absent") == 1
+    captured = capsys.readouterr()
+    assert "Pellier is now using AgentCore." not in captured.out
+    assert "bash scripts/lab3-start.sh --lab-4 theo" in captured.err
+
+
 def test_a_first_deploy_never_runs_the_verification(tmp_path: Path) -> None:
     repo, runs = _repo(tmp_path), Runs()
     provisioner.move_onto_agentcore(repo, run=runs, run_env=tmp_path / "absent")
@@ -195,7 +232,8 @@ def test_main_routes_the_participant_update_through_the_move() -> None:
     start = source.index('if args.mode == "participant":')
     block = source[start:source.index("_require_release_log_protection(", start)]
     assert "_participant_then_move(" in block
-    assert "move_onto_agentcore(repo, progress=progress)" in block
+    assert "move_onto_agentcore(" in block
+    assert "credit_rule_ready=lab4_rule_check == workshop_check.PASSED" in block
     assert "reset_to_starters=args.reset_to_starters" in block
 
 

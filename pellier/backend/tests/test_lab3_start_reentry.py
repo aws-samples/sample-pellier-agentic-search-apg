@@ -173,6 +173,16 @@ def test_the_full_switch_is_unchanged(box) -> None:
     assert "Lab 3 may proceed." in done.stdout
 
 
+def test_lab4_switch_reports_its_managed_turn_without_lab3_instructions(box) -> None:
+    done = _run(box, "--lab-4", "theo")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert _calls(box) == ["systemctl restart pellier", "chat"]
+    assert "Turn turn-1 executed on rail gateway-mcp" in done.stdout
+    assert "The check request ran on AgentCore Runtime and Gateway." in done.stdout
+    assert "Lab 3 may proceed" not in done.stdout
+    assert "Pellier Lab 3 start" not in done.stdout
+
+
 def test_a_failed_full_switch_still_says_the_flag_survives(box, monkeypatch) -> None:
     monkeypatch.setenv("FAKE_RAIL", "in-process")
     done = _run(box, "theo")
