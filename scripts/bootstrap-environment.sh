@@ -819,6 +819,10 @@ sudo -u "$CODE_EDITOR_USER" mkdir -p "$SETTINGS_DIR"
 # tab list is narrow, and hovering the workshop terminal's tab covers its name with
 # Split, Rerun Task and Kill: returning to a running deploy by clicking that name
 # reran the task, which started a fresh terminal and stopped the deploy.
+# extensions.allowed names the one release of each extension the editor may offer. Without it
+# Code Editor attaches the registry's newest release to every installed extension, and the
+# Extensions badge reads "1 requires update" once one is published after the pins. Each
+# version here must equal its install pin above; test_bootstrap_editor_extensions.py holds them.
 # Keep this block strict JSON - the readiness contract parses it with
 # json.loads, not a JSONC reader.
 cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
@@ -870,6 +874,15 @@ cat > "$SETTINGS_DIR/settings.json" << 'VSCODE_SETTINGS'
     },
     "extensions.autoUpdate": false,
     "extensions.autoCheckUpdates": false,
+    "extensions.allowed": {
+        "ms-python.debugpy": ["2026.6.0"],
+        "ms-python.python": ["2026.4.0"],
+        "ms-pyright.pyright": ["1.1.402"],
+        "dbaeumer.vscode-eslint": ["3.0.34"],
+        "esbenp.prettier-vscode": ["12.4.0"],
+        "bradlc.vscode-tailwindcss": ["0.16.0"],
+        "cedar-policy.vscode-cedar": ["0.10.6"]
+    },
     "extensions.ignoreRecommendations": true,
     "redhat.telemetry.enabled": false,
     "telemetry.telemetryLevel": "off",

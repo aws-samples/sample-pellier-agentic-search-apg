@@ -1,14 +1,14 @@
 # Governed workshop browser connection
 
-The governed workshop uses Mosaic's browser access model. CloudFront provides
+The governed workshop serves the participant's browser through CloudFront. CloudFront provides
 HTTPS on its generated `cloudfront.net` hostname and connects directly to the
 private EC2 host through a VPC origin over HTTP port 80. Code Editor, participant
 files, terminals and Pellier all remain on EC2. No SageMaker notebook, custom
 domain, participant certificate setup or local proxy client is required.
 
 This is browser HTTPS with a private HTTP origin, not TLS on every network hop.
-The owner selected this tradeoff on 23 September 2026 to remove the notebook's
-capacity, quota, lifecycle and extra-instance dependencies.
+This tradeoff removes the SageMaker notebook's capacity, quota, lifecycle and
+extra-instance dependencies.
 
 ## Source and template contract
 

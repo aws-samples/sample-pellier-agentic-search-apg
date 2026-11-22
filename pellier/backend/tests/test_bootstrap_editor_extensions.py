@@ -1,6 +1,7 @@
 """An extension install is ready only when the requested ID is installed."""
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
@@ -206,3 +207,21 @@ def test_python_and_its_debugger_install_in_one_call(tmp_path):
     assert source.index("\ninstall_python_pair\n") < source.index(
         "\ninstall_extension ms-python.debugpy "
     )
+
+
+def test_user_settings_allow_only_the_installed_releases():
+    """Code Editor marks an extension outdated when the registry has a newer release.
+
+    autoCheckUpdates does not stop that, so the Extensions badge reads "1 requires update"
+    once Open VSX publishes a release after the pins. `extensions.allowed` names the one
+    release of each extension that may be offered, which keeps every pin current.
+    """
+    source = SOURCE.read_text()
+    installed = dict(re.findall(r'^install_extension (\S+) "[^"]+" ?(\S*)$', source, re.M))
+    cedar = re.search(r'^CEDAR_EXTENSION_VERSION="([^"]*)"$', source, re.M)
+    assert cedar, "bootstrap no longer pins the Cedar extension"
+    installed["cedar-policy.vscode-cedar"] = cedar.group(1)
+    heredoc = re.search(r"<<\s*'VSCODE_SETTINGS'\n(.*?)\nVSCODE_SETTINGS\n", source, re.S)
+    assert heredoc, "bootstrap no longer writes the User settings from one quoted heredoc"
+    allowed = json.loads(heredoc.group(1)).get("extensions.allowed")
+    assert allowed == {name: [version] for name, version in installed.items()}
