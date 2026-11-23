@@ -20,3 +20,11 @@ not validated.
 [Run Pellier in your own account](../run-in-your-own-account.md#1-what-you-get-and-what-it-costs):
 the CloudWatch metrics of one scripted pass through the labs, Aurora's capacity over the day,
 the template's billed resources, and the list prices read that day.
+
+## Readiness browser path proof
+
+`readiness-browser-path-proof-<date>-<region>.md` records the event readiness check run
+from a laptop against one provisioned event account: the requests it makes as a participant's
+browser would and what each answered (the Storefront page, Pellier's health and the Code
+Editor server's health), and the `--accounts` and `--recheck` rows, as
+described in [Every account of an event, before participants arrive](../AGENTCORE-READINESS.md#every-account-of-an-event-before-participants-arrive).

@@ -207,3 +207,120 @@ on a new account:
 Record the source commit, Region, provisioning time and each lab's time. A
 previous account's pass does not establish a new one's readiness. Dated records
 are under [docs/evidence](evidence/README.md).
+
+## Every account of an event, before participants arrive
+
+Each box records its own readiness at the end of bootstrap, in its account's
+CloudWatch Logs (`/aws/pellier/readiness`): `READY FOR LAB 1`, or the first check
+that failed, from the same checks as `workshop-start.sh`. Those that decide it
+include Pellier's health (its database and Bedrock), each AgentCore Runtime
+READY on V1, and Theo's Memory records.
+`scripts/event_readiness.py --accounts DIR` reads those records for every account
+at once, without joining the event or claiming a team, and changes no file, row
+or setting on any box.
+
+1. Provision the event. The event console's Teams table shows each team's
+   deployment state without credentials. Wait until every team has finished.
+2. Make two private folders outside the repository, one for the credentials
+   and one for the event's list of teams and the saved run:
+
+   ```bash
+   mkdir -m 700 ~/pellier-event-accounts ~/pellier-event
+   ```
+
+   Download the event's list of teams (Teams > Download CSV), move it to
+   `~/pellier-event/teams.csv` and make it private with
+   `chmod 600 ~/pellier-event/teams.csv`. It holds each team's join link, which
+   claims that team for whoever opens it; the check reads only its team names and
+   AWS account IDs. Then, for each team, open Teams > the team > Access AWS
+   account > Ops role, copy the bash block, and save it as one file with the
+   event's Region on its own line. On macOS, set the Region once, then save each
+   block from the clipboard under its team's name:
+
+   ```bash
+   REGION=us-east-1
+   ( umask 077; { pbpaste; printf '\nAWS_DEFAULT_REGION=%s\n' "$REGION"; } \
+       > ~/pellier-event-accounts/team-01.env )
+   ```
+
+   Do not join the event to get credentials: joining assigns the team to you.
+   The check reads a credential file, the list of teams or the saved run only
+   when it is a regular file, not a link, that only you can read: mode 0600 and
+   no access control list (`chmod -N <file>` removes one on macOS), saved as
+   UTF-8 text.
+3. Once, before the event, install the laptop's packages from the repository
+   root. Every pin and hash is the backend lock's, and the install refuses any
+   package whose hash differs:
+
+   ```bash
+   uv venv --python 3.14 ~/.pellier-readiness
+   uv pip install --python ~/.pellier-readiness --require-hashes \
+       -r scripts/event_readiness_requirements.txt
+   ```
+
+   Then, from the repository root:
+
+   ```bash
+   ~/.pellier-readiness/bin/python scripts/event_readiness.py \
+       --accounts ~/pellier-event-accounts \
+       --save ~/pellier-event/pellier-urls.json --teams ~/pellier-event/teams.csv
+   ```
+
+   A row is ✅ only when all of these hold:
+
+   - The account's root stack is complete, and its newest record arrived after
+     the stack took its current form.
+   - The record reads READY FOR LAB 1 and is within `--max-age-hours` (default 24),
+     and the box's clock, which dates it, agrees with CloudWatch's within 15 minutes.
+   - The record names the Code Editor instance this stack created, and that
+     instance is running.
+   - A participant's browser path answers now, through CloudFront, with no
+     token or sign-in: the Storefront page (`PellierURL`, an HTML page),
+     Pellier's health (`PellierURL` plus `api/health`: `"status": "healthy"`
+     and `"database": "connected"`; like every Storefront load, it embeds the
+     word "test" once with Bedrock), and the Code Editor server's own health
+     (`/editor/healthz`).
+
+   The AgentCore checks are the record's, from setup; they are not run again.
+   With `--teams`, every team of the event needs a row ("⚠️ not in this run
+   (<team>)" otherwise), and an account that is not one of its teams reads
+   "⚠️ not a team of this event"; a second file for one account reads "same
+   account as". The last line is "N of M ready", and exit status 0 means every
+   row is ✅. The run saves each row, with the account's Pellier URL, in the
+   `--save` file (mode 0600; without `--save`, `pellier-urls.json` in the
+   accounts folder) for the morning recheck. Saved rows merge by account, and a
+   run's row for a file replaces any older one.
+4. Replace or repair every account that is not ✅. Copy a fresh block for each
+   repaired team and run the command again; a run over some files keeps the
+   other teams' saved rows.
+5. On the morning of the session the copied credentials have expired, and
+   nothing has rerun a box's record or changed its stack overnight. Ask each
+   account's browser path again, with no credentials and no AWS call:
+
+   ```bash
+   ~/.pellier-readiness/bin/python scripts/event_readiness.py \
+       --recheck ~/pellier-event/pellier-urls.json --teams ~/pellier-event/teams.csv
+   ```
+
+   A row is ✅ when the account was ✅ in the saved run and the browser path
+   answers now; with `--teams`, every team of the event needs a saved row. The
+   recheck allows records up to 36 hours old by default, because the event was
+   provisioned the day before: the record says the box was ready when it was set
+   up, and the browser path says it still serves now. Run it again just before
+   participants join. Do not raise the limit to make rows pass.
+6. Delete both folders afterwards: `rm -r ~/pellier-event-accounts ~/pellier-event`.
+   The Ops credentials also expire on their own.
+
+Provision the day before the session, run step 3 once every team reads Deployed,
+and run step 5 about 75 minutes before the session and again just before
+participants join. A team that fails in the morning cannot be rebuilt in time
+(provisioning takes 45 to 70 minutes), so keep spare teams. The browser path
+was observed answering as described on a provisioned account:
+[docs/evidence](evidence/readiness-browser-path-proof-2026-11-22-us-east-1.md).
+
+Nothing on a laptop runs the checks on a box again. They include a managed
+AgentCore turn as Marco, which would add to a participant's lab history, and the
+box cannot tell whether a lab has started. `--live` runs only on the box itself.
+The checker fetches only HTTPS URLs on a CloudFront host, with no user name or
+port, taken from the stack's outputs or the saved file; a redirect is never
+followed, and no URL, token or credential is printed.

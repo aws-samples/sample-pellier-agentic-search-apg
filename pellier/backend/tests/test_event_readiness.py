@@ -78,14 +78,14 @@ class Logs:
     def put_log_events(self, **kwargs: Any) -> None:
         self.events.append(kwargs)
 
-    def describe_log_streams(self, **kwargs: Any) -> Dict[str, Any]:
-        assert kwargs["orderBy"] == "LastEventTime" and kwargs["descending"] is True
-        if not self.records:
-            return {"logStreams": []}
-        return {"logStreams": [{"logStreamName": "i-0abc"}]}
+    def filter_log_events(self, **kwargs: Any) -> Dict[str, Any]:
+        assert kwargs["logGroupName"] == "/aws/pellier/readiness"
+        return {"events": [{"timestamp": _millis(r["recordedAt"]), "message": json.dumps(r)}
+                           for r in self.records]}
 
-    def get_log_events(self, **kwargs: Any) -> Dict[str, Any]:
-        return {"events": [{"message": json.dumps(r)} for r in self.records]}
+
+def _millis(iso: str) -> int:
+    return int(datetime.fromisoformat(iso).timestamp() * 1000)
 
 
 def _record(ready: bool = True, final: str = "READY FOR LAB 1", age_hours: float = 1,
@@ -260,11 +260,37 @@ def test_a_laptop_with_no_cloudwatch_record_exits_one(tmp_path: Path) -> None:
     assert _show(tmp_path, None, on_box=False, logs=Logs()) == 1
 
 
-class DeniedLogs(Logs):
-    """CloudWatch Logs as the box's instance role sees it: no GetLogEvents."""
+class PagedLogs(Logs):
+    """FilterLogEvents across two pages, the newer record in the first."""
 
-    def get_log_events(self, **kwargs: Any) -> Dict[str, Any]:
-        raise RuntimeError("AccessDeniedException: not authorized to perform: logs:GetLogEvents")
+    def filter_log_events(self, **kwargs: Any) -> Dict[str, Any]:
+        newer, older = _record(age_hours=2, instance="i-0new"), _record(age_hours=5)
+        if "nextToken" not in kwargs:
+            return {"events": [{"timestamp": _millis(newer["recordedAt"]),
+                                "message": json.dumps(newer)}], "nextToken": "page-2"}
+        assert kwargs["nextToken"] == "page-2"
+        return {"events": [{"timestamp": _millis(older["recordedAt"]),
+                            "message": json.dumps(older)}]}
+
+
+def test_from_a_laptop_the_newest_record_wins_across_pages_and_streams() -> None:
+    assert readiness.latest_from_cloudwatch(PagedLogs())["instanceId"] == "i-0new"
+
+
+def test_a_missing_log_group_is_no_record_rather_than_an_error() -> None:
+    class MissingGroup(Logs):
+        def filter_log_events(self, **kwargs: Any) -> Dict[str, Any]:
+            raise RuntimeError("ResourceNotFoundException: log group does not exist")
+
+    assert readiness.latest_from_cloudwatch(MissingGroup()) is None
+
+
+class DeniedLogs(Logs):
+    """CloudWatch Logs as the box's instance role sees it: no FilterLogEvents."""
+
+    def filter_log_events(self, **kwargs: Any) -> Dict[str, Any]:
+        raise RuntimeError("AccessDeniedException: not authorized to perform: "
+                           "logs:FilterLogEvents")
 
 
 def test_credentials_that_cannot_read_cloudwatch_get_one_line_saying_what_to_use(
@@ -272,7 +298,7 @@ def test_credentials_that_cannot_read_cloudwatch_get_one_line_saying_what_to_use
 ) -> None:
     assert _show(tmp_path, None, on_box=False, logs=DeniedLogs(records=[_record()])) == 1
     out = capsys.readouterr().out
-    assert "cannot read" in out and "Ops credentials" in out and "--instance-id" in out
+    assert "cannot read" in out and "Ops credentials" in out
 
 
 def test_the_workshop_studio_box_is_recognised_by_its_repository_path(
@@ -334,27 +360,8 @@ def test_from_a_laptop_the_deep_dive_line_is_shown_as_recorded(
 
 
 # ---------------------------------------------------------------------------
-# --live: on the box, or through SSM from a laptop
+# --live: on the box only
 # ---------------------------------------------------------------------------
-
-
-class Ssm:
-    def __init__(self, code: int = 0, output: str = "READY FOR LAB 1\n") -> None:
-        self.code, self.output = code, output
-        self.sent: List[Dict[str, Any]] = []
-        self.polls = 0
-
-    def send_command(self, **kwargs: Any) -> Dict[str, Any]:
-        self.sent.append(kwargs)
-        return {"Command": {"CommandId": "cmd-1"}}
-
-    def get_command_invocation(self, **kwargs: Any) -> Dict[str, Any]:
-        self.polls += 1
-        if self.polls == 1:
-            return {"Status": "InProgress"}
-        status = "Success" if self.code == 0 else "Failed"
-        return {"Status": status, "ResponseCode": self.code,
-                "StandardOutputContent": self.output, "StandardErrorContent": ""}
 
 
 def test_live_on_the_box_records_again(tmp_path: Path) -> None:
@@ -364,37 +371,18 @@ def test_live_on_the_box_records_again(tmp_path: Path) -> None:
     assert status == 0 and len(run.calls) == 1
 
 
-def test_live_from_a_laptop_runs_the_record_through_ssm_on_the_recorded_instance(
+def test_a_laptop_never_runs_the_checks_on_a_box(
     tmp_path: Path, capsys: pytest.CaptureFixture[str],
 ) -> None:
-    ssm = Ssm()
-    status = readiness.main(["--live"], logs=Logs(records=[_record(instance="i-0box")]),
-                            ssm=ssm, local=tmp_path / "r.json", now=lambda: NOW,
-                            instance=lambda: "unused", on_box=False, sleep=lambda s: None)
-    assert status == 0
-    (sent,) = ssm.sent
-    assert sent["InstanceIds"] == ["i-0box"]
-    assert sent["DocumentName"] == "AWS-RunShellScript"
-    assert "scripts/event_readiness.py --record" in sent["Parameters"]["commands"][0]
-    assert "READY FOR LAB 1" in capsys.readouterr().out
-
-
-def test_live_from_a_laptop_reports_a_failed_box(tmp_path: Path) -> None:
-    status = readiness.main(["--live", "--instance-id", "i-0box"], logs=Logs(),
-                            ssm=Ssm(code=1, output="x FAIL  backend down\n"),
-                            local=tmp_path / "r.json", now=lambda: NOW,
-                            instance=lambda: "unused", on_box=False, sleep=lambda s: None)
-    assert status == 1
-
-
-def test_live_from_a_laptop_without_an_instance_id_says_what_to_pass(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str],
-) -> None:
-    status = readiness.main(["--live"], logs=Logs(), ssm=Ssm(), local=tmp_path / "r.json",
-                            now=lambda: NOW, instance=lambda: "unused", on_box=False,
-                            sleep=lambda s: None)
-    assert status == 1
-    assert "--instance-id" in capsys.readouterr().out
+    # The checks include a managed AgentCore turn as Marco: on a participant's box it would add
+    # to their lab's history, and the box cannot tell whether a lab has started.
+    run = _runner(READY_OUTPUT)
+    with pytest.raises(SystemExit) as stopped:
+        readiness.main(["--live"], run=run, logs=Logs(), local=tmp_path / "r.json",
+                       now=lambda: NOW, instance=lambda: "unused", on_box=False)
+    assert stopped.value.code == 2 and run.calls == []
+    assert "only on the box" in capsys.readouterr().err
+    assert not hasattr(readiness, "live_via_ssm")
 
 
 # ---------------------------------------------------------------------------
