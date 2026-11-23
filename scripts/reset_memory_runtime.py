@@ -212,6 +212,18 @@ def survey(client: Any, memory_id: str) -> List[Dict[str, Any]]:
     return actors
 
 
+def _already_gone(exc: Exception) -> bool:
+    """The service no longer holds the item, which is what the delete wanted.
+
+    Memory consolidates records in the background, so a record listed by the survey can be
+    gone before its delete reaches it (test event, 2026-11-23, a reset minutes after the
+    Lab 3 and 4 catch-ups). Counting that as a failure skipped the settle window and
+    quarantined a box whose late records the window would have removed.
+    """
+    code = getattr(exc, "response", {}).get("Error", {}).get("Code", "")
+    return code == "ResourceNotFoundException" or type(exc).__name__ == "ResourceNotFoundException"
+
+
 def apply_cleanup(
     client: Any, memory_id: str, actors: List[Dict[str, Any]], *, apply: bool
 ) -> Dict[str, int]:
@@ -237,6 +249,9 @@ def apply_cleanup(
                         sessionId=session["sessionId"], eventId=event_id,
                     )
                 except Exception as exc:  # noqa: BLE001
+                    if _already_gone(exc):
+                        print(f"  - event {event_id} was already gone", file=sys.stderr)
+                        continue
                     counts["failures"] += 1
                     print(f"  ! event {event_id}: {exc}", file=sys.stderr)
         for record in entry["records"]:
@@ -248,6 +263,10 @@ def apply_cleanup(
                     memoryId=memory_id, memoryRecordId=record["memoryRecordId"]
                 )
             except Exception as exc:  # noqa: BLE001
+                if _already_gone(exc):
+                    print(f"  - record {record['memoryRecordId']} was already gone",
+                          file=sys.stderr)
+                    continue
                 counts["failures"] += 1
                 print(f"  ! record {record['memoryRecordId']}: {exc}", file=sys.stderr)
     return counts

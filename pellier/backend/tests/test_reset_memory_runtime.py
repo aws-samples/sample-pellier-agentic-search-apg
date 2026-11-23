@@ -315,6 +315,62 @@ def test_a_late_record_the_service_keeps_still_quarantines(
     assert "RESIDUE actor=operator-sub sessions=0 events=0 records=1" in capsys.readouterr().out
 
 
+class ServiceError(Exception):
+    """The shape botocore's ClientError gives a service error: a code under response."""
+
+    def __init__(self, code: str) -> None:
+        super().__init__(code)
+        self.response = {"Error": {"Code": code, "Message": code}}
+
+
+class VanishingRecordClient(FakeMemoryClient):
+    """A record the survey listed is gone before its delete, as consolidation does to a
+    record from a turn taken minutes earlier; the delete answers ResourceNotFound."""
+
+    def __init__(self, vanished: str, error: str = "ResourceNotFoundException") -> None:
+        super().__init__()
+        self.vanished, self.error = vanished, error
+
+    def delete_memory_record(self, **kwargs: Any) -> None:
+        if kwargs["memoryRecordId"] == self.vanished:
+            self.deleted_records.append(self.vanished)
+            for rows in self.records.values():
+                if self.vanished in rows:
+                    rows.remove(self.vanished)
+            raise ServiceError(self.error)
+        super().delete_memory_record(**kwargs)
+
+
+def test_a_record_already_gone_still_lets_late_extraction_settle(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Test event 03e3f621, 2026-11-23: a reset four minutes after the Lab 3 and 4 catch-ups.
+
+    One record vanished before its delete (ResourceNotFound) and another was extracted after
+    the delete pass. Counting the first as a failure skipped the settle window, so the late
+    record was reported as residue and the box was quarantined. Gone is what a delete wants.
+    """
+    module = _load_module()
+    client = VanishingRecordClient(vanished="r2")
+    _extract_late(module, monkeypatch, client, "r9")
+
+    assert _run_main(module, monkeypatch, client) == 0
+    assert client.records["operator-sub"] == []
+    captured = capsys.readouterr()
+    assert "RESIDUE" not in captured.out and "failures:" not in captured.err
+    assert "Deleted 1 preference record(s) extracted after the delete pass" in captured.out
+
+
+def test_a_delete_the_service_refuses_is_still_a_failure(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_module()
+    client = VanishingRecordClient(vanished="r2", error="AccessDeniedException")
+
+    assert _run_main(module, monkeypatch, client) == 1
+    assert "failures: 1" in capsys.readouterr().err
+
+
 def test_apply_exits_zero_when_the_second_survey_finds_nothing(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
