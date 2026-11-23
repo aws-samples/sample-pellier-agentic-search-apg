@@ -63,6 +63,12 @@ Mappings:
       Id: pl-3b927c52
     us-west-2:
       Id: pl-82a045eb
+  # AWS-managed prefix list com.amazonaws.<Region>.s3, read the same way on 2026-11-23.
+  S3PrefixList:
+    us-east-1:
+      Id: pl-63a5400a
+    us-west-2:
+      Id: pl-68a54001
 
 Resources:
   AvailabilityZoneSelectorRole:
@@ -405,10 +411,15 @@ Resources:
     Properties:
       GroupDescription: Aurora - 5432 from private subnets and Code Editor
       VpcId: !Ref VPC
+      # Aurora's only outbound traffic: HTTPS to Amazon S3 in this Region, through the NAT
+      # gateway, for the optional aurora_analytics page (scripts/aurora_analytics.py). Without
+      # it, a foreign table over S3 hangs until its statement times out (test event, 2026-11-23).
       SecurityGroupEgress:
-        - IpProtocol: -1
-          CidrIp: 127.0.0.1/32
-          Description: no egress required
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          DestinationPrefixListId: !FindInMap [S3PrefixList, !Ref "AWS::Region", Id]
+          Description: HTTPS to Amazon S3 for aurora_analytics
       Tags:
         - Key: Name
           Value: !Sub pellier-${WorkshopId}-aurora-sg

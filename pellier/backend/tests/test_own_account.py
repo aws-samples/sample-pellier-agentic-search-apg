@@ -1065,6 +1065,27 @@ def test_teardown_without_an_agentcore_stack_needs_no_box_and_keeps_key_and_buck
     assert "--schedule-kms-key-deletion 7" in left and "--delete-bucket" in left
 
 
+def test_teardown_names_a_lake_bucket_the_optional_page_left_but_never_deletes_it() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod, agentcore=False)
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1", "--delete-bucket"], clients)
+    assert code == 0, lines
+    lake = f"pellier-lake-{WORKSHOP_ID}"
+    assert lake in clients.s3.args("head_bucket", "Bucket")
+    assert lake not in clients.s3.args("delete_bucket", "Bucket")
+    left = "\n".join(lines[lines.index("Left in place:") :])
+    assert f"bucket {lake} stays: the optional aurora_analytics page created it" in left
+
+
+def test_teardown_says_nothing_about_a_lake_bucket_that_does_not_exist() -> None:
+    mod = _load()
+    clients = _teardown_clients(mod, agentcore=False)
+    clients.s3.errors["head_bucket"] = _ClientError("404")
+    code, lines = _run(mod, ["teardown", "--region", "us-east-1"], clients)
+    assert code == 0, lines
+    assert "pellier-lake-" not in "\n".join(lines)
+
+
 def test_teardown_uses_the_suffixed_names() -> None:
     mod = _load()
     clients = _teardown_clients(mod, agentcore=False, suffix="rc")

@@ -686,6 +686,27 @@ def empty_and_delete_bucket(runner: Runner, bucket: str) -> None:
     runner.write(f"delete bucket {bucket}", s3.delete_bucket, Bucket=bucket)
 
 
+def lake_bucket_left(runner: Runner, workshop_id: str | None) -> str | None:
+    """The optional aurora_analytics page's bucket, if its prepare ran and its cleanup did not.
+
+    scripts/aurora_analytics.py creates the bucket outside the stack and carries no ownership
+    tag, so the teardown only names it; it never deletes an untagged bucket.
+    """
+    if not workshop_id:
+        return None
+    bucket = f"pellier-lake-{workshop_id}"
+    try:
+        runner.read(f"look for bucket {bucket}", runner.clients.s3.head_bucket, Bucket=bucket)
+    except Exception as exc:  # noqa: BLE001
+        if is_missing(exc) or error_code(exc) in ("403", "AccessDenied", "Forbidden"):
+            return None
+        raise
+    return (
+        f"bucket {bucket} stays: the optional aurora_analytics page created it outside the stack; "
+        "empty and delete it in the S3 console"
+    )
+
+
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args: Any, **kwargs: Any) -> None:
         return None
@@ -1824,6 +1845,9 @@ def cmd_teardown(
         "the CDKToolkit stack and its cdk-hnb659fds-* bucket stay: other CDK apps in the account "
         "may use them"
     )
+    lake = lake_bucket_left(runner, found.workshop_id)
+    if lake:
+        left.append(lake)
     bucket = args.bucket or bucket_name(account_id(runner), args.region)
     if args.delete_bucket:
         empty_and_delete_bucket(runner, bucket)

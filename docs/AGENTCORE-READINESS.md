@@ -201,8 +201,9 @@ on a new account:
   audit evidence in Aurora. Over-limit and changed-after-approval attempts are
   denied, with request-specific absence checks.
 - Both Runtime log groups and traces arrive without token or model content.
-- The optional DuckDB example verifies the Aurora server certificate and
-  connects with the inventory-only login.
+- The optional aurora_analytics example verifies the Aurora server certificate
+  and reads the lake files through Aurora with its read-only login. Its check
+  passes before `cleanup` removes the bucket, the role attachment and the login.
 
 Record the source commit, Region, provisioning time and each lab's time. A
 previous account's pass does not establish a new one's readiness. Dated records

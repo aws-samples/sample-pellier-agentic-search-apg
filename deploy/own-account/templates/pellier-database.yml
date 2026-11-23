@@ -82,6 +82,10 @@ Resources:
         pgaudit.log_parameter: "1"
         rds.force_ssl: "1"
         search_path: '"$user", pellier, public'
+        # The optional aurora_analytics page reads Parquet in S3 from Aurora. The setting is
+        # dynamic and off by default; it costs nothing until a foreign table is read, and the
+        # cluster still scales to zero with it on (test event, 2026-11-23).
+        aurora_analytics.enabled: "1"
       Tags:
         - Key: Project
           Value: pellier
@@ -236,6 +240,41 @@ Resources:
         - Key: Event
           Value: !Ref EventName
 
+  # Aurora assumes this role to read the optional page's lake files. scripts/aurora_analytics.py
+  # creates the bucket and attaches the role for the AuroraAnalytics feature when a participant
+  # runs prepare, so a slow attach can fail only that page, never the stack. The trust policy is
+  # the one the 2026-11-23 test event attached.
+  LakeReaderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Description: Aurora reads the optional aurora_analytics lake files
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: read-lake-files
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}/lake/*
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}
+                Condition:
+                  StringLike:
+                    s3:prefix: lake/*
+      Tags:
+        - Key: Project
+          Value: pellier
+        - Key: Event
+          Value: !Ref EventName
+
   SecretTargetAttachment:
     Type: AWS::SecretsManager::SecretTargetAttachment
     Properties:
@@ -272,6 +311,10 @@ Outputs:
     Value: !Ref MasterSecret
     Export:
       Name: !Sub ${AWS::StackName}-MasterSecretArn
+  LakeReaderRoleArn:
+    Value: !GetAtt LakeReaderRole.Arn
+    Export:
+      Name: !Sub ${AWS::StackName}-LakeReaderRoleArn
   DatabaseName:
     Value: pellier
     Export:

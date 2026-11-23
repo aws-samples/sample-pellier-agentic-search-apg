@@ -111,9 +111,11 @@ before any extra Ask Pellier requests or the coach.
 
 1. **Delete the stack when you finish.** The hourly charges are most of the bill, about $379 a
    month if the stack is left running. [Section 6](#6-tear-down) removes it.
-2. **Cache the prompt.** In the measured pass, Pellier's agents sent their instructions and tool
-   descriptions uncached on every model call, and Opus input tokens were $0.34 of the $0.47 the
-   pass's Claude calls cost. Bedrock bills an
+2. **Cache the prompt.** The measured pass ran on 6 November 2026, before Pellier requested prompt
+   caching, so its agents sent their instructions and tool descriptions uncached on every model
+   call, and Opus input tokens were $0.34 of the $0.47 the pass's Claude calls cost. Every
+   Pellier agent now requests caching (`CacheConfig(strategy="auto")` in
+   `pellier/backend/services/model_fallback.py`). Bedrock bills an
    Opus 5.5 cache read at $0.20 per million tokens, 5% of the $4 input price, and a cache write
    at $5. That 5% is the best case. Bedrock's
    [prompt caching guide](https://docs.aws.amazon.com/bedrock/latest/userguide/prompt-caching.html)
@@ -131,6 +133,9 @@ before any extra Ask Pellier requests or the coach.
 5. **Share one NAT gateway in a test stack.** The template creates one per public subnet for
    availability, and each costs $0.045 an hour, $32.85 a month, before data. Sharing one means
    editing `deploy/own-account/templates/pellier-vpc.yml`.
+6. **Give each request a model-call budget.** Pellier does not cap how many model calls one
+   request makes. In a production application, set a call budget per request and stop the turn
+   when it is reached, so a request that loops cannot run up the bill.
 
 ## 2. Before you start
 
@@ -307,6 +312,10 @@ It ends with a **Left in place** list. What can remain, and how to remove it:
   does.
 - **The readiness log group** `/aws/pellier/readiness`, which every Pellier deployment in the
   Region shares. Delete it in the CloudWatch console if this was the only one.
+- **The optional lake bucket** `pellier-lake-<workshop id>`, if you ran the aurora_analytics
+  page's `prepare` and not its `cleanup`. The page creates it outside the stack, so the teardown
+  names it and leaves it. Run `uv run scripts/aurora_analytics.py cleanup` on the host before the
+  teardown, or empty and delete the bucket in the S3 console.
 - **Account-wide X-Ray settings**, if you passed `--force`. The provisioner records what the
   account held before Pellier changed it in the receipt on the host,
   `/var/lib/pellier/managed-receipt.json`, under `observability.transaction_search.cleanup`.

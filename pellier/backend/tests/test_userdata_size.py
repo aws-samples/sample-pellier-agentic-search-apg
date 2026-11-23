@@ -28,6 +28,8 @@ WORST_CASE = {
     "OperatorToolsSecretArn": SECRET + "o" * 512,
     "CognitoClientSecret": SECRET + "s" * 512, "CognitoTestCredentialsSecret": SECRET + "s" * 512,
     "DBClusterArn": "arn:aws:rds:us-east-1:123456789012:cluster:" + "d" * 63,
+    # CloudFormation names an unnamed role at most 64 characters, on the default path.
+    "LakeReaderRoleArn": "arn:aws:iam::123456789012:role/" + "r" * 64,
     "DBClusterEndpoint": "d" * 253,
     "RuntimeLogKeyArn": "arn:aws:kms:us-east-1:123456789012:key/mrk-" + "a" * 32,
     "AllowSharedTraceLogChanges": "false",

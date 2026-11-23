@@ -23,7 +23,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 check = importlib.import_module("workshop_check")
 trace = importlib.import_module("trace_agentcore_calls")
 follow_credit = importlib.import_module("follow_credit")
-duckdb_federation = importlib.import_module("duckdb_federation")
+aurora_analytics = importlib.import_module("aurora_analytics")
 lab3_check = importlib.import_module("lab3_check")
 where_memory = importlib.import_module("lab3_where_memory_lands")
 showcase = importlib.import_module("showcase_agentcore_memory")
@@ -174,25 +174,25 @@ def test_the_task_3b_heading_fits(monkeypatch: pytest.MonkeyPatch, columns: int,
 
 
 @TERMINALS
-def test_duckdb_pass_line_stands_alone_and_the_explanation_wraps(
+def test_aurora_analytics_pass_line_stands_alone_and_the_explanation_wraps(
         monkeypatch: pytest.MonkeyPatch, columns: int,
         capsys: pytest.CaptureFixture[str]) -> None:
     width = terminal(monkeypatch, columns)
-    monkeypatch.setattr(duckdb_federation, "check_reader", lambda _local: None)
-    monkeypatch.setattr(sys, "argv", ["duckdb_federation.py", "check"])
-    assert duckdb_federation.main() == 0
+    monkeypatch.setattr(aurora_analytics, "check_reader", lambda _local: None)
+    monkeypatch.setattr(sys, "argv", ["aurora_analytics.py", "check"])
+    assert aurora_analytics.main() == 0
     out = check.plain(capsys.readouterr().out)
     assert_fits(out, width)
-    assert out.splitlines()[0] == "DuckDB check passed"
-    assert "Live stock matches; missing forecast stays NULL; customer reads and writes are " \
-        "denied." in " ".join(out.split())
+    assert out.splitlines()[0] == "Aurora analytics check passed"
+    assert "Live stock and the lake files' rows match; customer reads, writes and table " \
+        "changes are denied." in " ".join(out.split())
 
 
-def test_duckdb_pass_line_is_green_only_at_a_terminal(
+def test_aurora_analytics_pass_line_is_green_only_at_a_terminal(
         monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    monkeypatch.setattr(duckdb_federation, "check_reader", lambda _local: None)
-    monkeypatch.setattr(sys, "argv", ["duckdb_federation.py", "check"])
-    duckdb_federation.main()
+    monkeypatch.setattr(aurora_analytics, "check_reader", lambda _local: None)
+    monkeypatch.setattr(sys, "argv", ["aurora_analytics.py", "check"])
+    aurora_analytics.main()
     assert "\033[" not in capsys.readouterr().out
 
 

@@ -79,6 +79,10 @@ Parameters:
     Type: String
     Description: Aurora cluster ARN used by MCP Lambda Data API calls.
 
+  LakeReaderRoleArn:
+    Type: String
+    Description: The role Aurora assumes to read the optional aurora_analytics lake files.
+
   DBClusterEndpoint:
     Type: String
 
@@ -386,6 +390,44 @@ Resources:
               - pi:DescribeDimensionKeys
             Resource: !Sub arn:${AWS::Partition}:pi:${AWS::Region}:${AWS::AccountId}:metrics/rds/*
 
+  AuroraAnalyticsPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    # The optional aurora_analytics page (scripts/aurora_analytics.py). prepare creates the lake
+    # bucket, uploads the files and attaches the stack's lake reader role to the cluster; cleanup
+    # reverses each step. Kept out of the inline policy, which is close to IAM's cap.
+    Properties:
+      Description: The optional aurora_analytics page's setup and cleanup on the editor.
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: LakeRoleAttach
+            Effect: Allow
+            Action:
+              - rds:AddRoleToDBCluster
+              - rds:RemoveRoleFromDBCluster
+            Resource: !Ref DBClusterArn
+          - Sid: LakeRolePass
+            Effect: Allow
+            Action: iam:PassRole
+            Resource: !Ref LakeReaderRoleArn
+            Condition:
+              StringEquals:
+                iam:PassedToService: rds.amazonaws.com
+          - Sid: LakeBucket
+            Effect: Allow
+            Action:
+              - s3:CreateBucket
+              - s3:PutBucketPublicAccessBlock
+              - s3:ListBucket
+              - s3:DeleteBucket
+            Resource: !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}
+          - Sid: LakeFiles
+            Effect: Allow
+            Action:
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource: !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}/lake/*
+
   CdkBootstrapPolicy:
     Type: AWS::IAM::ManagedPolicy
     # Keep bootstrap grants separate: IAM caps all role inline policies at
@@ -591,6 +633,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - !Ref CdkBootstrapPolicy
         - !Ref WorkshopCheckPolicy
+        - !Ref AuroraAnalyticsPolicy
         # Pellier exports its OpenTelemetry spans from this instance to the
         # CloudWatch OTLP traces endpoint (services/otel_cloudwatch_export.py,
         # SigV4-signed). This is the policy AWS documents for OTLP export of
@@ -1523,6 +1566,7 @@ Resources:
           export STORE_TOOLS_SECRET_ARN="${StoreToolsSecretArn}"
           export OPERATOR_TOOLS_SECRET_ARN="${OperatorToolsSecretArn}"
           export DB_CLUSTER_ARN="${DBClusterArn}"
+          export AURORA_ANALYTICS_ROLE_ARN="${LakeReaderRoleArn}"
           export DB_HOST="${DBClusterEndpoint}"
           export DB_NAME="pellier"
           export AUTH_MODE="cognito"

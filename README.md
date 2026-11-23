@@ -218,14 +218,7 @@ The [governed-quality workflow](.github/workflows/quality.yml) runs the backend,
 
 These checks run without AWS. The tests that need a database start a throwaway PostgreSQL 18 cluster with pgvector from the binaries on `PATH` or in `PG_BIN` and run the real setup scripts against it; without one they skip, and the workflow's `backend-postgres` job installs one and sets `PELLIER_REQUIRE_POSTGRES=1` so they fail there instead. Runtime, Gateway, Cedar and Lambda behavior is proven only in a provisioned account.
 
-The optional [DuckDB example](scripts/duckdb_federation.py) joins live warehouse stock to a training forecast in Parquet. Run its `prepare`, `query`, `check` and `cleanup` commands on the workshop host after the required labs. It creates a separate inventory-only PostgreSQL login and leaves the application's data and agent tools unchanged. The [SQL](workshop/duckdb-inventory.sql) keeps the forecast separate from available stock.
-
-Its integration tests use an isolated local PostgreSQL cluster and install the optional dependencies through `uv`; they are separate from the backend suite:
-
-```bash
-uv run --no-project --with duckdb==2.0.0 --with 'psycopg[binary]==3.3.4' --with pytest==9.1.1 \
-  python -m pytest -q optional-tests/test_duckdb_federation.py
-```
+The optional [aurora_analytics example](scripts/aurora_analytics.py) answers one question across live warehouse stock in Aurora and four weeks of sales and a delivery plan in Parquet files in Amazon S3, in a single SQL query: which products in stock today sell out before their next delivery. Run its `prepare`, `query`, `check` and `cleanup` commands on the workshop host after the required labs. `prepare` uploads the fixed [lake files](workshop/lake/) to a new bucket, attaches the stack's lake reader role to the cluster and creates foreign tables over the files, then a separate read-only PostgreSQL login. It leaves the application's data and agent tools unchanged. The [SQL](workshop/aurora-analytics.sql) holds both questions. [`scripts/build_lake_files.py`](scripts/build_lake_files.py) rebuilds the files on a maintainer's laptop.
 
 ## Security and responsible use
 

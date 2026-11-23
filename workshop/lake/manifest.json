@@ -1,0 +1,27 @@
+{
+  "snapshot_end": "2026-11-22",
+  "days": 28,
+  "pyarrow": "22.0.0",
+  "files": {
+    "daily_sales/week-1.parquet": {
+      "rows": 11232,
+      "sha256": "7ddb1542c75ff82ff378a4e6d4fbc462af15f326721fd2bec644f2d62f28811e"
+    },
+    "daily_sales/week-2.parquet": {
+      "rows": 11270,
+      "sha256": "a37311a31f90187abf0204d7961ff05f966def2086c44c6136c22c7d8c8e1b83"
+    },
+    "daily_sales/week-3.parquet": {
+      "rows": 11340,
+      "sha256": "f236f1d386ae6fcdef5597412ce84993e761bef2532198d1c317a9e1ece316f0"
+    },
+    "daily_sales/week-4.parquet": {
+      "rows": 11297,
+      "sha256": "4f5bd56efe4f2e033a1c8279f3952c44d663e7d80b7d8261de8f173f95bf9fec"
+    },
+    "deliveries/plan.parquet": {
+      "rows": 604,
+      "sha256": "b9afe10c0a26662df23a21734f22a83c580f1f896132d881360e7a211615cce4"
+    }
+  }
+}
