@@ -508,6 +508,13 @@ else
     || _memory_rc=$?
   if [[ "$_memory_rc" -eq 0 ]]; then
     pass "AgentCore Memory runtime cleaned; setup conversations preserved or restored"
+    # A preference still extracting at the restore's deadline does not fail the reset (the
+    # setup conversation is back), but the participant sees it rather than only the log.
+    _late_pattern='^Setup conversations restored. Memory is still extracting the saved preferences for'
+    _late_preferences="$(grep -m1 "$_late_pattern" /tmp/pellier-governed-reset-memory.log || true)"
+    if [[ -n "$_late_preferences" ]]; then
+      warn "$_late_preferences"
+    fi
     _memory_leg_settled=true
   elif [[ "$_memory_rc" -eq 3 ]]; then
     # `reset_memory_runtime.py` reserves exit 3 for "no AGENTCORE_MEMORY_ID": a box
@@ -516,8 +523,8 @@ else
     _memory_leg_settled=true
   else
     # Exit 2 means residue survived a completed delete pass, printed as RESIDUE
-    # lines in the log; anything else is a delete that failed. Either way the box
-    # is not clean.
+    # lines in the log; anything else is a delete that failed or a setup conversation
+    # that did not come back. Either way the box is not clean.
     fail "Could not clean AgentCore Memory runtime (see /tmp/pellier-governed-reset-memory.log)"
     _quarantine memory "Could not clean AgentCore Memory runtime"
     exit 1

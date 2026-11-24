@@ -45,8 +45,9 @@ Dry run by default. Nothing is deleted without ``--apply``.
 EXIT CODES
 ----------
 
-  0  the Memory runtime is clean.
-  1  at least one delete call failed.
+  0  the Memory runtime is clean. A setup preference still extracting when the restore's
+     wait ends is printed as a warning line (``LATE_PREFERENCES``), not a failure.
+  1  at least one delete call failed, or a setup conversation did not come back.
   2  a delete pass completed and records remained after bounded verification polling.
   3  AgentCore Memory is NOT PROVISIONED here, so there is nothing to clean.
 
@@ -84,6 +85,10 @@ MEMORY_NAMESPACE_PREFIXES = (
 # "This box has no Memory resource", which the reset must not confuse with
 # "cleaning it failed". See EXIT CODES in the module docstring.
 EXIT_NOT_PROVISIONED = 3
+# The first words of the line that names a shopper whose preference is still extracting.
+# reset-governed-workshop.sh greps the log for them and shows the line on screen as a warning.
+LATE_PREFERENCES = ("Setup conversations restored. Memory is still extracting the saved "
+                    "preferences for")
 
 
 def _env() -> Dict[str, str]:
@@ -376,12 +381,27 @@ def _report_residue(
     return leftovers
 
 
-def restore_baseline(client: Any, memory_id: str, rebuild: list[str]) -> None:
-    """Restore setup for rebuilt actors. A clean baseline keeps provisioning's timing."""
+def restore_baseline(client: Any, memory_id: str, rebuild: list[str]) -> list[str]:
+    """Restore setup for rebuilt actors, waiting as long as provisioning does for preferences.
+
+    The setup conversation is the baseline: once it is back, the next survey keeps the actor.
+    Its preference record comes from Memory's background extraction, which can run past the
+    wait (test event, 2026-11-23: right after a chat turn, Anna's record arrived after 300 s).
+    A record still extracting at the deadline is reported, not failed, so it cannot
+    quarantine the box. A setup conversation that did not come back is a failure.
+
+    Returns:
+        The actors whose conversation is back but whose preference record had not appeared
+        when the wait ended.
+
+    Raises:
+        RuntimeError: When an actor's setup conversation is not back by the deadline.
+    """
     if not rebuild:
-        return
+        return []
     write_seed_events(client, memory_id, rebuild, generation=f"-{uuid.uuid4().hex}")
     pending = set(rebuild)
+    conversation_back: set[str] = set()
     deadline = time.monotonic() + PREFERENCE_WAIT_SECONDS
     while pending:
         for actor in sorted(pending):
@@ -389,6 +409,7 @@ def restore_baseline(client: Any, memory_id: str, rebuild: list[str]) -> None:
                                sessionId=SEED_SESSION, includePayloads=True)
             if not seed_conversation_matches(actor, events):
                 continue
+            conversation_back.add(actor)
             path = PREFERENCE_NAMESPACE.format(actor=actor)
             records = _paginate(client.list_memory_records, "memoryRecordSummaries",
                                 memoryId=memory_id, namespace=path)
@@ -397,8 +418,13 @@ def restore_baseline(client: Any, memory_id: str, rebuild: list[str]) -> None:
         if pending:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise RuntimeError(f"Setup preferences have not returned for {', '.join(sorted(pending))}")
+                missing = sorted(pending - conversation_back)
+                if missing:
+                    raise RuntimeError(
+                        f"Setup conversations have not returned for {', '.join(missing)}")
+                return sorted(pending)
             time.sleep(min(10, remaining))
+    return []
 
 
 def main() -> int:
@@ -448,10 +474,14 @@ def main() -> int:
     if args.apply and not counts["failures"] and not leftovers:
         rebuild = sorted(set(SEED_TURNS) - {entry["actorId"] for entry in kept})
         try:
-            restore_baseline(client, memory_id, rebuild)
+            late = restore_baseline(client, memory_id, rebuild)
         except Exception as exc:
             counts["failures"] += 1
             print(f"Could not restore the setup conversations: {exc}", file=sys.stderr)
+        else:
+            if late:
+                print(f"{LATE_PREFERENCES} {', '.join(late)}. They usually appear within a few "
+                      "minutes, and you can continue.")
 
     if args.json:
         pathlib.Path(args.json).write_text(json.dumps(

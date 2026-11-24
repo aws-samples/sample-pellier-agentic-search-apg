@@ -216,7 +216,7 @@ def test_main_fails_the_reset_when_the_setup_conversations_do_not_come_back(monk
     monkeypatch.setattr(module, "survey", lambda *_: next(observations))
 
     def never_returns(*_):
-        raise RuntimeError("Setup preferences have not returned for CUST-THEO")
+        raise RuntimeError("Setup conversations have not returned for CUST-THEO")
 
     assert _run_main(module, monkeypatch, client, restore=never_returns) == 1
     assert "Could not restore the setup conversations" in capsys.readouterr().err
@@ -447,32 +447,105 @@ def test_customer_preferences_and_conversations_from_a_run_are_removed_together(
     assert "live-event" in client.deleted_events and "live-preference" in client.deleted_records
 
 
-def test_reset_restores_missing_seed_turns_and_requires_their_preference_records(monkeypatch):
+class _SeedClient:
+    """Theo's setup conversation as Memory returns it, with or without his preference record."""
+
+    def __init__(self, module, *, conversation: bool = True, record: bool = True) -> None:
+        self.pairs = module.SEED_TURNS["CUST-THEO"]
+        self.conversation = conversation
+        self.record = record
+
+    def list_events(self, **params):
+        assert (params["actorId"], params["sessionId"]) == ("CUST-THEO", "prefseed")
+        if not self.conversation:
+            return {"events": []}
+        return {"events": [{"payload": [{"conversational": {"role": role, "content": {"text": text}}}
+            for role, text in zip(("USER", "ASSISTANT"), pair)]} for pair in self.pairs]}
+
+    def list_memory_records(self, **params):
+        return {"memoryRecordSummaries": [{"memoryRecordId": "baseline",
+                "namespaces": [params["namespace"]]}] if self.record else []}
+
+
+def test_reset_restores_missing_seed_turns_and_waits_for_their_preference_records(monkeypatch):
     module = _load_module()
     _virtual_clock(module, monkeypatch)
-    pairs = module.SEED_TURNS["CUST-THEO"]
     writes = []
     monkeypatch.setattr(module, "write_seed_events", lambda *args, generation: writes.append((args, generation)))
 
-    class Client:
-        record = True
+    client = _SeedClient(module)
+    assert module.restore_baseline(client, "mem", ["CUST-THEO"]) == []
+    assert len(writes) == 1 and writes[0][0] == (client, "mem", ["CUST-THEO"]) and writes[0][1]
+
+
+def test_a_preference_still_extracting_at_the_deadline_is_reported_not_failed(monkeypatch):
+    # Test event, 2026-11-23: right after a chat turn, Anna's setup conversation was back but
+    # her preference record took longer than the wait. The conversation is the baseline the
+    # next survey keeps, so the late record must not quarantine the box.
+    module = _load_module()
+    now = _virtual_clock(module, monkeypatch)
+    monkeypatch.setattr(module, "write_seed_events", lambda *args, generation: None)
+
+    late = module.restore_baseline(_SeedClient(module, record=False), "mem", ["CUST-THEO"])
+    assert late == ["CUST-THEO"]
+    assert now[0] >= module.PREFERENCE_WAIT_SECONDS
+
+
+def test_a_setup_conversation_that_never_returns_still_fails(monkeypatch):
+    module = _load_module()
+    _virtual_clock(module, monkeypatch)
+    monkeypatch.setattr(module, "write_seed_events", lambda *args, generation: None)
+
+    with pytest.raises(RuntimeError, match="Setup conversations have not returned for CUST-THEO"):
+        module.restore_baseline(_SeedClient(module, conversation=False, record=False), "mem",
+                                ["CUST-THEO"])
+
+
+def test_a_missing_conversation_fails_even_when_another_shopper_is_only_late(monkeypatch):
+    module = _load_module()
+    _virtual_clock(module, monkeypatch)
+    monkeypatch.setattr(module, "write_seed_events", lambda *args, generation: None)
+    theo = _SeedClient(module, record=False)
+
+    class TwoShoppers:
+        """Theo's conversation is back with his preference still extracting; Anna's never came back."""
 
         def list_events(self, **params):
-            assert (params["actorId"], params["sessionId"]) == ("CUST-THEO", "prefseed")
-            return {"events": [{"payload": [{"conversational": {"role": role, "content": {"text": text}}}
-                for role, text in zip(("USER", "ASSISTANT"), pair)]} for pair in pairs]}
+            if params["actorId"] == "CUST-ANNA":
+                return {"events": []}
+            return theo.list_events(**params)
 
         def list_memory_records(self, **params):
-            return {"memoryRecordSummaries": [{"memoryRecordId": "baseline",
-                    "namespaces": [params["namespace"]]}] if self.record else []}
+            return theo.list_memory_records(**params)
 
-    client = Client()
-    module.restore_baseline(client, "mem", ["CUST-THEO"])
-    assert len(writes) == 1 and writes[0][0] == (client, "mem", ["CUST-THEO"]) and writes[0][1]
-    client.record = False
-    with pytest.raises(RuntimeError, match="CUST-THEO"):
-        module.restore_baseline(client, "mem", ["CUST-THEO"])
-    assert len(writes) == 2
+    with pytest.raises(RuntimeError) as raised:
+        module.restore_baseline(TwoShoppers(), "mem", ["CUST-ANNA", "CUST-THEO"])
+    assert "CUST-ANNA" in str(raised.value) and "CUST-THEO" not in str(raised.value)
+
+
+def test_main_passes_and_names_a_shopper_whose_preference_is_still_extracting(monkeypatch, capsys):
+    module = _load_module()
+    client = FakeMemoryClient()
+    before = module.survey(client, "mem-1")
+    observations = iter([before, before, [], []])
+    monkeypatch.setattr(module, "survey", lambda *_: next(observations))
+
+    assert _run_main(module, monkeypatch, client, restore=lambda *_: ["CUST-ANNA"]) == 0
+    line = next(l for l in capsys.readouterr().out.splitlines() if l.startswith(module.LATE_PREFERENCES))
+    assert "CUST-ANNA" in line
+
+
+def test_the_whole_reset_shows_a_late_preference_on_screen():
+    # The Memory step's output goes to a log; the reset prints only its own PASS line. A late
+    # preference must reach the participant's screen, or a box whose extraction is broken would
+    # look healthy.
+    module = _load_module()
+    reset = (Path(module.__file__).resolve().parent / "reset-governed-workshop.sh").read_text()
+    pattern = f"_late_pattern='^{module.LATE_PREFERENCES}'"
+    grep = 'grep -m1 "$_late_pattern" /tmp/pellier-governed-reset-memory.log'
+    assert pattern in reset and grep in reset
+    assert 'warn "$_late_preferences"' in reset
+    assert reset.index(pattern) < reset.index(grep) < reset.index('_memory_leg_settled=true')
 
 
 def test_clean_seed_is_preserved_without_waiting_for_new_extraction(monkeypatch):
