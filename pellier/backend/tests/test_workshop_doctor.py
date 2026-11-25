@@ -910,9 +910,15 @@ class TestWorkshopStart:
     RUNTIME_V2 = ("Facilitator: AgentCore Runtime pellier_operator: platform V2, not the pinned "
                   "V1. Fix: redeploy")
 
+    MODELS_OK = ("ok\tBedrock Claude Opus 5.5 answers (global.anthropic.claude-opus-5-5)\n"
+                 "ok\tBedrock Claude Sonnet 5.5 answers (global.anthropic.claude-sonnet-5-5)")
+    OPUS_SILENT = ("Facilitator: Bedrock Claude Opus 5.5 does not answer "
+                   "(global.anthropic.claude-opus-5-5): AccessDeniedException. Fix: ")
+
     def _run(self, tmp_path: Path, health_body: Optional[str], memory_line: str = MEMORY_OK,
              memory_exit: int = 0, runtimes: str = RUNTIMES_OK, runtimes_exit: int = 0,
-             runtimes_stderr: str = "", readiness_record: bool = True) -> Any:
+             runtimes_stderr: str = "", readiness_record: bool = True,
+             models: str = MODELS_OK, models_exit: int = 0) -> Any:
         repo = tmp_path / "repo"
         repo.mkdir()
         (repo / ".env").write_text("DB_HOST=h\nDB_NAME=n\nDB_USER=u\n", encoding="utf-8")
@@ -927,7 +933,9 @@ class TestWorkshopStart:
             '    printf "%s\\n" "$MEMORY_LINE"; exit "$MEMORY_EXIT"\n  fi\n'
             '  if [ "$arg" = "--runtimes" ]; then\n    printf "%s\\n" "$RUNTIMES_LINES"\n'
             '    if [ -n "$RUNTIMES_STDERR" ]; then printf "%s\\n" "$RUNTIMES_STDERR" >&2; fi\n'
-            '    exit "$RUNTIMES_EXIT"\n  fi\ndone\n'
+            '    exit "$RUNTIMES_EXIT"\n  fi\n'
+            '  if [ "$arg" = "--models" ]; then\n    printf "%s\\n" "$MODELS_LINES"\n'
+            '    exit "$MODELS_EXIT"\n  fi\ndone\n'
             f'exec "{sys.executable}" "$@"\n', encoding="utf-8")
         python.chmod(0o755)
         result = subprocess.run(
@@ -946,6 +954,8 @@ class TestWorkshopStart:
                 RUNTIMES_LINES=runtimes,
                 RUNTIMES_EXIT=str(runtimes_exit),
                 RUNTIMES_STDERR=runtimes_stderr,
+                MODELS_LINES=models,
+                MODELS_EXIT=str(models_exit),
                 PELLIER_READINESS_RECORD="1" if readiness_record else "",
             ),
         )
@@ -995,6 +1005,37 @@ class TestWorkshopStart:
         out = self._plain(result.stdout)
         assert result.returncode == 0, result.stdout + result.stderr
         assert "AgentCore Runtime pellier_" not in out, "only the readiness record reads it"
+        assert "Ready for Lab 1" in out
+
+    def test_each_bedrock_model_that_answers_is_reported(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}')
+        out = self._plain(result.stdout)
+        assert "+ OK    Bedrock Claude Opus 5.5 answers (global.anthropic.claude-opus-5-5)" in out
+        assert "+ OK    Bedrock Claude Sonnet 5.5 answers" in out
+
+    def test_a_silent_model_is_a_facilitator_warning_and_lab_one_can_still_start(
+        self, tmp_path: Path,
+    ) -> None:
+        lines = f"warn\t{self.OPUS_SILENT}ask\nok\tBedrock Cohere Rerank v3.5 answers (r)"
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', models=lines, models_exit=1)
+        out = self._plain(result.stdout)
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert f"- WARN  {self.OPUS_SILENT}ask" in out
+        assert "+ OK    Bedrock Cohere Rerank v3.5 answers (r)" in out
+        assert "Ready for Lab 1" in out
+
+    def test_a_model_check_that_prints_nothing_cannot_confirm_the_models(
+        self, tmp_path: Path,
+    ) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', models="", models_exit=1)
+        out = self._plain(result.stdout)
+        assert ("- WARN  Facilitator: Bedrock model check did not finish: it printed nothing"
+                in out)
+
+    def test_a_participant_run_skips_the_model_check(self, tmp_path: Path) -> None:
+        result, _ = self._run(tmp_path, '{"status": "healthy"}', readiness_record=False)
+        out = self._plain(result.stdout)
+        assert "Bedrock Claude" not in out, "only the readiness record calls the models"
         assert "Ready for Lab 1" in out
 
     def test_a_runtime_read_that_prints_nothing_cannot_confirm_v1(self, tmp_path: Path) -> None:
@@ -1320,3 +1361,164 @@ class TestRuntimePlatform:
         assert callers == ["scripts/workshop-start.sh"], (
             "the V1 check belongs to the facilitator's readiness record only: never a gate that "
             "fails the stack, a deploy or a lab command")
+
+
+# ---------------------------------------------------------------------------
+# --models: the four Bedrock models the workshop runs on answer, and the editorial
+# agents use Opus 5.5 rather than bootstrap's silent Sonnet fallback (owner, 2026-11-25)
+# ---------------------------------------------------------------------------
+
+
+class TestBedrockModels:
+    """Readiness proves Opus 5.5, Sonnet 5.5, Rerank 3.5 and Embed v4 answer.
+
+    Bootstrap's health gate already fails the stack without Sonnet, Rerank or Embed, but it
+    lets Sonnet stand in for a denied Opus. Readiness must see that, so a box whose Catalog
+    and Support agents would not run on Opus 5.5 is not ready, with the reason and the fix.
+    """
+
+    OPUS = "global.anthropic.claude-opus-5-5"
+    SONNET = "global.anthropic.claude-sonnet-5-5"
+
+    def _checks(self, failing: Optional[Dict[str, Any]] = None,
+                env: Optional[Dict[str, str]] = None):
+        failing = failing or {}
+        probed = []
+
+        def probe(model: Dict[str, Any]):
+            name = model["name"]
+            probed.append(name)
+            outcome = failing.get(name)
+            if isinstance(outcome, Exception):
+                raise outcome
+            first = model.get("model_id") or model["model_id_variants"][0]
+            return (outcome is None, first, outcome or "")
+
+        env = {"BEDROCK_OPUS_MODEL": self.OPUS} if env is None else env
+        return doctor.bedrock_model_checks(env, probe), probed
+
+    def test_the_four_workshop_models_are_the_ones_checked(self):
+        ids = []
+        for model in doctor.readiness_models():
+            ids.append(model.get("model_id") or model["model_id_variants"][0])
+        assert ids == [self.OPUS, self.SONNET, "cohere.rerank-v3-5:0", "us.cohere.embed-v4:0"]
+
+    def test_all_four_answering_with_opus_configured_is_ready(self):
+        checks, probed = self._checks()
+        assert all(check.passed for check in checks), [c.detail for c in checks]
+        assert probed == ["Claude Opus 5.5", "Claude Sonnet", "Cohere Rerank v3.5",
+                          "Cohere Embed v4"]
+        assert checks[0].detail == f"Bedrock Claude Opus 5.5 answers ({self.OPUS})"
+        assert checks[1].detail == f"Bedrock Claude Sonnet 5.5 answers ({self.SONNET})"
+        assert checks[-1].detail == "The Catalog and Support agents use Claude Opus 5.5"
+
+    def test_a_silent_opus_is_not_ready_and_names_the_fix(self):
+        checks, _ = self._checks({"Claude Opus 5.5": "AccessDeniedException"})
+        opus = checks[0]
+        assert not opus.passed
+        assert opus.detail.startswith(
+            f"Facilitator: Bedrock Claude Opus 5.5 does not answer ({self.OPUS}): "
+            "AccessDeniedException. Fix: ")
+        assert all(check.passed for check in checks[1:4])
+
+    def test_a_sonnet_fallback_left_by_bootstrap_is_not_ready(self):
+        checks, _ = self._checks(env={"BEDROCK_OPUS_MODEL": self.SONNET})
+        editorial = checks[-1]
+        assert not editorial.passed
+        assert editorial.detail.startswith(
+            f"Facilitator: the Catalog and Support agents use {self.SONNET}, not Claude Opus 5.5 "
+            f"({self.OPUS}). Fix: ")
+        assert "recheck_model_access.sh" in editorial.detail
+
+    def test_no_editorial_setting_means_the_app_default_opus(self):
+        checks, _ = self._checks(env={})
+        assert checks[-1].passed, checks[-1].detail
+
+    def test_a_silent_rerank_or_embed_is_not_ready(self):
+        checks, _ = self._checks({"Cohere Rerank v3.5": "ResourceNotFoundException",
+                                  "Cohere Embed v4": "ThrottlingException"})
+        assert [check.passed for check in checks[2:4]] == [False, False]
+        assert checks[2].detail.startswith("Facilitator: Bedrock Cohere Rerank v3.5 does not "
+                                           "answer (cohere.rerank-v3-5:0): ")
+
+    def test_a_probe_that_raises_is_not_ready_and_never_raises(self):
+        checks, _ = self._checks({"Claude Sonnet": RuntimeError("endpoint timed out")})
+        sonnet = checks[1]
+        assert not sonnet.passed
+        assert "RuntimeError: endpoint timed out" in sonnet.detail
+
+    def test_models_left_when_the_budget_runs_out_are_not_called_and_not_ready(self):
+        ticks = iter([0.0, 0.0, 61.0, 61.0, 61.0])
+        probed = []
+
+        def probe(model: Dict[str, Any]):
+            probed.append(model["name"])
+            return (True, model.get("model_id") or model["model_id_variants"][0], "")
+
+        checks = doctor.bedrock_model_checks({}, probe, clock=lambda: next(ticks), budget=60)
+        assert probed == ["Claude Opus 5.5"], "nothing is called once the budget is spent"
+        assert checks[1].detail.startswith(
+            f"Facilitator: Bedrock Claude Sonnet 5.5 was not checked ({self.SONNET}): the model "
+            "check ran past 60 s. Fix: ")
+        assert [check.passed for check in checks[:4]] == [True, False, False, False]
+
+    def test_the_check_fits_well_inside_the_records_cap(self):
+        per_call = 2 * (doctor.MODEL_CONNECT_TIMEOUT_SECONDS + doctor.MODEL_READ_TIMEOUT_SECONDS)
+        worst = doctor.MODEL_CHECK_BUDGET_SECONDS + 2 * per_call  # Embed's two IDs at the end
+        assert worst <= 90, "event_readiness.py gives the whole record 180 s"
+
+    def test_run_env_overrides_dotenv_as_the_unit_reads_them(self, tmp_path, monkeypatch, capsys):
+        dotenv = tmp_path / ".env"
+        dotenv.write_text(f"BEDROCK_OPUS_MODEL={self.OPUS}\n")
+        run_env = tmp_path / "run.env"
+        run_env.write_text(f"BEDROCK_OPUS_MODEL={self.SONNET}\n")
+        monkeypatch.delenv("BEDROCK_OPUS_MODEL", raising=False)
+        monkeypatch.setattr(doctor, "bedrock_clients", lambda env: (object(), object()))
+        monkeypatch.setattr(doctor, "probe_bedrock_model", lambda model, clients: (
+            True, model.get("model_id") or model["model_id_variants"][0], ""))
+        assert doctor.main(["--models", "--env", str(dotenv), "--run-env", str(run_env)]) == 1
+        last = capsys.readouterr().out.splitlines()[-1]
+        assert last.startswith(f"warn\tFacilitator: the Catalog and Support agents use "
+                               f"{self.SONNET}")
+
+    def test_the_real_probe_reports_the_check_scripts_reason(self, monkeypatch):
+        import check_model_access
+
+        def fake_check(client, rerank_client, model):
+            print("    Access denied / error. Last: AccessDeniedException: not authorized")
+            return False
+
+        monkeypatch.setattr(check_model_access, "check_model", fake_check)
+        model = dict(doctor.readiness_models()[0])
+        passed, model_id, reason = doctor.probe_bedrock_model(model, (object(), object()))
+        assert (passed, model_id) == (False, self.OPUS)
+        assert reason == "Access denied / error. Last: AccessDeniedException: not authorized"
+
+    def test_the_flag_prints_one_tab_separated_line_per_check(self, monkeypatch, capsys):
+        def fake_probe(model, clients):
+            first = model.get("model_id") or model["model_id_variants"][0]
+            return (model["name"] != "Claude Opus 5.5", first, "AccessDeniedException")
+
+        monkeypatch.setattr(doctor, "probe_bedrock_model", fake_probe)
+        monkeypatch.setattr(doctor, "bedrock_clients", lambda env: (object(), object()))
+        assert doctor.main(["--models", "--env", "/nonexistent/.env"]) == 1
+        lines = capsys.readouterr().out.splitlines()
+        assert len(lines) == 5
+        assert lines[0].startswith("warn\tFacilitator: Bedrock Claude Opus 5.5 does not answer")
+        assert lines[1] == f"ok\tBedrock Claude Sonnet 5.5 answers ({self.SONNET})"
+
+    def test_only_the_facilitator_readiness_check_runs_it(self):
+        call = re.compile(r"workshop_doctor\.py[\"' ,]+--models")
+
+        def calls_it(path: Path) -> bool:
+            return any(call.search(line) for line in path.read_text(errors="ignore").splitlines()
+                       if not line.lstrip().startswith("#"))
+
+        callers = sorted(
+            str(path.relative_to(REPO)) for path in (REPO / "scripts").rglob("*")
+            if path.is_file() and path.suffix in {".sh", ".py"}
+            and path.name != "workshop_doctor.py" and calls_it(path)
+        )
+        assert callers == ["scripts/workshop-start.sh"], (
+            "the model check belongs to the facilitator's readiness record only: never a gate "
+            "that fails the stack, a deploy or a lab command")

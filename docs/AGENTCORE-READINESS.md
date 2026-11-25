@@ -215,7 +215,29 @@ Each box records its own readiness at the end of bootstrap, in its account's
 CloudWatch Logs (`/aws/pellier/readiness`): `READY FOR LAB 1`, or the first check
 that failed, from the same checks as `workshop-start.sh`. Those that decide it
 include Pellier's health (its database and Bedrock), each AgentCore Runtime
-READY on V1, and Theo's Memory records.
+READY on V1, the four Bedrock models the workshop runs on answering (Claude Opus 5.5
+and Sonnet 5.5 through their global profiles, Cohere Rerank 3.5 and Embed v4), the
+Catalog and Support agents using Opus 5.5 rather than bootstrap's Sonnet fallback,
+and Theo's Memory records.
+
+A new account's Bedrock access can still be switching on at bootstrap's first
+model check. Bootstrap checks again just before its health gate and moves the
+agents back to Opus 5.5 when it answers by then
+(`scripts/recheck_model_access.sh`). If a record still names a model, run on that
+box, as the participant user, before anyone joins:
+
+```bash
+cd /workshop/sample-pellier-agentic-search-apg
+bash scripts/recheck_model_access.sh && uv run scripts/event_readiness.py --live
+```
+
+The first command never changes a box whose run fails, and restarts Pellier only
+when it changed a setting. The second records readiness again, so the next
+`--accounts` run reads the new record. It moves the agents that run in Pellier,
+which is where they run until Lab 3. A Runtime that bootstrap deployed while
+Sonnet stood in keeps Sonnet until its next deploy; Lab 3's deploy,
+`lab_run.py finish --lab 3` and the whole-workshop reset all read `.env` again.
+
 `scripts/event_readiness.py --accounts DIR` reads those records for every account
 at once, without joining the event or claiming a team, and changes no file, row
 or setting on any box.

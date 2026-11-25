@@ -1887,6 +1887,30 @@ if [ "${WORKSHOP_FORMAT}" = "governed" ] && [ "${AGENTCORE_OK:-false}" = true ] 
 fi
 
 # ============================================================================
+# STEP 18e: BEDROCK MODEL ACCESS AGAIN, BEFORE THE HEALTH GATE
+#
+# STEP 8b ran minutes after the account was created, when its Bedrock access can still be
+# switching on (check_model_access.py names a 15-minute wait); that run lets Sonnet 5.5 stand
+# in for a denied Opus 5.5. The workshop runs on Opus 5.5, so the preflight runs again here,
+# after the database and AgentCore setup (about 17 minutes later on the 24 November event).
+# recheck_model_access.sh skips a box already on Opus 5.5, never writes .env from a run that
+# failed, and restarts Pellier only when the agents' model changed. A model still silent here
+# reads as not ready in the record, with the same command as its fix.
+# ============================================================================
+log "Checking Bedrock model access again before the health gate..."
+recheck_status=0
+# As the participant, like STEP 8b (that user's python3.14 has boto3); the restart uses the
+# participant's passwordless `systemctl restart pellier` from STEP 14's sudoers entry.
+sudo -u "$CODE_EDITOR_USER" env PELLIER_REPO="$REPO_PATH" AWS_REGION="${AWS_REGION:-us-east-1}" \
+    HEALTH_TRIES=60 bash "$REPO_PATH/scripts/recheck_model_access.sh" 2>&1 \
+    | tee -a /var/log/model-access-preflight.log || recheck_status=$?
+case "$recheck_status" in
+    0) log "✅ Bedrock model access: the Catalog and Support agents use Claude Opus 5.5" ;;
+    3) warn "Claude Opus 5.5 still does not answer; the readiness record will say so" ;;
+    *) warn "Second model-access preflight failed; see /var/log/model-access-preflight.log" ;;
+esac
+
+# ============================================================================
 # SUMMARY
 # ============================================================================
 log "=========================================="

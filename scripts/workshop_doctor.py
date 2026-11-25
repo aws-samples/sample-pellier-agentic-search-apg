@@ -64,6 +64,7 @@ import pathlib
 import re
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
@@ -105,6 +106,25 @@ REDEPLOY_ON_V1 = ("before the session starts, remove PELLIER_RUNTIME_PLATFORM_VE
                   ".env, then run bash scripts/deploy/deploy_all.sh from a new terminal. "
                   "CloudFormation moves the runtime back to V1 in place.")
 RUNTIME_READ_TIMEOUT_SECONDS = 10
+
+# The workshop runs on Claude Opus 5.5 and Sonnet 5.5 through their global profiles, Cohere
+# Rerank 3.5 and Cohere Embed v4 (owner, 2026-11-25). check_model_access.py's MODELS holds the
+# IDs; readiness calls each live. Its health gate already fails the stack without Sonnet, Rerank
+# or Embed, but lets Sonnet stand in for a denied Opus, so readiness also reads which model the
+# Catalog and Support agents were configured with.
+READINESS_MODELS = ("Claude Opus 5.5", "Claude Sonnet", "Cohere Rerank v3.5", "Cohere Embed v4")
+MODEL_SHOWN = {"Claude Sonnet": "Claude Sonnet 5.5"}
+OPUS_MODEL = "Claude Opus 5.5"
+MODEL_FIX = ("once this account's Bedrock access allows it, run bash "
+             "scripts/recheck_model_access.sh, then uv run scripts/event_readiness.py --live; "
+             "or give the participant a spare account.")
+# The whole readiness record has 180 s (event_readiness.py). A call takes at most two tries of
+# 3 s to connect and 8 s to answer, and no model is called once 40 s have gone, so the check
+# ends within about 85 s even when Embed's two IDs start at the deadline. A model call usually
+# answers in 1 to 3 s.
+MODEL_CONNECT_TIMEOUT_SECONDS = 3
+MODEL_READ_TIMEOUT_SECONDS = 8
+MODEL_CHECK_BUDGET_SECONDS = 40
 
 _DB_REACHABLE = "SELECT 1 AS ok;"
 # The grant the Stock agent held on Marco's latest turn it answered, as its
@@ -739,6 +759,97 @@ def runtime_platform_checks(env: Mapping[str, str],
     return checks
 
 
+def readiness_models() -> List[Dict[str, Any]]:
+    """The four models the workshop runs on, as check_model_access.py defines them."""
+    import check_model_access  # sibling script; loads no .env when imported
+
+    by_name = {model["name"]: model for model in check_model_access.MODELS}
+    return [by_name[name] for name in READINESS_MODELS]
+
+
+def bedrock_clients(env: Mapping[str, str]) -> Tuple[Any, Any]:
+    """bedrock-runtime and bedrock-agent-runtime (Rerank) in the box's Region."""
+    import boto3
+    from botocore.config import Config
+
+    region = (env.get("AWS_REGION") or env.get("AWS_DEFAULT_REGION") or "us-east-1").strip()
+    config = Config(connect_timeout=MODEL_CONNECT_TIMEOUT_SECONDS,
+                    read_timeout=MODEL_READ_TIMEOUT_SECONDS,
+                    retries={"max_attempts": 2})
+    return (boto3.client("bedrock-runtime", region_name=region, config=config),
+            boto3.client("bedrock-agent-runtime", region_name=region, config=config))
+
+
+def probe_bedrock_model(model: Mapping[str, Any],
+                        clients: Tuple[Any, Any]) -> Tuple[bool, str, str]:
+    """Call one model as the preflight does: (answered, model ID, the preflight's reason)."""
+    import contextlib
+    import io
+    import check_model_access
+
+    attempt = dict(model)  # check_model records the variant that answered on its argument
+    printed = io.StringIO()
+    with contextlib.redirect_stdout(printed):
+        answered = check_model_access.check_model(clients[0], clients[1], attempt)
+    model_id = (attempt.get("_resolved_id") or attempt.get("model_id")
+                or attempt["model_id_variants"][0])
+    reason = " ".join(line.strip() for line in printed.getvalue().splitlines() if line.strip())
+    return answered, model_id, reason[:200]
+
+
+def bedrock_model_checks(env: Mapping[str, str],
+                         probe: Callable[[Mapping[str, Any]], Tuple[bool, str, str]],
+                         clock: Callable[[], float] = time.monotonic,
+                         budget: float = MODEL_CHECK_BUDGET_SECONDS) -> List[Check]:
+    """One line per model it calls, then which model the Catalog and Support agents use."""
+    checks: List[Check] = []
+    opus_id = ""
+    started = clock()
+    for model in readiness_models():
+        shown = MODEL_SHOWN.get(model["name"], model["name"])
+        first = model.get("model_id") or model["model_id_variants"][0]
+        opus_id = first if model["name"] == OPUS_MODEL else opus_id
+        if clock() - started > budget:
+            checks.append(Check(shown, False, (
+                f"Facilitator: Bedrock {shown} was not checked ({first}): the model check ran "
+                f"past {budget:g} s. Fix: record readiness again with uv run "
+                "scripts/event_readiness.py --live")))
+            continue
+        try:
+            answered, model_id, reason = probe(model)
+        except Exception as exc:  # noqa: BLE001 - reported with its type, never raised
+            answered, model_id, reason = False, first, f"{type(exc).__name__}: {str(exc)[:160]}"
+        if answered:
+            checks.append(Check(shown, True, f"Bedrock {shown} answers ({model_id})"))
+        else:
+            checks.append(Check(shown, False, f"Facilitator: Bedrock {shown} does not answer "
+                                              f"({model_id}): {reason or 'no reason given'}. "
+                                              f"Fix: {MODEL_FIX}"))
+    configured = (env.get("BEDROCK_OPUS_MODEL") or "").strip() or opus_id
+    if configured == opus_id:
+        checks.append(Check("editorial model", True,
+                            "The Catalog and Support agents use Claude Opus 5.5"))
+    else:
+        checks.append(Check("editorial model", False, (
+            f"Facilitator: the Catalog and Support agents use {configured}, not Claude Opus 5.5 "
+            f"({opus_id}). Fix: {MODEL_FIX}")))
+    return checks
+
+
+def models_main(env_path: pathlib.Path, run_env: pathlib.Path) -> int:
+    """--models: print one ok/warn line per check; exit 1 when any is not ready.
+
+    The settings are read as the pellier unit reads them: .env, then run.env over it.
+    """
+    env = {**workshop_check.parse_dotenv(env_path), **workshop_check.parse_dotenv(run_env),
+           **os.environ}
+    clients = bedrock_clients(env)
+    checks = bedrock_model_checks(env, lambda model: probe_bedrock_model(model, clients))
+    for check in checks:
+        print(f"{'ok' if check.passed else 'warn'}\t{check.detail}")
+    return 0 if all(check.passed for check in checks) else 1
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Check one lab's prerequisites.")
     parser.add_argument("--lab", type=int, choices=(1, 2, 3, 4))
@@ -754,6 +865,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         "--runtimes", action="store_true",
         help="read each AgentCore Runtime's status and platform version, and nothing else",
     )
+    parser.add_argument(
+        "--models", action="store_true",
+        help="call the four Bedrock models the workshop runs on, and nothing else",
+    )
     parser.add_argument("--env", default=str(DEFAULT_ENV), help="backend .env path")
     parser.add_argument(
         "--run-env", default=str(DEFAULT_RUN_ENV), help="service run.env the unit sources"
@@ -763,8 +878,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="prerequisites checks authored code/config; proof also requires recorded outcomes",
     )
     args = parser.parse_args(argv)
-    if args.lab is None and not (args.environment or args.memory or args.runtimes):
-        parser.error("name a lab with --lab, or pass --environment, --memory or --runtimes")
+    if args.lab is None and not (args.environment or args.memory or args.runtimes
+                                 or args.models):
+        parser.error("name a lab with --lab, or pass --environment, --memory, --runtimes "
+                     "or --models")
+    if args.models:
+        return models_main(pathlib.Path(args.env), pathlib.Path(args.run_env))
     if args.memory:
         memory = memory_ready(read_theo_preferences)
         print(memory.detail)

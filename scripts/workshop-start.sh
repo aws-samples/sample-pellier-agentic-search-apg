@@ -22,6 +22,11 @@
 #      stays on V1 until AWS retires it, and readiness must confirm it: a
 #      Runtime that is not READY on V1, or one that cannot be read, is a
 #      facilitator warning.
+#   5b. In the readiness record only, call the four Bedrock models the workshop
+#      runs on once each (workshop_doctor.py --models): Opus 5.5 and Sonnet 5.5
+#      through their global profiles, Rerank 3.5 and Embed v4. A model that does
+#      not answer, or Catalog and Support agents left on bootstrap's Sonnet
+#      fallback instead of Opus 5.5, is a facilitator warning.
 #   6. Read Theo's AgentCore Memory preference records once (workshop_doctor.py
 #      --memory, capped at 10 s). Lab 3 needs them; their absence is a facilitator
 #      issue, printed as a warning. Nothing is seeded and nothing waits.
@@ -147,6 +152,32 @@ EOF
     warn "Facilitator: AgentCore Runtime platform check did not finish: $runtime_why"
   fi
   rm -f "$runtime_err"
+fi
+
+# --- 5b. the four Bedrock models the workshop runs on answer ------------------
+# Readiness record only, like step 5: workshop_doctor.py --models calls Opus 5.5 and
+# Sonnet 5.5 (global profiles), Rerank 3.5 and Embed v4 once each, then reads which model
+# the Catalog and Support agents use, since bootstrap lets Sonnet stand in for a denied
+# Opus. One "ok<TAB>line" or "warn<TAB>line" per check; none at all is a facilitator warning.
+if [ "${PELLIER_READINESS_RECORD:-}" = "1" ]; then
+  model_err="$(mktemp)"
+  model_lines="$("$PYTHON" "$SCRIPT_DIR/workshop_doctor.py" --models 2>"$model_err")"
+  models_seen=0
+  TAB="$(printf '\t')"
+  while IFS="$TAB" read -r model_kind model_detail; do
+    case "$model_kind" in
+      ok) pass "$model_detail"; models_seen=$((models_seen + 1)) ;;
+      warn) warn "$model_detail"; models_seen=$((models_seen + 1)) ;;
+    esac
+  done <<EOF
+$model_lines
+EOF
+  if [ "$models_seen" -eq 0 ]; then
+    model_why="$(tail -n 1 "$model_err")"
+    model_why="${model_why:-it printed nothing}"
+    warn "Facilitator: Bedrock model check did not finish: $model_why"
+  fi
+  rm -f "$model_err"
 fi
 
 # --- 6. Theo's remembered preferences, which Lab 3's Memory finding reads ------
