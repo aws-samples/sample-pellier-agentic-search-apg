@@ -171,18 +171,17 @@ if [ "$_node24_ok" = true ]; then
             warn "Global typescript install failed – @aws/agentcore deploy may fail with 'tsc: command not found'. Recover: 'sudo npm install -g typescript@${TYPESCRIPT_VERSION}' then re-run scripts/deploy/deploy_all.sh."
         fi
 
-        # Claude Code CLI (global), for the primary build lane in Lab 2.
+        # Claude Code CLI for coaching and troubleshooting in all four labs.
         # It runs entirely against Bedrock via the box's instance
         # role (CLAUDE_CODE_USE_BEDROCK=1 + ANTHROPIC_MODEL are exported in the
         # participant .bashrc by bootstrap-labs), so there is NO per-participant
         # login — the same ambient-credential model the rest of the lab uses.
-        # Intentionally NON-fatal: the pacing fallback copies the two checked-in
-        # references and then runs the same live proof.
+        # Participants can still follow the guide and run its checks without the coach.
         # Claude Sonnet 5.5, the model ANTHROPIC_MODEL pins for this lane, needs
         # Claude Code 2.1.280 or newer, so a pin older than that refuses the model.
         # The participant shell disables the auto-updater (bootstrap-labs.sh), so
         # the box keeps this release, and the log below records it.
-        log "Installing Claude Code ${CLAUDE_CODE_VERSION} globally for Lab 2..."
+        log "Installing Claude Code ${CLAUDE_CODE_VERSION} for the workshop coding coach..."
         if (umask 022; npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" >/dev/null 2>&1); then
             # Same /usr/bin symlink defense as tsc above: the CLI runs as the
             # PARTICIPANT user, whose PATH may not include npm's global prefix.
@@ -199,7 +198,7 @@ if [ "$_node24_ok" = true ]; then
                 warn "Claude Code CLI installed but $CODE_EDITOR_USER cannot run it. Recover: 'sudo chmod -R a+rX /usr/lib/node_modules/@anthropic-ai'."
             fi
         else
-            warn "Claude Code CLI install failed - use the copy-reference pacing fallback in Lab 2. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
+            warn "Claude Code CLI install failed - participants can follow the guide and ask a facilitator for help. Recover: 'sudo npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}'."
         fi
     fi
 else

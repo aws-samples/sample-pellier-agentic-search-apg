@@ -458,8 +458,9 @@ cat >> "$GLOBAL_CLAUDE_TMP" << 'CLAUDEEOF'
 # Pellier workshop guidance
 
 - Read the repository `CLAUDE.md` and the nearest nested `CLAUDE.md` before editing.
-- Treat Lab 2, the Stock agent, `check_stock`, or workshop-marker requests as participant mode. Edit only the named marker block and never inspect `solutions/`.
-- In participant mode, do not run git, install packages, change configuration, or restart services. Stop after one failed attempt and use the guide's escape hatch.
+- For Labs 1 to 4, including troubleshooting, follow Participant mode in the repository's `CLAUDE.md`.
+- During the labs, do not inspect `solutions/`, `labs/*/solution/` or `takeaway/`.
+- Help the participant interpret the output they share. They run the commands and choose any edit, solution, catch-up, or Operator action. Do not run Git, install packages, change configuration, or restart services for them.
 - `.claude/skills/*/SKILL.md` contains coding workflows. `skills/*/SKILL.md` contains Pellier runtime prompt overlays; do not treat runtime skills as coding instructions.
 - Read `VOICE.md` before changing shopper-facing copy or model prompts.
 - Never expose or commit credentials, tokens, customer data, or copied `.env` values. Do not copy account IDs, ARNs, or private endpoints into tracked files.
@@ -607,7 +608,7 @@ fi
 # or a dead chat turn mid-session. Cohere Embed v4 is hard-required because
 # every shopper query is embedded live before the pgvector search (the cache
 # only covers the catalog corpus). The same preflight also resolves the
-# independent Claude Code CLI model for Lab 2.
+# independent Claude Code CLI model for the workshop coach.
 log "Preflight: checking Bedrock model access (${AWS_REGION})..."
 if [ -f "$REPO_PATH/scripts/check_model_access.py" ]; then
     if sudo -u "$CODE_EDITOR_USER" bash -c "
@@ -935,7 +936,7 @@ alias psql='psql'
 # AWS Region for boto3
 export AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
 
-# Claude Code CLI → Amazon Bedrock (Claude Code lane, Lab 2).
+# Claude Code CLI → Amazon Bedrock for the workshop coach.
 # CLAUDE_CODE_USE_BEDROCK=1 makes the CLI authenticate through THIS box's IAM
 # instance role (the same ambient-credential chain psql/boto3/agentcore already
 # use) — no Anthropic API key, no per-participant login, nothing to paste.
@@ -1893,8 +1894,8 @@ fi
 # switching on (check_model_access.py names a 15-minute wait); that run lets Sonnet 5.5 stand
 # in for a denied Opus 5.5. The workshop runs on Opus 5.5, so the preflight runs again here,
 # after the database and AgentCore setup (about 17 minutes later on the 24 November event).
-# recheck_model_access.sh skips a box already on Opus 5.5, never writes .env from a run that
-# failed, and restarts Pellier only when the agents' model changed. A model still silent here
+# recheck_model_access.sh verifies the running backend before skipping a box already on Opus.
+# It reloads saved settings after an unsuccessful restart. A model still silent here
 # reads as not ready in the record, with the same command as its fix.
 # ============================================================================
 log "Checking Bedrock model access again before the health gate..."

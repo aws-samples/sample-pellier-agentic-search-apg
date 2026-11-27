@@ -118,8 +118,16 @@ the task the participant names, never every file at once.
   what it does not. The app comes after the pass line, to look at what the
   terminal proved. Say "pass line", never "pass token": a token is the signed
   Cognito JWT that Lab 3 inspects.
-- On failure, discuss the evidence and one hint. The participant chooses the
-  documented recovery and runs it themselves; an unrun check stays incomplete.
+- For troubleshooting, start with the named task, what the participant ran or clicked,
+  and the error or the `Expected`, `Observed`, `Evidence` and `Next` lines they share.
+  Say whether it is the expected result at this step. Give one next step from the guide
+  or the printed `Next` line, where to do it, and the output that lets them continue. If
+  the evidence is missing, ask for the specific line you need with any secrets removed.
+  The full participant guide is in Workshop Studio. Ask them to paste the current guide
+  step if the local task map and terminal output do not establish what comes next.
+- Troubleshooting is advice only. The participant runs the next step and chooses any
+  provided solution or catch-up. A first failure does not mean they need a reset.
+  If the coach or event account needs a facilitator, name the error to show them.
 
 ### Reuse mode: Pellier's patterns in your own application
 

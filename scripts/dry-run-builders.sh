@@ -168,12 +168,10 @@ else
   exit 1
 fi
 
-# --- 1b. Claude Code preflight (Lab 2's recommended participant path) --------
+# --- 1b. Claude Code preflight ----------------------------------------------
 #
-# Lab 2 recommends Claude Code as the default build lane, so the release gate
-# has to prove the lane can start. This checks the two things that actually
-# drift between accounts — the CLI package and Bedrock model access under the
-# participant instance role — before a room discovers them.
+# Check that the workshop coach can start the pinned CLI and reach Bedrock
+# through the participant instance role.
 #
 # Model selection is left to ANTHROPIC_MODEL on purpose. Passing `--model
 # sonnet` would override the pin with the CLI's floating alias and could test
@@ -185,10 +183,10 @@ fi
 # tool implementation plus its proof — which stage 2 applies and stage 3
 # verifies through the same commands a participant runs. The AI edit path
 # itself is a manual fresh-account check; see the facilitator notes.
-echo "[1b/6] Claude Code preflight (Lab 2 recommended lane)"
+echo "[1b/6] Claude Code preflight (workshop coding coach)"
 CLAUDE_MODEL_PIN="${ANTHROPIC_MODEL:-global.anthropic.claude-sonnet-5-5}"
 if ! command -v claude >/dev/null 2>&1; then
-  fail "Claude Code CLI not on PATH — Lab 2's recommended lane cannot start"
+  fail "Claude Code CLI not on PATH — the workshop coding coach cannot start"
 else
   pass "Claude Code CLI present ($(claude --version 2>/dev/null | head -1))"
   claude_smoke="$(
