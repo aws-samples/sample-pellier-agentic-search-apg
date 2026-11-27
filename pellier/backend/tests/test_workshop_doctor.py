@@ -1375,13 +1375,15 @@ class TestBedrockModels:
     Bootstrap's health gate already fails the stack without Sonnet, Rerank or Embed, but it
     lets Sonnet stand in for a denied Opus. Readiness must see that, so a box whose Catalog
     and Support agents would not run on Opus 5.5 is not ready, with the reason and the fix.
+    The settings are not enough: recheck_model_access.sh saves Opus 5.5 before it restarts
+    Pellier, so readiness also reads the model the running backend loaded.
     """
 
     OPUS = "global.anthropic.claude-opus-5-5"
     SONNET = "global.anthropic.claude-sonnet-5-5"
 
     def _checks(self, failing: Optional[Dict[str, Any]] = None,
-                env: Optional[Dict[str, str]] = None):
+                env: Optional[Dict[str, str]] = None, loaded: Optional[bool] = True):
         failing = failing or {}
         probed = []
 
@@ -1395,7 +1397,7 @@ class TestBedrockModels:
             return (outcome is None, first, outcome or "")
 
         env = {"BEDROCK_OPUS_MODEL": self.OPUS} if env is None else env
-        return doctor.bedrock_model_checks(env, probe), probed
+        return doctor.bedrock_model_checks(env, probe, loaded=lambda: loaded), probed
 
     def test_the_four_workshop_models_are_the_ones_checked(self):
         ids = []
@@ -1434,6 +1436,81 @@ class TestBedrockModels:
         checks, _ = self._checks(env={})
         assert checks[-1].passed, checks[-1].detail
 
+    def test_a_backend_still_on_sonnet_after_opus_was_saved_is_not_ready(self):
+        checks, _ = self._checks(loaded=False)
+        editorial = checks[-1]
+        assert not editorial.passed
+        assert editorial.detail.startswith(
+            "Facilitator: the saved settings put the Catalog and Support agents on Claude Opus "
+            f"5.5 ({self.OPUS}), but the running Pellier still uses the model it started with. "
+            "Fix: run bash scripts/recheck_model_access.sh")
+        assert "uv run scripts/event_readiness.py --live" in editorial.detail
+        assert all(check.passed for check in checks[:4]), "every model still answers"
+
+    def test_a_backend_that_does_not_say_which_model_it_loaded_is_not_ready(self):
+        checks, _ = self._checks(loaded=None)
+        editorial = checks[-1]
+        assert not editorial.passed
+        assert "did not say which model the running Pellier loaded" in editorial.detail
+        assert "recheck_model_access.sh" in editorial.detail
+
+    def test_a_sonnet_stand_in_is_reported_from_the_settings_alone(self):
+        read = []
+        checks = doctor.bedrock_model_checks(
+            {"BEDROCK_OPUS_MODEL": self.SONNET},
+            lambda model: (True, model.get("model_id") or model["model_id_variants"][0], ""),
+            loaded=lambda: read.append("health") or False)
+        assert read == [], "the saved stand-in already names the fix"
+        assert checks[-1].detail.startswith(
+            f"Facilitator: the Catalog and Support agents use {self.SONNET}, not Claude Opus 5.5")
+
+    @pytest.mark.parametrize("body, expected", [
+        ('{"status": "healthy", "editorial_model_is_default": true}', True),
+        ('{"status": "healthy", "editorial_model_is_default": false}', False),
+        ('{"status": "healthy"}', None),
+        ('{"status": "healthy", "editorial_model_is_default": "true"}', None),
+        ('["healthy"]', None),
+        ("not json", None),
+    ])
+    def test_the_running_model_is_read_from_the_health_endpoint(self, tmp_path, body, expected):
+        health = tmp_path / "health.json"
+        health.write_text(body)
+        assert doctor.running_editorial_default(health.as_uri()) is expected
+
+    def test_a_health_endpoint_that_does_not_answer_reads_as_unknown(self, tmp_path):
+        assert doctor.running_editorial_default((tmp_path / "missing.json").as_uri()) is None
+
+    def test_the_flag_reads_the_running_model_from_the_health_url(
+        self, tmp_path, monkeypatch, capsys,
+    ):
+        dotenv = tmp_path / ".env"
+        dotenv.write_text(f"BEDROCK_OPUS_MODEL={self.OPUS}\n")
+        health = tmp_path / "health.json"
+        health.write_text('{"status": "healthy", "editorial_model_is_default": false}')
+        monkeypatch.delenv("BEDROCK_OPUS_MODEL", raising=False)
+        monkeypatch.setenv("HEALTH_URL", health.as_uri())
+        monkeypatch.setattr(doctor, "bedrock_clients", lambda env: (object(), object()))
+        monkeypatch.setattr(doctor, "probe_bedrock_model", lambda model, clients: (
+            True, model.get("model_id") or model["model_id_variants"][0], ""))
+        args = ["--models", "--env", str(dotenv), "--run-env", str(tmp_path / "run.env")]
+        assert doctor.main(args) == 1
+        assert capsys.readouterr().out.splitlines()[-1].startswith(
+            "warn\tFacilitator: the saved settings put the Catalog and Support agents on Claude")
+        health.write_text('{"status": "healthy", "editorial_model_is_default": true}')
+        assert doctor.main(args) == 0
+        assert capsys.readouterr().out.splitlines()[-1] == (
+            "ok\tThe Catalog and Support agents use Claude Opus 5.5")
+
+    def test_no_check_that_can_fail_the_stack_reads_the_running_model(self):
+        readers = sorted(
+            str(path.relative_to(REPO)) for path in (REPO / "scripts").rglob("*")
+            if path.is_file() and path.suffix in {".sh", ".py"}
+            and "editorial_model_is_default" in path.read_text(errors="ignore")
+        )
+        assert readers == ["scripts/recheck_model_access.sh", "scripts/workshop_doctor.py"], (
+            "a box whose restart onto Opus 5.5 did not land is fixed by one command; the health "
+            "gate fails the whole stack, so the running model belongs to readiness only")
+
     def test_a_silent_rerank_or_embed_is_not_ready(self):
         checks, _ = self._checks({"Cohere Rerank v3.5": "ResourceNotFoundException",
                                   "Cohere Embed v4": "ThrottlingException"})
@@ -1455,7 +1532,8 @@ class TestBedrockModels:
             probed.append(model["name"])
             return (True, model.get("model_id") or model["model_id_variants"][0], "")
 
-        checks = doctor.bedrock_model_checks({}, probe, clock=lambda: next(ticks), budget=60)
+        checks = doctor.bedrock_model_checks({}, probe, loaded=lambda: True,
+                                             clock=lambda: next(ticks), budget=60)
         assert probed == ["Claude Opus 5.5"], "nothing is called once the budget is spent"
         assert checks[1].detail.startswith(
             f"Facilitator: Bedrock Claude Sonnet 5.5 was not checked ({self.SONNET}): the model "
@@ -1501,6 +1579,7 @@ class TestBedrockModels:
 
         monkeypatch.setattr(doctor, "probe_bedrock_model", fake_probe)
         monkeypatch.setattr(doctor, "bedrock_clients", lambda env: (object(), object()))
+        monkeypatch.setattr(doctor, "running_editorial_default", lambda url: True)
         assert doctor.main(["--models", "--env", "/nonexistent/.env"]) == 1
         lines = capsys.readouterr().out.splitlines()
         assert len(lines) == 5

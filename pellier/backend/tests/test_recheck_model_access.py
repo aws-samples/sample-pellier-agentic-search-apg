@@ -8,12 +8,14 @@ readiness says the Catalog and Support agents are not on Opus 5.5 (owner, 2026-1
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import pytest
 
@@ -63,7 +65,7 @@ class _Box:
 
     def _run(self, tmp_path: Path, repo: Path, *, preflight_opus: str = OPUS,
              preflight_exit: int = 0, healthy: Optional[bool] = True, loaded_opus: bool = True,
-             as_root: bool = False) -> subprocess.CompletedProcess:
+             as_root: bool = False, restart_exit: int = 0) -> subprocess.CompletedProcess:
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir(exist_ok=True)
         calls = tmp_path / "calls.log"
@@ -95,6 +97,7 @@ class _Box:
             "CALLS": str(calls),
             "PREFLIGHT_OPUS": preflight_opus,
             "PREFLIGHT_EXIT": str(preflight_exit),
+            "RESTART_EXIT": str(restart_exit),
         }
         return subprocess.run([BASH, str(SCRIPT)], capture_output=True, text=True, timeout=60,
                               env=env)
@@ -173,6 +176,54 @@ class TestRecheck(_Box):
         assert calls.count("systemctl restart pellier") == 3
         assert self._run(tmp_path, repo).returncode == 0
         assert self._calls(tmp_path).count("systemctl restart pellier") == 3
+
+
+def _doctor(monkeypatch: pytest.MonkeyPatch) -> Any:
+    """workshop_doctor.py, registered only for this test so no other test sees this copy."""
+    spec = importlib.util.spec_from_file_location(
+        "pellier_workshop_doctor", REPO / "scripts" / "workshop_doctor.py")
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, "pellier_workshop_doctor", module)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.skipif(BASH is None or CURL is None, reason="bash and curl required")
+class TestFailedRestartReadsNotReady(_Box):
+    """Bootstrap's STEP 18e saves Opus 5.5, then the restart does not land (owner, 2026-11-27).
+
+    The box keeps running on Sonnet with Opus in its settings. Setup carries on, and the
+    readiness record, which reads the running backend, says not ready with the fix.
+    """
+
+    def test_a_restart_that_failed_after_opus_was_saved_reads_as_not_ready(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture,
+    ) -> None:
+        repo = self._box(tmp_path, f"BEDROCK_MODEL_ACCESS_READY=true\n"
+                                   f"BEDROCK_OPUS_MODEL={SONNET}\n")
+        result = self._run(tmp_path, repo, restart_exit=1, loaded_opus=False)
+        assert result.returncode == 1
+        assert "Pellier did not restart" in result.stdout
+        env_file = repo / "pellier" / "backend" / ".env"
+        assert f"BEDROCK_OPUS_MODEL={OPUS}" in env_file.read_text(), "saved before the restart"
+
+        doctor = _doctor(monkeypatch)
+        monkeypatch.delenv("BEDROCK_OPUS_MODEL", raising=False)
+        monkeypatch.setenv("HEALTH_URL", (tmp_path / "health.json").as_uri())
+        monkeypatch.setattr(doctor, "bedrock_clients", lambda env: (object(), object()))
+        monkeypatch.setattr(doctor, "probe_bedrock_model", lambda model, clients: (
+            True, model.get("model_id") or model["model_id_variants"][0], ""))
+        status = doctor.main(["--models", "--env", str(env_file),
+                              "--run-env", str(tmp_path / "run.env")])
+        last = capsys.readouterr().out.splitlines()[-1]
+        assert status == 1, "the record reads not ready"
+        assert last.startswith(
+            "warn\tFacilitator: the saved settings put the Catalog and Support agents on Claude "
+            f"Opus 5.5 ({OPUS}), but the running Pellier still uses the model it started with.")
+        assert "bash scripts/recheck_model_access.sh" in last
+
+        assert self._run(tmp_path, repo).returncode == 0, "the named fix restarts and verifies"
 
 
 def test_bootstrap_rechecks_the_models_after_the_managed_setup_and_before_the_gate() -> None:

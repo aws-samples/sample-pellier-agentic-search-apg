@@ -111,13 +111,21 @@ RUNTIME_READ_TIMEOUT_SECONDS = 10
 # Rerank 3.5 and Cohere Embed v4 (owner, 2026-11-25). check_model_access.py's MODELS holds the
 # IDs; readiness calls each live. Its health gate already fails the stack without Sonnet, Rerank
 # or Embed, but lets Sonnet stand in for a denied Opus, so readiness also reads which model the
-# Catalog and Support agents were configured with.
+# Catalog and Support agents were configured with, and which one the running backend loaded:
+# recheck_model_access.sh saves Opus 5.5 before it restarts Pellier, and a restart that did not
+# land leaves the old process serving the model it started with. That reading stays here, in the
+# readiness record, because a failed health gate fails the whole stack and this is a one-command
+# fix on a working box.
 READINESS_MODELS = ("Claude Opus 5.5", "Claude Sonnet", "Cohere Rerank v3.5", "Cohere Embed v4")
 MODEL_SHOWN = {"Claude Sonnet": "Claude Sonnet 5.5"}
 OPUS_MODEL = "Claude Opus 5.5"
 MODEL_FIX = ("once this account's Bedrock access allows it, run bash "
              "scripts/recheck_model_access.sh, then uv run scripts/event_readiness.py --live; "
              "or give the participant a spare account.")
+RELOAD_FIX = ("run bash scripts/recheck_model_access.sh, which restarts Pellier and checks the "
+              "model it loaded, then uv run scripts/event_readiness.py --live.")
+DEFAULT_HEALTH_URL = "http://localhost:8000/api/health"
+HEALTH_READ_TIMEOUT_SECONDS = 3
 # The whole readiness record has 180 s (event_readiness.py). A call takes at most two tries of
 # 3 s to connect and 8 s to answer, and no model is called once 40 s have gone, so the check
 # ends within about 85 s even when Embed's two IDs start at the deadline. A model call usually
@@ -797,11 +805,57 @@ def probe_bedrock_model(model: Mapping[str, Any],
     return answered, model_id, reason[:200]
 
 
+def running_editorial_default(health_url: str) -> Optional[bool]:
+    """Whether the running backend loaded the default editorial model, from /api/health.
+
+    None when the endpoint does not answer or does not say: readiness cannot confirm it then.
+    """
+    import json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(health_url, timeout=HEALTH_READ_TIMEOUT_SECONDS) as response:
+            loaded = json.load(response).get("editorial_model_is_default")
+    except (OSError, ValueError, AttributeError):  # unreachable, not JSON, or not an object
+        return None
+    return loaded if isinstance(loaded, bool) else None
+
+
+def editorial_model_check(configured: str, opus_id: str,
+                          loaded: Callable[[], Optional[bool]]) -> Check:
+    """Which model the Catalog and Support agents use, saved and as the running backend loaded it."""
+    if configured != opus_id:
+        return Check("editorial model", False, (
+            f"Facilitator: the Catalog and Support agents use {configured}, not Claude Opus 5.5 "
+            f"({opus_id}). Fix: {MODEL_FIX}"))
+    running = loaded()
+    if running is True:
+        return Check("editorial model", True, "The Catalog and Support agents use Claude Opus 5.5")
+    saved = ("Facilitator: the saved settings put the Catalog and Support agents on Claude Opus "
+             f"5.5 ({opus_id}), but")
+    if running is False:
+        return Check("editorial model", False, (
+            f"{saved} the running Pellier still uses the model it started with. Fix: {RELOAD_FIX}"))
+    return Check("editorial model", False, (
+        f"{saved} /api/health did not say which model the running Pellier loaded. "
+        f"Fix: {RELOAD_FIX}"))
+
+
 def bedrock_model_checks(env: Mapping[str, str],
                          probe: Callable[[Mapping[str, Any]], Tuple[bool, str, str]],
+                         *,
+                         loaded: Callable[[], Optional[bool]],
                          clock: Callable[[], float] = time.monotonic,
                          budget: float = MODEL_CHECK_BUDGET_SECONDS) -> List[Check]:
-    """One line per model it calls, then which model the Catalog and Support agents use."""
+    """One line per model it calls, then which model the Catalog and Support agents use.
+
+    Args:
+        env: The settings as the pellier unit reads them.
+        probe: Calls one model: (answered, model ID, the preflight's reason).
+        loaded: Whether the running backend loaded the default editorial model; None if unknown.
+        clock: Seconds, for the budget.
+        budget: Seconds after which no further model is called.
+    """
     checks: List[Check] = []
     opus_id = ""
     started = clock()
@@ -826,13 +880,7 @@ def bedrock_model_checks(env: Mapping[str, str],
                                               f"({model_id}): {reason or 'no reason given'}. "
                                               f"Fix: {MODEL_FIX}"))
     configured = (env.get("BEDROCK_OPUS_MODEL") or "").strip() or opus_id
-    if configured == opus_id:
-        checks.append(Check("editorial model", True,
-                            "The Catalog and Support agents use Claude Opus 5.5"))
-    else:
-        checks.append(Check("editorial model", False, (
-            f"Facilitator: the Catalog and Support agents use {configured}, not Claude Opus 5.5 "
-            f"({opus_id}). Fix: {MODEL_FIX}")))
+    checks.append(editorial_model_check(configured, opus_id, loaded))
     return checks
 
 
@@ -844,7 +892,9 @@ def models_main(env_path: pathlib.Path, run_env: pathlib.Path) -> int:
     env = {**workshop_check.parse_dotenv(env_path), **workshop_check.parse_dotenv(run_env),
            **os.environ}
     clients = bedrock_clients(env)
-    checks = bedrock_model_checks(env, lambda model: probe_bedrock_model(model, clients))
+    health_url = (env.get("HEALTH_URL") or "").strip() or DEFAULT_HEALTH_URL
+    checks = bedrock_model_checks(env, lambda model: probe_bedrock_model(model, clients),
+                                  loaded=lambda: running_editorial_default(health_url))
     for check in checks:
         print(f"{'ok' if check.passed else 'warn'}\t{check.detail}")
     return 0 if all(check.passed for check in checks) else 1
