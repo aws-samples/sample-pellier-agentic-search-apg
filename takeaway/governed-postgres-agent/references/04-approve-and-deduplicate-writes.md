@@ -17,11 +17,18 @@ Trace every entry point to the database function and inspect the effective
 role. A direct table UPDATE can bypass an otherwise correct insert guard.
 A SECURITY DEFINER function needs a protected owner, schema-qualified object
 names, a fixed safe search_path and restricted EXECUTE privileges. Check
-inherited and PUBLIC privileges. Do not check only grants that name the role
-directly. If pgAudit is the database's record of the write, make each login that
-calls the function a member of its owner (`WITH INHERIT FALSE, SET FALSE` grants
-nothing else). pgAudit skips statements inside a SECURITY DEFINER function when
-the session's login is not a member of the role the function runs as.
+inherited and PUBLIC privileges as well as direct grants.
+
+The expense example uses `review_writer`, a role without a login. Its
+`privileges` check fails if that writer belongs to the role that owns the
+credit function.
+
+In Pellier, `pellier_store_tools` logs in and switches to
+`pellier_credit_writer` to call the credit function. The login also belongs
+to `pellier_credit_owner` so pgAudit can record the insert inside the function.
+That membership uses `WITH INHERIT FALSE, SET FALSE`. The login cannot
+inherit the owner's privileges or switch to the owner role through this grant.
+When adapting the check, inspect the login and the writer role separately.
 
 ## A complete, runnable example
 

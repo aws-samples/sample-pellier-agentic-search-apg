@@ -177,6 +177,20 @@ class TakeawaySQLTests(unittest.TestCase):
         self.conn.execute("REVOKE UPDATE ON review_example.credits FROM PUBLIC")
         self.assertEqual(self.query("privileges"), "passed|0")
 
+    def test_privilege_query_requires_schema_usage_to_call_function(self):
+        self.conn.execute("REVOKE USAGE ON SCHEMA review_example FROM review_writer")
+        self.assertEqual(self.query("privileges"), "failed|0")
+        self.conn.execute("GRANT USAGE ON SCHEMA review_example TO review_writer")
+        self.assertEqual(self.query("privileges"), "passed|0")
+
+    def test_privilege_query_counts_a_maintenance_only_grant(self):
+        if self.conn.info.server_version < 170000:
+            self.skipTest("MAINTAIN was added in PostgreSQL 17")
+        self.conn.execute("GRANT MAINTAIN ON review_example.credits TO review_writer")
+        self.assertEqual(self.query("privileges"), "failed|1")
+        self.conn.execute("REVOKE MAINTAIN ON review_example.credits FROM review_writer")
+        self.assertEqual(self.query("privileges"), "passed|0")
+
     def test_privilege_query_detects_inherited_access(self):
         self.conn.execute("GRANT SELECT ON review_example.credits TO review_support")
         self.conn.execute("GRANT review_support TO review_writer")

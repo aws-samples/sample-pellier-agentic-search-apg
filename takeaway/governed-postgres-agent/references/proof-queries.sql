@@ -105,7 +105,9 @@ SELECT CASE WHEN NOT EXISTS (SELECT 1 FROM credits) THEN 'not tested'
 WITH access AS (
     SELECT c.relname,
            has_table_privilege('review_writer', c.oid,
-               'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+               'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER' ||
+               CASE WHEN current_setting('server_version_num')::int >= 170000
+                    THEN ',MAINTAIN' ELSE '' END)
            OR has_any_column_privilege('review_writer', c.oid,
                'SELECT,INSERT,UPDATE,REFERENCES') AS table_access
     FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -116,6 +118,7 @@ WITH access AS (
 )
 SELECT CASE WHEN p.prosecdef
     AND p.proconfig @> ARRAY['search_path=pg_catalog, pg_temp']
+    AND has_schema_privilege('review_writer', p.pronamespace, 'USAGE')
     AND has_function_privilege('review_writer', p.oid, 'EXECUTE')
     AND NOT has_function_privilege('public', p.oid, 'EXECUTE')
     AND NOT EXISTS (SELECT 1 FROM access WHERE table_access)
@@ -127,6 +130,8 @@ SELECT CASE WHEN p.prosecdef
 FROM fn p;
 -- end
 -- Fixture: passed | 0. PUBLIC, inherited or column-level access changes this to failed.
+-- The writer needs schema USAGE to call the function. Losing it gives failed | 0.
+-- A MAINTAIN grant alone on one table gives failed | 1 on PostgreSQL 17 or later.
 -- Review additional callable functions and role-switch paths separately.
 
 -- query: committed_write
