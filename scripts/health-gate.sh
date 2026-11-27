@@ -610,6 +610,19 @@ if [[ -s "$synth_retries" ]]; then
   warn "$retry_line"
 fi
 
+# An empty or unreadable AgentCore Runtime reply that a smoke, the Runtime hello or the Lab 3 check
+# turn asked again (a test event, 25 Nov 2026: the data plane answered a completed turn with an
+# empty body). A recovered run is otherwise silent, so the provisioner and those scripts keep this
+# record.
+reply_retries="$REPO/.agentcore-project/runtime-reply-retries.log"
+if [[ -s "$reply_retries" ]]; then
+  asked="$(grep -c . "$reply_retries" || true)"
+  last_ask="$(tail -1 "$reply_retries" | cut -c1-240)"
+  reply_line="Runtime probe failures recorded: ${asked}."
+  reply_line+=" Keep ${reply_retries} for the workshop owner. Last: ${last_ask}"
+  warn "$reply_line"
+fi
+
 if $ok; then
   printf "${GREEN}● READY${NC} — all required checks passed.\n"
   exit 0

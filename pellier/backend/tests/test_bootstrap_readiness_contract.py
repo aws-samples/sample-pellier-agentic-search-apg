@@ -579,6 +579,7 @@ def _run_health_gate(
     credential_secret_arn: str | None = "arn:aws:secretsmanager:us-east-1:123:secret:test-credentials",
     node_version: str = "v24.21.0",
     synth_retries: str | None = None,
+    reply_retries: str | None = None,
     engine_version: str = "18.6",
     extension_versions: str = "pg_stat_statements 1.12, pg_trgm 1.6, pgaudit 18.0, vector 0.8.2",
 ) -> subprocess.CompletedProcess[str]:
@@ -597,8 +598,11 @@ def _run_health_gate(
     shopper_jwt = ".".join((_jwt_segment({"alg": "none"}), _jwt_segment(shopper_payload), "sig"))
     repo.mkdir()
     if synth_retries is not None:
-        (repo / ".agentcore-project").mkdir()
+        (repo / ".agentcore-project").mkdir(exist_ok=True)
         (repo / ".agentcore-project" / "synth-retries.log").write_text(synth_retries)
+    if reply_retries is not None:
+        (repo / ".agentcore-project").mkdir(exist_ok=True)
+        (repo / ".agentcore-project" / "runtime-reply-retries.log").write_text(reply_retries)
     fake_bin.mkdir()
     # Both lifecycle markers default to /var/lib/pellier on a box. Point them at
     # the sandbox so a developer's real markers never leak into the verdict.
@@ -1026,11 +1030,13 @@ def _load_provisioner():
 
 
 @pytest.mark.parametrize("audit_rows", [0, 1, 2])
-def test_staff_probe_requires_one_execution_of_the_expected_lambda(monkeypatch, audit_rows):
+def test_staff_probe_requires_one_execution_of_the_expected_lambda(monkeypatch, tmp_path, audit_rows):
     from services import operator_runtime_client
+
+    # Loading the provisioner puts scripts/deploy on the import path that common.* needs.
+    provisioner = _load_provisioner()
     from common.fingerprint import OPERATOR_SOURCE_PATHS, compute_fingerprint
 
-    provisioner = _load_provisioner()
     expected_tools = compute_fingerprint(provisioner.deploy_lambda.package_files(
         str(REPO / "scripts/deploy/pellier_operator_tools.py"), "pellier_operator_tools.lambda_handler"
     ), source_paths=OPERATOR_SOURCE_PATHS)
@@ -1056,7 +1062,8 @@ def test_staff_probe_requires_one_execution_of_the_expected_lambda(monkeypatch, 
     monkeypatch.setattr(provisioner.boto3, "client", lambda *_a, **_k: SimpleNamespace(execute_statement=execute))
     args = dict(region="us-east-1", client_secret_arn=None, runtime_arn="staff-runtime",
                 expected_fingerprint="a" * 64, required={"cognito_pool": "pool", "cognito_client": "client",
-                "credentials_secret": "credentials", "db_cluster_arn": "cluster", "db_secret_arn": "secret"})
+                "credentials_secret": "credentials", "db_cluster_arn": "cluster", "db_secret_arn": "secret"},
+                root=tmp_path / "pellier")
     if audit_rows != 1:
         with pytest.raises(RuntimeError, match="unique correlated execution receipt"):
             provisioner._operator_runtime_smoke(**args)
@@ -1064,6 +1071,93 @@ def test_staff_probe_requires_one_execution_of_the_expected_lambda(monkeypatch, 
         proof = provisioner._operator_runtime_smoke(**args)
         assert proof["tools_fingerprint"] == expected_tools
         assert proof["turn_id"] == calls[0]["turn_id"]
+
+
+def _staff_smoke_with_replies(monkeypatch, tmp_path, replies):
+    """Run the staff probe against a Runtime that answers ``replies`` in order (an exception is
+    raised); every turn that answers has its one audit row."""
+    from services import operator_runtime_client
+
+    provisioner = _load_provisioner()
+    monkeypatch.setattr(provisioner, "_cognito_access_token", lambda **_: ("test-token", "nadia"))
+    monkeypatch.setattr(provisioner, "_unverified_token_claims", lambda _: {"sub": "staff-subject"})
+    monkeypatch.setattr(provisioner.time, "sleep", lambda _s: None)
+    answers, calls = iter(replies), []
+
+    def invoke(**kwargs):
+        calls.append(kwargs)
+        answer = next(answers)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    def execute(**kwargs):
+        values = {p["name"]: p["value"]["stringValue"] for p in kwargs["parameters"]}
+        return {"records": [[{"longValue": 1 if values["turn"] == calls[-1]["turn_id"] else 0}]]}
+
+    monkeypatch.setattr(operator_runtime_client, "investigate_on_runtime", invoke)
+    monkeypatch.setattr(provisioner.boto3, "client", lambda *_a, **_k: SimpleNamespace(execute_statement=execute))
+    root = tmp_path / "pellier"
+    root.mkdir()
+    run = lambda: provisioner._operator_runtime_smoke(  # noqa: E731 - one call site per test
+        region="us-east-1", client_secret_arn=None, runtime_arn="staff-runtime",
+        expected_fingerprint="a" * 64, root=root,
+        required={"cognito_pool": "pool", "cognito_client": "client", "credentials_secret": "credentials",
+                  "db_cluster_arn": "cluster", "db_secret_arn": "secret"})
+    return provisioner, run, calls
+
+
+_READY_CASE = {"status": "ready", "build_fingerprint": "a" * 64,
+               "case_access": {"database_role": "pellier_operator_tools",
+                               "visible_orders": ["CUST-JESSICA"], "visible_tickets": ["CUST-JESSICA"]}}
+
+
+def test_staff_probe_asks_again_in_a_new_turn_after_an_empty_reply(monkeypatch, tmp_path):
+    """An empty staff reply is asked again with a fresh turn, so the probe's one-audit-row rule
+    still holds for the turn that answered, and the retry is kept for the health gate."""
+    from services import operator_runtime_client
+
+    empty = operator_runtime_client.OperatorRuntimeEmptyReply("operator_runtime_invalid_response")
+    provisioner, run, calls = _staff_smoke_with_replies(monkeypatch, tmp_path, [empty, dict(_READY_CASE)])
+    proof = run()
+    assert len(calls) == 2 and calls[0]["turn_id"] != calls[1]["turn_id"]
+    assert proof["turn_id"] == calls[1]["turn_id"]
+    record = (tmp_path / provisioner.RUNTIME_REPLY_RETRIES).read_text("utf-8")
+    assert "staff Runtime" in record and record.count("\n") == 1
+
+
+def test_empty_staff_replies_do_not_use_up_the_build_attempts(monkeypatch, tmp_path):
+    """Three empty replies, then eleven answers from the previous build, then this build: the
+    probe passes, because an empty reply says nothing about which build answered."""
+    from services import operator_runtime_client
+
+    empty = operator_runtime_client.OperatorRuntimeEmptyReply("operator_runtime_invalid_response")
+    stale = {**_READY_CASE, "build_fingerprint": "b" * 64}
+    replies = [empty] * 3 + [dict(stale) for _ in range(11)] + [dict(_READY_CASE)]
+    _provisioner, run, calls = _staff_smoke_with_replies(monkeypatch, tmp_path, replies)
+    assert run()["build_fingerprint"] == "a" * 64 and len(calls) == 15
+
+
+def test_staff_probe_names_an_empty_reply_that_never_recovers(monkeypatch, tmp_path):
+    from services import operator_runtime_client
+
+    provisioner = _load_provisioner()
+    tries = provisioner.UNREADABLE_REPLY_TRIES
+    empty = operator_runtime_client.OperatorRuntimeEmptyReply("operator_runtime_invalid_response")
+    _provisioner, run, calls = _staff_smoke_with_replies(monkeypatch, tmp_path, [empty] * tries)
+    with pytest.raises(RuntimeError, match="empty") as failure:
+        run()
+    assert "did not serve the deployed build" not in str(failure.value) and len(calls) == tries
+
+
+def test_staff_probe_does_not_ask_again_after_a_refusal(monkeypatch, tmp_path):
+    from services import operator_runtime_client
+
+    refused = operator_runtime_client.OperatorRuntimeError("staff_scope_required")
+    _provisioner, run, calls = _staff_smoke_with_replies(monkeypatch, tmp_path, [refused, dict(_READY_CASE)])
+    with pytest.raises(operator_runtime_client.OperatorRuntimeError, match="staff_scope_required"):
+        run()
+    assert len(calls) == 1
 
 
 @pytest.mark.parametrize("mapped", [False, True])
@@ -1471,6 +1565,23 @@ def test_a_deploy_that_passed_on_its_second_try_is_reported_and_changes_no_verdi
             "Keep ") in with_record.stdout
     assert "Last: 2026-11-08T22:18:28Z agentcore deploy --yes --json: The CDK synth" in (
         with_record.stdout)
+    assert with_record.returncode == without.returncode
+
+
+def test_an_unreadable_runtime_reply_that_was_asked_again_is_reported_and_changes_no_verdict(
+        tmp_path) -> None:
+    """A smoke, hello or check turn asks again after an empty Runtime reply (a test event,
+    25 Nov 2026). A recovered run is otherwise silent; the gate names the record."""
+    record = ("2026-11-25T21:11:34Z shopper Runtime smoke, ask 1 of 4, session builders-smoke-1: "
+              "AgentCore CLI reported success with an empty Runtime reply\n")
+    common = {"model_ready": True, "workshop_format": "governed", "managed_ready": True}
+    for name in ("without", "with"):
+        (tmp_path / name).mkdir()
+    without = _run_health_gate(tmp_path / "without", **common)
+    with_record = _run_health_gate(tmp_path / "with", **common, reply_retries=record)
+    assert "Runtime probe failures recorded" not in without.stdout
+    assert "Runtime probe failures recorded: 1. Keep " in with_record.stdout
+    assert "Last: 2026-11-25T21:11:34Z shopper Runtime smoke" in with_record.stdout
     assert with_record.returncode == without.returncode
 
 

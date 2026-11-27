@@ -514,6 +514,9 @@ async def health_check(response: Response):
         "custom_tools": "available",
         "version": "1.0.0",
         "use_agentcore_runtime": settings.USE_AGENTCORE_RUNTIME,
+        "editorial_model_is_default": (
+            settings.BEDROCK_OPUS_MODEL == type(settings).model_fields["BEDROCK_OPUS_MODEL"].default
+        ),
     }
 
     # Check database connection

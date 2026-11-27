@@ -2183,6 +2183,127 @@ def test_runtime_smoke_refuses_when_only_the_previous_build_ever_answers(
         )
 
 
+def _cli_reply(response: Any, success: bool = True) -> Any:
+    """What the pinned CLI prints for one invoke: its own envelope around the Runtime's reply."""
+    import subprocess
+
+    return subprocess.CompletedProcess(
+        args=["npx"], returncode=0, stdout=json.dumps({"success": success, "response": response}),
+        stderr="",
+    )
+
+
+def _smoke_with_replies(provisioner: Any, monkeypatch: pytest.MonkeyPatch, root: Path,
+                        replies: list[Any]) -> tuple[Any, list[tuple[str, ...]]]:
+    """Run the smoke against a CLI that returns ``replies`` in order; return it and the calls."""
+    answers = iter(replies)
+    calls: list[tuple[str, ...]] = []
+
+    def _fake_agentcore(_root: Path, *args: str, env: dict[str, str]) -> Any:
+        calls.append(args)
+        return next(answers)
+
+    monkeypatch.setattr(provisioner, "_agentcore", _fake_agentcore)
+    monkeypatch.setattr(provisioner.time, "sleep", lambda _s: None)
+    run = lambda: provisioner._authenticated_runtime_smoke(  # noqa: E731 - one call site per test
+        root=root, access_token="t", username="marco", env={},
+        expected_fingerprint="new" * 8, attempts=3, wait_seconds=0,
+    )
+    return run, calls
+
+
+@pytest.mark.parametrize("answer", [None, False, [], {}, "  "])
+def test_runtime_smoke_requires_a_text_answer(monkeypatch, tmp_path, answer) -> None:
+    provisioner = _load_provisioner()
+    run, _ = _smoke_with_replies(provisioner, monkeypatch, tmp_path, [
+        _cli_reply({"build_fingerprint": "new" * 8, "rail": "gateway-mcp", "response": answer})
+    ])
+    with pytest.raises(RuntimeError, match="response"):
+        run()
+
+
+def test_runtime_smoke_asks_again_after_an_empty_reply(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A test event, 25 Nov 2026: the Runtime finished the turn, the CLI reported success with an
+    empty reply, and the smoke failed the whole stack. The next ask answers; the smoke must
+    take it, and leave a line where the health gate reports it."""
+    provisioner = _load_provisioner()
+    root = tmp_path / "pellier"
+    root.mkdir()
+    run, calls = _smoke_with_replies(
+        provisioner, monkeypatch, root, [_cli_reply(""), _cli_invoke_result("new" * 8)]
+    )
+    smoke = run()
+    assert smoke["build_fingerprint_match"] is True and len(calls) == 2
+    sessions = [args[args.index("--session-id") + 1] for args in calls]
+    assert len(set(sessions)) == 2, "each ask needs its own Runtime session"
+    record = (tmp_path / provisioner.RUNTIME_REPLY_RETRIES).read_text("utf-8")
+    assert "empty" in record and record.count("\n") == 1
+
+
+def test_runtime_smoke_asks_again_after_a_reply_that_is_not_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    provisioner = _load_provisioner()
+    root = tmp_path / "pellier"
+    root.mkdir()
+    run, calls = _smoke_with_replies(
+        provisioner, monkeypatch, root,
+        [_cli_reply("upstream request timeout"), _cli_invoke_result("new" * 8)],
+    )
+    assert run()["build_fingerprint_match"] is True and len(calls) == 2
+
+
+def test_runtime_smoke_names_an_empty_reply_that_never_recovers(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Every ask empty: fail with what happened, never as a stale-build message."""
+    provisioner = _load_provisioner()
+    root = tmp_path / "pellier"
+    root.mkdir()
+    tries = provisioner.UNREADABLE_REPLY_TRIES
+    run, calls = _smoke_with_replies(provisioner, monkeypatch, root, [_cli_reply("")] * tries)
+    with pytest.raises(RuntimeError, match="empty") as failure:
+        run()
+    assert "previous version" not in str(failure.value)
+    assert len(calls) == tries
+
+
+@pytest.mark.parametrize("participant", [False, True])
+def test_a_retry_that_cannot_be_recorded_still_answers_and_is_quiet_for_a_participant(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+    participant: bool,
+) -> None:
+    provisioner = _load_provisioner()
+    root = tmp_path / "pellier"
+    root.mkdir()
+    (tmp_path / provisioner.RUNTIME_REPLY_RETRIES).mkdir()  # the record cannot be written
+    monkeypatch.setitem(provisioner._PARTICIPANT_VIEW, "on", participant)
+    run, calls = _smoke_with_replies(
+        provisioner, monkeypatch, root, [_cli_reply(""), _cli_invoke_result("new" * 8)]
+    )
+    assert run()["build_fingerprint_match"] is True and len(calls) == 2
+    printed = capsys.readouterr().out
+    assert ("Could not keep this retry" in printed) is not participant
+    assert ("asking again" in printed) is not participant
+
+
+def test_runtime_smoke_does_not_ask_again_when_the_cli_reports_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Only a successful invoke with an unreadable reply is asked again."""
+    provisioner = _load_provisioner()
+    root = tmp_path / "pellier"
+    root.mkdir()
+    run, calls = _smoke_with_replies(
+        provisioner, monkeypatch, root, [_cli_reply("", success=False), _cli_invoke_result("new" * 8)]
+    )
+    with pytest.raises(RuntimeError, match="did not report success"):
+        run()
+    assert len(calls) == 1
+
+
 def test_rendered_build_fingerprint_is_read_from_the_project(tmp_path: Path) -> None:
     provisioner = _load_provisioner()
     assert provisioner._rendered_build_fingerprint(tmp_path) == ""

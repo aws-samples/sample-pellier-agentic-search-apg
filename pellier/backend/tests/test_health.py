@@ -16,12 +16,16 @@ from services.database import DatabaseService
     (True, True), (False, True), (True, False), (False, False),
 ])
 @pytest.mark.parametrize("use_agentcore_runtime", [False, True])
+@pytest.mark.parametrize("default_editorial_model", [False, True])
 def test_health_http_status_matches_dependency_result(
-    monkeypatch, database_ok, bedrock_ok, use_agentcore_runtime,
+    monkeypatch, database_ok, bedrock_ok, use_agentcore_runtime, default_editorial_model,
 ):
     import app
 
     monkeypatch.setattr(app.settings, "USE_AGENTCORE_RUNTIME", use_agentcore_runtime)
+    default_model = type(app.settings).model_fields["BEDROCK_OPUS_MODEL"].default
+    monkeypatch.setattr(app.settings, "BEDROCK_OPUS_MODEL",
+                        default_model if default_editorial_model else "other-profile")
     db = SimpleNamespace(check_health=AsyncMock(
         side_effect=None if database_ok else RuntimeError("connection unavailable"),
     ))
@@ -45,6 +49,7 @@ def test_health_http_status_matches_dependency_result(
     assert result.database == ("connected" if database_ok else "disconnected")
     assert result.bedrock == ("accessible" if bedrock_ok else "inaccessible")
     assert result.model_dump()["use_agentcore_runtime"] is use_agentcore_runtime
+    assert result.model_dump()["editorial_model_is_default"] is default_editorial_model
     db.check_health.assert_awaited_once()
 
 

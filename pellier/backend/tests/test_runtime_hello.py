@@ -226,3 +226,84 @@ def test_a_helper_that_mints_nothing_skips_the_hello_instead_of_sending_it(
     assert done.returncode == 1
     assert "Could not mint a token for 'theo'" in done.stdout + done.stderr
     assert not bearer.exists()
+
+
+# A test event, 25 Nov 2026: the AgentCore data plane answered a completed turn with an empty body
+# and the pinned CLI reported success with "response": "". The hello is a read-only question, so
+# an unreadable reply after a successful invoke is asked again, each time in a new session.
+FAKE_NPX = r'''#!/usr/bin/env bash
+for arg in "$@"; do case "$prev" in --session-id) echo "$arg" >> "$FAKE_LOG.sessions" ;; esac; prev="$arg"; done
+echo "invoke" >> "$FAKE_LOG"
+n="$(grep -c '^invoke$' "$FAKE_LOG")"
+case "$(printf '%s' "$FAKE_REPLIES" | cut -d, -f"$n")" in
+  empty) printf '%s\n' '{"success": true, "response": ""}' ;;
+  fail) printf '%s\n' '{"success": false}' ;;
+  missing) printf '%s\n' '{"success": true}' ;;
+  ok) printf '%s\n' '{"success": true, "response": "{\"rail\": \"gateway-mcp\", \"specialist\": \"catalog\", \"response\": \"One linen shirt.\", \"tool_calls\": [{\"tool\": \"search_products\", \"status\": \"success\"}], \"build_fingerprint\": \"abc123def456\"}"}' ;;
+esac
+'''
+FAKE_IDENTITY = r'''import os, sys
+print(os.environ["FAKE_PROJECT"] if "project-root" in sys.argv else "pellier_orchestrator")
+'''
+
+
+@pytest.fixture
+def hello_box(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> dict:
+    repo = tmp_path / "repo"
+    (repo / "scripts" / "deploy").mkdir(parents=True)
+    shutil.copy(HELLO, repo / "scripts" / "runtime_hello.sh")
+    (repo / "scripts" / "deploy" / "resolve_agentcore_identity.py").write_text(FAKE_IDENTITY)
+    project = repo / ".agentcore-project" / "pellier"
+    project.mkdir(parents=True)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    for name, body in {"npx": FAKE_NPX, "sleep": "#!/usr/bin/env bash\nexit 0\n"}.items():
+        (bin_dir / name).write_text(body)
+        (bin_dir / name).chmod(0o755)
+    log = tmp_path / "npx.log"
+    for key, value in {"PATH": f"{bin_dir}:{os.environ['PATH']}", "PELLIER_REPO": str(repo),
+                       "PELLIER_EVIDENCE_DIR": str(tmp_path / "evidence"), "PELLIER_TOKEN": "token",
+                       "PELLIER_TOKEN_HELPER": str(tmp_path / "no-helper.sh"), "FAKE_LOG": str(log),
+                       "FAKE_PROJECT": str(project)}.items():
+        monkeypatch.setenv(key, value)
+    return {"script": repo / "scripts" / "runtime_hello.sh", "log": log,
+            "record": repo / ".agentcore-project" / "runtime-reply-retries.log"}
+
+
+def _say_hello(box: dict, monkeypatch: pytest.MonkeyPatch, replies: str) -> subprocess.CompletedProcess:
+    monkeypatch.setenv("FAKE_REPLIES", replies)
+    return subprocess.run(["bash", str(box["script"])], capture_output=True, text=True, timeout=60)
+
+
+def _asks(box: dict) -> list[str]:
+    path = pathlib.Path(str(box["log"]) + ".sessions")
+    return path.read_text().splitlines() if path.exists() else []
+
+
+def test_an_empty_hello_reply_is_asked_again_in_a_new_session(hello_box, monkeypatch) -> None:
+    done = _say_hello(hello_box, monkeypatch, "empty,ok")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert "AgentCore Runtime answered as marco on rail gateway-mcp" in done.stdout
+    sessions = _asks(hello_box)
+    assert len(sessions) == 2 and len(set(sessions)) == 2
+    assert len({len(s) for s in sessions}) == 1, "a retry keeps the padded session length"
+    record = hello_box["record"].read_text()
+    assert record.count("\n") == 1 and "Runtime hello" in record
+
+
+def test_a_hello_that_never_reads_fails_saying_so(hello_box, monkeypatch) -> None:
+    done = _say_hello(hello_box, monkeypatch, "empty,empty,empty,empty")
+    assert done.returncode == 1 and len(_asks(hello_box)) == 4
+    assert "empty" in done.stderr
+
+
+def test_a_failed_hello_invoke_is_not_asked_again(hello_box, monkeypatch) -> None:
+    done = _say_hello(hello_box, monkeypatch, "fail,ok")
+    assert done.returncode == 1 and len(_asks(hello_box)) == 1
+
+
+def test_a_successful_hello_with_no_reply_is_asked_again(hello_box, monkeypatch) -> None:
+    """The same rule as the provisioner: success with no reply at all is unreadable too."""
+    done = _say_hello(hello_box, monkeypatch, "missing,ok")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert len(_asks(hello_box)) == 2

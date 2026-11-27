@@ -100,14 +100,39 @@ if [ -z "${PELLIER_TOKEN:-}" ] || [ "${PELLIER_TOKEN:-}" = "None" ]; then
 fi
 
 mkdir -p "$EVIDENCE_DIR"
-SESSION_ID="hello-$LABEL-$(date +%s)-$$-0000000000000001"
 
-RAW="$(cd "$PROJECT_DIR" && AGENTCORE_RUNTIME_ENDPOINT=DEFAULT npx -y "@aws/agentcore@${AGENTCORE_CLI_PINNED_VERSION}" invoke \
-  --runtime "$RUNTIME_NAME" \
-  --session-id "$SESSION_ID" \
-  --bearer-token "$PELLIER_TOKEN" \
-  --prompt "$PROMPT" \
-  --json 2>/dev/null)"
+# The AgentCore data plane can answer a completed turn with an empty body: the CLI then reports
+# success with an empty or unreadable "response" (a test event, 25 Nov 2026). This hello only reads,
+# so that reply is asked again, each time in a new session of the same length, and every such
+# ask is kept where the health gate reports it.
+HELLO_ASKS=4
+RETRY_RECORD="$(dirname "$PROJECT_DIR")/runtime-reply-retries.log"
+for ask in $(seq 1 "$HELLO_ASKS"); do
+  SESSION_ID="hello-$LABEL-$(date +%s)-$$-$(printf '%016d' "$ask")"
+  RAW="$(cd "$PROJECT_DIR" && AGENTCORE_RUNTIME_ENDPOINT=DEFAULT npx -y "@aws/agentcore@${AGENTCORE_CLI_PINNED_VERSION}" invoke \
+    --runtime "$RUNTIME_NAME" \
+    --session-id "$SESSION_ID" \
+    --bearer-token "$PELLIER_TOKEN" \
+    --prompt "$PROMPT" \
+    --json 2>/dev/null)"
+  # Unreadable: success with no reply, an empty one, or one that is not a JSON object. The empty
+  # string is tested by length first, so no jq version's handling of "" | fromjson matters.
+  if ! printf '%s' "$RAW" | jq -e '.success == true and ((.response | type) as $t
+      | if $t == "object" then false
+        elif $t == "string" then ((.response | length) == 0
+          or ((.response | try fromjson catch null) | type) != "object")
+        else true end)' >/dev/null 2>&1; then
+    break
+  fi
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+    "Runtime hello, ask $ask of $HELLO_ASKS, session $SESSION_ID: empty or unreadable reply" \
+    >>"$RETRY_RECORD" 2>/dev/null || true
+  if [ "$ask" -eq "$HELLO_ASKS" ]; then
+    fail "The Runtime's reply was empty or unreadable on all $HELLO_ASKS asks, each in a new session"
+    exit 1
+  fi
+  sleep 10
+done
 if [ -z "$RAW" ]; then
   fail "The AgentCore CLI returned nothing for runtime '$RUNTIME_NAME'"
   exit 1

@@ -2048,14 +2048,16 @@ def _operator_tools_fingerprint() -> str:
 
 
 def _operator_runtime_smoke(*, region: str, required: dict, client_secret_arn: str | None,
-                            runtime_arn: str, expected_fingerprint: str) -> dict:
+                            runtime_arn: str, expected_fingerprint: str, root: Path) -> dict:
     """Prove staff identity, Gateway access, RLS visibility and the deployed build.
 
     Inspection runs no model and creates no proposal. It invokes a real staff
     tool whose unfiltered order/ticket reads must return only the selected case.
     Each attempt has its own turn; the audit row is correlated to that attempt.
+    An empty reply is asked again in a new turn (UNREADABLE_REPLY_TRIES), and kept for the
+    health gate; any other failure stops the probe.
     """
-    from services.operator_runtime_client import investigate_on_runtime
+    from services.operator_runtime_client import OperatorRuntimeEmptyReply, investigate_on_runtime
     tools_fingerprint = _operator_tools_fingerprint()
     token, _username = _cognito_access_token(
         region=region, user_pool_id=required["cognito_pool"], client_id=required["cognito_client"],
@@ -2065,15 +2067,35 @@ def _operator_runtime_smoke(*, region: str, required: dict, client_secret_arn: s
     subject = _unverified_token_claims(token).get("sub")
     if not isinstance(subject, str) or not subject:
         raise RuntimeError("Staff token has no subject")
-    for attempt in range(12):
+    empty_replies = 0
+    attempt = 0
+    # An empty reply does not count against the twelve build attempts: it says nothing about
+    # which build answered, and its own bound (UNREADABLE_REPLY_TRIES) stops the probe.
+    while attempt < 12:
         turn = f"turn-staff-smoke-{uuid.uuid4().hex}"
-        result = investigate_on_runtime(
-            customer_id="CUST-JESSICA", operator_sub=subject, access_token=token, turn_id=turn,
-            emit=lambda _step: None, operation="inspect", endpoint=runtime_arn, region=region,
-        )
+        try:
+            result = investigate_on_runtime(
+                customer_id="CUST-JESSICA", operator_sub=subject, access_token=token, turn_id=turn,
+                emit=lambda _step: None, operation="inspect", endpoint=runtime_arn, region=region,
+            )
+        except OperatorRuntimeEmptyReply as exc:
+            empty_replies += 1
+            _record_reply_retry(root, f"staff Runtime smoke, ask {empty_replies} of "
+                                      f"{UNREADABLE_REPLY_TRIES}, turn {turn}: empty reply")
+            if empty_replies == UNREADABLE_REPLY_TRIES:
+                raise RuntimeError(
+                    f"Staff Runtime gave an empty reply on all {empty_replies} asks, each in a new turn"
+                ) from exc
+            if not _PARTICIPANT_VIEW["on"]:
+                print(f"Staff Runtime gave an empty reply; asking again in a new turn in "
+                      f"{UNREADABLE_REPLY_WAIT_SECONDS:g}s ({empty_replies + 1} of "
+                      f"{UNREADABLE_REPLY_TRIES})", flush=True)
+            time.sleep(UNREADABLE_REPLY_WAIT_SECONDS)
+            continue
         if result["build_fingerprint"] == expected_fingerprint:
             break
-        if attempt < 11:
+        attempt += 1
+        if attempt < 12:
             time.sleep(20)
     else:
         raise RuntimeError("Staff Runtime did not serve the deployed build")
@@ -2103,8 +2125,28 @@ def _operator_runtime_smoke(*, region: str, required: dict, client_secret_arn: s
             "rail": "gateway-mcp"}
 
 
+# The AgentCore data plane can answer a completed invocation with an empty body. On a test event
+# (25 Nov 2026) the Runtime logged "Invocation completed successfully" and the pinned CLI reported
+# success with "response": "", and the stack failed; the next invoke answered. A read-only ask is
+# therefore asked again, in a new session, a few times, and each such reply is kept for the
+# health gate. A refusal, a CLI failure or an error from the entrypoint is never asked again.
+UNREADABLE_REPLY_TRIES = 4
+UNREADABLE_REPLY_WAIT_SECONDS = 10.0
+# Beside every deployment's project folder, like SYNTH_RETRIES, so health-gate.sh finds it.
+RUNTIME_REPLY_RETRIES = "runtime-reply-retries.log"
+SMOKE_PROMPT = "Smoke test: find one linen item under 150. Do not mutate data."
+
+
+class UnreadableRuntimeReply(RuntimeError):
+    """The CLI reported success, but the Runtime's reply was empty or not a JSON object."""
+
+
 def _decode_runtime_invoke(proc: subprocess.CompletedProcess[str]) -> dict[str, Any]:
-    """The Runtime's own JSON envelope from one CLI invoke, or a RuntimeError."""
+    """The Runtime's own JSON envelope from one CLI invoke.
+
+    Raises UnreadableRuntimeReply when the CLI reported success but the reply cannot be read,
+    and RuntimeError when the CLI itself failed. Messages give a length, never the content.
+    """
     try:
         cli_payload = json.loads(proc.stdout)
     except json.JSONDecodeError as exc:
@@ -2113,16 +2155,66 @@ def _decode_runtime_invoke(proc: subprocess.CompletedProcess[str]) -> dict[str, 
         raise RuntimeError("AgentCore CLI invoke did not report success")
 
     raw_response = cli_payload.get("response")
-    if isinstance(raw_response, str):
-        try:
-            return json.loads(raw_response)
-        except json.JSONDecodeError as exc:
-            raise RuntimeError(
-                "AgentCore CLI Runtime response was not a JSON object"
-            ) from exc
     if isinstance(raw_response, dict):
         return raw_response
-    raise RuntimeError("AgentCore CLI Runtime response was missing")
+    if not isinstance(raw_response, str):
+        raise UnreadableRuntimeReply("AgentCore CLI reported success with no Runtime reply")
+    if not raw_response.strip():
+        raise UnreadableRuntimeReply("AgentCore CLI reported success with an empty Runtime reply")
+    try:
+        decoded = json.loads(raw_response)
+    except json.JSONDecodeError as exc:
+        raise UnreadableRuntimeReply(
+            f"AgentCore CLI Runtime reply was not JSON ({len(raw_response)} characters)"
+        ) from exc
+    if not isinstance(decoded, dict):
+        raise UnreadableRuntimeReply("AgentCore CLI Runtime reply was not a JSON object")
+    return decoded
+
+
+def _record_reply_retry(root: Path, what: str) -> None:
+    """Keep one line per unreadable reply where the health gate reports it."""
+    at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        with (root.parent / RUNTIME_REPLY_RETRIES).open("a", encoding="utf-8") as record:
+            record.write(f"{at} {what}\n")
+    except OSError as exc:
+        if not _PARTICIPANT_VIEW["on"]:
+            print(f"Could not keep this retry in {root.parent / RUNTIME_REPLY_RETRIES} ({exc}).",
+                  flush=True)
+
+
+def _ask_runtime_readably(
+    root: Path, *, identity: DeploymentIdentity, access_token: str, env: dict[str, str]
+) -> tuple[dict[str, Any], str]:
+    """One smoke invoke whose reply could be read, and the Runtime session that answered it.
+
+    Only an unreadable reply after a successful invoke is asked again, each time in a new
+    session; a participant's deploy shows no line for it, and the record keeps every one.
+    """
+    for ask in range(1, UNREADABLE_REPLY_TRIES + 1):
+        # A prior session may remain attached to an older Runtime sandbox.
+        session = f"builders-smoke-{uuid.uuid4().hex}"
+        proc = _agentcore(
+            root, "invoke", "--runtime", identity.runtime_name, "--session-id", session,
+            "--bearer-token", access_token, "--prompt", SMOKE_PROMPT, "--json", env=env,
+        )
+        try:
+            return _decode_runtime_invoke(proc), session
+        except UnreadableRuntimeReply as exc:
+            _record_reply_retry(root, f"shopper Runtime smoke, ask {ask} of "
+                                      f"{UNREADABLE_REPLY_TRIES}, session {session}: {exc}")
+            if ask == UNREADABLE_REPLY_TRIES:
+                raise RuntimeError(
+                    f"{exc}, on all {ask} asks, each in a new session; the Runtime's own log "
+                    "shows whether the turns ran"
+                ) from exc
+            if not _PARTICIPANT_VIEW["on"]:
+                print(f"{exc}; asking again in a new session in "
+                      f"{UNREADABLE_REPLY_WAIT_SECONDS:g}s ({ask + 1} of {UNREADABLE_REPLY_TRIES})",
+                      flush=True)
+            time.sleep(UNREADABLE_REPLY_WAIT_SECONDS)
+    raise AssertionError("unreachable: the last ask returns or raises")
 
 
 def _authenticated_runtime_smoke(
@@ -2157,23 +2249,9 @@ def _authenticated_runtime_smoke(
     decoded: dict[str, Any] = {}
     answered_by = ""
     for attempt in range(1, max(1, attempts) + 1):
-        # A prior session may remain attached to an older Runtime sandbox.
-        runtime_session_id = f"builders-smoke-{uuid.uuid4().hex}"
-        proc = _agentcore(
-            root,
-            "invoke",
-            "--runtime",
-            identity.runtime_name,
-            "--session-id",
-            runtime_session_id,
-            "--bearer-token",
-            access_token,
-            "--prompt",
-            "Smoke test: find one linen item under 150. Do not mutate data.",
-            "--json",
-            env=env,
+        decoded, runtime_session_id = _ask_runtime_readably(
+            root, identity=identity, access_token=access_token, env=env
         )
-        decoded = _decode_runtime_invoke(proc)
         # An entrypoint that refused the request reports no build digest, so
         # retrying would misreport its refusal as the previous version.
         if decoded.get("error"):
@@ -2200,8 +2278,9 @@ def _authenticated_runtime_smoke(
             "the previous version, so this package has not been proved to run."
         )
 
-    if not str(decoded.get("response", "")).strip():
-        raise RuntimeError("Runtime smoke returned an empty response")
+    answer = decoded.get("response")
+    if not isinstance(answer, str) or not answer.strip():
+        raise RuntimeError("Runtime smoke returned an empty response or a non-text answer")
     if decoded.get("rail") != "gateway-mcp":
         raise RuntimeError(
             "Runtime smoke did not use Gateway MCP "
@@ -2214,7 +2293,7 @@ def _authenticated_runtime_smoke(
         "intent": decoded.get("intent"),
         "specialist": decoded.get("specialist"),
         "gateway_tools": decoded.get("gateway_tools", []),
-        "response_preview": str(decoded["response"])[:200],
+        "response_preview": answer[:200],
         "build_fingerprint": answered_by,
         "build_fingerprint_expected": expected_fingerprint,
         "build_fingerprint_match": bool(expected_fingerprint) and answered_by == expected_fingerprint,
@@ -3411,6 +3490,7 @@ def _participant_update(
     result["verification"]["operator_runtime_smoke"] = _operator_runtime_smoke(
         region=region, required=required, client_secret_arn=client_secret_arn,
         runtime_arn=result["operator_runtime"]["runtime_arn"], expected_fingerprint=_rendered_build_fingerprint(root),
+        root=root,
     )
     result["verification"]["operator_runtime_verified"] = True
     progress.end()
@@ -4009,6 +4089,7 @@ def _provision(
         result["verification"]["operator_runtime_smoke"] = _operator_runtime_smoke(
             region=region, required=required, client_secret_arn=client_secret_arn,
             runtime_arn=result["operator_runtime"]["runtime_arn"], expected_fingerprint=_rendered_build_fingerprint(root),
+            root=root,
         )
         result["verification"]["operator_runtime_verified"] = True
         trace_proof = _wait_for_unified_trace(

@@ -29,8 +29,18 @@ case "$*" in
     for arg in "$@"; do
       case "$arg" in
         "Authorization: Bearer "*) echo "${arg#Authorization: Bearer }" >> "$FAKE_LOG.bearers" ;;
+        *'"session_id":"'*) printf '%s\\n' "$arg" | sed -E 's/.*"session_id":"([^"]*)".*/\\1/' >> "$FAKE_LOG.sessions" ;;
       esac
     done
+    if [ -n "${FAKE_REPLIES:-}" ]; then
+      n="$(grep -c '^chat$' "$FAKE_LOG")"
+      entry="$(printf '%s' "$FAKE_REPLIES" | cut -d, -f"$n")"
+      case "$entry" in
+        error:*) printf 'data: {"type": "error", "code": "%s", "retryable": true}\\n' "${entry#error:}" ;;
+        complete:*) printf 'data: {"type": "complete", "response": {"rail": "%s", "turn_id": "turn-%s"}}\\n' "${entry#complete:}" "$n" ;;
+      esac
+      exit 0
+    fi
     reply='{"type": "complete", "response": {"rail": "%s", "turn_id": "turn-1"}}'
     printf "data: $reply\\n" "$FAKE_RAIL"
     ;;
@@ -58,6 +68,7 @@ def box(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         "curl": FAKE_CURL,
         "sudo": '#!/usr/bin/env bash\nshift\nexec "$@"\n',
         "systemctl": '#!/usr/bin/env bash\necho "systemctl $*" >> "$FAKE_LOG"\n',
+        "sleep": '#!/usr/bin/env bash\necho "sleep $*" >> "$FAKE_LOG.sleeps"\n',
     }.items():
         (bin_dir / name).write_text(body)
         (bin_dir / name).chmod(bin_dir.joinpath(name).stat().st_mode | stat.S_IXUSR)
@@ -188,3 +199,49 @@ def test_a_failed_full_switch_still_says_the_flag_survives(box, monkeypatch) -> 
     done = _run(box, "theo")
     assert done.returncode == 1
     assert "Already written to" in done.stdout and "survives this failure" in done.stdout
+
+
+# A test event, 25 Nov 2026: the AgentCore data plane answered a completed turn with an empty body.
+# The app turns that into the stream's generic request_failed error (classify_chat_error), which
+# is the only failure this read-only check turn asks again, each time in a new session.
+def _sessions(box: dict[str, Any]) -> list[str]:
+    path = Path(str(box["log"]) + ".sessions")
+    return path.read_text().splitlines() if path.exists() else []
+
+
+def test_an_empty_reply_is_asked_again_in_a_new_session(box, monkeypatch) -> None:
+    record_dir = box["cwd"] / ".agentcore-project"
+    record_dir.mkdir()
+    box["run_env"].write_text("USE_AGENTCORE_RUNTIME=false\n")
+    monkeypatch.setenv("FAKE_REPLIES", "error:request_failed,complete:gateway-mcp")
+    done = _run(box, "theo")
+    assert done.returncode == 0, done.stdout + done.stderr
+    assert [c for c in _calls(box) if c == "chat"] == ["chat", "chat"]
+    assert len(set(_sessions(box))) == 2, "each ask needs its own session"
+    assert done.stdout.count("Lab 3 may proceed") == 1
+    record = (record_dir / "runtime-reply-retries.log").read_text()
+    assert record.count("\n") == 1 and "request_failed" in record
+
+
+def test_verify_only_asks_again_without_printing(box, monkeypatch) -> None:
+    monkeypatch.setenv("FAKE_REPLIES", "error:request_failed,complete:gateway-mcp")
+    done = _run(box, "--verify-only", "theo")
+    assert done.returncode == 0 and done.stdout == "" and done.stderr == ""
+    assert _calls(box) == ["chat", "chat"]
+
+
+@pytest.mark.parametrize("code", ["service_unavailable", "request_timeout", "authentication_required",
+                                  "policy_denied"])
+def test_other_failures_are_not_asked_again(box, monkeypatch, code) -> None:
+    monkeypatch.setenv("FAKE_REPLIES", f"error:{code},complete:gateway-mcp")
+    done = _run(box, "--verify-only", "theo")
+    assert done.returncode == 1 and _calls(box) == ["chat"]
+    assert code in done.stdout + done.stderr
+
+
+def test_replies_that_never_arrive_fail_after_four_asks(box, monkeypatch) -> None:
+    monkeypatch.setenv("FAKE_REPLIES", ",".join(["error:request_failed"] * 5))
+    done = _run(box, "theo")
+    assert done.returncode == 1
+    assert [c for c in _calls(box) if c == "chat"] == ["chat"] * 4
+    assert "request_failed" in done.stdout + done.stderr

@@ -203,6 +203,19 @@ _upsert_env() {
   fi
 }
 
+# The AgentCore data plane can answer a completed turn with an empty body (a test event, 25 Nov
+# 2026). The app reports that on the stream as request_failed, the code it also gives any failure
+# it does not classify (an entrypoint refusal, for one). This check turn only reads, so a
+# request_failed is asked again, each time in a new session, and kept where the health gate
+# reports it; nothing is printed for it. Four asks, as in the provisioner: a failure that
+# persists is then reported with its code up to about a minute later rather than at once.
+TURN_ASKS=4
+_record_reply_retry() {
+  local dir="$REPO/.agentcore-project"
+  [ -d "$dir" ] || return 0
+  printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >>"$dir/runtime-reply-retries.log" 2>/dev/null || true
+}
+
 # Every failure below step 3 leaves the box already switched. Say so, and say
 # what puts it back, rather than leaving a half-configured storefront unnamed.
 _revert_hint() {
@@ -351,31 +364,35 @@ if [ -z "${PELLIER_TOKEN:-}" ] || [ "${PELLIER_TOKEN:-}" = "None" ]; then
 fi
 pass "$token_line"
 
-SESSION_ID="lab3-start-$(date +%s)"
-body="$(printf '{"message":"%s","session_id":"%s","customer_id":"%s"}' \
-  "$MESSAGE" "$SESSION_ID" "$CUSTOMER_ID")"
-reply_file="$(mktemp "${TMPDIR:-/tmp}/pellier-lab3-start.XXXXXX")"
-curl -sN --max-time 240 -X POST "$BASE/api/chat/stream" \
-  -H 'Content-Type: application/json' \
-  -H "Authorization: Bearer $PELLIER_TOKEN" \
-  -d "$body" >"$reply_file" 2>/dev/null &
-pellier_progress_wait_for "$!" "Running one turn on AgentCore" 15 || true
-reply="$(cat "$reply_file")"
-rm -f "$reply_file"
-if [ -z "$reply" ]; then
-  _revert_hint "No response from $BASE/api/chat/stream"
-  exit 1
-fi
+for ask in $(seq 1 "$TURN_ASKS"); do
+  SESSION_ID="lab3-start-$(date +%s)-$ask"
+  body="$(printf '{"message":"%s","session_id":"%s","customer_id":"%s"}' \
+    "$MESSAGE" "$SESSION_ID" "$CUSTOMER_ID")"
+  reply_file="$(mktemp "${TMPDIR:-/tmp}/pellier-lab3-start.XXXXXX")"
+  curl -sN --max-time 240 -X POST "$BASE/api/chat/stream" \
+    -H 'Content-Type: application/json' \
+    -H "Authorization: Bearer $PELLIER_TOKEN" \
+    -d "$body" >"$reply_file" 2>/dev/null &
+  pellier_progress_wait_for "$!" "Running one turn on AgentCore" 15 || true
+  reply="$(cat "$reply_file")"
+  rm -f "$reply_file"
+  if [ -z "$reply" ]; then
+    _revert_hint "No response from $BASE/api/chat/stream"
+    exit 1
+  fi
 
-verdict="$(printf '%s\n' "$reply" | "$PYTHON" -c '
+  verdict="$(printf '%s\n' "$reply" | "$PYTHON" -c '
 import json, sys
-rail, reason, turn_id = "", "", ""
+rail, reason, turn_id, error = "", "", "", ""
 for line in sys.stdin.read().splitlines():
     if not line.startswith("data:"):
         continue
     try:
         event = json.loads(line[5:].strip())
     except ValueError:
+        continue
+    if event.get("type") == "error":
+        error = str(event.get("code") or "error")
         continue
     if event.get("type") != "complete":
         continue
@@ -387,15 +404,23 @@ for line in sys.stdin.read().splitlines():
 print(rail)
 print(turn_id)
 print(reason)
+print(error)
 ')"
-rail="$(printf '%s\n' "$verdict" | sed -n 1p)"
-turn_id="$(printf '%s\n' "$verdict" | sed -n 2p)"
-reason="$(printf '%s\n' "$verdict" | sed -n 3p)"
+  rail="$(printf '%s\n' "$verdict" | sed -n 1p)"
+  turn_id="$(printf '%s\n' "$verdict" | sed -n 2p)"
+  reason="$(printf '%s\n' "$verdict" | sed -n 3p)"
+  error_code="$(printf '%s\n' "$verdict" | sed -n 4p)"
+  if [ "$rail" = "gateway-mcp" ] || [ "$error_code" != "request_failed" ] || [ "$ask" -eq "$TURN_ASKS" ]; then
+    break
+  fi
+  _record_reply_retry "lab3-start check turn, ask $ask of $TURN_ASKS, session $SESSION_ID: request_failed"
+  sleep 10
+done
 
 if [ "$rail" = "gateway-mcp" ]; then
   pass "Turn ${turn_id:-?} executed on rail gateway-mcp (session $SESSION_ID)"
 else
-  _revert_hint "Turn ${turn_id:-?} reported rail '${rail:-none}' not gateway-mcp${reason:+ (reason: $reason)}"
+  _revert_hint "Turn ${turn_id:-?} reported rail '${rail:-none}' not gateway-mcp${reason:+ (reason: $reason)}${error_code:+ (error: $error_code)}"
   info "Fix the cause and rerun this script, or revert as above."
   exit 1
 fi

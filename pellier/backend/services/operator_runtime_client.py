@@ -17,6 +17,15 @@ class OperatorRuntimeError(RuntimeError):
     """Safe failure codes, never tokens, response bodies or customer records."""
 
 
+class OperatorRuntimeEmptyReply(OperatorRuntimeError):
+    """The Runtime answered with an empty body: the reply was lost, not refused.
+
+    The AgentCore data plane can return an empty body for a completed turn (a test event,
+    25 Nov 2026). Its code is the same one the desk already shows; a caller whose operation is
+    read-only may ask again in a new turn.
+    """
+
+
 def investigate_on_runtime(*, customer_id, operator_sub, access_token, turn_id, emit,
                            operation="investigate", endpoint=None, region=None):
     if endpoint is None or region is None:
@@ -38,9 +47,11 @@ def investigate_on_runtime(*, customer_id, operator_sub, access_token, turn_id, 
         "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": session,
     })
     result = None
+    received = 0
     try:
         with urllib.request.urlopen(request, timeout=240) as response:
             for line in response:
+                received += len(line.strip())
                 if not line.startswith(b"data: "):
                     continue
                 try:
@@ -66,6 +77,8 @@ def investigate_on_runtime(*, customer_id, operator_sub, access_token, turn_id, 
         raise OperatorRuntimeError(code) from exc
     except (OSError, ValueError) as exc:
         raise OperatorRuntimeError("operator_runtime_unavailable") from exc
+    if received == 0:
+        raise OperatorRuntimeEmptyReply("operator_runtime_invalid_response")
     if (not result or not isinstance(result.get("graph"), dict)
             or result.get("customerId") != customer_id or result.get("turnId") != turn_id
             or result.get("rail") != "gateway-mcp" or result.get("orchestration") != "strands-graph"

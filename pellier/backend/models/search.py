@@ -83,6 +83,9 @@ class HealthResponse(BaseModel):
     custom_tools: str = "not_available"
     version: str
     use_agentcore_runtime: bool = Field(description="Runtime setting loaded by this backend process")
+    editorial_model_is_default: bool = Field(
+        description="This process loaded the workshop's default Catalog and Support model"
+    )
 
 
 # The most cards Ask Pellier shows under one answer: the pieces it names, in

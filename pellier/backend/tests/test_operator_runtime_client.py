@@ -67,3 +67,30 @@ def test_http_errors_are_not_reported_as_cedar_denials(monkeypatch, status, code
         client.investigate_on_runtime(customer_id="CUST-JESSICA", operator_sub="staff-sub",
             access_token="test-token", turn_id="turn-transport", emit=lambda _: None,
             endpoint="runtime-test", region="us-east-1")
+
+
+def test_an_empty_reply_is_told_apart_from_a_broken_stream(monkeypatch):
+    """A test event, 25 Nov 2026: the data plane answered a completed turn with an empty body. A
+    caller may ask a read-only operation again only when nothing at all arrived."""
+    with pytest.raises(client.OperatorRuntimeEmptyReply, match="operator_runtime_invalid_response"):
+        invoke(monkeypatch, [])
+    with pytest.raises(client.OperatorRuntimeError) as broken:
+        invoke(monkeypatch, [{"event": "step", "data": {"status": "running"}}])
+    assert not isinstance(broken.value, client.OperatorRuntimeEmptyReply)
+
+
+def test_a_body_that_is_not_a_stream_is_not_called_empty(monkeypatch):
+    """Only a body with nothing in it is a lost reply; a JSON error body is a failure as before."""
+    requests = []
+
+    def open_request(request, **_kwargs):
+        requests.append(request)
+        return io.BytesIO(b'{"error": "something the stream never framed"}\n')
+
+    monkeypatch.setattr(client.urllib.request, "urlopen", open_request)
+    with pytest.raises(client.OperatorRuntimeError) as failure:
+        client.investigate_on_runtime(customer_id="CUST-JESSICA", operator_sub="staff-sub",
+            access_token="test-token", turn_id="turn-transport", emit=lambda _s: None,
+            endpoint="arn:aws:bedrock-agentcore:us-east-1:123456789012:runtime/operator-test",
+            region="us-east-1")
+    assert not isinstance(failure.value, client.OperatorRuntimeEmptyReply)

@@ -62,7 +62,7 @@ class _Box:
         return repo
 
     def _run(self, tmp_path: Path, repo: Path, *, preflight_opus: str = OPUS,
-             preflight_exit: int = 0, healthy: Optional[bool] = True,
+             preflight_exit: int = 0, healthy: Optional[bool] = True, loaded_opus: bool = True,
              as_root: bool = False) -> subprocess.CompletedProcess:
         bin_dir = tmp_path / "bin"
         bin_dir.mkdir(exist_ok=True)
@@ -80,7 +80,10 @@ class _Box:
             stub.chmod(0o755)
         health = tmp_path / "health.json"
         if healthy:
-            health.write_text('{"status": "healthy"}')
+            health.write_text('{"status":"healthy","editorial_model_is_default":'
+                              + ('true' if loaded_opus else 'false') + '}')
+        else:
+            health.unlink(missing_ok=True)
         env = {
             "PATH": f"{bin_dir}{os.pathsep}/usr/bin{os.pathsep}/bin",
             "HOME": str(tmp_path),
@@ -158,6 +161,18 @@ class TestRecheck(_Box):
         result = self._run(tmp_path, repo, healthy=False)
         assert result.returncode == 1
         assert "did not answer /api/health" in result.stdout
+
+    def test_retry_verifies_the_running_service_after_saving_the_settings(self, tmp_path: Path) -> None:
+        repo = self._box(tmp_path, f"BEDROCK_MODEL_ACCESS_READY=true\nBEDROCK_OPUS_MODEL={SONNET}\n")
+        assert self._run(tmp_path, repo, healthy=False).returncode == 1
+        # The file now says Opus. Neither a down backend nor a healthy one still
+        # serving Sonnet confirms that the restart loaded the change.
+        assert self._run(tmp_path, repo, healthy=False).returncode == 1
+        assert self._run(tmp_path, repo, loaded_opus=False).returncode == 1
+        calls = self._calls(tmp_path)
+        assert calls.count("systemctl restart pellier") == 3
+        assert self._run(tmp_path, repo).returncode == 0
+        assert self._calls(tmp_path).count("systemctl restart pellier") == 3
 
 
 def test_bootstrap_rechecks_the_models_after_the_managed_setup_and_before_the_gate() -> None:

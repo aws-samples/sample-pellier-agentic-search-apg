@@ -12,7 +12,7 @@
 #
 # It never makes a box worse: a box already on Opus 5.5 with a passed preflight is left alone,
 # the preflight writes a copy of .env, and the copy replaces .env only when that run passed and
-# put the agents on Opus 5.5. Pellier restarts only when the copy changed a setting.
+# put the agents on Opus 5.5. A retry verifies the model the running backend actually loaded.
 #
 # This moves the agents that run in Pellier, which is where they run until Lab 3. An AgentCore
 # Runtime that bootstrap deployed while Sonnet stood in keeps Sonnet until its next deploy:
@@ -33,6 +33,13 @@ setting() {  # setting FILE KEY: the last KEY=value in FILE, unquoted
   grep -E "^$2=" "$1" 2>/dev/null | tail -n 1 | cut -d= -f2- | tr -d "\"'"
 }
 
+running_on_default_model() {
+  curl -fs --max-time 3 "$HEALTH_URL" 2>/dev/null |
+    python3 -c 'import json, sys
+health = json.load(sys.stdin)
+sys.exit(0 if health.get("status") == "healthy" and health.get("editorial_model_is_default") is True else 1)' 2>/dev/null
+}
+
 OPUS_ID_CODE='import sys
 sys.path.insert(0, sys.argv[1])
 import check_model_access
@@ -44,36 +51,30 @@ opus="$("$PYTHON" -c "$OPUS_ID_CODE" "$REPO/scripts")" || {
 before="$(setting "$ENV_FILE" BEDROCK_OPUS_MODEL)"
 before="${before:-$opus}"
 if [ "$before" = "$opus" ] && [ "$(setting "$ENV_FILE" BEDROCK_MODEL_ACCESS_READY)" = "true" ]; then
-  echo "The Catalog and Support agents already use Claude Opus 5.5 ($opus); nothing to recheck."
-  exit 0
-fi
-
-copy="$(mktemp)"
-trap 'rm -f "$copy"' EXIT
-cat "$ENV_FILE" > "$copy"
-if ! "$PYTHON" "$REPO/scripts/check_model_access.py" --write-env "$copy"; then
-  echo "The second preflight did not pass, so the box keeps its current model settings."
-  exit 1
-fi
-after="$(setting "$copy" BEDROCK_OPUS_MODEL)"
-if [ "$after" != "$opus" ]; then
-  echo "Claude Opus 5.5 still does not answer, so the Catalog and Support agents stay on $after."
-  exit 3
-fi
-
-if cmp -s "$copy" "$ENV_FILE"; then
-  echo "The preflight passed; the Catalog and Support agents use Claude Opus 5.5."
-  exit 0
-fi
-# cat writes through backend/.env's link to the root .env; replacing the link broke an event.
-cat "$copy" > "$ENV_FILE" || {
-  echo "Could not write $ENV_FILE, so Pellier keeps its current model settings."
-  exit 1
-}
-if [ "$before" = "$after" ]; then
-  echo "The preflight passed and updated the model settings; restarting Pellier to load them."
+  if running_on_default_model; then
+    echo "The Catalog and Support agents already use Claude Opus 5.5 ($opus); nothing to recheck."
+    exit 0
+  fi
+  echo "The model settings are saved. Restarting Pellier to load and verify them."
 else
-  echo "Opus 5.5 answers now: the Catalog and Support agents move from $before to $after."
+  copy="$(mktemp)" || exit 1
+  trap 'rm -f "$copy"' EXIT
+  cat "$ENV_FILE" > "$copy" || exit 1
+  if ! "$PYTHON" "$REPO/scripts/check_model_access.py" --write-env "$copy"; then
+    echo "The second preflight did not pass, so the box keeps its current model settings."
+    exit 1
+  fi
+  after="$(setting "$copy" BEDROCK_OPUS_MODEL)"
+  if [ "$after" != "$opus" ]; then
+    echo "Claude Opus 5.5 still does not answer, so the Catalog and Support agents stay on $after."
+    exit 3
+  fi
+  # Write through backend/.env's link to the root .env.
+  cat "$copy" > "$ENV_FILE" || {
+    echo "Could not write $ENV_FILE, so Pellier keeps its current model settings."
+    exit 1
+  }
+  echo "The preflight passed. Restarting Pellier to load the model settings."
 fi
 if [ "$(id -u)" -eq 0 ]; then
   systemctl restart pellier
@@ -84,11 +85,11 @@ fi || {
   exit 1
 }
 for _ in $(seq 1 "$HEALTH_TRIES"); do
-  if curl -fs --max-time 3 "$HEALTH_URL" 2>/dev/null | grep -q '"status".*"healthy"'; then
+  if running_on_default_model; then
     echo "Pellier answers /api/health again, on Claude Opus 5.5."
     exit 0
   fi
   sleep "$HEALTH_PAUSE"
 done
-echo "Pellier did not answer /api/health after the restart; check journalctl -u pellier."
+echo "Pellier did not answer /api/health with a healthy backend on Claude Opus 5.5. Check journalctl -u pellier."
 exit 1
