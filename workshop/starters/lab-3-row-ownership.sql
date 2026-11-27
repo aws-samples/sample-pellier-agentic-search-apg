@@ -5,9 +5,9 @@
 
 -- Lab 3, Task 3B: the row-ownership predicate.
 --
--- Ask Pellier and the Operator's Investigator read orders and support tickets
--- as the pellier_agent role, with one customer's sign-in name bound on the
--- session as pellier.principal_username. In process, that customer comes from
+-- Ask Pellier reads orders and support tickets as the pellier_agent role, with
+-- one customer's sign-in name bound on the session as
+-- pellier.principal_username. In process, that customer comes from
 -- the signed token; on the Gateway, it is the customer Cedar's owner-only
 -- permit admitted. Row-level security then returns only that customer's rows,
 -- even if a tool's own SQL asks for someone else's: it contains a wrong query.
@@ -140,7 +140,8 @@ SELECT current_setting('lab3.write_jessica') AS write_jessica,
 SELECT set_config('pellier.principal_username', '', true) AS bound \gset
 SELECT count(*) AS orders FROM pellier.orders \gset as_nobody_
 
--- The Investigator, working Jessica's case, binds her name and must see her rows.
+-- Jessica signed in: she must see her own rows. A predicate that names only Theo
+-- hides them from her.
 SELECT set_config('pellier.principal_username', 'jessica', true) AS bound \gset
 SELECT (SELECT count(*) FROM pellier.orders) AS orders,
        (SELECT count(*) FROM pellier.support_tickets) AS tickets
@@ -201,9 +202,9 @@ INSERT INTO lab_3_probes VALUES
     ('Theo writes a ticket in Jessica''s name', 'theo', '42501', :'as_theo_write_jessica'),
     ('Theo writes a ticket in his own name', 'theo', '00000', :'as_theo_write_theo'),
     ('No one signed in reads orders', '(none)', '0', :'as_nobody_orders'),
-    ('The Investigator reads Jessica''s orders', 'jessica', :'owner_jessica_orders',
+    ('Jessica reads her own orders', 'jessica', :'owner_jessica_orders',
      :'as_jessica_orders'),
-    ('The Investigator reads Jessica''s tickets', 'jessica', :'owner_jessica_tickets',
+    ('Jessica reads her own tickets', 'jessica', :'owner_jessica_tickets',
      :'as_jessica_tickets'),
     ('Customers who see exactly their own orders and tickets', 'each customer',
      :'every_customers', :'every_exact');

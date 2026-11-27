@@ -249,7 +249,7 @@ def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
     assert done.returncode != 0
     assert "Lab 3B predicate check failed" in done.stdout
     for line in ("Theo reads his own orders", "Theo writes a ticket in his own name",
-                 "The Investigator reads Jessica's orders"):
+                 "Jessica reads her own orders"):
         assert _result(done.stdout, line) == "does not match", line
     assert ("Your change was undone. The live policies are unchanged."
             in " ".join(done.stdout.split()))
@@ -291,7 +291,7 @@ def test_a_predicate_for_theo_and_jessica_only_fails_the_every_customer_probe(  
     done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-narrow.sql", narrow))
     assert done.returncode != 0, done.stdout
     assert _result(done.stdout, "Customers who see exactly their own orders and tickets") == "does not match"
-    for line in ("Theo reads his own orders", "The Investigator reads Jessica's orders"):
+    for line in ("Theo reads his own orders", "Jessica reads her own orders"):
         assert _result(done.stdout, line) == "matches", line
     assert _live_state(conn) == before
 

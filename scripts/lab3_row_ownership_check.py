@@ -8,8 +8,7 @@ the predicate now in your file, so the policies it probes are yours and not the
 ones the database shipped with. Then it probes them through each way Pellier
 binds a customer before it reads their rows:
 
-    in-process   DatabaseService.principal_session, which Ask Pellier and the
-                 Operator's Investigator use
+    in-process   DatabaseService.principal_session, which Ask Pellier uses
     Gateway      bind_runtime_principal over the RDS Data API, which the
                  store-tools Lambda uses for get_orders and get_tickets
 
