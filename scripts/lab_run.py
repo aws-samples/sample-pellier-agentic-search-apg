@@ -1214,15 +1214,18 @@ def settle_credit(backend: Backend, token: str, token_for: Callable[[str], str],
                           "not overrule a person's decision. To credit Jessica, investigate "
                           "Jessica's case in the Operator to open a new review, then run this "
                           "again.")
-    if live and not jessicas_handoff(review_id=int(live["reviewId"])):
-        raise LabRunError(f"no shopper request links to review {live['reviewId']}. Keep Nadia's "
-                          "decision and show this review to a facilitator before executing it.")
     if live is None and not jessicas_handoff():
         for persona, stages in CONVERSATIONS[4]:
             converse(backend, 4, token_for(persona), persona, required_requests(persona, stages),
                      trace=trace)
     proposal = live or investigate(backend, token, CREDIT_CLIENT)
     review = int(proposal["reviewId"])
+    # An investigation can return a proposal even when recording its link to Jessica's request
+    # failed, so the selected review is checked by its ID before anything approves or pays it.
+    if not jessicas_handoff(review_id=review):
+        raise LabRunError(f"no shopper request links to review {review}. Keep review {review} open "
+                          "in the Operator, with any decision on it, and show it to a facilitator "
+                          "before approving or executing it.")
     if live is not None:
         ok(f"review {review} is Jessica's open review; it is finished, not reopened")
     else:

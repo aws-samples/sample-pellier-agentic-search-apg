@@ -894,6 +894,27 @@ def test_an_unlinked_review_never_pays_or_reopens_jessicas_case(
     assert [r["path"] for r in _operator(fake)] == ["/api/operator/reviews"]
 
 
+def test_a_new_review_without_a_link_to_jessicas_request_is_never_approved_or_paid(
+    fake: FakeBackend, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Jessica's request exists, but the review the investigation returned never linked to it."""
+    fake.rail = lab_run.MANAGED
+    checked: List[Optional[int]] = []
+    def handoff(turn: Optional[str] = None, review_id: Optional[int] = None) -> bool:
+        checked.append(review_id)
+        return review_id is None
+    monkeypatch.setattr(lab_run, "jessicas_handoff", handoff)
+    assert _run(fake, 4) == 1
+    paths = [r["path"] for r in _operator(fake)]
+    assert paths == ["/api/operator/reviews", "/api/operator/clients/CUST-JESSICA/investigate"]
+    assert sum(p.endswith("/confirm") for p in paths) == 0, "approval must not be called"
+    assert sum(p.endswith("/execute") for p in paths) == 0, "execution must not be called"
+    assert 41 in checked, "the review the investigation returned must be checked by its ID"
+    err = " ".join(capsys.readouterr().err.split())
+    assert "no shopper request links to review 41" in err
+    assert "Keep review 41 open" in err and "facilitator" in err
+
+
 def test_lab_4_finishes_the_approved_review_before_a_newer_pending_one(
     fake: FakeBackend,
 ) -> None:
@@ -1383,7 +1404,7 @@ def test_finish_lab_4_uses_an_open_handoff_before_investigating(
     fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     fake.rail = lab_run.MANAGED
-    monkeypatch.setattr(lab_run, "jessicas_handoff", lambda turn=None: True)
+    monkeypatch.setattr(lab_run, "jessicas_handoff", lambda turn=None, review_id=None: True)
     assert _finish(fake, 4, _scratch_repo(tmp_path), Commands()) == 0
     assert _turns(fake) == []
     assert any(r["path"].endswith("/investigate") for r in _operator(fake))
