@@ -461,6 +461,11 @@ def reset_points_path() -> pathlib.Path:
     return pathlib.Path(override) if override else RESET_POINTS_FILE
 
 
+def lab2_shirt_turn_path() -> pathlib.Path:
+    """The terminal turn to inspect for Marco's Brooklyn question."""
+    return reset_points_path().with_name("lab-2a-turn.json")
+
+
 def _read_points(path: pathlib.Path) -> Dict[str, str]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))

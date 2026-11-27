@@ -296,6 +296,43 @@ def test_a_predicate_for_theo_and_jessica_only_fails_the_every_customer_probe(  
     assert _live_state(conn) == before
 
 
+@pytest.mark.parametrize("table", ["orders", "support_tickets"])
+def test_equal_counts_for_two_different_customers_are_not_ownership(  # noqa: F811
+        fresh_db: Any, tmp_path: Path, table: str) -> None:
+    # Two synthetic shoppers each own exactly one row. Substitute the other test shopper's
+    # sign-in while reading the rows, leaving the real policies and the named probes intact.
+    fixture = """
+    INSERT INTO pellier.customers (id, name, cognito_username)
+    VALUES ('CUST-LEFT', 'Left', 'left'), ('CUST-RIGHT', 'Right', 'right');
+    """
+    if table == "orders":
+        fixture += """
+        INSERT INTO pellier.orders (customer_id, product_id, quantity, amount_paid_cents, ship_to)
+        SELECT id, '2', 1, 100, 'Test' FROM pellier.customers WHERE id IN ('CUST-LEFT','CUST-RIGHT');
+        """
+    else:
+        fixture += """
+        INSERT INTO pellier.support_tickets (ticket_id, customer_id, subject, status)
+        SELECT 'test-' || id, id, 'Test', 'open' FROM pellier.customers WHERE id IN ('CUST-LEFT','CUST-RIGHT');
+        """
+    swap_test_names = """
+        PERFORM set_config('pellier.principal_username',
+            CASE current_setting('pellier.principal_username')
+                WHEN 'left' THEN 'right' WHEN 'right' THEN 'left'
+                ELSE current_setting('pellier.principal_username') END, true);
+    """
+    original = RLS_SOLUTION.read_text()
+    role = "EXECUTE 'SET LOCAL ROLE pellier_agent';"
+    assert original.count(role) == 1
+    path = tmp_path / "check-fixture-ownership.sql"
+    path.write_text(original.replace("SAVEPOINT probes;", "SAVEPOINT probes;" + fixture, 1)
+                    .replace(role, swap_test_names + role))
+    done = _psql(fresh_db, path)
+    assert done.returncode != 0, done.stdout + done.stderr
+    assert _result(done.stdout, "Customers who see exactly their own orders and tickets") == "does not match"
+    assert "9 of 10 tests passed" in done.stdout
+
+
 def test_a_failing_run_keeps_the_predicate_an_earlier_run_deployed(  # noqa: F811
         fresh_db: Any, conn: Any, shipped: None, tmp_path: Path) -> None:
     assert _psql(fresh_db, RLS_SOLUTION).returncode == 0
@@ -355,10 +392,21 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     assert decided == {"decided_by": "lab4-policy-check", "decided_by_name": "lab4-policy-check",
                        "requested_by_sub": "sub-nadia"}
 
+    denial = lab4.attempt_for({"outcome": "deny", "cedar_denial": True},
+                              review["idempotency_key"], {})
+    lab4.record_probe_attempt(conn, review["id"], denial)
     no_credit = _psql(fresh_db, ABSENCE)
     assert "none yet: Jessica has no store credit" in no_credit.stdout
 
     allowed_key = _jessicas_credit(conn)
+    for unproven in ({}, {**denial, "outcome": "failed"},
+                     {**denial, "policy": "EVALUATION_INCOMPLETE"},
+                     {**denial, "idempotency_key": "another-key"}):
+        lab4.record_probe_attempt(conn, review["id"], unproven)
+        unconfirmed = _psql(fresh_db, ABSENCE)
+        assert unconfirmed.returncode != 0, unproven
+        assert "no matching Gateway denial" in unconfirmed.stdout
+    lab4.record_probe_attempt(conn, review["id"], denial)
     done = _psql(fresh_db, ABSENCE)
     assert done.returncode == 0, done.stdout + done.stderr
     assert f"denied key   {review['idempotency_key']}" in done.stdout
@@ -369,8 +417,9 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     # Both keys are derived the same way, so a derivation that drifted from the
     # desk's finds no allowed credit and fails, instead of two vacuous zeros.
     drifted = tmp_path / "lab-4-absence-drifted.sql"
-    drifted.write_text(ABSENCE.read_text().replace("left(a.action_hash, 32)",
-                                                   "left(a.action_hash, 31)"))
+    allowed_expression = "left(a.action_hash, 32)"
+    prefix, _, suffix = ABSENCE.read_text().rpartition(allowed_expression)
+    drifted.write_text(prefix + "left(a.action_hash, 31)" + suffix)
     vacuous = _psql(fresh_db, drifted)
     assert vacuous.returncode != 0
     assert "the allowed key does not find exactly one credit" in vacuous.stdout
@@ -388,3 +437,56 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     leaked = _psql(fresh_db, ABSENCE)
     assert leaked.returncode != 0
     assert "the denied key left rows behind" in leaked.stdout
+
+
+def test_shopper_handoff_requires_the_request_and_the_turn_that_opened_it(
+        conn: Any, monkeypatch: pytest.MonkeyPatch) -> None:
+    from contextlib import nullcontext
+    import lab_run
+
+    monkeypatch.setattr(lab_run.check, "db_config", lambda: {})
+    monkeypatch.setattr(lab_run.check, "connect", lambda _: nullcontext(conn))
+    with conn.transaction(force_rollback=True):
+        conn.execute("UPDATE pellier.approvals SET status='answered', answered_turn_id='turn-setup' "
+                     "WHERE customer_id=%s AND tool='store_credit_request' AND status='open'", (JESSICA,))
+        row = conn.execute("INSERT INTO pellier.approvals "
+                           "(customer_id,tool,status,source_turn_id) "
+                           "VALUES (%s,'store_credit_request','open','turn-original') RETURNING id",
+                           (JESSICA,)).fetchone()
+        def receipt(turn: str, status: str, request_id: int, gateway_id: str = "req-gateway") -> None:
+            conn.execute("INSERT INTO pellier.tool_audit "
+                         "(session_id, tool, caller, args, result, latency_ms) "
+                         "VALUES (%s, 'ask_a_person', 'gateway', %s::jsonb, %s::jsonb, 2)",
+                         (turn, json.dumps({"gateway_request_id": gateway_id}),
+                          json.dumps({"request_id": request_id,
+                                            "credit_request_status": status})))
+
+        receipt("turn-repeat", "already_requested", row["id"])
+        with pytest.raises(lab_run.LabRunError, match="opening Gateway receipt"):
+            lab_run.jessicas_handoff("turn-repeat")
+        receipt("turn-original", "request_opened", row["id"])
+        assert lab_run.jessicas_handoff("turn-original")
+        assert lab_run.jessicas_handoff("turn-repeat")
+        assert lab_run.jessicas_handoff()
+        receipt("turn-other", "already_requested", row["id"] + 1)
+        receipt("turn-no-write", "not_recorded", row["id"])
+        for turn in ("turn-no-call", "turn-other", "turn-no-write"):
+            assert not lab_run.jessicas_handoff(turn)
+        review = conn.execute("INSERT INTO pellier.approvals (customer_id, tool, status) "
+                              "VALUES (%s, 'give_store_credit', 'pending') RETURNING id",
+                              (JESSICA,)).fetchone()
+        assert not lab_run.jessicas_handoff(review_id=review["id"])
+        conn.execute("UPDATE pellier.approvals SET status='answered', answered_turn_id='turn-done', "
+                     "answered_by_review_id=%s WHERE id=%s", (review["id"], row["id"]))
+        assert lab_run.jessicas_handoff(review_id=review["id"])
+        assert not lab_run.jessicas_handoff(review_id=review["id"] + 99)
+        old = conn.execute("INSERT INTO pellier.approvals "
+                           "(customer_id,tool,status,source_turn_id) VALUES "
+                           "(%s,'store_credit_request','open','turn-legacy') RETURNING id",
+                           (JESSICA,)).fetchone()
+        receipt("turn-legacy", "request_opened", old["id"], gateway_id="")
+        receipt("turn-new", "already_requested", old["id"])
+        for turn in ("turn-legacy", "turn-new", None):
+            with pytest.raises(lab_run.LabRunError, match="opening Gateway receipt") as problem:
+                lab_run.jessicas_handoff(turn)
+            assert "facilitator" in str(problem.value) and "send --lab" not in str(problem.value)

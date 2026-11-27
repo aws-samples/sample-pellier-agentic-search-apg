@@ -24,7 +24,10 @@ def test_a_failed_attempt_beside_the_applied_credit_keeps_both_proofs_passing(
     chain = _jessica_chain(fresh_db, handoff_row=True)
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", row_factory=dict_row) as conn:
-        lab4.ensure_probe_review(conn, staff_sub="sub-nadia")
+        probe = lab4.ensure_probe_review(conn, staff_sub="sub-nadia")
+        denial = lab4.attempt_for({"outcome": "deny", "cedar_denial": True},
+                                  probe["idempotency_key"], {})
+        lab4.record_probe_attempt(conn, probe["id"], denial)
         conn.execute("INSERT INTO pellier.tool_audit "
                      "(session_id, tool, caller, args, result, latency_ms) "
                      "VALUES ('gateway-CUST-JESSICA', 'give_store_credit', 'gateway', %s::jsonb, "

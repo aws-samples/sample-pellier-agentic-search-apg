@@ -47,7 +47,7 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
        (SELECT count(*) FROM pellier.approvals q JOIN review r ON q.answered_by_review_id = r.id
          WHERE q.tool = 'store_credit_request') AS requests,
        (SELECT count(*) FROM pellier.tool_audit t JOIN request q ON t.session_id = q.source_turn_id
-         WHERE t.tool = 'ask_a_person') AS handoff_rows,
+         WHERE t.tool = 'ask_a_person' AND t.result->>'request_id' = q.id::text) AS handoff_rows,
        -- The row that applied the credit. A call that failed or was refused
        -- before it leaves its own row with the key: an attempt, kept apart.
        (SELECT count(*) FROM pellier.tool_audit t JOIN review r
@@ -76,8 +76,8 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
 \if :wrap_has_credit
 \else
   \echo 'Observed  NOT YET PASSED: Jessica has no store credit'
-  \echo 'Next      finish Lab 4 (Nadia approves and executes her review), then run this'
-  \echo '          again.'
+  \echo 'Next      if Jessica still needs approval, return to Task 4A in the Operator.'
+  \echo '          Follow Pay the credit once and check the records, then run this again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -100,7 +100,7 @@ WITH credit AS (
     SELECT 2, t.created_at, 'ask_a_person ran in her turn (' || t.caller || ')',
            'tool_audit ' || t.audit_id
       FROM pellier.tool_audit t JOIN request q ON t.session_id = q.source_turn_id
-     WHERE t.tool = 'ask_a_person'
+     WHERE t.tool = 'ask_a_person' AND t.result->>'request_id' = q.id::text
     UNION ALL
     SELECT 3, requested_at, 'The investigation proposed ' || to_char((args->>'amount_cents')::int / 100.0,
            'FM$999990.00') || ' for orders ' || array_to_string(order_ids, ', '),
@@ -149,8 +149,8 @@ SELECT * FROM (VALUES
 ) AS links(link, expected, observed);
 
 SELECT CASE
-         WHEN :wrap_requests = 0 THEN 'no request for review ' || :'wrap_review_id' || '; send hers:'
-         WHEN :wrap_handoff_rows = 0 THEN 'her request''s turn left no ask_a_person row in tool_audit'
+         WHEN :wrap_requests = 0 THEN 'no shopper request links to this paid review'
+         WHEN :wrap_handoff_rows = 0 THEN 'no ask_a_person row in her turn names her request'
          WHEN NOT :'wrap_key_matches'::boolean THEN 'the key derived from the review is not the credit''s'
          WHEN :wrap_credit_audit_rows <> 1 THEN :'wrap_credit_audit_rows'
               || ' give_store_credit audit rows applied the key; expected one'
@@ -158,7 +158,6 @@ SELECT CASE
          WHEN NOT :'wrap_orders_match'::boolean THEN 'the credited orders are not the review''s orders'
          ELSE ''
        END AS missing,
-       :wrap_requests = 0 AS no_request,
        :wrap_requests > 0 AND :wrap_handoff_rows > 0 AND :'wrap_key_matches'::boolean
          AND :wrap_credit_audit_rows = 1 AND :wrap_credit_rows = 1
          AND :'wrap_orders_match'::boolean AS whole
@@ -184,11 +183,9 @@ SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
 \else
   \echo 'Observed  NOT YET PASSED:'
   \echo '         ' :wrap_missing
-  \if :wrap_no_request
-    \echo '          uv run scripts/lab_run.py send --lab 4'
-  \endif
+  \echo 'Next      keep the existing credit. Show the review and its key to a facilitator.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
-  DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Observed'; END $fail$;
+  DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif

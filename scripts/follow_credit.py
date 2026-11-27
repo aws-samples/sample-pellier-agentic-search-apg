@@ -46,7 +46,6 @@ CREDIT_TOOL = trace.AUDITED_TOOL
 LEAD_S = 120
 TITLE = "Jessica's store credit, end to end: CloudWatch spans, Aurora rows and pgAudit"
 HEADER = ("When (UTC)", "Step", "What the record says", "Recorded in")
-FINISH_LAB_4 = "uv run scripts/lab_run.py finish --lab 4"
 CONTRADICTION = ("Aurora and the Gateway's record of her handoff disagree. Raise your hand so a "
                  "facilitator can check it.")
 
@@ -223,7 +222,9 @@ def aurora_gap(story: Optional[Dict[str, Any]]) -> Optional[Followed]:
     """NOT YET PASSED without a credit; FAILED when a link between her rows is missing."""
     if not story or story.get("credit_id") is None:
         return Followed(check.NOT_YET, observed="Jessica has no store credit yet",
-                        next_step=f"finish Lab 4 ({FINISH_LAB_4}), then run this again.")
+                        next_step="if you have not approved Jessica's credit, return to Task 4A "
+                                  "and approve it as Nadia. Then follow Pay the credit once and "
+                                  "check the records in Lab 4. Run this again after the replay.")
     for column, meaning in AURORA_LINKS:
         if story.get(column) is None:
             return Followed(check.FAILED, observed=meaning,
@@ -284,6 +285,16 @@ def _credit_half(story: Dict[str, Any], records: Records, rows: List[List[str]],
     if len(inserts) != 1:
         return Followed(check.FAILED, rows, observed=(
             f"pgAudit logged {len(inserts)} INSERTs with the review's key"))
+    subject = paid.get("subject")
+    if (not subject or not paid.get("identity_checked") or not paid.get("token_use")
+            or "nadia" not in records.names.values()):
+        return Followed(check.COULD_NOT_CHECK, rows,
+                        observed="the Gateway records do not confirm who sent the credit",
+                        next_step="run this again shortly to check the Gateway identity record.")
+    if records.names.get(subject) != "nadia":
+        caller = records.names.get(subject) or f"sub {subject[:8]}..."
+        return Followed(check.FAILED, rows, observed=f"the credit's caller was {caller}, not Nadia",
+                        next_step="keep the result and show it to a facilitator.")
     return Followed(check.PASSED, rows + credit_rows(story, paid, inserts[0], records.names),
                     joins=[
         f"Turn  {story['turn_id']} joins the agent's span, the audit row and her request.",
@@ -306,7 +317,8 @@ def _caller_problem(story: Dict[str, Any], call: Dict[str, Any],
                     names: Dict[str, str]) -> Optional[Followed]:
     """FAILED when someone other than Jessica made the call; waiting when that is unknown."""
     subject = call.get("subject")
-    if not subject or "jessica" not in names.values():
+    if (not subject or not call.get("identity_checked") or not call.get("token_use")
+            or "jessica" not in names.values()):
         return _later(story, "the Gateway's record of her handoff does not say who made it")
     if names.get(subject) != "jessica":
         who = names.get(subject) or f"sub {subject[:8]}..."
@@ -348,8 +360,8 @@ def _handoff_gap(story: Dict[str, Any], records: Records) -> Tuple[
         return Followed(check.COULD_NOT_CHECK, decision_rows(story), observed=(
             "her handoff's audit row predates the Gateway request id, so the call that "
             "opened her request cannot be identified"),
-            next_step="make a new handoff, for example finish Lab 4 again "
-                      f"({FINISH_LAB_4}), then run this again."), None
+            next_step="keep the existing credit. Run psql -f workshop/wrap-up-reconstruct.sql "
+                      "to inspect its Aurora records."), None
     call = handoff_call(records.handoffs, request_id)
     if call is None:
         return _later(story, f"the {HANDOFF_TOOL} call with Gateway request id {request_id} "

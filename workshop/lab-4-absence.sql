@@ -28,13 +28,19 @@
 
 SET client_min_messages TO warning;
 
-SELECT coalesce((SELECT 'operator-review:' || a.id || ':' || left(a.action_hash, 32)
-                   FROM pellier.approvals a
-                  WHERE a.tool = 'give_store_credit'
-                    AND a.status = 'approved'
-                    AND a.issue = 'Lab 4 over-limit probe: covers no order'
-                  ORDER BY a.id DESC
-                  LIMIT 1), '') AS deny_key,
+WITH probe AS (
+    SELECT a.last_attempt, 'operator-review:' || a.id || ':' || left(a.action_hash, 32) AS key
+      FROM pellier.approvals a
+     WHERE a.tool = 'give_store_credit' AND a.status = 'approved'
+       AND a.issue = 'Lab 4 over-limit probe: covers no order'
+     ORDER BY a.id DESC LIMIT 1
+)
+SELECT EXISTS (SELECT 1 FROM probe) AS has_probe,
+       coalesce((SELECT key FROM probe
+                  WHERE last_attempt->>'outcome' = 'denied'
+                    AND last_attempt->>'rail' = 'gateway-mcp'
+                    AND last_attempt->>'policy' = 'DENY'
+                    AND last_attempt->>'idempotency_key' = key), '') AS deny_key,
        coalesce((SELECT 'operator-review:' || a.id || ':' || left(a.action_hash, 32)
                    FROM pellier.approvals a
                   WHERE a.tool = 'give_store_credit'
@@ -76,7 +82,11 @@ SELECT format('%s, %s, %s and %s',
 \if :lab_4_has_deny_key
 \else
   \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
-  \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
+  \if :lab_4_has_probe
+    \echo 'Observed  no matching Gateway denial was recorded for the latest over-limit review'
+  \else
+    \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
+  \endif
   \echo 'Next      run uv run scripts/lab4_check.py --task 4A after deploying your rule,'
   \echo '          then run this again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`

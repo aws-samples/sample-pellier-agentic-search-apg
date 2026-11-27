@@ -536,3 +536,50 @@ def test_2a_without_any_shirt_turn_still_asks_for_the_brooklyn_question(  # noqa
         conn, own_audit_rows) -> None:
     _cape_turn(conn, "turn-own-cape-only")
     _assert_asks_for_the_brooklyn_question_again(lab2.judge_2a(conn))
+
+
+@pytest.mark.parametrize("new_query", ["Linen shirt", None])
+def test_current_2a_turn_cannot_borrow_an_older_shirt_answer(conn, own_audit_rows, tmp_path,
+                                                              new_query) -> None:
+    receipt = tmp_path / "lab-2a-turn.json"
+    _own_audit(conn, "shirt-before", "check_stock", {"product_query": MARCO_PIECE},
+               _ask(conn, lab_variants.SOLUTION, MARCO_PIECE))
+    if new_query:
+        _own_audit(conn, "shirt-now", "check_stock", {"product_query": new_query},
+                   _ask(conn, lab_variants.SOLUTION, new_query))
+    _cape_turn(conn, "cape-after")
+    receipt.write_text(json.dumps({"session": lab2.MARCO_SESSION_PREFIX + "shirt-now",
+                                   "turn": "shirt-now"}))
+    finding = lab2.judge_2a(conn)
+    assert finding.state == "NOT YET PASSED", finding
+    assert lab2.SEND_2A in finding.next_step
+
+
+def test_a_scoped_2a_retry_never_asks_to_send_the_cape(conn, own_audit_rows) -> None:
+    _own_audit(conn, "turn-before-fix", "search_products", {"query": MARCO_PIECE}, {})
+    finding = lab2.judge_2a(conn)
+    assert finding.state == "FAILED"
+    assert lab2.SEND_2A in finding.next_step
+
+
+def test_saved_shirt_turn_survives_the_cape_until_reset(conn, own_audit_rows) -> None:
+    turn = "turn-saved-shirt"
+    _own_audit(conn, turn, "check_stock", {"product_query": MARCO_PIECE},
+               _ask(conn, lab_variants.SOLUTION, MARCO_PIECE))
+    receipt = lab2.check.lab2_shirt_turn_path()
+    receipt.write_text(json.dumps({"session": lab2.MARCO_SESSION_PREFIX + turn, "turn": turn}))
+    _cape_turn(conn, "turn-cape")
+    assert lab2.judge_2a(conn).state == "PASSED"
+    reset = conn.execute("SELECT clock_timestamp() AS now").fetchone()["now"]
+    lab2.check.record_reset_point(2, reset)
+    assert lab2.judge_2a(conn).state == "NOT YET PASSED"
+
+
+def test_legacy_attempt_without_hadley_in_the_tool_arguments_still_supersedes_the_old_turn(
+        conn, own_audit_rows) -> None:
+    _own_audit(conn, "old-shirt", "check_stock", {"product_query": MARCO_PIECE},
+               _ask(conn, lab_variants.SOLUTION, MARCO_PIECE))
+    _own_audit(conn, "new-ambiguous", "check_stock", {"product_query": "Linen shirt"},
+               _ask(conn, lab_variants.SOLUTION, "Linen shirt"))
+    _cape_turn(conn, "cape-after-both")
+    _assert_asks_for_the_brooklyn_question_again(lab2.judge_2a(conn))

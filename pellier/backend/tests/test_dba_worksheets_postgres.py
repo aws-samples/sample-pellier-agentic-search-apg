@@ -187,8 +187,9 @@ def _jessica_chain(cluster: Cluster, *, handoff_row: bool) -> Dict[str, Any]:
             source_turn_id=asked, requested_by_sub="sub-jessica", requester_kind="shopper")
         if handoff_row:
             run("INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result, latency_ms)"
-                " VALUES (%s, 'ask_a_person', 'gateway', %s::jsonb, '{}'::jsonb, 40)",
-                (asked, json.dumps({"customer_id": "CUST-JESSICA", "turn_id": asked})))
+                " VALUES (%s, 'ask_a_person', 'gateway', %s::jsonb, %s::jsonb, 40)",
+                (asked, json.dumps({"customer_id": "CUST-JESSICA", "turn_id": asked}),
+                 json.dumps({"request_id": request.id})))
         reason = "Returned: Waffle Bath Robe, Sage and Reed Diffuser"
         review = store_tools.open_credit_review(
             run, customer_id="CUST-JESSICA", amount_cents=10000, reason=reason,
@@ -221,17 +222,19 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
     nothing = _worksheet(fresh_db, RECONSTRUCT)
     assert nothing.returncode != 0
     assert "Observed  NOT YET PASSED: Jessica has no store credit" in nothing.stdout
+    assert "Pay the credit once" in nothing.stdout and "finish Lab 4" not in nothing.stdout
 
     chain = _jessica_chain(fresh_db, handoff_row=False)
     gap = _worksheet(fresh_db, RECONSTRUCT)
     assert gap.returncode != 0
     assert ("Observed  NOT YET PASSED:\n"
-            "          her request's turn left no ask_a_person row in tool_audit") in gap.stdout
+            "          no ask_a_person row in her turn names her request") in gap.stdout
     assert gap.stdout.rstrip().endswith("Wrap-up reconstruction failed")
 
     with _connect(fresh_db) as conn:
-        _run(conn)("INSERT INTO pellier.tool_audit (session_id, tool, caller, args) "
-                   "VALUES (%s, 'ask_a_person', 'gateway', '{}'::jsonb)", (chain["asked"],))
+        _run(conn)("INSERT INTO pellier.tool_audit (session_id, tool, caller, args, result) "
+                   "VALUES (%s, 'ask_a_person', 'gateway', '{}'::jsonb, %s::jsonb)",
+                   (chain["asked"], json.dumps({"request_id": chain["request"]})))
     before = _counts(fresh_db)
     done = _worksheet(fresh_db, RECONSTRUCT)
     assert done.returncode == 0, done.stdout + done.stderr
@@ -249,6 +252,11 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
     assert f"Key       {chain['key']}" in done.stdout
     assert max(len(line) for line in done.stdout.splitlines()) < 120
     assert _counts(fresh_db) == before
+    with _connect(fresh_db) as conn:
+        _run(conn)("DELETE FROM pellier.approvals WHERE id = %s", (chain["request"],))
+    orphan = _worksheet(fresh_db, RECONSTRUCT)
+    assert orphan.returncode != 0 and "no shopper request links to this paid review" in orphan.stdout
+    assert "send --lab 4" not in orphan.stdout
 
 
 def test_the_wrap_up_check_picks_the_handoff_row_that_opened_her_request(
@@ -266,6 +274,9 @@ def test_the_wrap_up_check_picks_the_handoff_row_that_opened_her_request(
         run = _run(conn)
         decoy = run(insert, (chain["asked"], json.dumps({"gateway_request_id": "req-decoy"}),
                              json.dumps({"request_id": chain["request"] + 1000})))[0]
+        conn.commit()
+        only_decoy = _worksheet(handoff_db, RECONSTRUCT)
+        assert only_decoy.returncode != 0 and "names her request" in only_decoy.stdout
         mine = run(insert, (chain["asked"], json.dumps({"gateway_request_id": "req-mine"}),
                             json.dumps({"request_id": chain["request"]})))[0]
         assert decoy["audit_id"] < mine["audit_id"]

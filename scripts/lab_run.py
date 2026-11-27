@@ -95,13 +95,14 @@ import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 import time
 import urllib.error
 import urllib.request
 from datetime import datetime
 from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, Optional,
-                    Sequence, Tuple)
+                    Sequence, TextIO, Tuple)
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import deploy_lock  # noqa: E402  (sibling module)
@@ -966,8 +967,26 @@ def _print_answer(answer: str) -> None:
         print(hang + line, flush=True)
 
 
+def _begin_shirt_turn() -> TextIO:
+    """Publish a pending 2A receipt. An older send can only finish writing its own file."""
+    path = check.lab2_shirt_turn_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        receipt = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
+                                              prefix="lab-2a-", delete=False)
+        try:
+            os.replace(receipt.name, path)
+        except OSError:
+            receipt.close()
+            pathlib.Path(receipt.name).unlink(missing_ok=True)
+            raise
+        return receipt
+    except OSError as exc:
+        raise LabRunError(f"Could not record Marco's Task 2A turn in {path}: {exc}") from exc
+
+
 def converse(backend: Backend, lab: int, token: str, persona: str,
-             requests: Sequence[str], trace: bool = True) -> None:
+             requests: Sequence[str], trace: bool = True, shirt_index: Optional[int] = None) -> None:
     """Start a new conversation as this shopper and send the requests in order.
 
     Each request is marked as sent from the terminal, so the shopper's own Ask
@@ -975,7 +994,7 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
     """
     session = backend.post_json("/api/persona/switch", {"persona_id": persona})["session_id"]
     history: List[Dict[str, str]] = []
-    for message in requests:
+    for index, message in enumerate(requests):
         if trace:
             print(flush=True)
             _trace_line("Message", f'"{message}"')
@@ -984,16 +1003,26 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
                               f"when {persona.title()} types this")
             _trace_line("From", SCENARIOS)
             print(flush=True)
-        response = send_turn_again_on_failure(backend, token, {
-            "message": message,
-            "session_id": session,
-            "customer_id": f"CUST-{persona.upper()}",
-            "conversation_history": history,
-            "source": "terminal",
-        }, trace=trace, deadline=TURN_DEADLINE_SECONDS[LAB_RAIL[lab]])
-        served = str(response.get("rail") or "")
-        if served != LAB_RAIL[lab]:
-            raise LabRunError(_rail_problem(lab, served, response))
+        with (_begin_shirt_turn() if index == shirt_index else contextlib.nullcontext()) as receipt:
+            response = send_turn_again_on_failure(backend, token, {
+                "message": message,
+                "session_id": session,
+                "customer_id": f"CUST-{persona.upper()}",
+                "conversation_history": history,
+                "source": "terminal",
+            }, trace=trace, deadline=TURN_DEADLINE_SECONDS[LAB_RAIL[lab]])
+            served = str(response.get("rail") or "")
+            if served != LAB_RAIL[lab]:
+                raise LabRunError(_rail_problem(lab, served, response))
+            if receipt is not None:
+                if not response.get("turn_id"):
+                    raise LabRunError("Pellier returned no turn ID for Marco's Brooklyn question. "
+                                      "Send the Task 2A question again.")
+                try:
+                    json.dump({"session": session, "turn": response["turn_id"]}, receipt)
+                    receipt.flush()
+                except OSError as exc:
+                    raise LabRunError(f"Could not save Marco's Task 2A turn: {exc}") from exc
         answer = str(response.get("response") or "")
         turn = f"(turn {response.get('turn_id') or '?'})"
         if trace:
@@ -1005,12 +1034,55 @@ def converse(backend: Backend, lab: int, token: str, persona: str,
         else:
             width = check.terminal_width() - len(TRACE_INDENT + ANSWER_LABEL)
             print(f"{TRACE_INDENT}{ANSWER_LABEL}{_one_line(_as_read(answer), width)}", flush=True)
+        if lab == 4 and not jessicas_handoff(str(response.get("turn_id") or "")):
+            raise LabRunError("Aurora could not confirm an open credit request from Jessica's "
+                              "turn. Before opening the Operator, run "
+                              "uv run scripts/lab_run.py send --lab 4 --shopper-only again. "
+                              "If it stops here again, show the turn ID to your coding coach.")
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
 
 
 # ---------------------------------------------------------------------------
 # send, Lab 4: Nadia's part in the Operator
 # ---------------------------------------------------------------------------
+
+
+def jessicas_handoff(turn: Optional[str] = None, *, review_id: Optional[int] = None) -> bool:
+    """Check the open request, or the request the selected review answered, against its receipt."""
+    cfg = check.db_config()
+    if cfg is None:
+        raise LabRunError(check.missing_settings_reason())
+    try:
+        with check.connect(cfg) as conn:
+            row = conn.execute("""
+                SELECT q.id, opening.gateway_id,
+                       (%(turn)s::text IS NULL OR EXISTS (
+                        SELECT 1 FROM pellier.tool_audit t
+                         WHERE t.tool = 'ask_a_person' AND t.session_id = %(turn)s
+                           AND t.result->>'request_id' = q.id::text
+                           AND t.result->>'credit_request_status' IN
+                               ('request_opened', 'already_requested'))) AS requested
+                  FROM pellier.approvals q
+                  LEFT JOIN LATERAL (
+                    SELECT nullif(trim(t.args->>'gateway_request_id'), '') AS gateway_id
+                      FROM pellier.tool_audit t
+                     WHERE t.tool = 'ask_a_person' AND t.session_id = q.source_turn_id
+                       AND t.result->>'request_id' = q.id::text
+                     ORDER BY t.audit_id LIMIT 1
+                  ) opening ON true
+                 WHERE q.customer_id = %(customer)s AND q.tool = 'store_credit_request'
+                   AND ((%(review)s::bigint IS NULL AND q.status = 'open') OR
+                        (q.status = 'answered' AND q.answered_by_review_id = %(review)s))
+                 ORDER BY q.id LIMIT 1
+            """, {"customer": CREDIT_CLIENT, "turn": turn, "review": review_id}).fetchone()
+    except Exception as exc:
+        raise LabRunError(f"could not check Jessica's request in Aurora ({type(exc).__name__}). "
+                          "Keep the output and ask your coding coach for the next step.") from exc
+    if row and not row["gateway_id"]:
+        raise LabRunError(f"Jessica's request {row['id']} has no opening Gateway receipt that the "
+                          "Wrap-up can trace. Keep the existing case and show this output to a "
+                          "facilitator. Sending the request again cannot restore that receipt.")
+    return bool(row and row["requested"])
 
 
 def nadias_sign_in(path: Optional[pathlib.Path] = None) -> str:
@@ -1120,8 +1192,8 @@ def credited(review: Dict[str, Any]) -> bool:
             and (review.get("assurance") or {}).get("aurora") == "PERMITTED")
 
 
-def settle_credit(backend: Backend, token: str,
-                  reviews: Optional[List[Dict[str, Any]]] = None) -> int:
+def settle_credit(backend: Backend, token: str, token_for: Callable[[str], str],
+                  *, trace: bool = True) -> int:
     """Nadia's part, at most once: return the review that holds Jessica's credit.
 
     A credited review is left as it is: nothing is investigated, approved or written. A
@@ -1129,8 +1201,7 @@ def settle_credit(backend: Backend, token: str,
     person's own approval stands. A review a person rejected is not overruled. Only when
     Jessica has no review at all does Nadia investigate.
     """
-    if reviews is None:
-        reviews = jessicas_reviews(backend, token)
+    reviews = jessicas_reviews(backend, token)
     done = next((r for r in reviews if credited(r)), None)
     if done is not None:
         ok(f"review {done['reviewId']} already credited Jessica; nothing is investigated, "
@@ -1143,6 +1214,13 @@ def settle_credit(backend: Backend, token: str,
                           "not overrule a person's decision. To credit Jessica, investigate "
                           "Jessica's case in the Operator to open a new review, then run this "
                           "again.")
+    if live and not jessicas_handoff(review_id=int(live["reviewId"])):
+        raise LabRunError(f"no shopper request links to review {live['reviewId']}. Keep Nadia's "
+                          "decision and show this review to a facilitator before executing it.")
+    if live is None and not jessicas_handoff():
+        for persona, stages in CONVERSATIONS[4]:
+            converse(backend, 4, token_for(persona), persona, required_requests(persona, stages),
+                     trace=trace)
     proposal = live or investigate(backend, token, CREDIT_CLIENT)
     review = int(proposal["reviewId"])
     if live is not None:
@@ -1229,16 +1307,18 @@ def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_toke
                                         "restarting the backend so it runs your edit")
     else:
         wait_until_healthy(backend)
-    tokens: Dict[str, str] = {}
-    for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
-        if persona not in tokens:
-            tokens[persona] = token_for(persona)
-        converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
-                 trace=trace)
-    if lab == 4 and shopper_only:
-        print_nadia_next()
-    elif lab == 4:
-        settle_credit(backend, token_for(OPERATOR))
+    if lab == 4 and not shopper_only:
+        settle_credit(backend, token_for(OPERATOR), token_for, trace=trace)
+    else:
+        tokens: Dict[str, str] = {}
+        for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
+            if persona not in tokens:
+                tokens[persona] = token_for(persona)
+            shirt_index = stages.index("prove") if lab == 2 and "prove" in stages else None
+            converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
+                     trace=trace, shirt_index=shirt_index)
+        if lab == 4:
+            print_nadia_next()
     if say_next:
         print_next_steps(next_after_send(lab, task))
 
@@ -1337,12 +1417,7 @@ class Finish:
             "that decision yourself in the Operator.")
         wait_until_healthy(self.backend)
         nadia = self.token_for(OPERATOR)
-        reviews = jessicas_reviews(self.backend, nadia)
-        if not any(credited(r) for r in reviews):
-            for persona, stages in CONVERSATIONS[4]:
-                converse(self.backend, 4, self.token_for(persona), persona,
-                         required_requests(persona, stages))
-        review = settle_credit(self.backend, nadia, reviews)
+        review = settle_credit(self.backend, nadia, self.token_for)
         prove_replay(self.backend, nadia, review)
 
 

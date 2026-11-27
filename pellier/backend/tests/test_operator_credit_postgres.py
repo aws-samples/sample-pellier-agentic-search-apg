@@ -512,6 +512,69 @@ async def test_jessicas_request_and_the_investigation_give_one_review_and_one_cr
                              "WHERE customer_id = %s", JESSICA) == 10000
 
 
+def test_catch_up_reuses_nadias_answered_approved_case_and_replays_one_credit(
+    fresh_db, monkeypatch,
+) -> None:
+    import asyncio
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock
+
+    scripts = DEPLOY.parent
+    monkeypatch.syspath_prepend(str(scripts))
+    import lab_run
+
+    async def with_db(f, **kwargs):
+        async with await psycopg.AsyncConnection.connect(**_conninfo(fresh_db)) as aconn:
+            return await f(db=_PgDb(aconn), **kwargs)
+
+    with psycopg.connect(**_conninfo(fresh_db)) as conn:
+        _clean_case(conn)
+        module = _lambda(monkeypatch, conn)
+        _set_rail(monkeypatch, "gateway-mcp", module)
+        monkeypatch.setattr(OP, "_policy_engine_state", AsyncMock(return_value=ENFORCED))
+        monkeypatch.setattr(lab_run.check, "db_config", fresh_db.env)
+        turn = new_turn_id()
+        invocation = {"name": "ask_a_person", "arguments": {"credit_request": True,
+                      "customer_id": JESSICA, "reason": "Please review my return.", "turn_id": turn}}
+        context = SimpleNamespace(client_context=SimpleNamespace(
+            custom={"bedrockAgentCoreAwsRequestId": "req-catch-up"}))
+        request = json.loads(module.lambda_handler(invocation, context)["text"])
+        assert lab_run.jessicas_handoff(turn)
+        proposal = _investigate(conn, [_order_id(conn, "42")], "Her returns were received.")
+        review_id = int(proposal["review_id"])
+        review = asyncio.run(with_db(rv.get_review, review_id=review_id))
+        asyncio.run(with_db(rv.decide_review, review_id=review_id, decision=rv.STATUS_CONFIRMED,
+                            decided_by=NADIA_SUB, action_hash=review["action_hash"]))
+        assert lab_run.jessicas_handoff(review_id=review_id)
+
+        def get(path, token=None):
+            if path == "/api/health":
+                return {"status": "healthy"}
+            assert path == "/api/operator/reviews"
+            return asyncio.run(with_db(OP.list_reviews))
+
+        payments = []
+        def post(path, body, token):
+            assert path == f"/api/operator/reviews/{review_id}/execute"
+            receipt = asyncio.run(with_db(OP.execute_review, request=OP.ReviewExecuteRequest(),
+                                          review_id=review_id, operator={"sub": NADIA_SUB,
+                                                                         "access_token": token}))
+            payments.append(receipt)
+            return receipt
+
+        def token_for(username):
+            assert username == "nadia", "the catch-up must not send another shopper request"
+            return "unit-test-token"
+
+        backend = SimpleNamespace(get_json=get, post_json=post)
+        lab_run.Finish(4, backend, token_for, None, scripts.parent).credit()
+        assert len(payments) == 2 and payments[1]["result"]["idempotent_replay"]
+        assert payments[0]["idempotencyKey"] == payments[1]["idempotencyKey"]
+        (answered,) = _requests(conn)
+        assert answered["id"] == request["request_id"] and answered["answered_by_review_id"] == review_id
+        assert _reviews(conn) == 1 and _credits(conn) == 1
+
+
 def test_a_request_can_never_be_approved_in_the_table(fresh_db, monkeypatch) -> None:
     """A request names no amount; the database refuses to give it a decision."""
     with psycopg.connect(**_conninfo(fresh_db)) as conn:

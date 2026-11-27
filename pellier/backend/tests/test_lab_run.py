@@ -181,6 +181,9 @@ def fake(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeBackend]:
     monkeypatch.setattr(lab_run, "TURN_DEADLINE_SECONDS",
                         {lab_run.IN_PROCESS: 0.5, lab_run.MANAGED: 0.5})
     backend = FakeBackend()
+    # The HTTP double records requests. PostgreSQL-backed tests check the actual handoff join.
+    monkeypatch.setattr(lab_run, "jessicas_handoff",
+                        lambda turn=None, review_id=None: bool(turn or review_id))
     server = ThreadingHTTPServer(("127.0.0.1", 0), _handler(backend))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -607,6 +610,30 @@ def test_lab_2_tasks_send_the_brooklyn_count_then_the_cape(fake: FakeBackend) ->
     assert cape["body"]["message"] == "Is the Velvet Opera Cape in stock?"
 
 
+@pytest.mark.parametrize("extra", [(), ("--task", "2A")])
+def test_2a_send_records_its_turn_and_2b_keeps_it(fake, tmp_path, extra) -> None:
+    receipt = tmp_path / "lab-2a-turn.json"
+    assert _run(fake, 2, None, *extra) == 0
+    shirt = _turns(fake)[-1]
+    assert "Hadley Linen Shirt" in shirt["body"]["message"]
+    saved = json.loads(receipt.read_text())
+    assert saved == {"session": shirt["body"]["session_id"], "turn": f"turn-{len(fake.requests)}"}
+    assert _run(fake, 2, None, "--task", "2B") == 0
+    assert json.loads(receipt.read_text()) == saved
+    fake.chat_error = "unable to finish"
+    assert _run(fake, 2, None, "--task", "2A") == 1
+    assert receipt.read_text() == ""
+
+
+def test_overlapping_shirt_sends_keep_the_newest_attempt() -> None:
+    path = lab_run.check.lab2_shirt_turn_path()
+    with lab_run._begin_shirt_turn() as older:
+        with lab_run._begin_shirt_turn() as newer:
+            newer.write("newer")
+        older.write("older")
+    assert path.read_text() == "newer"
+
+
 def test_lab_3a_sends_theos_ticket_question_alone_on_agentcore(fake: FakeBackend) -> None:
     fake.rail = lab_run.MANAGED
     assert _run(fake, 3, None, "--task", "3A") == 0
@@ -699,6 +726,19 @@ def test_a_turn_the_model_or_server_fails_is_sent_again(
     out = capsys.readouterr().out
     assert "sending the same request again in 0 s (2 of 3)" in out
     assert "sending the same request again in 0 s (3 of 3)" in out
+
+
+def test_an_empty_runtime_reply_is_sent_again(fake: FakeBackend) -> None:
+    """A test event, 25 Nov 2026: the AgentCore data plane answered a completed turn with an empty
+    body. The app reports it as runtime_invalid_response, which the stream classifies as
+    request_failed; a terminal send resends it like any failed turn."""
+    from services.chat_error_taxonomy import classify_chat_error
+
+    event = classify_chat_error("runtime_invalid_response")
+    assert event["code"] == "request_failed" and event["retryable"] is True
+    fake.chat_failures = [event["error"]]
+    assert _run(fake, 2) == 0
+    assert len(_turns(fake)) == 3, "the first request twice, then the second once"
 
 
 def test_resends_wait_longer_each_time(
@@ -823,6 +863,7 @@ def test_lab_4_never_opens_a_second_credit_when_jessica_was_already_credited(
     assert _run(fake, 4) == 0
     paths = [r["path"] for r in _operator(fake)]
     assert paths == ["/api/operator/reviews"]
+    assert _turns(fake) == [], "reusing a paid review must not leave an unrelated open handoff"
     assert "review 41 already credited Jessica" in capsys.readouterr().out
 
 
@@ -832,8 +873,25 @@ def test_lab_4_finishes_the_review_a_person_approved_without_investigating_again
     fake.rail = lab_run.MANAGED
     fake.reviews = [_review("approved", "NOT_REACHED")]
     assert _run(fake, 4) == 0
+    assert _turns(fake) == []
     assert [r["path"] for r in _operator(fake)] == [
         "/api/operator/reviews", "/api/operator/reviews/41/execute"]
+
+
+@pytest.mark.parametrize("status", ["approved", "pending"])
+def test_an_unlinked_review_never_pays_or_reopens_jessicas_case(
+    fake: FakeBackend, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], status: str,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.reviews = [_review(status, "NOT_REACHED")]
+    def no_handoff(turn=None, review_id=None):
+        assert turn is None and review_id == 41
+        return False
+    monkeypatch.setattr(lab_run, "jessicas_handoff", no_handoff)
+    assert _run(fake, 4) == 1
+    assert "no shopper request links to review 41" in capsys.readouterr().err
+    assert _turns(fake) == []
+    assert [r["path"] for r in _operator(fake)] == ["/api/operator/reviews"]
 
 
 def test_lab_4_finishes_the_approved_review_before_a_newer_pending_one(
@@ -964,6 +1022,23 @@ def test_lab_4_shopper_only_sends_jessicas_request_and_leaves_the_decision_to_na
     assert not [r for r in fake.requests if r["path"].startswith("/api/operator/")]
     assert seen == ["jessica"], "Nadia's token is never minted"
     assert "as Nadia in the Operator" in capsys.readouterr().out
+
+
+def test_a_completed_shopper_turn_without_a_saved_request_does_not_send_you_to_nadia(
+    fake: FakeBackend, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+
+    def missing(turn: str) -> bool:
+        assert turn.startswith("turn-")
+        return False
+
+    monkeypatch.setattr(lab_run, "jessicas_handoff", missing)
+    assert _run(fake, 4, None, "--shopper-only") == 1
+    output = capsys.readouterr()
+    assert "could not confirm an open credit request" in output.err
+    assert "as Nadia in the Operator" not in output.out
+    assert not _operator(fake)
 
 
 CREDENTIALS = """=============================================================
@@ -1301,6 +1376,30 @@ def test_a_repeated_finish_lab_4_only_replays_the_existing_credit(
     assert _turns(fake) == [], "Jessica's request is not sent again"
     assert [r["path"] for r in _operator(fake)] == [
         "/api/operator/reviews", "/api/operator/reviews/41/execute"]
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_4_uses_an_open_handoff_before_investigating(
+    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    monkeypatch.setattr(lab_run, "jessicas_handoff", lambda turn=None: True)
+    assert _finish(fake, 4, _scratch_repo(tmp_path), Commands()) == 0
+    assert _turns(fake) == []
+    assert any(r["path"].endswith("/investigate") for r in _operator(fake))
+
+
+@pytest.mark.usefixtures("box")
+def test_finish_lab_4_pays_the_existing_approved_review_without_another_shopper_turn(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    fake.rail = lab_run.MANAGED
+    fake.reviews = [_review("approved", "BLOCKED")]
+    assert _finish(fake, 4, _scratch_repo(tmp_path), Commands()) == 0
+    assert _turns(fake) == []
+    assert [r["path"] for r in _operator(fake)] == [
+        "/api/operator/reviews", "/api/operator/reviews/41/execute",
+        "/api/operator/reviews/41/execute"]
 
 
 @pytest.mark.usefixtures("box")

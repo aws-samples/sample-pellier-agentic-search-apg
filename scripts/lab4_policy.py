@@ -730,7 +730,9 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
         return check.Finding("4A", title, check.FAILED, expected,
                              "the over-limit credit got past Cedar", evidence,
                              "run uv run scripts/lab4_check.py --task 4A and read part 2.")
-    if attempt.get("outcome") != "denied":
+    if (attempt.get("outcome") != "denied" or attempt.get("policy") != DENY
+            or attempt.get("rail") != "gateway-mcp" or not row.get("idempotency_key")
+            or attempt.get("idempotency_key") != row["idempotency_key"]):
         return check.Finding("4A", title, check.NOT_YET, expected,
                              "no Gateway denial is stored for the over-limit review", evidence,
                              "deploy your rule, then run uv run scripts/lab4_check.py --task 4A.")

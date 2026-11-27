@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Lab 2's checks: the Stock agent holds one tool, and that tool answers from the rows.
 
-Task 2A reads Marco's latest Stock-agent turn from ``pellier.tool_audit`` (his
-session is the one ``uv run scripts/lab_run.py send --lab 2`` starts,
-``persona-marco-...``). Each in-process audit row records the agent that called
-the tool and the store tools that running agent held (``args->>'agent'``,
+Task 2A reads the audit rows for the Brooklyn question the terminal sent as Marco.
+The sender records the session and turn IDs returned by Pellier. Each in-process audit
+row records the agent that called the tool and the store tools that running agent held (``args->>'agent'``,
 ``args->'grant'``), so the check reads the grant the answering Stock agent
 actually had, never the source: a saved definition counts once Marco's requests
 have run on it. As shipped, the Stock agent holds only the catalog tools, so its
@@ -109,28 +108,31 @@ _STOCK_SQL = """
      ORDER BY warehouse_code
 """
 _LATEST_STOCK_TURN = f"""
-SELECT args->>'turn_id' AS turn_id
+SELECT session_id, args->>'turn_id' AS turn_id
   FROM pellier.tool_audit
  WHERE session_id LIKE %(session)s AND args->>'agent' = %(agent)s
    AND created_at >= {check.SINCE_SQL}
  ORDER BY audit_id DESC
  LIMIT 1
 """
-# Marco's newest Stock-agent turn about his shirt: any of its calls names it. Task 2B's cape
-# question comes after 2A in the participant's order, so the newest turn alone is not the 2A one.
-_LATEST_SHIRT_TURN = f"""
-SELECT args->>'turn_id' AS turn_id
+# Before task-aware receipts, 2A and 2B shared the stock audit history. Skip an
+# identifiable cape call, but consider an ambiguous query or a different tool: either
+# may be the newer Brooklyn attempt, and an older successful turn cannot stand in for it.
+_LEGACY_NON_CAPE_TURN = f"""
+SELECT session_id, args->>'turn_id' AS turn_id
   FROM pellier.tool_audit
  WHERE session_id LIKE %(session)s AND args->>'agent' = %(agent)s
    AND created_at >= {check.SINCE_SQL}
-   AND args::text ILIKE %(piece)s
+   AND NOT (tool = 'check_stock'
+            AND lower(btrim(coalesce(args->>'product_query', ''))) = lower(%(cape)s))
  ORDER BY audit_id DESC
  LIMIT 1
 """
-_TURN_ROWS = """
+_TURN_ROWS = f"""
 SELECT audit_id, tool, args, result, created_at
   FROM pellier.tool_audit
- WHERE session_id LIKE %(session)s AND args->>'turn_id' = %(turn)s
+ WHERE session_id = %(session)s AND args->>'turn_id' = %(turn)s
+   AND created_at >= {check.SINCE_SQL}
  ORDER BY audit_id
 """
 _LIVE_FUNCTION = """
@@ -244,12 +246,12 @@ def keeps_contract(case: str, envelope: Dict[str, Any], catalog: Dict[str, Any])
 # Task 2A: the grant the answering Stock agent held, and what it was told
 # ---------------------------------------------------------------------------
 
-EXPECTED_2A = ("the Stock agent that answered Marco's latest stock question held check_stock "
+EXPECTED_2A = ("the Stock agent that answered Marco's Brooklyn question held check_stock "
                "alone and called only check_stock; the counts and ship windows it was given "
                "for every piece Pellier carries equal warehouse_inventory")
 _NEXT_2A_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
                   "connect for a stock answer to come from a warehouse row, and what else may "
-                  f"it hold? Send Marco's requests again ({SEND}), then rerun this check.")
+                  f"it hold? Send Marco's Brooklyn question again ({SEND_2A}), then rerun this check.")
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -270,8 +272,12 @@ def _stock_turn(conn: Any, sql: str, **params: Any) -> List[Dict[str, Any]]:
         latest = cur.fetchone()
         if not latest or not latest.get("turn_id"):
             return []
-        cur.execute(_TURN_ROWS, {"session": pattern, "turn": latest["turn_id"]})
-        return [dict(row) for row in cur.fetchall()]
+        return _turn_rows(cur, latest["session_id"], latest["turn_id"])
+
+
+def _turn_rows(cur: Any, session: str, turn: str) -> List[Dict[str, Any]]:
+    cur.execute(_TURN_ROWS, {"session": session, "turn": turn, "since": check.reset_point(2)})
+    return [dict(row) for row in cur.fetchall()]
 
 
 def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
@@ -280,14 +286,23 @@ def latest_stock_turn(conn: Any) -> List[Dict[str, Any]]:
 
 
 def task_2a_turn(conn: Any) -> List[Dict[str, Any]]:
-    """Marco's newest Stock-agent turn about his shirt, else his newest Stock-agent turn.
-
-    In the participant's order Task 2B's cape question follows the 2A question, so grading
-    the newest turn alone would regrade 2A on the cape. A newer shirt turn always wins, so a
-    later failed 2A attempt is still the one graded.
-    """
-    piece = "%" + MARCO_PIECE_NAME.split()[0] + "%"
-    return _stock_turn(conn, _LATEST_SHIRT_TURN, piece=piece) or latest_stock_turn(conn)
+    """Look up the turn by the IDs returned for the terminal's latest Brooklyn question."""
+    try:
+        saved = check.lab2_shirt_turn_path().read_text(encoding="utf-8")
+    except FileNotFoundError:
+        # Earlier senders left only tool audit rows. Preserve a completed shirt turn when
+        # a participant has already moved on to the cape in 2B.
+        return (_stock_turn(conn, _LEGACY_NON_CAPE_TURN, cape=DEFAULT_INPUTS["unknown"])
+                or latest_stock_turn(conn))
+    receipt = _as_dict(saved)
+    session, turn = receipt.get("session"), receipt.get("turn")
+    if not (isinstance(session, str) and session.startswith(MARCO_SESSION_PREFIX)
+            and isinstance(turn, str) and turn):
+        return []
+    with conn.cursor() as cur:
+        rows = _turn_rows(cur, session, turn)
+    stock_answered = any(_as_dict(row["args"]).get("agent") == STOCK_AGENT_NAME for row in rows)
+    return rows if stock_answered else []
 
 
 def recorded_grant(rows: Sequence[Dict[str, Any]]) -> Optional[List[str]]:
@@ -389,7 +404,7 @@ def stale_2a(created: Any, when: Optional[check.Timeline]) -> Optional[Tuple[str
     if created.tzinfo is None:
         created = created.replace(tzinfo=timezone.utc)
     if created < edited:
-        return (f"Marco's newest recorded Stock-agent turn ran at {check.clock(created)}, "
+        return (f"Marco's recorded Brooklyn question ran at {check.clock(created)}, "
                 f"before your last change to stock_agent.py at {check.clock(edited)}, so the "
                 "agent before your edit answered it",
                 f"send Marco's Brooklyn count again ({SEND_2A}), then rerun this check.")
@@ -397,19 +412,18 @@ def stale_2a(created: Any, when: Optional[check.Timeline]) -> Optional[Tuple[str
 
 
 def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
-    """Marco's latest Stock-agent turn: its recorded grant, its calls and its counts."""
+    """The Stock agent's grant, calls and counts on Marco's Task 2A turn."""
     title = "the Stock agent holds check_stock alone"
     rows = task_2a_turn(conn)
     if not rows:
         return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A,
-                             "no tool call by Marco's Stock agent recorded yet",
-                             ["pellier.tool_audit: no row with agent 'stock' in a persona-marco- "
-                              "session"],
-                             f"send Marco's requests with {SEND}, then rerun this check. "
+                             "no recorded Stock-agent call for Marco's Brooklyn question",
+                             ["pellier.tool_audit: no matching Stock-agent call for this question"],
+                             f"send Marco's Brooklyn question with {SEND_2A}, then rerun this check. "
                              "Already sent? Before the fix, the Stock agent does not hold "
                              "check_stock, so a call to it did not run and left no row: "
                              "apply Task 2A (uv run scripts/lab_run.py solution --lab 2 --task 2A)."
-                             + check.since_note(2, SEND))
+                             + check.since_note(2, SEND_2A))
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "
@@ -433,7 +447,7 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
                              evidence, "check_stock reported a count or ship window "
                              "warehouse_inventory does not hold for a piece Pellier carries: "
                              "rerun this check after "
-                             f"sending Marco's requests again ({SEND}).")
+                             f"sending Marco's Brooklyn question again ({SEND_2A}).")
     if not compared:
         return check.Finding(
             "2A", title, check.NOT_YET, EXPECTED_2A,
@@ -737,7 +751,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
     finding, rows = run(args.task, _inputs(args))
     if args.task == "2A":
-        print("Lab 2A: Marco's latest stock answer comes from check_stock alone")
+        print("Lab 2A: Marco's Brooklyn stock answer comes from check_stock alone")
     else:
         print(check.wrapped("", "Lab 2B: pellier.check_stock answers from the catalog and "
                             "warehouse_inventory"))

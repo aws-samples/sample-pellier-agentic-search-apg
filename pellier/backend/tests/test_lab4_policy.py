@@ -374,12 +374,16 @@ class TestTheStoredAnswer:
         assert failed["outcome"] == "failed"
 
     def test_the_recorded_probe_is_judged_from_its_answer_and_its_rows(self) -> None:
+        denial = lab4.attempt_for(DENY_PAYLOAD, REVIEW["idempotency_key"], ENGINE)
         row = {"id": 41, "idempotency_key": REVIEW["idempotency_key"], "audit_rows": 0,
                "credit_rows": 0,
-               "last_attempt": json.dumps({"outcome": "denied", "policy": "DENY"})}
+               "last_attempt": json.dumps(denial)}
         assert lab4.judge_recorded_probe(row).state == check.PASSED
         assert lab4.judge_recorded_probe(None).state == check.NOT_YET
         assert lab4.judge_recorded_probe({**row, "last_attempt": None}).state == check.NOT_YET
+        for changed in ({"policy": None}, {"rail": "direct"}, {"idempotency_key": "another-key"}):
+            incomplete = {**row, "last_attempt": {**denial, **changed}}
+            assert lab4.judge_recorded_probe(incomplete).state == check.NOT_YET
         assert lab4.judge_recorded_probe({**row, "credit_rows": 1}).state == check.FAILED
 
 

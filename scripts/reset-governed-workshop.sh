@@ -459,8 +459,8 @@ fi
 pass "Schema rebuilt from scripts/migrations/001_schema.sql: ten tables, pellier_agent and its row-level security"
 pass "Catalog reloaded from the committed embedding cache"
 pass "Seed reloaded: stock, four customers and their orders, return policies, tickets"
-# The tables are empty again, so every lab's reset point (see workshop_check.py) is moot.
-rm -f "$REPO/.local/lab-reset-points.json"
+# The rebuilt tables have no previous turns. Clear their local lookup and reset points.
+rm -f "$REPO/.local/lab-reset-points.json" "$REPO/.local/lab-2a-turn.json"
 
 # The token claim is rendered from customers.cognito_username, the column row-level
 # security reads, so it is refreshed here rather than trusted to still match. It fails

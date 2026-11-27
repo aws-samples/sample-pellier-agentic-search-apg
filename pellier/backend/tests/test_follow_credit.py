@@ -114,7 +114,8 @@ def test_no_credit_yet_is_not_yet_and_reads_nothing_else() -> None:
     for story in (None, _story(credit_id=None)):
         followed = follow_credit.follow(story, _records(handoffs=[], credits=[]), NOW)
         assert followed.state == check.NOT_YET
-        assert "finish Lab 4" in followed.next_step
+        assert "Task 4A" in followed.next_step and "Pay the credit once" in followed.next_step
+        assert "finish --lab 4" not in followed.next_step
 
 
 def test_a_missing_aurora_link_fails_and_names_the_link() -> None:
@@ -263,6 +264,9 @@ def test_a_handoff_with_no_caller_evidence_waits_instead_of_passing():
         followed = follow_credit.follow(_story(), _records(handoffs=[dict(HANDOFF, **changes)],
                                                            names={}), NOW)
         assert followed.state == check.COULD_NOT_CHECK, changes
+    for changes in ({"token_use": None}, {"identity_checked": False}):
+        records = _records(handoffs=[dict(HANDOFF, **changes)])
+        assert follow_credit.follow(_story(), records, NOW).state == check.COULD_NOT_CHECK
 
 
 def test_the_identified_call_not_in_cloudwatch_yet_waits_even_if_another_call_is_there():
@@ -283,7 +287,18 @@ def test_a_handoff_record_from_before_the_gateway_request_id_cannot_be_identifie
     followed = follow_credit.follow(_story(handoff_gateway_request_id=None), _records(), NOW)
     assert followed.state == check.COULD_NOT_CHECK
     assert "predates the Gateway request id" in followed.observed
-    assert "finish Lab 4" in followed.next_step
+    assert "psql -f workshop/wrap-up-reconstruct.sql" in followed.next_step
+    assert "finish --lab 4" not in followed.next_step
+
+
+def test_payment_needs_nadias_identified_caller():
+    for changes in ({"subject": None}, {"token_use": None}, {"identity_checked": False}):
+        result = follow_credit.follow(_story(), _records(credits=[dict(PAID, **changes)]), NOW)
+        assert result.state == check.COULD_NOT_CHECK, changes
+    partial = follow_credit.follow(_story(), _records(names={JESSICA_SUB: "jessica"}), NOW)
+    assert partial.state == check.COULD_NOT_CHECK
+    wrong = follow_credit.follow(_story(), _records(credits=[dict(PAID, subject=JESSICA_SUB)]), NOW)
+    assert wrong.state == check.FAILED and "jessica" in wrong.observed
 
 
 def test_a_handoff_made_by_another_shopper_fails():

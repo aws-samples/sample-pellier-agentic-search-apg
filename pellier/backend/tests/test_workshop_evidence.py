@@ -395,8 +395,10 @@ def test_lab_4a_needs_the_rule_the_stored_denial_and_one_credit(
     import json as _json
 
     monkeypatch.setattr(evidence, "CEDAR_POLICY", SOLVED_RULE)
-    probe = {"id": 9, "idempotency_key": "operator-review:9:" + "b" * 32, "audit_rows": 0,
-             "credit_rows": 0, "last_attempt": _json.dumps({"outcome": "denied", "policy": "DENY"})}
+    key = "operator-review:9:" + "b" * 32
+    probe = {"id": 9, "idempotency_key": key, "audit_rows": 0, "credit_rows": 0,
+             "last_attempt": _json.dumps({"outcome": "denied", "policy": "DENY",
+                                          "rail": "gateway-mcp", "idempotency_key": key})}
     assert evidence.task_4a({"probe": probe, "credit": dict(CREDIT)}).state == PASSED
     assert evidence.task_4a({"probe": None, "credit": dict(CREDIT)}).state == NOT_YET
     assert evidence.task_4a({"probe": probe, "credit": {**CREDIT, "credit_rows": 2}}).state == (

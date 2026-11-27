@@ -73,6 +73,12 @@ SEED_CUSTOMER_USERNAMES = {
 
 
 @pytest.fixture(autouse=True)
+def _isolated_workshop_check_state(tmp_path, monkeypatch):
+    """A test's terminal turns and reset points must never use a participant's saved state."""
+    monkeypatch.setenv("PELLIER_LAB_RESET_POINTS", str(tmp_path / "lab-reset-points.json"))
+
+
+@pytest.fixture(autouse=True)
 def _seeded_customer_usernames():
     """Start every test with the seeded username-to-customer map loaded."""
     from services.turn_identity import set_customer_usernames

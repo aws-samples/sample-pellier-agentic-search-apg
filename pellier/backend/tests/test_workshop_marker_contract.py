@@ -18,13 +18,13 @@ What each lab needs from the source tree
 ----------------------------------------
 
 **Lab 2 - Build a PostgreSQL-grounded agent.** Two marker regions to fix and two
-fallback files to copy: 2A connects ``check_stock`` to the Stock agent in Python, and 2B
-writes the not-carried test in the ``pellier.check_stock`` worksheet. A missing marker
-breaks the primary lane; a missing fallback breaks the recovery lane, which is worse,
-because it only fails for the participant who is already behind.
+solution files that ``lab_run.py solution`` installs: 2A connects ``check_stock`` to the
+Stock agent in Python, and 2B writes the not-carried test in the ``pellier.check_stock``
+worksheet. A missing marker breaks the task; a missing solution file breaks the provided
+solution, which is worse, because it only fails for the participant who is already behind.
 
 **Lab 1 - Build and measure PostgreSQL hybrid retrieval.** Two marker regions: the
-vector search, which starts ranking nothing by meaning, and a search-plan fallback that
+vector search, which starts ranking nothing by meaning, and the search plan, whose retry
 starts by dropping the shopper's requirements. The RRF worksheet is Lab 1's Go deeper: it keeps
 its marker region and starter, but it is not a task.
 
@@ -33,7 +33,7 @@ not: ``tests/test_lab1_vector.py``, ``tests/test_lab1_starter_failure.py`` and
 ``tests/test_lab2_starter_failure.py``.
 
 **Lab 3 - Deploy agents and bind the caller with Amazon Bedrock AgentCore.** Three marker
-regions and their fallback files. 3A publishes ``get_tickets`` on the Gateway and
+regions and their solution files. 3A publishes ``get_tickets`` on the Gateway and
 matches the tools the Runtime asks the Gateway for, binding that read to the caller.
 One of the two files is a packaged runtime source. Task 3B deploys those edits and checks
 the executed fingerprint, which is how the participant proves their own build answered,
@@ -67,7 +67,7 @@ import pytest
 REPO = Path(__file__).resolve().parents[3]
 
 # ---------------------------------------------------------------------------
-# Lab 2, "10-ground-answers-in-live-data", steps 1 and 2 plus the pacing fallback.
+# Lab 2, Tasks 2A and 2B, and the files their provided solution installs.
 # ---------------------------------------------------------------------------
 
 LAB2_CHECK_STOCK_WORKSHEET = "workshop/lab-2-check-stock.sql"
@@ -80,16 +80,16 @@ LAB2_REGIONS: Tuple[Tuple[str, str], ...] = (
     (LAB2_CHECK_STOCK_WORKSHEET, LAB2_CHECK_STOCK_MARKER),
 )
 
-# The exact `cp` sources in the guide's pacing fallback. A participant runs these
-# verbatim, so a renamed solution file is a dead recovery lane.
-LAB2_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
+# What `lab_run.py solution --lab 2` copies, as `workshop/participant-files.json` lists it.
+# A renamed solution file leaves a participant who is behind with no way to catch up.
+LAB2_SOLUTION_COPIES: Tuple[Tuple[str, str], ...] = (
     ("solutions/lab-2-ground/agents/stock_agent_solution.py",
      "pellier/backend/agents/stock_agent.py"),
     (LAB2_CHECK_STOCK_REFERENCE, LAB2_CHECK_STOCK_WORKSHEET),
 )
 
 # ---------------------------------------------------------------------------
-# Lab 1, bounded build artifact plus pacing fallback.
+# Lab 1, Tasks 1A and 1B, and the Go deeper fusion worksheet.
 # ---------------------------------------------------------------------------
 
 LAB1_VECTOR_REGION = (
@@ -127,7 +127,7 @@ LAB3_REGIONS: Tuple[Tuple[str, str], ...] = (
      "WORKSHOP - Support agent - Gateway tools"),
 )
 
-LAB3_FALLBACK_COPIES: Tuple[Tuple[str, str], ...] = (
+LAB3_SOLUTION_COPIES: Tuple[Tuple[str, str], ...] = (
     ("solutions/lab-3-deploy/gateway/gateway_tool_schemas_solution.py",
      "scripts/deploy/gateway_tool_schemas.py"),
     ("solutions/lab-3-deploy/services/agentcore_gateway.py",
@@ -294,17 +294,18 @@ def test_lab2_marker_uses_the_hyphen_the_guide_quotes(rel: str, label: str) -> N
     assert label in text
 
 
-@pytest.mark.parametrize("source,destination", LAB2_FALLBACK_COPIES)
-def test_lab2_fallback_copy_exists_at_both_ends(source: str, destination: str) -> None:
-    assert (REPO / source).is_file(), f"the guide copies {source}, which is absent"
-    assert (REPO / destination).is_file(), f"the guide copies onto {destination}, which is absent"
+@pytest.mark.parametrize("source,destination", LAB2_SOLUTION_COPIES)
+def test_lab2_solution_copy_exists_at_both_ends(source: str, destination: str) -> None:
+    assert (REPO / source).is_file(), f"the provided solution copies {source}, which is absent"
+    assert (REPO / destination).is_file(), (
+        f"the provided solution copies onto {destination}, which is absent")
 
 
-@pytest.mark.parametrize("source,destination", LAB2_FALLBACK_COPIES)
-def test_lab2_fallback_copy_keeps_the_markers(source: str, destination: str) -> None:
-    """The recovery lane must not destroy the anchor.
+@pytest.mark.parametrize("source,destination", LAB2_SOLUTION_COPIES)
+def test_lab2_solution_copy_keeps_the_markers(source: str, destination: str) -> None:
+    """The provided solution must not destroy the anchor.
 
-    A participant who takes the fallback and then wants to read what changed needs the
+    A participant who installs the provided solution and then wants to read what changed needs the
     same marker region in the copied file. A solution written without markers turns one
     recovery into a dead end for the rest of the lab.
     """
@@ -429,19 +430,31 @@ def test_lab3_region_is_ordered_and_not_empty(rel: str, label: str) -> None:
     assert text[start:end].strip(), f"{rel} has an empty {label} region"
 
 
-@pytest.mark.parametrize(("source", "destination"), LAB3_FALLBACK_COPIES)
-def test_lab3_fallback_copy_exists_at_both_ends(source: str, destination: str) -> None:
+@pytest.mark.parametrize(("source", "destination"), LAB3_SOLUTION_COPIES)
+def test_lab3_solution_copy_exists_at_both_ends(source: str, destination: str) -> None:
     assert (REPO / source).is_file(), f"missing Lab 3 recovery source {source}"
     assert (REPO / destination).is_file(), f"missing Lab 3 destination {destination}"
 
 
-@pytest.mark.parametrize(("source", "destination"), LAB3_FALLBACK_COPIES)
-def test_lab3_fallback_copy_keeps_the_markers(source: str, destination: str) -> None:
+@pytest.mark.parametrize(("source", "destination"), LAB3_SOLUTION_COPIES)
+def test_lab3_solution_copy_keeps_the_markers(source: str, destination: str) -> None:
     """A recovery copy that loses the markers breaks every later reset."""
     label = dict(LAB3_REGIONS)[destination]
     text = _read(source)
     assert text.count(f"# === {label}: START ===") == 1
     assert text.count(f"# === {label}: END ===") == 1
+
+
+@pytest.mark.parametrize(("lab", "copies"), ((2, LAB2_SOLUTION_COPIES), (3, LAB3_SOLUTION_COPIES)))
+def test_solution_copies_are_what_lab_run_installs(
+        lab: int, copies: Tuple[Tuple[str, str], ...]) -> None:
+    """The pairs above guard the files `lab_run.py solution` copies, not a list of their own."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    import lab_run
+    installed = {(entry["solution"], entry["source"])
+                 for entry in lab_run.solution_files(lab, REPO)}
+    missing = sorted(set(copies) - installed)
+    assert not missing, f"lab_run.py solution --lab {lab} does not install {missing}"
 
 
 def test_lab3_starter_withholds_the_tool_theo_needs() -> None:
@@ -564,7 +577,7 @@ def test_lab4_starter_targets_the_generated_action() -> None:
 
 
 def test_lab4_reference_rule_admits_an_amount_up_to_the_limit() -> None:
-    """The fallback must be complete, or the participant who takes it still fails the proof.
+    """The provided solution must be complete, or installing it still fails the proof.
 
     The rule is an amount rule on `give_store_credit`, not an identity-pair match: the
     baseline permit already scopes the action to staff, and this forbid caps what one
@@ -594,7 +607,7 @@ def test_lab4_reference_rule_is_byte_identical_to_the_starter_outside_the_unless
 def test_lab4_reference_rule_is_the_starter_plus_the_condition() -> None:
     """Same head, different body.
 
-    If the reference drifted to a different action or effect, the fallback would deploy a
+    If the reference drifted to a different action or effect, the provided solution would deploy a
     policy that cannot produce the DENY the guide's step 3 asserts.
     """
     def head(text: str) -> str:
@@ -710,8 +723,8 @@ def test_the_lab1_meaning_worksheet_is_supplied_and_only_reads() -> None:
 def test_no_lab_anchor_is_a_broken_path() -> None:
     """One list, so a future anchor cannot be added without an existence check."""
     anchors: List[str] = [rel for rel, _ in LAB2_REGIONS]
-    anchors += [source for source, _ in LAB2_FALLBACK_COPIES]
-    anchors += [destination for _, destination in LAB2_FALLBACK_COPIES]
+    anchors += [source for source, _ in LAB2_SOLUTION_COPIES]
+    anchors += [destination for _, destination in LAB2_SOLUTION_COPIES]
     anchors += [
         LAB1_FUSION_WORKSHEET,
         LAB1_FUSION_REFERENCE,
@@ -906,7 +919,7 @@ _SQL_MARKER_BLOCK = re.compile(
 
 REFERENCE_TWINS: Tuple[Tuple[str, str, re.Pattern], ...] = tuple(
     (source, destination, _SQL_MARKER_BLOCK if destination.endswith(".sql") else _PY_MARKER_BLOCK)
-    for source, destination in LAB2_FALLBACK_COPIES + LAB3_FALLBACK_COPIES
+    for source, destination in LAB2_SOLUTION_COPIES + LAB3_SOLUTION_COPIES
 ) + (
     (LAB1_VECTOR_REFERENCE, LAB1_VECTOR_REGION[0], _PY_MARKER_BLOCK),
     (LAB1_PLAN_REFERENCE, LAB1_PLAN_REGION[0], _PY_MARKER_BLOCK),

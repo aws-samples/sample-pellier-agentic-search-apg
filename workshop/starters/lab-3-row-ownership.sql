@@ -154,28 +154,32 @@ RESET ROLE;
 -- tests above and still hide everyone else's rows, so it is refused here.
 DO $every_customer$
 DECLARE
-    names text[];
-    own bigint[];
-    seen bigint;
+    shopper record;
+    seen_orders bigint[];
+    seen_tickets text[];
+    customers int := 0;
     exact int := 0;
 BEGIN
-    SELECT array_agg(c.cognito_username ORDER BY c.id),
-           array_agg((SELECT count(*) FROM pellier.orders o WHERE o.customer_id = c.id)
-                     + (SELECT count(*) FROM pellier.support_tickets t
-                         WHERE t.customer_id = c.id) ORDER BY c.id)
-      INTO names, own
-      FROM pellier.customers c;
-    FOR i IN 1 .. coalesce(array_length(names, 1), 0) LOOP
-        PERFORM set_config('pellier.principal_username', names[i], true);
+    FOR shopper IN
+        SELECT c.cognito_username,
+               ARRAY(SELECT o.id FROM pellier.orders o
+                      WHERE o.customer_id = c.id ORDER BY o.id) AS own_orders,
+               ARRAY(SELECT t.ticket_id FROM pellier.support_tickets t
+                      WHERE t.customer_id = c.id ORDER BY t.ticket_id) AS own_tickets
+          FROM pellier.customers c ORDER BY c.id
+    LOOP
+        PERFORM set_config('pellier.principal_username', shopper.cognito_username, true);
         EXECUTE 'SET LOCAL ROLE pellier_agent';
-        SELECT (SELECT count(*) FROM pellier.orders)
-               + (SELECT count(*) FROM pellier.support_tickets) INTO seen;
+        SELECT ARRAY(SELECT id FROM pellier.orders ORDER BY id),
+               ARRAY(SELECT ticket_id FROM pellier.support_tickets ORDER BY ticket_id)
+          INTO seen_orders, seen_tickets;
         EXECUTE 'RESET ROLE';
-        IF seen = own[i] THEN
+        customers := customers + 1;
+        IF seen_orders = shopper.own_orders AND seen_tickets = shopper.own_tickets THEN
             exact := exact + 1;
         END IF;
     END LOOP;
-    PERFORM set_config('lab3.customers', coalesce(array_length(names, 1), 0)::text, true);
+    PERFORM set_config('lab3.customers', customers::text, true);
     PERFORM set_config('lab3.customers_exact', exact::text, true);
 END
 $every_customer$;
@@ -247,8 +251,8 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
   \echo '          0 where a number is expected means it matches nobody, and a number where'
   \echo '          0 is expected means it matches everybody. The bound name is'
   \echo '          current_setting(''pellier.principal_username'', true). If only the'
-  \echo '          every-customer row does not match, it names particular customers'
-  \echo '          instead of the one bound on the session.'
+  \echo '          every-customer row does not match, check that each sign-in sees'
+  \echo '          all its own order and ticket IDs and nobody else''s.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3B predicate check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
