@@ -687,7 +687,7 @@ def empty_and_delete_bucket(runner: Runner, bucket: str) -> None:
 
 
 def lake_bucket_left(runner: Runner, workshop_id: str | None) -> str | None:
-    """The optional aurora_analytics page's bucket, if its prepare ran and its cleanup did not.
+    """Report a bucket with the workshop's lake name, regardless of who created it.
 
     scripts/aurora_analytics.py creates the bucket outside the stack and carries no ownership
     tag, so the teardown only names it; it never deletes an untagged bucket.
@@ -702,8 +702,8 @@ def lake_bucket_left(runner: Runner, workshop_id: str | None) -> str | None:
             return None
         raise
     return (
-        f"bucket {bucket} stays: the optional aurora_analytics page created it outside the stack; "
-        "empty and delete it in the S3 console"
+        f"bucket {bucket} stays: the optional analytics example can use this bucket. "
+        "Check ownership before removing any files in S3."
     )
 
 

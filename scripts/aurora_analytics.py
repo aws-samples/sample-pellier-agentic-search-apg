@@ -8,21 +8,22 @@
 
 Never used by the app or the required labs. uv installs it from aurora_analytics.py.lock, the
 same versions pellier/backend/requirements.lock pins. prepare uploads the fixed lake files in
-workshop/lake/ to a new bucket, attaches the stack's lake reader role to the Aurora cluster
-for the AuroraAnalytics feature, creates foreign tables over the files with the
-aurora_analytics extension, and creates a separate read-only login. query and check use only
-that login. cleanup removes everything prepare made. No customer data, agent tools, RLS
-policies or business rows are changed.
+workshop/lake/ to its own folder in the workshop bucket, enables the AuroraAnalytics role
+attachment and creates foreign tables and a separate read-only login. query and check use
+only that login. cleanup uses setup receipts on the original host to preserve shared resources.
 """
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
+import fcntl
 import hashlib
 import json
 import os
 from pathlib import Path
 import secrets
 import sys
+import tempfile
 import time
 import urllib.request
 
@@ -62,6 +63,63 @@ def _private_file(path: Path, text: str) -> None:
     with os.fdopen(descriptor, "w") as stream:
         os.fchmod(stream.fileno(), 0o600)
         stream.write(text)
+
+
+class SetupRecord:
+    """Private, per-host receipts. Names alone do not establish ownership."""
+    def __init__(self, path: Path, target: str, run: str, resources: dict) -> None:
+        self.path, self.target, self.prefix = path, target, f"lake/{run}/"
+        self.resources = resources
+        self.run = run
+
+    @classmethod
+    def open(cls, directory: Path, cfg: dict, *, create: bool):
+        path = directory / "setup.json"
+        target = hashlib.sha256(json.dumps([cfg[k] for k in (
+            "DB_CLUSTER_ARN", "DB_NAME", "AURORA_ANALYTICS_ROLE_ARN", "AWS_REGION", "BUCKET"
+        )]).encode()).hexdigest()
+        if not path.exists():
+            if not create:
+                return None
+            if any((directory / name).exists() for name in ("reader.json", "reader.pgpass")):
+                raise AnalyticsError("the existing lake login has no setup record on this host; "
+                                     "ask a facilitator")
+            record = cls(path, target, secrets.token_hex(16), {})
+            record.save()
+            return record
+        data = json.loads(path.read_text())
+        if data["target"] != target:
+            raise AnalyticsError("the saved analytics setup belongs to another workshop; "
+                                 "ask a facilitator")
+        return cls(path, target, data["run"], data["resources"])
+
+    def save(self) -> None:
+        data = {"target": self.target, "run": self.run, "resources": self.resources}
+        with tempfile.NamedTemporaryFile(mode="w", dir=self.path.parent, delete=False) as stream:
+            try:
+                json.dump(data, stream)
+                stream.flush()
+                os.fsync(stream.fileno())
+                os.replace(stream.name, self.path)
+            finally:
+                Path(stream.name).unlink(missing_ok=True)
+
+    def record(self, name: str, identity) -> None:
+        self.resources[name] = identity
+        self.save()
+
+    def forget(self, name: str) -> None:
+        del self.resources[name]
+        self.save()
+
+
+@contextmanager
+def locked_setup(directory: Path):
+    """A second terminal must see the first command's completed receipts."""
+    directory.mkdir(parents=True, mode=0o700, exist_ok=True)
+    with (directory / "lifecycle.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        yield
 
 
 def settings() -> dict:
@@ -118,26 +176,65 @@ def _young_role(exc: Exception) -> bool:
     return "does not include the required permissions" in message
 
 
-def upload_lake(s3, bucket: str, region: str, owner: str) -> None:
-    """Create the bucket (private, this account only) and upload the lake files under lake/."""
-    request = {"Bucket": bucket}
-    if region != "us-east-1":
-        request["CreateBucketConfiguration"] = {"LocationConstraint": region}
+def _object_etag(s3, request: dict, key: str):
+    objects = s3.list_objects_v2(**request, Prefix=key, MaxKeys=1).get("Contents", [])
+    return objects[0]["ETag"] if objects and objects[0]["Key"] == key else None
+
+
+def upload_lake(s3, bucket: str, region: str, owner: str, state: SetupRecord) -> None:
+    """Keep existing bucket settings. Use five keys private to this preparation."""
+    request = {"Bucket": bucket, "ExpectedBucketOwner": owner}
+    created = False
     try:
-        s3.create_bucket(**request)
+        s3.head_bucket(**request)
     except Exception as exc:
-        if _error_code(exc) == "BucketAlreadyExists":
-            raise AnalyticsError(f"another AWS account owns the bucket name {bucket}; ask a "
-                                 "facilitator") from exc
-        if _error_code(exc) != "BucketAlreadyOwnedByYou":
-            raise
-    s3.put_public_access_block(Bucket=bucket, ExpectedBucketOwner=owner,
-                               PublicAccessBlockConfiguration={
-                                   "BlockPublicAcls": True, "IgnorePublicAcls": True,
-                                   "BlockPublicPolicy": True, "RestrictPublicBuckets": True})
+        if _error_code(exc) not in {"404", "NoSuchBucket", "NotFound"}:
+            raise AnalyticsError("cannot confirm the lake bucket belongs to this account; "
+                                 "ask a facilitator") from exc
+        create = {"Bucket": bucket}
+        if region != "us-east-1":
+            create["CreateBucketConfiguration"] = {"LocationConstraint": region}
+        try:
+            s3.create_bucket(**create)
+            created = True
+            state.record("bucket", True)
+        except Exception as error:
+            if _error_code(error) == "BucketAlreadyExists":
+                raise AnalyticsError("another AWS account owns the lake bucket name; "
+                                     "ask a facilitator") from error
+            if _error_code(error) != "BucketAlreadyOwnedByYou":
+                raise
+    if not created and state.resources.get("bucket"):
+        # A bucket name can be reused. Retain the bucket if none of our private uploads
+        # can still identify it before we write anything into it.
+        matching = any(_object_etag(s3, request, key) == receipt["ETag"]
+                       for key, receipt in state.resources.items() if key.startswith(state.prefix))
+        if not matching:
+            state.record("bucket", False)
+    if created:
+        # Existing buckets may have their own access settings, including after a replacement.
+        s3.put_public_access_block(**request, PublicAccessBlockConfiguration={
+            "BlockPublicAcls": True, "IgnorePublicAcls": True,
+            "BlockPublicPolicy": True, "RestrictPublicBuckets": True})
     for name, path in lake_files().items():
-        s3.put_object(Bucket=bucket, Key=f"lake/{name}", Body=path.read_bytes(),
-                      ExpectedBucketOwner=owner)
+        key = state.prefix + name
+        if key in state.resources:
+            etag = _object_etag(s3, request, key)
+            receipt = state.resources[key]
+            if etag == receipt["ETag"]:
+                continue
+            if etag is not None or receipt.get("VersionId") is not None:
+                raise AnalyticsError("a lake file changed since prepare; ask a facilitator")
+        # If a previous upload succeeded but its receipt was lost, fail closed on retry.
+        try:
+            uploaded = s3.put_object(**request, Key=key, Body=path.read_bytes(), IfNoneMatch="*")
+        except Exception as exc:
+            if _error_code(exc) == "PreconditionFailed":
+                raise AnalyticsError("a lake file already exists without a matching setup "
+                                     "record; ask a facilitator") from exc
+            raise
+        state.record(key, {field: uploaded[field] for field in ("ETag", "VersionId")
+                           if field in uploaded})
 
 
 def _lake_role(rds, cluster: str, role_arn: str) -> str:
@@ -148,7 +245,7 @@ def _lake_role(rds, cluster: str, role_arn: str) -> str:
     return ""
 
 
-def _request_attach(rds, cluster: str, role_arn: str) -> bool:
+def _request_attach(rds, cluster: str, role_arn: str, state: SetupRecord | None) -> bool:
     """Ask RDS to attach the role. False when IAM has not finished creating it yet.
 
     IAM refuses the attach for a role created seconds earlier with the same error as a role
@@ -165,10 +262,13 @@ def _request_attach(rds, cluster: str, role_arn: str) -> bool:
         if not _young_role(exc):
             raise AnalyticsError("Aurora refused the lake reader role") from exc
         return False
+    if state is not None:
+        state.record("attachment", True)
     return True
 
 
-def attach_role(rds, cluster: str, role_arn: str, sleep=time.sleep, clock=time.monotonic) -> None:
+def attach_role(rds, cluster: str, role_arn: str, sleep=time.sleep, clock=time.monotonic,
+                *, state: SetupRecord | None = None) -> None:
     """Attach the lake reader role for AuroraAnalytics and wait until it is ACTIVE.
 
     RDS lists a role as PENDING both while it attaches and while an earlier cleanup removes it,
@@ -181,7 +281,7 @@ def attach_role(rds, cluster: str, role_arn: str, sleep=time.sleep, clock=time.m
                                  if not accepted else "the lake reader role did not become "
                                  "ACTIVE; retry prepare in a minute")
         if not status:
-            accepted = _request_attach(rds, cluster, role_arn)
+            accepted = _request_attach(rds, cluster, role_arn, state)
         sleep(5 if status else 15)
 
 
@@ -223,36 +323,66 @@ def owner_connection(cfg: dict, directory: Path):
     return psycopg.connect(**options, autocommit=True), options
 
 
-def _create_tables(conn, bucket: str, region: str) -> None:
+def _oid(conn, name: str):
+    """Use the current object's identity so a replacement with the same name is kept."""
+    if name == ROLE:
+        row = conn.execute("SELECT oid FROM pg_roles WHERE rolname = %s", (ROLE,)).fetchone()
+    elif name == "aurora_analytics":
+        row = conn.execute("SELECT oid FROM pg_extension WHERE extname = %s", (name,)).fetchone()
+    elif name == "lake":
+        row = conn.execute("SELECT to_regnamespace('lake')::oid").fetchone()
+    else:
+        row = conn.execute("SELECT to_regclass(%s)::oid", (name,)).fetchone()
+    return row[0] if row else None
+
+
+def _existing_owned(conn, name: str, state: SetupRecord) -> bool:
+    oid = _oid(conn, name)
+    if oid is None:
+        return False
+    if state.resources.get(name) != oid:
+        raise AnalyticsError(f"{name} already exists outside this setup; it was kept. "
+                             "Ask a facilitator")
+    return True
+
+
+def _create_tables(conn, bucket: str, region: str, state: SetupRecord) -> None:
     from psycopg import sql
 
     with conn.transaction():
         conn.execute(f"SET LOCAL statement_timeout = '{STATEMENT_TIMEOUT}'")
-        conn.execute("CREATE SCHEMA IF NOT EXISTS lake")
+        if _oid(conn, "lake") is None:
+            conn.execute("CREATE SCHEMA lake")
+            state.record("lake", _oid(conn, "lake"))
         for table, path in TABLES.items():
-            name = sql.Identifier("lake", table)
-            conn.execute(sql.SQL("DROP FOREIGN TABLE IF EXISTS {}").format(name))
-            # An empty column list: Aurora reads the columns from the Parquet files.
+            name = f"lake.{table}"
+            if _existing_owned(conn, name, state):
+                continue
+            # Aurora reads the columns from the Parquet files.
             conn.execute(sql.SQL("CREATE FOREIGN TABLE {} () SERVER aurora_analytics_server "
                                  "OPTIONS (location {}, format 'parquet', region {})").format(
-                sql.Identifier("lake", table), sql.Literal(f"s3://{bucket}/lake/{path}"),
+                sql.Identifier("lake", table), sql.Literal(f"s3://{bucket}/{state.prefix}{path}"),
                 sql.Literal(region)))
+            state.record(name, _oid(conn, name))
 
 
-def create_lake_tables(conn, bucket: str, region: str, sleep=time.sleep,
+def create_lake_tables(conn, bucket: str, region: str, state: SetupRecord, sleep=time.sleep,
                        clock=time.monotonic) -> None:
     """Create the extension and the two foreign tables, waiting out the role's first minutes."""
     import psycopg
 
     try:
-        conn.execute("CREATE EXTENSION IF NOT EXISTS aurora_analytics")
+        with conn.transaction():
+            if _oid(conn, "aurora_analytics") is None:
+                conn.execute("CREATE EXTENSION aurora_analytics")
+                state.record("aurora_analytics", _oid(conn, "aurora_analytics"))
     except psycopg.Error as exc:
         raise AnalyticsError("Aurora could not create the aurora_analytics extension; it needs "
                              "Aurora PostgreSQL 17.11 or later, or 18.6 or later") from exc
     deadline, said = clock() + ROLE_WAIT_SECONDS, False
     while True:
         try:
-            _create_tables(conn, bucket, region)
+            _create_tables(conn, bucket, region, state)
             return
         except psycopg.errors.QueryCanceled as exc:
             raise AnalyticsError("Aurora timed out reading the lake files in Amazon S3; check "
@@ -299,7 +429,7 @@ def _role_is_plain(conn) -> None:
 
 def _columns_are_bounded(conn) -> None:
     # Column grants do not appear as table grants, so inspect every column in both schemas;
-    # a role that existed before prepare cannot keep customer access.
+    # inherited or PUBLIC grants must not expand access to other tables.
     columns = conn.execute(
         "SELECT n.nspname, c.relname, a.attname, "
         "has_column_privilege(%s, c.oid, a.attnum, 'SELECT'), "
@@ -309,8 +439,9 @@ def _columns_are_bounded(conn) -> None:
         "WHERE n.nspname IN ('pellier', 'lake') AND c.relkind IN ('r','p','v','m','f') "
         "AND a.attnum > 0 AND NOT a.attisdropped", (ROLE, ROLE)).fetchall()
     for schema, table, column, reads, writes in columns:
-        if writes or (reads and schema == "pellier" and (schema, table, column)
-                      not in ALLOWED_COLUMNS):
+        allowed = ((schema, table, column) in ALLOWED_COLUMNS
+                   or (schema == "lake" and table in TABLES))
+        if writes or (reads and not allowed):
             raise _extra_authority("has unexpected column privileges")
 
 
@@ -339,7 +470,7 @@ def reader_grants(conn) -> None:
     _creates_nothing(conn)
 
 
-def prepare_reader(conn, directory: Path, connection: dict) -> None:
+def prepare_reader(conn, directory: Path, connection: dict, state: SetupRecord) -> None:
     """Owner-only setup; the password is sent to PostgreSQL only as a SCRAM verifier."""
     from deploy.store_tools_login import scram_verifier
     from psycopg import sql
@@ -349,8 +480,9 @@ def prepare_reader(conn, directory: Path, connection: dict) -> None:
     password = secrets.token_hex(24)
     role = sql.Identifier(ROLE)
     with conn.transaction():
-        if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (ROLE,)).fetchone():
+        if not _existing_owned(conn, ROLE, state):
             conn.execute(sql.SQL("CREATE ROLE {} NOLOGIN NOINHERIT NOBYPASSRLS").format(role))
+            state.record(ROLE, _oid(conn, ROLE))
         conn.execute(sql.SQL("GRANT USAGE ON SCHEMA pellier, lake TO {}").format(role))
         conn.execute(sql.SQL('GRANT SELECT ("productId", name) ON pellier.product_catalog '
                              "TO {}").format(role))
@@ -429,62 +561,155 @@ def check_reader(directory: Path) -> None:
             raise AnalyticsError("the lake reader admitted a forbidden operation")
 
 
-def drop_lake_objects(conn) -> None:
-    """Drop the lake tables, the read-only login and the extension; safe to run again."""
+def drop_lake_objects(conn, state: SetupRecord) -> bool:
+    """Drop only recorded objects, with RESTRICT protecting anything that depends on them."""
+    import psycopg
     from psycopg import sql
 
+    def ours(name):
+        oid = _oid(conn, name)
+        return oid is not None and oid == state.resources.get(name)
+
+    kept = False
     with conn.transaction():
-        conn.execute("DROP SCHEMA IF EXISTS lake CASCADE")
-        if conn.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (ROLE,)).fetchone():
-            # Not DROP OWNED BY: Aurora's master user holds only ADMIN on the roles it creates.
-            # Revoke what prepare_reader granted; DROP ROLE refuses if anything remains.
-            for statement in ("REVOKE ALL ON pellier.product_catalog, "
-                              "pellier.warehouse_inventory FROM {}",
-                              "REVOKE ALL ON SCHEMA pellier FROM {}"):
-                conn.execute(sql.SQL(statement).format(sql.Identifier(ROLE)))
-            conn.execute(sql.SQL("DROP ROLE {}").format(sql.Identifier(ROLE)))
-        conn.execute("DROP EXTENSION IF EXISTS aurora_analytics")
+        for table in TABLES:
+            if ours(f"lake.{table}"):
+                conn.execute(sql.SQL("DROP FOREIGN TABLE {} RESTRICT").format(
+                    sql.Identifier("lake", table)))
+        if ours(ROLE):
+            role = sql.Identifier(ROLE)
+            # Dropping our foreign tables already removed the reader's grants on them.
+            if _oid(conn, "lake") is not None:
+                conn.execute(sql.SQL("REVOKE USAGE ON SCHEMA lake FROM {}").format(role))
+            conn.execute(sql.SQL('REVOKE SELECT ("productId", name) ON pellier.product_catalog '
+                                 "FROM {}").format(role))
+            conn.execute(sql.SQL("REVOKE SELECT (product_id, warehouse_code, quantity) "
+                                 "ON pellier.warehouse_inventory FROM {}").format(role))
+            conn.execute(sql.SQL("REVOKE USAGE ON SCHEMA pellier FROM {}").format(role))
+            conn.execute(sql.SQL("DROP ROLE {}").format(role))
+        for name, statement in (("lake", "DROP SCHEMA lake RESTRICT"),
+                                ("aurora_analytics", "DROP EXTENSION aurora_analytics RESTRICT")):
+            if ours(name):
+                try:
+                    with conn.transaction():
+                        conn.execute(statement)
+                except psycopg.errors.DependentObjectsStillExist:
+                    kept = True
+            elif _oid(conn, name) is not None:
+                kept = True
+    return kept
 
 
-def delete_lake_bucket(s3, bucket: str, owner: str) -> None:
+def delete_lake_bucket(s3, bucket: str, owner: str, state: SetupRecord) -> bool:
+    """Clean up individual uploaded keys. S3 refuses to delete a nonempty bucket."""
+    request = {"Bucket": bucket, "ExpectedBucketOwner": owner}
+    kept = False
+    saw_our_upload = False
     try:
-        pages = s3.get_paginator("list_objects_v2").paginate(Bucket=bucket,
-                                                             ExpectedBucketOwner=owner)
-        for page in pages:
-            keys = [{"Key": item["Key"]} for item in page.get("Contents", [])]
-            if keys:
-                s3.delete_objects(Bucket=bucket, Delete={"Objects": keys},
-                                  ExpectedBucketOwner=owner)
-        s3.delete_bucket(Bucket=bucket, ExpectedBucketOwner=owner)
+        for key, receipt in list(state.resources.items()):
+            if not key.startswith(state.prefix):
+                continue
+            current = _object_etag(s3, request, key)
+            etag = receipt["ETag"]
+            version = receipt.get("VersionId")
+            delete = {**request, "Key": key}
+            if version is not None:
+                delete["VersionId"] = version
+            # A real version ID identifies immutable bytes, even behind a newer version.
+            # The null version is mutable when versioning is suspended.
+            if version in (None, "null"):
+                if current != etag:
+                    kept |= current is not None
+                    state.forget(key)
+                    continue
+                delete["IfMatch"] = etag
+            try:
+                s3.delete_object(**delete)
+                saw_our_upload |= current == etag
+            except Exception as exc:
+                code = _error_code(exc)
+                if code in {"PreconditionFailed", "ConditionalRequestConflict", "412", "409"}:
+                    kept = True
+                elif code in {"AccessDenied", "403"}:
+                    raise AnalyticsError("the Code Editor role could not delete the remaining "
+                                         "files by version or ETag; keep the setup record and "
+                                         "ask a facilitator before retrying cleanup") from exc
+                elif code not in {"NoSuchKey", "NoSuchVersion", "404", "NotFound"}:
+                    raise
+            state.forget(key)
+        # An empty same-name bucket may be a replacement. Require a matching private
+        # upload on this invocation before asking S3 to remove the now-empty bucket.
+        if state.resources.get("bucket") and saw_our_upload:
+            s3.delete_bucket(**request)
+        else:
+            kept = True
     except Exception as exc:
+        if _error_code(exc) == "BucketNotEmpty":
+            return True
         if _error_code(exc) != "NoSuchBucket":
             raise
+    return kept
 
 
-def cleanup(conn, cfg: dict, directory: Path) -> None:
-    """Remove what prepare made: tables, extension, login, the role attachment and the bucket."""
+def cleanup(cfg: dict, directory: Path) -> str:
+    """A missing or legacy receipt never authorizes deleting resources by name."""
     import boto3
 
-    drop_lake_objects(conn)
-    detach_role(boto3.client("rds", region_name=cfg["AWS_REGION"]), cfg["CLUSTER_ID"],
-                cfg["AURORA_ANALYTICS_ROLE_ARN"])
-    delete_lake_bucket(boto3.client("s3", region_name=cfg["AWS_REGION"]), cfg["BUCKET"],
-                       cfg["ACCOUNT"])
-    for name in ("reader.json", "reader.pgpass", "rds-global-bundle.pem"):
-        (directory / name).unlink(missing_ok=True)
+    with locked_setup(directory):
+        state = SetupRecord.open(directory, cfg, create=False)
+        if state is None:
+            return "No setup record on this host. Existing resources were kept."
+        owner, _ = owner_connection(cfg, directory)
+        with owner:
+            _lock_cluster(owner)
+            kept = drop_lake_objects(owner, state)
+            if state.resources.get("attachment"):
+                # Another foreign table may have begun using the same role after prepare.
+                shared = owner.execute(
+                    "SELECT 1 FROM pg_foreign_table t JOIN pg_foreign_server s "
+                    "ON s.oid = t.ftserver WHERE s.srvname = 'aurora_analytics_server' LIMIT 1"
+                ).fetchone()
+                if shared:
+                    kept = True
+                else:
+                    detach_role(boto3.client("rds", region_name=cfg["AWS_REGION"]),
+                                cfg["CLUSTER_ID"], cfg["AURORA_ANALYTICS_ROLE_ARN"])
+                state.forget("attachment")
+            else:
+                kept = True
+            shared_bucket = delete_lake_bucket(boto3.client("s3", region_name=cfg["AWS_REGION"]),
+                                               cfg["BUCKET"], cfg["ACCOUNT"], state)
+        for name in ("reader.json", "reader.pgpass", "rds-global-bundle.pem"):
+            (directory / name).unlink(missing_ok=True)
+        state.path.unlink()
+        if kept or shared_bucket:
+            return "Cleaned up this analytics run. Shared resources were kept."
+        return ("Removed the lake tables, the read-only login, the role attachment "
+                "and the lake bucket.")
+
+
+def _lock_cluster(conn) -> None:
+    # The fixed table and role names are shared even when two hosts have different receipts.
+    conn.execute("SELECT pg_advisory_lock(hashtextextended('Pellier lake setup', 0))")
 
 
 def prepare(cfg: dict) -> None:
     import boto3
 
-    upload_lake(boto3.client("s3", region_name=cfg["AWS_REGION"]), cfg["BUCKET"],
-                cfg["AWS_REGION"], cfg["ACCOUNT"])
-    attach_role(boto3.client("rds", region_name=cfg["AWS_REGION"]), cfg["CLUSTER_ID"],
-                cfg["AURORA_ANALYTICS_ROLE_ARN"])
-    owner, options = owner_connection(cfg, LOCAL)
-    with owner:
-        create_lake_tables(owner, cfg["BUCKET"], cfg["AWS_REGION"])
-        prepare_reader(owner, LOCAL, options)
+    with locked_setup(LOCAL):
+        state = SetupRecord.open(LOCAL, cfg, create=True)
+        owner, options = owner_connection(cfg, LOCAL)
+        with owner:
+            _lock_cluster(owner)
+            # Catch an old setup or a name collision before touching the bucket or attachment.
+            for name in [ROLE, *(f"lake.{table}" for table in TABLES)]:
+                _existing_owned(owner, name, state)
+            upload_lake(boto3.client("s3", region_name=cfg["AWS_REGION"]), cfg["BUCKET"],
+                        cfg["AWS_REGION"], cfg["ACCOUNT"], state)
+            attach_role(boto3.client("rds", region_name=cfg["AWS_REGION"]), cfg["CLUSTER_ID"],
+                        cfg["AURORA_ANALYTICS_ROLE_ARN"], state=state)
+            create_lake_tables(owner, cfg["BUCKET"], cfg["AWS_REGION"], state)
+            prepare_reader(owner, LOCAL, options, state)
 
 
 def show(explain: bool) -> None:
@@ -525,12 +750,7 @@ def main() -> int:
             print(workshop_check.wrapped("", "Live stock and the lake files' rows match; customer "
                                              "reads, writes and table changes are denied."))
         else:
-            cfg = settings()
-            owner, _ = owner_connection(cfg, LOCAL)
-            with owner:
-                cleanup(owner, cfg, LOCAL)
-            print(workshop_check.wrapped("", "Removed the lake tables, the read-only login, the "
-                                             "role attachment and the lake bucket."))
+            print(workshop_check.wrapped("", cleanup(settings(), LOCAL)))
         return 0
     except AnalyticsError as exc:
         print(workshop_check.wrapped("", f"Optional analytics {args.operation} could not "

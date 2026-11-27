@@ -427,6 +427,14 @@ Resources:
               - s3:PutObject
               - s3:DeleteObject
             Resource: !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}/lake/*
+          - Sid: CleanupRecordedLakeFiles
+            Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:DeleteObjectVersion
+            Resource:
+              - !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}/lake/*/daily_sales/week-?.parquet
+              - !Sub arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}/lake/*/deliveries/plan.parquet
 
   CdkBootstrapPolicy:
     Type: AWS::IAM::ManagedPolicy

@@ -127,3 +127,13 @@ def test_the_lake_names_agree_across_the_templates_and_the_script() -> None:
     assert '"pellier-lake-" + cluster.removeprefix("pellier-cluster-")' in script
     assert "DBClusterParameterGroupName: !Ref ClusterParameterGroup" in database
     assert re.search(r'^\s+aurora_analytics\.enabled: "1"$', database, re.MULTILINE)
+
+
+def test_conditional_delete_can_check_only_this_workshops_run_files() -> None:
+    box = _load("pellier-code-editor.yml")
+    statement, = (node for node in _walk(box) if isinstance(node, dict)
+                  and node.get("Sid") == "CleanupRecordedLakeFiles")
+    assert set(statement["Action"]) == {"s3:GetObject", "s3:DeleteObjectVersion"}
+    prefix = "arn:${AWS::Partition}:s3:::pellier-lake-${WorkshopId}/lake/*/"
+    assert {resource["Fn::Sub"] for resource in statement["Resource"]} == {
+        prefix + "daily_sales/week-?.parquet", prefix + "deliveries/plan.parquet"}

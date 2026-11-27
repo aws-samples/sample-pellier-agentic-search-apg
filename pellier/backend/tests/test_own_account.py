@@ -1074,7 +1074,9 @@ def test_teardown_names_a_lake_bucket_the_optional_page_left_but_never_deletes_i
     assert lake in clients.s3.args("head_bucket", "Bucket")
     assert lake not in clients.s3.args("delete_bucket", "Bucket")
     left = "\n".join(lines[lines.index("Left in place:") :])
-    assert f"bucket {lake} stays: the optional aurora_analytics page created it" in left
+    assert f"bucket {lake} stays" in left
+    assert "Check ownership before removing any files" in left
+    assert "empty and delete" not in left
 
 
 def test_teardown_says_nothing_about_a_lake_bucket_that_does_not_exist() -> None:

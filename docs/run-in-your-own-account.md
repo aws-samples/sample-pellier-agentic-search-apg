@@ -313,9 +313,10 @@ It ends with a **Left in place** list. What can remain, and how to remove it:
 - **The readiness log group** `/aws/pellier/readiness`, which every Pellier deployment in the
   Region shares. Delete it in the CloudWatch console if this was the only one.
 - **The optional lake bucket** `pellier-lake-<workshop id>`, if you ran the aurora_analytics
-  page's `prepare` and not its `cleanup`. The page creates it outside the stack, so the teardown
-  names it and leaves it. Run `uv run scripts/aurora_analytics.py cleanup` on the host before the
-  teardown, or empty and delete the bucket in the S3 console.
+  page's `prepare` or a bucket with this name already existed. It is outside the stack, so teardown
+  names it and leaves it. Before teardown, run `uv run scripts/aurora_analytics.py cleanup` on
+  the host where you ran `prepare`. If cleanup reports shared resources or a missing setup
+  record, check who owns the remaining resources before removing anything in the console.
 - **Account-wide X-Ray settings**, if you passed `--force`. The provisioner records what the
   account held before Pellier changed it in the receipt on the host,
   `/var/lib/pellier/managed-receipt.json`, under `observability.transaction_search.cleanup`.
