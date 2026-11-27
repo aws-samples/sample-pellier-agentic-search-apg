@@ -445,6 +445,18 @@ def _columns_are_bounded(conn) -> None:
             raise _extra_authority("has unexpected column privileges")
 
 
+def _tables_are_bounded(conn) -> None:
+    # DELETE, TRUNCATE, TRIGGER and MAINTAIN exist only per table, so the column audit cannot
+    # see them. has_table_privilege counts PUBLIC and inherited grants, and any one is too many.
+    held = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE n.nspname IN ('pellier', 'lake') AND c.relkind IN ('r','p','v','m','f') "
+        "AND has_table_privilege(%s, c.oid, 'DELETE,TRUNCATE,TRIGGER,MAINTAIN'))",
+        (ROLE,)).fetchone()[0]
+    if held:
+        raise _extra_authority("has unexpected table privileges")
+
+
 def _creates_nothing(conn) -> None:
     held = conn.execute(
         "SELECT has_database_privilege(%s, current_database(), 'CREATE') "
@@ -467,6 +479,7 @@ def reader_grants(conn) -> None:
     """Fail if the dedicated role has authority outside this optional example."""
     _role_is_plain(conn)
     _columns_are_bounded(conn)
+    _tables_are_bounded(conn)
     _creates_nothing(conn)
 
 

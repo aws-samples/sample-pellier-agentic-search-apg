@@ -83,6 +83,11 @@ def test_the_reader_is_refused_each_forbidden_operation(lake, statement: str) ->
 @pytest.mark.parametrize("extra", [
     "GRANT SELECT ON pellier.customers TO {}",
     "GRANT UPDATE (quantity) ON pellier.warehouse_inventory TO {}",
+    "GRANT DELETE ON pellier.warehouse_inventory TO {}",
+    "GRANT TRUNCATE ON pellier.warehouse_inventory TO {}",
+    "GRANT DELETE ON lake.deliveries TO {}",
+    "GRANT TRIGGER ON pellier.product_catalog TO {}",
+    "GRANT MAINTAIN ON pellier.warehouse_inventory TO {}",
     "GRANT CREATE ON SCHEMA pellier TO {}",
     "GRANT CREATE ON SCHEMA lake TO {}",
     "GRANT CREATE ON DATABASE postgres TO {}",
@@ -97,6 +102,17 @@ def test_the_audit_refuses_a_reader_with_any_extra_authority(lake, extra: str) -
         with pytest.raises(analytics.AnalyticsError, match="keep this message and ask a "
                                                            "facilitator"):
             analytics.reader_grants(conn)
+
+
+def test_the_audit_counts_a_table_grant_the_reader_holds_through_public(lake) -> None:
+    """has_table_privilege reads effective grants: PUBLIC's count, not only the role's own."""
+    with _owner(lake) as conn:
+        conn.execute("GRANT TRUNCATE ON pellier.orders TO PUBLIC")
+        try:
+            with pytest.raises(analytics.AnalyticsError, match="has unexpected table privileges"):
+                analytics.reader_grants(conn)
+        finally:  # PUBLIC outlives the reader, and the cluster serves the whole module
+            conn.execute("REVOKE TRUNCATE ON pellier.orders FROM PUBLIC")
 
 
 def test_dropping_the_lake_objects_removes_the_login_and_runs_again(lake, state) -> None:
