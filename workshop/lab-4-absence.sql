@@ -13,7 +13,7 @@
 -- exactly 1: that positive control is what makes the two zeros an absence
 -- rather than a search that looked in the wrong place.
 --
--- This check is supplied; you write nothing here. Decide what the three counts
+-- This check is supplied; you write nothing here. Decide what the four counts
 -- should be before you run it:
 --   psql -f workshop/lab-4-absence.sql
 --
