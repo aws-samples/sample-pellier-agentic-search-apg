@@ -139,7 +139,9 @@ if [ -z "$RAW" ]; then
 fi
 
 # The CLI wraps the entrypoint's payload as a JSON string, so the turn has to be
-# parsed out of it before anything can be asserted about the run.
+# parsed out of it before anything can be asserted about the run. As in the deployment's
+# smoke (provision_agentcore_end_to_end.py), only a text answer with a nonblank character
+# counts as answered.
 printf '%s' "$RAW" | jq --arg label "$LABEL" --arg session "$SESSION_ID" --arg persona "$PERSONA" '
   (if (.response | type) == "string" then (.response | fromjson) else (.response // {}) end) as $turn
   | {
@@ -157,7 +159,8 @@ printf '%s' "$RAW" | jq --arg label "$LABEL" --arg session "$SESSION_ID" --arg p
       ],
       executedToolStatuses: [($turn.tool_calls // [])[] | (.status // "unknown")],
       publishedToolsOffered: ($turn.gateway_tools // [] | length),
-      answered: ((($turn.response // "") | length) > 0)
+      answered: (if ($turn.response | type) == "string"
+                 then ($turn.response | gsub("\\s"; "") | length) > 0 else false end)
     }
   | . + { managed: (.success and .rail == "gateway-mcp" and .answered) }
 ' > "$EVIDENCE_FILE" 2>/dev/null

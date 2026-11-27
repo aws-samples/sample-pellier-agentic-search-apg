@@ -159,8 +159,47 @@ def test_an_unauthenticated_turn_is_not_a_managed_turn(
     assert result["executedTools"] == []
 
 
+def _managed_verdict(tmp_path: pathlib.Path, answer: object) -> dict:
+    """The hello's evidence filter, exactly as it ships, over one turn whose answer is given."""
+    body = _hello()
+    start = body.index("  (if (.response | type)")
+    end = body.index("' > \"$EVIDENCE_FILE\"")
+    program = tmp_path / "filter.jq"
+    program.write_text(body[start:end], encoding="utf-8")
+    turn = {"response": answer, "rail": "gateway-mcp", "specialist": "catalog"}
+    payload = tmp_path / "raw.json"
+    payload.write_text(json.dumps({"success": True, "response": json.dumps(turn)}))
+    out = subprocess.run(
+        ["jq", "--arg", "label", "baseline", "--arg", "session", "s1",
+         "--arg", "persona", "marco", "-f", str(program), str(payload)],
+        check=True, capture_output=True, text=True,
+    )
+    return json.loads(out.stdout)
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is not installed")
+@pytest.mark.parametrize("answer", ["", "   ", " \n\t ", 42, 0, ["Linen shirts."],
+                                    {"text": "Linen shirts."}, True, None])
+def test_only_a_nonblank_text_answer_confirms_the_runtime_answered(
+    tmp_path: pathlib.Path, answer: object,
+) -> None:
+    """The deployment's own smoke requires a nonblank string; jq's length counts a space,
+    a number's size, an array's items and an object's keys."""
+    result = _managed_verdict(tmp_path, answer)
+    assert result["answered"] is False
+    assert result["managed"] is False
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is not installed")
+def test_a_text_answer_confirms_the_runtime_answered(tmp_path: pathlib.Path) -> None:
+    result = _managed_verdict(tmp_path, "  Two linen pieces suit warm weather.\n")
+    assert result["answered"] is True
+    assert result["managed"] is True
+
+
 def _run_hello(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
-               helper_body: str | None) -> tuple[subprocess.CompletedProcess, pathlib.Path]:
+               helper_body: str | None,
+               answer: object = "Linen shirts.") -> tuple[subprocess.CompletedProcess, pathlib.Path]:
     """Run the real script beside a stub identity helper and a fake npx that records the bearer.
 
     The shell already holds PELLIER_TOKEN=left-in-the-shell. ``helper_body`` is the token
@@ -174,7 +213,7 @@ def _run_hello(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
     helper = tmp_path / "pellier-token.sh"
     if helper_body is not None:
         helper.write_text(helper_body, encoding="utf-8")
-    turn = json.dumps({"rail": "gateway-mcp", "response": "Linen shirts.", "specialist": "catalog"})
+    turn = json.dumps({"rail": "gateway-mcp", "response": answer, "specialist": "catalog"})
     reply = json.dumps({"success": True, "response": turn})
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -213,6 +252,17 @@ def test_a_supplied_token_is_used_where_no_helper_exists(
     done, bearer = _run_hello(tmp_path, monkeypatch, None)
     assert done.returncode == 0, done.stdout + done.stderr
     assert bearer.read_text().strip() == "left-in-the-shell"
+
+
+@pytest.mark.skipif(shutil.which("jq") is None, reason="jq is not installed")
+@pytest.mark.parametrize("answer", ["   ", 7])
+def test_a_blank_or_non_text_answer_fails_the_hello(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, answer: object,
+) -> None:
+    done, _ = _run_hello(tmp_path, monkeypatch, 'export PELLIER_TOKEN="minted-for-$1"\n', answer)
+    assert done.returncode == 1
+    assert "Runtime did not answer on the managed rail" in done.stdout + done.stderr
+    assert "AgentCore Runtime answered" not in done.stdout
 
 
 @pytest.mark.parametrize("minted", ["", "None"])
