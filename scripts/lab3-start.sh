@@ -69,12 +69,20 @@ PERSONA="${1:-theo}"
 
 GREEN='\033[32m'; RED='\033[31m'; YEL='\033[33m'; NC='\033[0m'
 VERIFY_FAILURE=""
-pass() { $VERIFY_ONLY || printf "  ${GREEN}+ OK${NC}    %s\n" "$1"; }
+# Pellier's own plumbing checks are kept, not printed: a success prints two plain lines at the
+# end, and a failure prints the checks that passed first, so the failing one reads last.
+PASS_BUFFER=""
+pass() { $VERIFY_ONLY || PASS_BUFFER="${PASS_BUFFER}  ${GREEN}+ OK${NC}    $1"$'\n'; }
+_flush_passes() {
+  if [ -n "$PASS_BUFFER" ]; then printf '%s' "$PASS_BUFFER"; fi
+  PASS_BUFFER=""
+}
 fail() {
+  $VERIFY_ONLY || _flush_passes
   if $VERIFY_ONLY; then VERIFY_FAILURE="$1"; else printf "  ${RED}x FAIL${NC}  %s\n" "$1" >&2; fi
 }
-warn() { $VERIFY_ONLY || printf "  ${YEL}- WARN${NC}  %s\n" "$1"; }
-info() { $VERIFY_ONLY || printf "  %s\n" "$1"; }
+warn() { $VERIFY_ONLY || { _flush_passes; printf "  ${YEL}- WARN${NC}  %s\n" "$1"; }; }
+info() { $VERIFY_ONLY || { _flush_passes; printf "  %s\n" "$1"; }; }
 # A verification that fails says why in one line. The full switch that follows prints the
 # detail, so the participant reads the reason and then the recovery.
 _verify_report() {
@@ -425,6 +433,13 @@ else
   exit 1
 fi
 
-$VERIFY_ONLY || echo "------------------------------------------------------------"
+if ! $VERIFY_ONLY; then
+  PASS_BUFFER=""
+  persona_name="$(printf '%s' "$PERSONA" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+  printf "  ${GREEN}+${NC} Pellier is set up for AgentCore: Gateway and Runtime found, deploy receipt checked.\n"
+  printf "  ${GREEN}+${NC} Pellier is running on AgentCore. A test turn as %s went through the Gateway.\n" \
+    "$persona_name"
+  echo "------------------------------------------------------------"
+fi
 info "$closing"
 exit 0

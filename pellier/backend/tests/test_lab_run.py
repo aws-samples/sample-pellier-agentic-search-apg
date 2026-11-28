@@ -43,6 +43,13 @@ def _fresh_retry_budget(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(lab_run, "_retry_deadline", None)
 
 
+@pytest.fixture(autouse=True)
+def _starter_catalog_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Task 1A's send reads the catalog itself; here it finds what the starter finds."""
+    lookup_module = importlib.import_module("lab1_vector")
+    monkeypatch.setattr(lookup_module, "lookup", lambda: lookup_module.Lookup())
+
+
 class FakeBackend:
     """What the fake server answers, and every request it received."""
 
@@ -108,7 +115,10 @@ class FakeBackend:
             failure = self.chat_failures.pop(0)
             if isinstance(failure, int):
                 return failure, {"detail": "service_unavailable"}
-            return [(None, {"type": "turn_start"}), (None, {"type": "error", "error": failure})]
+            # (steps, error): an attempt that streams its own steps, then fails.
+            steps, error = failure if isinstance(failure, tuple) else ([], failure)
+            return [(None, {"type": "turn_start"}), *[(None, step) for step in steps],
+                    (None, {"type": "error", "error": error})]
         if self.chat_error:
             return [(None, {"type": "turn_start"}),
                     (None, {"type": "error", "error": self.chat_error})]
@@ -444,10 +454,20 @@ def test_the_preview_shows_the_change_from_your_file_to_the_answer(
     lab_run.install_task("2A", repo, restart=_restarts())
 
     out = capsys.readouterr().out
-    assert "--- yours (labs/02-ground/2A-stock-agent.py)" in out
-    assert "+++ answer (labs/02-ground/2A-stock-agent.py)" in out
-    assert "\n-    my unfinished line\n" in out
-    assert f"\n+{finished}\n" in out
+    del finished
+    assert "2A-stock-agent.py   (Stock agent - definition)" in out
+    assert "--- yours" not in out and "@@" not in out
+    assert "(the answer changes lines outside the marked region)" in out
+    assert "uv run scripts/lab_run.py diff --lab 2" in out
+
+
+def test_the_printed_change_is_only_the_changed_code_lines_in_the_region() -> None:
+    old = (b"keep = 1\n# WORKSHOP - Gateway - published tools: START ===\n# a long comment\n"
+           b"X = frozenset({\"a\"})\n\n# WORKSHOP - Gateway - published tools: END ===\n")
+    new = old.replace(b'frozenset({"a"})', b"frozenset()")
+    label, lines = lab_run.changed_code(old, new)
+    assert label == "Gateway - published tools"
+    assert lines == ['    - X = frozenset({"a"})', "    + X = frozenset()"]
 
 
 @pytest.mark.parametrize("task,restarted", [
@@ -627,8 +647,8 @@ def test_2a_send_records_its_turn_and_2b_keeps_it(fake, tmp_path, extra) -> None
 
 def test_overlapping_shirt_sends_keep_the_newest_attempt() -> None:
     path = lab_run.check.lab2_shirt_turn_path()
-    with lab_run._begin_shirt_turn() as older:
-        with lab_run._begin_shirt_turn() as newer:
+    with lab_run._begin_turn_record(path) as older:
+        with lab_run._begin_turn_record(path) as newer:
             newer.write("newer")
         older.write("older")
     assert path.read_text() == "newer"
@@ -689,7 +709,7 @@ def test_a_managed_turn_says_it_ran_on_agentcore(
 ) -> None:
     fake.rail = lab_run.MANAGED
     assert _run(fake, 3, None, "--task", "3A") == 0
-    assert "  + OK    ran on AgentCore Runtime and Gateway (turn " in capsys.readouterr().out
+    assert "  + OK    Answered on AgentCore (Runtime \u2192 Gateway)" in capsys.readouterr().out
 
 
 def test_lab_3_starts_a_new_conversation_before_the_ticket_requests(fake: FakeBackend) -> None:
@@ -1062,51 +1082,26 @@ def test_a_completed_shopper_turn_without_a_saved_request_does_not_send_you_to_n
     assert not _operator(fake)
 
 
-CREDENTIALS = """=============================================================
-Pellier Workshop Test Credentials
-=============================================================
-Username: jessica
-Password: Jess-only-1
-Workshop role: shopper
+def test_shopper_only_ends_with_nadias_username_and_where_her_password_is(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.rail = lab_run.MANAGED
+    assert _run(fake, 4, None, "--shopper-only") == 0
+    out = capsys.readouterr().out
+    last = " ".join(out.rstrip("\n").split())
+    assert last.endswith(
+        "Nadia's sign-in for the Operator: username nadia. Copy her password from the Event "
+        "Dashboard: Event outputs, OperatorPassword.")
+    assert "password " not in out.replace("her password", "").replace("OperatorPassword", "")
 
-Username: nadia
-Password: Nadia-Sign-In-7
-Workshop role: staff
-"""
 
-
-def test_shopper_only_ends_with_nadias_sign_in(
+def test_no_send_prints_a_password_from_the_credentials_file(
     fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     credentials = tmp_path / "test-credentials.txt"
-    credentials.write_text(CREDENTIALS)
-    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", credentials)
-    fake.rail = lab_run.MANAGED
-    assert _run(fake, 4, None, "--shopper-only") == 0
-    last = capsys.readouterr().out.rstrip("\n").splitlines()[-1]
-    assert last == "  Nadia's sign-in for the Operator: username nadia, password Nadia-Sign-In-7"
-
-
-def test_a_missing_credentials_file_says_where_to_get_the_password(
-    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    missing = tmp_path / "test-credentials.txt"
-    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", missing)
-    fake.rail = lab_run.MANAGED
-    assert _run(fake, 4, None, "--shopper-only") == 0
-    last = " ".join(capsys.readouterr().out.split())
-    assert str(missing) in last and "ask a facilitator for her password" in last
-
-
-def test_only_the_shopper_only_send_prints_the_password(
-    fake: FakeBackend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    credentials = tmp_path / "test-credentials.txt"
-    credentials.write_text(CREDENTIALS)
-    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", credentials)
+    credentials.write_text("Username: nadia\nPassword: Nadia-Sign-In-7\n")
+    monkeypatch.setenv("PELLIER_TEST_CREDENTIALS", str(credentials))
     fake.rail = lab_run.MANAGED
     assert _run(fake, 4) == 0
     assert _run(fake, 3) == 0
@@ -1699,15 +1694,17 @@ def test_send_prints_each_turns_trace_as_it_streams(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
     fake.steps = STEPS
-    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
     out = capsys.readouterr().out
     lines = out.splitlines()
 
-    assert [line for line in lines if "Router" in line] == [
+    assert [line for line in lines if "Router" in line and "Path" not in line] == [
         "          1 Router  Sent to the Catalog agent: gift"]
-    done = lines.index("          2 done    Searching the catalog in Aurora (731 ms): 5 found from 64 that "
-                       "fit under $100 and in stock, candles")
-    assert lines[done + 1] == "                    left out"
+    assert ("          Path      Anna \u2192 Router \u2192 Catalog agent \u2192 search_products "
+            "\u2192 Aurora (words + meaning)") in lines
+    done = lines.index("          2 done    search_products  Searching the catalog in Aurora (731 ms): 5 "
+                       "found from 64 that fit under $100 and")
+    assert lines[done + 1] == "                    in stock, candles left out"
     assert "                    How it ranked" in lines
     assert "                    Requirements: kept 64 of 100 products" in lines
     rows = [line.strip() for line in lines if line.strip().startswith("│")]
@@ -1719,7 +1716,8 @@ def test_send_prints_each_turns_trace_as_it_streams(
     assert "Stoneware Mugs" not in out
     assert "          3 failed  Reading your tickets (12 ms): The ticket read was refused" in lines
     assert out.count("Searching the catalog in Aurora") == 1
-    assert "  + OK    ran in process (turn " in out
+    assert "  + OK    Answered by the local agents" in out and "(turn " not in out
+    assert any(line.strip().startswith("Path") and "Catalog agent" in line for line in lines)
     assert all(len(line) <= 120 for line in lines)
 
 
@@ -1729,20 +1727,20 @@ def test_each_request_says_what_is_sent_as_whom_to_where_and_from_which_file(
     """Participants send requests long before they see the store, so the terminal shows what
     the request is: the shopper's sentence, sent signed in as them, as Ask Pellier sends it."""
     fake.steps = STEPS
-    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
     lines = capsys.readouterr().out.splitlines()
     start = next(index for index, line in enumerate(lines) if line.startswith("          Message"))
     end = next(index for index, line in enumerate(lines) if line.startswith("          As"))
     shown = " ".join(line[20:] for line in lines[start:end])
     [sent] = [turn["body"]["message"] for turn in _turns(fake)]
     assert shown == f'"{sent}"'
-    assert lines[end:end + 4] == [
-        "          As        Anna, signed in",
-        "          To        Pellier's chat API (/api/chat/stream): the request Ask Pellier sends "
-        "when Anna types this",
-        "          From      data/scenarios.json",
-        ""]
-    assert lines[end + 4].startswith("          1 Router")
+    assert lines[end] == "          As        Anna, signed in"
+    to = " ".join(line.strip() for line in lines[end + 1:end + 4])
+    to = " ".join(to.split())
+    assert to.startswith("To The same request Ask Pellier sends when Anna types it.")
+    assert 'shows it as "Sent from the terminal"' in to
+    assert "data/scenarios.json" not in "\n".join(lines) and "chat/stream" not in "\n".join(lines)
+    assert any(line.startswith("          1 Router") for line in lines)
 
 
 def test_the_terminal_ranking_uses_the_stores_column_names_and_chip_words() -> None:
@@ -1761,7 +1759,7 @@ def test_the_terminal_ranking_uses_the_stores_column_names_and_chip_words() -> N
 def test_a_ranking_row_shows_how_far_rerank_moved_it_and_its_similarity(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    lab_run._ranking_key_shown = False
+    lab_run._ranking_key = lab_run.RANKING_KEY
     lab_run._trace_ranking({"available": True, "method": "hybrid+rerank", "rrf_k": 60,
                             "rerank_pool": 15, "arms": {"full_text": 20, "vector": 20},
                             "filters": {"kept": 828, "of": 1000,
@@ -1782,7 +1780,7 @@ def test_a_ranking_row_shows_how_far_rerank_moved_it_and_its_similarity(
     assert [cell.strip() for cell in row.strip("│").split("│")] == [
         "2 ↑4", "Tall Stoneware Vase", "#7", "#9  0.55", "0.0283", "0.62"]
     key = " ".join(lines[lines.index(next(line for line in lines if line.startswith("└"))) + 1:])
-    assert key == lab_run.RANKING_KEY.format(k=60)
+    assert key == lab_run.RANKING_KEY
 
 
 def test_a_row_a_declared_rule_moved_is_starred_and_named(
@@ -1790,7 +1788,7 @@ def test_a_row_a_declared_rule_moved_is_starred_and_named(
 ) -> None:
     """Anna's vase is put first after rerank by a declared rule; without the note its low rerank
     score at #1 reads as a broken ranking."""
-    lab_run._ranking_key_shown = True
+    lab_run._ranking_key = ""
     lab_run._trace_ranking({"available": True, "method": "hybrid+rerank", "rrf_k": 60,
                             "merchandising": [{"rule_id": "merch.milestone-home-gift.v1",
                                                "product": "Tall Stoneware Vase", "from": 4,
@@ -1814,7 +1812,7 @@ def test_send_names_a_retry_and_what_it_dropped(
                                     "relaxation": {"steps": ["drop_tags"],
                                                    "dropped": ["gift", "slow", "home"]}})
     fake.steps = [STEPS[0], STEPS[1], retry, *STEPS[3:]]
-    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
     lines = capsys.readouterr().out.splitlines()
 
     retry_at = lines.index("                    Too few matches, so Pellier tried again without the "
@@ -1826,7 +1824,7 @@ def test_a_first_attempt_prints_no_retry_line(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
     fake.steps = STEPS
-    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
     assert "tried again" not in capsys.readouterr().out
 
 
@@ -1837,6 +1835,20 @@ def test_limits_that_left_nothing_out_say_so(capsys: pytest.CaptureFixture[str])
     assert lines[1] == "Requirements: kept 1,000 of 1,000 products; no requirement left any out"
 
 
+def test_only_the_first_send_explains_the_local_agents_and_the_ranking_key(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = STEPS
+    assert _run(fake, 1, None, "--task", "1A", "--details") == 0
+    first = capsys.readouterr().out
+    assert "They run inside the Pellier app on this machine; Lab 3 moves them to AgentCore." in first
+    assert "Reading the table: # is the final order" in " ".join(first.split())
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
+    later = capsys.readouterr().out
+    assert "Answered by the local agents" in later and "They run inside" not in later
+    assert "Reading the table" not in later and lab_run.RANKING_SHORT_KEY.split(".")[0] in later
+
+
 def test_quiet_keeps_the_one_line_output(
     fake: FakeBackend, capsys: pytest.CaptureFixture[str],
 ) -> None:
@@ -1844,7 +1856,8 @@ def test_quiet_keeps_the_one_line_output(
     assert _run(fake, 1, None, "--quiet") == 0
     out = capsys.readouterr().out
     assert "Router" not in out and "How it ranked" not in out
-    assert '  + OK    Anna: "' in out and '" ran in process (turn ' in out
+    assert '  + OK    Anna: "' in out and "Answered by the local agents" in out
+    assert "(turn " not in out
     assert all(turn["body"]["source"] == "terminal" for turn in _turns(fake))
 
 
@@ -1941,9 +1954,10 @@ def test_next_commands_print_whole_on_their_own_lines(
     repo = _scratch_repo(tmp_path)
     lab_run.install_task("3A", repo, restart=_restarts())
     lines = capsys.readouterr().out.splitlines()
-    nexts = lines[[i for i, line in enumerate(lines) if line.startswith("  Next: ")][0]:]
-    assert nexts[0] == "  Next: uv run scripts/lab3_check.py --task 3A"
-    assert nexts[1] == "        then " + lab_run.DEPLOY
+    nexts = lines[[i for i, line in enumerate(lines) if line.startswith("  Next  ")][0]:]
+    assert nexts[0] == '  Next  In the guide, open Task 3A and read "Prove the fix".'
+    assert nexts[1] == "        Then run: uv run scripts/lab3_check.py --task 3A"
+    assert nexts[2] == "        Then run: " + lab_run.DEPLOY
     assert all(len(line) <= 120 for line in nexts)
 
 
@@ -2048,7 +2062,7 @@ def test_send_restarts_pellier_before_a_request_when_the_edit_is_newer(
 ) -> None:
     monkeypatch.setattr(lab_run, "edited_after_start",
                         lambda started, repo=None: "1B-search-plan.py" if started else None)
-    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
     assert len(restarts) == 1 and "1B-search-plan.py" in restarts[0]
     assert _turns(fake), "the request still goes out after the restart"
 
@@ -2057,7 +2071,7 @@ def test_send_does_not_restart_pellier_when_nothing_changed(
     fake: FakeBackend, restarts: List[str], monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(lab_run, "edited_after_start", lambda started, repo=None: None)
-    assert _run(fake, 1, None, "--task", "1B") == 0
+    assert _run(fake, 1, None, "--task", "1B", "--details") == 0
     assert restarts == []
 
 
@@ -2256,3 +2270,453 @@ def test_the_refusal_on_agentcore_names_the_one_command_and_no_file_edit(
     assert "uv run scripts/lab_run.py local" in text and "Nothing was changed." in text
     assert "USE_AGENTCORE_RUNTIME" not in text and ".env" not in text
     assert commands.ran == [] and _turns(fake) == []
+
+
+# ---------------------------------------------------------------------------
+# Task 1A's first send: Anna's question and what each half of the search found
+# ---------------------------------------------------------------------------
+ARMS_STEP = {"type": "step", "id": "step-1", "label": "Searching the catalog in Aurora",
+             "status": "done", "finding": "5 found",
+             "builder": {"tool": "search_products", "duration_ms": 731,
+                         "ranking": {**RANKING, "arms": {"full_text": 20, "vector": 0,
+                                                         "fused": 20}}}}
+
+
+def test_the_first_send_shows_only_the_question_the_counts_the_lookup_and_one_next_step(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [ROUTE, ARMS_STEP]
+    assert _run(fake, 1, None, "--task", "1A") == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[2:] == [
+        "Anna: \u201cA housewarming gift for a friend who loves slow mornings.\u201d",
+        "Full text (words)      20 top candidates",
+        "Vector (meaning)        0 top candidates",
+        "",
+        "Storefront products closest to the Stoneware Pour-Over Set",
+        "0 products returned.",
+        "",
+        'Next  In the guide, open Task 1A and read "Find the line and apply the provided fix".',
+        "      Then run: uv run scripts/lab_run.py solution --lab 1 --task 1A"]
+    shown = "\n".join(lines)
+    for hidden in ("How it ranked", "Reading the table", "Router", "Path", "Pellier: ",
+                   "the backend is healthy", "Sent from the terminal"):
+        assert hidden not in shown, hidden
+
+
+def test_a_count_the_turn_did_not_report_stays_unknown(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [ROUTE, {**ARMS_STEP, "builder": {**ARMS_STEP["builder"], "ranking": {
+        **RANKING, "arms": {"full_text": 20}}}}]
+    assert _run(fake, 1, None, "--task", "1A") == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert "Full text (words)      20 top candidates" in lines
+    assert "Vector (meaning)       unknown" in lines
+    fake.steps = [ROUTE]
+    assert _run(fake, 1, None, "--task", "1A") == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert "Full text (words)      unknown" in lines and "Vector (meaning)       unknown" in lines
+
+
+def test_details_prints_the_first_sends_whole_trace(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [ROUTE, ARMS_STEP]
+    assert _run(fake, 1, None, "--task", "1A", "--details") == 0
+    out = capsys.readouterr().out
+    assert "How it ranked" in out and "Full text 20, Vector 0" in out
+    assert "Full text (words)" not in out
+
+
+def test_details_help_names_both_compact_sends(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc:
+        lab_run.main(["--help"])
+    assert exc.value.code == 0
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "full trace and ranking table for Task 1A or 1B" in help_text
+
+
+def test_details_goes_with_send_only() -> None:
+    with pytest.raises(SystemExit) as exc:
+        lab_run.main(["solution", "--lab", "1", "--details"])
+    assert exc.value.code == 2
+
+
+def _search(arms: Optional[Dict[str, Any]], **builder: Any) -> Dict[str, Any]:
+    ranking = {**RANKING, "arms": arms} if arms is not None else None
+    return {**ARMS_STEP, "builder": {**ARMS_STEP["builder"], "ranking": ranking, **builder}}
+
+
+def _counts(out: str) -> List[str]:
+    return [" ".join(line.split()) for line in out.splitlines()
+            if line.startswith(("Full text (words)", "Vector (meaning)"))]
+
+
+def test_a_resend_shows_the_counts_of_the_attempt_that_answered(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A failed attempt's search found 19 by words; the resend that answered found 6."""
+    fake.chat_failures = [([ROUTE, _search({"full_text": 19, "vector": 3})], "model busy")]
+    fake.steps = [ROUTE, _search({"full_text": 6, "vector": 0})]
+    assert _run(fake, 1, None, "--task", "1A") == 0
+    assert _counts(capsys.readouterr().out) == ["Full text (words) 6 top candidates",
+                                                "Vector (meaning) 0 top candidates"]
+    assert len(_turns(fake)) == 2
+
+
+@pytest.mark.parametrize("answered, shown", [
+    ({"full_text": 6}, ["Full text (words) 6 top candidates", "Vector (meaning) unknown"]),
+    (None, ["Full text (words) unknown", "Vector (meaning) unknown"]),
+])
+def test_a_resend_never_borrows_a_count_from_the_attempt_that_failed(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], answered: Any, shown: List[str],
+) -> None:
+    fake.chat_failures = [([ROUTE, _search({"full_text": 19, "vector": 3})], "model busy")]
+    fake.steps = [ROUTE, _search(answered)]
+    assert _run(fake, 1, None, "--task", "1A") == 0
+    assert _counts(capsys.readouterr().out) == shown
+
+
+
+# ---------------------------------------------------------------------------
+# Task 1B's send: whether Pellier broadened Anna's search, and one next action
+# ---------------------------------------------------------------------------
+RETRY = {"steps": ["drop_soft_tags"], "dropped": ["gift", "slow", "home"]}
+KEPT = {"applied": ["in stock", "$100 or less", "no candles"], "carried": []}
+
+
+def _send_1b(fake: FakeBackend, capsys: pytest.CaptureFixture[str], *extra: str) -> List[str]:
+    assert _run(fake, 1, None, "--task", "1B", *extra) == 0
+    return capsys.readouterr().out.splitlines()
+
+
+@pytest.mark.parametrize("edited, told, command", [
+    (False, "Pellier broadened Anna\u2019s search. Check which rules the retry kept.",
+     "psql -f workshop/lab-1-receipt.sql"),
+    (True, "Pellier broadened Anna\u2019s search. Check whether every gift still meets her "
+     "rules.", "uv run scripts/lab1_check.py --task 1B"),
+])
+def test_a_retry_before_and_after_the_edit_names_the_next_proof(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    edited: bool, told: str, command: str,
+) -> None:
+    monkeypatch.setattr(lab_run.check, "region_state",
+                        lambda *args: lab_run.check.EDITED if edited else lab_run.check.STARTER)
+    fake.steps = [ROUTE, _search({"full_text": 20, "vector": 20}, relaxation=RETRY,
+                                 requirements=None)]
+    lines = _send_1b(fake, capsys)
+    assert lines[-3:] == [
+        "Anna: \u201cA housewarming gift for a friend who loves slow mornings. In stock, $100 or "
+        "less, and no candles.\u201d", told, f"Next: {command}"]
+    for hidden in ("How it ranked", "Router", "Pellier: ", "Too few matches"):
+        assert hidden not in "\n".join(lines), hidden
+
+
+@pytest.mark.parametrize("returned", [5, 0])
+def test_a_confirmed_no_retry_reports_only_what_the_search_proves(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], returned: int,
+) -> None:
+    from services.turn_steps import TurnSteps
+
+    plan = {"hard_constraints": {"price_max_usd": 100, "in_stock_only": True},
+            "exclusions": ["candle"], "relaxations": []}
+    result = {"status": "success", "count": returned, "products": [{"name": "Cup"}] * returned,
+              "search_plan": plan}
+    fake.steps = [ROUTE, TurnSteps().finished("search_products", result)]
+    assert _send_1b(fake, capsys)[-2:] == [
+        "No retry ran for this request. Send Anna\u2019s full request once more.",
+        "Next: uv run scripts/lab_run.py send --lab 1 --task 1B"]
+
+
+@pytest.mark.parametrize("unknown_first", [True, False])
+@pytest.mark.parametrize("retry, expected", [
+    (None, "Read Anna’s search receipt to see whether Pellier retried."),
+    (RETRY, "Pellier broadened Anna’s search. Check which rules the retry kept."),
+])
+def test_1b_checks_all_searches_before_reporting_a_turn_outcome(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], unknown_first: bool,
+    retry: Optional[Dict[str, Any]], expected: str,
+) -> None:
+    known = _search({"full_text": 5}, relaxation=retry, requirements=KEPT)
+    unknown = _search(None)
+    fake.steps = [ROUTE, unknown, known] if unknown_first else [ROUTE, known, unknown]
+    assert _send_1b(fake, capsys)[-2:] == [expected, "Next: psql -f workshop/lab-1-receipt.sql"]
+
+
+@pytest.mark.parametrize("steps", [
+    [ROUTE],
+    [ROUTE, {**ARMS_STEP, "builder": {"tool": "search_products", "relaxation": None,
+                                      "requirements": None}}],
+    [ROUTE, {**ARMS_STEP, "builder": {"tool": "search_products"}}],
+])
+def test_a_turn_that_cannot_say_whether_it_retried_sends_her_to_the_receipt(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], steps: List[Dict[str, Any]],
+) -> None:
+    """No search step, a step rebuilt from a managed turn, or a step without the field: a
+    missing retry line alone cannot tell whether a retry ran."""
+    fake.steps = steps
+    assert _send_1b(fake, capsys)[-2:] == [
+        "Read Anna\u2019s search receipt to see whether Pellier retried.",
+        "Next: psql -f workshop/lab-1-receipt.sql"]
+
+
+def test_the_1b_outcome_reads_only_the_attempt_that_answered(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.chat_failures = [([ROUTE, _search({"full_text": 20}, relaxation=RETRY)], "busy")]
+    fake.steps = [ROUTE, _search({"full_text": 20}, relaxation=None, requirements=KEPT)]
+    assert _send_1b(fake, capsys)[-2].startswith("No retry ran for this request.")
+
+
+def test_details_prints_the_1b_trace_then_the_same_outcome(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [ROUTE, _search({"full_text": 20, "vector": 20}, relaxation=RETRY,
+                                 requirements=None)]
+    lines = _send_1b(fake, capsys, "--details")
+    assert any("Too few matches, so Pellier tried again" in line for line in lines)
+    assert any(line.strip() == "How it ranked" for line in lines)
+    assert lines[-2].startswith("Pellier broadened Anna\u2019s search.")
+
+
+def test_a_terminal_sees_red_for_none_green_for_some_and_orange_for_unknown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(lab_run.check, "colour_enabled", lambda stream=None: True)
+    evidence = lab_run.TurnEvidence()
+    evidence.observe(_search({"full_text": 20, "vector": 0}))
+    words, meaning = evidence.count_lines()
+    assert "\033[32m" in words and "\033[31m" in meaning
+    missing = lab_run.TurnEvidence()
+    assert all("\033[38;5;208munknown" in line for line in missing.count_lines())
+    told, _ = lab_run.after_1b_send(missing)
+    assert told.startswith("\033[38;5;208m")
+
+
+def test_a_quiet_1b_send_still_ends_with_its_outcome(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [ROUTE, _search({"full_text": 20}, relaxation=None, requirements=KEPT)]
+    lines = _send_1b(fake, capsys, "--quiet")
+    assert lines[-2].startswith("No retry ran for this request.")
+    assert lines[-1] == "Next: uv run scripts/lab_run.py send --lab 1 --task 1B"
+
+
+# ---------------------------------------------------------------------------
+# Task 1A's send: Anna's counts, a blank line, then the separate reference lookup
+# ---------------------------------------------------------------------------
+lab1_vector = importlib.import_module("lab1_vector")
+
+
+@pytest.mark.parametrize("found, shown", [
+    (lab1_vector.Lookup(), ["0 products returned."]),
+])
+def test_one_1a_send_prints_the_counts_then_the_lookup_then_the_fix(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    found: Any, shown: List[str],
+) -> None:
+    monkeypatch.setattr(lab1_vector, "lookup", lambda: found)
+    fake.steps = [ROUTE, ARMS_STEP]
+    assert _run(fake, 1, None, "--task", "1A") == 0
+    lines = capsys.readouterr().out.splitlines()
+    start = lines.index("Anna: “A housewarming gift for a friend who loves slow mornings.”")
+    assert lines[start + 1:start + 6 + len(shown)] == [
+        "Full text (words)      20 top candidates",
+        "Vector (meaning)        0 top candidates",
+        "",
+        "Storefront products closest to the Stoneware Pour-Over Set",
+        *shown,
+        ""]
+    assert lines[start + 6 + len(shown)] == (
+        'Next  In the guide, open Task 1A and read "Find the line and apply the provided fix".')
+    assert "pgvector example" not in "\n".join(lines)
+    [turn] = _turns(fake)
+    assert turn["body"]["customer_id"] == "CUST-ANNA" and turn["body"]["source"] == "terminal"
+
+
+
+def test_a_1a_send_whose_lookup_fails_exits_nonzero_and_sends_them_to_troubleshoot(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Show the lookup failure and troubleshooting without guessing at the repair."""
+    monkeypatch.setattr(lab1_vector, "lookup", lambda: lab1_vector.Lookup(
+        error="the Stoneware Pour-Over Set has no stored embedding"))
+    fake.steps = [ROUTE, ARMS_STEP]
+    assert _run(fake, 1, None, "--task", "1A") == 1
+    captured = capsys.readouterr()
+    assert "Lookup failed: the Stoneware Pour-Over Set has no stored embedding" in captured.out
+    told = " ".join(captured.err.split())
+    assert "Troubleshoot with Claude Code or go deeper" in told and "Lookup failed line" in told
+    assert "installing the fix cannot repair" not in told
+    assert "Find the line and apply the provided fix" not in captured.out + captured.err
+
+
+def test_the_1b_send_records_its_turn_for_the_check_and_the_receipt(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    record = tmp_path / "lab-1b-turn.json"
+    fake.steps = [ROUTE]
+    assert _run(fake, 1, None, "--task", "1B") == 0
+    turn = _turns(fake)[-1]
+    assert json.loads(record.read_text()) == {"session": turn["body"]["session_id"],
+                                              "turn": f"turn-{len(fake.requests)}"}
+    fake.chat_error = "unable to finish"
+    assert _run(fake, 1, None, "--task", "1B") == 1
+    assert record.read_text() == ""
+
+
+def test_a_whole_lab_1_send_records_annas_full_request_not_her_first(
+    fake: FakeBackend, tmp_path: Path,
+) -> None:
+    assert _run(fake, 1) == 0
+    first, full = _turns(fake)
+    assert json.loads((tmp_path / "lab-1b-turn.json").read_text())["session"] == (
+        full["body"]["session_id"])
+    assert "no candles" in full["body"]["message"] and "no candles" not in first["body"]["message"]
+
+
+@pytest.mark.parametrize("stage", ["health", "sign-in", "switch shopper"])
+def test_a_new_1b_send_supersedes_an_old_receipt_even_if_preparation_fails(
+    fake: FakeBackend, stage: str, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = lab_run.check.lab1_retry_turn_path()
+    path.write_text('{"turn":"old"}')
+
+    def sign_in(user: str) -> str:
+        if stage == "sign-in":
+            raise lab_run.LabRunError("could not sign in")
+        return f"token-{user}"
+
+    if stage == "health":
+        fake.health = "unhealthy"
+    if stage == "switch shopper":
+        def failed_switch(*args: Any) -> Any:
+            raise lab_run.LabRunError("could not open the shopper session")
+        monkeypatch.setattr(lab_run.Backend, "post_json", failed_switch)
+
+    assert _run(fake, 1, sign_in, "--task", "1B") == 1
+    assert path.read_text() == ""
+    assert not _turns(fake)
+
+
+def test_a_wrong_rail_refusal_preserves_the_previous_1b_record(fake: FakeBackend) -> None:
+    path = lab_run.check.lab1_retry_turn_path()
+    path.write_text('{"turn":"old"}')
+    lab_run.ENV_FILE.write_text("USE_AGENTCORE_RUNTIME=true\n")
+    assert _run(fake, 1, None, "--task", "1B") == 1
+    assert path.read_text() == '{"turn":"old"}'
+    assert not fake.requests
+
+
+@pytest.mark.parametrize("extra", [("--task", "1B"), ()])
+def test_a_slower_send_cannot_replace_a_newer_1b_record(
+    fake: FakeBackend, extra: tuple[str, ...],
+) -> None:
+    """A second terminal finishes 1B while the first is still signing Anna in."""
+    path = lab_run.check.lab1_retry_turn_path()
+    newer = []
+
+    def delayed_sign_in(user: str) -> str:
+        assert _run(fake, 1, None, "--task", "1B") == 0
+        newer.append(path.read_text())
+        return f"token-{user}"
+
+    assert _run(fake, 1, delayed_sign_in, *extra) == 0
+    assert [path.read_text()] == newer
+
+
+
+# ---------------------------------------------------------------------------
+# An Apply install prints the changed lines as a diff reads: removed first, then added
+# ---------------------------------------------------------------------------
+def test_the_2a_install_lists_the_removed_tools_before_the_one_it_adds() -> None:
+    [entry] = lab_run.task_files("2A")
+    label, lines = lab_run.changed_code((REPO / entry["source"]).read_bytes(),
+                                        (REPO / entry["solution"]).read_bytes())
+    assert label == "Stock agent - definition"
+    assert lines == ["    - _STOCK_TOOLS = [",
+                     "    -     agent_tools.search_products,",
+                     "    -     agent_tools.browse_department,",
+                     "    -     agent_tools.compare_products,",
+                     "    - ]",
+                     "    + _STOCK_TOOLS = [agent_tools.check_stock]"]
+
+
+# ---------------------------------------------------------------------------
+# Task 2B's send: its own stock step decides what it says and what comes next
+# ---------------------------------------------------------------------------
+STOCK_ROUTE = {**ROUTE, "finding": "Sent to the Stock agent: in stock"}
+
+
+def _stock(finding: str) -> Dict[str, Any]:
+    return {"type": "step", "id": "step-1", "label": "Checking stock in three warehouses",
+            "status": "done", "finding": finding, "builder": {"tool": "check_stock"}}
+
+
+def _send_2b(fake: FakeBackend, capsys: pytest.CaptureFixture[str]) -> str:
+    assert _run(fake, 2, None, "--task", "2B") == 0
+    return capsys.readouterr().out
+
+
+def test_a_corrected_cape_answer_shows_where_to_see_it_and_moves_on_to_lab_3(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [STOCK_ROUTE, _stock(lab_run.NOT_CARRIED)]
+    out = _send_2b(fake, capsys)
+    assert "The stock step now reads Not a piece Pellier carries." in out
+    assert "Open the Pellier tab \u2192 Ask Pellier \u2192 Marco." in out
+    assert 'open "From local agents to Amazon Bedrock AgentCore"' in out
+    assert "lab2_check.py" not in out.split("Answered by the local agents")[-1]
+
+
+@pytest.mark.parametrize("edited, told, command", [
+    (False, "function still returns a row", "psql -f labs/02-ground/2B-check-stock.sql"),
+    (True, "your saved file is not live yet", "psql -f labs/02-ground/2B-check-stock.sql"),
+])
+def test_a_sold_out_cape_points_to_the_build_or_to_running_the_saved_file(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch,
+    edited: bool, told: str, command: str,
+) -> None:
+    monkeypatch.setattr(lab_run.check, "region_state",
+                        lambda *args: lab_run.check.EDITED if edited else lab_run.check.STARTER)
+    fake.steps = [STOCK_ROUTE, _stock("Sold out in all three warehouses")]
+    out = " ".join(_send_2b(fake, capsys).split())
+    assert told in out and f"Then run: {command}" in out
+    assert "See it in Pellier" not in out
+
+
+def test_a_cape_answer_without_a_stock_step_asks_for_one_more_send(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.steps = [STOCK_ROUTE]
+    out = " ".join(_send_2b(fake, capsys).split())
+    assert "answered without a stock step" in out
+    assert "Then run: uv run scripts/lab_run.py send --lab 2 --task 2B" in out
+
+
+@pytest.mark.parametrize("failure", ["resend", "tool failed"])
+def test_the_answer_path_only_names_successful_tools_from_the_answering_attempt(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str], failure: str,
+) -> None:
+    fake.steps = [STOCK_ROUTE]
+    if failure == "resend":
+        fake.chat_failures = [([STOCK_ROUTE, _stock(lab_run.NOT_CARRIED)], "model busy")]
+    else:
+        fake.steps.append({**_stock("stock lookup failed"), "status": "failed"})
+
+    out = _send_2b(fake, capsys)
+    path = next(line for line in out.splitlines() if line.lstrip().startswith("Path "))
+    assert path.split("Path", 1)[1].strip() == "Marco → Router → Stock agent"
+    assert "answered without a stock step" in out
+    if failure == "tool failed":
+        assert "stock lookup failed" in out
+
+
+def test_the_2b_ending_reads_only_the_attempt_that_answered(
+    fake: FakeBackend, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fake.chat_failures = [([STOCK_ROUTE, _stock(lab_run.NOT_CARRIED)], "model busy")]
+    fake.steps = [STOCK_ROUTE, _stock("Sold out in all three warehouses")]
+    out = _send_2b(fake, capsys)
+    assert "Not a piece Pellier carries." not in out.split("Answered by the local agents")[-1]

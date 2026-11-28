@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import pellier_map  # noqa: E402  (sibling module)
 import trace_agentcore_calls as trace  # noqa: E402  (sibling module)
 import workshop_check as check  # noqa: E402  (sibling module)
 from wait_progress import waiting  # noqa: E402  (sibling module)
@@ -162,13 +163,11 @@ def paid_call(calls: List[Dict[str, Any]], writes: List[Dict[str, Any]],
 def _identity(call: Dict[str, Any], names: Dict[str, str]) -> str:
     subject = call["subject"] or ""
     who = names.get(subject) or (f"sub {subject[:8]}..." if subject else "no one")
-    return f"The Gateway accepted {who}'s Cognito {call['token_use']} token"
+    return trace.identity_text(call, who)
 
 
 def _policy(call: Dict[str, Any]) -> str:
-    if call["policies"]:
-        return f"{call['decision']}, determined by {', '.join(call['policies'])}"
-    return f"{call['decision']}: {call['reason'] or 'no policy named'}"
+    return trace.policy_text(call)
 
 
 def handoff_rows(story: Dict[str, Any], call: Dict[str, Any], span: Dict[str, Any],
@@ -178,8 +177,7 @@ def handoff_rows(story: Dict[str, Any], call: Dict[str, Any], span: Dict[str, An
     agent = str(attrs.get("gen_ai.agent.name") or "").capitalize() or "An"
     when = _span_clock(call)
     return [
-        [when, "Agent", f"{agent} agent on {attrs.get('gen_ai.request.model')} called "
-         f"{HANDOFF_TOOL} in turn {check.short(story['turn_id'], 18)}",
+        [when, "Agent", f"{agent} agent called {HANDOFF_TOOL} for Jessica's request",
          "CloudWatch: ADOT span"],
         [when, "Identity", _identity(call, names), "CloudWatch: AgentCore span"],
         [when, "Policy", _policy(call), "CloudWatch: AgentCore span"],
@@ -402,13 +400,36 @@ def _join_line(join: str) -> str:
     return check.wrapped("", join)
 
 
-def report(followed: Followed) -> str:
-    """The chain as a table, then the joins, or the state and what to do next."""
+_DETAIL_JOINS = ("Turn", "Call")
+PAID_ONCE = "Jessica's credit was paid exactly once, and the rows prove it."
+SPAN_NOTE = "A span is a timed record of one step, written to CloudWatch."
+# The record that proves each component ran, by the step name its row carries.
+_EVIDENCE = {"Agent": ("AgentCore Runtime",), "Identity": ("Gateway",),
+             "Policy": ("Policy (Cedar)", "Cedar credit cap"), "Tool": ("Lambda",),
+             "Approval": ("Operator (Nadia)",), "Database": ("credit-writer role",),
+             "Credit": ("Aurora row rules", "one row per key")}
+
+
+def components_seen(rows: List[List[str]]) -> List[str]:
+    """The components the chain found a record of, plus Memory when the backend has one."""
+    seen = [name for row in rows for name in _EVIDENCE.get(row[1], ())]
+    return seen + (["Memory"] if pellier_map.facts()["memory"] else [])
+
+
+def report(followed: Followed, details: bool = False) -> str:
+    """The grand finale: the whole system, then the chain as a table and the key that ties it,
+    or the state and what to do next. ``details`` adds the Turn and Call ids."""
     lines = [check.wrapped("", TITLE), ""]
+    if followed.state == check.PASSED:
+        have = {"runtime": True, "gateway": True, "memory": True}
+        lines += [pellier_map.finale(have, components_seen(followed.rows)), "",
+                  check.wrapped("", PAID_ONCE), check.wrapped("", SPAN_NOTE), ""]
     if followed.rows:
         lines += [check.table(HEADER, followed.rows), ""]
     if followed.state == check.PASSED:
-        return "\n".join([*lines, *(_join_line(join) for join in followed.joins), "",
+        kept = [join for join in followed.joins
+                if details or join.partition(" ")[0] not in _DETAIL_JOINS]
+        return "\n".join([*lines, *(_join_line(join) for join in kept), "",
                           check.closing("End-to-end check", True)])
     lines.append(check.wrapped("", f"{followed.state}  {followed.observed}"))
     if followed.next_step:
@@ -473,15 +494,17 @@ def collect(now: float) -> Followed:
 
 def main(argv: Optional[List[str]] = None) -> int:
     """Print usage for ``--help`` or a flag the script does not have before it reads anything."""
-    argparse.ArgumentParser(
-        prog="follow_credit.py", description=__doc__.split("\n\n")[0]
-    ).parse_args(sys.argv[1:] if argv is None else argv)
+    parser = argparse.ArgumentParser(prog="follow_credit.py",
+                                     description=__doc__.split("\n\n")[0])
+    parser.add_argument("--details", action="store_true",
+                        help="also print the turn and gateway call ids that join the records")
+    args = parser.parse_args(sys.argv[1:] if argv is None else argv)
     from gateway_client import _load_env
 
     _load_env()
     with waiting("Reading Aurora, CloudWatch and the PostgreSQL log", typical=6):
         followed = collect(time.time())
-    print(report(followed))
+    print(report(followed, args.details))
     return 0 if followed.state == check.PASSED else 1
 
 

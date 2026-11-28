@@ -165,7 +165,83 @@ def file_stamp(worksheet: bytes) -> Optional[str]:
     return STAMP_PREFIX + hashlib.sha256(parts[1].encode("utf-8")).hexdigest()
 
 
+HEADLINE = "Lab 4B: the database limits what the credit writer can change."
+COLUMNS = {"in-process": "In Pellier (app)", "Gateway": "Through the Gateway (Lambda)"}
+ROWS = ((WHO, "Runs as"), (DOOR, "Pay a credit no one approved"),
+        (INSERT, "Insert a credit row directly"), (UPDATE, "Raise a credit's amount directly"))
+_NEXT_DOOR = ("The credit function paid a credit no one approved.\nRaise your hand.")
+_PATH_WORDS = {"in-process": "Pellier", "Gateway": "the Gateway"}
+_NEXT_RUN = ("Run the 4B file; it makes your privileges live once every test passes.\n"
+             f"Then run: {RUN_WORKSHEET}")
+_NEXT_DIRECT = ("The credit writer can still change tables directly.\n"
+                "Let the function run with its owner's rights, so the role needs only EXECUTE.")
+
+
+def _with_paths(verdict: check.Verdict, path: str, observed: Dict[str, str]) -> check.Verdict:
+    """``verdict`` with the path's probe answers, for the one table that shows both paths."""
+    verdict.data = {"path": path, "observed": dict(observed)}
+    return verdict
+
+
+def _cell(label: str, answer: Optional[str]) -> Tuple[Optional[bool], str]:
+    """One table cell: whether the probe answered as wanted, and the answer in plain words."""
+    if answer is None:
+        return None, "not checked"
+    ok = str(answer) == WANT[label]
+    if label == WHO:
+        return ok, "credit writer" if ok else str(answer)
+    if label == DOOR:
+        return ok, "refused" if ok else "paid"
+    return ok, "blocked" if ok else plain_answer(answer)
+
+
+def paths_matrix(findings: Sequence[check.Finding]) -> Optional[check.Matrix]:
+    """One table with a column per path, from the path findings that carry their answers."""
+    answers = {f.data["path"]: f.data["observed"] for f in findings
+               if getattr(f, "data", None) and "observed" in f.data}
+    if not answers:
+        return None
+    rows = []
+    for label, words in ROWS:
+        cells = [_cell(label, answers.get(path, {}).get(label)) for path in COLUMNS]
+        next_step = _NEXT_DOOR if label == DOOR else _NEXT_DIRECT
+        rows.append(check.MatrixRow(words, cells, expected=_cell(label, WANT[label])[1],
+                                    next_step="" if label == WHO else next_step))
+    return check.Matrix(list(COLUMNS.values()), rows)
+
+
+def plain_answer(answer: str) -> str:
+    """A probe's SQLSTATE in the words a participant reads: refused, or allowed."""
+    return {"42501": "refused", WRITTEN: "allowed"}.get(str(answer), str(answer))
+
+
+def _deployed_rule(finding: check.Finding) -> check.Verdict:
+    label = "Your privileges"
+    if finding.state == check.PASSED:
+        return check.with_rules(finding, HEADLINE, [
+            check.Rule(label, "the ones in your file are live in the database"),
+            check.Rule("Function rights", "runs as its owner, with a pinned search path"),
+            check.Rule("EXECUTE", "only the credit writer can run the function"),
+            check.Rule("Table and column privileges", "none for the credit writer"),
+            check.Rule("Row policies", "none name the credit writer")])
+    drift = finding.state == check.FAILED
+    rule = check.Rule(label, ok=None if finding.state == check.COULD_NOT_CHECK else False,
+                      expected="the privileges in your file, live in the database",
+                      observed=finding.observed,
+                      next_step=(f"The live privileges changed after your run.\n"
+                                 f"Run the 4B file again.\nThen run: {RUN_WORKSHEET}"
+                                 if drift else _NEXT_RUN))
+    return check.with_rules(finding, HEADLINE, [rule])
+
+
 def judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any]) -> check.Finding:
+    """Whether the live function carries the file's statements (see :func:`_judge_deployed`),
+    with the compact view's rule."""
+    return _deployed_rule(_judge_deployed(stamp, is_starter, live))
+
+
+def _judge_deployed(stamp: Optional[str], is_starter: bool, live: Dict[str, Any]
+                    ) -> check.Finding:
     """Whether the live function carries the file's statements, and what the role holds.
 
     Args:
@@ -260,12 +336,19 @@ def judge_path(path: str, observed: Dict[str, str]) -> check.Finding:
         evidence.append(f"{label}: expected {want}, observed {got}")
         if got != want:
             differs.append(f"{label} came back {got}")
+    label = f"Credit writer through {_PATH_WORDS[path]}"
     if not differs:
-        return check.Finding("4B", title, check.PASSED, EXPECTED,
-                             f"{len(WANT)} of {len(WANT)} tests passed", evidence)
-    return check.Finding("4B", title, check.FAILED, EXPECTED, "; ".join(differs), evidence,
-                         f"which statement in the {REGION} region grants a table privilege a "
-                         f"direct write can use? Fix it, then run {RUN_WORKSHEET}.")
+        finding = check.Finding("4B", title, check.PASSED, EXPECTED,
+                                f"{len(WANT)} of {len(WANT)} tests passed", evidence)
+        return _with_paths(check.with_rules(finding, HEADLINE, []), path, observed)
+    finding = check.Finding("4B", title, check.FAILED, EXPECTED, "; ".join(differs), evidence,
+                            f"which statement in the {REGION} region grants a table privilege a "
+                            f"direct write can use? Fix it, then run {RUN_WORKSHEET}.")
+    door = str(observed.get(DOOR, "")) != WANT[DOOR]
+    seen = "; ".join(f"{label_.split(' directly')[0]}: {plain_answer(str(observed.get(label_)))}"
+                     for label_ in (INSERT, UPDATE) if str(observed.get(label_)) != WANT[label_])
+    del door, seen, label
+    return _with_paths(check.with_rules(finding, HEADLINE, []), path, observed)
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:
@@ -426,14 +509,16 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--details", action="store_true",
+                        help="Print the full Expected, Observed and Evidence boxes")
     parser.parse_args(argv)
     if check.refuse_missing_lab_file(4):
         return 1
     findings = collect()
-    print(check.wrapped("", "Lab 4B: your deployed privileges, then the credit-writer role on "
-                        "both database paths"))
-    for finding in findings:
-        print(check.render(finding))
-    passed = all(finding.state == check.PASSED for finding in findings)
-    print(check.closing("Lab 4B check", passed, "4B"))
+    heading = check.wrapped("", "Lab 4B: your deployed privileges, then the credit-writer role "
+                                "on both database paths")
+    paths = [f for f in findings if getattr(f, "data", None)]
+    rest = [f for f in findings if f not in paths]
+    verdict = check.combine("4B", HEADLINE, rest, matrix=paths_matrix(paths), covered=paths)
+    passed = check.emit(verdict, argv, "Lab 4B check", "4B", [heading], findings)
     return 0 if passed else 1

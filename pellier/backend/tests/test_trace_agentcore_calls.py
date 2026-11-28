@@ -85,7 +85,7 @@ def test_staff_target_trace_keeps_its_actual_target_and_request(monkeypatch):
     calls = trace.fetch_calls(None, "operator_get_case", 60, 1, target="pellier-operator-tools")
     assert filters[0] == '"pellier-operator-tools___operator_get_case"'
     assert calls[0]["request_id"] == "req-staff"
-    assert "pellier-operator-tools Lambda span present" in "\n".join(trace.render_call(calls[0], NAMES))
+    assert "in the pellier-operator-tools Lambda" in "\n".join(trace.render_call(calls[0], NAMES))
 
 
 def test_an_allow_and_a_deny_read_as_two_calls_oldest_first() -> None:
@@ -103,18 +103,22 @@ def test_the_deny_says_the_lambda_was_never_invoked() -> None:
     allow_lines = trace.render_call(allow, NAMES)
     deny_lines = trace.render_call(deny, NAMES)
     assert allow_lines[0].endswith("theo     get_tickets  ALLOW  ->  Lambda ran (326 ms)")
-    assert allow_lines[3] == "  Policy    ALLOW, determined by get_tickets_owner_only-abc"
+    assert allow_lines[3] == ("  Policy    ALLOW   The Gateway answered: allowed. "
+                              "Decided by the owner-only rule.")
     assert deny_lines[0].endswith("DENY  ->  Lambda never called")
-    assert deny_lines[2] == "  Identity  CUSTOM_JWT authorizer accepted theo's Cognito access token"
-    assert deny_lines[3] == ("  Policy    DENY: No policy applies to the request "
-                             "(denied by default).")
-    assert "never invoked" in deny_lines[4]
+    assert deny_lines[2] == "  Identity  Gateway accepted theo's sign-in token"
+    assert " ".join(deny_lines[3].split()) == (
+        "Policy DENY The Gateway answered: denied. The tool never ran. No policy applies to the "
+        "request (denied by default).")
+    assert deny_lines[4] == "  Gateway   Gateway refused the call before the tool ran"
 
 
 def test_a_determining_policy_is_named_instead_of_the_service_reason() -> None:
     (credit,) = trace.calls_from_spans(CREDIT, "give_store_credit")
     lines = trace.render_call(credit, NAMES)
-    assert lines[3] == "  Policy    DENY, determined by credit_limit-xyz"
+    assert lines[3] == ("  Policy    DENY   The Gateway answered: denied. The tool never ran. "
+                        "Decided by the $100 credit limit.")
+    assert "credit_limit-xyz" in "\n".join(trace.render_call(credit, NAMES, details=True))
     assert "missing field" not in "\n".join(lines)
 
 
@@ -145,13 +149,13 @@ def test_an_unknown_subject_prints_as_its_prefix() -> None:
 def test_the_runtime_line_names_the_agent_and_turn_or_says_the_call_was_direct() -> None:
     allow, deny = trace.calls_from_spans(ALLOW + DENY, "get_tickets")
     assert allow["parent_span_id"] == "mcp-span" and deny["parent_span_id"] is None
-    assert trace.render_call(allow, NAMES, RUNTIME)[1] == (
-        "  Runtime   Support agent on global.anthropic.claude-opus-5-5, turn turn-abc, "
-        "made this call")
+    assert trace.render_call(allow, NAMES, RUNTIME)[1] == "  Runtime   Support agent made this call"
+    assert trace.runtime_summary(allow, RUNTIME, details=True) == (
+        "Support agent made this call in turn turn-abc")
     assert trace.runtime_summary(deny, None) == (
-        "none: this call came to the Gateway directly, not through the Runtime")
-    assert trace.runtime_summary(allow, []).endswith("its spans are not in CloudWatch yet")
-    assert trace.runtime_summary(allow, None).endswith("its spans are not readable")
+        "Not through the Runtime: the call came to the Gateway directly")
+    assert trace.runtime_summary(allow, []).endswith("its record is not in CloudWatch yet")
+    assert trace.runtime_summary(allow, None).endswith("its record is not readable")
 
 
 def test_a_runtime_call_outside_a_pellier_turn_says_so_instead_of_an_empty_turn() -> None:
@@ -161,8 +165,7 @@ def test_a_runtime_call_outside_a_pellier_turn_says_so_instead_of_an_empty_turn(
     direct = [dict(RUNTIME[0], attributes=dict(RUNTIME[0]["attributes"], **{"turn.id": ""})),
               RUNTIME[1]]
     assert trace.runtime_summary(allow, direct) == (
-        "Support agent on global.anthropic.claude-opus-5-5, invoked directly with no Pellier "
-        "turn, made this call")
+        "Support agent called it. Started directly, not by a Pellier turn")
 
 
 class _Logs:
@@ -397,9 +400,10 @@ def test_the_aurora_line_sits_under_the_gateway_line_only_when_given() -> None:
     (credit,) = trace.calls_from_spans(CREDIT, "give_store_credit")
     plain = trace.render_call(credit, NAMES)
     with_db = trace.render_call(credit, NAMES, aurora="pgAudit: no write to x")
-    assert len(plain) == 6 and len(with_db) == 7
+    detailed = trace.render_call(credit, NAMES, aurora="pgAudit: no write to x", details=True)
+    assert len(plain) == 5 and len(with_db) == 6 and len(detailed) == 7
     assert with_db[4].startswith("  Gateway") and with_db[5] == "  Aurora    pgAudit: no write to x"
-    assert with_db[6] == plain[5]
+    assert detailed[6].startswith("  trace ")
 
 
 class _Cursor:

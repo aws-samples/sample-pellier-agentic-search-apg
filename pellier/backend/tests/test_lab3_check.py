@@ -365,15 +365,22 @@ def test_the_lab_3b_check_carries_the_row_ownership_findings(tmp_path: Path) -> 
 class TestTask3AToken:
     """``--task 3A`` is Task 3A's check: four rule findings from source and its own token."""
 
-    def test_the_starter_prints_four_rules_and_the_failure_token(self, capsys) -> None:
+    def test_the_starter_prints_only_the_failing_rules_and_the_failure_token(self, capsys) -> None:
         assert lab3.main(["--task", "3A"]) == 1
         out = capsys.readouterr().out
-        assert out.count("Task 3A  ") == 4
-        assert "get_tickets is not published" in out
-        assert "Theo's household request needs get_orders and get_tickets" in " ".join(
-            out.replace("\u2502", " ").split())
+        assert out.count("\u2717  ") >= 3 and "\u2713" not in out and "Task 3A  " not in out
+        assert "get_tickets published on the Gateway" in out
+        assert "Observed get_tickets is not published" in out
+        assert "the server sends CUST-JESSICA" in out
+        assert "Expected" in out and "Next" in out and "Evidence" not in out
         assert out.rstrip().endswith("Lab 3A check failed")
         assert "Lab 3B" not in out
+
+    def test_details_prints_the_four_boxes_the_check_used_to(self, capsys) -> None:
+        assert lab3.main(["--task", "3A", "--details"]) == 1
+        out = capsys.readouterr().out
+        assert out.count("Task 3A  ") == 4 and "Evidence" in out
+        assert "get_tickets is not published" in out
 
     def test_the_reads_asked_for_and_bound_print_the_pass_token(self, capsys, monkeypatch) -> None:
         monkeypatch.setattr(lab3, "source_catalog", lambda: (
@@ -381,10 +388,13 @@ class TestTask3AToken:
             ("get_orders", "get_return_policy", "get_tickets"),
             frozenset({"get_orders", "get_tickets"})))
         assert lab3.main(["--task", "3A"]) == 0
-        closing = capsys.readouterr().out.rstrip().splitlines()[-4:]
-        assert closing[:2] == ["Lab 3A check passed", ""]
-        assert closing[2].startswith("Next: Task 3B.")
-        assert closing[3].startswith("      uv run scripts/provision_agentcore_end_to_end.py ")
+        lines = capsys.readouterr().out.rstrip().splitlines()
+        at = lines.index("Lab 3A check passed")
+        assert lines[at + 1] == ""
+        assert lines[at + 2] == 'Next  In the guide, open Task 3B and read "Start the deploy".'
+        assert lines[at + 3].startswith("      Then run: uv run scripts/provision_agentcore_")
+        assert lines[-1] == "Retrieve \u2713  Ground \u2713  Deploy \u25cf  Govern \u00b7"
+        assert "\u2713  get_tickets published on the Gateway" in "\n".join(lines)
 
 
 def _3b(state: str) -> check.Finding:

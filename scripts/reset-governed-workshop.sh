@@ -460,7 +460,8 @@ pass "Schema rebuilt from scripts/migrations/001_schema.sql: ten tables, pellier
 pass "Catalog reloaded from the committed embedding cache"
 pass "Seed reloaded: stock, four customers and their orders, return policies, tickets"
 # The rebuilt tables have no previous turns. Clear their local lookup and reset points.
-rm -f "$REPO/.local/lab-reset-points.json" "$REPO/.local/lab-2a-turn.json"
+rm -f "$REPO/.local/lab-reset-points.json" "$REPO/.local/lab-2a-turn.json" \
+    "$REPO/.local/lab-1b-turn.json"
 
 # The token claim is rendered from customers.cognito_username, the column row-level
 # security reads, so it is refreshed here rather than trusted to still match. It fails

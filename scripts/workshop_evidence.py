@@ -125,7 +125,7 @@ def task_1a(cfg: Config, connect: Connect) -> check.Finding:
 
 
 def task_1b(cfg: Config, connect: Connect) -> check.Finding:
-    """Lab 1B from Anna's newest receipt: what she asked, and what the answer kept."""
+    """Lab 1B from the receipt for Anna's recorded request, with the checker's legacy fallback."""
     import lab1_retry
 
     return _with_connection("1B", lab1_retry.TITLE, lab1_retry.EXPECTED, cfg, connect,

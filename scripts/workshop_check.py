@@ -205,6 +205,19 @@ _COLOUR_OFF = "\033[0m"
 _COLOUR_CODE = re.compile(r"\033\[[0-9;]*m")
 
 
+# The palette beyond the verdict colours, one meaning each: something to run, a detail that is
+# not the point, Pellier at work, and where a turn ran: the local agents or AgentCore.
+COMMAND_COLOUR, DETAIL_COLOUR, BRAND_COLOUR = "\033[1m", "\033[2m", "\033[38;5;173m"
+LOCAL_COLOUR, AGENTCORE_COLOUR = "\033[38;5;183m", "\033[38;5;75m"
+# Pellier's reply in pure white, above the terminal's grey default: the words the shopper reads.
+ANSWER_COLOUR = "\033[38;5;231m"
+
+
+def tint(text: str, colour: str, stream: Any = None) -> str:
+    """``text`` in ``colour`` on a terminal that takes colour; unchanged otherwise."""
+    return f"{colour}{text}{_COLOUR_OFF}" if colour_enabled(stream) else text
+
+
 def colour_enabled(stream: Any = None) -> bool:
     """Whether ``stream`` (stdout when omitted) is a terminal that should get colour."""
     if "NO_COLOR" in os.environ or os.environ.get("TERM") == "dumb":
@@ -250,23 +263,23 @@ def plain(text: str) -> str:
 # What a participant does after a task's check passes: a few words, then each command whole on
 # its own line so it copies as one command. The guide's steps follow the same order.
 _DEPLOY = 'uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" --mode participant'
+# Task 1A's pass line is its last line; the guide's Next button leads on to Task 1B.
 NEXT_AFTER_PASS: Dict[str, List[str]] = {
-    "1A": ["Task 1B. Send Anna's full request, with her three requirements.",
-           "uv run scripts/lab_run.py send --lab 1 --task 1B"],
-    "1B": ["Lab 2. Send Marco's stock question.",
+    "1B": ['In the guide, open Lab 2 and read "Send Marco\'s question" in Task 2A.',
            "uv run scripts/lab_run.py send --lab 2 --task 2A"],
-    "2A": ["Task 2B. Ask about a product Pellier does not carry.",
+    "2A": ['In the guide, open Task 2B and read "Ask about a product Pellier does not carry".',
            "uv run scripts/lab_run.py send --lab 2 --task 2B"],
-    "2B": ["ask about the same product again. Then read From local agents to Amazon Bedrock "
-           "AgentCore in the guide, which leads into Lab 3.",
+    "2B": ['In the guide, open Task 2B and read "Prove the fix", step 2. Then continue to '
+           '"From local agents to Amazon Bedrock AgentCore".',
            "uv run scripts/lab_run.py send --lab 2 --task 2B"],
-    "3A": ["Task 3B. Deploy these files, and build the ownership rule while it runs.", _DEPLOY],
-    "3B": ["Lab 4. Send Jessica's store credit request.",
+    "3A": ['In the guide, open Task 3B and read "Start the deploy".', _DEPLOY],
+    "3B": ['In the guide, open Lab 4, Task 4A and read "Send Jessica\'s request".',
            "uv run scripts/lab_run.py send --lab 4 --shopper-only"],
-    "4A": ["count the rows for the denied key and for Jessica's approved key.",
+    "4A": ['In the guide, open "Pay the credit once and check the records" and read '
+           '"Prove one credit was written".',
            "psql -f workshop/lab-4-absence.sql"],
-    "4B": ["when the deploy has finished, go back to Jessica's review in the Operator. Select "
-           "Execute again, then Replay with the same key. Then check the deployed rule.",
+    "4B": ['In the guide, open "Pay the credit once and check the records" and read '
+           '"Execute again and replay as Nadia". Then check the deployed rule.',
            "uv run scripts/lab4_check.py --task 4A"],
 }
 
@@ -282,18 +295,20 @@ def says_next() -> bool:
 
 
 def next_lines(steps: Sequence[str], width: Optional[int] = None) -> str:
-    """``Next:`` and what to do, then each command indented under it on its own line.
+    """``Next`` and what to read in the guide, then each command indented under it.
 
-    The sentence wraps at word breaks to ``width`` (the terminal's when omitted), so a long
-    one never breaks mid-word at the terminal's edge. A command stays whole, to copy as one.
+    The first step names the guide page to read; each later step is a command, printed whole
+    on its own line after ``Then run:`` so it copies as one command. The sentence wraps at
+    word breaks to ``width`` (the terminal's when omitted).
     """
     if not steps:
         return ""
     first, *commands = steps
-    room = max(_NARROWEST, width or terminal_width()) - len("Next: ")
+    room = max(_NARROWEST, width or terminal_width()) - len("Next  ")
     told = textwrap.wrap(first, width=room, break_long_words=False, break_on_hyphens=False)
-    lines = [f"Next: {told[0]}"] + [f"      {line}" for line in told[1:]]
-    return "\n".join(lines + [f"      {command}" for command in commands])
+    lines = [f"Next  {told[0]}"] + [f"      {line}" for line in told[1:]]
+    return "\n".join(lines + [f"      Then run: {tint(command, COMMAND_COLOUR)}"
+                              for command in commands])
 
 
 def closing(label: str, passed: bool, task: str = "") -> str:
@@ -317,6 +332,315 @@ def render(finding: Finding) -> str:
     box = _pairs(rows, {0}, terminal_width())
     # Painted after the box is laid out, so the escape codes never count as columns.
     return box.replace(f" {finding.state}  ", f" {paint(finding.state, finding.state)}  ", 1)
+
+
+# ---------------------------------------------------------------------------
+# The compact view: what the live checks print. render() above stays the full box that the
+# take-home export and --details print.
+# ---------------------------------------------------------------------------
+DETAILS_FLAG = "--details"
+TICK, CROSS, UNKNOWN = "\u2713", "\u2717", "?"
+_LABEL_MAX = 44
+
+
+@dataclass
+class Rule:
+    """One thing a check tested, in plain words.
+
+    Attributes:
+        label: The rule, for example ``Request names Jessica``.
+        result: What happened, for example ``sent as CUST-THEO``.
+        ok: True passed, False failed, None could not be checked.
+        expected: A failing rule's expectation, in a few words.
+        observed: What the check saw instead.
+        next_step: The diagnosis for this run: at most two short lines, newline-separated.
+        notes: Lines printed under a passed rule, for example the preferences Memory held.
+        status: A short status word between the label and the result, as the Operator's
+            credit card shows ``Policy   DENY   The Gateway answered: denied.``
+    """
+
+    label: str
+    result: str = ""
+    ok: Optional[bool] = True
+    expected: str = ""
+    observed: str = ""
+    next_step: str = ""
+    notes: List[str] = field(default_factory=list)
+    status: str = ""
+
+
+@dataclass
+class MatrixRow:
+    """One tested rule of a :class:`Matrix`, with what each path did.
+
+    Attributes:
+        label: The rule in plain words.
+        cells: One ``(ok, text)`` per column; ``ok`` is None where the path could not be read.
+        expected: What a failing cell should have said.
+        next_step: The diagnosis printed under the table when a cell fails.
+    """
+
+    label: str
+    cells: List[Any]
+    expected: str = ""
+    next_step: str = ""
+
+
+@dataclass
+class Matrix:
+    """The same rules proved on several paths: one table, one column per path."""
+
+    columns: List[str]
+    rows: List[MatrixRow]
+    first: str = "Test"
+
+
+@dataclass
+class Verdict(Finding):
+    """A :class:`Finding` that also carries the compact view's headline and rules.
+
+    :func:`render` ignores the extra fields, so the export and ``--details`` print what they
+    always printed.
+    """
+
+    headline: str = ""
+    intro: str = ""
+    rules: List[Rule] = field(default_factory=list)
+    matrix: Optional[Matrix] = None
+    data: Dict[str, Any] = field(default_factory=dict)
+    # A pass told in a few plain sentences instead of a headline and ticks (Lab 1's checks).
+    summary: List[str] = field(default_factory=list)
+
+
+def with_rules(finding: Finding, headline: str, rules: Sequence[Rule],
+               intro: str = "") -> Verdict:
+    """``finding`` with the compact view's headline, optional first-visit sentence and rules."""
+    return Verdict(task=finding.task, title=finding.title, state=finding.state,
+                   expected=finding.expected, observed=finding.observed,
+                   evidence=list(finding.evidence), next_step=finding.next_step,
+                   label=finding.label, headline=headline, intro=intro, rules=list(rules))
+
+
+def combine(task: str, headline: str, findings: Sequence[Finding], intro: str = "",
+            label: str = "Task", matrix: Optional[Matrix] = None,
+            covered: Sequence[Finding] = ()) -> Verdict:
+    """One verdict for several findings: each finding's rules, or one rule made from the
+    finding when it has none, under one headline. The state is the worst of theirs.
+
+    ``covered`` are findings a ``matrix`` already shows cell by cell: their state counts, but
+    they add no rules of their own.
+    """
+    rules: List[Rule] = []
+    everyone = [*findings, *covered]
+    for finding in findings:
+        mine = list(getattr(finding, "rules", []) or [])
+        if finding.state == PASSED:
+            rules += mine or [Rule(finding.title, finding.observed)]
+            continue
+        bad = [rule for rule in mine if rule.ok is not True]
+        rules += bad or [Rule(finding.title, ok=None if finding.state == COULD_NOT_CHECK
+                              else False, expected=finding.expected,
+                              observed=finding.observed, next_step=finding.next_step)]
+    state = overall(finding.state for finding in everyone)
+    if COULD_NOT_CHECK in {finding.state for finding in everyone} and state != FAILED:
+        state = COULD_NOT_CHECK
+    first = everyone[0].title if everyone else ""
+    return Verdict(task=task, title=first, state=state, expected="", observed="",
+                   evidence=[], label=label, headline=headline, intro=intro, rules=rules,
+                   matrix=matrix)
+
+
+def details_requested(argv: Optional[Sequence[str]]) -> bool:
+    """True when ``--details`` is among ``argv``: the one switch that prints the full box."""
+    return DETAILS_FLAG in (sys.argv[1:] if argv is None else argv)
+
+
+def _mark(rule: Rule) -> str:
+    if rule.ok is None:
+        return paint(UNKNOWN, NOT_YET)
+    return paint(TICK, PASSED) if rule.ok else paint(CROSS, FAILED)
+
+
+def _tick_lines(rules: Sequence[Rule], width: int) -> List[str]:
+    """Passed rules, label and result in two columns when they fit."""
+    label = min(max((len(rule.label) for rule in rules), default=0), _LABEL_MAX)
+    status = max((len(rule.status) for rule in rules), default=0)
+    lines: List[str] = []
+    for rule in rules:
+        mark = f"  {_mark(rule)}  "
+        if rule.status:
+            rule = Rule(rule.label, f"{rule.status:<{status}}   {rule.result}".rstrip(),
+                        rule.ok, notes=rule.notes)
+        room = width - 5 - label - 3
+        if len(rule.label) > label or room < _MIN_COLUMN * 2:
+            text = wrapped("", f"{rule.label}   {rule.result}".rstrip(), width - 5)
+            body = text.splitlines()
+        else:
+            told = _lines(rule.result, room) if rule.result else [""]
+            body = [f"{rule.label:<{label}}   {told[0]}".rstrip()]
+            body += [f"{'':<{label}}   {line}" for line in told[1:]]
+        lines.append(mark + body[0])
+        lines += [" " * 5 + line for line in body[1:]]
+        lines += [" " * 7 + note for note in rule.notes]
+    return lines
+
+
+def _failure_lines(rule: Rule, width: int) -> List[str]:
+    lines = [f"  {_mark(rule)}  " + rule.label]
+    for word, text in (("Expected", rule.expected), ("Observed", rule.observed)):
+        if text:
+            lines.append(wrapped(f"       {word:<9}", text, width))
+    steps = [line for line in rule.next_step.splitlines() if line.strip()]
+    for index, step in enumerate(steps):
+        lines.append(wrapped(f"       {'Next' if index == 0 else '':<9}", step, width))
+    return lines
+
+
+def _cell_text(ok: Optional[bool], text: str) -> str:
+    return text if ok is not False else f"{text} {CROSS}"
+
+
+def _matrix_mark(row: MatrixRow) -> str:
+    oks = [cell[0] for cell in row.cells]
+    if any(ok is False for ok in oks):
+        return paint(CROSS, FAILED)
+    return paint(UNKNOWN, NOT_YET) if any(ok is None for ok in oks) else paint(TICK, PASSED)
+
+
+def render_matrix(matrix: Matrix) -> str:
+    """One table, a column per path: each rule's mark and label, then what each path did."""
+    texts = [[_cell_text(*cell) for cell in row.cells] for row in matrix.rows]
+    first = max([len(matrix.first), *(len(row.label) for row in matrix.rows)]) + 4
+    widths = [max([len(name), *(len(line[i]) for line in texts)])
+              for i, name in enumerate(matrix.columns)]
+    gap = "   "
+    head = f"  {matrix.first:<{first}}" + gap.join(
+        f"{name:<{widths[i]}}" for i, name in enumerate(matrix.columns))
+    lines = [head.rstrip()]
+    for row, cells in zip(matrix.rows, texts):
+        lines.append((f"  {_matrix_mark(row)} {row.label:<{first - 2}}" + gap.join(
+            f"{cell:<{widths[i]}}" for i, cell in enumerate(cells))).rstrip())
+    return "\n".join(lines)
+
+
+def _matrix_failures(matrix: Matrix, width: int) -> List[str]:
+    """Under the table: what each failing rule expected, what a path did and what to do next."""
+    lines: List[str] = []
+    for row in matrix.rows:
+        seen = [(matrix.columns[i], cell[1]) for i, cell in enumerate(row.cells)
+                if cell[0] is False]
+        if not seen:
+            continue
+        lines.append(f"  {paint(CROSS, FAILED)}  {row.label}")
+        if row.expected:
+            lines.append(wrapped(f"       {'Expected':<9}", row.expected, width))
+        lines.append(wrapped(f"       {'Observed':<9}",
+                             "; ".join(f"{name}: {text}" for name, text in seen), width))
+        for index, step in enumerate(line for line in row.next_step.splitlines() if line.strip()):
+            lines.append(wrapped(f"       {'Next' if index == 0 else '':<9}", step, width))
+        lines.append("")
+    return lines[:-1]
+
+
+def render_rules(verdict: Verdict, width: Optional[int] = None) -> str:
+    """The PASS view: a headline, an optional one-time explanation, then one line per rule."""
+    room = width or terminal_width()
+    if verdict.summary:
+        return "\n".join(_summary_lines(verdict, room))
+    body = [wrapped("", verdict.headline, room)] if verdict.headline else []
+    if verdict.intro:
+        body += ["", wrapped("", verdict.intro, room)]
+    rules = verdict.rules or ([] if verdict.matrix else [Rule(verdict.title, verdict.observed)])
+    lines = body + [""] + _tick_lines(rules, room)
+    if verdict.matrix:
+        lines += ["", render_matrix(verdict.matrix)]
+    return "\n".join(lines)
+
+
+def _summary_lines(verdict: Verdict, room: int) -> List[str]:
+    """A verdict's summary lines, each as written when it fits, so a table keeps its columns."""
+    return [line if len(line) <= room else wrapped("", line, room) for line in verdict.summary]
+
+
+def render_failures(verdict: Verdict, width: Optional[int] = None) -> str:
+    """The FAIL view: only the rules that did not pass, each with Expected, Observed and Next.
+
+    A verdict with no failing rule of its own prints one rule made from the finding, so a
+    check that could not look or has no evidence yet still says what it expected and saw.
+    """
+    room = width or terminal_width()
+    bad = [rule for rule in verdict.rules if rule.ok is not True]
+    table = verdict.matrix
+    broken = table is not None and any(cell[0] is not True for row in table.rows
+                                       for cell in row.cells)
+    if table is not None and broken:
+        lines = [render_matrix(table), ""]
+        for rule in bad:
+            lines += _failure_lines(rule, room) + [""]
+        return "\n".join(lines + _matrix_failures(table, room))
+    if not bad:
+        mark_ok = None if verdict.state == COULD_NOT_CHECK else False
+        bad = [Rule(verdict.title, ok=mark_ok, expected=verdict.expected,
+                    observed=verdict.observed, next_step=verdict.next_step)]
+    # A summary that holds on a failure too, such as Lab 1A's reference lookup, comes first.
+    lines: List[str] = _summary_lines(verdict, room) + [""] if verdict.summary else []
+    for rule in bad:
+        lines += _failure_lines(rule, room) + [""]
+    return "\n".join(lines[:-1])
+
+
+def compact(finding: Finding, width: Optional[int] = None) -> str:
+    """The compact view of a finding: ticks when it passed, only what failed when it did not."""
+    verdict = finding if isinstance(finding, Verdict) else with_rules(finding, "", [])
+    if finding.state == PASSED:
+        return render_rules(verdict, width)
+    return render_failures(verdict, width)
+
+
+def report(finding: Finding, argv: Optional[Sequence[str]] = None,
+           width: Optional[int] = None) -> str:
+    """What a live check prints for ``finding``: the compact view, or the full box with
+    ``--details`` among ``argv``."""
+    return render(finding) if details_requested(argv) else compact(finding, width)
+
+
+def emit(finding: Finding, argv: Optional[Sequence[str]], label: str, task: str = "",
+         tables: Sequence[str] = (), boxes: Optional[Sequence[Finding]] = None,
+         closing_line: str = "", after: Sequence[str] = ()) -> bool:
+    """Print a live check's result and its closing line; True when it passed.
+
+    The compact view comes first. With ``--details`` among ``argv`` the ``tables`` the check
+    built and the full box print instead, as they did before the compact view existed.
+    ``boxes`` are the findings behind a combined verdict; ``closing_line`` replaces the
+    pass or fail line when a check has a third ending of its own. ``after`` prints right
+    under a pass line, before the next step.
+    """
+    passed = finding.state == PASSED
+    if details_requested(argv):
+        print("\n".join([*tables, *(render(box) for box in (boxes or [finding]))]))
+    else:
+        print(compact(finding))
+    print()
+    if passed and task and says_next() and not details_requested(argv):
+        import pellier_map  # imported here: pellier_map reads this module
+
+        extras = pellier_map.passed_extras(task)
+        if extras:
+            print("\n".join(extras))
+    shown_after = passed and bool(after)
+    print(closing_line or closing(label, passed, "" if shown_after else task))
+    if shown_after:
+        print("\n".join(after))
+        following = next_lines(NEXT_AFTER_PASS.get(task, [])) if says_next() else ""
+        if following:
+            print(f"\n{following}")
+    if passed and task and says_next():
+        import pellier_map
+
+        line = pellier_map.arc(task)
+        if line:
+            print(f"\n{line}")
+    return passed
 
 
 def parse_dotenv(env_path: pathlib.Path) -> Dict[str, str]:
@@ -464,6 +788,12 @@ def reset_points_path() -> pathlib.Path:
 def lab2_shirt_turn_path() -> pathlib.Path:
     """The terminal turn to inspect for Marco's Brooklyn question."""
     return reset_points_path().with_name("lab-2a-turn.json")
+
+
+def lab1_retry_turn_path() -> pathlib.Path:
+    """The terminal turn to inspect for Anna's full request (Task 1B). The receipt SQL reads
+    it as ``.local/lab-1b-turn.json`` from the repository root, where the guide runs psql."""
+    return reset_points_path().with_name("lab-1b-turn.json")
 
 
 def _read_points(path: pathlib.Path) -> Dict[str, str]:

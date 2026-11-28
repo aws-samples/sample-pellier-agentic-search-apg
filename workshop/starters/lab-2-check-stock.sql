@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded off \pset format wrapped
 \pset null NULL
 
 -- Lab 2, Task 2B: what check_stock says about a piece Pellier does not carry.
@@ -94,7 +94,7 @@ $check_stock$;
 
 -- Stamp the function with its source's sha256, so scripts/lab2_check.py can tell the
 -- function you committed from the one the database shipped with.
-SELECT 'Lab 2B function sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
+SELECT 'Lab 2B function sha256 ' || hash AS stamp
   FROM (SELECT encode(sha256(convert_to(prosrc, 'UTF8')), 'hex') AS hash
           FROM pg_proc WHERE oid = 'pellier.check_stock(text)'::regprocedure) h
 \gset
@@ -109,8 +109,8 @@ INSERT INTO lab_2_cases VALUES
     (3, 'sold out', 'Quilted Silk Vest'),
     (4, 'in stock', 'Hadley Linen Shirt');
 
-CREATE TEMP TABLE lab_2_probes (ord integer, probe text, expected text, observed text,
-                                 source text) ON COMMIT DROP;
+CREATE TEMP TABLE lab_2_probes (ord integer, probe text, expected text, observed text)
+    ON COMMIT DROP;
 INSERT INTO lab_2_probes
 WITH named AS (
     SELECT c.ord, p."productId" AS id
@@ -132,14 +132,14 @@ WITH named AS (
       LEFT JOIN LATERAL pellier.check_stock(c.query) f ON true
      GROUP BY c.ord
 )
-SELECT c.ord, format('%s: "%s"', c.probe, c.query),
+SELECT c.ord, format('%s: %s', c.probe, c.query),
        CASE WHEN t.pieces = 0 THEN 'no row'
             WHEN t.pieces > 1 THEN least(t.pieces, 5) || ' rows, one per piece, no count'
             ELSE format('1 row: %s units; %s',
                         (SELECT coalesce(sum(w.quantity), 0) FROM pellier.warehouse_inventory w
                           WHERE w.product_id = t.one_id),
-                        (SELECT coalesce(string_agg(w.warehouse_code || ' ' || w.quantity, ', '
-                                                    ORDER BY w.warehouse_code),
+                        (SELECT coalesce(string_agg(w.warehouse_name || ' ' || w.quantity, ', '
+                                                    ORDER BY w.ship_window_min, w.warehouse_name),
                                          'no warehouse rows')
                            FROM pellier.warehouse_inventory w WHERE w.product_id = t.one_id))
        END,
@@ -147,43 +147,39 @@ SELECT c.ord, format('%s: "%s"', c.probe, c.query),
             WHEN r.n_rows > 1 AND r.n_pieces = r.n_rows AND r.no_counts
                  THEN r.n_rows || ' rows, one per piece, no count'
             WHEN r.n_rows > 1 THEN r.n_rows || ' rows, not one per piece'
-            ELSE format('1 row: %s units; %s%s', coalesce(r.units::text, 'no count'),
-                        coalesce((SELECT string_agg((e ->> 'warehouse_code') || ' '
+            WHEN r.no_product THEN format('1 row, %s units, no product',
+                                          coalesce(r.units::text, 'no count'))
+            ELSE format('1 row: %s units; %s', coalesce(r.units::text, 'no count'),
+                        coalesce((SELECT string_agg((e ->> 'warehouse_name') || ' '
                                                     || (e ->> 'quantity'), ', '
-                                                    ORDER BY e ->> 'warehouse_code')
+                                                    ORDER BY (e ->> 'ship_window_min')::integer,
+                                                             e ->> 'warehouse_name')
                                     FROM jsonb_array_elements(r.warehouses) AS e),
-                                 'no warehouse rows'),
-                        CASE WHEN r.no_product THEN ' (no product)' ELSE '' END)
-       END,
-       format('pellier.check_stock(''%s'')', c.query)
+                                 'no warehouse rows'))
+       END
   FROM lab_2_cases c JOIN tables t USING (ord) JOIN returned r USING (ord);
 
-\echo 'Lab 2B: check_stock, tested'
-\echo 'Evidence  pellier.check_stock, rewritten inside this transaction'
+\echo 'Lab 2B: not carried is different from sold out'
 \echo ''
-\echo 'The aggregate for Marco''s Velvet Opera Cape, a piece Pellier does not carry:'
-SELECT count(w.*) AS warehouse_rows, sum(w.quantity) AS "sum(quantity)",
-       coalesce(sum(w.quantity), 0) AS "coalesce(sum(quantity), 0)"
-  FROM pellier.warehouse_inventory w
- WHERE w.product_id IN (SELECT p."productId" FROM pellier.product_catalog p
-                         WHERE strpos(lower(p.name), 'velvet') > 0
-                           AND strpos(lower(p.name), 'opera') > 0
-                           AND strpos(lower(p.name), 'cape') > 0);
--- Each test on one row; after a failed run, each test that differs again, with what was
--- expected beside what was observed and the call that observed it.
-SELECT probe AS "Test", observed AS "Observed",
-       CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
-  FROM lab_2_probes ORDER BY ord;
-SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
+-- One row per test. A test that passes shows the answer in a few words in both columns, so
+-- the function's answer is in view; one that fails shows both answers whole, side by side.
+SELECT probe AS "Test",
+       CASE WHEN expected = observed THEN brief ELSE expected END AS "Should return",
+       CASE WHEN expected = observed THEN brief ELSE observed END AS "Is now",
+       CASE WHEN expected = observed THEN '✓' ELSE '✗' END AS "OK"
+  FROM (SELECT *, regexp_replace(regexp_replace(expected, '^1 row: ([0-9]+ units); .*$', '\1'),
+                                 '^([0-9]+ rows), .*$', '\1') AS brief
+          FROM lab_2_probes) shown
+ ORDER BY ord;
+SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes,
+       coalesce(bool_or(expected <> observed) FILTER (WHERE ord > 1), false) AS others_differ
   FROM lab_2_probes
 \gset lab_2_
 
-\echo 'Expected  every test passes; then the file saves your function and it is live'
 SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
 \if :lab_2_passed
   COMMIT;
-  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Saved, your function is live.'
-  \echo 'Deployed  pellier.check_stock, sha256' :stamp_short
+  \echo :lab_2_matched 'of' :lab_2_probes 'tests passed. Saved, your function is live.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 2B function check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -191,18 +187,21 @@ SELECT :lab_2_matched = :lab_2_probes AS lab_2_passed \gset
   \if :{?quiet_next}
   \else
     \echo ''
-    \echo 'Next: prove the live function.'
-    \echo '      uv run scripts/lab2_check.py --task 2B'
+    \echo 'Next  In the guide, read "Prove the fix".'
+    \echo '      Then run: uv run scripts/lab2_check.py --task 2B'
   \endif
 \else
-  SELECT probe AS "Does not match", expected AS "Expected", observed AS "Observed", source AS "Source"
-    FROM lab_2_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
-  \echo 'Observed ' :lab_2_matched 'of' :lab_2_probes 'tests passed. Your change was undone.'
-  \echo '          The live function is unchanged.'
-  \echo 'Next      what should a piece Pellier does not carry return? Read the aggregate'
-  \echo '          above: over no rows it still returns one row, and COALESCE turns its'
-  \echo '          NULL sum into 0.'
+  \echo :lab_2_matched 'of' :lab_2_probes 'tests passed. Your change was undone.'
+  \echo 'The live function is unchanged.'
+  \echo ''
+  \echo 'Next  In Task 2B, build the fix for a product Pellier does not carry.'
+  \if :lab_2_others_differ
+    \echo '      Another test fails too. Compare its two answers above.'
+  \else
+    \echo '      A piece Pellier does not carry must return no row, not 0 units.'
+  \endif
+  \echo '      Then run: psql -f labs/02-ground/2B-check-stock.sql'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 2B function check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

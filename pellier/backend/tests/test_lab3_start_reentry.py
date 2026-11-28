@@ -152,14 +152,14 @@ def test_a_token_left_in_the_shell_is_replaced_by_one_minted_for_the_persona(
     done = _run(box, "theo")
     assert done.returncode == 0, done.stdout
     assert _bearers(box) == ["minted-for-theo"]
-    assert "Cognito token minted for theo" in done.stdout
+    assert "Cognito token minted" not in done.stdout and "Pellier is set up for AgentCore" in done.stdout
 
 
 def test_a_supplied_token_is_used_where_no_helper_exists(box) -> None:
     done = _run(box, "theo")
     assert done.returncode == 0
     assert _bearers(box) == ["token"]
-    assert "minted" not in done.stdout and "using the PELLIER_TOKEN supplied" in done.stdout
+    assert "minted" not in done.stdout and "using the PELLIER_TOKEN supplied" not in done.stdout
 
 
 def test_a_helper_that_mints_nothing_stops_before_the_turn(box, tmp_path, monkeypatch) -> None:
@@ -180,15 +180,21 @@ def test_the_full_switch_is_unchanged(box) -> None:
     assert "USE_AGENTCORE_RUNTIME=true" in box["run_env"].read_text()
     assert _calls(box) == ["systemctl restart pellier", "chat"]
     assert "Pellier Lab 3 start: managed rail" in done.stdout
-    assert "Turn turn-1 executed on rail gateway-mcp" in done.stdout
-    assert "Lab 3 may proceed." in done.stdout
+    assert "Pellier is set up for AgentCore: Gateway and Runtime found, deploy receipt checked." \
+        in done.stdout
+    assert "Pellier is running on AgentCore. A test turn as Theo went through the Gateway." \
+        in done.stdout
+    for plumbing in ("Turn turn-1 executed", "AGENTCORE_GATEWAY_URL set", "Cognito token"):
+        assert plumbing not in done.stdout
+    assert "Lab 3 may proceed. Theo's requests now travel Runtime -> Gateway -> Aurora." \
+        in done.stdout
 
 
 def test_lab4_switch_reports_its_managed_turn_without_lab3_instructions(box) -> None:
     done = _run(box, "--lab-4", "theo")
     assert done.returncode == 0, done.stdout + done.stderr
     assert _calls(box) == ["systemctl restart pellier", "chat"]
-    assert "Turn turn-1 executed on rail gateway-mcp" in done.stdout
+    assert "A test turn as Theo went through the Gateway." in done.stdout
     assert "The check request ran on AgentCore Runtime and Gateway." in done.stdout
     assert "Lab 3 may proceed" not in done.stdout
     assert "Pellier Lab 3 start" not in done.stdout
@@ -199,6 +205,16 @@ def test_a_failed_full_switch_still_says_the_flag_survives(box, monkeypatch) -> 
     done = _run(box, "theo")
     assert done.returncode == 1
     assert "Already written to" in done.stdout and "survives this failure" in done.stdout
+
+
+def test_a_failure_prints_the_checks_that_passed_before_the_one_that_failed(
+        box, monkeypatch) -> None:
+    monkeypatch.setenv("FAKE_RAIL", "in-process")
+    done = _run(box, "theo")
+    out = done.stdout + done.stderr
+    assert done.returncode == 1
+    assert out.index("AGENTCORE_GATEWAY_URL set") < out.index("not gateway-mcp")
+    assert "Pellier is set up for AgentCore" not in out
 
 
 # A test event, 25 Nov 2026: the AgentCore data plane answered a completed turn with an empty body.

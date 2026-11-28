@@ -110,25 +110,29 @@ def test_the_lab_check_uses_the_same_photographed_assortment_as_stock(fresh_db) 
         assert {row["product_id"] for row in offered} <= {row["product_id"] for row in matches}
 
 
-def test_the_starter_fails_only_not_carried_and_shows_the_null_sum(fresh_db) -> None:  # noqa: F811
+def test_the_starter_fails_only_not_carried_in_one_plain_table(fresh_db) -> None:  # noqa: F811
     before = _live(fresh_db)
     done = _run(fresh_db, STARTER)
     assert done.returncode != 0
     probes = _probes(done.stdout)
     assert len(probes) == 4, done.stdout
-    cape = probes['not carried: "Velvet Opera Cape"']
-    assert cape == ["no row", "1 row: 0 units; no warehouse rows (no product)",
-                    "pellier.check_stock('Velvet Opera Cape')", "does not match"]
-    for name in ('several: "Linen shirt"', 'sold out: "Quilted Silk Vest"',
-                 'in stock: "Hadley Linen Shirt"'):
+    assert probes["not carried: Velvet Opera Cape"] == [
+        "no row", "1 row, 0 units, no product", "", "does not match"]
+    for name in ("several: Linen shirt", "sold out: Quilted Silk Vest",
+                 "in stock: Hadley Linen Shirt"):
         assert probes[name][-1] == "matches", (name, probes[name])
-    assert probes['several: "Linen shirt"'][1].endswith("rows, one per piece, no count")
-    assert probes['sold out: "Quilted Silk Vest"'][1].startswith("1 row: 0 units; ")
-    # The cause, printed as a row: no warehouse rows, a NULL sum, a 0 after COALESCE.
-    assert re.search(r"^\u2502\s+0 \u2502\s+NULL \u2502\s+0 \u2502$", done.stdout, re.MULTILINE), done.stdout
-    assert ("3 of 4 tests passed. Your change was undone. The live function is unchanged."
-            in " ".join(done.stdout.split()))
+    assert probes["several: Linen shirt"][0] == "3 rows"
+    assert probes["sold out: Quilted Silk Vest"][0] == "0 units"
+    assert probes["in stock: Hadley Linen Shirt"][0] == "20 units"
+    words = " ".join(done.stdout.split())
+    assert "3 of 4 tests passed. Your change was undone. The live function is unchanged." in words
+    # The diagnosis names the task's build step first, then the cause, then the command.
+    assert ("Next In Task 2B, build the fix for a product Pellier does not carry. "
+            "A piece Pellier does not carry must return no row, not 0 units. "
+            "Then run: psql -f labs/02-ground/2B-check-stock.sql") in words
     assert "Lab 2B function check failed" in done.stdout
+    for leaked in ("COALESCE", "sha256", "RECORD", "ATX-02", "BK-01"):
+        assert leaked not in done.stdout, leaked
     assert _live(fresh_db) == before
 
 
@@ -137,8 +141,11 @@ def test_the_solution_passes_every_probe_and_commits_the_function(fresh_db) -> N
     assert done.returncode == 0, done.stdout + done.stderr
     probes = _probes(done.stdout)
     assert len(probes) == 4 and all(row[-1] == "matches" for row in probes.values()), probes
-    assert probes['in stock: "Hadley Linen Shirt"'][1].startswith("1 row: ")
+    assert probes["in stock: Hadley Linen Shirt"][0] == "20 units"
     assert "4 of 4 tests passed. Saved, your function is live." in done.stdout
+    assert "sha256" not in done.stdout
+    assert 'Next In the guide, read "Prove the fix". Then run: uv run scripts/lab2_check.py --task 2B' \
+        in " ".join(done.stdout.split())
     assert "Lab 2B function check passed" in done.stdout
     sha = _sha(_body(SOLUTION))
     assert _live(fresh_db) == f"{sha} Lab 2B function sha256 {sha}"
@@ -170,7 +177,7 @@ def test_the_expected_answers_search_only_photographed_products(  # noqa: F811
     assert done.returncode == 0, done.stdout + done.stderr
     probes = _probes(done.stdout)
     hidden_probe = next(row for name, row in probes.items() if name.startswith("in stock: "))
-    assert hidden_probe == ["no row", "no row", hidden_probe[2], "matches"], probes
+    assert hidden_probe == ["no row", "no row", "", "matches"], probes
 
 
 def test_like_metacharacters_in_the_query_match_only_themselves(fresh_db) -> None:  # noqa: F811
@@ -193,3 +200,15 @@ def test_a_reset_reinstalls_the_function_as_shipped(fresh_db) -> None:  # noqa: 
     assert _live(fresh_db).endswith(f"Lab 2B function sha256 {_sha(_body(SOLUTION))}")
     run_reset(fresh_db)
     assert _live(fresh_db) == f"{_sha(_body(STARTER))} no stamp"
+
+
+
+def test_a_passing_case_shows_what_the_function_returns_not_a_blank(fresh_db) -> None:  # noqa: F811
+    """A blank Is now read as "nothing came back", the very confusion Task 2B is about."""
+    done = _run(fresh_db, SOLUTION)
+    [rows] = [rows for rows in psql_tables.tables(done.stdout) if rows and "OK" in rows[0]]
+    shown = {row["Test"]: (row["Should return"], row["Is now"]) for row in rows}
+    assert shown == {"not carried: Velvet Opera Cape": ("no row", "no row"),
+                     "several: Linen shirt": ("3 rows", "3 rows"),
+                     "sold out: Quilted Silk Vest": ("0 units", "0 units"),
+                     "in stock: Hadley Linen Shirt": ("20 units", "20 units")}

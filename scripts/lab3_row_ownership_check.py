@@ -120,7 +120,27 @@ def _stamp_line(policy: str, comment: str) -> str:
     return f"{policy}: no Lab 3B comment"
 
 
-def judge_deployed(stamp: Optional[str], is_starter: bool,
+def _rule(finding: check.Finding, label: str, result: str, expected: str,
+          next_step: str) -> check.Verdict:
+    """``finding`` with one compact rule: a tick with ``result`` when it passed, else a cross."""
+    if finding.state == check.PASSED:
+        rule = check.Rule(label, result)
+    else:
+        rule = check.Rule(label, ok=None if finding.state == check.COULD_NOT_CHECK else False,
+                          expected=expected, observed=finding.observed, next_step=next_step)
+    return check.with_rules(finding, "", [rule])
+
+
+_NEXT_RUN = ("Run the 3B file; it makes your rule live once every test passes.\n"
+             f"Then run: {RUN_WORKSHEET}")
+
+
+def _deployed_rule(finding: check.Finding) -> check.Verdict:
+    return _rule(finding, "Your row rule", "live on orders and tickets",
+                 "your rule live on orders and tickets", _NEXT_RUN)
+
+
+def _judge_deployed(stamp: Optional[str], is_starter: bool,
                    deployed: Dict[str, str]) -> check.Finding:
     """Whether both live policies carry the predicate now in the SQL file.
 
@@ -156,6 +176,13 @@ def judge_deployed(stamp: Optional[str], is_starter: bool,
                          "the live policies carry a different predicate from the one in your "
                          "file", evidence, f"your file changed after it was deployed; run "
                          f"{RUN_WORKSHEET} again.")
+
+
+def judge_deployed(stamp: Optional[str], is_starter: bool,
+                   deployed: Dict[str, str]) -> check.Finding:
+    """Whether both live policies carry the predicate now in the SQL file (see
+    :func:`_judge_deployed`), with the compact view's rule."""
+    return _deployed_rule(_judge_deployed(stamp, is_starter, deployed))
 
 
 def deployed_policies(connect: Callable[[], Any]) -> Dict[str, Dict[str, str]]:
@@ -212,13 +239,50 @@ def judge_path(path: str, observed: Dict[str, Any], own_tickets: int) -> check.F
         evidence.append(f"{label}: expected {want}, observed {got}")
         if got != want:
             differs.append(f"{label} came back {got}")
-    if not differs:
-        return check.Finding("3B", title, check.PASSED, EXPECTED,
-                             f"{len(expected)} of {len(expected)} tests passed", evidence)
-    return check.Finding(
-        "3B", title, check.FAILED, EXPECTED, "; ".join(differs), evidence,
+    finding = check.Finding(
+        "3B", title, check.PASSED if not differs else check.FAILED, EXPECTED,
+        f"{len(expected)} of {len(expected)} tests passed" if not differs else "; ".join(differs),
+        evidence, "" if not differs else
         "read the live policies with: SELECT tablename, qual, with_check FROM pg_policies "
         "WHERE schemaname = 'pellier'. Compare them with the predicate your file passed.")
+    verdict = check.with_rules(finding, "", [])
+    verdict.data = {"path": path, "observed": dict(observed), "own": own_tickets}
+    return verdict
+
+
+COLUMNS = {"in-process": "In Pellier (app)", "Gateway": "Through the Gateway (Lambda)"}
+_ROWS = ((READS[0][0], "Theo reads his own tickets"), (READS[1][0], "Theo reads Jessica's orders"),
+         (READS[2][0], "Theo reads Jessica's tickets"),
+         (WRITE_LABEL, "Theo writes a ticket in Jessica's name"))
+_NEXT_MATRIX = ("Your rule lets Theo reach Jessica's rows.\n"
+                "Fix it in 3B-row-ownership.sql, run it, then run this check.")
+
+
+def _cell(label: str, answer: Optional[str], own: int) -> Tuple[Optional[bool], str]:
+    """One table cell in plain words: whether the path did what the rule wants."""
+    if answer is None:
+        return None, "not checked"
+    if label == WRITE_LABEL:
+        return answer == REFUSED, "blocked" if answer == REFUSED else "allowed"
+    if label == READS[0][0]:
+        return answer == str(own), f"{answer} shown"
+    return answer == "0", "none visible" if answer == "0" else f"{answer} visible"
+
+
+def paths_matrix(findings: Sequence[check.Finding]) -> Optional[check.Matrix]:
+    """One table with a column per path, from the path findings that carry their answers."""
+    data = [f.data for f in findings if getattr(f, "data", None) and "observed" in f.data]
+    if not data:
+        return None
+    own = data[0]["own"]
+    by_path = {entry["path"]: entry["observed"] for entry in data}
+    rows = []
+    for label, words in _ROWS:
+        cells = [_cell(label, by_path.get(path, {}).get(label), own) for path in COLUMNS]
+        expected = ("his own tickets shown" if label == READS[0][0]
+                    else "blocked" if label == WRITE_LABEL else "none visible")
+        rows.append(check.MatrixRow(words, cells, expected=expected, next_step=_NEXT_MATRIX))
+    return check.Matrix(list(COLUMNS.values()), rows)
 
 
 def unchecked(path: str, exc: BaseException) -> check.Finding:
@@ -395,20 +459,26 @@ def collect(env_path: pathlib.Path = check.DEFAULT_ENV) -> List[check.Finding]:
     return findings
 
 
+HEADLINE = "Lab 3B: Aurora enforces ownership too, on the deployed AgentCore path."
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--details", action="store_true",
+                        help="Print the full Expected, Observed and Evidence boxes")
     parser.parse_args(argv)
     if check.refuse_missing_lab_file(3):
         return 1
     findings = collect()
-    print(check.wrapped("", "Lab 3B, live: your deployed predicate, then the policies as Theo on "
-                            "both database paths"))
-    for finding in findings:
-        print(check.render(finding))
-    passed = all(finding.state == check.PASSED for finding in findings)
-    print(check.closing("Lab 3B row ownership live check", passed))
+    heading = check.wrapped("", "Lab 3B, live: your deployed predicate, then the policies as "
+                                "Theo on both database paths")
+    paths = [f for f in findings if getattr(f, "data", None)]
+    rest = [f for f in findings if f not in paths]
+    verdict = check.combine("3B", HEADLINE, rest, matrix=paths_matrix(paths), covered=paths)
+    passed = check.emit(verdict, argv, "Lab 3B row ownership live check", tables=[heading],
+                        boxes=findings)
     return 0 if passed else 1
 
 

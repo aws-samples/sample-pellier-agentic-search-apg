@@ -210,3 +210,140 @@ def test_a_selective_storefront_search_stays_off_the_full_graph(conn) -> None:
         assert len(got) == min(20, eligible)
         recalls.append(len(set(got) & set(want)) / len(want))
     assert sum(recalls) / len(recalls) >= 0.9
+
+
+# ---------------------------------------------------------------------------
+# The reference lookup the 1A send and check print: the Storefront products closest to the
+# Stoneware Pour-Over Set, through Pellier's own vector_search_sql
+# ---------------------------------------------------------------------------
+APPROVED_ROWS = [("Stoneware Pour-Over Set", "0.000", "1.000"),
+                 ("Ceramic Tumblers", "0.310", "0.690"),
+                 ("Stoneware Mugs, Set of 2", "0.329", "0.671"),
+                 ("Ceramic Pitcher, Slate, 750 ml", "0.370", "0.630"),
+                 ("Ceramic Pitcher, Slate, 1500 ml", "0.381", "0.619")]
+
+
+def _rounded(found: Any) -> List[tuple]:
+    return [(name, f"{distance:.3f}", f"{similarity:.3f}")
+            for name, distance, similarity in found.rows]
+
+
+def test_the_starter_lookup_returns_no_products_and_no_error(conn, monkeypatch) -> None:
+    monkeypatch.setattr(store_tools, "vector_search_sql",
+                        lab_variants.vector_search(lab_variants.STARTER))
+    found = lab1_vector.reference_lookup(conn)
+    assert found.rows == [] and found.error == ""
+    assert lab1_vector.lookup_lines(found) == [
+        "Storefront products closest to the Stoneware Pour-Over Set", "0 products returned."]
+
+
+def test_the_repaired_lookup_returns_the_five_closest_storefront_products(
+        conn, monkeypatch) -> None:
+    monkeypatch.setattr(store_tools, "vector_search_sql",
+                        lab_variants.vector_search(lab_variants.SOLUTION))
+    found = lab1_vector.reference_lookup(conn)
+    assert _rounded(found) == APPROVED_ROWS
+    assert lab1_vector.lookup_lines(found) == [
+        "Storefront products closest to the Stoneware Pour-Over Set",
+        "5 products returned.",
+        "product                          distance  similarity",
+        "Stoneware Pour-Over Set             0.000       1.000",
+        "Ceramic Tumblers                    0.310       0.690",
+        "Stoneware Mugs, Set of 2            0.329       0.671",
+        "Ceramic Pitcher, Slate, 750 ml      0.370       0.630",
+        "Ceramic Pitcher, Slate, 1500 ml     0.381       0.619"]
+
+
+def test_the_lookup_and_the_guides_optional_sql_list_the_same_products(
+        conn, monkeypatch, fresh_db) -> None:  # noqa: F811
+    """Both rank the photographed Storefront products from the pour-over set's own vector."""
+    from tests.test_guide_queries_postgres import NEAREST_BY_MEANING
+
+    monkeypatch.setattr(store_tools, "vector_search_sql",
+                        lab_variants.vector_search(lab_variants.SOLUTION))
+    guide = [tuple(line.split("|")) for line in fresh_db.psql(NEAREST_BY_MEANING).splitlines()]
+    assert _rounded(lab1_vector.reference_lookup(conn)) == guide
+
+
+@pytest.mark.parametrize("break_it, reason", [
+    ("embedding", "the Stoneware Pour-Over Set has no stored embedding"),
+    ("sql", "UndefinedColumn"),
+])
+def test_a_lookup_that_cannot_run_is_a_failure_not_an_empty_result(
+        conn, monkeypatch, break_it: str, reason: str) -> None:
+    if break_it == "embedding":
+        monkeypatch.setattr(lab1_vector, "REFERENCE", "A Product Pellier Never Stocked")
+        reason = "the A Product Pellier Never Stocked has no stored embedding"
+    else:
+        monkeypatch.setattr(store_tools, "vector_search_sql",
+                            lambda clauses=(): "SELECT no_such_column FROM pellier.product_catalog"
+                                               " WHERE %s IS NOT NULL LIMIT %s")
+    found = lab1_vector.reference_lookup(conn)
+    assert found.rows == [] and reason in found.error
+    lines = lab1_vector.lookup_lines(found)
+    assert lines[1].startswith("Lookup failed: ") and "returned" not in "\n".join(lines)
+
+
+
+def test_the_repaired_check_cannot_pass_without_the_pour_over_embedding(
+        conn, monkeypatch) -> None:
+    """The four probes use other products, so they pass; the visible lookup cannot run."""
+    monkeypatch.setattr(store_tools, "vector_search_sql",
+                        lab_variants.vector_search(lab_variants.SOLUTION))
+    monkeypatch.setattr(lab1_vector, "REFERENCE", "A Product Pellier Never Stocked")
+    finding, rows = lab1_vector.evaluate(conn)
+    assert all(row[4] == "ok" for row in rows)
+    assert finding.state == "COULD NOT CHECK"
+    assert finding.observed.startswith("the pour-over lookup failed")
+
+
+def test_the_repaired_check_passes_with_the_lookup(conn, monkeypatch) -> None:
+    monkeypatch.setattr(store_tools, "vector_search_sql",
+                        lab_variants.vector_search(lab_variants.SOLUTION))
+    finding, _rows, found = lab1_vector.evaluate_all(conn)
+    assert finding.state == "PASSED" and _rounded(found) == APPROVED_ROWS
+
+
+@pytest.mark.parametrize("duplicate_in", ["reference", "probes"])
+def test_five_rows_cannot_stand_for_five_products(conn, monkeypatch, duplicate_in) -> None:
+    repaired = lab_variants.vector_search(lab_variants.SOLUTION)
+
+    def multiply_rows(clauses=()):
+        sql = repaired(clauses)
+        reference = tuple(clauses) == (store_tools.VISIBLE_CATALOG_SQL,)
+        if reference == (duplicate_in == "reference"):
+            return sql.replace("FROM pellier.product_catalog",
+                               "FROM pellier.product_catalog CROSS JOIN generate_series(1,5) x")
+        return sql
+
+    monkeypatch.setattr(store_tools, "vector_search_sql", multiply_rows)
+    finding, rows, found = lab1_vector.evaluate_all(conn)
+    assert finding.state == "FAILED"
+    assert "distinct product" in finding.observed
+    if duplicate_in == "reference":
+        assert all(row[4] == "ok" for row in rows)
+        assert "5 rows returned for 1 distinct product." in lab1_vector.lookup_lines(found)
+    else:
+        assert len({name for name, *_ in found.rows}) == 5
+
+
+@pytest.mark.parametrize("variant", [lab_variants.STARTER, lab_variants.SOLUTION])
+@pytest.mark.parametrize("missing", ["row", "embedding"])
+@pytest.mark.parametrize("name", ["Hadley Linen Shirt", "Stoneware Pour-Over Set"])
+def test_an_unusable_seed_product_names_the_catalog_problem(conn, monkeypatch, variant,
+                                                            missing, name) -> None:
+    sql = lab1_vector._EMBEDDING
+    if missing == "row":
+        sql += f" AND name <> '{name}'"
+    else:
+        sql = sql.replace("embedding::text AS embedding",
+                          f"CASE WHEN name <> '{name}' THEN embedding::text END"
+                          " AS embedding")
+    monkeypatch.setattr(lab1_vector, "_EMBEDDING", sql)
+    monkeypatch.setattr(store_tools, "vector_search_sql", lab_variants.vector_search(variant))
+    finding, rows, found = lab1_vector.evaluate_all(conn)
+    assert finding.state == "COULD NOT CHECK"
+    assert name in finding.observed and "embedding" in finding.observed
+    view = lab1_vector.check.compact(lab1_vector.verdict(finding, rows, found))
+    assert name in view and "Troubleshoot with Claude Code or go deeper" in view
+    assert lab1_vector.SOLUTION_COMMAND not in view

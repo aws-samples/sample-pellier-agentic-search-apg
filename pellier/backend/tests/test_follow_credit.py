@@ -78,14 +78,13 @@ def test_every_record_joins_into_one_chain_from_her_agent_to_the_credit() -> Non
     assert steps == ["Agent", "Identity", "Policy", "Request", "Review", "Approval",
                      "Identity", "Policy", "Tool", "Database", "Credit"]
     agent, identity, policy = followed.rows[:3]
-    assert agent[2] == ("Support agent on global.anthropic.claude-opus-5-5 called ask_a_person "
-                        "in turn turn-c36b4da400904...")
+    assert agent[2] == "Support agent called ask_a_person for Jessica's request"
     assert agent[3] == "CloudWatch: ADOT span"
-    assert identity[2] == "The Gateway accepted jessica's Cognito access token"
-    assert policy[2] == "ALLOW, determined by baseline_permit_workshop_tools-q1"
+    assert identity[2] == "Gateway accepted jessica's sign-in token"
+    assert policy[2] == "ALLOW   The Gateway answered: allowed. Decided by the workshop's baseline permit."
     assert followed.rows[3][3] == "Aurora: tool_audit 812, approvals 12"
     assert followed.rows[5][2] == "Nadia approved review 13"
-    assert followed.rows[6][2] == "The Gateway accepted nadia's Cognito access token"
+    assert followed.rows[6][2] == "Gateway accepted nadia's sign-in token"
     assert followed.rows[9][2:] == ["INSERT into pellier.store_credits with the same key",
                                     "PostgreSQL log: pgAudit"]
     assert followed.rows[10][2] == "Credit 7, $40.00, with the same key"
@@ -97,7 +96,31 @@ def test_the_paid_call_is_the_one_that_holds_the_insert_not_the_earlier_deny() -
     followed = follow_credit.follow(_story(), _records(), NOW)
     nadia_policy = followed.rows[7]
     assert nadia_policy[0] == "05:09:00"
-    assert nadia_policy[2] == "ALLOW, determined by credit_limit-q6"
+    assert nadia_policy[2] == "ALLOW   The Gateway answered: allowed. Decided by the $100 credit limit."
+
+
+def test_the_finale_leads_with_the_whole_system_and_explains_a_span_once(monkeypatch) -> None:
+    monkeypatch.setattr(follow_credit.pellier_map, "facts",
+                        lambda env=None: {"runtime": True, "memory": True, "gateway": True})
+    passed = follow_credit.report(follow_credit.follow(_story(), _records(), NOW))
+    lines = passed.splitlines()
+    assert lines[2] == "Pellier, all four labs"
+    assert all(line.startswith("  \u2713 Lab") for line in lines[3:7])
+    assert "AgentCore Runtime \u2500 Memory \u2500 Gateway \u2500 Policy (Cedar) \u2500 Lambda" \
+        in passed
+    assert passed.count("A span is a timed record of one step") == 1
+    assert passed.index("Pellier, all four labs") < passed.index("CloudWatch: ADOT span")
+
+
+def test_the_finale_keeps_the_key_and_hides_the_turn_and_call_ids_until_details() -> None:
+    followed = follow_credit.follow(_story(), _records(), NOW)
+    plain = follow_credit.report(followed)
+    detailed = follow_credit.report(followed, details=True)
+    assert "Key   " in plain and "Paid once:" in plain and plain.endswith("End-to-end check passed")
+    assert "Turn  " not in plain and "Call  " not in plain
+    assert "Turn  " in detailed and "Call  " in detailed
+    for hidden in ("global.anthropic", "-q6", "-q1", "ask_a_person_caller_bound"):
+        assert hidden not in plain
 
 
 def test_the_report_ends_with_the_pass_line_only_when_every_link_is_found() -> None:
@@ -226,8 +249,8 @@ def test_a_newer_denied_call_in_her_turn_does_not_replace_the_call_that_opened_h
                   ["baseline_permit_workshop_tools-q1"], parent="mcp-span", ran=False)
     followed = follow_credit.follow(_story(), _two_calls(HANDOFF, newer), NOW)
     assert followed.state == check.PASSED
-    assert _policy_row(followed) == "ALLOW, determined by baseline_permit_workshop_tools-q1"
-    assert followed.rows[1][2] == "The Gateway accepted jessica's Cognito access token"
+    assert _policy_row(followed) == "ALLOW   The Gateway answered: allowed. Decided by the workshop's baseline permit."
+    assert followed.rows[1][2] == "Gateway accepted jessica's sign-in token"
     assert any("req-ask" in line for line in followed.joins)
 
 

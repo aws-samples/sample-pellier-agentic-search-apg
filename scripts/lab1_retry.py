@@ -54,6 +54,23 @@ NEXT_STEP = (
     f"again ({SEND}), then rerun this check."
 )
 NEXT_REQUEST = f"send Anna's request with {SEND}, then rerun this check."
+# What the compact view tells the participant, one diagnosis in at most two short lines.
+SHORT_NEXT_SEND = ('In the guide, open Task 1B and read "Send her full request".\n'
+                   f"Then run: {SEND}")
+SHORT_NEXT_FIX = ("In 1B-search-plan.py, copy the plan and change only the relaxations.\n"
+                  f"Then send Anna's request again: {SEND}")
+HEADLINE = ("Lab 1B: Anna's budget, stock rule and exclusion filter first, and survive every "
+            "retry.")
+# After the pass line: where the same turn shows in Pellier. The participant switches tabs.
+SEE_IT_IN_PELLIER = (
+    "See it in Pellier (optional)",
+    "Open the Pellier tab \u2192 Ask Pellier \u2192 Anna.",
+    "Find her latest \u201cSent from the terminal\u201d request. Turn on Builder view.",
+    "Under \u201cHow it ranked\u201d, look for \u201cKept\u201d.",
+)
+LAB_1_ROW = ("1 \u00b7 Retrieve", "Search by meaning and a retry that keeps Anna’s rules")
+_NUMBER_WORDS = ("no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+                 "ten")
 SEARCH_PLAN = check.REPO / "pellier" / "backend" / "services" / "search_plan.py"
 
 
@@ -109,6 +126,51 @@ SELECT r.receipt_id, r.session_id, r.created_at, r.query_preview, r.citation_ids
  ORDER BY jsonb_array_length(r.relaxations) > 0 DESC, r.receipt_id DESC
  LIMIT 1
 """
+
+# The search of Anna's full request as the last 1B send recorded its turn (lab_run.py send
+# writes .local/lab-1b-turn.json), so a later turn that ran no search can never borrow an
+# earlier turn's retry.
+_TURN_RECEIPT = f"""
+SELECT r.receipt_id, r.session_id, r.created_at, r.query_preview, r.citation_ids,
+       r.relaxations, r.hard_constraints, r.exclusions, r.retrieval_config
+  FROM pellier.retrieval_receipts r
+ WHERE r.turn_id = %(turn)s
+   AND r.session_id LIKE %(session)s
+   AND r.created_at >= {check.SINCE_SQL}
+ ORDER BY jsonb_array_length(r.relaxations) > 0 DESC, r.receipt_id DESC
+ LIMIT 1
+"""
+NO_RECEIPT = "There is no search receipt for Anna's latest request."
+UNFINISHED = "There is no completed turn recorded for Anna's latest send."
+
+
+def recorded_turn() -> Tuple[bool, Optional[str]]:
+    """``(present, turn)``: whether a 1B send left a record, and the turn it recorded.
+
+    No record at all means no 1B send on this machine since the record began, so the check
+    reads Anna's newest search as before. A record without a turn is a send that did not
+    finish."""
+    path = check.lab1_retry_turn_path()
+    try:
+        saved = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return path.is_symlink(), None
+    except (OSError, UnicodeDecodeError):
+        return True, None
+    try:
+        turn = json.loads(saved).get("turn") if saved.strip() else None
+    except (ValueError, AttributeError):
+        turn = None
+    return True, turn if isinstance(turn, str) and turn.strip() else None
+
+
+def receipt_context() -> str:
+    """Pass the same local send and reset state to the participant's psql session."""
+    present, turn = recorded_turn()
+    since = check.reset_point(1)
+    return json.dumps({"unfinished": present and turn is None, "turn": turn,
+                       "since": since.isoformat() if since else None})
+
 
 _PRODUCTS = """
 SELECT "productId" AS product_id, name, price, quantity, category, tags, materials
@@ -248,24 +310,146 @@ def _evidence(receipt: Dict[str, Any], requested: Optional[Dict[str, Any]]) -> L
     ]
 
 
+def _waiting(finding: check.Finding) -> check.Verdict:
+    """A finding that has no verdict yet: one rule that says what is missing and to send again."""
+    rule = check.Rule("Anna's retry", ok=False, expected="a retry on her full request",
+                      observed=finding.observed, next_step=SHORT_NEXT_SEND)
+    return check.with_rules(finding, HEADLINE, [rule])
+
+
+def kept_words(limits: Dict[str, Any]) -> List[str]:
+    """The requirements in the order the receipt lists them: stock, budget, exclusions."""
+    said = ["in stock"] if limits["in_stock"] else []
+    if limits["price"] is not None:
+        said.append(budget_words(limits["price"]))
+    said.extend(f"no {_plural(value)}" for value in limits["exclusions"])
+    if limits["categories"]:
+        said.append(" or ".join(limits["categories"]) + " only")
+    return said
+
+
+def pass_summary(requested: Dict[str, Any], count: int) -> List[str]:
+    """A passing retry in two sentences: what it kept, and how many gifts met all of it."""
+    kept = ", ".join(kept_words(requested))
+    met = (f"All {count} gifts met those requirements." if count != 1
+           else "The one gift met those requirements.")
+    return [f"The retry kept   {kept[:1].upper()}{kept[1:]}", met]
+
+
+def _counted(number: int) -> str:
+    return _NUMBER_WORDS[number] if number < len(_NUMBER_WORDS) else str(number)
+
+
+def lab_1_row(requested: Optional[Dict[str, Any]]) -> Tuple[str, str, Optional[str]]:
+    """Lab 1's row of the grid: what Anna's retry kept, or no proof when it is not passing."""
+    if requested is None:
+        return (*LAB_1_ROW, None)
+    rules = len(kept_words(requested))
+    proved = (f"Anna\u2019s retry kept all {_counted(rules)} rules." if rules != 1
+              else "Anna\u2019s retry kept her rule.")
+    return (*LAB_1_ROW, proved)
+
+
+def completion_row(requested: Dict[str, Any], width: Optional[int] = None) -> List[str]:
+    """Lab 1's row of what the participant has proved, once both Lab 1 checks pass."""
+    import pellier_map
+
+    return pellier_map.proved_grid([lab_1_row(requested)], width)
+
+
+def proved_requirements() -> Optional[Dict[str, Any]]:
+    """What Anna asked for, when both Lab 1 checks pass now; else None. A later lab's grid
+    reads Lab 1's row through this, so its proof is as live as Lab 1's own."""
+    finding, _rows = run()
+    requested = getattr(finding, "data", {}).get("requested")
+    if finding.state != check.PASSED or not requested or not lab_1_complete():
+        return None
+    return requested
+
+
+def lab_1_complete() -> bool:
+    """Task 1A's check passes now too, read live, so a broken vector search shows no row."""
+    import lab1_vector
+
+    finding, _ = lab1_vector.run()
+    return finding.state == check.PASSED
+
+
+def after_pass(requested: Dict[str, Any], complete: bool) -> List[str]:
+    """What prints under Lab 1B's pass line: where to see the turn, then Lab 1's row."""
+    lines = list(SEE_IT_IN_PELLIER) if check.says_next() else []
+    if complete:
+        lines += ([""] if lines else []) + completion_row(requested)
+    return lines
+
+
+def _pass_rules(receipt: Dict[str, Any], requested: Dict[str, Any], count: int) -> List[check.Rule]:
+    """The rules a passing retry satisfied, one per requirement and one for what it dropped."""
+    everywhere = f"all {count} products" if count != 1 else "the 1 product"
+    rules = []
+    if requested["price"] is not None:
+        rules.append(check.Rule(f"Budget {budget_words(requested['price'])}", everywhere))
+    if requested["in_stock"]:
+        rules.append(check.Rule("In stock", everywhere))
+    for value in requested["exclusions"]:
+        rules.append(check.Rule(f"No {_plural(value)}", f"none among the {count}"))
+    words = sorted({str(word) for step in _relaxations(receipt)
+                    for word in step.get("dropped") or []})
+    rules.append(check.Rule("The retry dropped",
+                            f"only the words {', '.join(words)}" if words else "nothing"))
+    return rules
+
+
+def _fail_rules(requested: Dict[str, Any], ids: Sequence[str], broken_lines: Sequence[str],
+                lost: Sequence[str]) -> List[check.Rule]:
+    """One rule for the requirements the retry lost, else one for the products that break one."""
+    rules = []
+    if lost:
+        kept = [name for name in kept_words(requested) if name not in lost]
+        rules.append(check.Rule("Anna's requirements on the retry", ok=False,
+                                expected=", ".join(kept_words(requested)),
+                                observed=(f"kept {', '.join(kept)}; dropped {', '.join(lost)}"
+                                          if kept else f"dropped all {_counted(len(lost))}"),
+                                next_step=SHORT_NEXT_FIX))
+    if broken_lines and not lost:
+        rules.append(check.Rule("Products meet the requirements", ok=False,
+                                expected=f"all {len(ids)} meet them",
+                                observed=f"{len(broken_lines)} of {len(ids)} break one",
+                                next_step=SHORT_NEXT_FIX))
+    return rules
+
+
 def evaluate(conn: Any, when: Optional[Timeline] = None
              ) -> Tuple[check.Finding, List[Sequence[Any]]]:
-    """Judge the search of Anna's newest turn that needed the fallback (else its newest).
+    """Judge the search of the turn the last 1B send recorded, or of Anna's newest turn when
+    no send has recorded one: the search that needed the fallback, else the newest.
 
     Returns the finding and one row per product. With ``when``, a search older than
-    the last edit or restart is not judged, and no product rows are returned.
+    the last edit or restart is not judged, and no product rows are returned. A recorded turn
+    with no search of its own is not yet a pass, whatever an older turn's search kept.
     """
+    present, turn = recorded_turn()
+    if present and turn is None:
+        return _waiting(check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, UNFINISHED,
+                                      [f"{check.lab1_retry_turn_path().name} holds no turn"],
+                                      NEXT_REQUEST)), []
     with conn.cursor() as cur:
-        cur.execute(_LATEST_RECEIPT, {"session": ANNA_SESSION_PREFIX + "%",
-                                      "since": check.reset_point(1)})
+        cur.execute(_TURN_RECEIPT if turn else _LATEST_RECEIPT,
+                    {"session": ANNA_SESSION_PREFIX + "%", "since": check.reset_point(1),
+                     "turn": turn})
         receipt = cur.fetchone()
+        if not receipt and turn:
+            return _waiting(check.Finding(
+                "1B", TITLE, check.NOT_YET, EXPECTED, NO_RECEIPT,
+                [f"pellier.retrieval_receipts has no row for turn {check.short(turn, 22)}"],
+                NEXT_REQUEST + check.since_note(1, SEND))), []
         if not receipt:
-            return check.Finding(
+            return _waiting(check.Finding(
                 "1B", TITLE, check.NOT_YET, EXPECTED,
                 "no search receipt in a session of Anna's yet",
                 ["pellier.retrieval_receipts has no row whose session starts persona-anna-"],
                 NEXT_REQUEST + check.since_note(1, SEND),
-            ), []
+            )), []
         reason = stale(receipt, when)
         if reason:
             edited = _clock(when.edited_at) if when.edited_at else "unknown"
@@ -273,8 +457,8 @@ def evaluate(conn: Any, when: Optional[Timeline] = None
             evidence = _evidence(receipt, requested_limits(receipt)) + [
                 f"search_plan.py last changed: {edited}", f"pellier last started: {started}",
             ]
-            return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, reason[0], evidence,
-                                 reason[1]), []
+            return _waiting(check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, reason[0],
+                                          evidence, reason[1])), []
         ids = [str(value) for value in _as_list(receipt.get("citation_ids"))]
         cur.execute(_PRODUCTS, (ids,))
         catalog = {str(row["product_id"]): row for row in cur.fetchall()}
@@ -316,26 +500,31 @@ def _judge(
 ) -> check.Finding:
     evidence = _evidence(receipt, requested)
     if not ids:
-        return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED,
-                             "Anna's latest search returned no products", evidence, NEXT_REQUEST)
+        return _waiting(check.Finding("1B", TITLE, check.NOT_YET, EXPECTED,
+                                      "Anna's latest search returned no products", evidence,
+                                      NEXT_REQUEST))
     if requested is None or not phrases(requested):
         observed = ("the receipt does not record what the shopper asked" if requested is None
                     else "the request stated no requirement, so there was nothing to keep")
-        return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
-                             NEXT_REQUEST)
+        return _waiting(check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
+                                      NEXT_REQUEST))
     if not _relaxations(receipt):
-        observed = (f"the first search answered, so the retry never ran; {len(ids)} "
-                    f"returned, {len(broken_lines)} break a requirement")
-        return check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
-                             NEXT_REQUEST)
+        observed = "No retry ran for this request."
+        return _waiting(check.Finding("1B", TITLE, check.NOT_YET, EXPECTED, observed, evidence,
+                                      NEXT_REQUEST))
     # The scenario, not the extractor's own output, is the oracle. An initial
     # plan and a retry that both omit the same requirement must not pass.
     scenario = {"price": 100.0, "in_stock": True, "exclusions": ["candle"], "categories": []}
     missing = dropped(scenario, requested)
     if missing:
-        return check.Finding("1B", TITLE, check.FAILED, EXPECTED,
-                             "the initial reading omitted " + ", ".join(missing),
-                             evidence, NEXT_REQUEST)
+        finding = check.Finding("1B", TITLE, check.FAILED, EXPECTED,
+                                "the initial reading omitted " + ", ".join(missing),
+                                evidence, NEXT_REQUEST)
+        rule = check.Rule("Anna's request was read in full", ok=False,
+                          expected="budget, stock and exclusion all read",
+                          observed="the first reading omitted " + ", ".join(missing),
+                          next_step=SHORT_NEXT_SEND)
+        return check.with_rules(finding, HEADLINE, [rule])
     lost = dropped(requested, kept_limits(receipt))
     if broken_lines or lost:
         observed = f"{len(ids) - len(broken_lines)} of {len(ids)} keep every requirement asked for"
@@ -343,11 +532,17 @@ def _judge(
             observed += "; " + "; ".join(broken_lines)
         if lost:
             observed += "; the search that answered dropped " + ", ".join(lost)
-        return check.Finding("1B", TITLE, check.FAILED, EXPECTED, observed, evidence,
-                             NEXT_STEP)
-    return check.Finding("1B", TITLE, check.PASSED, EXPECTED,
-                         f"all {len(ids)} keep {', '.join(phrases(requested))} after the "
-                         "retry", evidence)
+        finding = check.Finding("1B", TITLE, check.FAILED, EXPECTED, observed, evidence,
+                                NEXT_STEP)
+        return check.with_rules(finding, HEADLINE,
+                                _fail_rules(requested, ids, broken_lines, lost))
+    finding = check.Finding("1B", TITLE, check.PASSED, EXPECTED,
+                            f"all {len(ids)} keep {', '.join(phrases(requested))} after the "
+                            "retry", evidence)
+    told = check.with_rules(finding, HEADLINE, _pass_rules(receipt, requested, len(ids)))
+    told.summary = pass_summary(requested, len(ids))
+    told.data["requested"] = requested
+    return told
 
 
 def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List[Sequence[Any]]]:
@@ -368,15 +563,14 @@ def run(env_path: pathlib.Path = check.DEFAULT_ENV) -> Tuple[check.Finding, List
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
-    del argv
     if check.refuse_missing_lab_file(1):
         return 1
     finding, rows = run()
-    print(check.wrapped("", "Lab 1B: every product in Anna's latest search keeps the "
-                            "requirements she asked for"))
+    tables = [check.wrapped("", "Lab 1B: every product in Anna's latest search keeps the "
+                                "requirements she asked for")]
     if rows:
-        print(check.table(("product", "name", "price", "in stock", "verdict"), rows))
-    print(check.render(finding))
-    passed = finding.state == check.PASSED
-    print(check.closing("Lab 1B check", passed, "1B"))
-    return 0 if passed else 1
+        tables.append(check.table(("product", "name", "price", "in stock", "verdict"), rows))
+    requested = getattr(finding, "data", {}).get("requested")
+    after = (after_pass(requested, lab_1_complete())
+             if finding.state == check.PASSED and requested else [])
+    return 0 if check.emit(finding, argv, "Lab 1B check", "1B", tables, after=after) else 1

@@ -237,9 +237,9 @@ def shipped(conn: Any) -> Iterator[None]:
 
 
 def _result(stdout: str, probe: str) -> str:
-    """The Result the 3B table printed for one probe."""
-    return next(row["Result"] for row in psql_tables.table_with(stdout, "Test")
-                if row["Test"] == probe)
+    """Whether the 3B table marked one probe as matching."""
+    return {"✓": "matches", "✗": "does not match"}[next(
+        row["OK"] for row in psql_tables.table_with(stdout, "Test") if row["Test"] == probe)]
 
 
 def test_the_starter_predicate_hides_every_customers_own_rows(  # noqa: F811
@@ -262,12 +262,12 @@ def test_the_solution_passes_every_probe_and_becomes_the_live_policy(  # noqa: F
     assert done.returncode == 0, done.stdout + done.stderr
     assert "10 of 10 tests passed" in done.stdout
     assert "your predicate is now the live policy" in " ".join(done.stdout.split())
-    assert "42501" in done.stdout and "Lab 3B predicate check passed" in done.stdout
+    assert "Lab 3B predicate check passed" in done.stdout
+    assert "42501" not in done.stdout and "sha256" not in done.stdout
     after = _live_state(conn)
     stamp = _stamp_for(RLS_SOLUTION)
     owned = {row["policy"]: row["stamp"] for row in after["stamps"]}
     assert owned["orders_own_rows"] == owned["support_tickets_own_rows"] == stamp
-    assert f"sha256 {stamp.rsplit(' ', 1)[1][:12]}" in done.stdout
     assert after["probe_tickets"] == 0, "the probe writes must not survive the commit"
     again = _psql(fresh_db, RLS_SOLUTION)
     assert again.returncode == 0 and _live_state(conn) == after
@@ -290,7 +290,7 @@ def test_a_predicate_for_theo_and_jessica_only_fails_the_every_customer_probe(  
               "current_setting('pellier.principal_username', true))")
     done = _psql(fresh_db, _with_predicate(tmp_path, "lab-4-rls-narrow.sql", narrow))
     assert done.returncode != 0, done.stdout
-    assert _result(done.stdout, "Customers who see exactly their own orders and tickets") == "does not match"
+    assert _result(done.stdout, "Each customer sees only their own rows") == "does not match"
     for line in ("Theo reads his own orders", "Jessica reads her own orders"):
         assert _result(done.stdout, line) == "matches", line
     assert _live_state(conn) == before
@@ -329,7 +329,7 @@ def test_equal_counts_for_two_different_customers_are_not_ownership(  # noqa: F8
                     .replace(role, swap_test_names + role))
     done = _psql(fresh_db, path)
     assert done.returncode != 0, done.stdout + done.stderr
-    assert _result(done.stdout, "Customers who see exactly their own orders and tickets") == "does not match"
+    assert _result(done.stdout, "Each customer sees only their own rows") == "does not match"
     assert "9 of 10 tests passed" in done.stdout
 
 
@@ -377,7 +377,7 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
                                                                       tmp_path: Path) -> None:
     waiting = _psql(fresh_db, ABSENCE)
     assert waiting.returncode != 0
-    assert "none yet: no approved review is named Lab 4 over-limit probe" in waiting.stdout
+    assert "The $100.01 request from the Lab 4A check is not recorded yet" in waiting.stdout
 
     with psycopg.connect(host=str(fresh_db.socket), port=5432, user="postgres",
                          dbname="postgres", row_factory=dict_row) as probe_conn:
@@ -396,7 +396,8 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
                               review["idempotency_key"], {})
     lab4.record_probe_attempt(conn, review["id"], denial)
     no_credit = _psql(fresh_db, ABSENCE)
-    assert "none yet: Jessica has no store credit" in no_credit.stdout
+    assert "Jessica has no store credit yet." in no_credit.stdout
+    assert 'In the guide, read "Execute again and replay as Nadia".' in no_credit.stdout
 
     allowed_key = _jessicas_credit(conn)
     for unproven in ({}, {**denial, "outcome": "failed"},
@@ -405,13 +406,16 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
         lab4.record_probe_attempt(conn, review["id"], unproven)
         unconfirmed = _psql(fresh_db, ABSENCE)
         assert unconfirmed.returncode != 0, unproven
-        assert "no matching Gateway denial" in unconfirmed.stdout
+        assert "No Gateway denial was recorded" in unconfirmed.stdout
     lab4.record_probe_attempt(conn, review["id"], denial)
     done = _psql(fresh_db, ABSENCE)
     assert done.returncode == 0, done.stdout + done.stderr
-    assert f"denied key   {review['idempotency_key']}" in done.stdout
-    assert f"allowed key  {allowed_key}" in done.stdout
-    assert "Observed  0, 0, 1 and 1" in done.stdout
+    assert f"Jessica's write key  {allowed_key}" in done.stdout
+    rows = [row for row in psql_tables.table_with(done.stdout, "Request")]
+    assert rows == [
+        {"Request": "Denied $100.01 request", "Credit rows": "0", "Tool calls that ran": "0"},
+        {"Request": "Jessica's $100.00 credit", "Credit rows": "1", "Tool calls that ran": "1"}]
+    assert review["idempotency_key"] not in done.stdout
     assert "Lab 4 absence check passed" in done.stdout
 
     # Both keys are derived the same way, so a derivation that drifted from the
@@ -422,7 +426,7 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
     drifted.write_text(prefix + "left(a.action_hash, 31)" + suffix)
     vacuous = _psql(fresh_db, drifted)
     assert vacuous.returncode != 0
-    assert "the allowed key does not find exactly one credit" in vacuous.stdout
+    assert "the zeros prove nothing" in vacuous.stdout
 
     forensic = _psql(fresh_db, FORENSIC)
     assert forensic.returncode == 0, forensic.stderr
@@ -436,7 +440,7 @@ def test_the_absence_check_waits_for_the_probe_then_passes_on_0_0_1(fresh_db: An
                  (json.dumps({"idempotency_key": review["idempotency_key"]}),))
     leaked = _psql(fresh_db, ABSENCE)
     assert leaked.returncode != 0
-    assert "the denied key left rows behind" in leaked.stdout
+    assert "The denied request left rows behind." in leaked.stdout
 
 
 def test_shopper_handoff_requires_the_request_and_the_turn_that_opened_it(

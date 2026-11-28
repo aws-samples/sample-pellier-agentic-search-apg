@@ -157,6 +157,17 @@ def _and(names: Sequence[str]) -> str:
     return " and ".join(names) if len(names) < 3 else ", ".join(names[:-1]) + " and " + names[-1]
 
 
+def _fail(label: str, finding: check.Finding, expected: str, observed: str,
+          next_step: str) -> check.Verdict:
+    """``finding`` with one failing rule: what was expected, seen and the next thing to change."""
+    rule = check.Rule(label, ok=False, expected=expected, observed=observed, next_step=next_step)
+    return check.with_rules(finding, "", [rule])
+
+
+def _pass(finding: check.Finding, *rules: check.Rule) -> check.Verdict:
+    return check.with_rules(finding, "", rules)
+
+
 def _published_rule(published: frozenset, managed: Sequence[str]) -> check.Finding:
     title = "get_tickets is published on the Gateway"
     expected = "the Gateway publishes get_tickets and every tool the Support agent asks for"
@@ -164,18 +175,27 @@ def _published_rule(published: frozenset, managed: Sequence[str]) -> check.Findi
                 f"tools: {', '.join(sorted(published))}"]
     next_step = ("which tool does the Gateway - published tools block still "
                  "withhold?")
+    label = "get_tickets published on the Gateway"
+    short_expected = "get_tickets and every tool the Support agent asks for"
     if PROBE_TOOL not in published:
-        return check.Finding("3A", title, check.NOT_YET, expected,
-                             "get_tickets is not published: scripts/deploy/gateway_tool_schemas.py "
-                             "withholds it", evidence, next_step)
+        finding = check.Finding("3A", title, check.NOT_YET, expected,
+                                "get_tickets is not published: scripts/deploy/"
+                                "gateway_tool_schemas.py withholds it", evidence, next_step)
+        return _fail(label, finding, short_expected, "get_tickets is not published",
+                     "The Gateway still withholds get_tickets.\n"
+                     "Publish it in 3A-1-publish-tool.py.")
     unpublished = sorted(set(managed) - published)
     if unpublished:
-        return check.Finding("3A", title, check.NOT_YET, expected,
-                             f"the Support agent asks for {_and(unpublished)}, which the Gateway "
-                             "does not publish", evidence, next_step)
-    return check.Finding("3A", title, check.PASSED, expected,
-                         f"{len(published)} of 9 tools published, get_tickets among them",
-                         evidence)
+        finding = check.Finding("3A", title, check.NOT_YET, expected,
+                                f"the Support agent asks for {_and(unpublished)}, which the "
+                                "Gateway does not publish", evidence, next_step)
+        return _fail(label, finding, short_expected, f"{_and(unpublished)} not published",
+                     "The Support agent asks for a tool the Gateway withholds.\n"
+                     "Publish it in 3A-1-publish-tool.py.")
+    finding = check.Finding("3A", title, check.PASSED, expected,
+                            f"{len(published)} of 9 tools published, get_tickets among them",
+                            evidence)
+    return _pass(finding, check.Rule(label, f"{len(published)} of 9 tools"))
 
 
 def _reads_rule(managed: Sequence[str]) -> check.Finding:
@@ -184,14 +204,19 @@ def _reads_rule(managed: Sequence[str]) -> check.Finding:
                 "get_orders and get_tickets")
     asks = _and(list(managed)) or "no tools"
     evidence = [f"labs/03-deploy/3A-2-bind-caller.py: SUPPORT_GATEWAY_TOOLS asks for {asks}"]
+    label = "Support agent's customer reads"
     if any(read not in managed for read in SHOPPER_READS):
-        return check.Finding("3A", title, check.NOT_YET, expected,
-                             f"the Support agent asks for {asks}; Theo's household request needs "
-                             "get_orders and get_tickets", evidence,
-                             f"{_NEXT_CUSTOMER_ID} The reads among them are what his household "
-                             "request needs.")
-    return check.Finding("3A", title, check.PASSED, expected,
-                         f"the Support agent asks for {asks}", evidence)
+        finding = check.Finding("3A", title, check.NOT_YET, expected,
+                                f"the Support agent asks for {asks}; Theo's household request "
+                                "needs get_orders and get_tickets", evidence,
+                                f"{_NEXT_CUSTOMER_ID} The reads among them are what his "
+                                "household request needs.")
+        return _fail(label, finding, "get_orders and get_tickets", asks,
+                     "The Support agent doesn't ask for both of Theo's reads.\n"
+                     "Add get_orders and get_tickets in 3A-2-bind-caller.py.")
+    finding = check.Finding("3A", title, check.PASSED, expected,
+                            f"the Support agent asks for {asks}", evidence)
+    return _pass(finding, check.Rule(label, "get_orders, get_tickets"))
 
 
 def _bound_rule(bound: frozenset,
@@ -218,14 +243,46 @@ def _bound_rule(bound: frozenset,
         if leaking:
             observed += (f"; a {' or '.join(leaking)} call that names {JESSICA} would go out as "
                          f"{probes[leaking[0]]['sent']}")
-        return check.Finding("3A", title, check.NOT_YET, expected, observed, evidence,
-                             f"{_NEXT_CUSTOMER_ID} Name each read among them in "
-                             "SUPPORT_CALLER_BOUND_TOOLS; ask_a_person's handoff is bound for you.")
+        finding = check.Finding("3A", title, check.NOT_YET, expected, observed, evidence,
+                                f"{_NEXT_CUSTOMER_ID} Name each read among them in "
+                                "SUPPORT_CALLER_BOUND_TOOLS; ask_a_person's handoff is bound "
+                                "for you.")
+        return check.with_rules(finding, "", _unbound_rules(unbound, probes))
     observed = "get_orders and get_tickets bound to the signed-in caller"
     if probes and all(read in probes for read in SHOPPER_READS):
         observed = (f"get_orders and get_tickets bound; a call that names {JESSICA} goes out "
                     f"as {THEO}")
-    return check.Finding("3A", title, check.PASSED, expected, observed, evidence)
+    finding = check.Finding("3A", title, check.PASSED, expected, observed, evidence)
+    if probes and all(read in probes for read in SHOPPER_READS):
+        return _pass(finding, check.Rule("Request names Jessica", f"sent as {THEO}"),
+                     check.Rule("Nobody signed in", "refused"))
+    return _pass(finding, check.Rule("Reads bound to the caller", "get_orders, get_tickets"))
+
+
+_NEXT_BIND_READS = ("A read still takes its customer from the request.\n"
+                    "Bind get_orders and get_tickets to the signed-in caller in "
+                    "3A-2-bind-caller.py.")
+
+
+def _unbound_rules(unbound: Sequence[str],
+                   probes: Optional[Dict[str, Dict[str, str]]]) -> List[check.Rule]:
+    """The failing rules for reads the server does not bind, one per forged call."""
+    if not probes or not all(read in probes for read in SHOPPER_READS):
+        return [check.Rule("Reads bound to the caller", ok=False,
+                           expected="get_orders and get_tickets bound",
+                           observed=f"{_and(unbound)} not bound", next_step=_NEXT_BIND_READS)]
+    rules: List[check.Rule] = []
+    sent = [probes[read]["sent"] for read in SHOPPER_READS if probes[read]["sent"] != THEO]
+    if sent:
+        rules.append(check.Rule("Request names Jessica", ok=False, expected=f"sent as {THEO}",
+                                observed=f"the server sends {sent[0]}",
+                                next_step=_NEXT_BIND_READS))
+    open_door = [read for read in SHOPPER_READS if probes[read]["unsigned"] != "refused"]
+    if open_door:
+        rules.append(check.Rule("Nobody signed in", ok=False, expected="refused",
+                                observed=f"sent as {probes[open_door[0]]['unsigned']}",
+                                next_step=_NEXT_BIND_READS))
+    return rules
 
 
 def _staff_rule(managed: Sequence[str]) -> check.Finding:
@@ -235,15 +292,22 @@ def _staff_rule(managed: Sequence[str]) -> check.Finding:
     evidence = ["give_store_credit moves money; Cedar decides each call, and the Router refuses to "
                 "build a shopper agent that names it"]
     named = sorted(set(managed) & STAFF_ONLY)
+    label = "Store credits"
     if named:
-        return check.Finding("3A", title, check.FAILED, expected,
-                             "the Support agent names give_store_credit: publishing does not "
-                             "permit every agent to call a tool, and the Router refuses to "
-                             "build this agent", evidence,
-                             "which of the nine tools moves money? Only the Operator calls it.")
-    return check.Finding("3A", title, check.PASSED, expected,
-                         "publishing does not permit every agent to call a tool: the Support "
-                         "agent does not name give_store_credit", evidence)
+        finding = check.Finding(
+            "3A", title, check.FAILED, expected,
+            "the Support agent names give_store_credit: publishing does not "
+            "permit every agent to call a tool, and the Router refuses to "
+            "build this agent", evidence,
+            "which of the nine tools moves money? Only the Operator calls it.")
+        return _fail(label, finding, "on no shopper agent",
+                     "the Support agent names give_store_credit",
+                     "Remove give_store_credit from the Support agent's tools.\n"
+                     "Only the Operator issues store credit.")
+    finding = check.Finding("3A", title, check.PASSED, expected,
+                            "publishing does not permit every agent to call a tool: the Support "
+                            "agent does not name give_store_credit", evidence)
+    return _pass(finding, check.Rule(label, "on no shopper agent"))
 
 
 def judge_catalog(
@@ -384,9 +448,22 @@ def _expected_tools(search_plan: Optional[Dict[str, Any]]) -> List[tuple]:
     return pairs
 
 
+_BUILD_LABEL = "Build that answered"
+_NEXT_DEPLOY_3B = ("The build that answered is not the one in this workspace.\n"
+                   "Deploy again, then send Theo's requests in a new conversation.")
+
+
 def _build_finding(state: str, observed: str, evidence: List[str],
                    next_step: str = "") -> check.Finding:
-    return check.Finding("3B", _BUILD_TITLE, state, BUILD_EXPECTED, observed, evidence, next_step)
+    finding = check.Finding("3B", _BUILD_TITLE, state, BUILD_EXPECTED, observed, evidence,
+                            next_step)
+    if state == check.PASSED:
+        return _pass(finding, check.Rule(_BUILD_LABEL, "the one deployed from this workspace"))
+    short = _NEXT_DEPLOY_3B if state == check.FAILED else (
+        "A build could not be compared.\nDeploy with --mode participant, then send "
+        "Theo's requests again.")
+    return _fail(_BUILD_LABEL, finding, "the build deployed from this workspace", observed,
+                 short)
 
 
 def judge_build(row: Optional[Dict[str, Any]], local: str,
@@ -400,10 +477,13 @@ def judge_build(row: Optional[Dict[str, Any]], local: str,
     receipt without the choice accepts either.
     """
     if not row:
-        return check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
-                             "no Gateway tool call in a shopper turn yet", [],
-                             f"send Theo's requests: {SEND}."
-                             + check.since_note(3, SEND))
+        finding = check.Finding("3B", _BUILD_TITLE, check.NOT_YET, BUILD_EXPECTED,
+                                "no Gateway tool call in a shopper turn yet", [],
+                                f"send Theo's requests: {SEND}." + check.since_note(3, SEND))
+        return _fail(_BUILD_LABEL, finding, "a Gateway call in one of Theo's turns",
+                     "no Gateway tool call in a shopper turn yet",
+                     'In the guide, open Task 3B and read "Prove the deployed build".\n'
+                     f"Then run: {SEND}")
     deployed = str(row.get("deployed_fingerprint") or "").strip()
     tools_deployed = str(row.get("deployed_tools_fingerprint") or "").strip()
     expected = [("", tools_local)] if tools_local is not None else _expected_tools(search_plan)
@@ -452,6 +532,10 @@ _NEXT_BIND = ("which support tool lets the model choose whose records to read? S
               "deploy with --mode participant.")
 
 
+_NEXT_BIND_3B = ("A ticket read used the wrong customer.\n"
+                 "Bind the customer-reading tools to the signed-in caller, then deploy again.")
+
+
 def judge_tickets(rows: Sequence[Dict[str, Any]],
                   probe: Optional[Dict[str, str]] = None) -> check.Finding:
     """Whose tickets the executed Gateway reads asked for, and whose a forged one would.
@@ -465,25 +549,36 @@ def judge_tickets(rows: Sequence[Dict[str, Any]],
                 for r in rows[-5:]]
     if probe is not None:
         evidence += _probe_lines(probe)
+    label = "Ticket reads in Theo's turns"
     if not rows:
-        return check.Finding("3B", _TICKETS_TITLE, check.NOT_YET, TICKETS_EXPECTED,
-                             "no get_tickets call has run on the Gateway yet", evidence,
-                             f"send Theo's ticket question on the managed path: {SEND}."
-                             + check.since_note(3, SEND))
+        finding = check.Finding("3B", _TICKETS_TITLE, check.NOT_YET, TICKETS_EXPECTED,
+                                "no get_tickets call has run on the Gateway yet", evidence,
+                                f"send Theo's ticket question on the managed path: {SEND}."
+                                + check.since_note(3, SEND))
+        return _fail(label, finding, "at least one ticket read, all Theo's",
+                     "no ticket read has run on the Gateway yet",
+                     'In the guide, open Task 3B and read "Prove the deployed build".\n'
+                     f"Then run: {SEND}")
     others = [r for r in rows if r.get("customer_id") != THEO]
     observed = (f"{check.counted(len(rows), 'executed call')}, "
                 f"{len(rows) - len(others)} for {THEO}, "
                 f"{len(others)} for anyone else")
     if others:
-        return check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
-                             observed, evidence, _NEXT_BIND)
+        finding = check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
+                                observed, evidence, _NEXT_BIND)
+        return _fail(label, finding, "all of them Theo's",
+                     f"{len(others)} of {len(rows)} read someone else's tickets", _NEXT_BIND_3B)
     if probe is not None and not _probe_binds(probe):
-        return check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
-                             observed + f"; a call that names {JESSICA} would go out as "
-                             f"{probe['sent']}", evidence, _NEXT_BIND)
+        finding = check.Finding("3B", _TICKETS_TITLE, check.FAILED, TICKETS_EXPECTED,
+                                observed + f"; a call that names {JESSICA} would go out as "
+                                f"{probe['sent']}", evidence, _NEXT_BIND)
+        return _fail(label, finding, f"a request naming Jessica sent as {THEO}",
+                     f"the server sends {probe['sent']}", _NEXT_BIND_3B)
     if probe is not None:
         observed += f"; a call that names {JESSICA} goes out as {THEO}"
-    return check.Finding("3B", _TICKETS_TITLE, check.PASSED, TICKETS_EXPECTED, observed, evidence)
+    finding = check.Finding("3B", _TICKETS_TITLE, check.PASSED, TICKETS_EXPECTED, observed,
+                            evidence)
+    return _pass(finding, check.Rule(label, f"{len(rows)}, all Theo's own"))
 
 
 def source_probe() -> tuple:
@@ -522,6 +617,31 @@ def _event_text(event: Dict[str, Any]) -> str:
     return ""
 
 
+_MEMORY_LABEL = "Theo's agent used his saved preferences from AgentCore Memory"
+
+
+def _short_preference(text: str, limit: int = 90) -> str:
+    """A preference cut at a word boundary, ending in an ellipsis when it was cut."""
+    flat = " ".join(str(text).split())
+    if len(flat) <= limit:
+        return flat
+    return flat[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "..."
+
+
+def _memory_pass(finding: check.Finding, remembered: Sequence[Dict[str, str]],
+                 used_ids: Sequence[str]) -> check.Verdict:
+    """The preferences the turn used, in plain words, and where they are kept."""
+    used = [item for item in remembered if item["record_id"] in used_ids]
+    notes = [f"\u2022 {_short_preference(item['preference'])}" for item in used]
+    notes.append("Stored under Theo's own customer ID, so no other shopper's agent reads them")
+    return _pass(finding, check.Rule(_MEMORY_LABEL, notes=notes))
+
+
+def _memory_fail(finding: check.Finding, expected: str, observed: str,
+                 next_step: str) -> check.Verdict:
+    return _fail(_MEMORY_LABEL, finding, expected, observed, next_step)
+
+
 def judge_memory(memory_id: str, seeded: Dict[str, Any],
                  remembered: Sequence[Dict[str, str]],
                  used: Optional[Dict[str, Any]] = None,
@@ -543,39 +663,53 @@ def judge_memory(memory_id: str, seeded: Dict[str, Any],
     evidence += [f"record {item['record_id']}: {item['preference'][:90]}" for item in remembered]
     observed = (f"the managed rail's read returns {check.counted(len(ids), 'record')}; "
                 f"Theo's namespace holds {check.counted(len(stored), 'record')}")
+
+    def finding(state: str, text: str, next_step: str = "") -> check.Finding:
+        return check.Finding("3B", _MEMORY_TITLE, state, MEMORY_EXPECTED, text, evidence,
+                             next_step)
+
+    wanted = "preferences from Theo's own Memory, used by the Runtime turn"
+    resend = ('In the guide, open Task 3B and read "Prove the deployed build".\n'
+              "Then run: " + SEND)
     if not seeded.get("events"):
-        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
-                             "Theo's provisioning conversation is missing", evidence,
-                             "rerun scripts/deploy/seed_agentcore_memory.py.")
+        return _memory_fail(finding(check.FAILED, "Theo's provisioning conversation is missing",
+                                    "rerun scripts/deploy/seed_agentcore_memory.py."), wanted,
+                            "Theo's saved conversation is missing",
+                            "Theo's Memory was not seeded. Raise your hand.")
     if not stored:
-        return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED, observed,
-                             evidence, "extraction runs after the conversation; run this "
-                                       "again in a minute.")
+        return _memory_fail(finding(check.NOT_YET, observed, "extraction runs after the "
+                                    "conversation; run this again in a minute."), wanted,
+                            "Memory has not extracted Theo's preferences yet",
+                            "Memory is still extracting.\nRun this check again in a minute.")
     if not ids:
-        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED, observed,
-                             evidence, "the read returned none of Theo's records; check "
-                                       "the namespace /pellier/preferences/CUST-THEO/.")
+        return _memory_fail(finding(check.FAILED, observed, "the read returned none of Theo's "
+                                    "records; check the namespace "
+                                    "/pellier/preferences/CUST-THEO/."),
+                            wanted, "the read returned none of Theo's preferences",
+                            "Memory returned nothing for Theo. Raise your hand.")
     if not used or not used.get("turn_id"):
-        return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED,
-                             "no current Runtime turn records the preferences it used", evidence, SEND)
+        return _memory_fail(finding(check.NOT_YET, "no current Runtime turn records the "
+                                    "preferences it used", SEND), wanted,
+                            "no turn of Theo's records the preferences it used", resend)
     used_ids = used.get("record_ids")
     if (not isinstance(used_ids, list) or not used_ids
             or not all(isinstance(value, str) for value in used_ids)):
-        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
-                             "the Runtime turn records no usable preference record IDs",
-                             evidence, SEND)
+        return _memory_fail(finding(check.FAILED, "the Runtime turn records no usable "
+                                    "preference record IDs", SEND), wanted,
+                            "the turn recorded no preferences it used", resend)
     evidence.append(f"Runtime turn {used['turn_id']} used records {', '.join(used_ids)}")
     missing = [record for record in used_ids if record not in ids]
     if missing and all(record in superseded for record in missing):
         evidence += [f"{record} is no longer in AgentCore Memory" for record in missing]
-        return check.Finding("3B", _MEMORY_TITLE, check.NOT_YET, MEMORY_EXPECTED,
-                             "Memory replaced a record this turn used after the turn ran",
-                             evidence, f"send Theo's requests again, then run this check: {SEND}")
+        return _memory_fail(finding(check.NOT_YET, "Memory replaced a record this turn used "
+                                    f"after the turn ran", f"send Theo's requests again, then "
+                                    f"run this check: {SEND}"), wanted,
+                            "Memory replaced a preference after the turn used it", resend)
     if missing:
-        return check.Finding("3B", _MEMORY_TITLE, check.FAILED, MEMORY_EXPECTED,
-                             "the Runtime turn's records are absent from Theo's Memory read",
-                             evidence, SEND)
-    return check.Finding("3B", _MEMORY_TITLE, check.PASSED, MEMORY_EXPECTED, observed, evidence)
+        return _memory_fail(finding(check.FAILED, "the Runtime turn's records are absent from "
+                                    "Theo's Memory read", SEND), wanted,
+                            "the turn used preferences that are not Theo's", resend)
+    return _memory_pass(finding(check.PASSED, observed), remembered, used_ids)
 
 
 def read_memory_turn() -> Optional[Dict[str, Any]]:
@@ -684,28 +818,39 @@ def judge_probe(payload: Dict[str, Any], audit_rows: Optional[int]) -> check.Fin
     if said:
         evidence.append(f"Gateway diagnostic, verbatim: {said}")
     outcome = payload.get("outcome")
+    label = "Direct read of Jessica's tickets"
+    wanted = "refused by Cedar, with no audit row"
+
+    def finding(state: str, observed: str, next_step: str) -> check.Finding:
+        return check.Finding("3B", _PROBE_TITLE, state, PROBE_EXPECTED, observed, evidence,
+                             next_step)
+
     if outcome == "allow":
-        return check.Finding("3B", _PROBE_TITLE, check.FAILED, PROBE_EXPECTED,
-                             "the Gateway ran the read for Jessica's tickets", evidence,
-                             "check that get_tickets_owner_only is deployed and active.")
+        return _fail(label, finding(check.FAILED, "the Gateway ran the read for Jessica's "
+                                    "tickets", "check that get_tickets_owner_only is deployed "
+                                    "and active."), wanted, "the Gateway ran the read",
+                     "The Gateway ran a read it should have refused.\nRaise your hand.")
     if outcome != "deny" or not payload.get("cedar_denial"):
-        return check.Finding("3B", _PROBE_TITLE, check.COULD_NOT_CHECK, PROBE_EXPECTED,
-                             "the call failed for another reason, so it says nothing about "
-                             "Cedar", evidence,
-                             "read the Gateway's words above; a 401 or a transport error is "
-                             "not a policy decision.")
+        return _fail(label, finding(check.COULD_NOT_CHECK, "the call failed for another reason, "
+                                    "so it says nothing about Cedar", "read the Gateway's words "
+                                    "above; a 401 or a transport error is not a policy "
+                                    "decision."), wanted, "the call failed for another reason",
+                     "The call failed before Cedar decided.\nRun this check again.")
     if audit_rows is None:
-        return check.Finding("3B", _PROBE_TITLE, check.COULD_NOT_CHECK, PROBE_EXPECTED,
-                             "Cedar denied it, but the tool_audit rows could not be read",
-                             evidence, "run this where the database settings are readable; "
-                                       "a denial is half the proof, the absent row the other.")
+        return _fail(label, finding(check.COULD_NOT_CHECK, "Cedar denied it, but the tool_audit "
+                                    "rows could not be read", "run this where the database "
+                                    "settings are readable; a denial is half the proof, the "
+                                    "absent row the other."), wanted,
+                     "refused, but the audit rows could not be read",
+                     "Run this check where the database settings are readable.")
     if audit_rows != 0:
-        return check.Finding("3B", _PROBE_TITLE, check.FAILED, PROBE_EXPECTED,
-                             "denied, but its turn left "
-                             + check.counted(audit_rows, "tool_audit row"),
-                             evidence, "a denied call must leave no row; read those rows.")
-    return check.Finding("3B", _PROBE_TITLE, check.PASSED, PROBE_EXPECTED,
-                         "Cedar denied it before the tool ran; no row was written", evidence)
+        return _fail(label, finding(check.FAILED, "denied, but its turn left "
+                                    + check.counted(audit_rows, "tool_audit row"),
+                                    "a denied call must leave no row; read those rows."),
+                     wanted, f"refused, but {check.counted(audit_rows, 'audit row')} was written",
+                     "A refused call must leave no audit row.\nRaise your hand.")
+    return _pass(finding(check.PASSED, "Cedar denied it before the tool ran; no row was "
+                         "written", ""), check.Rule(label, wanted))
 
 
 def run_probe(cfg: Optional[Dict[str, str]]) -> check.Finding:
@@ -806,23 +951,26 @@ def findings_3a() -> List[check.Finding]:
                               "run this from the repository root, with the backend's Python.")]
 
 
-def main_3a() -> int:
-    """Task 3A from source, before any deploy: one finding per rule."""
+HEADLINE_3A = ("Lab 3A: the server binds the caller, so the model cannot pick whose data it "
+               "reads.")
+
+
+def main_3a(argv: Optional[Sequence[str]] = None) -> int:
+    """Task 3A from source, before any deploy: one rule per claim, a box per rule on --details."""
     findings = findings_3a()
-    print(check.wrapped("", "Lab 3A: the Support agent, assembled for AgentCore"))
-    for finding in findings:
-        print(check.render(finding))
-    passed = all(finding.state == check.PASSED for finding in findings)
-    print(check.closing("Lab 3A check", passed, "3A"))
-    return 0 if passed else 1
+    heading = check.wrapped("", "Lab 3A: the Support agent, assembled for AgentCore")
+    # The binding is the lesson, so its rules lead; publishing and the staff-only tool follow.
+    shown = [findings[2], findings[0], findings[1], findings[3]] if len(findings) == 4 else findings
+    verdict = check.combine("3A", HEADLINE_3A, shown)
+    return 0 if check.emit(verdict, argv, "Lab 3A check", "3A", [heading], findings) else 1
 
 
-NOT_FINISHED_3B = ("Lab 3B check not finished: read the Next line in the box marked "
-                   "NOT YET PASSED")
+NOT_FINISHED_3B = "Lab 3B check not finished: read the Next line under each mark"
+HEADLINE_3B = "Lab 3B: Aurora enforces ownership too, on the deployed AgentCore path."
 
 
 def closing_3b(findings: Sequence[check.Finding]) -> str:
-    """Passed, failed, or not finished: only NOT YET PASSED boxes open ends in orange, as 4A does.
+    """Passed, failed, or not finished: only NOT YET PASSED rules open ends in orange, as 4A does.
 
     A Memory record replaced after the turn, or no Runtime turn sent yet, is unfinished work with a
     Next line, not a fault in what the participant built.
@@ -840,20 +988,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--task", choices=("3A", "3B"), required=True,
                         help="3A checks the two Task 3A regions from source; 3B reads Theo's "
                              "managed turns")
+    parser.add_argument("--details", action="store_true",
+                        help="Print the full Expected, Observed and Evidence box for each rule")
     task = parser.parse_args(argv).task
     if check.refuse_missing_lab_file(3):
         return 1
     if task == "3A":
-        return main_3a()
-    print(check.wrapped("", "Lab 3B: Theo's managed turns, read from tool_audit, AgentCore "
-                            "Memory, the Gateway and the row policies"), flush=True)
+        return main_3a(argv)
+    heading = check.wrapped("", "Lab 3B: Theo's managed turns, read from tool_audit, AgentCore "
+                                "Memory, the Gateway and the row policies")
+    print(heading, flush=True)
     with waiting("Reading tool_audit, AgentCore Memory, the Gateway and the row policies",
                  typical=4):
         findings = collect()
-    for finding in findings:
-        print(check.render(finding))
-    passed = all(finding.state == check.PASSED for finding in findings)
-    print(closing_3b(findings))
+    import lab3_row_ownership_check as ownership
+
+    paths = [f for f in findings if getattr(f, "data", None)]
+    rest = [f for f in findings if f not in paths]
+    verdict = check.combine("3B", HEADLINE_3B, rest, matrix=ownership.paths_matrix(paths),
+                            covered=paths)
+    passed = check.emit(verdict, argv, "Lab 3B check", "3B", boxes=findings,
+                        closing_line=closing_3b(findings))
     return 0 if passed else 1
 
 

@@ -82,15 +82,28 @@ def test_the_colour_never_changes_the_box(at_a_terminal, monkeypatch, state) -> 
 
 
 def test_a_pass_says_what_to_do_next_and_a_failure_does_not() -> None:
-    passed = check.closing("Lab 1A check", True, "1A").splitlines()
-    assert passed[:2] == ["Lab 1A check passed", ""]
-    assert passed[2].startswith("Next: Task 1B.")
-    assert passed[3] == "      uv run scripts/lab_run.py send --lab 1 --task 1B"
-    assert check.closing("Lab 1A check", False, "1A") == "Lab 1A check failed"
+    passed = check.closing("Lab 2A check", True, "2A").splitlines()
+    assert passed[:2] == ["Lab 2A check passed", ""]
+    assert passed[2] == ('Next  In the guide, open Task 2B and read "Ask about a product '
+                         'Pellier does not carry".')
+    assert passed[3] == "      Then run: uv run scripts/lab_run.py send --lab 2 --task 2B"
+    assert check.closing("Lab 2A check", False, "2A") == "Lab 2A check failed"
+    assert check.closing("Lab 1A check", True, "1A") == "Lab 1A check passed"
 
 
 def test_every_task_has_a_next_step() -> None:
-    assert sorted(check.NEXT_AFTER_PASS) == sorted(lab_run.TASKS)
+    """Every pass names its next step, except 1A's: its pass line is its last line and the
+    guide's Next button leads on to Task 1B."""
+    assert sorted(check.NEXT_AFTER_PASS) == sorted(set(lab_run.TASKS) - {"1A"})
+
+
+def test_every_next_names_the_guide_step_before_the_command() -> None:
+    for steps in [*check.NEXT_AFTER_PASS.values(), *lab_run.NEXT_AFTER_SEND.values(),
+                  *(steps for _told, steps in lab_run.AFTER_2B_SEND.values()),
+                  *lab_run.NEXT_AFTER_LAB_SEND.values(), *lab_run.NEXT_AFTER_TASK.values(),
+                  *lab_run.NEXT_AFTER_SOLUTION.values(), *lab_run.NEXT_AFTER_FINISH.values()]:
+        assert steps[0].startswith("In the guide, open "), steps
+        assert all(not step.startswith("In the guide") for step in steps[1:])
 
 
 def _commands(lines) -> list:
@@ -101,6 +114,9 @@ def test_every_command_a_next_line_names_exists() -> None:
     lines = [line for steps in check.NEXT_AFTER_PASS.values() for line in steps]
     lines += [line for steps in lab_run.NEXT_AFTER_SEND.values() for line in steps]
     lines += [line for steps in lab_run.NEXT_AFTER_LAB_SEND.values() for line in steps]
+    lines += [line for steps in lab_run.NEXT_AFTER_TASK.values() for line in steps]
+    lines += [line for steps in lab_run.NEXT_AFTER_SOLUTION.values() for line in steps]
+    lines += [line for steps in lab_run.NEXT_AFTER_FINISH.values() for line in steps]
     lines += [line for path in SQL_FILES for line in path.read_text().splitlines()
               if line.lstrip().startswith(r"\echo '") and ("uv run" in line or "Next:" in line)]
     named = _commands(lines)
@@ -109,7 +125,7 @@ def test_every_command_a_next_line_names_exists() -> None:
         assert (REPO / (script or sql)).exists(), script or sql
 
 
-@pytest.mark.parametrize("task", sorted(lab_run.SEND_REGIONS))
+@pytest.mark.parametrize("task", sorted({task for task, _ in lab_run.NEXT_AFTER_SEND}))
 def test_a_send_names_the_fault_before_the_fix_and_the_check_after(task, tmp_path) -> None:
     source, label, starter = lab_run.SEND_REGIONS[task]
     assert check.region_state(REPO / source, label, REPO / starter) == check.STARTER
@@ -151,20 +167,23 @@ def test_a_catch_up_asks_its_commands_for_no_next_block(monkeypatch) -> None:
     """finish and fast-track run the next step themselves, so a Next block would mislead."""
     monkeypatch.delenv(check.NO_NEXT_ENV, raising=False)
     with lab_run._no_next_lines():
-        assert check.closing("Lab 1A check", True, "1A") == "Lab 1A check passed"
-    assert "Next: Task 1B." in check.closing("Lab 1A check", True, "1A")
+        assert check.closing("Lab 1B check", True, "1B") == "Lab 1B check passed"
+    assert "open Lab 2" in check.closing("Lab 1B check", True, "1B")
     assert "quiet_next=1" in lab_run._executable(["psql", "-f", "x.sql"])
 
 
 def test_every_sql_next_block_stays_quiet_inside_a_catch_up() -> None:
+    """A pass asks for a Next only outside a catch-up: ``\\if :{?quiet_next}`` is empty and its
+    ``\\else`` holds the block. A failure's Next always prints, so it sits outside it."""
     blocks = 0
     for path in SQL_FILES:
-        lines = path.read_text().splitlines()
+        lines = [line.strip() for line in path.read_text().splitlines()]
         for number, line in enumerate(lines):
-            if "\\echo 'Next: " in line:
+            if line == r"\if :{?quiet_next}":
                 blocks += 1
-                assert lines[number - 3].strip() == r"\if :{?quiet_next}", path.name
-                assert lines[number - 2].strip() == r"\else", path.name
+                assert lines[number + 1] == r"\else", path.name
+                assert lines[number + 2] == "\\echo ''", path.name
+                assert lines[number + 3].startswith(("\\echo 'Next  ", "\\echo 'Next: ")), path.name
     assert blocks == 10
 
 
@@ -181,8 +200,10 @@ def test_a_right_rule_that_is_not_deployed_yet_is_not_called_a_failure(at_a_term
     lines = lab4_policy.closing(True, waiting).splitlines()
     assert check.plain(lines[0]) == lab4_policy.NOT_DEPLOYED_CLOSING
     assert "failed" not in lines[0] and lines[0].startswith("\033[38;5;208m")
-    assert lines[1] == "" and lines[2].startswith("Next: deploy your rule.")
-    assert lines[3].strip() == lab_run.DEPLOY
+    assert lines[1] == "" and lines[2].startswith("Next  In the guide, open Task 4A")
+    assert check.plain(lines[-1]).strip() == "Then run: " + lab_run.DEPLOY
+    assert lines[-1].endswith(check.COMMAND_COLOUR + lab_run.DEPLOY + "\033[0m"), (
+        "at a terminal the command to run is bold")
 
 
 def test_every_other_4a_outcome_keeps_its_pass_or_fail_line(at_a_terminal) -> None:
@@ -201,10 +222,11 @@ def test_a_long_next_sentence_wraps_at_a_word_and_a_command_stays_whole() -> Non
     """Event 2026-11-10: a 131-column Next sentence broke mid-word at the terminal's edge."""
     for steps in [*check.NEXT_AFTER_PASS.values(), *lab_run.NEXT_AFTER_SEND.values()]:
         lines = check.next_lines(steps, width=100).splitlines()
-        told = [line for line in lines if line.strip() not in steps[1:]]
+        commands = ["Then run: " + step for step in steps[1:]]
+        told = [line for line in lines if line.strip() not in commands]
         assert all(len(line) <= 100 for line in told), told
-        assert " ".join(line.removeprefix("Next: ").strip() for line in told) == steps[0]
-        assert [line.strip() for line in lines[len(told):]] == steps[1:]
+        assert " ".join(line.removeprefix("Next  ").strip() for line in told) == steps[0]
+        assert [line.strip() for line in lines[len(told):]] == commands
     assert len(check.next_lines(check.NEXT_AFTER_PASS["4B"], width=100).splitlines()) == 3
 
 
@@ -240,7 +262,9 @@ def test_a_sql_file_that_stops_says_so_and_names_the_line_to_read() -> None:
             if not found:
                 continue
             seen += 1
-            start = max(i for i in range(index) if BRANCH.match(lines[i].strip()))
+            indent = len(line) - len(line.lstrip())
+            start = max(i for i in range(index) if BRANCH.match(lines[i].strip())
+                        and len(lines[i]) - len(lines[i].lstrip()) < indent)
             named = "Next" if any(r"\echo 'Next" in said for said in lines[start:index]) \
                 else "Observed"
             where = f"{path.relative_to(REPO)}:{index + 1}"

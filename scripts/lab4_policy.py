@@ -67,6 +67,7 @@ from render_agentcore_project import (  # noqa: E402
     STORE_TARGET,
     baseline_policies,
 )
+import card_vocabulary as card  # noqa: E402  (sibling module)
 from services.operator_review import (  # noqa: E402
     POLICY_CHECK_DECIDER,
     POLICY_CHECK_PROBE_ISSUE as PROBE_ISSUE,
@@ -534,6 +535,75 @@ def _local_state(*, unchanged: bool, head_kept: bool, extra_policies: bool, your
     return check.FAILED, _next_step(yours)
 
 
+SOLUTION_4A = "uv run scripts/lab_run.py solution --lab 4 --task 4A"
+HEADLINE_4A = "Lab 4A: Cedar decides what may be attempted: a credit up to $100."
+INTRO_4A = ("Cedar is the policy language the Gateway uses to decide whether a call may run. "
+            "DENY means refused before the tool runs.")
+_MAX_ROWS = 3
+
+
+def _short_next(*, unchanged: bool, head_kept: bool, extra_policies: bool, yours: Assessment,
+                escaped: Sequence[str], counterfactual_holds: bool) -> str:
+    """The diagnosis for this run in at most two short lines."""
+    if unchanged:
+        return ('In the guide, open Task 4A and read "Apply the fix".\n'
+                f"Then run: {SOLUTION_4A}")
+    if not head_kept:
+        return "Your edit changed lines before the unless block.\nEdit only the final unless block."
+    if extra_policies:
+        return "The file holds more than one policy.\nKeep one policy, the forbid."
+    if escaped or not counterfactual_holds:
+        return ("The check itself is not sound here.\n"
+                "Raise your hand. Don't change your rule for it.")
+    if yours.errors:
+        return "Cedar can't read your rule.\nFix the typo, then run this check again."
+    wrong = yours.wrong
+    if any(request.tool != "give_store_credit" for request, _d in wrong):
+        return "Your rule changed other tools.\nEdit only the final unless block."
+    missed = {(request.caller.label, request.cents) for request, _d in wrong}
+    if ("Nadia", PROBE_CENTS) in missed or ("Another staff member", PROBE_CENTS) in missed:
+        return "Your rule lets $100.01 through.\nAllow a credit only up to $100.00."
+    if ("Nadia", LIMIT_CENTS) in missed and ("Nadia", 9999) not in missed:
+        return "Your rule refuses exactly $100.00.\nThe limit itself must be allowed."
+    return "Your rule refuses a credit under the limit.\nCompare the amount in cents with 10000."
+
+
+def _decision_word(decision: str) -> str:
+    return "allowed" if decision == ALLOW else "denied"
+
+
+def _local_rules(yours: Assessment, escaped: Sequence[str], caught: int, table: Sequence[Any],
+                 short: str, state: str) -> List[check.Rule]:
+    """The local part's rules: the decisions that matter, then only what is wrong."""
+    if state == check.PASSED:
+        nadia = {cents: yours.decision_for(NADIA, cents) for cents in (LIMIT_CENTS, PROBE_CENTS)}
+        shopper = yours.decision_for(SHOPPER, LIMIT_CENTS)
+        matched = sum(1 for row in table if row[-1] == "matches")
+        return [
+            check.Rule("Nadia asks for $100.00", _decision_word(nadia[LIMIT_CENTS].decision)),
+            check.Rule("Nadia asks for $100.01", _decision_word(nadia[PROBE_CENTS].decision)),
+            check.Rule("A shopper asks for any credit",
+                       _decision_word(shopper.decision) if shopper else "denied"),
+            check.Rule("Decisions with your rule",
+                       f"{matched} of {len(table)} decisions match"),
+            check.Rule(f"{caught} wrong versions of the rule", "all caught"),
+        ]
+    if yours.errors:
+        return [check.Rule("Your rule", ok=False, expected="Cedar reads it",
+                           observed=_first_wrong(yours), next_step=short)]
+    rules = [check.Rule(request.label, ok=False,
+                        expected=_decision_word(request.want),
+                        observed=_decision_word(got.decision),
+                        next_step=short if index == 0 else "")
+             for index, (request, got) in enumerate(yours.wrong[:_MAX_ROWS])]
+    more = len(yours.wrong) - _MAX_ROWS
+    if more > 0:
+        rules.append(check.Rule(f"And {more} more decisions", ok=False,
+                                observed="they differ from what was expected"))
+    return rules or [check.Rule("Your rule", ok=False, expected="the $100 limit",
+                                observed=state.lower(), next_step=short)]
+
+
 def _no_unless_block(rule_text: str) -> LocalResult:
     finding = check.Finding("4A", _LOCAL_TITLE, check.FAILED, _LOCAL_EXPECTED,
                             "the policy has no final unless block",
@@ -542,7 +612,12 @@ def _no_unless_block(rule_text: str) -> LocalResult:
                             "restore the original with cp workshop/starters/"
                             f"credit_limit.cedar {POLICY_LINK}, "
                             "then edit only its final unless block.")
-    return LocalResult(finding, [])
+    rule = check.Rule("Your rule", ok=False, expected="a final unless block",
+                      observed="the policy has no final unless block",
+                      next_step="Restore the original rule, then edit only its final unless "
+                                f"block.\nThen run: cp workshop/starters/credit_limit.cedar "
+                                f"{POLICY_LINK}")
+    return LocalResult(check.with_rules(finding, HEADLINE_4A, [rule], INTRO_4A), [])
 
 
 def local_check(rule_text: str, starter_text: str) -> LocalResult:
@@ -580,8 +655,13 @@ def local_check(rule_text: str, starter_text: str) -> LocalResult:
         rule_text, rule=rule, head_kept=head_kept, policies=policies, yours=yours,
         caught=caught, alone=alone, baseline=baseline,
         tools=len(schema["AgentCore"]["actions"]) - 2)
-    return LocalResult(check.Finding("4A", _LOCAL_TITLE, state, _LOCAL_EXPECTED, observed,
-                                     evidence, next_step), table)
+    short = _short_next(unchanged=rule_text == starter_text, head_kept=head_kept,
+                        extra_policies=extra_policies, yours=yours, escaped=escaped,
+                        counterfactual_holds=counterfactual_holds)
+    finding = check.Finding("4A", _LOCAL_TITLE, state, _LOCAL_EXPECTED, observed, evidence,
+                            next_step)
+    rules = _local_rules(yours, escaped, len(caught), table, short, state)
+    return LocalResult(check.with_rules(finding, HEADLINE_4A, rules, INTRO_4A), table)
 
 
 # ---------------------------------------------------------------------------
@@ -740,10 +820,34 @@ def judge_recorded_probe(row: Optional[Dict[str, Any]]) -> check.Finding:
                          "the Gateway denied it and its key left no row", evidence)
 
 
+def _card_rule(label: str, row: Any) -> check.Rule:
+    """One Operator-card row: label, status word, one plain sentence."""
+    status, sentence = row
+    return check.Rule(label, sentence, status=status)
+
+
 def _managed_finding(state: str, observed: str, evidence: List[str],
                      next_step: str = "") -> check.Finding:
-    return check.Finding("4A", _MANAGED_TITLE, state, MANAGED_EXPECTED, observed, evidence,
-                         next_step)
+    finding = check.Finding("4A", _MANAGED_TITLE, state, MANAGED_EXPECTED, observed, evidence,
+                            next_step)
+    if state == check.PASSED:
+        return check.with_rules(finding, "", [
+            _card_rule(card.APPROVAL, (card.NO_APPROVAL_TAG, card.NO_APPROVAL_SENTENCE)),
+            _card_rule(card.POLICY, card.policy_row(DENY, tool_ran=False)),
+            _card_rule(card.RECORDED, card.not_written())])
+    waiting = observed == NOT_DEPLOYED
+    rule = check.Rule("The Gateway enforces your rule", ok=None if state == check.COULD_NOT_CHECK
+                      else False, expected="your rule deployed, and $100.01 denied",
+                      observed=observed, next_step="" if waiting else _MANAGED_NEXT.get(
+                          state, "Run this check again after your deploy finishes."))
+    return check.with_rules(finding, "", [rule])
+
+
+_MANAGED_NEXT = {
+    check.FAILED: "The Gateway let an over-limit credit through.\nRaise your hand.",
+    check.COULD_NOT_CHECK: "The check could not reach the Gateway.\nRun it again on the "
+                           "workshop box.",
+}
 
 
 def _deployed_rule_gap(deployed: Optional[str], local_rule: str, local_proved: bool,
@@ -906,7 +1010,8 @@ def managed_check(
 NOT_DEPLOYED = "the deployed rule is not your file yet"
 NOT_DEPLOYED_CLOSING = ("Lab 4A check not finished: your rule passes on this machine and is not "
                         "deployed yet")
-NEXT_DEPLOY = ["deploy your rule. Leave it running and start Task 4B in your second terminal.",
+NEXT_DEPLOY = ['In the guide, open Task 4A and read "Check your rule, then deploy it". Leave the '
+               "deploy running and start Task 4B in your second terminal.",
                'uv run scripts/provision_agentcore_end_to_end.py --repo-path "$PWD" '
                '--mode participant']
 
@@ -930,21 +1035,25 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--details", action="store_true",
+                        help="Print the full decision table and the Expected, Observed and "
+                             "Evidence boxes")
     parser.parse_args(argv)
     if check.refuse_missing_lab_file(4):
         return 1
     rule_text = POLICY_FILE.read_text(encoding="utf-8")
     local = local_check(rule_text, STARTER_FILE.read_text(encoding="utf-8"))
-    print(check.wrapped("", "Lab 4A, part 1: your rule, evaluated with Cedar beside the "
-                            "baseline (nothing deployed)"))
-    if local.table:
-        print_table(local.table)
-    print(check.render(local.finding))
-    print("")
-    print(check.wrapped("", "Lab 4A, part 2: the deployed rule and one over-limit credit "
-                            "through the Gateway"))
-    managed = managed_check(local, rule_text, check.db_config())
-    print(check.render(managed))
     local_passed = local.finding.state == check.PASSED
-    print(closing(local_passed, managed))
+    managed = managed_check(local, rule_text, check.db_config())
+    findings = [local.finding, managed]
+    verdict = check.combine("4A", HEADLINE_4A, findings, INTRO_4A)
+    if local_passed and managed.state == check.PASSED:
+        verdict.state = check.PASSED
+    tables = [check.wrapped("", "Lab 4A, part 1: your rule, evaluated with Cedar beside the "
+                                "baseline (nothing deployed)")]
+    if local.table:
+        tables.append(check.table(["request", "baseline alone", "original", "with your rule",
+                                   "expected", "verdict"], local.table))
+    check.emit(verdict, argv, "Lab 4A check", "4A", tables, findings,
+                        closing_line=closing(local_passed, managed))
     return 0 if local_passed and managed.state == check.PASSED else 1

@@ -38,19 +38,20 @@ def table_with(stdout: str, column: str) -> List[Dict[str, str]]:
     return next((rows for rows in tables(stdout) if rows and column in rows[0]), [])
 
 
-def probes(stdout: str) -> Dict[str, List[str]]:
-    """Each probe as name -> [expected, observed, source, verdict].
+_MARKS = {"✓": "matches", "✗": "does not match"}
 
-    The first table lists every probe with its result and what it observed, and in Lab 4B
-    why; a failed run repeats each probe that differs with what was expected (and, in Lab 2B,
-    the call that observed it).
-    A matching probe's expected value is its observed one.
+
+def probes(stdout: str) -> Dict[str, List[str]]:
+    """Each test as name -> [expected, observed, source, verdict], from the one results table.
+
+    The table has Test, Should return or Should be, Is now and OK columns. A test that passes
+    shows the same short answer in both columns, or leaves Is now empty in the files that still
+    do, so its observed value is its expected one; a failing test shows both whole. ``source`` is always empty. The verdict reads ``matches`` or ``does not match``.
     """
-    differs = {row["Does not match"]: row for row in table_with(stdout, "Does not match")}
+    main = next((rows for rows in tables(stdout) if rows and "OK" in rows[0]), [])
     out: Dict[str, List[str]] = {}
-    for row in table_with(stdout, "Test"):
-        name, observed = row["Test"], row["Observed"]
-        detail = differs.get(name, {})
-        source = row.get("Source") or detail.get("Source", "")
-        out[name] = [detail.get("Expected", observed), observed, source, row["Result"]]
+    for row in main:
+        expected = row.get("Should return") or row.get("Should be", "")
+        observed = row["Is now"] or expected
+        out[row["Test"]] = [expected, observed, "", _MARKS[row["OK"]]]
     return out

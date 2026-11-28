@@ -86,10 +86,16 @@ def test_a_request_with_nothing_to_keep_asks_for_the_guides_request(requested, o
     assert "uv run scripts/lab_run.py send --lab 1" in finding.next_step
 
 
-def test_a_first_pass_answer_is_not_yet_and_does_not_blame_the_fallback() -> None:
-    finding = _judge(_receipt(relaxations=[]), ["80 Sunday Morning Candle is excluded candle"])
+@pytest.mark.parametrize("ids, observed", [
+    (["22"], "No retry ran for this request."),
+    ([], "Anna's latest search returned no products"),
+])
+def test_a_search_without_a_retry_reports_what_the_receipt_shows(ids, observed) -> None:
+    receipt = _receipt(relaxations=[])
+    finding = lab1._judge(receipt, lab1.requested_limits(receipt), ids, [])
     assert finding.state == "NOT YET PASSED"
-    assert finding.observed.startswith("the first search answered, so the retry never ran")
+    assert finding.observed == observed
+    assert lab1.SEND in finding.next_step
     assert "_next_attempt" not in finding.next_step
 
 
@@ -294,3 +300,132 @@ def test_no_systemctl_leaves_the_start_unknown(monkeypatch: pytest.MonkeyPatch) 
 
     monkeypatch.setattr(lab1.check.subprocess, "run", _missing)
     assert lab1.timeline().started_at is None
+
+
+# ---------------------------------------------------------------------------
+# What the participant reads: the pass, the failure, and Lab 1's ending
+# ---------------------------------------------------------------------------
+REQUESTED = lab1.limits_of({"price_max_usd": 100, "in_stock_only": True}, ["candle"])
+
+
+def test_a_pass_says_what_the_retry_kept_and_how_many_gifts_met_it() -> None:
+    finding = _judge(_receipt())
+    text = lab1.check.compact(finding)
+    assert text.splitlines() == ["The retry kept   In stock, $100 or less, no candles",
+                                 "All 2 gifts met those requirements."]
+
+
+def test_a_retry_that_lost_every_requirement_is_one_cross_with_one_next() -> None:
+    lost = {"price_max_usd": None, "in_stock_only": False, "categories": []}
+    text = lab1.check.compact(_judge(_receipt(kept=lost, exclusions=[])))
+    assert text.count("\u2717") == 1 and text.count("Next") == 1
+    assert "in stock, $100 or less, no candles" in text and "dropped all three" in text
+    assert "1B-search-plan.py" in text and lab1.SEND in text
+
+
+def test_a_retry_that_kept_some_names_what_it_kept_and_what_it_dropped() -> None:
+    some = {"price_max_usd": None, "in_stock_only": True, "categories": []}
+    text = " ".join(lab1.check.compact(_judge(_receipt(kept=some))).split())
+    assert "kept in stock, no candles; dropped $100 or less" in text
+
+
+def test_after_the_pass_comes_pellier_then_the_lab_1_row_only_when_1a_passes_too(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(lab1.check.NO_NEXT_ENV, raising=False)
+    monkeypatch.setattr(lab1.check, "terminal_width", lambda: 120)
+    complete = lab1.after_pass(REQUESTED, True)
+    assert complete[:4] == list(lab1.SEE_IT_IN_PELLIER)
+    assert complete[5] == "What you’ve proved · 1 of 4 labs"
+    assert " ".join(complete[6].split()) == "Lab What you added What you proved"
+    assert " ".join(complete[7].split()) == (
+        "1 · Retrieve Search by meaning and a retry that keeps Anna’s rules "
+        "Anna’s retry kept all three rules.")
+    assert len(complete) == 8
+    assert lab1.after_pass(REQUESTED, False) == list(lab1.SEE_IT_IN_PELLIER)
+    monkeypatch.setenv(lab1.check.NO_NEXT_ENV, "1")
+    assert lab1.after_pass(REQUESTED, True)[0].startswith("What you\u2019ve proved")
+
+
+@pytest.mark.parametrize("width", [60, 80, 100])
+def test_the_lab_1_row_keeps_both_columns_readable(width: int) -> None:
+    lines = lab1.completion_row(REQUESTED, width=width)
+    assert all(len(line) <= width for line in lines)
+    added = lines[1].index("What you added")
+    proved = lines[1].index("What you proved")
+    assert [word for line in lines[2:] for word in line[added:proved].split()] == (
+        "Search by meaning and a retry that keeps Anna’s rules".split())
+    assert [word for line in lines[2:] for word in line[proved:].split()] == (
+        "Anna’s retry kept all three rules.".split())
+
+
+@pytest.mark.parametrize("state", ["FAILED", "NOT YET PASSED", "COULD NOT CHECK"])
+def test_a_check_that_did_not_pass_never_prints_the_lab_1_row(
+    state: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    finding = lab1.check.Finding("1B", "t", state, "e", "o", [], "next")
+    monkeypatch.setattr(lab1, "run", lambda: (finding, []))
+    monkeypatch.setattr(lab1.check, "refuse_missing_lab_file", lambda lab: False)
+    monkeypatch.setattr(lab1, "lab_1_complete", lambda: True)
+    assert lab1.main([]) == 1
+    out = capsys.readouterr().out
+    assert "proved" not in out and "See it in Pellier" not in out
+
+
+def test_the_lab_1_row_heading_is_green_on_a_terminal(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(lab1.check, "colour_enabled", lambda stream=None: True)
+    assert lab1.completion_row(REQUESTED, width=100)[0].startswith("\033[32mWhat you")
+
+
+# ---------------------------------------------------------------------------
+# The 1B check judges the turn the last 1B send recorded, never an older turn's search
+# ---------------------------------------------------------------------------
+def _record(turn: Optional[str]) -> None:
+    path = lab1.check.lab1_retry_turn_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("" if turn is None else json.dumps({"session": "persona-anna-x",
+                                                         "turn": turn}))
+
+
+def test_a_recorded_request_that_ran_no_search_is_not_a_pass() -> None:
+    """Codex's review: the Router answered without a search, and an earlier turn's retry passed."""
+    _record("turn-no-search")
+    conn = _Conn(None, [])  # nothing in pellier.retrieval_receipts for that turn
+    finding, rows = lab1.evaluate(conn)
+    assert finding.state == "NOT YET PASSED" and rows == []
+    assert finding.observed == "There is no search receipt for Anna's latest request."
+    text = lab1.check.compact(finding)
+    assert "send --lab 1 --task 1B" in text and "gifts met" not in text
+
+
+def test_a_send_that_did_not_finish_is_not_judged() -> None:
+    _record(None)
+    finding, rows = lab1.evaluate(_Conn(_receipt(), [CANDLE]))
+    assert finding.state == "NOT YET PASSED" and finding.observed == lab1.UNFINISHED
+    assert rows == []
+
+
+def test_with_no_record_the_check_reads_annas_newest_search_as_before() -> None:
+    assert lab1.recorded_turn() == (False, None)
+    receipt = _receipt()
+    receipt.update(created_at=RAN, citation_ids=["65"])
+    mugs = {"product_id": "65", "name": "Stoneware Mugs, Set of 2", "price": 38,
+            "quantity": 24, "category": "Kitchen", "tags": [], "materials": []}
+    assert lab1.evaluate(_Conn(receipt, [mugs]))[0].state == "PASSED"
+
+
+def test_a_recorded_turn_with_its_own_retry_is_judged() -> None:
+    _record("turn-with-retry")
+    receipt = _receipt()
+    receipt.update(created_at=RAN, citation_ids=["65"])
+    mugs = {"product_id": "65", "name": "Stoneware Mugs, Set of 2", "price": 38,
+            "quantity": 24, "category": "Kitchen", "tags": [], "materials": []}
+    assert lab1.recorded_turn() == (True, "turn-with-retry")
+    assert lab1.evaluate(_Conn(receipt, [mugs]))[0].state == "PASSED"
+
+
+def test_invalid_marker_bytes_withhold_a_verdict_and_do_not_fall_back() -> None:
+    path = lab1.check.lab1_retry_turn_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(b"\xff")
+    assert lab1.recorded_turn() == (True, None)

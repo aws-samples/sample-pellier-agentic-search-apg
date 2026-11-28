@@ -37,13 +37,11 @@ def test_a_failed_attempt_beside_the_applied_credit_keeps_both_proofs_passing(
 
     absence = _psql(fresh_db, ABSENCE)
     assert absence.returncode == 0, absence.stdout + absence.stderr
-    assert "Observed  0, 0, 1 and 1" in absence.stdout
-    assert "1 other attempt for the allowed key did not apply" in absence.stdout
+    assert "1 other attempt for this key did not apply; the audit keeps it." in absence.stdout
     assert "Lab 4 absence check passed" in absence.stdout
 
     story = _worksheet(fresh_db, RECONSTRUCT)
     assert story.returncode == 0, story.stdout + story.stderr
-    assert "give_store_credit ran with the review's key (gateway)" in story.stdout
-    assert "give_store_credit was tried with the key and did not apply (gateway)" in story.stdout
-    assert "1 other attempt with the key did not apply" in story.stdout
+    assert "1 credit for this key, 1 audit row that applied it" in story.stdout
+    assert "1 other attempt with the key did not apply; the audit keeps it." in story.stdout
     assert story.stdout.rstrip().endswith("Wrap-up reconstruction passed")

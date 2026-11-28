@@ -80,7 +80,8 @@ def test_every_trace_line_fits_and_keeps_its_words(
     text = "\n".join(trace.render_call(CALL, {"7f1c2e90-jessica": "jessica"}, RUNTIME,
                                       AURORA[which]))
     assert_fits(text, width)
-    assert MODEL in text and TURN in text and KEY in text.replace("\n", " ") or which != "insert"
+    assert KEY in text.replace("\n", " ") or which != "insert"
+    assert MODEL not in text and TURN not in text
     for label, sentence in (("Runtime", trace.runtime_summary(CALL, RUNTIME)),
                             ("Aurora", AURORA[which])):
         block = _block(text, label)
@@ -102,9 +103,10 @@ def _block(text: str, label: str) -> List[str]:
 def test_the_trace_and_request_line_keeps_both_ids(
         monkeypatch: pytest.MonkeyPatch, columns: int) -> None:
     width = terminal(monkeypatch, columns)
-    text = "\n".join(trace.render_call(CALL, {}, RUNTIME))
+    text = "\n".join(trace.render_call(CALL, {}, RUNTIME, details=True))
     assert_fits(text, width)
     assert CALL["trace_id"] in text and CALL["request_id"] in text
+    assert CALL["trace_id"] not in "\n".join(trace.render_call(CALL, {}, RUNTIME))
 
 
 @TERMINALS
@@ -132,7 +134,12 @@ def test_the_joins_after_the_table_fit(monkeypatch: pytest.MonkeyPatch, columns:
     text = follow_credit.report(_followed())
     assert_fits(text, width)
     for join in _followed().joins:
+        if words(join)[0] in ("Turn", "Call"):
+            assert TURN not in text
+            continue
         assert words(join)[0] in text
+    assert_fits(follow_credit.report(_followed(), details=True), width)
+    assert TURN in follow_credit.report(_followed(), details=True)
     flat = " ".join(text.split())
     assert f"Key {KEY} joins the audit row, the pgAudit line and the credit." in flat
     key_block = _block_at(text, "Key   ")
@@ -166,7 +173,7 @@ def test_the_task_3b_heading_fits(monkeypatch: pytest.MonkeyPatch, columns: int,
     width = terminal(monkeypatch, columns)
     monkeypatch.setattr(check, "refuse_missing_lab_file", lambda lab: False)
     monkeypatch.setattr(lab3_check, "collect", lambda: [])
-    lab3_check.main(["--task", "3B"])
+    lab3_check.main(["--task", "3B", "--details"])
     out = capsys.readouterr().out
     assert_fits(out, width)
     assert words(out)[:3] == ["Lab", "3B:", "Theo's"]
@@ -278,4 +285,4 @@ def test_a_catch_up_never_points_at_a_next_line_it_hides(monkeypatch: pytest.Mon
         "forbid(principal, action, resource) unless { context.input.amount_cents <= 10000 };",
         True, ["policy credit_limit credit_limit-abc"])
     assert waiting is not None and "Next line" not in waiting.next_step
-    assert "Next:" not in check.plain(lab4_policy.closing(True, waiting))
+    assert "Next " not in check.plain(lab4_policy.closing(True, waiting))

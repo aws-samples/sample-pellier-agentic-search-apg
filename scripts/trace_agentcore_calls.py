@@ -49,6 +49,7 @@ sys.path.insert(0, str(ROOT / "pellier" / "backend"))
 sys.path.insert(0, str(ROOT / "scripts" / "deploy"))
 sys.path.insert(0, str(ROOT / "scripts"))
 
+import card_vocabulary as card  # noqa: E402  (sibling module)
 import workshop_check as check  # noqa: E402  (sibling module)
 
 LOG_GROUP = "aws/spans"
@@ -170,34 +171,84 @@ def calls_from_spans(spans: Iterable[Dict[str, Any]], tool: str) -> List[Dict[st
     return sorted(mine, key=lambda call: call["started_ns"])
 
 
-def runtime_summary(call: Dict[str, Any], runtime: Optional[List[Dict[str, Any]]]) -> str:
-    """Who made the call: the Runtime's agent and turn, or nothing above the Gateway.
+def identity_text(call: Dict[str, Any], who: str) -> str:
+    """What the Identity span says, in a sentence: whose sign-in the Gateway accepted."""
+    if not call.get("identity_checked", True):
+        return "No Identity record was found for this call"
+    return f"Gateway accepted {who}'s sign-in token"
+
+
+_POLICY_WORDS = (("credit_limit", "the $100 credit limit"),
+                 ("ask_a_person_caller_bound", "the caller's own customer"),
+                 ("owner_only", "the owner-only rule"),
+                 ("baseline_permit", "the workshop's baseline permit"))
+
+
+def plain_policy(name: str) -> str:
+    """A policy's id in the words a participant reads; an unknown id keeps its name."""
+    return next((words for prefix, words in _POLICY_WORDS if prefix in name),
+                name.rsplit("-", 1)[0])
+
+
+def policy_text(call: Dict[str, Any], details: bool = False) -> str:
+    """The Policy row as the Operator's credit card words it, then the policy that decided.
+
+    The policy ids behind the plain words are added with ``details``."""
+    ran = call.get("lambda_ms") is not None
+    decision = call["decision"]
+    if decision not in ("ALLOW", "DENY"):
+        return f"{decision}: {call['reason'] or 'no policy named'}"
+    # "The tool never ran" needs the Gateway's own DENY; a Policy span alone cannot prove it.
+    enforced_deny = call.get("gateway_denied", False) and not ran
+    status, sentence = card.policy_row(decision, tool_ran=not enforced_deny)
+    names = [plain_policy(name) for name in call["policies"]]
+    if names:
+        decided = f" Decided by {', '.join(dict.fromkeys(names))}."
+    else:
+        decided = f" {call['reason']}" if call["reason"] else ""
+    ids = f" ({', '.join(call['policies'])})" if details and call["policies"] else ""
+    return f"{status}   {sentence}{decided}{ids}"
+
+
+def gateway_text(call: Dict[str, Any]) -> str:
+    """What the Gateway did with the call, in a sentence."""
+    if call["lambda_ms"] is not None:
+        target = call.get("target") or TARGET
+        return f"Gateway ran the tool in the {target} Lambda ({call['gateway_ms']} ms)"
+    if call.get("gateway_denied", False):
+        return "Gateway refused the call before the tool ran"
+    return "Whether the tool ran is unknown: no Lambda record. The telemetry may be incomplete."
+
+
+def runtime_summary(call: Dict[str, Any], runtime: Optional[List[Dict[str, Any]]],
+                    details: bool = False) -> str:
+    """Who made the call: the Runtime's agent, or nothing above the Gateway.
 
     ``runtime`` is the Runtime spans sharing the call's trace id, or ``None``
-    when the Runtime's log group could not be read.
+    when the Runtime's log group could not be read. The turn id is added with ``details``.
     """
     if not call["parent_span_id"]:
-        return "none: this call came to the Gateway directly, not through the Runtime"
+        return "Not through the Runtime: the call came to the Gateway directly"
     agent = next((s for s in runtime or [] if str(s.get("name", "")).startswith("invoke_agent ")),
                  None)
     if agent is None:
         unread = "not readable" if runtime is None else "not in CloudWatch yet"
-        return (f"called by the Runtime (parent span {call['parent_span_id']}); "
-                f"its spans are {unread}")
+        return f"Called by the Runtime; its record is {unread}"
     attrs = _attrs(agent)
     name = str(attrs.get("gen_ai.agent.name") or "").capitalize() or "An"
-    # agentcore invoke and the deploy's smoke test call the Runtime outside a Pellier turn.
     turn = attrs.get("turn.id")
-    where = f"turn {turn}" if turn else "invoked directly with no Pellier turn"
-    return f"{name} agent on {attrs.get('gen_ai.request.model')}, {where}, made this call"
+    if not turn:
+        return f"{name} agent called it. Started directly, not by a Pellier turn"
+    return f"{name} agent made this call" + (f" in turn {turn}" if details else "")
 
 
 def render_call(call: Dict[str, Any], names: Dict[str, str],
                 runtime: Optional[List[Dict[str, Any]]] = None,
-                aurora: Optional[str] = None) -> List[str]:
-    """Five lines for one call: when and who, then Runtime, Identity, Policy and Gateway.
+                aurora: Optional[str] = None, details: bool = False) -> List[str]:
+    """One call: the headline, then Runtime, Identity, Policy and Gateway in plain words.
 
     ``aurora``, when given, adds one more under Gateway: what pgAudit saw reach Aurora.
+    ``details`` adds the trace and request ids that CloudWatch searches use.
     """
     when = datetime.fromtimestamp(call["started_ns"] / 1e9, tz=timezone.utc).strftime("%H:%M:%S")
     subject = call["subject"] or ""
@@ -206,23 +257,18 @@ def render_call(call: Dict[str, Any], names: Dict[str, str],
     denied = call.get("gateway_denied", False)
     outcome = (f"Lambda ran ({call['lambda_ms']} ms)" if ran else
                "Lambda never called" if denied else "Lambda execution unknown")
-    identity = (f"{call['authorizer']} authorizer accepted {who}'s Cognito "
-                f"{call['token_use']} token") if call["identity_checked"] else "no Identity span"
-    if call["policies"]:
-        policy = f"{call['decision']}, determined by {', '.join(call['policies'])}"
-    else:
-        policy = f"{call['decision']}: {call['reason'] or 'no policy named'}"
-    gateway = (f"tools/call {call['gateway_ms']} ms; {call.get('target') or TARGET} Lambda span present" if ran
-               else "tools/call refused by the request's Cedar decision; target never invoked" if denied
-               else "no Lambda span: execution is unknown; telemetry may be incomplete")
-    labelled = [("Runtime", runtime_summary(call, runtime)), ("Identity", identity),
-                ("Policy", policy), ("Gateway", gateway)]
+    labelled = [("Runtime", runtime_summary(call, runtime, details)),
+                ("Identity", identity_text(call, who)), ("Policy", policy_text(call, details)),
+                ("Gateway", gateway_text(call))]
     if aurora is not None:
         labelled.append(("Aurora", aurora))
-    return [check.wrapped("", f"{when}  {who:<8} {call['tool']}  {call['decision']}  "
-                              f"->  {outcome}"),
-            *(check.wrapped(f"  {label:<10}", text) for label, text in labelled),
-            check.wrapped("  ", f"trace {call['trace_id']}  request {call['request_id']}")]
+    lines = [check.wrapped("", f"{when}  {who:<8} {call['tool']}  {call['decision']}  "
+                               f"->  {outcome}"),
+             *(check.wrapped(f"  {label:<10}", text) for label, text in labelled)]
+    if details:
+        lines.append(check.wrapped("  ", f"trace {call['trace_id']}  request "
+                                         f"{call['request_id']}"))
+    return lines
 
 
 def no_call_message(tool: str, minutes: int) -> str:
@@ -474,6 +520,8 @@ def main() -> int:
                         help="the store or staff Gateway target")
     parser.add_argument("--minutes", type=int, default=60, help="how far back to read")
     parser.add_argument("--limit", type=int, default=CALL_LIMIT, help="the newest calls to show")
+    parser.add_argument("--details", action="store_true",
+                        help="also print each call's trace and request ids")
     args = parser.parse_args()
 
     import boto3
@@ -512,7 +560,7 @@ def main() -> int:
     for call in calls:
         print()
         print("\n".join(render_call(call, names, runtime.get(call["trace_id"]),
-                                     aurora.get(call["request_id"]))))
+                                     aurora.get(call["request_id"]), args.details)))
     return 0
 
 

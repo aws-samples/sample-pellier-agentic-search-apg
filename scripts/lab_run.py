@@ -106,6 +106,15 @@ from typing import (Any, Callable, Dict, Iterable, Iterator, List, NamedTuple, O
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import deploy_lock  # noqa: E402  (sibling module)
+try:
+    import live_view  # noqa: E402  (sibling module)
+except Exception as exc:  # noqa: BLE001  (display only: every command must still run)
+    # A box patched without the file, or a fault in it, costs the live view, never a command:
+    # sends print the plain trace. The suite fails on this (test_lab_run_live.py).
+    live_view = None
+    LIVE_VIEW_UNAVAILABLE = f"{type(exc).__name__}: {exc}"
+else:
+    LIVE_VIEW_UNAVAILABLE = ""
 import lab_reference  # noqa: E402  (sibling module)
 import lab_reset  # noqa: E402  (sibling module)
 import reset_participant_exercises as exercises  # noqa: E402  (sibling module)
@@ -154,32 +163,38 @@ TASKS = ("1A", "1B", "2A", "2B", "3A", "3B", "4A", "4B")
 PSQL = "psql -f"
 # What proves each task once its answer is in place, naming files by their editor link.
 NEXT_AFTER_TASK = {
-    "1A": ["uv run scripts/lab1_check.py --task 1A"],
-    "1B": ["uv run scripts/lab_run.py send --lab 1 --task 1B",
+    "1A": ['In the guide, open Task 1A and read "Prove the search ranks by meaning".',
+           "uv run scripts/lab1_check.py --task 1A"],
+    "1B": ['In the guide, open Task 1B and read "Prove the retry".',
+           "uv run scripts/lab_run.py send --lab 1 --task 1B",
            "uv run scripts/lab1_check.py --task 1B"],
-    "2A": ["uv run scripts/lab_run.py send --lab 2 --task 2A",
+    "2A": ['In the guide, open Task 2A and read "Ask again and check the warehouse record".',
+           "uv run scripts/lab_run.py send --lab 2 --task 2A",
            "uv run scripts/lab2_check.py --task 2A"],
-    "2B": [f"{PSQL} labs/02-ground/2B-check-stock.sql", "uv run scripts/lab2_check.py --task 2B"],
-    "3A": ["uv run scripts/lab3_check.py --task 3A", DEPLOY],
-    "3B": [f"{PSQL} labs/03-deploy/3B-row-ownership.sql"],
-    "4A": ["uv run scripts/lab4_check.py --task 4A", DEPLOY],
-    "4B": [f"{PSQL} labs/04-govern/4B-credit-writer.sql",
+    "2B": ['In the guide, open Task 2B and read "Prove the fix".',
+           f"{PSQL} labs/02-ground/2B-check-stock.sql", "uv run scripts/lab2_check.py --task 2B"],
+    "3A": ['In the guide, open Task 3A and read "Prove the fix".',
+           "uv run scripts/lab3_check.py --task 3A", DEPLOY],
+    "3B": ['In the guide, open Task 3B and read "Test the ownership rule".',
+           f"{PSQL} labs/03-deploy/3B-row-ownership.sql"],
+    "4A": ['In the guide, open Task 4A and read "Check your rule, then deploy it".',
+           "uv run scripts/lab4_check.py --task 4A", DEPLOY],
+    "4B": ['In the guide, open Task 4B and read "Prove the role writes only through the '
+           'function".', f"{PSQL} labs/04-govern/4B-credit-writer.sql",
            "uv run scripts/lab4_check.py --task 4B"],
 }
 BACKEND_DIR = "pellier/backend/"
 NEXT_AFTER_SOLUTION = {
-    1: "send the lab's request (uv run scripts/lab_run.py send --lab 1).",
-    2: ("run the Task 2B SQL file (psql -f labs/02-ground/2B-check-stock.sql), then send the "
-        "lab's requests (uv run scripts/lab_run.py send --lab 2)."),
-    3: f"deploy the Task 3A files ({DEPLOY}), then send the lab's requests.",
-    4: f"deploy the Cedar rule ({DEPLOY}), then send the lab's requests.",
+    1: ['In the guide, open Task 1A and read "Prove the search ranks by meaning".',
+        "uv run scripts/lab_run.py send --lab 1"],
+    2: ['In the guide, open Task 2B and read "Prove the fix".',
+        "psql -f labs/02-ground/2B-check-stock.sql", "uv run scripts/lab_run.py send --lab 2"],
+    3: ['In the guide, open Task 3B and read "Start the deploy".', DEPLOY],
+    4: ['In the guide, open Task 4A and read "Check your rule, then deploy it".', DEPLOY],
 }
 
 OPERATOR = "nadia"
 CREDIT_CLIENT = "CUST-JESSICA"
-# Bootstrap writes each workshop user's throwaway sign-in here as "Username:" then "Password:".
-CREDENTIALS_FILE = pathlib.Path(
-    os.environ.get("PELLIER_TEST_CREDENTIALS", "/workshop/test-credentials.txt"))
 POLICY_ALLOW, POLICY_DENY, POLICY_INCOMPLETE = "ALLOW", "DENY", "EVALUATION_INCOMPLETE"
 HEALTH_WAIT_SECONDS = 120
 POLICY_WAIT_SECONDS = 420
@@ -279,20 +294,17 @@ def print_reload_hint() -> None:
     say(RELOAD_HINT)
 
 
-def print_next(*commands: str) -> None:
-    """The next step, broken at words to the terminal; a command stays whole on its own line
+def print_next(*steps: str) -> None:
+    """The next step: the guide page to read first, then each command whole on its own line
     so it copies and pastes as one command."""
-    if commands:
-        print("", flush=True)
-    for index, command in enumerate(commands):
-        prefix = "  Next: " if index == 0 else "        then "
-        print(check.wrapped(prefix, command), flush=True)
+    print_next_steps(steps)
 
 
 def print_nadia_next() -> None:
-    """Lab 4's closing after Jessica's request: Nadia's part, then her sign-in on its own."""
-    print_next("as Nadia in the Operator, investigate Jessica's case, approve the "
-               "proposed credit and select Execute.")
+    """Lab 4's closing after Jessica's request: Nadia's part, then where her password is."""
+    print_next('In the guide, open Task 4A and read "Sign in as Nadia". Then, as Nadia in the '
+               "Operator, investigate Jessica's case, approve the proposed credit and select "
+               "Execute.")
     print("", flush=True)
     say(nadias_sign_in())
 
@@ -320,36 +332,26 @@ SEND_REGIONS = {
            f"{_STARTERS}/lab-2-check-stock.sql"),
 }
 NEXT_AFTER_SEND = {
-    ("1A", True): ["open 01 - Retrieve > 1A-vector-search.py to see why the Vector column is "
-                   "empty, then install the fix.",
-                   "uv run scripts/lab_run.py solution --lab 1 --task 1A"],
-    ("1A", False): ["prove the search ranks by meaning.",
+    ("1A", True): ['In the guide, open Task 1A and read "Find the line and apply the provided '
+                   'fix".', "uv run scripts/lab_run.py solution --lab 1 --task 1A"],
+    ("1A", False): ['In the guide, open Task 1A and read "Prove the search ranks by meaning".',
                     "uv run scripts/lab1_check.py --task 1A"],
-    ("1B", True): ["read what the retry was asked to keep and what it kept.",
-                   f"{PSQL} workshop/lab-1-receipt.sql"],
-    ("1B", False): ["prove the retry keeps her requirements.",
-                    "uv run scripts/lab1_check.py --task 1B"],
-    ("2A", True): ["open 02 - Ground > 2A-stock-agent.py to see the agent's tool list, then "
-                   "install the fix.",
-                   "uv run scripts/lab_run.py solution --lab 2 --task 2A"],
-    ("2A", False): ["prove the answer came from the warehouse table.",
-                    "uv run scripts/lab2_check.py --task 2A"],
-    ("2B", True): ["test the database function behind the tool.",
-                   f"{PSQL} labs/02-ground/2B-check-stock.sql"],
-    # An edited file is not a proven one, so this names the proof and never calls the lab done.
-    ("2B", False): ["if the stock step above reads Not a piece Pellier carries and you have seen "
-                    "Lab 2B check passed, Lab 2 is complete. Otherwise run the check.",
-                    "uv run scripts/lab2_check.py --task 2B"],
+    ("2A", True): ['In the guide, open Task 2A and read "Find the missing tool and apply the '
+                   'fix".', "uv run scripts/lab_run.py solution --lab 2 --task 2A"],
+    ("2A", False): ['In the guide, open Task 2A and read "Ask again and check the warehouse '
+                    'record".', "uv run scripts/lab2_check.py --task 2A"],
 }
 NEXT_AFTER_LAB_SEND = {
-    3: ["check what happened on AgentCore and in the database.",
+    3: ['In the guide, open Task 3B and read "Prove the deployed build".',
         "uv run scripts/lab3_check.py --task 3B"],
 }
 
 
 def next_after_send(lab: int, task: Optional[str], repo: pathlib.Path = REPO) -> List[str]:
-    """The step that follows a send: by task and whether its region still holds the starter."""
-    if task in SEND_REGIONS:
+    """The step that follows a send: by task and whether its region still holds the starter.
+
+    Task 1B's send decides from its turn's evidence instead (``after_1b_send``)."""
+    if (task, True) in NEXT_AFTER_SEND:
         path, label, starter = SEND_REGIONS[task]
         untouched = check.region_state(repo / path, label, repo / starter) == check.STARTER
         return NEXT_AFTER_SEND[(task, untouched)]
@@ -408,7 +410,7 @@ def install_solution(lab: int, repo: pathlib.Path = REPO) -> None:
         shutil.copyfile(answer, target)
         lab_reference.mark_link_changed(repo, entry["alias"])
         ok(f"{entry['alias']} now holds the solution ({entry['source']})")
-    print_next(NEXT_AFTER_SOLUTION[lab])
+    print_next(*NEXT_AFTER_SOLUTION[lab])
 
 
 def task_files(task: str, repo: pathlib.Path = REPO) -> List[Dict[str, str]]:
@@ -420,14 +422,63 @@ def task_files(task: str, repo: pathlib.Path = REPO) -> List[Dict[str, str]]:
     return mine
 
 
-def _print_change(alias: str, yours: bytes, answer: bytes) -> None:
-    """The change the answer makes to the participant's file: their lines '-', the answer's '+'."""
-    lines = difflib.unified_diff(
-        yours.decode("utf-8", "replace").splitlines(keepends=True),
-        answer.decode("utf-8", "replace").splitlines(keepends=True),
-        fromfile=f"yours ({alias})", tofile=f"answer ({alias})")
+_MARKER = re.compile(r"WORKSHOP - (.+?): (START|END) ===")
+_COMMENT = ("#", "--", "//")
+
+
+def _region_code(text: str, label_hint: Optional[str] = None) -> Tuple[str, List[str]]:
+    """The code lines between the START and END markers, and the region's label.
+
+    Comment-only and blank lines are left out, so a stub's long explanation does not bury the
+    one line that changes. A file with no marker is read whole.
+    """
+    lines, label = text.splitlines(), label_hint or ""
+    inside = not any(_MARKER.search(line) for line in lines)
+    code: List[str] = []
     for line in lines:
-        print(line.rstrip("\n"), flush=True)
+        mark = _MARKER.search(line)
+        if mark:
+            inside, label = mark.group(2) == "START", label or mark.group(1)
+        elif inside and line.strip() and not line.strip().startswith(_COMMENT):
+            code.append(line.rstrip())
+    return label, code
+
+
+def changed_code(yours: bytes, answer: bytes) -> Tuple[str, List[str]]:
+    """The region label and the changed code lines, ``-`` for yours and ``+`` for the answer.
+
+    Each run of changes reads as a diff does, the removed lines before the added ones
+    (``ndiff`` prints the shorter side of a replaced block first). Lines keep their
+    indentation relative to each other, so a list's items still read as inside it.
+    """
+    label, mine = _region_code(yours.decode("utf-8", "replace"))
+    _, theirs = _region_code(answer.decode("utf-8", "replace"), label)
+    changed = [line for line in difflib.ndiff(mine, theirs) if line[:2] in ("- ", "+ ", "  ")]
+    shared = min((len(line[2:]) - len(line[2:].lstrip()) for line in changed
+                  if line[:2] != "  " and line[2:].strip()), default=0)
+    lines: List[str] = []
+    run: Dict[str, List[str]] = {"-": [], "+": []}
+    for line in [*changed, "  "]:
+        if line[:2] == "  ":
+            lines += [f"    {sign} {text}" for sign in "-+" for text in run[sign]]
+            run = {"-": [], "+": []}
+        else:
+            run[line[0]].append(line[2 + shared:].rstrip())
+    return label, lines
+
+
+def _print_change(alias: str, yours: bytes, answer: bytes) -> None:
+    """The change the answer makes to the participant's file: only the changed code lines
+    inside the task's marked region, yours with ``-`` and the answer's with ``+``. The full
+    unified diff stays one command away: ``lab_run.py diff``."""
+    label, lines = changed_code(yours, answer)
+    found = re.search(r"labs/0(\d)-", alias)
+    alias_lab = found.group(1) if found else "N"
+    print(f"  {pathlib.PurePosixPath(alias).name}   ({label})" if label
+          else f"  {pathlib.PurePosixPath(alias).name}", flush=True)
+    for line in lines or ["    (the answer changes lines outside the marked region)",
+                          f"    Every change: uv run scripts/lab_run.py diff --lab {alias_lab}"]:
+        print(line, flush=True)
 
 
 def install_task(task: str, repo: pathlib.Path = REPO,
@@ -527,7 +578,7 @@ def switch_to_local(backend: "Backend", run: Callable[..., Any] = subprocess.run
                     confirm_local=True)
     was = "It was already set to them. " if before == IN_PROCESS else ""
     ok(f"Pellier is running on the local agents. {was}Labs 1 and 2 answer in process again; "
-       "each send prints ran in process.")
+       "each send ends Answered by the local agents.")
     say("To move back to AgentCore afterwards, run:")
     print(f"    {BACK_TO_AGENTCORE}", flush=True)
 
@@ -658,7 +709,8 @@ class Backend:
             yield from sse_events(response)
 
 
-def wait_until_healthy(backend: Backend, *, confirm_local: bool = False) -> None:
+def wait_until_healthy(backend: Backend, *, confirm_local: bool = False,
+                       announce: bool = True) -> None:
     """Wait for readiness. A switch to local must also see the setting the process loaded."""
     deadline = time.monotonic() + HEALTH_WAIT_SECONDS
     last = ""
@@ -681,7 +733,8 @@ def wait_until_healthy(backend: Backend, *, confirm_local: bool = False) -> None
                     f"the backend is not healthy after {HEALTH_WAIT_SECONDS} s "
                     f"({last}). Check with: journalctl -u pellier -n 50"))
             time.sleep(2)
-    ok("the backend is healthy")
+    if announce:
+        ok("the backend is healthy")
 
 
 def required_requests(persona: str, stages: Sequence[str],
@@ -706,21 +759,62 @@ TRACE_LABEL = 10
 RANKING_ROWS = 5
 
 
-def _trace_line(label: str, text: str) -> None:
+_TIMING = re.compile(r"\(\d+ ms\)")
+_STEP_WORD = re.compile(r"^(\d+ )(done|failed)(\s*)$")
+
+
+def rail_colour(rail: str) -> str:
+    """Lavender for what ran on the local agents, sky blue for what ran on AgentCore."""
+    return check.AGENTCORE_COLOUR if rail == MANAGED else check.LOCAL_COLOUR
+
+
+def rail_tint(rail: str) -> Callable[[str], str]:
+    return lambda text: check.tint(text, rail_colour(rail))
+
+
+_RAIL_WORDS = {IN_PROCESS: "local agents", MANAGED: "AgentCore (Runtime \u2192 Gateway)"}
+
+
+def _rail_words(text: str, rail: str) -> str:
+    """The words that say where a turn ran, in that rail's colour, the first time they appear."""
+    words = _RAIL_WORDS.get(rail, "")
+    return text.replace(words, rail_tint(rail)(words), 1) if words else text
+
+
+def _tinted(label: str, text: str, names: Sequence[str] = (), rail: str = "") -> Tuple[str, str]:
+    """A padded label and its wrapped text in the palette: a step's done green or failed red,
+    timings and Path's arrows dim, the tools ``names`` in their rail's colour. Applied after
+    padding and wrapping, so columns stay true."""
+    for name in names:
+        # The tool call itself, once: never the same word inside a path or a finding.
+        text = re.sub(rf"(?<![\w./-]){re.escape(name)}(?![\w./-])",
+                      lambda hit: rail_tint(rail)(hit.group(0)), text, count=1)
+    found = _STEP_WORD.match(label)
+    if found:
+        number, word, gap = found.groups()
+        colour = check.PASSED if word == "done" else check.FAILED
+        label = number + check.paint(word, colour) + gap
+    text = _TIMING.sub(lambda hit: check.tint(hit.group(0), check.DETAIL_COLOUR), text)
+    text = text.replace(" \u2192 ", f" {check.tint(chr(0x2192), check.DETAIL_COLOUR)} ")
+    return label, text
+
+
+def _trace_line(label: str, text: str, names: Sequence[str] = (), rail: str = "") -> None:
     room = check.terminal_width() - len(TRACE_INDENT) - TRACE_LABEL
-    lines = textwrap.wrap(text, width=room) or [""]
-    print(f"{TRACE_INDENT}{label:<{TRACE_LABEL}}{lines[0]}", flush=True)
+    lines = textwrap.wrap(text, width=room, break_on_hyphens=False) or [""]
+    head, first = _tinted(f"{label:<{TRACE_LABEL}}", lines[0], names, rail)
+    print(f"{TRACE_INDENT}{head}{first}", flush=True)
     for line in lines[1:]:
-        print(f"{TRACE_INDENT}{'':<{TRACE_LABEL}}{line}", flush=True)
+        print(f"{TRACE_INDENT}{'':<{TRACE_LABEL}}{_tinted('', line, names, rail)[1]}", flush=True)
 
 
 # The ranking in the Builder view's words (pellier/frontend/src/components/turn/RankingPanel.tsx),
 # so a terminal turn reads like the same turn in the store.
 EMPTY, UP, DOWN = "\u2013", "\u2191", "\u2193"
-RANKING_KEY = ("#: final position; an arrow is how far it moved from the fused order, by Cohere "
-               "Rerank or, marked *, by a declared rule. "
-               "Full text and Vector: its rank in each search, and the vector similarity. "
-               "Fused score: 1 / ({k} + rank) from each search, added.")
+RANKING_KEY = ("Reading the table: # is the final order (an arrow shows how far Rerank moved it, "
+               "a * a declared rule). Full text and Vector show where each search ranked the "
+               "product, and the vector similarity. Rerank is the last, deciding score.")
+RANKING_SHORT_KEY = "# final order. Full text and Vector: rank in each search. Rerank: last score."
 RANKING_COLUMNS = (("#", "<"), ("Product", "<"), ("Full text", ">"), ("Vector", ">"),
                    ("Fused score", ">"), ("Rerank", ">"))
 RANKING_NAME = 37
@@ -728,7 +822,7 @@ REMOVED = {"budget": "over budget", "stock": "sold out", "department": "in other
 RERANKED, RERANK_FALLBACK = "hybrid+rerank", "hybrid (rerank fallback to RRF order)"
 MERCHANDISING_NOTE = ("* {product}: moved from {start} to {end} after rerank by the declared "
                       "merchandising rule {rule_id}")
-_ranking_key_shown = False
+_ranking_key = ""
 
 
 def _number(value: Any, digits: int) -> str:
@@ -784,7 +878,7 @@ def _kept(filters: Dict[str, Any]) -> str:
 
 def _trace_ranking(ranking: Dict[str, Any]) -> None:
     """How it ranked: the Builder view's counts and table, with a one-time key to the columns."""
-    global _ranking_key_shown
+    global _ranking_key
     rows = ranking.get("rows") if ranking.get("available") else None
     if not rows:
         return
@@ -813,9 +907,9 @@ def _trace_ranking(ranking: Dict[str, Any]) -> None:
     for move in ranking.get("merchandising") or []:
         _trace_line("", MERCHANDISING_NOTE.format(product=move["product"], start=move["from"],
                                                   end=move["to"], rule_id=move["rule_id"]))
-    if not _ranking_key_shown:
-        _ranking_key_shown = True
-        _trace_line("", RANKING_KEY.format(k=k))
+    if _ranking_key:
+        _trace_line("", _ranking_key)
+        _ranking_key = ""
 
 
 def _trace_retry(relaxation: Any) -> None:
@@ -828,6 +922,248 @@ def _trace_retry(relaxation: Any) -> None:
     _trace_line("", label)
 
 
+class TurnEvidence:
+    """What a Lab 1 send shows by default, read only from the attempt that answered.
+
+    A turn that fails is sent again (``send_turn_again_on_failure``), and each attempt calls
+    :meth:`begin`, so a failed attempt's search never supplies a count or a retry.
+
+    The counts are the top candidates the turn's first catalog search took from each half of
+    the hybrid search: by words (full text) and by meaning (pgvector). Each half hands over at
+    most its top few, so a count is a shortlist, not every product that matched. A count the
+    turn did not report prints as unknown, never as zero.
+    """
+
+    HALVES = (("Full text (words)", "full_text"), ("Vector (meaning)", "vector"))
+
+    def __init__(self) -> None:
+        self.begin()
+
+    def begin(self) -> None:
+        """Forget an earlier attempt: this one starts with no counts, searches or stock steps."""
+        self.arms: Optional[Dict[str, Any]] = None
+        self.searches: List[Dict[str, Any]] = []
+        self.stock: List[str] = []
+
+    def observe(self, event: Dict[str, Any]) -> None:
+        """Take in one event of this attempt; only finished catalog searches count."""
+        if event.get("type") != "step" or event.get("status") in ("running", "failed"):
+            return
+        builder = event.get("builder") or {}
+        ranking = builder.get("ranking") or {}
+        if self.arms is None and ranking.get("available") and isinstance(ranking.get("arms"), dict):
+            self.arms = ranking["arms"]
+        if builder.get("tool") == "search_products":
+            self.searches.append(builder)
+        if builder.get("tool") == "check_stock":
+            self.stock.append(str(event.get("finding") or ""))
+
+    def counts(self) -> List[Tuple[Optional[int], str]]:
+        """Each half's count with its words: ``20 top candidates`` or ``unknown``."""
+        told: List[Tuple[Optional[int], str]] = []
+        for _, key in self.HALVES:
+            value = (self.arms or {}).get(key)
+            if isinstance(value, int) and not isinstance(value, bool):
+                told.append((value, f"{value} top candidate{'' if value == 1 else 's'}"))
+            else:
+                told.append((None, "unknown"))
+        return told
+
+    def count_lines(self) -> List[str]:
+        """Each half of the search with its count: red for none, orange for unknown."""
+        told = self.counts()
+        number = max([len(str(value)) for value, _ in told if value is not None] or [1])
+        label = max(len(name) for name, _ in self.HALVES) + 4
+        rows = []
+        for (name, _), (value, text) in zip(self.HALVES, told):
+            if value is None:
+                rows.append(f"{name:<{label}}  {check.paint(text, check.NOT_YET)}")
+            else:
+                count, words = text.split(" ", 1)
+                shown = f"{count:>{number + 2}} {words}"
+                state = check.FAILED if value == 0 else check.PASSED
+                rows.append(f"{name:<{label}}{check.paint(shown, state)}")
+        return rows
+
+    def retried(self) -> Optional[bool]:
+        """True when any search broadened, False when every search shows it did not retry,
+        None when the turn has too little evidence.
+
+        A local search reports the retry in ``relaxation``, or None if no retry ran. Its
+        ``requirements`` identify a plan with known limits. Steps rebuilt from a managed
+        turn have neither fact.
+        """
+        if any(isinstance(search.get("relaxation"), dict) for search in self.searches):
+            return True
+        if self.searches and all("relaxation" in search and search["relaxation"] is None
+                                 and search.get("requirements") for search in self.searches):
+            return False
+        return None
+
+
+LOOKUP_FAILED = ('Open Task 1A and use "Troubleshoot with Claude Code or go deeper". '
+                 "Paste this command and its Lookup failed line.")
+
+
+def print_first_search(evidence: Optional[TurnEvidence], compact: bool) -> None:
+    """Task 1A's send, after Anna's turn: her two counts, then the separate reference lookup.
+
+    The counts are what her turn's search found. The lookup asks Pellier's own vector search,
+    with no model call, for the Storefront products closest to the product the participant
+    found by its words, so the same lookup reads the same way after the fix.
+
+    Raises:
+        LabRunError: no stored embedding was found, or the database or search raised an error.
+    """
+    import lab1_vector  # imported here: only Task 1A's send reads the catalog itself
+
+    if compact and evidence is not None:
+        print("\n".join(evidence.count_lines()), flush=True)
+    found = lab1_vector.lookup()
+    print(("\n" if compact else "\n\n") + "\n".join(lab1_vector.lookup_lines(found)),
+          flush=True)
+    if found.error:
+        raise LabRunError(LOOKUP_FAILED)
+
+
+def question_line(persona: str, message: str) -> str:
+    """The shopper's request as they asked it."""
+    return f"{persona.title()}: \u201c{message}\u201d"
+
+
+# The task sends whose default view is a few lines read from the turn's evidence.
+LAB_1_SENDS = ("1A", "1B")
+RECEIPT = f"{PSQL} workshop/lab-1-receipt.sql"
+SEND_1B = "uv run scripts/lab_run.py send --lab 1 --task 1B"
+# Task 1B's send, before and after the edit: what the completed turn shows about the retry,
+# and the one next action.
+RETRY_BEFORE_EDIT = ("Pellier broadened Anna\u2019s search. Check which rules the retry kept.",
+                     RECEIPT)
+RETRY_AFTER_EDIT = ("Pellier broadened Anna\u2019s search. Check whether every gift still meets "
+                    "her rules.", "uv run scripts/lab1_check.py --task 1B")
+NO_RETRY = ("No retry ran for this request. Send Anna\u2019s full request once more.",
+            SEND_1B)
+RETRY_UNKNOWN = ("Read Anna\u2019s search receipt to see whether Pellier retried.", RECEIPT)
+
+
+# Task 2B's send, read from its own stock step: the words services/turn_steps.py gives a piece
+# the catalog does not have, and what follows each outcome.
+NOT_CARRIED = "Not a piece Pellier carries"
+SEND_2B = "uv run scripts/lab_run.py send --lab 2 --task 2B"
+AFTER_2B_SEND = {
+    "corrected": ("The stock step now reads Not a piece Pellier carries.",
+                  ['In the guide, open "From local agents to Amazon Bedrock AgentCore".']),
+    "starter": ("The stock step calls the cape sold out: the function still returns a row.",
+                ["In the guide, open Task 2B and build the fix for a product Pellier does not "
+                 "carry.", f"{PSQL} labs/02-ground/2B-check-stock.sql"]),
+    "not live": ("The stock step still calls the cape sold out: your saved file is not live "
+                 "yet.", ["In the guide, open Task 2B and run your saved file.",
+                          f"{PSQL} labs/02-ground/2B-check-stock.sql"]),
+    "no stock step": ("Pellier answered without a stock step, so there is no answer to read.",
+                      ["In the guide, open Task 2B and send Marco's cape question once more.",
+                       SEND_2B]),
+}
+SEE_MARCO_IN_PELLIER = (
+    "See it in Pellier (optional)",
+    "Open the Pellier tab \u2192 Ask Pellier \u2192 Marco.",
+    "Find his latest \u201cSent from the terminal\u201d cape question. Turn on Builder view.",
+    "Under \u201cHow Pellier answered\u201d, find \u201cNot a piece Pellier carries\u201d.",
+)
+
+
+def after_2b_send(evidence: Optional["TurnEvidence"],
+                  repo: pathlib.Path = REPO) -> Tuple[str, List[str], List[str]]:
+    """What Task 2B's send says its stock step showed, where to look, and what comes next."""
+    found = evidence.stock if evidence else []
+    if NOT_CARRIED in found:
+        told, steps = AFTER_2B_SEND["corrected"]
+        return told, list(SEE_MARCO_IN_PELLIER) if check.says_next() else [], steps
+    if not found:
+        told, steps = AFTER_2B_SEND["no stock step"]
+        return told, [], steps
+    path, label, starter = SEND_REGIONS["2B"]
+    edited = check.region_state(repo / path, label, repo / starter) != check.STARTER
+    told, steps = AFTER_2B_SEND["not live" if edited else "starter"]
+    return told, [], steps
+
+
+def after_1b_send(evidence: Optional["TurnEvidence"], repo: pathlib.Path = REPO) -> List[str]:
+    """What Task 1B's send says it did, and the one command that comes next."""
+    retried = evidence.retried() if evidence else None
+    if retried is None:
+        told, command = RETRY_UNKNOWN
+    elif not retried:
+        told, command = NO_RETRY
+    else:
+        path, label, starter = SEND_REGIONS["1B"]
+        edited = check.region_state(repo / path, label, repo / starter) != check.STARTER
+        told, command = RETRY_AFTER_EDIT if edited else RETRY_BEFORE_EDIT
+    return [check.paint(told, check.NOT_YET), f"Next: {command}"]
+
+
+_POSSESSIVE = {"anna": "her", "jessica": "her", "marco": "his", "theo": "his"}
+_SEARCH_TOOLS = ("search_products", "browse_department", "compare_products")
+_OWN_ROW_TOOLS = ("get_orders", "get_tickets")
+
+
+class TurnPath:
+    """The layers one turn went through, read from the steps the stream reported.
+
+    Nothing here is assumed: the agent is the one the Router named, the tools are the ones that
+    ran, and AgentCore is named only when the response says the turn ran there.
+    """
+
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        """Forget the last turn."""
+        self.agent = ""
+        self.tools: List[str] = []
+        self.tags: set = set()
+
+    def observe(self, event: Dict[str, Any]) -> None:
+        """Record the steps that succeeded on this attempt."""
+        if event.get("status") == "failed":
+            return
+        builder = event.get("builder") or {}
+        self.tags.update(str(tag) for tag in event.get("tags") or [])
+        if event.get("id") == "route":
+            named = re.match(r"Sent to the (.+?)(?::| \(|$)", str(event.get("finding") or ""))
+            self.agent = named.group(1) if named else self.agent
+        elif builder.get("tool") and builder["tool"] != SKILLS_TOOL:
+            if builder["tool"] not in self.tools:
+                self.tools.append(str(builder["tool"]))
+
+    def _sink(self, persona: str) -> str:
+        own = _POSSESSIVE.get(persona, "their")
+        if any(tool in _SEARCH_TOOLS for tool in self.tools):
+            return "Aurora (words + meaning)"
+        if "check_stock" in self.tools:
+            return "Aurora warehouse rows"
+        if any(tool in _OWN_ROW_TOOLS for tool in self.tools):
+            return f"Aurora ({own} rows only)"
+        if "ask_a_person" in self.tools:
+            return "Nadia reviews"
+        return ""
+
+    def line(self, persona: str, rail: str) -> str:
+        """``Anna -> Router -> Catalog agent -> ...`` for the turn this object watched."""
+        name = persona.title()
+        agent = [self.agent] if self.agent else []
+        tools = [", ".join(self.tools)] if self.tools else []
+        sink = [self._sink(persona)] if self._sink(persona) else []
+        if rail == MANAGED:
+            runtime = "AgentCore Runtime" + (" with Memory" if "Memory" in self.tags else "")
+            gateway = ["Gateway (Cedar checks each call)", "Lambda"] if self.tools else []
+            return " \u2192 ".join([f"{name}, signed in", runtime, *agent, *gateway, *sink])
+        return " \u2192 ".join([name, "Router", *agent, *tools, *sink])
+
+
+_current_path = TurnPath()
+SKILLS_TOOL = "skills"
+
+
 def trace_event(event: Dict[str, Any], shown: set) -> None:
     """Print a finished step once, in Builder view's words; running steps print nothing."""
     if event.get("type") != "step" or event.get("status") == "running":
@@ -836,6 +1172,7 @@ def trace_event(event: Dict[str, Any], shown: set) -> None:
     if (step_id, status) in shown:
         return
     shown.add((step_id, status))
+    _current_path.observe(event)
     number = len(shown)
     label = str(event.get("label") or "")
     finding = str(event.get("finding") or "")
@@ -845,14 +1182,19 @@ def trace_event(event: Dict[str, Any], shown: set) -> None:
         return
     ms = builder.get("duration_ms")
     timing = f" ({ms} ms)" if isinstance(ms, (int, float)) else ""
+    tool = str(builder.get("tool") or "")
     _trace_line(f"{number} {'failed' if status == 'failed' else 'done'}",
-                f"{label}{timing}" + (f": {finding}" if finding else ""))
+                (f"{tool}  " if tool else "") + f"{label}{timing}"
+                + (f": {finding}" if finding else ""),
+                names=[tool] if tool else (), rail=str(builder.get("rail") or ""))
     _trace_retry(builder.get("relaxation"))
     _trace_ranking(builder.get("ranking") or {})
 
 
 def send_turn(backend: Backend, token: str, body: Dict[str, Any], trace: bool = False,
-              deadline: float = TURN_DEADLINE_SECONDS[MANAGED]) -> Dict[str, Any]:
+              deadline: float = TURN_DEADLINE_SECONDS[MANAGED],
+              evidence: Optional[TurnEvidence] = None,
+              live: Optional[live_view.LiveTurn] = None) -> Dict[str, Any]:
     """One Ask Pellier turn; returns the complete event's response, printing its trace.
 
     A turn without its complete event by ``deadline`` seconds has failed: a silent stream is
@@ -860,15 +1202,27 @@ def send_turn(backend: Backend, token: str, body: Dict[str, Any], trace: bool = 
     """
     shown: set = set()
     started = time.monotonic()
+    if trace:
+        _current_path.reset()
+    if evidence is not None:
+        evidence.begin()
+    if live is not None:
+        live.begin()
     late = TurnFailed(f"the turn failed: no answer after {deadline:g} s")
-    with waiting("Waiting for Pellier's answer", typical=TURN_TYPICAL_SECONDS, limit=deadline):
+    # On a terminal the live view's status line shows the wait, as Ask Pellier's does.
+    with (contextlib.nullcontext() if live is not None else
+          waiting("Waiting for Pellier's answer", typical=TURN_TYPICAL_SECONDS, limit=deadline)):
         try:
             for name, event in backend.stream(CHAT_PATH, body, token, timeout=deadline):
                 if name == "error" or event.get("type") == "error":
                     reason = event.get("error") or event.get("message") or json.dumps(event)
                     raise TurnFailed(f"the turn failed: {reason}")
+                if live is not None:
+                    live.observe(event)
                 if trace:
                     trace_event(event, shown)
+                if evidence is not None:
+                    evidence.observe(event)
                 if event.get("type") == "complete":
                     return event.get("response") or {}
                 if time.monotonic() - started > deadline:
@@ -879,11 +1233,14 @@ def send_turn(backend: Backend, token: str, body: Dict[str, Any], trace: bool = 
 
 
 def send_turn_again_on_failure(backend: Backend, token: str, body: Dict[str, Any],
-                               trace: bool, deadline: float) -> Dict[str, Any]:
+                               trace: bool, deadline: float,
+                               evidence: Optional[TurnEvidence] = None,
+                               live: Optional[live_view.LiveTurn] = None) -> Dict[str, Any]:
     """One turn, sent again when the model or the server failed it; a refusal is not."""
     for attempt in range(1, TURN_ATTEMPTS + 1):
         try:
-            return send_turn(backend, token, body, trace=trace, deadline=deadline)
+            return send_turn(backend, token, body, trace=trace, deadline=deadline,
+                             evidence=evidence, live=live)
         except (TurnFailed, BackendError) as exc:
             if isinstance(exc, BackendError) and exc.status < 500:
                 raise
@@ -958,22 +1315,86 @@ def _answer_lines(text: str, width: int) -> List[str]:
     return lines or [""]
 
 
+def answer_block(answer: str) -> List[str]:
+    """Every word of the answer under its label, as the terminal prints it."""
+    hang = TRACE_INDENT + " " * len(ANSWER_LABEL)
+    lines = _answer_lines(_as_read(answer), check.terminal_width() - len(hang))
+    label = check.tint(ANSWER_LABEL.rstrip(), check.BRAND_COLOUR) + " "
+    white = [check.tint(line, check.ANSWER_COLOUR) if line else line for line in lines]
+    return [f"{TRACE_INDENT}{label}{white[0]}", *(hang + line for line in white[1:])]
+
+
 def _print_answer(answer: str) -> None:
     """Every word of the answer under its label: the terminal shows what the shopper reads."""
-    hang = TRACE_INDENT + " " * len(ANSWER_LABEL)
-    lines = _answer_lines(answer, check.terminal_width() - len(hang))
-    print(f"{TRACE_INDENT}{ANSWER_LABEL}{lines[0]}", flush=True)
-    for line in lines[1:]:
-        print(hang + line, flush=True)
+    for line in answer_block(answer):
+        print(line, flush=True)
 
 
-def _begin_shirt_turn() -> TextIO:
-    """Publish a pending 2A receipt. An older send can only finish writing its own file."""
-    path = check.lab2_shirt_turn_path()
+# The Router's finding (services/chat.py route_finding): the agent, then the words that chose it.
+_ROUTED = re.compile(r"Sent to the (.+?)(?:: (.+)| \((default)\))?$")
+
+
+def live_turn(fold: bool, rail: str) -> Optional[live_view.LiveTurn]:
+    """Ask Pellier's live turn on a terminal: folded for Lab 1's compact sends; None in a log,
+    in the catch-up and with the live view switched off, which print what the send always
+    printed."""
+    if live_view is None or not live_view.wanted():
+        return None
+    return live_view.LiveTurn(answer_lines=answer_block, width=check.terminal_width,
+                              step_line=live_view.ring_line(TRACE_INDENT, TRACE_LABEL,
+                                                            rail_tint(rail)),
+                              done_line=live_view.check_line(TRACE_INDENT, TRACE_LABEL,
+                                                             rail_tint(rail)),
+                              fold=fold)
+
+
+def _fold_line(live: live_view.LiveTurn, rail: str) -> str:
+    """Lab 1's lasting line: the Router, the agent it chose and why, the agent's own steps."""
+    named = _ROUTED.match(live.route)
+    if named:
+        steps = live.steps_done - 1
+        return live_view.fold_line(named.group(1), steps, rail_local=rail == IN_PROCESS,
+                                   tint=rail_tint(rail),
+                                   reason=named.group(2) or named.group(3) or "")
+    # The Router answered alone, or no Router step reached the terminal.
+    said = live.route or _rail_words(_answered(rail, False), rail)
+    return f"{check.paint(live_view.CHECK, check.PASSED)} {said}"
+
+
+class TurnRecord(NamedTuple):
+    """The request whose turn a send records for its check, so the check judges that turn.
+
+    Attributes:
+        index: Which request of the conversation, by position.
+        path: The file the turn's session and ID go to.
+        asked: The request in a few words, for errors.
+        again: How to send it again.
+    """
+
+    index: int
+    path: pathlib.Path
+    asked: str
+    again: str
+
+
+def turn_record(lab: int, stages: Sequence[str]) -> Optional[TurnRecord]:
+    """Marco's Brooklyn question (2A) and Anna's full request (1B) record their turns."""
+    if lab == 2 and "prove" in stages:
+        return TurnRecord(stages.index("prove"), check.lab2_shirt_turn_path(),
+                          "Marco's Brooklyn question", "Send the Task 2A question again.")
+    if lab == 1 and "exercise" in stages:
+        return TurnRecord(stages.index("exercise"), check.lab1_retry_turn_path(),
+                          "Anna's full request", f"Send it again: {SEND_1B}")
+    return None
+
+
+def _begin_turn_record(path: pathlib.Path) -> TextIO:
+    """Publish a pending record: an empty file until the turn answers. An older send can only
+    finish writing its own file, never the one a newer send published."""
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
         receipt = tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=path.parent,
-                                              prefix="lab-2a-", delete=False)
+                                              prefix=path.stem + "-", delete=False)
         try:
             os.replace(receipt.name, path)
         except OSError:
@@ -982,64 +1403,116 @@ def _begin_shirt_turn() -> TextIO:
             raise
         return receipt
     except OSError as exc:
-        raise LabRunError(f"Could not record Marco's Task 2A turn in {path}: {exc}") from exc
+        raise LabRunError(f"Could not record the turn in {path}: {exc}") from exc
+
+
+ANSWERED_LOCAL = "Answered by the local agents"
+ANSWERED_LOCAL_FIRST = (f"{ANSWERED_LOCAL}. They run inside the Pellier app on this machine; "
+                        "Lab 3 moves them to AgentCore.")
+ANSWERED_MANAGED = "Answered on AgentCore (Runtime \u2192 Gateway)"
+
+
+def _answered(rail: str, first_contact: bool) -> str:
+    if rail == MANAGED:
+        return ANSWERED_MANAGED
+    return ANSWERED_LOCAL_FIRST if first_contact else ANSWERED_LOCAL
 
 
 def converse(backend: Backend, lab: int, token: str, persona: str,
-             requests: Sequence[str], trace: bool = True, shirt_index: Optional[int] = None) -> None:
+             requests: Sequence[str], trace: bool = True, record: Optional[TurnRecord] = None,
+             first_contact: bool = False, compact: bool = False,
+             pending: Optional[TextIO] = None) -> Optional[TurnEvidence]:
     """Start a new conversation as this shopper and send the requests in order.
 
     Each request is marked as sent from the terminal, so the shopper's own Ask
     Pellier panel shows it live; with ``trace`` the steps print as they stream.
+    ``compact`` prints only the question, for Lab 1's task sends to finish from the
+    evidence. Returns what the last request's answering attempt showed.
     """
     session = backend.post_json("/api/persona/switch", {"persona_id": persona})["session_id"]
     history: List[Dict[str, str]] = []
+    evidence: Optional[TurnEvidence] = None
     for index, message in enumerate(requests):
-        if trace:
+        evidence = TurnEvidence()
+        if compact:
+            print(flush=True)
+            print(question_line(persona, message), flush=True)
+        live = live_turn(fold=compact, rail=LAB_RAIL[lab]) if (trace or compact) else None
+        if trace and not compact:
             print(flush=True)
             _trace_line("Message", f'"{message}"')
             _trace_line("As", f"{persona.title()}, signed in")
-            _trace_line("To", f"Pellier's chat API ({CHAT_PATH}): the request Ask Pellier sends "
-                              f"when {persona.title()} types this")
-            _trace_line("From", SCENARIOS)
+            _trace_line("To", f"The same request Ask Pellier sends when {persona.title()} types "
+                              "it. Their Ask Pellier panel shows it as \"Sent from the "
+                              "terminal\".")
             print(flush=True)
-        with (_begin_shirt_turn() if index == shirt_index else contextlib.nullcontext()) as receipt:
-            response = send_turn_again_on_failure(backend, token, {
-                "message": message,
-                "session_id": session,
-                "customer_id": f"CUST-{persona.upper()}",
-                "conversation_history": history,
-                "source": "terminal",
-            }, trace=trace, deadline=TURN_DEADLINE_SECONDS[LAB_RAIL[lab]])
-            served = str(response.get("rail") or "")
-            if served != LAB_RAIL[lab]:
-                raise LabRunError(_rail_problem(lab, served, response))
-            if receipt is not None:
-                if not response.get("turn_id"):
-                    raise LabRunError("Pellier returned no turn ID for Marco's Brooklyn question. "
-                                      "Send the Task 2A question again.")
-                try:
-                    json.dump({"session": session, "turn": response["turn_id"]}, receipt)
-                    receipt.flush()
-                except OSError as exc:
-                    raise LabRunError(f"Could not save Marco's Task 2A turn: {exc}") from exc
-        answer = str(response.get("response") or "")
-        turn = f"(turn {response.get('turn_id') or '?'})"
-        if trace:
-            ok(f"ran {RAIL_NAMES[served]} {turn}")
+        recording = record if record is not None and index == record.index else None
+        if live is not None:
+            live.start()
+        try:
+            response, served = _send_one(backend, lab, token, persona, message, session,
+                                         history, trace and not compact, evidence, live,
+                                         recording, pending)
+            answer = str(response.get("response") or "")
+            if live is not None and compact:
+                live.finish(answer, fold_line=_fold_line(live, served))
+            shown = live.finish(answer) if live is not None and not compact else False
+        finally:
+            if live is not None:
+                live.stop()
+        if compact:
+            pass
+        elif trace:
+            # The answer stays where it was revealed, under the steps; a log gets the same order.
+            if not shown:
+                _print_answer(_as_read(answer))
+            _trace_line("Path", _current_path.line(persona, served), names=_current_path.tools,
+                        rail=served)
+            print(_rail_words(lab_reset.status("+ OK", _answered(served, first_contact)),
+                              served), flush=True)
         else:
-            ok(f'{persona.title()}: "{message}" ran {RAIL_NAMES[served]} {turn}')
-        if trace:
-            _print_answer(_as_read(answer))
-        else:
+            ok(f'{persona.title()}: "{message}". {_answered(served, False)}')
             width = check.terminal_width() - len(TRACE_INDENT + ANSWER_LABEL)
             print(f"{TRACE_INDENT}{ANSWER_LABEL}{_one_line(_as_read(answer), width)}", flush=True)
         if lab == 4 and not jessicas_handoff(str(response.get("turn_id") or "")):
             raise LabRunError("Aurora could not confirm an open credit request from Jessica's "
                               "turn. Before opening the Operator, run "
                               "uv run scripts/lab_run.py send --lab 4 --shopper-only again. "
-                              "If it stops here again, show the turn ID to your coding coach.")
+                              "If it stops here again, show this turn ID to your coding coach: "
+                              f"{response.get('turn_id') or 'none returned'}")
         history += [{"role": "user", "content": message}, {"role": "assistant", "content": answer}]
+    return evidence
+
+
+def _send_one(backend: Backend, lab: int, token: str, persona: str, message: str, session: str,
+              history: List[Dict[str, str]], trace: bool, evidence: TurnEvidence,
+              live: Optional[live_view.LiveTurn], recording: Optional[TurnRecord],
+              pending: Optional[TextIO]) -> Tuple[Dict[str, Any], str]:
+    """One request of the conversation, its turn recorded when the task needs it."""
+    with (_begin_turn_record(recording.path) if recording and pending is None
+          else contextlib.nullcontext(pending)) as receipt:
+        response = send_turn_again_on_failure(backend, token, {
+            "message": message,
+            "session_id": session,
+            "customer_id": f"CUST-{persona.upper()}",
+            "conversation_history": history,
+            "source": "terminal",
+        }, trace=trace, deadline=TURN_DEADLINE_SECONDS[LAB_RAIL[lab]], evidence=evidence,
+            live=live)
+        served = str(response.get("rail") or "")
+        if served != LAB_RAIL[lab]:
+            raise LabRunError(_rail_problem(lab, served, response))
+        if receipt is not None and recording is not None:
+            if not response.get("turn_id"):
+                raise LabRunError(f"Pellier returned no turn ID for {recording.asked}. "
+                                  f"{recording.again}")
+            try:
+                json.dump({"session": session, "turn": response["turn_id"]}, receipt)
+                receipt.flush()
+            except OSError as exc:
+                raise LabRunError(f"Could not save the turn for {recording.asked}: "
+                                  f"{exc}") from exc
+    return response, served
 
 
 # ---------------------------------------------------------------------------
@@ -1085,20 +1558,11 @@ def jessicas_handoff(turn: Optional[str] = None, *, review_id: Optional[int] = N
     return bool(row and row["requested"])
 
 
-def nadias_sign_in(path: Optional[pathlib.Path] = None) -> str:
-    """Nadia's Operator sign-in from the workshop credentials file, or where to get it."""
-    path = path or CREDENTIALS_FILE
-    try:
-        lines = [line.strip() for line in path.read_text("utf-8").splitlines()]
-    except OSError:
-        return f"Nadia's sign-in: {path} is missing, so ask a facilitator for her password."
-    for index, line in enumerate(lines[:-1]):
-        password = lines[index + 1]
-        if line.lower() == f"username: {OPERATOR}" and password.lower().startswith("password:"):
-            return (f"Nadia's sign-in for the Operator: username {OPERATOR}, "
-                    f"password {password.split(':', 1)[1].strip()}")
-    return (f"Nadia's sign-in: {path} has no entry for {OPERATOR}, so ask a facilitator "
-            "for her password.")
+def nadias_sign_in() -> str:
+    """Nadia's username and where her password is: the password itself is never printed, so it
+    does not reach a screenshot, a recording or the coach's context."""
+    return (f"Nadia's sign-in for the Operator: username {OPERATOR}. Copy her password from the "
+            "Event Dashboard: Event outputs, OperatorPassword.")
 
 
 def investigate(backend: Backend, token: str, client: str) -> Dict[str, Any]:
@@ -1294,34 +1758,66 @@ def edited_after_start(started: Optional[datetime],
 
 def send(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_token,
          shopper_only: bool = False, trace: bool = True, task: Optional[str] = None,
-         say_next: bool = False) -> None:
+         say_next: bool = False, details: bool = False) -> None:
     """Make the lab's requests on the lab's path, or one task's with ``task``, and for Lab 4
-    do Nadia's part unless ``shopper_only``. ``say_next`` ends with the step that follows."""
-    global _ranking_key_shown
-    _ranking_key_shown = False
+    do Nadia's part unless ``shopper_only``. ``say_next`` ends with the step that follows.
+
+    Lab 1's task sends print only Anna's question, then for 1A each half's top candidates
+    and the reference lookup, and for 1B whether the search broadened; ``details`` prints the
+    whole trace first, the ranking table and its key included. 1A's lookup and 1B's outcome
+    and next action print either way."""
+    global _ranking_key
+    _ranking_key = RANKING_KEY if task == "1A" else RANKING_SHORT_KEY
+    compact = task in LAB_1_SENDS and trace and not details
     configured = _configured_rail()
     if configured is not None and configured != LAB_RAIL[lab]:
         raise LabRunError(_rail_problem(lab, configured, {}, before=True))
-    # A participant who saved an edit should not have to restart the backend by hand first.
-    edited = (edited_after_start(check.service_start_time())
-              if LAB_RAIL[lab] == IN_PROCESS else None)
-    if edited:
-        restart_backend(backend, reason=f"{edited} was saved after the backend started; "
-                                        "restarting the backend so it runs your edit")
-    else:
-        wait_until_healthy(backend)
-    if lab == 4 and not shopper_only:
-        settle_credit(backend, token_for(OPERATOR), token_for, trace=trace)
-    else:
-        tokens: Dict[str, str] = {}
-        for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
-            if persona not in tokens:
-                tokens[persona] = token_for(persona)
-            shirt_index = stages.index("prove") if lab == 2 and "prove" in stages else None
-            converse(backend, lab, tokens[persona], persona, required_requests(persona, stages),
-                     trace=trace, shirt_index=shirt_index)
-        if lab == 4:
-            print_nadia_next()
+    # Reserve Anna's record before the first fallible setup step. Even a failed sign-in
+    # supersedes the previous 1B send, and an overlapping send keeps its own file handle.
+    sends_1b = lab == 1 and task in (None, "1B")
+    with (_begin_turn_record(check.lab1_retry_turn_path()) if sends_1b
+          else contextlib.nullcontext()) as pending:
+        # A saved edit needs to be running before the participant sends the request.
+        edited = (edited_after_start(check.service_start_time())
+                  if LAB_RAIL[lab] == IN_PROCESS else None)
+        if edited:
+            restart_backend(backend, reason=f"{edited} was saved after the backend started; "
+                                            "restarting the backend so it runs your edit")
+        else:
+            wait_until_healthy(backend, announce=not compact)
+        evidence: Optional[TurnEvidence] = None
+        if lab == 4 and not shopper_only:
+            settle_credit(backend, token_for(OPERATOR), token_for, trace=trace)
+        else:
+            tokens: Dict[str, str] = {}
+            for persona, stages in (TASK_CONVERSATIONS[task] if task else CONVERSATIONS[lab]):
+                if persona not in tokens:
+                    tokens[persona] = token_for(persona)
+                evidence = converse(backend, lab, tokens[persona], persona,
+                                    required_requests(persona, stages), trace=trace,
+                                    record=turn_record(lab, stages), first_contact=task == "1A",
+                                    compact=compact, pending=pending)
+    if lab == 4 and shopper_only:
+        print_nadia_next()
+    if task == "2B":
+        told, look, steps = after_2b_send(evidence)
+        print(flush=True)
+        for line in (told, *look):
+            say(line)
+        if say_next:
+            print_next_steps(steps)
+        return
+    if task == "1B":
+        told, following = after_1b_send(evidence)
+        print(("" if compact else "\n") + told, flush=True)
+        if say_next:
+            print(following, flush=True)
+        return
+    if task == "1A":
+        print_first_search(evidence, compact)
+        if say_next:
+            print(f"\n{check.next_lines(next_after_send(lab, task))}", flush=True)
+        return
     if say_next:
         print_next_steps(next_after_send(lab, task))
 
@@ -1530,6 +2026,18 @@ def _run_steps(progress: Progress, steps: Sequence[Step]) -> None:
     progress.end()
 
 
+NEXT_AFTER_FINISH = {
+    1: ['In the guide, open Task 2A and read "Send Marco\'s question".',
+        "uv run scripts/lab_run.py send --lab 2 --task 2A"],
+    2: ['In the guide, open "From local agents to Amazon Bedrock AgentCore" and read "Finish '
+        'Labs 1 and 2 before deploying".'],
+    3: ['In the guide, open Task 4A and read "Send Jessica\'s request".',
+        "uv run scripts/lab_run.py send --lab 4 --shopper-only"],
+    4: ['In the guide, open the Wrap-up and read "Follow one credit end to end".',
+        "uv run scripts/follow_credit.py"],
+}
+
+
 def _refuse_while_deploying(lab: int, repo: pathlib.Path) -> None:
     """A running deploy ends by moving Pellier onto AgentCore, under a local lab's turns. Labs 3
     and 4 deploy themselves, so their deploy follows the running one instead."""
@@ -1563,6 +2071,8 @@ def finish(lab: int, backend: Backend, token_for: Callable[[str], str] = mint_to
     if own:
         progress.finish()
     ok(f"Lab {lab} is finished: every check above passed")
+    if own and check.says_next():
+        print_next_steps(NEXT_AFTER_FINISH[lab])
 
 
 def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
@@ -1578,6 +2088,8 @@ def fast_track(backend: Backend, token_for: Callable[[str], str] = mint_token,
     progress.finish()
     ok("Fast track complete: all four checks passed. Continue to From local agents to Amazon "
        "Bedrock AgentCore.")
+    if check.says_next():
+        print_next_steps(NEXT_AFTER_FINISH[2])
 
 
 def _a_lab_file_is_missing(action: str, lab: Optional[int]) -> bool:
@@ -1602,6 +2114,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                         help="send: one line per request, without each turn's trace")
     parser.add_argument("--task", choices=TASKS,
                         help="solution: only that task's answer; send: only that task's request")
+    parser.add_argument("--details", action="store_true",
+                        help="send: show the full trace and ranking table for Task 1A or 1B")
     args = parser.parse_args(argv)
     global _retry_deadline
     _retry_deadline = None
@@ -1616,6 +2130,8 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
         parser.error("--shopper-only goes with send --lab 4 only")
     if args.quiet and args.action != "send":
         parser.error(f"--quiet goes with send, not {args.action}")
+    if args.details and args.action != "send":
+        parser.error(f"--details goes with send, not {args.action}")
     if args.task:
         if args.action not in ("solution", "send"):
             parser.error(f"--task goes with solution or send, not {args.action}")
@@ -1659,7 +2175,7 @@ def main(argv: Optional[Sequence[str]] = None, base_url: str = BASE_URL,
                 Backend(base_url)))
         else:
             send(args.lab, Backend(base_url), token_for, shopper_only=args.shopper_only,
-                 trace=not args.quiet, task=args.task, say_next=True)
+                 trace=not args.quiet, task=args.task, say_next=True, details=args.details)
     except (LabRunError, lab_reset.LabResetError, SystemExit) as exc:
         fail(str(exc))
         return 1

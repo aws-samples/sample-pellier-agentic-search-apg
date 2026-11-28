@@ -35,6 +35,8 @@ recorded, against the catalog.
     uv run scripts/lab2_check.py --task 2A
     uv run scripts/lab2_check.py --task 2B
     uv run scripts/lab2_check.py --task 2B --unknown "..." --ambiguous "..." --sold-out "..."
+
+Add ``--details`` to either to print each finding's full Expected, Observed and Evidence box.
 """
 
 from __future__ import annotations
@@ -102,7 +104,7 @@ _MATCH_SQL = """
      ORDER BY "productId"::int
 """
 _STOCK_SQL = """
-    SELECT warehouse_code, quantity, ship_window_min, ship_window_max
+    SELECT warehouse_code, warehouse_name, quantity, ship_window_min, ship_window_max
       FROM pellier.warehouse_inventory
      WHERE product_id = %s
      ORDER BY warehouse_code
@@ -187,6 +189,16 @@ def _counts(rows: Sequence[Dict[str, Any]]) -> Dict[str, int]:
     return {str(row.get("warehouse_code")): int(row.get("quantity") or 0) for row in rows}
 
 
+def named_counts(rows: Sequence[Dict[str, Any]]) -> str:
+    """The warehouse rows as the guide reads them: ``Brooklyn 0, Austin 6, Portland 14``,
+    soonest-shipping warehouse first; a row without a name falls back to its code."""
+    ordered = sorted(rows, key=lambda row: (row.get("ship_window_min") is None,
+                                            row.get("ship_window_min") or 0,
+                                            str(row.get("warehouse_code"))))
+    return ", ".join(f"{row.get('warehouse_name') or row.get('warehouse_code')} "
+                     f"{int(row.get('quantity') or 0)}" for row in ordered) or "no rows"
+
+
 def _windows(rows: Sequence[Dict[str, Any]]) -> Dict[str, Tuple[Any, Any]]:
     """Each warehouse's recorded ship window in business days, as (min, max)."""
     return {str(row.get("warehouse_code")): (row.get("ship_window_min"), row.get("ship_window_max"))
@@ -252,6 +264,19 @@ EXPECTED_2A = ("the Stock agent that answered Marco's Brooklyn question held che
 _NEXT_2A_GRANT = ("which tool must the Stock agent - definition block in agents/stock_agent.py "
                   "connect for a stock answer to come from a warehouse row, and what else may "
                   f"it hold? Send Marco's Brooklyn question again ({SEND_2A}), then rerun this check.")
+
+
+HEADLINE_2A = "Lab 2A: Marco's stock answer comes only from the warehouse row."
+SHORT_RESEND_2A = ('In the guide, open Task 2A and read "Ask again and check the warehouse '
+                   f'record".\nThen run: {SEND_2A}')
+
+
+def _waiting_2a(finding: check.Finding, next_step: str, expected: str,
+                label: str = "Stock agent's answer") -> check.Verdict:
+    """A 2A finding without a pass: one rule with what was expected, seen and to do next."""
+    rule = check.Rule(label, ok=False, expected=expected, observed=finding.observed,
+                      next_step=next_step)
+    return check.with_rules(finding, HEADLINE_2A, [rule])
 
 
 def _as_dict(value: Any) -> Dict[str, Any]:
@@ -416,14 +441,17 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     title = "the Stock agent holds check_stock alone"
     rows = task_2a_turn(conn)
     if not rows:
-        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A,
+        return _waiting_2a(check.Finding("2A", title, check.NOT_YET, EXPECTED_2A,
                              "no recorded Stock-agent call for Marco's Brooklyn question",
                              ["pellier.tool_audit: no matching Stock-agent call for this question"],
                              f"send Marco's Brooklyn question with {SEND_2A}, then rerun this check. "
                              "Already sent? Before the fix, the Stock agent does not hold "
                              "check_stock, so a call to it did not run and left no row: "
                              "apply Task 2A (uv run scripts/lab_run.py solution --lab 2 --task 2A)."
-                             + check.since_note(2, SEND_2A))
+                             + check.since_note(2, SEND_2A)),
+            "Send Marco's Brooklyn question, then run this check.\n"
+            "Not fixed yet? Install Task 2A first: uv run scripts/lab_run.py solution "
+            "--lab 2 --task 2A", "a Stock-agent call for Marco's Brooklyn question")
     grant = recorded_grant(rows)
     evidence = [
         f"pellier.tool_audit turn {check.short(_as_dict(rows[0]['args']).get('turn_id'), 20)}: "
@@ -433,32 +461,57 @@ def judge_2a(conn: Any, when: Optional[check.Timeline] = None) -> check.Finding:
     ]
     late = stale_2a(rows[0].get("created_at"), when)
     if late is not None:
-        return check.Finding("2A", title, check.NOT_YET, EXPECTED_2A, late[0], evidence, late[1])
+        return _waiting_2a(check.Finding("2A", title, check.NOT_YET, EXPECTED_2A, late[0],
+                                         evidence, late[1]), SHORT_RESEND_2A,
+                           "an answer from your edited agent")
     state, observed = _grant_verdict(grant)
     if state is not None:
-        return check.Finding("2A", title, state, EXPECTED_2A, observed, evidence, _NEXT_2A_GRANT)
+        missing = state == check.NOT_YET
+        advice = ("The Stock agent can't reach check_stock. Give it that tool.\n"
+                  if missing else "The Stock agent holds tools it shouldn't. Leave it "
+                  "check_stock alone.\n") + "Then send Marco's Brooklyn question again."
+        return _waiting_2a(check.Finding("2A", title, state, EXPECTED_2A, observed, evidence,
+                                         _NEXT_2A_GRANT), advice, "check_stock alone",
+                           "Stock agent's tools")
     problems = _call_problems(rows)
     counts, compared = _count_problems(conn, rows, evidence)
+    marco = catalog_answer(conn, MARCO_PIECE_NAME)
     if problems:
-        return check.Finding("2A", title, check.FAILED, EXPECTED_2A,
-                             "; ".join(problems + counts), evidence, _NEXT_2A_GRANT)
+        return _waiting_2a(check.Finding("2A", title, check.FAILED, EXPECTED_2A,
+                                         "; ".join(problems + counts), evidence,
+                                         _NEXT_2A_GRANT),
+                           "The Stock agent called a tool that does not read the warehouse "
+                           "table. Leave it check_stock alone.\n"
+                           "Then send Marco's Brooklyn question again.",
+                           "only check_stock called", "Calls it made")
     if counts:
-        return check.Finding("2A", title, check.FAILED, EXPECTED_2A, "; ".join(counts),
-                             evidence, "check_stock reported a count or ship window "
-                             "warehouse_inventory does not hold for a piece Pellier carries: "
-                             "rerun this check after "
-                             f"sending Marco's Brooklyn question again ({SEND_2A}).")
+        return _waiting_2a(
+            check.Finding("2A", title, check.FAILED, EXPECTED_2A, "; ".join(counts), evidence,
+                          "check_stock reported a count or ship window "
+                          "warehouse_inventory does not hold for a piece Pellier carries: "
+                          "rerun this check after "
+                          f"sending Marco's Brooklyn question again ({SEND_2A})."),
+            "check_stock gave a count the warehouse table does not hold.\n"
+            "Send Marco's Brooklyn question again, then run this check.",
+            "counts equal the warehouse table", "Counts it saw")
     if not compared:
-        return check.Finding(
+        return _waiting_2a(check.Finding(
             "2A", title, check.NOT_YET, EXPECTED_2A,
             "no check_stock call compared Brooklyn's count and ship window for the "
             f"{MARCO_PIECE_NAME}: each one named no single piece or another piece",
-            evidence, f"send Marco's Brooklyn question again ({SEND_2A}), then rerun this check.")
+            evidence, f"send Marco's Brooklyn question again ({SEND_2A}), then rerun this check."),
+            SHORT_RESEND_2A, "a call about the Hadley Linen Shirt", "Calls it made")
     calls = sum(1 for row in rows if row["tool"] == "check_stock")
     observed = (f"held check_stock alone; {check.counted(calls, 'check_stock call')}; the "
                 f"{MARCO_PIECE_NAME}'s Brooklyn count and ship window match "
                 "warehouse_inventory")
-    return check.Finding("2A", title, check.PASSED, EXPECTED_2A, observed, evidence)
+    finding = check.Finding("2A", title, check.PASSED, EXPECTED_2A, observed, evidence)
+    stock = named_counts(marco.get("stock") or [])
+    return check.with_rules(finding, HEADLINE_2A, [
+        check.Rule("Stock agent's tools", "check_stock alone"),
+        check.Rule("Calls it made", str(calls)),
+        check.Rule("Counts and ship windows it saw",
+                   f"match the warehouse table: {stock}")])
 
 
 # ---------------------------------------------------------------------------
@@ -501,6 +554,51 @@ def judge_function(conn: Any, worksheet: pathlib.Path = WORKSHEET,
             evidence)
 
 
+HEADLINE_2B = ("Lab 2B: not carried is not the same as sold out: no row versus zero units.")
+_NEXT_CAPE = ("A piece Pellier doesn't carry must return no row, not 0 units.\n"
+              "When the product lookup finds nothing, stop the function (lines 62-70 show how).")
+_NEXT_OTHER = ("check_stock must answer this the way the catalog does.\n"
+               "Compare your function with the lines that already handle the other cases.")
+_NEXT_NOT_LIVE = ("In Task 2B, build the fix for a product Pellier does not carry.\n"
+                  "Then run: " + WORKSHEET_RUN)
+
+
+def plain_answer(envelope: Dict[str, Any]) -> str:
+    """What check_stock said, in a few plain words."""
+    status = envelope.get("status")
+    if status == "not_found":
+        return "not carried" + (", with a count" if "total_units" in envelope else "")
+    if status == "ambiguous":
+        return f"{len(envelope.get('candidates') or [])} products match"
+    if status == "success":
+        return f"{envelope.get('total_units')} units"
+    return str(envelope.get("error") or status or "no answer")[:60]
+
+
+def _plain_pass(case: str, catalog: Dict[str, Any]) -> str:
+    if case == "unknown":
+        return "not carried"
+    if case == "several":
+        return f"{len(catalog.get('matches') or [])} products, Marco picks one first"
+    units = sum(_counts(catalog.get("stock") or []).values())
+    return "0 units, sold out" if case == "sold_out" else f"{units} units, in stock"
+
+
+def _case_rule(case: str, query: str, chosen_by: str, catalog: Dict[str, Any],
+               envelope: Dict[str, Any], verdict: str) -> check.Rule:
+    label = query + (" (your flag)" if chosen_by == "your flag" else "")
+    if verdict == "matches":
+        return check.Rule(label, _plain_pass(case, catalog))
+    if verdict.startswith("not a"):
+        return check.Rule(label, ok=False, expected=f"a query that is {_CASE_LABEL[case]}",
+                          observed=verdict, next_step="Choose a query that is what its case "
+                          "says, then run this check again with another --unknown, "
+                          "--ambiguous or --sold-out.")
+    expected = _plain_pass(case, catalog)
+    return check.Rule(label, ok=False, expected=expected, observed=plain_answer(envelope),
+                      next_step=_NEXT_CAPE if case == "unknown" else _NEXT_OTHER)
+
+
 def judge_2b(
     conn: Any, tool: Callable[..., str], inputs: Dict[str, Tuple[str, str]],
     worksheet: pathlib.Path = WORKSHEET,
@@ -510,6 +608,7 @@ def judge_2b(
     evidence: List[str] = []
     bad_inputs: List[str] = []
     differs: List[str] = []
+    case_rules: List[check.Rule] = []
     for case in CASES:
         query, chosen_by = inputs[case]
         catalog = catalog_answer(conn, query)
@@ -530,6 +629,7 @@ def judge_2b(
             verdict = "does not match"
             answer = describe_envelope(envelope)
             differs.append(f"{_CASE_LABEL[case]}: \"{query}\" came back {answer}")
+        case_rules.append(_case_rule(case, query, chosen_by, catalog, envelope, verdict))
         rows.append((_CASE_LABEL[case], query[:24], chosen_by, describe_catalog(catalog),
                      describe_envelope(envelope), verdict))
         evidence.append(_catalog_evidence(query, catalog))
@@ -540,19 +640,25 @@ def judge_2b(
     observed = f"{matched} of {len(CASES)} cases match" + (
         "; " + "; ".join(differs + bad_inputs) if differs or bad_inputs else "")
     if bad_inputs:
-        return check.Finding("2B", title, check.NOT_YET, EXPECTED_2B, observed, evidence,
-                             "choose a query that is what its case says: run the check again "
-                             "with another --unknown, --ambiguous or --sold-out."), rows
+        finding = check.Finding("2B", title, check.NOT_YET, EXPECTED_2B, observed, evidence,
+                                "choose a query that is what its case says: run the check "
+                                "again with another --unknown, --ambiguous or --sold-out.")
+        return check.with_rules(finding, HEADLINE_2B, case_rules), rows
     if differs:
-        return check.Finding("2B", title, check.FAILED, EXPECTED_2B, observed,
-                             evidence, _NEXT_2B), rows
+        finding = check.Finding("2B", title, check.FAILED, EXPECTED_2B, observed, evidence,
+                                _NEXT_2B)
+        return check.with_rules(finding, HEADLINE_2B, case_rules), rows
     if function_state is not None:
-        return check.Finding("2B", title, function_state, EXPECTED_2B,
-                             f"{observed}; {function_observed}", evidence,
-                             f"run your file so its function is the live one: {WORKSHEET_RUN}"
-                             ), rows
-    return check.Finding("2B", title, check.PASSED, EXPECTED_2B,
-                         f"{observed}; {function_observed}", evidence), rows
+        finding = check.Finding("2B", title, function_state, EXPECTED_2B,
+                                f"{observed}; {function_observed}", evidence,
+                                f"run your file so its function is the live one: {WORKSHEET_RUN}")
+        rule = check.Rule("Your function", ok=False,
+                          expected="the live function is the one your file saved",
+                          observed=function_observed, next_step=_NEXT_NOT_LIVE)
+        return check.with_rules(finding, HEADLINE_2B, [*case_rules, rule]), rows
+    finding = check.Finding("2B", title, check.PASSED, EXPECTED_2B,
+                            f"{observed}; {function_observed}", evidence)
+    return check.with_rules(finding, HEADLINE_2B, case_rules), rows
 
 
 def _catalog_evidence(query: str, catalog: Dict[str, Any]) -> str:
@@ -684,6 +790,44 @@ def marco_cape_request(repo: pathlib.Path = REPO) -> str:
                 and row.get("journey_stage") == "exercise")
 
 
+LAB_2_ROW = ("2 \u00b7 Ground", "Inventory tool backed by Aurora")
+SHIRT_WAREHOUSE = "Brooklyn"
+
+
+def lab_2_proof(conn: Any, unknown: str) -> Optional[str]:
+    """What Marco's lab proved, read live: Brooklyn's count for the shirt and the product the
+    store does not carry. None unless Task 2A's check passes now too."""
+    if judge_2a(conn).state != check.PASSED:
+        return None
+    shirt = json.loads(live_tool(conn, {})(product_query=DEFAULT_INPUTS["in_stock"]))
+    units = next((row.get("quantity") for row in shirt.get("warehouses") or []
+                  if str(row.get("warehouse_name") or "") == SHIRT_WAREHOUSE), None)
+    if units is None:
+        return None
+    return (f"{SHIRT_WAREHOUSE} had {units} shirt{'' if units == 1 else 's'}. "
+            f"The {unknown} had no catalog entry.")
+
+
+def lab_2_grid(unknown: str, env_path: pathlib.Path = check.DEFAULT_ENV) -> List[str]:
+    """The grid after Lab 2's last check: Lab 1's row and Lab 2's, each proved live."""
+    import lab1_retry
+    import pellier_map
+
+    cfg = check.db_config(env_path)
+    if cfg is None:
+        return []
+    try:
+        with check.connect(cfg) as conn:
+            conn.autocommit = True
+            proof = lab_2_proof(conn, unknown)
+    except Exception:  # noqa: BLE001 - the grid is a summary; the pass above stands
+        return []
+    if proof is None:
+        return []
+    return pellier_map.proved_grid([lab1_retry.lab_1_row(lab1_retry.proved_requirements()),
+                                    (*LAB_2_ROW, proof)])
+
+
 def _inputs(args: argparse.Namespace) -> Dict[str, Tuple[str, str]]:
     chosen = {"unknown": args.unknown, "several": args.ambiguous, "sold_out": args.sold_out}
     inputs = {case: ((value.strip(), "your flag") if value and value.strip()
@@ -746,21 +890,27 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--ambiguous", help="A query that names several pieces (Task 2B)")
     parser.add_argument("--sold-out", dest="sold_out",
                         help="A carried piece with no units (Task 2B)")
+    parser.add_argument("--details", action="store_true",
+                        help="Print the full Expected, Observed and Evidence box")
     args = parser.parse_args(argv)
     if check.refuse_missing_lab_file(2):
         return 1
     finding, rows = run(args.task, _inputs(args))
+    tables: List[str] = []
     if args.task == "2A":
-        print("Lab 2A: Marco's Brooklyn stock answer comes from check_stock alone")
+        tables.append("Lab 2A: Marco's Brooklyn stock answer comes from check_stock alone")
     else:
-        print(check.wrapped("", "Lab 2B: pellier.check_stock answers from the catalog and "
-                            "warehouse_inventory"))
+        tables.append(check.wrapped("", "Lab 2B: pellier.check_stock answers from the catalog "
+                                    "and warehouse_inventory"))
         if rows:
-            print(marco_line(rows, marco_cape_request()))
-            print(cases_table(rows))
-    print(check.render(finding))
-    passed = finding.state == check.PASSED
-    print(check.closing(f"Lab {args.task} check", passed, args.task))
+            tables += [marco_line(rows, marco_cape_request()), cases_table(rows)]
+    flags = [check.DETAILS_FLAG] if args.details else []
+    inputs = _inputs(args)
+    grid = (lab_2_grid(inputs["unknown"][0])
+            if args.task == "2B" and finding.state == check.PASSED else [])
+    after = ["", *grid] if grid else []
+    passed = check.emit(finding, flags, f"Lab {args.task} check", args.task, tables,
+                        after=after)
     return 0 if passed else 1
 
 

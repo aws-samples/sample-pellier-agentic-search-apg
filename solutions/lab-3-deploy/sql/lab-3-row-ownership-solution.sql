@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded off \pset format wrapped
 
 -- Lab 3, Task 3B: the row-ownership predicate.
 --
@@ -46,7 +46,7 @@ ALTER POLICY support_tickets_own_rows ON pellier.support_tickets
 
 -- Stamp both policies with your predicate's sha256, so scripts/lab3_row_ownership_check.py
 -- can tell the predicate you deployed from the one the database shipped with.
-SELECT 'Lab 3B predicate sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
+SELECT 'Lab 3B predicate sha256 ' || hash AS stamp
   FROM (SELECT encode(sha256(convert_to(:'ownership_predicate', 'UTF8')), 'hex') AS hash) h
 \gset
 COMMENT ON POLICY orders_own_rows ON pellier.orders IS :'stamp';
@@ -59,9 +59,7 @@ SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS 
          AS theo_tickets,
        (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-JESSICA') AS jessica_orders,
        (SELECT count(*) FROM pellier.support_tickets WHERE customer_id = 'CUST-JESSICA')
-         AS jessica_tickets,
-       (SELECT string_agg(cognito_username || ' -> ' || id, ', ' ORDER BY id)
-          FROM pellier.customers WHERE id IN ('CUST-THEO', 'CUST-JESSICA')) AS names
+         AS jessica_tickets
 \gset owner_
 
 -- The tests run inside a savepoint. Rolling back to it undoes their test
@@ -118,7 +116,8 @@ SELECT (SELECT count(*) FROM pellier.orders WHERE customer_id = 'CUST-THEO') AS 
 \gset as_theo_
 
 -- Theo writes a ticket in Jessica's name, then in his own. Each answer is the
--- SQLSTATE the database gave: 42501 is a row-level security refusal.
+-- SQLSTATE the database gave, and the tests below show it in words: 42501 is a
+-- row-level security refusal ("blocked"), 00000 is no error ("allowed").
 DO $writes$
 DECLARE
     state text;
@@ -201,40 +200,47 @@ INSERT INTO lab_3_probes VALUES
     ('Theo reads his own tickets', 'theo', :'owner_theo_tickets', :'as_theo_theo_tickets'),
     ('Theo reads Jessica''s orders', 'theo', '0', :'as_theo_jessica_orders'),
     ('Theo reads Jessica''s tickets', 'theo', '0', :'as_theo_jessica_tickets'),
-    ('Theo writes a ticket in Jessica''s name', 'theo', '42501', :'as_theo_write_jessica'),
-    ('Theo writes a ticket in his own name', 'theo', '00000', :'as_theo_write_theo'),
-    ('No one signed in reads orders', '(none)', '0', :'as_nobody_orders'),
+    ('Theo writes a ticket in Jessica''s name', 'theo', 'blocked',
+     CASE :'as_theo_write_jessica' WHEN '42501' THEN 'blocked' WHEN '00000' THEN 'allowed'
+          ELSE 'error' END),
+    ('Theo writes a ticket in his own name', 'theo', 'allowed',
+     CASE :'as_theo_write_theo' WHEN '42501' THEN 'blocked' WHEN '00000' THEN 'allowed'
+          ELSE 'error' END),
+    ('No one signed in reads orders', '(nobody)', '0', :'as_nobody_orders'),
     ('Jessica reads her own orders', 'jessica', :'owner_jessica_orders',
      :'as_jessica_orders'),
     ('Jessica reads her own tickets', 'jessica', :'owner_jessica_tickets',
      :'as_jessica_tickets'),
-    ('Customers who see exactly their own orders and tickets', 'each customer',
+    ('Each customer sees only their own rows', 'everyone',
      :'every_customers', :'every_exact');
 
-\echo 'Lab 3B: your ownership predicate, tested as pellier_agent'
-\echo 'Evidence  policies orders_own_rows and support_tickets_own_rows, rewritten'
-\echo '          inside this transaction'
-\echo '          sign-in names in pellier.customers:'
-\echo '         ' :owner_names
+\echo 'Lab 3B: Aurora enforces ownership on every path'
 \echo ''
-SELECT probe AS "Test", bound_as AS "Signed in as", expected AS "Expected",
-       observed AS "Observed",
-       CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
+SELECT probe AS "Test", bound_as AS "Signed in", expected AS "Should be",
+       CASE WHEN expected = observed THEN '' ELSE observed END AS "Is now",
+       CASE WHEN expected = observed THEN '✓' ELSE '✗' END AS "OK"
   FROM lab_3_probes;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_3_probes
 \gset lab_3_
+-- Which way the predicate is wrong, for the Next line. Each flag is true when its test fails.
+SELECT coalesce(bool_or(probe LIKE 'Theo reads Jessica%' AND observed <> expected), false)
+         AS sees_hers,
+       coalesce(bool_or(probe LIKE 'Theo reads his own%' AND observed <> expected), false)
+         AS theo_blind,
+       coalesce(bool_or(probe LIKE 'No one signed in%' AND observed <> expected), false)
+         AS nobody_sees,
+       coalesce(bool_or(probe LIKE 'Jessica reads her own%' AND observed <> expected), false)
+         AS jessica_blind,
+       coalesce(bool_or(probe LIKE 'Each customer%' AND observed <> expected), false)
+         AS some_customer_off
+  FROM lab_3_probes
+\gset case_
 
-\echo 'Expected  every test passes; then the file saves your predicate and it is the'
-\echo '          live policy'
 SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
 \if :lab_3_passed
   COMMIT;
-  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Saved, your predicate is now'
-  \echo '          the live policy.'
-  \echo 'Deployed  your predicate on orders_own_rows and support_tickets_own_rows,'
-  \echo '          sha256' :stamp_short
-  \echo '          the test writes were undone before the commit'
+  \echo :lab_3_matched 'of' :lab_3_probes 'tests passed. Saved, your predicate is now the live policy.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 3B predicate check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -242,20 +248,33 @@ SELECT :lab_3_matched = :lab_3_probes AS lab_3_passed \gset
   \if :{?quiet_next}
   \else
     \echo ''
-    \echo 'Next: go back to the deploy in the Pellier workshop terminal. When it has finished,'
-    \echo '      send Theo''s requests.'
+    \echo 'Next  In the guide, read "Prove the deployed build".'
+    \echo '      When the deploy has finished, in the Pellier workshop terminal run:'
     \echo '      uv run scripts/lab_run.py send --lab 3'
   \endif
 \else
   ROLLBACK;
-  \echo 'Observed ' :lab_3_matched 'of' :lab_3_probes 'tests passed. Your change was undone.'
-  \echo '          The live policies are unchanged.'
-  \echo 'Next      whose rows should your predicate match? In the rows that do not match,'
-  \echo '          0 where a number is expected means it matches nobody, and a number where'
-  \echo '          0 is expected means it matches everybody. The bound name is'
-  \echo '          current_setting(''pellier.principal_username'', true). If only the'
-  \echo '          every-customer row does not match, check that each sign-in sees'
-  \echo '          all its own order and ticket IDs and nobody else''s.'
+  \echo :lab_3_matched 'of' :lab_3_probes 'tests passed. Your change was undone.'
+  \echo 'The live policies are unchanged.'
+  \echo ''
+  \echo 'Next  In Task 3B, choose "Write it yourself" or "Install the provided fix".'
+  \if :case_sees_hers
+    \echo '      Your rule matches everyone, so Theo can see Jessica''s orders.'
+    \echo '      Make it true only for rows that belong to the signed-in customer.'
+  \elif :case_theo_blind
+    \echo '      Your rule matches no one, so Theo can''t see his own' :owner_theo_orders 'orders.'
+    \echo '      Make it true only for rows that belong to the signed-in customer.'
+  \elif :case_nobody_sees
+    \echo '      Your rule shows orders when no one is signed in.'
+    \echo '      It must match no row unless a customer is signed in.'
+  \elif :case_jessica_blind
+    \echo '      Your rule works for Theo, but Jessica can''t see her own orders.'
+    \echo '      It must follow whoever is signed in, not one customer.'
+  \elif :case_some_customer_off
+    \echo '      Close. It works for Theo and Jessica but not every customer.'
+  \else
+    \echo '      A test above is marked ✗. Compare Should be with Is now.'
+  \endif
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 3B predicate check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

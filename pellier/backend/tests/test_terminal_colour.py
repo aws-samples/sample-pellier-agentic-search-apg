@@ -102,10 +102,15 @@ def test_a_right_rule_that_is_not_deployed_yet_is_orange(at_a_terminal) -> None:
     assert check.plain(first) == lab4_policy.NOT_DEPLOYED_CLOSING
 
 
-def test_the_next_line_is_never_painted(at_a_terminal) -> None:
+def test_the_deploy_hint_emphasizes_only_the_command(at_a_terminal, monkeypatch) -> None:
     waiting = check.Finding("4A", "t", check.NOT_YET, "e", lab4_policy.NOT_DEPLOYED)
     lines = lab4_policy.closing(True, waiting).splitlines()
-    assert all("\033" not in line for line in lines[1:])
+    assert all("\033" not in line for line in lines[1:-1])
+    command = lab4_policy.NEXT_DEPLOY[-1]
+    assert lines[-1] == f"      Then run: \033[1m{command}{OFF}"
+
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert lab4_policy.closing(True, waiting).splitlines() == [check.plain(line) for line in lines]
 
 
 @pytest.mark.parametrize("states, colour", [

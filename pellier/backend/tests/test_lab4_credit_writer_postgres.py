@@ -3,9 +3,9 @@
 The starter grants what a team writes to make an invoker's-rights credit
 function work: table privileges and a row policy. The credit still writes once
 and replays, and only the privilege probes fail: the trigger, not a missing
-privilege, refuses the direct insert (23514), and a direct UPDATE raises an
+privilege, refuses the direct insert by trigger only, and a direct UPDATE raises an
 approved amount with no check. The solution leaves the role EXECUTE on a
-definer's-rights function and nothing else, so both are 42501. A failing run
+definer's-rights function and nothing else, so both are refused. A failing run
 rolls back and changes nothing; a passing run commits the privileges and the
 stamp, never the probe credit.
 """
@@ -35,6 +35,9 @@ def _run(cluster: Any, path: Path) -> subprocess.CompletedProcess:
          "-d", "postgres", "-P", "pager=off", "-f", str(path)],
         capture_output=True, text=True, timeout=60,
     )
+
+
+ACCESS_PROBE = "Role's direct table access"
 
 
 def _probes(stdout: str) -> Dict[str, List[str]]:
@@ -71,23 +74,26 @@ def test_the_starter_writes_the_credit_and_fails_only_the_privilege_probes(fresh
     done = _run(fresh_db, STARTER)
     assert done.returncode != 0
     probes = _probes(done.stdout)
-    assert probes["Insert a credit row directly"][1:3] == [
-        "23514", "store_credits_require_approval, a rule the owner can switch off"]
-    assert probes["Raise the approved credit to $500 directly"][1] == "00000"
-    assert "1 row updated" in probes["Raise the approved credit to $500 directly"][2]
-    for kept in ("The approved key with a different amount", "The approved amount under another key",
-                 "The approved credit, then its retry", "Who may execute the function"):
+    assert probes["Insert a credit row directly"][:2] == ["blocked", "blocked by a trigger only"]
+    assert probes["Change an approved credit to $500"][:2] == [
+        "blocked", "allowed, $25 became $500"]
+    assert "23514" not in done.stdout and "42501" not in done.stdout
+    assert "RECORD" not in done.stdout
+    for kept in ("Approved key, different amount", "Approved amount, another key",
+                 "Approved credit, then its retry", "Who may run the function"):
         assert probes[kept][-1] == "matches", (kept, probes[kept])
     differs = sorted(name for name, row in probes.items() if row[-1] == "does not match")
     assert differs == sorted([
-        "Insert a credit row directly", "Raise the approved credit to $500 directly",
-        "The function's rights",
-        "The role's privileges and row policies on Pellier's tables"])
-    granted = probes["The role's privileges and row policies on Pellier's tables"][1]
-    assert granted.splitlines()[-1] == (
-        "policy orders_credit_writer on orders USING (true): every customer's rows")
+        "Insert a credit row directly", "Change an approved credit to $500",
+        "The function runs with", ACCESS_PROBE])
+    assert probes["The function runs with"][:2] == ["owner's rights", "caller's rights"]
+    assert probes[ACCESS_PROBE][:2] == ["none", "4 tables + 1 row policy"]
     assert "Your change was undone. The live state is unchanged." in " ".join(done.stdout.split())
-    assert "Next      which single privilege does a credit path need?" in done.stdout
+    assert 'Next In Task 4B, choose "Write it yourself" or "Install the provided fix".' in " ".join(
+        done.stdout.split())
+    assert "The role still reaches: approvals SELECT, UPDATE; customers SELECT;" in done.stdout
+    assert "Give it only EXECUTE on the function." in done.stdout
+    assert "sha256" not in done.stdout
     assert "Lab 4B privileges check failed" in done.stdout
     # The summary of tests that differ names what the rights test wants, not its value: the
     # value is the answer to the Build task.
@@ -111,15 +117,14 @@ def test_a_definer_with_another_path_is_told_the_pinned_one(fresh_db, tmp_path) 
     assert done.returncode != 0
     probes = _probes(done.stdout)
     differs = [name for name, row in probes.items() if row[-1] == "does not match"]
-    assert differs == ["The function's rights"], probes
-    assert probes["The function's rights"][1] == "definer, search_path=pellier, pg_catalog, pg_temp"
+    assert differs == ["The function runs with"], probes
+    assert probes["The function runs with"][:2] == ["owner's rights", "owner's rights, wrong path"]
     assert "7 of 8 tests passed. Your change was undone" in " ".join(done.stdout.split())
-    assert "owner's rights and search_path pinned to" in done.stdout
-    assert "needs no other schema in the path" in " ".join(done.stdout.split())
-    hint = done.stdout.split("Next      ", 1)[1].split("Lab 4B privileges check failed")[0]
+    assert "run with its owner's rights and a fixed search path" in " ".join(done.stdout.split())
+    hint = done.stdout.split("Next  ", 1)[1].split("Lab 4B privileges check failed")[0]
     assert "pg_catalog" not in hint and "pg_temp" not in hint
     assert "search_path=pg_catalog, pg_temp" not in " ".join(done.stdout.split())
-    assert "which single privilege" not in done.stdout
+    assert "Give it only EXECUTE" not in done.stdout
     assert _state(fresh_db) == before
 
 
@@ -142,8 +147,8 @@ def test_a_grant_left_on_any_pellier_table_fails_the_privilege_probe(  # noqa: F
     assert done.returncode != 0
     probes = _probes(done.stdout)
     differs = [name for name, row in probes.items() if row[-1] == "does not match"]
-    assert differs == ["The role's privileges and row policies on Pellier's tables"], probes
-    assert probes[differs[0]][1] == "customers SELECT"
+    assert differs == [ACCESS_PROBE], probes
+    assert probes[differs[0]][1] == "1 table"
     assert "Lab 4B privileges check failed" in done.stdout
     assert _state(fresh_db) == before
 
@@ -154,10 +159,7 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
     assert done.returncode == 0, done.stdout + done.stderr
     probes = _probes(done.stdout)
     assert len(probes) == 8 and all(row[-1] == "matches" for row in probes.values()), probes
-    assert probes["Insert a credit row directly"][1:3] == [
-        "42501", "no INSERT privilege on pellier.store_credits"]
-    assert probes["Raise the approved credit to $500 directly"][1:3] == [
-        "42501", "no UPDATE privilege on pellier.store_credits"]
+    assert "blocked" in done.stdout and "42501" not in done.stdout and "sha256" not in done.stdout
     assert "Lab 4B privileges check passed" in done.stdout
     assert fresh_db.psql("SELECT count(*) FROM pellier.store_credits") == credits_before
     assert fresh_db.psql("SELECT obj_description('pellier.give_store_credit(text, text, integer, "
@@ -178,7 +180,6 @@ def test_the_solution_passes_every_probe_and_commits_only_the_privileges(fresh_d
                          "WHERE grantee = 'rds_pgaudit'") == "INSERT UPDATE"
 
 
-ACCESS_PROBE = "The role's privileges and row policies on Pellier's tables"
 REGION_END = "      TO pellier_credit_writer;\n$privileges$ AS privileges"
 
 
@@ -193,6 +194,12 @@ def _solution_with(extra_region_sql: str, tmp_path: Path) -> Path:
     return variant
 
 
+def _reach(stdout: str) -> str:
+    """What the failed run's Next line says the role reaches (before or after the statements)."""
+    line = " ".join(stdout.split("Next  ", 1)[1].split("Lab 4B privileges check failed")[0].split())
+    return line.split("reach", 1)[1].split(":", 1)[1].split(" Part of it")[0].split(" Give it")[0].strip()
+
+
 def _only_access_differs(cluster: Any, path: Path) -> List[str]:
     done = _run(cluster, path)
     assert done.returncode != 0, "the worksheet certified a writer that can still read data"
@@ -200,7 +207,7 @@ def _only_access_differs(cluster: Any, path: Path) -> List[str]:
     probes = _probes(done.stdout)
     differs = [name for name, row in probes.items() if row[-1] == "does not match"]
     assert differs == [ACCESS_PROBE], probes
-    return probes[ACCESS_PROBE][1].splitlines()
+    return [_reach(done.stdout)]
 
 
 def test_a_column_grant_in_the_region_fails_the_access_probe(  # noqa: F811
@@ -269,7 +276,7 @@ def test_the_opening_revoke_clears_the_writers_own_column_grants(fresh_db) -> No
 
 def _next_step(stdout: str) -> str:
     """The failed run's Next lines, joined, up to the failure line."""
-    return " ".join(stdout.split("Next      ", 1)[1].split("Lab 4B privileges check failed")[0]
+    return " ".join(stdout.split("Next  ", 1)[1].split("Lab 4B privileges check failed")[0]
                     .split())
 
 
@@ -281,8 +288,8 @@ def test_access_from_outside_the_statements_is_sent_to_a_facilitator(  # noqa: F
         done = _run(fresh_db, SOLUTION)
         assert done.returncode != 0
         hint = _next_step(done.stdout)
-        assert "before your statements ran" in hint and "as the last test above shows" in hint
-        assert _probes(done.stdout)[ACCESS_PROBE][1] == "customers SELECT via PUBLIC"
+        assert "predates your file" in hint
+        assert _reach(done.stdout) == "customers SELECT via PUBLIC"
         assert "facilitator" in hint and "which single privilege" not in hint
     finally:
         fresh_db.psql("REVOKE SELECT ON pellier.customers FROM PUBLIC")
@@ -295,7 +302,7 @@ def test_a_role_granted_by_the_statements_is_theirs_to_fix(  # noqa: F811
         "GRANT lab4_mine TO pellier_credit_writer;", tmp_path)
     assert _only_access_differs(fresh_db, variant) == ["orders SELECT via role lab4_mine"]
     hint = _next_step(_run(fresh_db, variant).stdout)
-    assert "which single privilege" in hint and "before your statements ran" not in hint
+    assert "Give it only EXECUTE" in hint and "predates your file" not in hint
     assert fresh_db.psql("SELECT count(*) FROM pg_roles WHERE rolname = 'lab4_mine'") == "0"
 
 
@@ -308,7 +315,7 @@ def test_a_column_grant_stays_listed_beside_a_public_table_grant(  # noqa: F811
     try:
         done = _run(fresh_db, variant)
         assert done.returncode != 0
-        observed = _probes(done.stdout)[ACCESS_PROBE][1]
+        observed = _reach(done.stdout)
         assert "UPDATE (amount_cents)" in observed and "UPDATE via PUBLIC" in observed, observed
     finally:
         fresh_db.psql("REVOKE UPDATE ON pellier.store_credits FROM PUBLIC")

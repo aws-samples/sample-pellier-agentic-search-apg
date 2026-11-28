@@ -373,7 +373,7 @@ def test_the_absence_check_is_supplied_and_finds_both_keys_itself() -> None:
         # Both keys are derived the same way, so the positive control covers it.
         "WHERE c.approval_id = a.id",
         ":lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4_control_holds",
-        "Expected  ", "Observed ", "Evidence  ", "Next      ",
+        "Jessica''s write key", "Lab 4 absence check passed", "Next  ",
     ):
         assert fragment in text, fragment
     assert text.count("'operator-review:' || a.id || ':' || left(a.action_hash, 32)") == 2
@@ -657,10 +657,9 @@ def test_lab3_rls_proof_deploys_only_a_predicate_that_passes_every_probe() -> No
             "WHEN insufficient_privilege",
             "'42501'",
             "No one signed in reads orders",
-            "Customers who see exactly their own orders and tickets",
+            "Each customer sees only their own rows",
             "ON COMMIT DROP",
-            "Lab 3B predicate check passed", "Lab 3B predicate check failed",
-            "Expected  ", "Observed ", "Evidence  ", "Next      ",
+            "Lab 3B predicate check passed", "Lab 3B predicate check failed", "Next  ",
         ):
             assert fragment in text, f"{rel} lost {fragment!r}"
         assert "principal_customers" not in text and "pellier_query" not in text

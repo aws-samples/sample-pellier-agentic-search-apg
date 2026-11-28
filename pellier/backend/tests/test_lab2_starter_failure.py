@@ -583,3 +583,20 @@ def test_legacy_attempt_without_hadley_in_the_tool_arguments_still_supersedes_th
                _ask(conn, lab_variants.SOLUTION, "Linen shirt"))
     _cape_turn(conn, "cape-after-both")
     _assert_asks_for_the_brooklyn_question_again(lab2.judge_2a(conn))
+
+
+
+def test_lab_2s_grid_row_reads_brooklyn_and_the_missing_product_live(  # noqa: F811
+        conn, own_audit_rows) -> None:
+    turn = "turn-grid-shirt"
+    _own_audit(conn, turn, "check_stock", {"product_query": MARCO_PIECE},
+               _ask(conn, lab_variants.SOLUTION, MARCO_PIECE))
+    lab2.check.lab2_shirt_turn_path().write_text(
+        json.dumps({"session": lab2.MARCO_SESSION_PREFIX + turn, "turn": turn}))
+    assert lab2.lab_2_proof(conn, "Velvet Opera Cape") == (
+        "Brooklyn had 0 shirts. The Velvet Opera Cape had no catalog entry.")
+
+
+def test_lab_2s_grid_row_is_withheld_while_2a_does_not_pass(conn, own_audit_rows) -> None:
+    _install(conn, lab_variants.SOLUTION)
+    assert lab2.lab_2_proof(conn, "Velvet Opera Cape") is None

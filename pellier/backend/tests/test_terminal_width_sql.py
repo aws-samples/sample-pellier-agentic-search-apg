@@ -28,7 +28,6 @@ CEDAR_FILES = (ROOT / "policies" / "credit_limit.cedar",
 KEY_COLUMNS = 50
 COUNT_COLUMNS = 6
 VARIABLE_COLUMNS = {
-    "stamp_short": 12,                # left(sha256, 12)
     "lab_1_session": 40,              # a 36-character session id, or "none"
     "lab_1_query": 72,                # left(query_preview, 72), printed in quotes
     "lab_1_scope": 31,              # "Photographed storefront subset"
@@ -43,16 +42,14 @@ VARIABLE_COLUMNS = {
     "lab_3_writer_summary": 56,
     "lab_3_tools_summary": 56,
     "lab_3_login_summary": 56,
-    "lab_4_attempts": 56,             # "999 other attempts for the allowed key did not apply;"
-    "lab_4_kept": 4,                  # "it" or "them"
-    "lab_4_observed": 30,             # four counts joined as "N, N, N and N"
-    "credits_rows": 46,               # "store_credits rows before N, after N", 6-digit counts
-    "owner_names": 48,                # "jessica -> CUST-JESSICA, theo -> CUST-THEO"
-    "wrap_attempts": 56,
-    "wrap_kept": 4,                   # "it" or "them"
+    "lab_4_reach_now": 54,            # the role reach on one line, cut at 54
+    "lab_4_attempts": 80,             # "999 other attempts for this key did not apply; the audit keeps them."
+    "wrap_attempts": 80,
+    "wrap_counts": 64,                # "999999 credits for this key, 999999 audit rows that applied it"
+    "lab_1_dropped": 54,              # the words a retry dropped, joined with commas
     "wrap_missing": 64,               # the longest reason, with a 6-digit count
 }
-COUNT_SUFFIXES = ("_matched", "_probes", "_products", "_one_list", "_receipt", "_eligible",
+COUNT_SUFFIXES = ("_orders", "_matched", "_probes", "_products", "_one_list", "_receipt", "_eligible",
                   "_total_products", "_photographed_products", "_tool_reads", "_probe")
 KEY_SUFFIXES = ("_key",)
 
@@ -174,32 +171,39 @@ def test_a_query_plan_is_printed_in_the_wrapped_format() -> None:
     assert seen >= 5
 
 
-# psql's wrapped format fits a too-wide table by cutting cells mid-word, and it stops psql
-# from switching that table to the record layout, one field per line, which is what keeps the
-# labs' test tables readable on a laptop. So only the files that need it set it: the two that
-# print query plans (one column, which never switches to records) and the receipt, a single
-# record whose JSON values can run past a narrow terminal.
-WRAPPED_FILES = {"lab-1-index.sql", "lab-3-agent-workload.sql", "lab-1-receipt.sql"}
+# A results table that is wider than the terminal must stay a table. With `expanded auto`
+# psql turned it into stacked `[ RECORD n ]` blocks, which first-time participants could not
+# read. These files switch expanded display off and ask for psql's wrapped format, which wraps
+# a long cell inside its column. The query-plan files (one column) use wrapped as well.
+WRAPPED_FILES = {"lab-1-index.sql", "lab-3-agent-workload.sql", "lab-1-receipt.sql",
+                 "lab-2-check-stock.sql", "lab-3-row-ownership.sql", "lab-4-credit-writer.sql",
+                 "lab-4-absence.sql", "wrap-up-reconstruct.sql"}
 
 
 def test_only_the_files_that_need_it_set_the_wrapped_format() -> None:
-    found = {path.name for path in SQL_FILES if "\\pset format wrapped" in path.read_text()}
+    found = {path.name.replace("-solution", "") for path in SQL_FILES
+             if "\\pset format wrapped" in path.read_text()}
     assert found == WRAPPED_FILES
 
 
-def test_the_receipts_constraints_print_compact() -> None:
-    """With JSON's spaces the record of the lab's own request is 89 columns wide; psql then
-    cut the values mid-number on an 85-column terminal. Without them it is 84. Anna's lab
-    request names no category; a receipt that names one is wider and psql continues it."""
+def test_the_receipt_prints_a_small_table_not_json() -> None:
+    """Anna's receipt is one row per requirement, asked beside kept, in a table that fits a
+    laptop terminal. The raw JSON record, which needed psql's wrapped format, is gone."""
     text = (ROOT / "workshop" / "lab-1-receipt.sql").read_text()
-    compact = "'\": ', '\":'), ', \"', ',\"')"
-    assert text.count(compact) == 2
-    for the_labs_own in ('{"categories":[],"in_stock_only":true,"price_max_usd":100.0}',
-                         '{"categories":[],"in_stock_only":false,"price_max_usd":null}'):
-        assert 2 + len("asked_constraints") + 3 + len(the_labs_own) + 2 <= MAX_COLUMNS
+    assert '"Requirement"' in text and '"Anna asked for"' in text and '"The retry kept"' in text
+    assert "\\x on" not in text and "::text" not in text
 
 
 def test_the_index_definition_and_its_options_print_as_two_fields() -> None:
     """As one field the definition made Lab 1's meaning record 87 columns wide."""
     text = (ROOT / "workshop" / "lab-1-meaning.sql").read_text()
     assert " AS definition," in text and " AS options" in text
+
+
+def test_the_results_tables_never_switch_to_the_record_layout() -> None:
+    for path in SQL_FILES:
+        name = path.name.replace("-solution", "")
+        if name in WRAPPED_FILES and name not in {"lab-1-index.sql", "lab-3-agent-workload.sql"}:
+            text = path.read_text()
+            assert "\\pset expanded off" in text, path.name
+            assert "expanded auto" not in text and "\\x on" not in text, path.name

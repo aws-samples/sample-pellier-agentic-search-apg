@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded off \pset format wrapped
 
 -- Wrap-up: rebuild Jessica's store credit, from her request to the row.
 --
@@ -72,82 +72,55 @@ SELECT (SELECT count(*) FROM credit) = 1 AS has_credit,
                    FROM credit c, review r), false) AS orders_match
 \gset wrap_
 
-\echo 'Wrap-up: Jessica''s store credit, rebuilt from her request to the row'
+\echo 'Wrap-up: the whole story of Jessica''s credit, rebuilt from rows'
 \if :wrap_has_credit
 \else
-  \echo 'Observed  NOT YET PASSED: Jessica has no store credit'
-  \echo 'Next      if Jessica still needs approval, return to Task 4A in the Operator.'
-  \echo '          Follow Pay the credit once and check the records, then run this again.'
+  \echo 'Jessica has no store credit yet.'
+  \echo ''
+  \echo 'Next  In the guide, read "Execute again and replay as Nadia".'
+  \echo '      Approve and execute her review in the Operator, then run this file again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif
 
--- The story, step by step. Each line names the row it comes from. The audit row
--- is written as the call returns, so its time can trail the credit it records.
+-- The story in three rows, each from its own table: who asked, who approved, what Aurora wrote.
+-- The credit's time can trail the approval; each row shows the time its own row was written.
 WITH credit AS (
     SELECT * FROM pellier.store_credits WHERE credit_id = :'wrap_credit_id'::bigint
 ), review AS (
     SELECT * FROM pellier.approvals WHERE id = :'wrap_review_id'::bigint
 ), request AS (
     SELECT * FROM pellier.approvals WHERE id = nullif(:'wrap_request_id', '')::bigint
-), story (step, at, what, evidence) AS (
-    SELECT 1, requested_at, 'Jessica asked for a person about a store credit',
-           'request ' || id || ', turn ' || left(coalesce(source_turn_id, '?'), 18)
-      FROM request
-    UNION ALL
-    SELECT 2, t.created_at, 'ask_a_person ran in her turn (' || t.caller || ')',
-           'tool_audit ' || t.audit_id
-      FROM pellier.tool_audit t JOIN request q ON t.session_id = q.source_turn_id
-     WHERE t.tool = 'ask_a_person' AND t.result->>'request_id' = q.id::text
-    UNION ALL
-    SELECT 3, requested_at, 'The investigation proposed ' || to_char((args->>'amount_cents')::int / 100.0,
-           'FM$999990.00') || ' for orders ' || array_to_string(order_ids, ', '),
-           'review ' || id || ', turn ' || left(coalesce(source_turn_id, '?'), 18)
-      FROM review
-    UNION ALL
-    SELECT 4, decided_at, coalesce(decided_by_name, 'a person') || ' approved the review',
-           'approvals ' || id
-      FROM review
-    UNION ALL
-    SELECT 5, t.created_at,
-           CASE WHEN t.result->>'status' = 'success'
-                     AND coalesce(t.result->>'idempotent_replay', 'false') <> 'true'
-                THEN 'give_store_credit ran with the review''s key (' || t.caller || ')'
-                ELSE 'give_store_credit was tried with the key and did not apply (' || t.caller || ')'
-           END,
-           'tool_audit ' || t.audit_id
-      FROM pellier.tool_audit t
-     WHERE t.tool = 'give_store_credit' AND t.args->>'idempotency_key' = :'wrap_write_key'
-    UNION ALL
-    SELECT 6, created_at, 'Aurora wrote credit ' || credit_id || ', '
-           || to_char(amount_cents / 100.0, 'FM$999990.00'), 'store_credits ' || credit_id
-      FROM credit
-    UNION ALL
-    SELECT 7, NULL, 'Orders ' || string_agg(o.id::text, ', ' ORDER BY o.id) || ' now carry credit '
-           || c.credit_id, 'orders.store_credit_id'
-      FROM pellier.orders o JOIN credit c ON o.store_credit_id = c.credit_id
-     GROUP BY c.credit_id
 )
-SELECT to_char(at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') AS "when (UTC)", what, evidence
-  FROM story
- ORDER BY step, at;
+SELECT label AS "Step", who AS "Who", what AS "What", "when (UTC)" FROM (
+    SELECT 1 AS ord, 'Request' AS label,
+           (SELECT c.name FROM pellier.customers c WHERE c.id = q.customer_id) AS who,
+           'asked for a person about a store credit' AS what,
+           to_char(q.requested_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS') AS "when (UTC)"
+      FROM request q
+    UNION ALL
+    SELECT 2, 'Approval', coalesce(r.decided_by_name, 'a person'),
+           'approved ' || to_char((r.args->>'amount_cents')::int / 100.0, 'FM$999990.00'),
+           to_char(r.decided_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+      FROM review r
+    UNION ALL
+    SELECT 3, 'Credit', 'Aurora',
+           'wrote credit ' || c.credit_id || ', ' || to_char(c.amount_cents / 100.0, 'FM$999990.00')
+           || CASE WHEN :wrap_credit_rows = 1 THEN ', paid once' ELSE '' END,
+           to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')
+      FROM credit c
+) story ORDER BY ord;
 
-\echo 'Key      ' :wrap_write_key
+\echo 'Write key' :wrap_write_key
+SELECT format('%s credit%s for this key, %s audit row%s that applied it',
+              :wrap_credit_rows, CASE WHEN :wrap_credit_rows = 1 THEN '' ELSE 's' END,
+              :wrap_credit_audit_rows, CASE WHEN :wrap_credit_audit_rows = 1 THEN '' ELSE 's' END)
+       AS wrap_counts
+\gset
+\echo :wrap_counts
 \echo ''
-SELECT * FROM (VALUES
-    ('a request from her chat answered by the review', 'at least 1', :'wrap_requests'),
-    ('an ask_a_person row in her turn', 'at least 1', :'wrap_handoff_rows'),
-    ('the write key derived from the review', 'the credit''s key',
-        CASE WHEN :'wrap_key_matches'::boolean THEN 'the credit''s key' ELSE 'differs' END),
-    ('give_store_credit audit rows that applied the key', '1', :'wrap_credit_audit_rows'),
-    ('store_credits rows for the key', '1', :'wrap_credit_rows'),
-    ('orders carrying the credit', :'wrap_reviewed_orders' || ', the review''s orders',
-        :'wrap_credited_orders' || CASE WHEN :'wrap_orders_match'::boolean
-                                        THEN ', the review''s orders' ELSE ', other orders' END)
-) AS links(link, expected, observed);
-
 SELECT CASE
          WHEN :wrap_requests = 0 THEN 'no shopper request links to this paid review'
          WHEN :wrap_handoff_rows = 0 THEN 'no ask_a_person row in her turn names her request'
@@ -164,26 +137,24 @@ SELECT CASE
 \gset wrap_
 
 SELECT :wrap_credit_attempt_rows > 0 AS has_attempts,
-       format('%s other attempt%s with the key did not apply;',
+       format('%s other attempt%s with the key did not apply; the audit keeps %s.',
               :wrap_credit_attempt_rows,
-              CASE WHEN :wrap_credit_attempt_rows = 1 THEN '' ELSE 's' END) AS attempts,
-       CASE WHEN :wrap_credit_attempt_rows = 1 THEN 'it' ELSE 'them' END AS kept
+              CASE WHEN :wrap_credit_attempt_rows = 1 THEN '' ELSE 's' END,
+              CASE WHEN :wrap_credit_attempt_rows = 1 THEN 'it' ELSE 'them' END) AS attempts
 \gset wrap_
 \if :wrap_has_attempts
-  \echo 'Also     ' :wrap_attempts
-  \echo '          tool_audit keeps' :wrap_kept
+  \echo :wrap_attempts
 \endif
-\echo 'Expected  every link finds its row: request, turn, review, key, audit row,'
-\echo '          credit, orders'
 \if :wrap_whole
-  \echo 'Observed  the request, the approval, the write and the credit join into one story'
+  \echo 'The request, the approval, the write and the credit join into one story.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Wrap-up reconstruction passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
 \else
-  \echo 'Observed  NOT YET PASSED:'
-  \echo '         ' :wrap_missing
-  \echo 'Next      keep the existing credit. Show the review and its key to a facilitator.'
+  \echo :wrap_missing
+  \echo ''
+  \echo 'Next  In the guide, read "Follow one credit end to end".'
+  \echo '      Keep the existing credit. Show the review and its key to a facilitator.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Wrap-up reconstruction failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

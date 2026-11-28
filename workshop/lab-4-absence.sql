@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded off \pset format wrapped
 
 -- Lab 4: prove the denied credit moved nothing, beside the one that did.
 --
@@ -73,22 +73,20 @@ SELECT (SELECT count(*) FROM pellier.tool_audit
        :'lab_4_deny_key' <> '' AS has_deny_key,
        :'lab_4_allow_key' <> '' AS has_allow_key
 \gset lab_4_
-SELECT format('%s, %s, %s and %s',
-              :lab_4_denied_audit_rows, :lab_4_denied_credit_rows,
-              :lab_4_allowed_credit_rows, :lab_4_allowed_audit_rows) AS observed
-\gset lab_4_
 
-\echo 'Lab 4: the denied credit moved nothing, beside the one that did'
+\echo 'Lab 4: paid exactly once, and the denied $100.01 left nothing'
+\echo ''
 \if :lab_4_has_deny_key
 \else
-  \echo 'Expected  the over-limit review the Lab 4A check sent through the Gateway'
   \if :lab_4_has_probe
-    \echo 'Observed  no matching Gateway denial was recorded for the latest over-limit review'
+    \echo 'No Gateway denial was recorded for the latest $100.01 request.'
   \else
-    \echo 'Observed  none yet: no approved review is named Lab 4 over-limit probe'
+    \echo 'The $100.01 request from the Lab 4A check is not recorded yet.'
   \endif
-  \echo 'Next      run uv run scripts/lab4_check.py --task 4A after deploying your rule,'
-  \echo '          then run this again.'
+  \echo ''
+  \echo 'Next  In the guide, read "Prove one credit was written".'
+  \echo '      Run the 4A check after you deploy your rule, then run this file again:'
+  \echo '      uv run scripts/lab4_check.py --task 4A'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -96,52 +94,50 @@ SELECT format('%s, %s, %s and %s',
 \endif
 \if :lab_4_has_allow_key
 \else
-  \echo 'Expected  the store credit Nadia''s approval of Jessica''s case wrote'
-  \echo 'Observed  none yet: Jessica has no store credit'
-  \echo 'Next      in the Operator, approve and execute Jessica''s review as Nadia,'
-  \echo '          then run this again.'
+  \echo 'Jessica has no store credit yet.'
+  \echo ''
+  \echo 'Next  In the guide, read "Execute again and replay as Nadia".'
+  \echo '      In the Operator, approve and execute Jessica''s review as Nadia,'
+  \echo '      then run this file again.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif
 
-\echo 'Evidence  denied key  ' :lab_4_deny_key
-\echo '          allowed key ' :lab_4_allow_key
+\echo 'Jessica''s write key ' :lab_4_allow_key
 \echo ''
 SELECT * FROM (VALUES
-    ('tool_audit rows for the denied key', '0', :'lab_4_denied_audit_rows'),
-    ('store_credits rows for the denied key', '0', :'lab_4_denied_credit_rows'),
-    ('store_credits rows for the allowed key', '1', :'lab_4_allowed_credit_rows'),
-    ('tool_audit rows that applied the allowed key', '1', :'lab_4_allowed_audit_rows')
-) AS counts(count, expected, observed);
+    ('Denied $100.01 request', :'lab_4_denied_credit_rows', :'lab_4_denied_audit_rows'),
+    ('Jessica''s $100.00 credit', :'lab_4_allowed_credit_rows', :'lab_4_allowed_audit_rows')
+) AS counts("Request", "Credit rows", "Tool calls that ran");
 
-\echo 'Expected  0, 0, 1 and 1: nothing ran or moved for the denied key, and the same'
-\echo '          search finds the allowed credit and the one audit row that applied it'
 SELECT :lab_4_allowed_attempt_rows > 0 AS lab_4_has_attempts,
-       format('%s other attempt%s for the allowed key did not apply;',
+       format('%s other attempt%s for this key did not apply; the audit keeps %s.',
               :lab_4_allowed_attempt_rows,
-              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN '' ELSE 's' END) AS lab_4_attempts,
-       CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN 'it' ELSE 'them' END AS lab_4_kept
+              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN '' ELSE 's' END,
+              CASE WHEN :lab_4_allowed_attempt_rows = 1 THEN 'it' ELSE 'them' END)
+         AS lab_4_attempts
 \gset
 \if :lab_4_has_attempts
-  \echo 'Also     ' :lab_4_attempts
-  \echo '          tool_audit keeps' :lab_4_kept
+  \echo :lab_4_attempts
 \endif
-\echo 'Observed ' :lab_4_observed
 SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4_control_holds,
        :lab_4_denied_audit_rows = 0 AND :lab_4_denied_credit_rows = 0 AS lab_4_absence_holds
 \gset
 \if :lab_4_control_holds
 \else
-  \echo 'Next      the allowed key does not find exactly one credit and one audit row,'
-  \echo '          so this search cannot vouch for an absence.'
+  \echo 'The search can''t find Jessica''s credit, so the zeros prove nothing.'
+  \echo ''
+  \echo 'Next  In the guide, read "Prove one credit was written".'
+  \echo '      Raise your hand so a facilitator can check the database.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
   DO $fail$ BEGIN RAISE EXCEPTION 'stopped on purpose; see Next'; END $fail$;
 \endif
 \if :lab_4_absence_holds
+  \echo 'The same search finds Jessica''s credit, so the two zeros are real.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 4 absence check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -149,12 +145,14 @@ SELECT :lab_4_allowed_credit_rows = 1 AND :lab_4_allowed_audit_rows = 1 AS lab_4
   \if :{?quiet_next}
   \else
     \echo ''
-    \echo 'Next: the Wrap-up. Follow Jessica''s credit from her request to the row Aurora wrote.'
-    \echo '      uv run scripts/follow_credit.py'
+    \echo 'Next  In the guide, read "Follow one credit end to end".'
+    \echo '      Then run: uv run scripts/follow_credit.py'
   \endif
 \else
-  \echo 'Next      the denied key left rows behind: read them by that key; a denied call'
-  \echo '          must never run.'
+  \echo 'The denied request left rows behind.'
+  \echo ''
+  \echo 'Next  In the guide, read "Prove one credit was written".'
+  \echo '      A denied call must never run. Read those rows by their key.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4 absence check failed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`

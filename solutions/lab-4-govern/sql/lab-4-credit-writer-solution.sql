@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 \set QUIET on
 \set VERBOSITY terse
-\pset footer off \pset border 2 \pset linestyle unicode \pset expanded auto
+\pset footer off \pset border 2 \pset linestyle unicode \pset expanded off \pset format wrapped
 
 -- Lab 4, Task 4B: what the credit-writer role may do.
 --
@@ -30,8 +30,6 @@ SET client_min_messages TO warning;
 BEGIN;
 SET LOCAL lock_timeout = '3s';
 SET LOCAL statement_timeout = '15s';
-
-SELECT count(*) AS credits_before FROM pellier.store_credits \gset
 
 -- A clean slate: no table or column privilege, no row policy, no EXECUTE, invoker's rights.
 REVOKE ALL ON ALL TABLES IN SCHEMA pellier
@@ -124,7 +122,7 @@ SELECT :'privileges' \gexec
 
 -- Stamp the function with your statements' sha256, so a later check can tell
 -- the privileges you deployed from the ones the database shipped with.
-SELECT 'Lab 4B privileges sha256 ' || hash AS stamp, left(hash, 12) AS stamp_short
+SELECT 'Lab 4B privileges sha256 ' || hash AS stamp
   FROM (SELECT encode(sha256(convert_to(:'privileges', 'UTF8')), 'hex') AS hash) h
 \gset
 COMMENT ON FUNCTION pellier.give_store_credit(text, text, integer, text, text) IS :'stamp';
@@ -152,9 +150,9 @@ SELECT id AS review, 'operator-review:' || id || ':' || left(action_hash, 32) AS
 \gset probe_
 SELECT set_config('lab4.review', :'probe_review', true) AS review \gset
 
--- Each credit test runs as pellier_credit_writer. A refusal is recorded as its
--- SQLSTATE and where it came from: 42501 is a privilege the role does not
--- hold; 23514 is a rule the table's trigger enforces.
+-- Each credit test runs as pellier_credit_writer. A direct write is recorded in words:
+-- "blocked" is SQLSTATE 42501, a privilege the role does not hold; "allowed" is no error;
+-- anything else is the table's trigger refusing a write the role was allowed to try.
 SET LOCAL ROLE pellier_credit_writer;
 SELECT pellier.give_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 5000, 'Lab 4 probe', NULL)
          ->>'status' AS amount,
@@ -168,7 +166,6 @@ SELECT (pellier.give_store_credit(:'probe_key', 'CUST-LABFOURPROBE', 2500, 'Lab 
 \gset credit_
 DO $direct$
 DECLARE
-    v_constraint text;
     v_rows bigint;
 BEGIN
     BEGIN
@@ -176,33 +173,25 @@ BEGIN
                                            idempotency_key)
         VALUES (current_setting('lab4.review')::bigint, 'CUST-LABFOURPROBE', 2500, 'Lab 4 probe',
                 'written-by-hand');
-        PERFORM set_config('lab4.insert', '00000', true);
-        PERFORM set_config('lab4.insert_source', 'the row was written', true);
+        PERFORM set_config('lab4.insert', 'allowed', true);
     EXCEPTION WHEN OTHERS THEN
-        GET STACKED DIAGNOSTICS v_constraint = CONSTRAINT_NAME;
-        PERFORM set_config('lab4.insert', SQLSTATE, true);
-        PERFORM set_config('lab4.insert_source', CASE
-            WHEN SQLSTATE = '42501' THEN 'no INSERT privilege on pellier.store_credits'
-            WHEN v_constraint <> '' THEN v_constraint || ', a rule the owner can switch off'
-            ELSE SQLERRM END, true);
+        PERFORM set_config('lab4.insert', CASE WHEN SQLSTATE = '42501' THEN 'blocked'
+                           ELSE 'blocked by a trigger only' END, true);
     END;
     BEGIN
         UPDATE pellier.store_credits SET amount_cents = 50000
          WHERE customer_id = 'CUST-LABFOURPROBE';
         GET DIAGNOSTICS v_rows = ROW_COUNT;
-        PERFORM set_config('lab4.update', '00000', true);
-        PERFORM set_config('lab4.update_source',
-                           v_rows || ' row updated: the approved $25.00 credit is now $500.00', true);
+        PERFORM set_config('lab4.update', CASE WHEN v_rows > 0
+                           THEN 'allowed, $25 became $500'
+                           ELSE 'no credit to change' END, true);
     EXCEPTION WHEN OTHERS THEN
-        PERFORM set_config('lab4.update', SQLSTATE, true);
-        PERFORM set_config('lab4.update_source', CASE
-            WHEN SQLSTATE = '42501' THEN 'no UPDATE privilege on pellier.store_credits'
-            ELSE SQLERRM END, true);
+        PERFORM set_config('lab4.update', CASE WHEN SQLSTATE = '42501' THEN 'blocked'
+                           ELSE 'error' END, true);
     END;
 END
 $direct$;
-SELECT current_setting('lab4.insert') AS insert, current_setting('lab4.insert_source') AS insert_source,
-       current_setting('lab4.update') AS update, current_setting('lab4.update_source') AS update_source
+SELECT current_setting('lab4.insert') AS insert, current_setting('lab4.update') AS update
 \gset direct_
 RESET ROLE;
 
@@ -222,40 +211,54 @@ SELECT tables FROM lab_4_reach
 -- Undo the test case and its credit; your statements stay in the transaction.
 ROLLBACK TO SAVEPOINT probes;
 
-CREATE TEMP TABLE lab_4_probes (ord serial, probe text, expected text, observed text,
-                                 source text) ON COMMIT DROP;
-INSERT INTO lab_4_probes (probe, expected, observed, source) VALUES
-    ('Insert a credit row directly', '42501', :'direct_insert', :'direct_insert_source'),
-    ('Raise the approved credit to $500 directly', '42501', :'direct_update',
-     :'direct_update_source'),
-    ('The approved key with a different amount', 'approval_mismatch', :'refused_amount',
-     'pellier.give_store_credit'),
-    ('The approved amount under another key', 'approval_key_mismatch', :'refused_other_key',
-     'pellier.give_store_credit'),
-    ('The approved credit, then its retry', 'paid once, then the same credit',
+CREATE TEMP TABLE lab_4_probes (ord serial, probe text, expected text, observed text)
+    ON COMMIT DROP;
+INSERT INTO lab_4_probes (probe, expected, observed) VALUES
+    ('Insert a credit row directly', 'blocked', :'direct_insert'),
+    ('Change an approved credit to $500', 'blocked', :'direct_update'),
+    ('Approved key, different amount', 'approval_mismatch', :'refused_amount'),
+    ('Approved amount, another key', 'approval_key_mismatch', :'refused_other_key'),
+    ('Approved credit, then its retry', 'paid once, then the same credit',
      CASE WHEN :'credit_first' <> '' AND :'credit_first' = :'credit_retry'
           THEN 'paid once, then the same credit'
           ELSE 'credit ' || coalesce(nullif(:'credit_first', ''), 'none') || ', then '
-               || coalesce(nullif(:'credit_retry', ''), 'none') END,
-     'pellier.give_store_credit'),
-    ('The function''s rights', 'definer, search_path=pg_catalog, pg_temp', :'fn_rights',
-     'pg_proc'),
-    ('Who may execute the function',
-     'pellier_credit_writer yes, pellier_agent no, public no', :'fn_execute', 'pg_proc ACL'),
-    ('The role''s privileges and row policies on Pellier''s tables', 'none',
-     :'writer_tables', 'table and column access, pg_policies');
+               || coalesce(nullif(:'credit_retry', ''), 'none') END),
+    ('The function runs with', 'definer, search_path=pg_catalog, pg_temp', :'fn_rights'),
+    ('Who may run the function',
+     'pellier_credit_writer yes, pellier_agent no, public no', :'fn_execute'),
+    ('Role''s direct table access', 'none',
+     :'writer_tables');
 
-\echo 'Lab 4B: your privileges for pellier_credit_writer, tested'
-\echo 'Evidence  pellier.give_store_credit and the role pellier_credit_writer, rewritten'
-\echo '          inside this transaction'
-\echo '          a test case: CUST-LABFOURPROBE, two received returns, a $25.00 review'
-\echo '            a person approved'
+\echo 'Lab 4B: the database limits what the credit writer can change'
 \echo ''
--- Each test on one row with the reason it came out as it did; after a failed run, each test
--- that differs again, with what was expected beside what was observed.
-SELECT probe AS "Test", source AS "Source", observed AS "Observed",
-       CASE WHEN expected = observed THEN 'matches' ELSE 'does not match' END AS "Result"
-  FROM lab_4_probes ORDER BY ord;
+-- One table, one row per test: what the test wants and, when it fails, what it got, in a few
+-- words. The rights test says what it wants, not its value: the value is the Build task's answer.
+SELECT probe AS "Test",
+       CASE ord WHEN 3 THEN 'refused' WHEN 4 THEN 'refused'
+                WHEN 5 THEN 'paid once'
+                WHEN 6 THEN 'owner''s rights'
+                WHEN 7 THEN 'writer only'
+                ELSE expected END AS "Should be",
+       CASE WHEN expected = observed THEN ''
+            ELSE CASE ord
+                 WHEN 3 THEN 'not refused'
+                 WHEN 4 THEN 'not refused'
+                 WHEN 5 THEN 'not paid once'
+                 WHEN 6 THEN CASE WHEN observed LIKE 'definer%' THEN 'owner''s rights, wrong path'
+                                  ELSE 'caller''s rights' END
+                 WHEN 7 THEN 'wrong roles can run it'
+                 WHEN 8 THEN format('%s table%s%s', n.tables, CASE WHEN n.tables = 1 THEN '' ELSE 's' END,
+                                    CASE WHEN n.policies = 0 THEN ''
+                                         ELSE format(' + %s row polic%s', n.policies,
+                                                     CASE WHEN n.policies = 1 THEN 'y' ELSE 'ies' END)
+                                    END)
+                 ELSE observed END END AS "Is now",
+       CASE WHEN expected = observed THEN '✓' ELSE '✗' END AS "OK"
+  FROM lab_4_probes p
+  CROSS JOIN LATERAL (SELECT count(*) FILTER (WHERE l NOT LIKE 'policy %') AS tables,
+                             count(*) FILTER (WHERE l LIKE 'policy %') AS policies
+                        FROM regexp_split_to_table(p.observed, E'\n') AS l) n
+ ORDER BY p.ord;
 SELECT count(*) FILTER (WHERE expected = observed) AS matched, count(*) AS probes
   FROM lab_4_probes
 \gset lab_4_
@@ -265,17 +268,16 @@ SELECT bool_or(expected <> observed) FILTER (WHERE ord IN (1, 2, 8)) AS tables_d
        bool_or(expected <> observed) FILTER (WHERE ord = 6) AS rights_differ
   FROM lab_4_probes
 \gset lab_4_
+-- What the role reaches, on one line for a Next that is about access.
+SELECT CASE WHEN length(one_line.now) > 54 THEN left(one_line.now, 51) || '...'
+            ELSE one_line.now END AS lab_4_reach_now
+  FROM (SELECT replace(:'writer_tables', E'\n', '; ') AS now) one_line
+\gset
 
-\echo 'Expected  every test passes; then the file saves your privileges and they are live'
 SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
 \if :lab_4_passed
   COMMIT;
-  SELECT format('store_credits rows before %s, after %s',
-                :credits_before, count(*)) AS rows FROM pellier.store_credits \gset credits_
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Saved, your privileges are live.'
-  \echo 'Deployed  your statements for pellier_credit_writer, sha256' :stamp_short
-  \echo '         ' :credits_rows
-  \echo '          the test credit was undone'
+  \echo :lab_4_matched 'of' :lab_4_probes 'tests passed. Saved, your privileges are live.'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[32m' || true`
   \echo 'Lab 4B privileges check passed'
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[0m' || true`
@@ -283,40 +285,26 @@ SELECT :lab_4_matched = :lab_4_probes AS lab_4_passed \gset
   \if :{?quiet_next}
   \else
     \echo ''
-    \echo 'Next: test the role inside Pellier and through the Gateway.'
-    \echo '      uv run scripts/lab4_check.py --task 4B'
+    \echo 'Next  In the guide, read "Prove the role writes only through the function".'
+    \echo '      Then run: uv run scripts/lab4_check.py --task 4B'
   \endif
 \else
-  -- The rights test prints what it wants, not its value: the value is the Build task's answer.
-  SELECT probe AS "Does not match",
-         CASE WHEN ord = 6 THEN 'definer, with a pinned search_path' ELSE expected END
-           AS "Expected",
-         observed AS "Observed"
-    FROM lab_4_probes WHERE expected <> observed ORDER BY ord;
   ROLLBACK;
-  SELECT format('store_credits rows before %s, after %s', :credits_before, count(*)) AS rows
-    FROM pellier.store_credits \gset credits_
-  \echo 'Observed ' :lab_4_matched 'of' :lab_4_probes 'tests passed. Your change was undone.'
-  \echo '          The live state is unchanged.'
-  \echo '         ' :credits_rows
+  \echo :lab_4_matched 'of' :lab_4_probes 'tests passed. Your change was undone.'
+  \echo 'The live state is unchanged.'
+  \echo ''
+  \echo 'Next  In Task 4B, choose "Write it yourself" or "Install the provided fix".'
   \if :before_outside
-    \echo 'Next      the role reached a Pellier table before your statements ran, through'
-    \echo '          PUBLIC or a role it belongs to, as the last test above shows. Your file'
-    \echo '          did not grant it and cannot remove it. Raise your hand so a facilitator'
-    \echo '          can check the database.'
+    \echo '      The role reaches:' :lab_4_reach_now
+    \echo '      Part of it predates your file. Ask a facilitator.'
   \elif :lab_4_tables_differ
-    \echo 'Next      which single privilege does a credit path need? In the rows that do not'
-    \echo '          match, 23514 is the trigger refusing a row your role was allowed to'
-    \echo '          insert: a rule the owner can switch off, not a privilege the role lacks.'
-    \echo '          A direct UPDATE that goes through changes an approved amount with no'
-    \echo '          check at all.'
+    \echo '      The role still reaches:' :lab_4_reach_now
+    \echo '      Give it only EXECUTE on the function.'
   \elif :lab_4_rights_differ
-    \echo 'Next      run the function with its owner''s rights and search_path pinned to'
-    \echo '          the system catalog, with the temporary schema last: the function names'
-    \echo '          every table with its schema, so it needs no other schema in the path.'
+    \echo '      The function must run with its owner''s rights and a fixed search path.'
   \else
-    \echo 'Next      the role reaches no table, so the function must: run it as its owner and'
-    \echo '          grant EXECUTE on it to pellier_credit_writer alone.'
+    \echo '      The role touches no table, so the function must.'
+    \echo '      Grant EXECUTE to the credit writer alone.'
   \endif
   \echo -n `[ -t 2 ] && [ -z "${NO_COLOR+x}" ] && printf '\033[31m' || true`
   \echo 'Lab 4B privileges check failed'

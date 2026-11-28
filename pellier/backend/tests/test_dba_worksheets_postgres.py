@@ -25,6 +25,7 @@ from psycopg.rows import dict_row
 
 from services import store_tools
 from services.turn_identity import new_turn_id
+from tests import psql_tables
 from tests.fresh_cluster import Cluster, fresh_db, run_setup, start_cluster  # noqa: F401
 
 REPO = Path(__file__).resolve().parents[3]
@@ -221,14 +222,15 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
         fresh_db: Cluster) -> None:  # noqa: F811
     nothing = _worksheet(fresh_db, RECONSTRUCT)
     assert nothing.returncode != 0
-    assert "Observed  NOT YET PASSED: Jessica has no store credit" in nothing.stdout
-    assert "Pay the credit once" in nothing.stdout and "finish Lab 4" not in nothing.stdout
+    assert "Jessica has no store credit yet." in nothing.stdout
+    assert 'In the guide, read "Execute again and replay as Nadia".' in nothing.stdout
+    assert "finish Lab 4" not in nothing.stdout
 
     chain = _jessica_chain(fresh_db, handoff_row=False)
     gap = _worksheet(fresh_db, RECONSTRUCT)
     assert gap.returncode != 0
-    assert ("Observed  NOT YET PASSED:\n"
-            "          no ask_a_person row in her turn names her request") in gap.stdout
+    assert "no ask_a_person row in her turn names her request" in gap.stdout
+    assert 'Next  In the guide, read "Follow one credit end to end".' in gap.stdout
     assert gap.stdout.rstrip().endswith("Wrap-up reconstruction failed")
 
     with _connect(fresh_db) as conn:
@@ -239,17 +241,15 @@ def test_the_reconstruction_names_the_first_missing_link_then_tells_the_story(
     done = _worksheet(fresh_db, RECONSTRUCT)
     assert done.returncode == 0, done.stdout + done.stderr
     assert done.stdout.rstrip().endswith("Wrap-up reconstruction passed")
-    story = [line for line in done.stdout.splitlines() if " \u2502 " in line][1:8]
-    assert [line.split(" \u2502 ")[1].strip() for line in story] == [
-        "Jessica asked for a person about a store credit",
-        "ask_a_person ran in her turn (gateway)",
-        "The investigation proposed $100.00 for orders 20, 21",
-        "nadia approved the review",
-        "give_store_credit ran with the review's key (gateway)",
-        f"Aurora wrote credit {chain['credit']}, $100.00",
-        f"Orders 20, 21 now carry credit {chain['credit']}",
+    story = psql_tables.tables(done.stdout)[0]
+    assert [(row["Step"], row["Who"], row["What"]) for row in story] == [
+        ("Request", "Jessica Nakamura", "asked for a person about a store credit"),
+        ("Approval", "nadia", "approved $100.00"),
+        ("Credit", "Aurora", f"wrote credit {chain['credit']}, $100.00, paid once"),
     ]
-    assert f"Key       {chain['key']}" in done.stdout
+    assert "1 credit for this key, 1 audit row that applied it" in done.stdout
+    assert f"Write key {chain['key']}" in done.stdout
+    assert "RECORD" not in done.stdout
     assert max(len(line) for line in done.stdout.splitlines()) < 120
     assert _counts(fresh_db) == before
     with _connect(fresh_db) as conn:

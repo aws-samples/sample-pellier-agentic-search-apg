@@ -650,7 +650,7 @@ def test_the_note_names_the_reset_and_says_to_send_again(reset_points: Path) -> 
 
 def test_the_full_reset_clears_the_points_after_it_empties_the_tables() -> None:
     body = (REPO / "scripts" / "reset-governed-workshop.sh").read_text()
-    for saved in ("lab-reset-points.json", "lab-2a-turn.json"):
+    for saved in ("lab-reset-points.json", "lab-2a-turn.json", "lab-1b-turn.json"):
         assert body.index("database-reset.sh") < body.index(saved)
 
 

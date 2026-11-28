@@ -92,32 +92,30 @@ def test_a_failure_line_is_one_line_when_it_fits(capsys: pytest.CaptureFixture[s
 
 def test_the_next_sentence_wraps_and_each_command_stays_whole(
         capsys: pytest.CaptureFixture[str], columns: int) -> None:
-    sentence = ("as Nadia in the Operator, investigate Jessica's case, approve the proposed "
-                "credit and select Execute.")
+    sentence = ('In the guide, open Task 4A and read "Sign in as Nadia". Then, as Nadia in the '
+                "Operator, investigate Jessica's case, approve the proposed credit and select "
+                "Execute.")
     lab_run.print_next(sentence)
     out = printed(capsys)
     assert_fits(out, columns)
-    assert words(out.replace("Next:", "")) == words(sentence)
-    lab_run.print_next("uv run scripts/lab3_check.py --task 3A", lab_run.DEPLOY)
+    assert words(out.replace("Next", "", 1)) == words(sentence)
+    lab_run.print_next("In the guide, open Task 3A and read \"Prove the fix\".",
+                       "uv run scripts/lab3_check.py --task 3A", lab_run.DEPLOY)
     out = printed(capsys)
-    assert "  Next: uv run scripts/lab3_check.py --task 3A\n" in out
-    assert f"        then {lab_run.DEPLOY}\n" in out
+    assert "        Then run: uv run scripts/lab3_check.py --task 3A\n" in out
+    assert f"        Then run: {lab_run.DEPLOY}\n" in out
 
 
 def test_lab_four_closing_separates_nadias_sign_in_from_the_next_step(
-        capsys: pytest.CaptureFixture[str], columns: int, tmp_path: pathlib.Path,
-        monkeypatch: pytest.MonkeyPatch) -> None:
-    credentials = tmp_path / "credentials.txt"
-    credentials.write_text("username: nadia\npassword: " + "k" * 20 + "\n", encoding="utf-8")
-    monkeypatch.setattr(lab_run, "CREDENTIALS_FILE", credentials)
+        capsys: pytest.CaptureFixture[str], columns: int) -> None:
     lab_run.print_nadia_next()
     out = printed(capsys)
     assert_fits(out, columns)
     lines = out.splitlines()
-    assert lines[1].startswith("  Next: as Nadia in the Operator")
+    assert lines[1].startswith("  Next  In the guide, open Task 4A")
     blank = lines.index("", 2)
     assert lines[blank + 1].strip().startswith("Nadia's sign-in for the Operator: username nadia")
-    assert "password " + "k" * 20 in out
+    assert "OperatorPassword" in out and "password " not in out.replace("her password", "")
 
 
 RANKING: Dict[str, Any] = {
